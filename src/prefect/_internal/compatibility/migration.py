@@ -11,6 +11,7 @@ from prefect._internal.compatibility.migration import getattr_migration
 __getattr__ = getattr_migration(__name__)
 ```
 """
+
 import sys
 from typing import Any, Callable, Dict
 

@@ -63,7 +63,7 @@ jobs:
 
       fail-fast: true
 
-    timeout-minutes: 45
+    timeout-minutes: 20
 
     steps:
       - name: Display current test matrix

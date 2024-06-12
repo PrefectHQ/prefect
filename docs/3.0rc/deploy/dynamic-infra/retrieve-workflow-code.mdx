@@ -316,17 +316,5 @@ By default, Prefect uploads all files in the current folder to the configured st
 
 When using a git repository, Docker image, or cloud-provider storage location, you may want to exclude certain files or directories:
 
-- If you are familiar with git you are likely familiar with the [`.gitignore`](https://git-scm.com/docs/gitignore) file.
-- If you are familiar with Docker you are likely familiar with the [`.dockerignore`](https://docs.docker.com/engine/reference/builder/#dockerignore-file) 
-file.
-- For cloud-provider storage the `.prefectignore` file serves the same purpose and follows a similar syntax as those files. 
-An entry of `*.pyc` excludes all `.pyc` files from upload.
-
-## Other code storage creation methods
-
-In earlier versions of Prefect [storage blocks](/3.0rc/develop/connect-third-party/) were the recommended way to store flow code.
-Storage blocks are deprecated.
-
-As shown above, you can reference repositories directly through interactive prompts with `prefect deploy` or in a `prefect.yaml`.
-When authentication is required, you can reference Secret or Credential blocks. In some cases, you can create them automatically through 
-interactive deployment creation prompts.
+- If you are familiar with Docker you are likely familiar with the [`.dockerignore`](https://docs.docker.com/engine/reference/builder/#dockerignore-file) file.
+- For cloud-provider storage the `.prefectignore` file serves the same purpose and follows a similar syntax as those files. So an entry of `*.pyc` will exclude all `.pyc` files from upload.

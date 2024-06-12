@@ -7,10 +7,6 @@ Prefect allows you to use schedules to automatically create new flow runs for de
 
 Prefect Cloud can schedule flow runs through event-driven [automations](/3.0rc/react/understand-events/automations-triggers/).
 
-Schedules instruct the Prefect API to automatically create new flow runs on a set cadence.
-You can add a schedule to any [deployment](/3.0rc/deploy/serve-workflows/).
-The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule. 
-
 <Tip>
 **Support for multiple schedules**
 
@@ -22,9 +18,15 @@ Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [wor
 with `prefect deploy` will arrive soon.
 </Tip>
 
+Schedules automatically create new flow runs for deployed or served flows. 
+You can add one or more schedules to any [served or deployed](/3.0rc/deploy/serve-workflows/) flow.
+Schedules tell the Prefect API when and how to create new flow runs for deployments.
+
+You can add a schedule to a deployment in the Prefect UI, in the CLI through the `prefect deployment schedule` command, or the `prefect.yaml` configuration file.
+
 ## Schedule types
 
-Prefect supports several types of schedules that cover a wide range of use cases and offer a large degree of customization:
+Prefect supports three types of schedules:
 
 - [`Cron`](#cron) is most appropriate for users who are already familiar with `cron` from previous use.
 - [`Interval`](#interval) is best suited for deployments that run at some consistent cadence that isn't related to absolute time.
@@ -43,7 +45,7 @@ This is useful to keep the schedule configuration but temporarily stop the sched
 You can specify a schedule with a [`cron`](https://en.wikipedia.org/wiki/Cron) pattern. You may also provide a timezone to 
 enforce DST behaviors.
 
-`Cron` uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
+Prefect uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
 
 `Cron` properties include:
 
@@ -254,8 +256,7 @@ my_flow.serve(name="flowing", cron="* * * * *")
 
 If using work pool-based deployments, the `deploy` method has the same schedule-based parameters.
 
-Here's an example of creating an interval schedule with `serve` for a deployment flow that runs every 10 minutes with an 
-anchor date and a timezone:
+When `my_flow` is served with this interval schedule, it will run every 10 minutes beginning at midnight on January, 1, 2024 in the `America/Chicago` timzone:
 
 ```python
 from datetime import timedelta, datetime
@@ -265,11 +266,11 @@ my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minut
 timezone="America/Chicago"))
 ```
 
-
 ### Create schedules with the interactive `prefect deploy` command
 
 If you are using [worker-based deployments](/3.0rc/deploy/dynamic-infra/control-runs/), you can create a schedule through the 
 interactive `prefect deploy` command.
+
 You will be prompted to choose which type of schedule to create.
 
 ### Create schedules in the `prefect.yaml` file's `deployments` -> `schedule` section
@@ -294,15 +295,10 @@ deployments:
 
 ## The `Scheduler` service
 
-The `Scheduler` service starts automatically when `prefect server start` is run. It is a built-in service of Prefect Cloud.
+Prefect's `Scheduler` service evaluates each deployment's schedules and creates new runs appropriately. It starts 
+automatically when `prefect server start` is run and it is a built-in service of Prefect Cloud.
 
-By default, the `Scheduler` service visits deployments on a 60-second loop, though recently-modified deployments are visited 
-more frequently.
-The `Scheduler` evaluates each deployment's schedules and creates new runs appropriately.
-For typical deployments, it creates the next three runs, though more runs are scheduled if the next three all start in 
-the next hour.
-
-The `Scheduler` tries to create the smallest number of runs that satisfy the following constraints, in order:
+The `Scheduler` creates the fewest runs that satisfy the following constraints, in order:
 
 - No more than 100 runs will be scheduled.
 - Runs will not be scheduled more than 100 days in the future.
@@ -341,4 +337,4 @@ It is not involved in flow or task execution.
 If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are 
 created to reflect the new schedule.
 
-To remove all scheduled runs for a flow deployment, you can remove the schedule through the UI.
+To remove all scheduled runs for a flow deployment, you can remove the schedule.
