@@ -16,31 +16,30 @@ Prefect provides a global view of the state of your workflows and allows you to 
 
 Install `prefect-dbt`:
 
-<div class = "terminal">
+
 ```bash
 pip install -U prefect-dbt
 ```
-</div>
+
 
 If necessary, see [additional installation options for dbt Core with BigQuery, Snowflake, and Postgres](#additional-installation-options).
 
 To install with all additional functionality, use the following command:
 
-<div class = "terminal">
+
 ```bash
 pip install -U "prefect-dbt[all_extras]"
 ```
-</div>
+
 
 ### Register newly installed blocks types
 
 Register the block types in the prefect-dbt module to make them available for use.
 
-<div class = "terminal">
+
 ```bash
 prefect block register -m prefect_dbt
-```
-</div>
+
 
 Explore the examples below to use Prefect with dbt.
 
@@ -185,11 +184,14 @@ DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
 
 ### dbt Core CLI
 
-!!! info "Available `TargetConfigs` blocks"
+<Info>
 
-    Visit the [API Reference](cli/configs/base) to see other built-in `TargetConfigs` blocks.
+**Available `TargetConfigs` blocks**
 
-    If the desired service profile is not available, check out the [Examples Catalog](examples_catalog/#clicredentials-module) to see how you can  build one from the generic `TargetConfigs` class.
+Visit the [API Reference](cli/configs/base) to see other built-in `TargetConfigs` blocks.
+
+If the desired service profile is not available, check out the [Examples Catalog](examples_catalog/#clicredentials-module) to see how you can  build one from the generic `TargetConfigs` class.
+</Info>
 
 To create dbt Core target config and profile blocks for BigQuery:
 
@@ -253,36 +255,37 @@ Additional installation options for dbt Core with BigQuery, Snowflake, and Postg
 
 #### Additional functionality for dbt Core and Snowflake profiles
 
-<div class = "terminal">
+
 ```bash
 pip install -U "prefect-dbt[snowflake]"
 ```
-</div>
+
 
 #### Additional functionality for dbt Core and BigQuery profiles
 
-<div class = "terminal">
+
 ```bash
 pip install -U "prefect-dbt[bigquery]"
 ```
-</div>
+
 
 #### Additional functionality for dbt Core and Postgres profiles
 
-<div class = "terminal">
+
 ```bash
 pip install -U "prefect-dbt[postgres]"
 ```
-</div>
 
-!!! warning "Some dbt Core profiles require additional installation"
 
-    According to dbt's [Databricks setup page](https://docs.getdbt.com/reference/warehouse-setups/databricks-setup), users must first install the adapter:
+<Warning> 
+**Some dbt Core profiles require additional installation**
 
-    <div class = "terminal">
-    ```bash
-    pip install dbt-databricks
-    ```
-    </div>
+According to dbt's [Databricks setup page](https://docs.getdbt.com/reference/warehouse-setups/databricks-setup), users must first install the adapter:
 
-    Check out the [desired profile setup page](https://docs.getdbt.com/reference/profiles.yml) on the sidebar for others.
+
+```bash
+pip install dbt-databricks
+```
+
+Check out the [desired profile setup page](https://docs.getdbt.com/reference/profiles.yml) on the sidebar for others.
+</Warning> 

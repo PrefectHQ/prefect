@@ -20,7 +20,7 @@ timezone_set = available_timezones()
 NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
-TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(timezone_set))]
+TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(sorted(timezone_set)))]
 
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]

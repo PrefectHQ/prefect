@@ -116,7 +116,7 @@ class TaskWorker:
             except InvalidStatusCode as exc:
                 if exc.status_code == 403:
                     logger.error(
-                        "Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
+                        "403: Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
                         f" endpoint found at:\n\n {PREFECT_API_URL.value()}"
                         "\n\nPlease double-check the values of your"
                         " `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables."
@@ -145,9 +145,10 @@ class TaskWorker:
                 "`PREFECT_API_URL` must be set to use the task worker. "
                 "Task workers are not compatible with the ephemeral API."
             )
-        logger.info(
-            f"Subscribing to tasks: {' | '.join(t.task_key.split('.')[-1] for t in self.tasks)}"
+        task_keys_repr = " | ".join(
+            t.task_key.split(".")[-1].split("-")[0] for t in self.tasks
         )
+        logger.info(f"Subscribing to runs of task(s): {task_keys_repr}")
         async for task_run in Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
@@ -155,10 +156,24 @@ class TaskWorker:
             client_id=self._client_id,
             base_url=base_url,
         ):
+            logger.info(f"Received task run: {task_run.id} - {task_run.name}")
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run.id)
-            logger.info(f"Received task run: {task_run.id} - {task_run.name}")
-            self._runs_task_group.start_soon(self._submit_scheduled_task_run, task_run)
+            self._runs_task_group.start_soon(
+                self._safe_submit_scheduled_task_run, task_run
+            )
+
+    async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
+        try:
+            await self._submit_scheduled_task_run(task_run)
+        except BaseException as exc:
+            logger.exception(
+                f"Failed to submit task run {task_run.id!r}",
+                exc_info=exc,
+            )
+        finally:
+            if self._limiter:
+                self._limiter.release_on_behalf_of(task_run.id)
 
     async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
@@ -265,15 +280,13 @@ class TaskWorker:
                 context=run_context,
             )
             await asyncio.wrap_future(future)
-        if self._limiter:
-            self._limiter.release_on_behalf_of(task_run.id)
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task worker."""
         async with self if not self.started else asyncnullcontext():
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run.id)
-            await self._submit_scheduled_task_run(task_run)
+            await self._safe_submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
         logger.debug("Starting task worker...")
