@@ -1948,7 +1948,7 @@ def load_flow_argument_from_entrypoint(
                         evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
                     except Exception as e:
                         logger.info(
-                            "Failed to parse @flow argument: `%s=%s`. Ignoring and falling back to default behavior.",
+                            "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
                             arg,
                             literal_arg_value,
                             exc_info=e,
