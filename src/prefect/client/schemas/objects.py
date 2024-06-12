@@ -1150,6 +1150,7 @@ class BlockDocumentReference(ObjectBaseModel):
     def validate_parent_and_ref_are_different(cls, values):
         if isinstance(values, dict):
             return validate_parent_and_ref_diff(values)
+        return values
 
 
 class Configuration(ObjectBaseModel):
