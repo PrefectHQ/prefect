@@ -7,16 +7,14 @@ from typing import (
     List,
     Optional,
     Type,
-    TypeVar,
 )
 
 from pydantic import Field
+from typing_extensions import Self
 
 from prefect.context import ContextModel
 from prefect.records import RecordStore
 from prefect.utilities.collections import AutoEnum
-
-T = TypeVar("T")
 
 
 class IsolationLevel(AutoEnum):
@@ -54,7 +52,7 @@ class Transaction(ContextModel):
     )
     overwrite: bool = False
     _staged_value: Any = None
-    __var__ = ContextVar("transaction")
+    __var__: ContextVar = ContextVar("transaction")
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED
@@ -123,11 +121,19 @@ class Transaction(ContextModel):
     def begin(self):
         # currently we only support READ_COMMITTED isolation
         # i.e., no locking behavior
-        if not self.overwrite and self.store and self.store.exists(key=self.key):
+        if (
+            not self.overwrite
+            and self.store
+            and self.key
+            and self.store.exists(key=self.key)
+        ):
             self.state = TransactionState.COMMITTED
 
     def read(self) -> dict:
-        return self.store.read(key=self.key)
+        if self.store and self.key:
+            return self.store.read(key=self.key)
+        else:
+            return {}
 
     def reset(self) -> None:
         parent = self.get_parent()
@@ -136,8 +142,9 @@ class Transaction(ContextModel):
             # parent takes responsibility
             parent.add_child(self)
 
-        self.__var__.reset(self._token)
-        self._token = None
+        if self._token:
+            self.__var__.reset(self._token)
+            self._token = None
 
         # do this below reset so that get_transaction() returns the relevant txn
         if parent and self.state == TransactionState.ROLLED_BACK:
@@ -165,7 +172,7 @@ class Transaction(ContextModel):
             for hook in self.on_commit_hooks:
                 hook(self)
 
-            if self.store:
+            if self.store and self.key:
                 self.store.write(key=self.key, value=self._staged_value)
             self.state = TransactionState.COMMITTED
             return True
@@ -203,11 +210,11 @@ class Transaction(ContextModel):
             return False
 
     @classmethod
-    def get_active(cls: Type[T]) -> Optional[T]:
+    def get_active(cls: Type[Self]) -> Optional[Self]:
         return cls.__var__.get(None)
 
 
-def get_transaction() -> Transaction:
+def get_transaction() -> Optional[Transaction]:
     return Transaction.get_active()
 
 
@@ -218,6 +225,19 @@ def transaction(
     commit_mode: CommitMode = CommitMode.LAZY,
     overwrite: bool = False,
 ) -> Generator[Transaction, None, None]:
+    """
+    A context manager for opening and managing a transaction.
+
+    Args:
+        - key: An identifier to use for the transaction
+        - store: The store to use for persisting the transaction result
+        - commit_mode: The commit mode controlling when the transaction and
+            child transactions are committed
+        - overwrite: Whether to overwrite an existing transaction record in the store
+
+    Yields:
+        - Transaction: An object representing the transaction state
+    """
     with Transaction(
         key=key, store=store, commit_mode=commit_mode, overwrite=overwrite
     ) as txn:
