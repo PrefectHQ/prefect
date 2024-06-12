@@ -118,7 +118,7 @@ If you prefer to learn about using a YAML-based alternative for managing deploym
 
 Create a deployment from Python code by calling the `.deploy` method on a flow:
 
-```python hl_lines="17-22" title="buy.py"
+```python buy.py
 from prefect import flow
 
 
@@ -201,7 +201,7 @@ in a `requirements.txt` file.
 
 If you want to use a custom Dockerfile, specify the path to the Dockerfile with the `DeploymentImage` class:
 
-```python hl_lines="14-17" title="custom_dockerfile.py"
+```python custom_dockerfile.py
 from prefect import flow
 from prefect.deployments import DeploymentImage
 
@@ -242,7 +242,7 @@ RUN pip install --extra-index-url ${AUTHED_ARTIFACT_REG_URL} -r /requirements.tx
 
 Create your deployment with the DeploymentImage class:
 
-```python hl_lines="2 18-22" title="private-package.py"
+```python private-package.py
 from prefect import flow
 from prefect.deployments.runner import DeploymentImage
 from prefect.blocks.system import Secret
@@ -290,7 +290,7 @@ See all the optional keyword arguments for the [DeploymentImage class](https://d
 
     Once set, you can omit the namespace from your image name when creating a deployment:
 
-    ```python hl_lines="5" title="with_default_docker_namespace.py"
+    ```python with_default_docker_namespace.py
     if __name__ == "__main__":
         buy.deploy(
             name="my-code-baked-into-an-image-deployment", 
@@ -313,7 +313,7 @@ with the `from_source` method.
 
 Here's how to pull your flow code from a GitHub repository:
 
-```python hl_lines="4-6" title="git_storage.py"
+```python git_storage.py
 from prefect import flow
 
 if __name__ == "__main__":
@@ -344,7 +344,7 @@ Rerunning the Python script with `.deploy` updates your deployment on the server
 If you need to provide additional configuration, such as specifying a private repository, you can provide a 
 [`GitRepository`](/3.0rc/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL:
 
-```python hl_lines="2-3 7-12" title="private_git_storage.py"
+```python private_git_storage.py
 from prefect import flow
 from prefect.runner.storage import GitRepository
 from prefect.blocks.system import Secret
@@ -376,7 +376,7 @@ storage location, such as AWS S3, GCP GCS, or Azure Blob Storage.
 
 For example, you can pass the S3 bucket path to `source`.
 
-```python hl_lines="4-6" title="s3_storage.py"
+```python s3_storage.py
 from prefect import flow
 
 if __name__ == "__main__":
@@ -399,7 +399,7 @@ environment.
 
 Here's an example that uses an `S3Bucket` block from the [prefect-aws library](https://prefecthq.github.io/prefect-aws/):
 
-```python hl_lines="2 5-7" title="s3_storage_auth.py"
+```python s3_storage_auth.py
 from prefect import flow
 from prefect_aws.s3 import S3Bucket
 
@@ -423,7 +423,7 @@ Next, see deployment configuration options.
 To pass parameters to your flow, you can use the `parameters` argument in the `.deploy` method. Just pass in a dictionary of 
 key-value pairs.
 
-```python hl_lines="11" title="pass_params.py"
+```python pass_params.py
 from prefect import flow
 
 @flow
@@ -446,7 +446,7 @@ The values passed in override default values in the specified work pool's
 You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables` 
 argument.
 
-```python hl_lines="5" title="job_var_image_pull.py"
+```python job_var_image_pull.py
 if __name__ == "__main__":
     get_repo_info.deploy(
         name="my-deployment-never-pull", 
@@ -459,7 +459,7 @@ if __name__ == "__main__":
 
 Similarly, you can override the environment variables specified in a work pool through the `job_variables` parameter:
 
-```python hl_lines="5" title="job_var_env_vars.py"
+```python job_var_env_vars.py
 if __name__ == "__main__":
     get_repo_info.deploy(
         name="my-deployment-never-pull", 

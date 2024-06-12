@@ -130,7 +130,7 @@ Make the following updates in `repo_info.py`:
 
 The updated `repo_info.py` looks like this:
 
-```python hl_lines="17-22" title="repo_info.py"
+```python repo_info.py
 import httpx
 from prefect import flow
 
@@ -185,7 +185,7 @@ containers whenever this workflow needs to run.
 
     To use a custom Dockerfile, specify the path to the Dockerfile using the `DeploymentImage` class:
 
-    ```python hl_lines="21-25" title="repo_info.py"
+    ```python repo_info.py
     import httpx
     from prefect import flow
     from prefect.deployments import DeploymentImage

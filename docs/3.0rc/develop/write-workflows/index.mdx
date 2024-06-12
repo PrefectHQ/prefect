@@ -35,7 +35,7 @@ The script below fetches statistics about the [main Prefect repository](https://
 
 Turn this function into a Prefect flow and run the script:
 
-```python title="repo_info.py" hl_lines="2 5"
+```python repo_info.py
 import httpx
 from prefect import flow
 
@@ -78,7 +78,7 @@ Prefect automatically performs type conversion using any provided type hints.
 
 Make the repository a string parameter with a default value:
 
-```python hl_lines="6 7 11" title="repo_info.py"
+```python repo_info.py
 import httpx
 from prefect import flow
 
