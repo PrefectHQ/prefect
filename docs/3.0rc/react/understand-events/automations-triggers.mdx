@@ -103,7 +103,8 @@ See the [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api
 
 Create a deployment to kick off some work based on how long a flow is running. For example, if the `build_names` flow takes too long to execute, you can kick off a deployment with the same `build_names` flow, but replace the `count` value with a lower number to speed up completion.
 Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.deploy`.
-=== "prefect.yaml"
+<Tabs>
+<Tab title="prefect.yaml">
 
     Create a `prefect.yaml` file like this one for our flow `build_names`:
 
@@ -141,8 +142,9 @@ Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.
           job_variables: {}
         schedule: null
     ```
+  </Tab>
 
-=== ".deploy"
+  <Tab title=".deploy">
 
     To follow a more Python-based approach to create a deployment, use `flow.deploy` as in the example below.
 
@@ -157,6 +159,8 @@ Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.
         image="my_registry/my_image:my_image_tag",
     )
     ``` 
+  </Tab>
+</Tabs>  
 
 Grab your `deployment_id` from this deployment using the CLI and embed it in your automation. 
 
@@ -248,6 +252,7 @@ actions:
 ```
 
 Make a helper function that applies this YAML file with the REST API function. 
+
 ```python
 import yaml
 
@@ -287,6 +292,7 @@ Use webhooks to expose the events API. This allows you to extend the functionali
 By exposing a webhook endpoint, you can kick off workflows that trigger deployments, all from an event created from an HTTP request. 
 
 Create this webhook in the UI to create these dynamic events.
+
 ```JSON
 {
     "event": "model-update",
@@ -356,10 +362,10 @@ def create_fake_user_dataset(df):
 
 if __name__ == "__main__":
     create_fake_artifact()  
-    
 ```
 
 Kick off a deployment with a trigger defined in a `prefect.yaml` file. Specify what to trigger when the event stays in a running state for longer than 30 seconds. 
+
 ```yaml
 # Welcome to your prefect.yaml file! You can use this file for storing and managing
 # configuration for deploying your flows. We recommend committing this file to source
