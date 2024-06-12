@@ -653,14 +653,14 @@ def create_storage_from_url(
         RunnerStorage: A runner storage compatible object
     """
     parsed_url = urlparse(url)
-    if parsed_url.scheme not in fsspec.available_protocols():
+    if parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
+        return GitRepository(url=url, pull_interval=pull_interval)
+    elif parsed_url.scheme in fsspec.available_protocols():
+        return RemoteStorage(url=url, pull_interval=pull_interval)
+    else:
         logger = get_logger("runner.storage")
         logger.debug("No valid fsspec protocol found for URL, assuming local storage.")
         return LocalStorage(url=url, pull_interval=pull_interval)
-    elif parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
-        return GitRepository(url=url, pull_interval=pull_interval)
-    else:
-        return RemoteStorage(url=url, pull_interval=pull_interval)
 
 
 def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
