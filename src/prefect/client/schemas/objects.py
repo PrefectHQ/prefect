@@ -423,6 +423,7 @@ class FlowRunPolicy(PrefectBaseModel):
     def populate_deprecated_fields(cls, values: Any):
         if isinstance(values, dict):
             return set_run_policy_deprecated_fields(values)
+        return values
 
 
 class FlowRun(ObjectBaseModel):
@@ -1149,6 +1150,7 @@ class BlockDocumentReference(ObjectBaseModel):
     def validate_parent_and_ref_are_different(cls, values):
         if isinstance(values, dict):
             return validate_parent_and_ref_diff(values)
+        return values
 
 
 class Configuration(ObjectBaseModel):
