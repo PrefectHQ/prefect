@@ -83,6 +83,7 @@ from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
+    LocalStorage,
     RunnerStorage,
     create_storage_from_url,
 )
@@ -920,6 +921,16 @@ class Flow(Generic[P, R]):
                 f"Unsupported source type {type(source).__name__!r}. Please provide a"
                 " URL to remote storage or a storage object."
             )
+        if isinstance(storage, LocalStorage):
+            full_entrypoint = str(storage.destination / entrypoint)
+            flow: "Flow" = await from_async.wait_for_call_in_new_thread(
+                create_call(load_flow_from_entrypoint, full_entrypoint)
+            )
+            flow._storage = storage
+            flow._entrypoint = entrypoint
+
+            return flow
+
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
             await storage.pull_code()
