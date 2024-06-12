@@ -1,0 +1,157 @@
+---
+Title: Integrations
+
+description: Prefect integrations are PyPI packages you can install to help you build integrate your workflows with third parties.
+---
+
+## Install an integration library
+
+Install an integration with `pip`.
+
+For example, to use `prefect-aws`:
+
+```bash
+pip install -U prefect-aws
+```
+
+## Register blocks from an integration
+
+Once the packages is installed, [register the blocks](/3.0rc/develop/connect-third-party/#registering-blocks-for-use-in-the-prefect-ui) within the integration to view them in the Prefect Cloud UI:
+
+For example, to register the blocks available in `prefect-aws`:
+
+```bash
+prefect block register -m prefect_aws
+```
+
+To use a block's `load` method, you must have a block [saved](/3.0rc/develop/connect-third-party/#saving-blocks). [Learn more about blocks](/3.0rc/develop/connect-third-party).
+
+## Using Tasks and Flows from an Integration
+
+Integrations also contain pre-built tasks and flows that can be imported and called within your code.
+
+For example, =read a secret from AWS Secrets Manager with the `read_secret` task with the following code:
+
+```python
+from prefect import flow
+from prefect_aws import AwsCredentials
+from prefect_aws.secrets_manager import read_secret
+
+@flow
+def connect_to_database():
+    aws_credentials = AwsCredentials.load("MY_BLOCK_NAME")
+    secret_value = read_secret(
+        secret_name="db_password",
+        aws_credentials=aws_credentials
+    )
+
+    # Use secret_value to connect to a database
+```
+
+## Customize tasks and flows from an integration
+
+To customize pre-configured tasks or flows use `with_options`:
+    
+```python
+from prefect import flow
+from prefect_dbt.cloud import DbtCloudCredentials
+from prefect_dbt.cloud.jobs import trigger_dbt_cloud_job_run_and_wait_for_completion
+
+
+custom_run_dbt_cloud_job = trigger_dbt_cloud_job_run_and_wait_for_completion.with_options(
+    name="Run My DBT Cloud Job",
+    retries=2,
+    retry_delay_seconds=10
+)
+
+@flow
+def run_dbt_job_flow():
+    run_result = custom_run_dbt_cloud_job(
+        dbt_cloud_credentials=DbtCloudCredentials.load("my-dbt-cloud-credentials"),
+        job_id=1
+    )
+
+if __name__ == "__main__":  
+    run_dbt_job_flow()
+```
+
+## Creat a custom block for use in an integration
+
+Prefect welcomes community contributions of integration libraries.
+
+Most integrations contain custom blocks to interact with third-party services.
+
+Here's the process to create a custom block:
+
+1. Subclass from `Block`.
+1. Add a description alongside an `Attributes` and `Example` section in the docstring.
+1. Set a `_logo_url` to point to a relevant image.
+1. Create the `pydantic.Field`s of the block with a type annotation, `default` or `default_factory`, and a short description about the field.
+1. Define the methods of the block.
+
+For example, this is how the [Secret block is implemented](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/system.py#L76-L102):
+
+```python
+from pydantic import Field, SecretStr
+from prefect.blocks.core import Block
+
+class Secret(Block):
+    """
+    A block that represents a secret value. The value stored in this block will be obfuscated when
+    this block is logged or shown in the UI.
+
+    Attributes:
+        value: A string value that should be kept secret.
+
+    Example:
+        ```python
+        from prefect.blocks.system import Secret
+        secret_block = Secret.load("BLOCK_NAME")
+
+        # Access the stored secret
+        secret_block.get()
+        ```
+    """
+
+    _logo_url = "https://example.com/logo.png"
+
+    value: SecretStr = Field(
+        default=..., description="A string value that should be kept secret."
+    )  # ... indicates it's a required field
+
+    def get(self):
+        return self.value.get_secret_value()
+```
+
+To view in Prefect Cloud or the Prefect server UI, [register the block](https://docs.prefect.io/develop/connect-third-party/#registering-blocks-for-use-in-the-prefect-ui).
+
+## Create a Prefect integration library
+
+### Generate a project
+
+To help you get started with your integration, we've created a template that gives the tools you need to create and publish your integration.
+
+Use the [Prefect Integration template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to get started creating an integration with a bootstrapped project!
+
+### List a project in the integrations catalog
+
+To list your integration in the Prefect integrations catalog, submit a PR to the Prefect repository adding a file to the `docs/integrations/catalog` directory with details about your integration. Please use `TEMPLATE.yaml` in that folder as a guide.
+
+## Contribute fixes or enhancements to integrations
+
+To fix an issue or add a feature to any Prefect-maintained ntegrations, please [propose changes through a pull request from a fork of the prefecthq/prefect repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
+
+1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
+2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
+3. Install the repository and its dependencies:
+```
+pip install -e ".[dev]"
+```
+4. Make desired changes
+5. Add tests
+6. Insert an entry to the Integration's CHANGELOG.md
+7. Install `pre-commit` to perform quality checks prior to commit:
+```
+pre-commit install
+```
+8. `git commit`, `git push`, and create a pull request
