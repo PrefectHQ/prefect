@@ -96,27 +96,26 @@ from prefect.events.schemas.automations import EventTrigger
 from prefect.server.events.actions import CancelFlowRun
 
 # creating an automation
-automation =
-  Automation(
+automation = Automation(
     name="woodchonk",
     trigger=EventTrigger(
-      expect={"animal.walked"},
-      match={
-        "genus": "Marmota",
-        "species": "monax",
+        expect={"animal.walked"},
+        match={
+            "genus": "Marmota",
+            "species": "monax",
         },
         posture="Reactive",
         threshold=3,
-        ),
-      actions=[CancelFlowRun()]
-        ).create()
+    ),
+    actions=[CancelFlowRun()]
+).create()
 print(automation)
 # name='woodchonk' description='' enabled=True trigger=EventTrigger(type='event', match=ResourceSpecification(__root__={'genus': 'Marmota', 'species': 'monax'}), match_related=ResourceSpecification(__root__={}), after=set(), expect={'animal.walked'}, for_each=set(), posture=Posture.Reactive, threshold=3, within=datetime.timedelta(seconds=10)) actions=[CancelFlowRun(type='cancel-flow-run')] actions_on_trigger=[] actions_on_resolve=[] owner_resource=None id=UUID('d641c552-775c-4dc6-a31e-541cb11137a6')
 
 # reading the automation
 
 automation = Automation.read(id ="d641c552-775c-4dc6-a31e-541cb11137a6")
-or
+# or
 automation = Automation.read("woodchonk")
 
 print(automation)
@@ -263,20 +262,20 @@ from db import Table
 
 @flow
 def transform(table_name: str):
-  table = Table(table_name)
+    table = Table(table_name)
 
-  if not table.exists():
-    emit_event(
-        event="table-missing",
-        resource={"prefect.resource.id": "etl-events.transform"}
-    )
-  elif table.is_empty():
-    emit_event(
-        event="table-empty",
-        resource={"prefect.resource.id": "etl-events.transform"}
-    )
-  else:
-    # transform data
+    if not table.exists():
+        emit_event(
+            event="table-missing",
+            resource={"prefect.resource.id": "etl-events.transform"}
+        )
+    elif table.is_empty():
+        emit_event(
+            event="table-empty",
+            resource={"prefect.resource.id": "etl-events.transform"}
+        )
+    else:
+        # transform data
 ```
 
 The following configuration uses `after` to prevent this automation from firing unless either a `table-missing` or a `table-empty` event has occurred before a flow run of this deployment completes.
