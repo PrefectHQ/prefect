@@ -605,7 +605,7 @@ def my_flow():
 Prefect provides a `.map()` implementation that automatically creates a task run for each element of its 
 input data. Mapped tasks represent the computations of many individual children tasks.
 
-The simplest Prefect map takes a tasks and applies it to each element of its inputs.
+The simplest Prefect map takes a task and applies it to each element of its inputs.
 
 ```python
 from prefect import flow, task
