@@ -43,6 +43,7 @@ dev = [
   "pytest-asyncio",
   "pytest",
   "pytest-asyncio>=0.18.2,!=0.22.0,<0.23.0",
+  "pytest-env",
   "pytest-xdist",
 ]
 
@@ -75,3 +76,6 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+  "PREFECT_TEST_MODE=1",
+]
