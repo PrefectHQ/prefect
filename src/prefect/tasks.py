@@ -367,6 +367,10 @@ class Task(Generic[P, R]):
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
 
+    @property
+    def ismethod(self) -> bool:
+        return hasattr(self.fn, "__prefect_self__")
+
     def __get__(self, instance, owner):
         """
         Implement the descriptor protocol so that the task can be used as an instance method.

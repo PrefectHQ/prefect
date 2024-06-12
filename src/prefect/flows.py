@@ -354,6 +354,10 @@ class Flow(Generic[P, R]):
 
         self._entrypoint = f"{module}:{fn.__name__}"
 
+    @property
+    def ismethod(self) -> bool:
+        return hasattr(self.fn, "__prefect_self__")
+
     def __get__(self, instance, owner):
         """
         Implement the descriptor protocol so that the flow can be used as an instance method.
@@ -573,6 +577,9 @@ class Flow(Generic[P, R]):
         """
         serialized_parameters = {}
         for key, value in parameters.items():
+            # do not serialize the bound self object
+            if self.ismethod and value is self.fn.__prefect_self__:
+                continue
             try:
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
