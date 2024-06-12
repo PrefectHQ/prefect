@@ -63,6 +63,12 @@ def get_events_subscriber(
     reconnection_attempts: int = 10,
 ) -> "PrefectEventSubscriber":
     api_url = PREFECT_API_URL.value()
+    if not api_url:
+        raise ValueError(
+            "A Prefect server or Prefect Cloud is required to start an event "
+            "subscriber.  Please check the PREFECT_API_URL setting in your profile."
+        )
+
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         return PrefectCloudEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
