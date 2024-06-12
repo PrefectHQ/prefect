@@ -29,13 +29,9 @@ from typing import (
     Union,
 )
 
-import anyio
-import anyio._backends._asyncio
-import anyio.abc
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from pydantic_extra_types.pendulum_dt import DateTime
-from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import Self
 
 import prefect.logging
@@ -45,7 +41,6 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
@@ -94,19 +89,12 @@ def hydrated_context(
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))
             # Set up parent flow run context
-            # TODO: This task group isn't necessary in the new engine. Remove the background tasks
-            # attribute from FlowRunContext.
             client = client or get_client(sync_client=True)
             if flow_run_context := serialized_context.get("flow_run_context"):
-                try:
-                    task_group = anyio.create_task_group()
-                except AsyncLibraryNotFoundError:
-                    task_group = anyio._backends._asyncio.TaskGroup()
                 flow = flow_run_context["flow"]
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
-                    background_tasks=task_group,
                     result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
                     task_runner=flow.task_runner.duplicate(),
                     detached=True,
@@ -367,13 +355,10 @@ class EngineContext(RunContext):
         task_run_states: A list of states for task runs created within this flow run
         task_run_results: A mapping of result ids to task run states for this flow run
         flow_run_states: A list of states for flow runs created within this flow run
-        sync_portal: A blocking portal for sync task/flow runs in an async flow
-        timeout_scope: The cancellation scope for flow level timeouts
     """
 
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
-    autonomous_task_run: Optional[TaskRun] = None
     task_runner: TaskRunner
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
@@ -391,19 +376,8 @@ class EngineContext(RunContext):
     # Counter for flow pauses
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
-    # Tracking for objects created by this flow run
-    task_run_futures: List[PrefectFuture] = Field(default_factory=list)
-    task_run_states: List[State] = Field(default_factory=list)
+    # Tracking for result from task runs in this flow run
     task_run_results: Dict[int, State] = Field(default_factory=dict)
-    flow_run_states: List[State] = Field(default_factory=list)
-
-    # The synchronous portal is only created for async flows for creating engine calls
-    # from synchronous task and subflow calls
-    sync_portal: Optional[anyio.abc.BlockingPortal] = None
-    timeout_scope: Optional[anyio.abc.CancelScope] = None
-
-    # Task group that can be used for background tasks during the flow run
-    background_tasks: anyio.abc.TaskGroup
 
     # Events worker to emit events to Prefect Cloud
     events: Optional[EventsWorker] = None
