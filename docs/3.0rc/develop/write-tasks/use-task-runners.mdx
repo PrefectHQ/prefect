@@ -6,17 +6,13 @@ description: Learn how to use the Prefect task runners for parallel or distribut
 Task runners enable you to engage specific executors for Prefect tasks, such as for concurrent, parallel, or 
 distributed execution of tasks.
 
-Task runners are not required for task execution. If you call a task function directly, the task executes as a 
-regular Python function, without a task runner, and produces whatever result is returned by the function.
-
-Calling a task function from within a flow, using the default task settings, executes the function sequentially. 
-Execution of the task function blocks execution of the flow until the task completes. This means, by default, calling 
+Task runners are not required for task execution. Calling a task function directly without a task runner executes the 
+function sequentially by default. Execution of the task function blocks execution of the flow until the task completes. This means, by default, calling 
 multiple tasks in a flow causes them to run in order. 
 
 You can also use the `.submit()` method on a task function to submit the task to a _task runner_. 
 Using a task runner enables you to control whether tasks run sequentially, concurrently, or if you want to 
 take advantage of a parallel or distributed execution library such as Dask or Ray.
-
 ### `.submit()` method
 
 Using the `.submit()` method to submit a task also causes the task run to return a 
@@ -24,12 +20,13 @@ Using the `.submit()` method to submit a task also causes the task run to return
 Prefect object that contains both any _data_ returned by the task function; and a 
 [`State`](/3.0rc/api-ref/server/schemas/states/), which is a Prefect object indicating the state of the task run.
 
+Using `.submit()` without specifying a task runner will run your tasks concurrently by default.
+
+
 ### Built-in task runners and integrations
 
-Prefect provides the following built-in task runners: 
+Prefect provides the following built-in task runner: 
 
-- [`SequentialTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) 
-can run tasks sequentially. 
 - [`ConcurrentTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) 
 can run tasks concurrently, allowing tasks to switch when blocking on IO. 
 Tasks are submitted to a thread pool maintained by `anyio`.
@@ -100,21 +97,14 @@ Prefect uses the default `ConcurrentTaskRunner`.
 ## Running tasks sequentially
 
 Sometimes, it's useful to force tasks to run sequentially to make it easier to reason about the 
-behavior of your program. Switching to the `SequentialTaskRunner` will force submitted tasks to run 
-sequentially rather than concurrently.
+behavior of your program. Calling your tasks directly without using `.submit()` will automatically execute your tasks
+in order.
 
-<Note>
-**Synchronous and asynchronous tasks**
-The `SequentialTaskRunner` works with both synchronous and asynchronous task functions. 
-Asynchronous tasks are Python functions defined using `async def` rather than `def`.
-</Note>
-
-The following example demonstrates using the `SequentialTaskRunner` to ensure that tasks run sequentially. 
+The following example demonstrates tasks which run sequentially. 
 In the example, the flow `glass_tower` runs the task `stop_at_floor` for floors 1 through 38, in that order.
 
 ```python
 from prefect import flow, task
-from prefect.task_runners import SequentialTaskRunner
 import random
 
 @task
@@ -122,12 +112,11 @@ def stop_at_floor(floor):
     situation = random.choice(["on fire","clear"])
     print(f"elevator stops on {floor} which is {situation}")
 
-@flow(task_runner=SequentialTaskRunner(),
-      name="towering-infernflow",
+@flow(name="towering-infernflow",
       )
 def glass_tower():
     for floor in range(1, 39):
-        stop_at_floor.submit(floor)
+        stop_at_floor(floor)
     
 glass_tower()
 ```
@@ -138,66 +127,46 @@ Each flow can only have a single task runner, but sometimes you may want a subse
 using a specific task runner. In this case, you can create [subflows](/3.0rc/develop/write-workflows/#composing-flows) 
 for tasks that need to use a different task runner.
 
-For example, you can have a flow (in the example below called `sequential_flow`) that runs its tasks locally 
-using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, 
+For example, you can have a flow (in the example below called `multiple_runner_flow`) that runs its tasks locally 
+using the `ConcurrentTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, 
 you can create a subflow (such as `dask_subflow`) to run those tasks using the `DaskTaskRunner`.
 
 ```python
 from prefect import flow, task
-from prefect.task_runners import SequentialTaskRunner
+from prefect.task_runners import ConcurrentTaskRunner
 from prefect_dask.task_runners import DaskTaskRunner
+import time
 
 @task
 def hello_local():
+    time.sleep(2)
     print("Hello!")
+
+@flow(task_runner=ConcurrentTaskRunner())
+def concurrent_subflow():
+    hello_local.submit()
+    hello_local.submit()
 
 @task
 def hello_dask():
     print("Hello from Dask!")
 
-@flow(task_runner=SequentialTaskRunner())
-def sequential_flow():
-    hello_local.submit()
-    dask_subflow()
-    hello_local.submit()
-
 @flow(task_runner=DaskTaskRunner())
 def dask_subflow():
     hello_dask.submit()
 
+@flow(task_runner=ConcurrentTaskRunner())
+def parent_flow():
+    concurrent_subflow()
+    dask_subflow()
+
 if __name__ == "__main__":
-    sequential_flow()
+    parent_flow()
 ```
 <Tip>
 **Guarding main**
 You should guard the `main` function by using `if __name__ == "__main__"` to avoid issues with parallel processing. 
 </Tip>
-
-This script outputs the following logs demonstrating the use of the Dask task runner:
-
-<div class="terminal">
-```bash 
-120:14:29.785 | INFO    | prefect.engine - Created flow run 'ivory-caiman' for flow 'sequential-flow'
-20:14:29.785 | INFO    | Flow run 'ivory-caiman' - Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...
-20:14:29.880 | INFO    | Flow run 'ivory-caiman' - Created task run 'hello_local-7633879f-0' for task 'hello_local'
-20:14:29.881 | INFO    | Flow run 'ivory-caiman' - Executing 'hello_local-7633879f-0' immediately...
-Hello!
-20:14:29.904 | INFO    | Task run 'hello_local-7633879f-0' - Finished in state Completed()
-20:14:29.952 | INFO    | Flow run 'ivory-caiman' - Created subflow run 'nimble-sparrow' for flow 'dask-subflow'
-20:14:29.953 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
-20:14:31.862 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
-20:14:31.901 | INFO    | Flow run 'nimble-sparrow' - Created task run 'hello_dask-2b96d711-0' for task 'hello_dask'
-20:14:32.370 | INFO    | Flow run 'nimble-sparrow' - Submitted task run 'hello_dask-2b96d711-0' for execution.
-Hello from Dask!
-20:14:33.358 | INFO    | Flow run 'nimble-sparrow' - Finished in state Completed('All states completed.')
-20:14:33.368 | INFO    | Flow run 'ivory-caiman' - Created task run 'hello_local-7633879f-1' for task 'hello_local'
-20:14:33.368 | INFO    | Flow run 'ivory-caiman' - Executing 'hello_local-7633879f-1' immediately...
-Hello!
-20:14:33.386 | INFO    | Task run 'hello_local-7633879f-1' - Finished in state Completed()
-20:14:33.399 | INFO    | Flow run 'ivory-caiman' - Finished in state Completed('All states completed.')
-```
-</div>
-
 
 ## Use results from submitted tasks
 
