@@ -11,6 +11,7 @@ from prefect.events.schemas.automations import Automation
 from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
+from prefect.server.schemas.responses import WorkQueueWithStatus
 from prefect.variables import Variable
 
 logger = get_logger("utilities.urls")
@@ -26,6 +27,7 @@ UI_URL_FORMATS = {
     "flow-run": "runs/flow-run/{obj_id}",
     "task-run": "runs/task-run/{obj_id}",
     "block": "blocks/block/{obj_id}",
+    "block-document": "blocks/block/{obj_id}",
     "work-pool": "work-pools/work-pool/{obj_id}",
     "work-queue": "work-queues/work-queue/{obj_id}",
     "concurrency-limit": "concurrency-limits/concurrency-limit/{obj_id}",
@@ -112,6 +114,8 @@ def url_for(
         name = "automation"
     elif isinstance(obj, ReceivedEvent):
         name = "received-event"
+    elif isinstance(obj, WorkQueueWithStatus):
+        name = "work-queue"
     elif isinstance(obj, Resource):
         if obj.id.startswith("prefect."):
             name = obj.id.split(".")[1]
