@@ -1942,7 +1942,14 @@ def load_flow_argument_from_entrypoint(
                     literal_arg_value = ast.get_source_segment(
                         source_code, keyword.value
                     )
-                    evaluated_value = eval(literal_arg_value, namespace)
+                    try:
+                        evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
+                    except Exception as e:
+                        logger.info(
+                            "Failed to evaluate flow argument value", exc_info=e
+                        )
+                        # ignore the decorator arg and fallback to default behavior
+                        break
                     return evaluated_value
 
     if arg == "name":
