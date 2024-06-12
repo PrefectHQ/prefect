@@ -167,7 +167,7 @@ async def start(
             work_queues=work_queues,
             limit=limit,
             prefetch_seconds=prefetch_seconds,
-            heartbeat_interval_seconds=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+            heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
             base_job_template=template_contents,
         ) as worker:
             app.console.print(f"Worker {worker.name!r} started!", style="green")
