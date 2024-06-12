@@ -88,6 +88,7 @@ jobs:
       - name: Run tests
         if: matrix.package != 'prefect-ray'
         env:
+          PREFECT_TEST_MODE: "True"
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
         run: >
@@ -100,6 +101,7 @@ jobs:
       - name: Run tests for prefect-ray
         if: matrix.package == 'prefect-ray'
         env:
+          PREFECT_TEST_MODE: "True"
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
         run: >
