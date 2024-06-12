@@ -3,13 +3,15 @@ Module containing flows for interacting with Databricks
 """
 
 import asyncio
+import inspect
 from logging import Logger
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from prefect import flow
 from prefect.logging import get_run_logger
 from prefect_databricks import DatabricksCredentials
 from prefect_databricks.jobs import (
+    jobs_run_now,
     jobs_runs_get,
     jobs_runs_get_output,
     jobs_runs_submit,
@@ -480,3 +482,217 @@ async def jobs_runs_wait_for_completion(
         f"Max wait time of {max_wait_seconds} seconds exceeded while waiting "
         f"for job run ({run_name} ID {multi_task_jobs_runs_id})"
     )
+
+
+@flow(
+    name="Submit existing job runs and wait for completion",
+    description=(
+        "Triggers a Databricks jobs runs and waits for the "
+        "triggered runs to complete."
+    ),
+)
+async def jobs_runs_submit_by_id_and_wait_for_completion(
+    databricks_credentials: DatabricksCredentials,
+    job_id: int,
+    idempotency_token: Optional[str] = None,
+    jar_params: Optional[List[str]] = None,
+    max_wait_seconds: int = 900,
+    poll_frequency_seconds: int = 10,
+    notebook_params: Optional[Dict] = None,
+    python_params: Optional[List[str]] = None,
+    spark_submit_params: Optional[List[str]] = None,
+    python_named_params: Optional[Dict] = None,
+    pipeline_params: Optional[str] = None,
+    sql_params: Optional[Dict] = None,
+    dbt_commands: Optional[List] = None,
+    job_submission_handler: Optional[Callable] = None,
+    **jobs_runs_submit_kwargs: Dict[str, Any],
+) -> Dict:
+    """flow that triggers an existing job and waits for its completion
+
+    Args:
+        databricks_credentials: Credentials to use for authentication with Databricks.
+        job_id: Id of the databricks job.
+        idempotency_token:
+            An optional token that can be used to guarantee the idempotency of job
+            run requests. If a run with the provided token already
+            exists, the request does not create a new run but returns
+            the ID of the existing run instead. If a run with the
+            provided token is deleted, an error is returned.  If you
+            specify the idempotency token, upon failure you can retry
+            until the request succeeds. Databricks guarantees that
+            exactly one run is launched with that idempotency token.
+            This token must have at most 64 characters.  For more
+            information, see [How to ensure idempotency for
+            jobs](https://kb.databricks.com/jobs/jobs-idempotency.html),
+            e.g. `8f018174-4792-40d5-bcbc-3e6a527352c8`.
+        jar_params:
+            A list of parameters for jobs with Spark JAR tasks, for example "jar_params"
+            : ["john doe", "35"]. The parameters are used to invoke the main function of
+            the main class specified in the Spark JAR task. If not specified upon run-
+            now, it defaults to an empty list. jar_params cannot be specified in
+            conjunction with notebook_params. The JSON representation of this field (for
+            example {"jar_params": ["john doe","35"]}) cannot exceed 10,000 bytes.
+        max_wait_seconds:
+            Maximum number of seconds to wait for the entire flow to complete.
+        poll_frequency_seconds: Number of seconds to wait in between checks for
+            run completion.
+        notebook_params:
+            A map from keys to values for jobs with notebook task, for example
+            "notebook_params": {"name": "john doe", "age": "35"}. The map is
+            passed to the notebook and is accessible through the dbutils.widgets.get
+            function. If not specified upon run-now, the triggered run uses the job’s
+            base parameters. notebook_params cannot be specified in conjunction with
+            jar_params. Use Task parameter variables to set parameters containing
+            information about job runs. The JSON representation of this field
+            (for example {"notebook_params":{"name":"john doe","age":"35"}}) cannot
+            exceed 10,000 bytes.
+        python_params:
+            A list of parameters for jobs with Python tasks, for example "python_params"
+            :["john doe", "35"]. The parameters are passed to Python file as command-
+            line parameters. If specified upon run-now, it would overwrite the
+            parameters specified in job setting. The JSON representation of this field
+            (for example {"python_params":["john doe","35"]}) cannot exceed 10,000 bytes
+            Use Task parameter variables to set parameters containing information
+            about job runs. These parameters accept only Latin characters (ASCII
+            character set). Using non-ASCII characters returns an error. Examples of
+            invalid, non-ASCII characters are Chinese, Japanese kanjis, and emojis.
+        spark_submit_params:
+            A list of parameters for jobs with spark submit task, for example
+            "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
+            The parameters are passed to spark-submit script as command-line parameters.
+            If specified upon run-now, it would overwrite the parameters specified in
+            job setting. The JSON representation of this field (for example
+            {"python_params":["john doe","35"]}) cannot exceed 10,000 bytes.
+            Use Task parameter variables to set parameters containing information about
+            job runs. These parameters accept only Latin characters (ASCII character
+            set). Using non-ASCII characters returns an error. Examples of invalid,
+            non-ASCII characters are Chinese, Japanese kanjis, and emojis.
+        python_named_params:
+            A map from keys to values for jobs with Python wheel task, for example
+            "python_named_params": {"name": "task", "data": "dbfs:/path/to/data.json"}.
+        pipeline_params:
+            If `full_refresh` is set to true, trigger a full refresh on the
+            delta live table e.g.
+            ```
+                "pipeline_params": {"full_refresh": true}
+            ```
+        sql_params:
+            A map from keys to values for SQL tasks, for example "sql_params":
+            {"name": "john doe", "age": "35"}. The SQL alert task does not support
+            custom parameters.
+        dbt_commands:
+            An array of commands to execute for jobs with the dbt task,
+            for example "dbt_commands": ["dbt deps", "dbt seed", "dbt run"]
+        job_submission_handler: An optional callable to intercept job submission
+
+    Raises:
+        DatabricksJobTerminated:
+            Raised when the Databricks job run is terminated with a non-successful
+            result state.
+        DatabricksJobSkipped: Raised when the Databricks job run is skipped.
+        DatabricksJobInternalError:
+            Raised when the Databricks job run encounters an internal error.
+
+    Returns:
+        Dict: A dictionary containing information about the completed job run.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect_databricks import DatabricksCredentials
+        from prefect_databricks.flows import (
+            jobs_runs_submit_by_id_and_wait_for_completion,
+        )
+
+
+        @flow
+        def submit_existing_job(block_name: str, job_id):
+            databricks_credentials = DatabricksCredentials.load(block_name)
+
+            run = jobs_runs_submit_by_id_and_wait_for_completion(
+                databricks_credentials=databricks_credentials, job_id=job_id
+            )
+
+            return run
+
+
+        submit_existing_job(block_name="db-creds", job_id=db_job_id)
+        ```
+    """
+    logger = get_run_logger()
+
+    # submit the jobs runs
+
+    jobs_runs_future = jobs_run_now.submit(
+        databricks_credentials=databricks_credentials,
+        job_id=job_id,
+        idempotency_token=idempotency_token,
+        jar_params=jar_params,
+        notebook_params=notebook_params,
+        python_params=python_params,
+        spark_submit_params=spark_submit_params,
+        python_named_params=python_named_params,
+        pipeline_params=pipeline_params,
+        sql_params=sql_params,
+        dbt_commands=dbt_commands,
+        **jobs_runs_submit_kwargs,
+    )
+
+    jobs_runs = jobs_runs_future.result()
+
+    if job_submission_handler:
+        result = job_submission_handler(jobs_runs)
+        if inspect.isawaitable(result):
+            await result
+    job_run_id = jobs_runs["run_id"]
+
+    # wait for all the jobs runs to complete in a separate flow
+    # for a cleaner radar interface
+    jobs_runs_state, jobs_runs_metadata = await jobs_runs_wait_for_completion(
+        multi_task_jobs_runs_id=job_run_id,
+        databricks_credentials=databricks_credentials,
+        max_wait_seconds=max_wait_seconds,
+        poll_frequency_seconds=poll_frequency_seconds,
+    )
+
+    # fetch the state results
+    jobs_runs_life_cycle_state = jobs_runs_state["life_cycle_state"]
+    jobs_runs_state_message = jobs_runs_state["state_message"]
+
+    # return results or raise error
+    if jobs_runs_life_cycle_state == RunLifeCycleState.terminated.value:
+        jobs_runs_result_state = jobs_runs_state.get("result_state", None)
+        if jobs_runs_result_state == RunResultState.success.value:
+            task_notebook_outputs = {}
+            for task in jobs_runs_metadata["tasks"]:
+                task_key = task["task_key"]
+                task_run_id = task["run_id"]
+                task_run_output_future = jobs_runs_get_output.submit(
+                    run_id=task_run_id,
+                    databricks_credentials=databricks_credentials,
+                )
+                task_run_output = task_run_output_future.result()
+                task_run_notebook_output = task_run_output.get("notebook_output", {})
+                task_notebook_outputs[task_key] = task_run_notebook_output
+            logger.info(
+                f"Databricks Jobs Runs Submit {job_id} completed successfully!",
+            )
+            return task_notebook_outputs
+        else:
+            raise DatabricksJobTerminated(
+                f"Databricks Jobs Runs Submit ID {job_id} "
+                f"terminated with result state, {jobs_runs_result_state}: "
+                f"{jobs_runs_state_message}"
+            )
+    elif jobs_runs_life_cycle_state == RunLifeCycleState.skipped.value:
+        raise DatabricksJobSkipped(
+            f"Databricks Jobs Runs Submit ID "
+            f"{job_id} was skipped: {jobs_runs_state_message}.",
+        )
+    elif jobs_runs_life_cycle_state == RunLifeCycleState.internalerror.value:
+        raise DatabricksJobInternalError(
+            f"Databricks Jobs Runs Submit ID "
+            f"{job_id} "
+            f"encountered an internal error: {jobs_runs_state_message}.",
+        )
