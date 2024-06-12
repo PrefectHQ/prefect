@@ -1950,7 +1950,7 @@ def load_flow_argument_from_entrypoint(
                         )
                         # ignore the decorator arg and fallback to default behavior
                         break
-                    return evaluated_value
+                    return str(evaluated_value)
 
     if arg == "name":
         return func_name.replace(
