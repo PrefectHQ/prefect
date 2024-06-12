@@ -4166,6 +4166,51 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         assert result == "flow-function"
 
+    def test_load_flow_name_from_entrypoint_dynamic_name(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        version = "1.0"
+
+        @flow(name=f"flow-function-{version}")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function-1.0"
+
+    def test_load_flow_name_from_entrypoint_dyanmic_name_function(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        def get_name():
+            return "from-a-function"
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "from-a-function"
+
     def test_load_async_flow_from_entrypoint_no_name(self, tmp_path: Path):
         flow_source = dedent(
             """

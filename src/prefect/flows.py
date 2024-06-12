@@ -102,7 +102,7 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import listrepr
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import import_object
+from prefect.utilities.importtools import import_object, safe_load_namespace
 
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
@@ -1933,11 +1933,21 @@ def load_flow_argument_from_entrypoint(
         ):
             for keyword in decorator.keywords:
                 if keyword.arg == arg:
-                    return (
-                        keyword.value.value
-                    )  # Return the string value of the argument
+                    if isinstance(keyword.value, ast.Constant):
+                        return (
+                            keyword.value.value
+                        )  # Return the string value of the argument
+
+                    namespace = safe_load_namespace(source_code)
+                    literal_arg_value = ast.get_source_segment(
+                        source_code, keyword.value
+                    )
+                    evaluated_value = eval(literal_arg_value, namespace)
+                    return evaluated_value
 
     if arg == "name":
         return func_name.replace(
             "_", "-"
         )  # If no matching decorator or keyword argument is found
+
+    return None
