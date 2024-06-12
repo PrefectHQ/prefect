@@ -44,6 +44,7 @@ dev = [
   "pre-commit",
   "pytest-asyncio",
   "pytest",
+  "pytest-env",
   "pytest-xdist",
 ]
 

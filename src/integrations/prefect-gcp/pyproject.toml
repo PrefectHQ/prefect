@@ -61,9 +61,10 @@ dev = [
   "pillow",
   "pre-commit",
   "pyarrow",
-  "pytest-asyncio",
-  "pytest-xdist",
   "pytest",
+  "pytest-asyncio",
+  "pytest-env",
+  "pytest-xdist",
 ]
 
 [project.urls]
