@@ -390,18 +390,6 @@ class TestTaskRun:
         assert isinstance(task_state, State)
         assert await task_state.result() == 1
 
-    def test_task_returns_generator_implicit_list(self):
-        @task
-        def my_generator(n):
-            for i in range(n):
-                yield i
-
-        @flow
-        def my_flow():
-            return my_generator(5)
-
-        assert my_flow() == [0, 1, 2, 3, 4]
-
 
 class TestTaskSubmit:
     def test_raises_outside_of_flow(self):
@@ -639,6 +627,50 @@ class TestTaskSubmit:
             y, z = await state.result()
             assert y == i + 1
             assert exceptions_equal(z, ValueError("Fail task"))
+
+    async def test_raises_if_depends_on_itself(self):
+        @task
+        def say_hello(name):
+            return f"Hello {name}!"
+
+        @flow
+        def my_flow():
+            greeting_queue = []
+            for i in range(3):
+                if greeting_queue:
+                    wait_for = greeting_queue
+                else:
+                    wait_for = []
+                future = say_hello.submit(name=f"Person {i}", wait_for=wait_for)
+                greeting_queue.append(future)
+
+            for fut in greeting_queue:
+                print(fut.result())
+
+        with pytest.raises(ValueError, match="deadlock"):
+            my_flow()
+
+    def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
+        """
+        If submitted tasks aren't waited on before a flow exits, they may fail to run
+        because they're transition from PENDING to RUNNING is denied. This test ensures
+        that a message is logged when this happens.
+        """
+
+        @task
+        def foo():
+            pass
+
+        @flow
+        def test_flow():
+            for _ in range(10):
+                foo.submit()
+
+        test_flow()
+        assert (
+            "Please wait for all submitted tasks to complete before exiting your flow"
+            in caplog.text
+        )
 
 
 class TestTaskStates:

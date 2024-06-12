@@ -1,6 +1,7 @@
 """
 Command line interface for working with blocks.
 """
+
 import inspect
 from importlib import import_module
 from pathlib import Path

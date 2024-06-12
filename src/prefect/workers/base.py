@@ -42,8 +42,10 @@ from prefect.exceptions import (
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_EXPERIMENTAL_WARN,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_TEST_MODE,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
@@ -521,6 +523,10 @@ class BaseWorker(abc.ABC):
         self._limiter = (
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
         )
+
+        if not PREFECT_TEST_MODE and not PREFECT_API_URL.value():
+            raise ValueError("`PREFECT_API_URL` must be set to start a Worker.")
+
         self._client = get_client()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
