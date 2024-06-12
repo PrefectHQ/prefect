@@ -184,4 +184,6 @@ def url_for(
     else:
         url = url_format.format(obj_id=obj_id)
 
+    if not base_url.endswith("/"):
+        base_url += "/"
     return urllib.parse.urljoin(base_url, url)

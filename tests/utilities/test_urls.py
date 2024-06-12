@@ -7,9 +7,9 @@ import pendulum
 import pytest
 
 from prefect.blocks.system import DateTime
+from prefect.events.schemas.automations import Automation, EventTrigger, Posture
+from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.futures import PrefectConcurrentFuture, PrefectDistributedFuture
-from prefect.server.events.schemas.automations import Automation, EventTrigger, Posture
-from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.schemas.core import FlowRun, TaskRun
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
@@ -67,6 +67,7 @@ def block():
 @pytest.fixture
 async def automation() -> Automation:
     return Automation(
+        id=uuid.uuid4(),
         name="If my lilies get nibbled, tell me about it",
         description="Send an email notification whenever the lilies are nibbled",
         enabled=True,
@@ -89,6 +90,7 @@ async def automation() -> Automation:
 def received_event():
     return ReceivedEvent(
         occurred=pendulum.now("UTC"),
+        received=pendulum.now("UTC"),
         event="was.tubular",
         resource=Resource.model_validate(
             {"prefect.resource.id": f"prefect.flow-run.{uuid.uuid4()}"}
@@ -268,6 +270,32 @@ def test_url_for_missing_url(flow_run):
 def test_url_for_with_default_base_url(flow_run):
     default_base_url = "https://default.prefect.io"
     expected_url = f"{default_base_url}/runs/flow-run/{flow_run.id}"
+    assert (
+        url_for(
+            obj="flow-run",
+            obj_id=flow_run.id,
+            default_base_url=default_base_url,
+        )
+        == expected_url
+    )
+
+
+def test_url_for_with_default_base_url_with_path_fragment(flow_run):
+    default_base_url = "https://default.prefect.io/api"
+    expected_url = f"{default_base_url}/runs/flow-run/{flow_run.id}"
+    assert (
+        url_for(
+            obj="flow-run",
+            obj_id=flow_run.id,
+            default_base_url=default_base_url,
+        )
+        == expected_url
+    )
+
+
+def test_url_for_with_default_base_url_with_path_fragment_and_slash(flow_run):
+    default_base_url = "https://default.prefect.io/api/"
+    expected_url = f"{default_base_url}runs/flow-run/{flow_run.id}"
     assert (
         url_for(
             obj="flow-run",
