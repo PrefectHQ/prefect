@@ -1122,7 +1122,7 @@ class Block(BaseModel, ABC):
         cls,
         by_alias: bool = True,
         ref_template: str = "#/definitions/{model}",
-        schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema,
+        schema_generator: Type[GenerateJsonSchema] = GenerateJsonSchema,
         mode: Literal["validation", "serialization"] = "validation",
     ) -> Dict[str, Any]:
         """TODO: stop overriding this method - use GenerateSchema in ConfigDict instead?"""

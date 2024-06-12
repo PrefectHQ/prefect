@@ -24,7 +24,7 @@ def exit_with_error(message, code=1, **kwargs) -> NoReturn:
     raise typer.Exit(code)
 
 
-def exit_with_success(message, **kwargs):
+def exit_with_success(message, **kwargs) -> NoReturn:
     """
     Utility to print a stylized success message and exit with a zero code
     """
