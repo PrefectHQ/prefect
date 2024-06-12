@@ -423,6 +423,7 @@ class FlowRunPolicy(PrefectBaseModel):
     def populate_deprecated_fields(cls, values: Any):
         if isinstance(values, dict):
             return set_run_policy_deprecated_fields(values)
+        return values
 
 
 class FlowRun(ObjectBaseModel):
