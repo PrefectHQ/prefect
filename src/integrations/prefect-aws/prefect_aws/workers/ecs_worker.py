@@ -52,7 +52,7 @@ import shlex
 import sys
 import time
 from copy import deepcopy
-from typing import Any, Dict, Generator, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Dict, Generator, List, NamedTuple, Optional, Tuple, Type, Union
 from uuid import UUID
 
 import anyio
@@ -64,9 +64,9 @@ from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
-from prefect.server.schemas.core import FlowRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -261,7 +261,7 @@ class ECSJobConfiguration(BaseJobConfiguration):
     Job configuration for an ECS worker.
     """
 
-    aws_credentials: Optional[AwsCredentials] = Field(default_factory=AwsCredentials)
+    aws_credentials: Optional[AwsCredentials] = Field(None)
     task_definition: Dict[str, Any] = Field(
         default_factory=dict,
         json_schema_extra=dict(template=_default_task_definition_template()),
@@ -648,9 +648,9 @@ class ECSWorker(BaseWorker):
     """
 
     type: str = "ecs"
-    job_configuration = ECSJobConfiguration
-    job_configuration_variables = ECSVariables
-    _description = (
+    job_configuration: Type[ECSJobConfiguration] = ECSJobConfiguration
+    job_configuration_variables: Type[ECSVariables] = ECSVariables
+    _description: str = (
         "Execute flow runs within containers on AWS ECS. Works with EC2 "
         "and Fargate clusters. Requires an AWS account."
     )
