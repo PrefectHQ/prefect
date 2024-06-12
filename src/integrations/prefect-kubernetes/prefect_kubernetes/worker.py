@@ -920,35 +920,32 @@ class KubernetesWorker(BaseWorker):
             else aiohttp.ClientTimeout(total=None)
         )
         core_client = CoreV1Api(client)
-        watch = kubernetes_asyncio.watch.Watch()
-        async with watch:
-            async for line in watch.stream(
-                func=core_client.read_namespaced_pod_log,
-                namespace=configuration.namespace,
-                name=pod_name,
-                container="prefect-job",
-                follow=True,
-                _preload_content=False,
-                _request_timeout=timeout,
-            ):
-                try:
-                    if not line:
-                        break
-                    print(line)
-
-                except Exception:
-                    logger.warning(
-                        (
-                            "Error occurred while streaming logs - "
-                            "Job will continue to run but logs will "
-                            "no longer be streamed to stdout."
-                        ),
-                        exc_info=True,
-                    )
+        # watch = kubernetes_asyncio.watch.Watch()
+        logs = await core_client.read_namespaced_pod_log(
+            pod_name,
+            configuration.namespace,
+            follow=True,
+            _preload_content=False,
+            container="prefect-job",
+            _request_timeout=timeout,
+        )
+        try:
+            async for line in logs.content:
+                if not line:
+                    break
+                print(line.decode().rstrip())
+        except Exception:
+            logger.warning(
+                (
+                    "Error occurred while streaming logs - "
+                    "Job will continue to run but logs will "
+                    "no longer be streamed to stdout."
+                ),
+                exc_info=True,
+            )
 
     async def _job_events(
         self,
-        watch: kubernetes_asyncio.watch.Watch,
         batch_client: BatchV1Api,
         job_name: str,
         namespace: str,
@@ -962,6 +959,7 @@ class KubernetesWorker(BaseWorker):
 
         See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
         """
+        watch = kubernetes_asyncio.watch.Watch()
         resource_version = None
         while True:
             try:
@@ -986,7 +984,7 @@ class KubernetesWorker(BaseWorker):
                 await watch.close()
 
     async def _monitor_job_events(
-        self, watch, batch_client, job_name, namespace, logger, configuration
+        self, batch_client, job_name, namespace, logger, configuration
     ):
         job = await batch_client.read_namespaced_job(
             name=job_name, namespace=configuration.namespace
@@ -999,10 +997,7 @@ class KubernetesWorker(BaseWorker):
         )
 
         while not completed:
-            watch = kubernetes_asyncio.watch.Watch()
-
             async for event in self._job_events(
-                watch,
                 batch_client,
                 job_name,
                 namespace,
@@ -1033,11 +1028,8 @@ class KubernetesWorker(BaseWorker):
                     and event["object"].status.failed
                 ):
                     completed = True
-
                 if completed:
-                    watch.stop()
                     break
-            await watch.close()
 
     async def _watch_job(
         self,
@@ -1072,31 +1064,29 @@ class KubernetesWorker(BaseWorker):
                         )
                     )
 
-                    watch = kubernetes_asyncio.watch.Watch()
-                    namespace = configuration.namespace
-                    # The kubernetes library will disable retries if the timeout kwarg is
-                    # present regardless of the value so we do not pass it unless given
-                    # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
+                namespace = configuration.namespace
+                # The kubernetes library will disable retries if the timeout kwarg is
+                # present regardless of the value so we do not pass it unless given
+                # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
 
-                    batch_client = BatchV1Api(client)
-                    tasks = tasks + [
-                        self._monitor_job_events(
-                            watch,
-                            batch_client,
-                            job_name,
-                            namespace,
-                            logger,
-                            configuration,
-                        )
-                    ]
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-                    if any(isinstance(result, Exception) for result in results):
-                        for result in results:
-                            if isinstance(result, Exception):
-                                logger.error(
-                                    f"Error during task execution: {result}",
-                                    exc_info=True,
-                                )
+                batch_client = BatchV1Api(client)
+                tasks = tasks + [
+                    self._monitor_job_events(
+                        batch_client,
+                        job_name,
+                        namespace,
+                        logger,
+                        configuration,
+                    )
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                if any(isinstance(result, Exception) for result in results):
+                    for result in results:
+                        if isinstance(result, Exception):
+                            logger.error(
+                                f"Error during task execution: {result}",
+                                exc_info=True,
+                            )
         except TimeoutError:
             logger.error(
                 f"Job {job_name!r}: Job did not complete within "
