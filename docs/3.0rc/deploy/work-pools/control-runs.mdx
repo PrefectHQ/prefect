@@ -516,12 +516,6 @@ in waterfall fashion.
     Unpausing a work queue gives the work queue a `NOT_READY` status unless a worker has polled it in the last 60 seconds.
 </Tip>
 
-### Local debugging
-
-If your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to a worker 
-running on your local machine for debugging. Do this by running `prefect worker start -p my-local-machine` and updating the deployment's 
-work pool to `my-local-machine`.
-
 ## Worker overview
 
 Workers are lightweight polling services that retrieve scheduled runs from a work pool and execute them.
