@@ -388,7 +388,7 @@ class TaskRunEngine(Generic[P, R]):
         self.set_state(state, force=True)
 
     @contextmanager
-    def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+    def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
         from prefect.utilities.engine import (
             _resolve_custom_task_run_name,
             should_log_prints,
@@ -469,7 +469,8 @@ class TaskRunEngine(Generic[P, R]):
                         validated_state=self.task_run.state,
                     )
 
-                    yield self
+                    with self.setup_run_context():
+                        yield self
 
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -555,15 +556,11 @@ class TaskRunEngine(Generic[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
-            with self.enter_run_context():
-                self.logger.debug(
-                    f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
-                )
-                self.begin_run()
-                try:
-                    yield
-                finally:
-                    self.call_hooks()
+            self.begin_run()
+            try:
+                yield
+            finally:
+                self.call_hooks()
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
@@ -586,9 +583,12 @@ class TaskRunEngine(Generic[P, R]):
     def run_context(self):
         timeout_context = timeout_async if self.task.isasync else timeout
         # reenter the run context to ensure it is up to date for every run
-        with self.enter_run_context():
+        with self.setup_run_context():
             try:
                 with timeout_context(seconds=self.task.timeout_seconds):
+                    self.logger.debug(
+                        f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
+                    )
                     yield self
             except TimeoutError as exc:
                 self.handle_timeout(exc)
