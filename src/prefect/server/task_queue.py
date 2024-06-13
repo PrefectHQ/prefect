@@ -1,5 +1,5 @@
 """
-Implements an in-memory task queue for delivering autonomous task runs to TaskServers.
+Implements an in-memory task queue for delivering background task runs to TaskWorkers.
 """
 
 import asyncio

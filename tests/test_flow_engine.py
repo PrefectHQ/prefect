@@ -9,7 +9,7 @@ from uuid import UUID
 import anyio
 import pytest
 
-from prefect import Flow, flow, get_run_logger, task
+from prefect import Flow, flow, task
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
@@ -27,6 +27,7 @@ from prefect.flow_engine import (
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
+from prefect.logging import get_run_logger
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.utilities.callables import get_call_parameters
 
@@ -56,7 +57,7 @@ class TestFlowRunEngine:
 
     async def test_client_attr_returns_client_after_starting(self):
         engine = FlowRunEngine(flow=foo)
-        with engine.start():
+        with engine.initialize_run():
             client = engine.client
             assert isinstance(client, SyncPrefectClient)
 
@@ -78,6 +79,25 @@ class TestFlowRunEngine:
         loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
         assert loaded_flow_run.id == flow_run.id
         assert flow.fn() == "woof!"
+
+
+class TestStartFlowRunEngine:
+    async def test_start_updates_empirical_policy_on_provided_flow_run(
+        self, prefect_client: PrefectClient
+    ):
+        @flow(retries=3, retry_delay_seconds=10)
+        def flow_with_retries():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(flow_with_retries)
+
+        engine = FlowRunEngine(flow=flow_with_retries, flow_run=flow_run)
+        with engine.start():
+            assert engine.flow_run.empirical_policy.retries == 3
+            assert engine.flow_run.empirical_policy.retry_delay == 10
+
+            # avoid error on teardown
+            engine.begin_run()
 
 
 class TestFlowRunsAsync:

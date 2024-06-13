@@ -4,7 +4,7 @@ from prefect.client.schemas.objects import State
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
-from prefect.task_server import TaskServer
+from prefect.task_worker import TaskWorker
 
 
 async def test_task_state_change_happy_path(
@@ -149,8 +149,9 @@ async def test_background_task_state_changes(
         pass
 
     task_run_future = foo.apply_async()
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
 
-    await TaskServer(foo).execute_task_run(task_run_future.task_run)
+    await TaskWorker(foo).execute_task_run(task_run)
 
     task_run_states = await prefect_client.read_task_run_states(
         task_run_future.task_run_id
@@ -169,13 +170,15 @@ async def test_background_task_state_changes(
         "prefect.task-run.Completed",
     ]
 
-    assert [
+    observed = [
         (e.payload["intended"]["from"], e.payload["intended"]["to"])
         for e in events
         if e.event.startswith("prefect.task-run.")
-    ] == [
+    ]
+    expected = [
         (None, "SCHEDULED"),
         ("SCHEDULED", "PENDING"),
         ("PENDING", "RUNNING"),
         ("RUNNING", "COMPLETED"),
     ]
+    assert observed == expected

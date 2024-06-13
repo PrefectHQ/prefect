@@ -614,7 +614,7 @@ class TestLoadProfiles:
                 """
             )
         )
-        with pytest.raises(ValueError, match="Unknown setting.*'nested'"):
+        with pytest.raises(UserWarning, match="Setting 'nested' is not recognized "):
             load_profile("foo")
 
     def test_load_profile_with_invalid_key(self, temporary_profiles_path):
@@ -626,7 +626,7 @@ class TestLoadProfiles:
                 """
             )
         )
-        with pytest.raises(ValueError, match="Unknown setting.*'test'"):
+        with pytest.warns(UserWarning, match="Setting 'test' is not recognized"):
             load_profile("foo")
 
     @pytest.mark.parametrize("removed_flag", sorted(REMOVED_EXPERIMENTAL_FLAGS))

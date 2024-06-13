@@ -94,6 +94,14 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
+TERMINAL_STATES = {
+    StateType.COMPLETED,
+    StateType.CANCELLED,
+    StateType.FAILED,
+    StateType.CRASHED,
+}
+
+
 class WorkPoolStatus(AutoEnum):
     """Enumeration of work pool statuses."""
 
@@ -280,7 +288,7 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = DateTime.now("utc")
         return self
 
     def is_scheduled(self) -> bool:
@@ -308,12 +316,7 @@ class State(ObjectBaseModel, Generic[R]):
         return self.type == StateType.CANCELLING
 
     def is_final(self) -> bool:
-        return self.type in {
-            StateType.CANCELLED,
-            StateType.FAILED,
-            StateType.COMPLETED,
-            StateType.CRASHED,
-        }
+        return self.type in TERMINAL_STATES
 
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
@@ -553,7 +556,8 @@ class FlowRun(ObjectBaseModel):
         examples=["State(type=StateType.COMPLETED)"],
     )
     job_variables: Optional[dict] = Field(
-        default=None, description="Job variables for the flow run."
+        default=None,
+        description="Job variables for the flow run.",
     )
 
     # These are server-side optimizations and should not be present on client models

@@ -1,6 +1,7 @@
 """
 The base class for all Prefect REST API loop services.
 """
+
 import asyncio
 import signal
 from typing import List
@@ -11,6 +12,7 @@ import pendulum
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
 from prefect.utilities.processutils import _register_signal
 
 
@@ -83,7 +85,16 @@ class LoopService:
 
             # if an error is raised, log and continue
             except Exception as exc:
-                self.logger.error(f"Unexpected error in: {repr(exc)}", exc_info=True)
+                # avoid circular import
+                from prefect.server.api.server import is_client_retryable_exception
+
+                retryable_error = is_client_retryable_exception(exc)
+                if not retryable_error or (
+                    retryable_error and PREFECT_API_LOG_RETRYABLE_ERRORS.value()
+                ):
+                    self.logger.error(
+                        f"Unexpected error in: {repr(exc)}", exc_info=True
+                    )
 
             end_time = pendulum.now("UTC")
 
