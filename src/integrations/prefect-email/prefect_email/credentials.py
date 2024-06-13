@@ -96,7 +96,6 @@ class EmailServerCredentials(Block):
     _block_type_name = "Email Server Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/82bc6ed16ca42a2252a5512c72233a253b8a58eb-250x250.png"  # noqa
     _documentation_url = "https://prefecthq.github.io/prefect-email/credentials/#prefect_email.credentials.EmailServerCredentials"  # noqa
-    _logger = get_run_logger()
 
     username: Optional[str] = Field(
         default=None,
@@ -203,7 +202,7 @@ class EmailServerCredentials(Block):
                 server.starttls(context=context)
         if self.username is not None:
             if not self.verify or smtp_type == SMTPType.INSECURE:
-                self._logger.warning(
+                get_run_logger().warning(
                     """SMTP login is not secure without a verified SSL/TLS or SECURE connection. 
                     Without such a connection, the password may be sent in plain text, 
                     making it vulnerable to interception."""
