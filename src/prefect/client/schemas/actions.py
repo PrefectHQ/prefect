@@ -788,6 +788,6 @@ class GlobalConcurrencyLimitUpdate(ActionBaseModel):
 
     name: Optional[Name] = Field(None)
     limit: Optional[NonNegativeInteger] = Field(None)
-    active: Optional[NonNegativeInteger] = Field(None)
+    active: Optional[bool] = Field(None)
     active_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
