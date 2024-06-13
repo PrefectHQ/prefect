@@ -224,8 +224,12 @@ def test_overwrite_ignores_existing_record():
         def write(self, **kwargs):
             pass
 
-    with Transaction(store=Store()) as txn:
+    with Transaction(
+        key="test_overwrite_ignores_existing_record", store=Store()
+    ) as txn:
         assert txn.is_committed()
 
-    with Transaction(store=Store(), overwrite=True) as txn:
+    with Transaction(
+        key="test_overwrite_ignores_existing_record", store=Store(), overwrite=True
+    ) as txn:
         assert not txn.is_committed()

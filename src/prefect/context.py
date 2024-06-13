@@ -151,7 +151,7 @@ class ContextModel(BaseModel):
         self._token = self.__var__.set(self)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, *_):
         if not self._token:
             raise RuntimeError(
                 "Asymmetric use of context. Context exit called without an enter."
