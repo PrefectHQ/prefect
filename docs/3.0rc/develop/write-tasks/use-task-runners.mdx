@@ -3,17 +3,17 @@ title: Task runners
 description: Learn how to use the Prefect task runners for parallel or distributed task execution.
 ---
 
-Task runners enable you to engage specific executors for Prefect tasks, such as for concurrent, parallel, or 
+Task runners enable you to engage specific executors for Prefect tasks to enable concurrent, parallel, or 
 distributed execution of tasks.
 
 Task runners are not required for task execution. Calling a task function directly without a task runner executes the 
-function sequentially by default. Execution of the task function blocks execution of the flow until the task completes. This means, by default, calling 
-multiple tasks in a flow causes them to run in order. 
+function sequentially by default. Execution of a task function blocks execution of its flow until the task completes. 
+So, by default, when multiple tasks are called in a flow they will run in order. 
 
-You can also use the `.submit()` method on a task function to submit the task to a _task runner_. 
-Using a task runner enables you to control whether tasks run sequentially, concurrently, or if you want to 
-take advantage of a parallel or distributed execution library such as Dask or Ray.
-### `.submit()` method
+You can use the `.submit()` method on a task function to submit the task to a _task runner_. Using a task runner 
+enables you to run tasks concurrently, or in parallel using a distributed execution library such as Dask or Ray.
+
+### Submitting tasks
 
 Using the `.submit()` method to submit a task also causes the task run to return a 
 [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which is an 
@@ -32,7 +32,7 @@ can run tasks concurrently, allowing tasks to switch when blocking on IO.
 Tasks are submitted to a thread pool maintained by `anyio`.
 
 The following Prefect-developed task runners for parallel or distributed task 
-execution are available as [integrations](/3.0rc/integrations/catalog/). 
+execution are available as [integrations](/3.0rc/integrations/catalog/):
 
 - [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks requiring 
 parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
