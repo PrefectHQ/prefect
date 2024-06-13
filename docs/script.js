@@ -1,4 +1,4 @@
-async function loadScript(src) {
+function loadScript(src, onload) {
     if (typeof window === 'undefined') return
     if (typeof src !== 'string') {
         console.error('src must be a string')
@@ -8,30 +8,34 @@ async function loadScript(src) {
     const script = document.createElement('script')
     script.src = src
     script.async = true
+
+    if (typeof onload === 'function') {
+        script.addEventListener('load', onload)
+    }
+
     document.head.appendChild(script)
     return script
 }
 
 function loadCommonRoom() {
-    const script = loadScript('https://cdn.cr-relay.com/v1/site/5c7cdf16-fbc0-4bb8-b39e-a8c6136687b9/signals.js')
-
-    script.addEventListener('load', () => {            
+    const url = 'https://cdn.cr-relay.com/v1/site/5c7cdf16-fbc0-4bb8-b39e-a8c6136687b9/signals.js'
+    const init = () => {
         window.signals = Object.assign(
-                    [],
-                ['page', 'identify', 'form'].reduce(function (acc, method) {
-                    acc[method] = function () {
-                        signals.push([method, arguments])
+            [],
+            ['page', 'identify', 'form'].reduce(function (acc, method) {
+                acc[method] = function () {
+                    signals.push([method, arguments])
                     return signals
                 }
-            return acc
-        }, {})
+                return acc
+            }, {})
         )
-    })
+    }
+
+    loadScript(url, init)
 }
 
 function loadAmplitude() {
-    const script = loadScript('https://cdn.amplitude.com/libs/analytics-browser-2.8.1-min.js.gz')
-
     // TODO: Move the key and url to an env var in mintlify
     const amplitudeKey = 'c97dd2acbf306ab7bf54aca0aeb7ffa1'
     const amplitudeUrl = 'https://api2.amplitude.com/2/httpapi'
@@ -110,7 +114,8 @@ function loadAmplitude() {
         setTimeout(trackPageView)
     }
 
-    script.addEventListener('load', init)
+    const url = 'https://cdn.amplitude.com/libs/analytics-browser-2.8.1-min.js.gz'
+    loadScript(url, init)
 }
 
 
