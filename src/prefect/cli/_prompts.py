@@ -37,14 +37,13 @@ from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
-    PREFECT_UI_URL,
 )
+from prefect.utilities import urls
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-
 
 STORAGE_PROVIDER_TO_CREDS_BLOCK = {
     "s3": "aws-credentials",
@@ -856,9 +855,9 @@ async def prompt_select_blob_storage_credentials(
                 " name"
             )
 
-    if PREFECT_UI_URL:
+    url = urls.url_for(new_block_document)
+    if url:
         console.print(
-            "\nView/Edit your new credentials block in the UI:"
-            f"\n[blue]{PREFECT_UI_URL.value()}/blocks/block/{new_block_document.id}[/]\n"
+            "\nView/Edit your new credentials block in the UI:" f"\n[blue]{url}[/]\n"
         )
     return f"{{{{ prefect.blocks.{creds_block_type_slug}.{new_block_document.name} }}}}"
