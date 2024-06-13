@@ -1328,7 +1328,17 @@ class TestTaskCaching:
             assert await third_state.result() == await second_state.result()
 
     async def test_cache_key_fn_receives_self_if_method(self):
+        """
+        The `self` argument of a bound method is implicitly passed as a parameter to the decorated
+        function. This test ensures that it is passed to the cache key function by checking that
+        two instances of the same class do not share a cache (both instances yield COMPLETED states
+        the first time they run and CACHED states the second time).
+        """
+
+        cache_args = []
+
         def stringed_inputs(context, args):
+            cache_args.append(args)
             return str(args)
 
         class Foo:
@@ -1339,8 +1349,9 @@ class TestTaskCaching:
             def add(self, a):
                 return a + self.x
 
+        # create an instance that adds 1 and another that adds 100
         f1 = Foo(1)
-        f2 = Foo(2)
+        f2 = Foo(100)
 
         @flow
         def bar():
@@ -1352,15 +1363,68 @@ class TestTaskCaching:
             )
 
         s1, s2, s3, s4 = bar()
+        # the first two calls are completed / cached
         assert s1.name == "Completed"
         assert s2.name == "Cached"
+        # the second two calls are completed / cached because it's a different instance
         assert s3.name == "Completed"
+        assert s4.name == "Cached"
+
+        # check that the cache key function received the self arg
+        assert cache_args[0] == dict(self=f1, a=5)
+        assert cache_args[1] == dict(self=f1, a=5)
+        assert cache_args[2] == dict(self=f2, a=5)
+        assert cache_args[3] == dict(self=f2, a=5)
+
+        assert await s1.result() == 6
+        assert await s2.result() == 6
+        assert await s3.result() == 105
+        assert await s4.result() == 105
+
+    async def test_instance_methods_can_share_a_cache(self):
+        """
+        Test that instance methods can share a cache by using a cache key function that
+        ignores the bound instance argument
+        """
+
+        def stringed_inputs(context, args):
+            # remove the self arg from the cache key
+            cache_args = args.copy()
+            cache_args.pop("self")
+            return str(cache_args)
+
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @task(cache_key_fn=stringed_inputs)
+            def add(self, a):
+                return a + self.x
+
+        # create an instance that adds 1 and another that adds 100
+        f1 = Foo(1)
+        f2 = Foo(100)
+
+        @flow
+        def bar():
+            return (
+                f1.add(5, return_state=True),
+                f1.add(5, return_state=True),
+                f2.add(5, return_state=True),
+                f2.add(5, return_state=True),
+            )
+
+        s1, s2, s3, s4 = bar()
+        # all subsequent calls are cached because the instance is not part of the cache key
+        assert s1.name == "Completed"
+        assert s2.name == "Cached"
+        assert s3.name == "Cached"
         assert s4.name == "Cached"
 
         assert await s1.result() == 6
         assert await s2.result() == 6
-        assert await s3.result() == 7
-        assert await s4.result() == 7
+        assert await s3.result() == 6
+        assert await s4.result() == 6
 
 
 class TestCacheFunctionBuiltins:
