@@ -3,7 +3,6 @@ docs_dir: docs/sdk
 
 theme:
   name: material
-  favicon: img/favicon.png
   features:
   - announce.dismiss
   - content.action.edit
@@ -20,7 +19,6 @@ theme:
   icon:
     repo: fontawesome/brands/github
     edit: material/pencil
-  logo: img/logos/prefect-logo-white.svg
   palette:
   - media: "(prefers-color-scheme: light)"
     accent: "#0225AC"
