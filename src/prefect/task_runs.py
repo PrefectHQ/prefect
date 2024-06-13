@@ -85,7 +85,7 @@ class TaskRunWaiter:
         """
         if self._started:
             return
-        self.logger.info("Starting TaskRunWaiter")
+        self.logger.debug("Starting TaskRunWaiter")
         loop_thread = get_global_loop()
 
         if not asyncio.get_running_loop() == loop_thread._loop:
@@ -111,7 +111,7 @@ class TaskRunWaiter:
         ) as subscriber:
             async for event in subscriber:
                 try:
-                    self.logger.info(
+                    self.logger.debug(
                         f"Received event: {event.resource['prefect.resource.id']}"
                     )
                     task_run_id = uuid.UUID(
