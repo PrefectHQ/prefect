@@ -105,7 +105,7 @@ cd /etc/systemd/system
 sudo vim my-prefect-service.service
 ```
 
-```title="my-prefect-service.service"
+```txt my-prefect-service.service
 [Unit]
 Description=Prefect worker
 
@@ -128,7 +128,7 @@ Copy your flow entrypoint Python file and any other files needed for your flow t
 
 Here's a basic example flow:
 
-```python title="my_file.py"
+```python my_file.py
 from prefect import flow
 
 
@@ -144,7 +144,7 @@ To make changes to your flow code without restarting your process, push your
 code to git-based cloud storage (GitHub, BitBucket, GitLab) and use `flow.from_source().serve()`,
 as in the example below.
 
-```python title="my_remote_flow_code_file.py"
+```python my_remote_flow_code_file.py
 if __name__ == "__main__":
 flow.from_source(
     source="https://github.com/org/repo.git",
@@ -164,7 +164,7 @@ cd /etc/systemd/system
 sudo vim my-prefect-service.service
 ```
 
-```title="my-prefect-service.service"
+```txt my-prefect-service.service
 [Unit]
 Description=Prefect serve
 
