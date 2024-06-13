@@ -117,7 +117,6 @@ from typing import (
     Optional,
     Tuple,
 )
-from typing.extensions import Self
 
 import anyio.abc
 import kubernetes_asyncio
@@ -134,7 +133,7 @@ from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
 from pydantic import Field, model_validator
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
-from typing_extensions import Literal
+from typing_extensions import Literal, Self
 
 import prefect
 from prefect.blocks.kubernetes import KubernetesClusterConfig
