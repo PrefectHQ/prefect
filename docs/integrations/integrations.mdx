@@ -75,7 +75,7 @@ if __name__ == "__main__":
     run_dbt_job_flow()
 ```
 
-## Creat a custom block for use in an integration
+## Create a custom block for use in an integration
 
 Prefect welcomes community contributions of integration libraries.
 
@@ -104,13 +104,13 @@ class Secret(Block):
         value: A string value that should be kept secret.
 
     Example:
-        ```python
+        (wrap in tripple backticsk and *python* to render correctly in the docs)
         from prefect.blocks.system import Secret
         secret_block = Secret.load("BLOCK_NAME")
 
         # Access the stored secret
         secret_block.get()
-        ```
+        
     """
 
     _logo_url = "https://example.com/logo.png"
@@ -144,9 +144,11 @@ To fix an issue or add a feature to any Prefect-maintained ntegrations, please [
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:
+
 ```
 pip install -e ".[dev]"
 ```
+
 4. Make desired changes
 5. Add tests
 6. Insert an entry to the Integration's CHANGELOG.md
