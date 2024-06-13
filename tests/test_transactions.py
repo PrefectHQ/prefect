@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 
 from prefect.filesystems import LocalFileSystem
@@ -8,6 +10,7 @@ from prefect.results import (
     get_default_result_storage,
     get_or_create_default_task_scheduling_storage,
 )
+from prefect.settings import PREFECT_DEFAULT_RESULT_STORAGE_BLOCK, temporary_settings
 from prefect.tasks import task
 from prefect.transactions import (
     CommitMode,
@@ -245,6 +248,15 @@ def test_overwrite_ignores_existing_record():
 
 
 class TestDefaultTransactionStorage:
+    @pytest.fixture(autouse=True)
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}"}
+        ):
+            yield
+
     async def test_transaction_outside_of_run(self):
         with transaction(key="test_transaction_outside_of_run") as txn:
             assert isinstance(txn.store, ResultFactoryStore)
