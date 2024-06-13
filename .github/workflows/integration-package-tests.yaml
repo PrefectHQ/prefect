@@ -84,7 +84,11 @@ jobs:
         run: |
           python -m pip install -U uv
           uv pip install --upgrade --system -e .[dev]
-          uv pip install --upgrade --system ../../../
+          uv pip install --upgrade --system -e ../../../
+
+      - name: Build dev docker image
+        if: matrix.package == 'prefect-docker'
+        run : prefect dev build-image
 
       - name: Run tests
         if: matrix.package != 'prefect-ray'
