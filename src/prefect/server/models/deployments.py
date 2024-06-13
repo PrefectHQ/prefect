@@ -923,7 +923,7 @@ async def mark_deployments_ready(
         return
 
     async with db.session_context(
-        begin_transaction=True, with_for_update=True
+        begin_transaction=True,
     ) as session:
         result = await session.execute(
             select(orm_models.Deployment.id).where(
@@ -977,7 +977,7 @@ async def mark_deployments_not_ready(
         return
 
     async with db.session_context(
-        begin_transaction=True, with_for_update=True
+        begin_transaction=True,
     ) as session:
         result = await session.execute(
             select(orm_models.Deployment.id).where(

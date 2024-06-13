@@ -102,7 +102,7 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import listrepr
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import import_object
+from prefect.utilities.importtools import import_object, safe_load_namespace
 
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
@@ -1241,19 +1241,14 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        from prefect.flow_engine import run_flow, run_flow_sync
+        from prefect.flow_engine import run_flow
 
-        run_kwargs = dict(
+        return run_flow(
             flow=self,
             parameters=parameters,
             wait_for=wait_for,
             return_type=return_type,
         )
-        if self.isasync:
-            # this returns an awaitable coroutine
-            return run_flow(**run_kwargs)
-        else:
-            return run_flow_sync(**run_kwargs)
 
     @sync_compatible
     async def visualize(self, *args, **kwargs):
@@ -1913,7 +1908,14 @@ def load_flow_argument_from_entrypoint(
         (
             node
             for node in ast.walk(parsed_code)
-            if isinstance(node, ast.FunctionDef) and node.name == func_name
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
         ),
         None,
     )
@@ -1926,11 +1928,33 @@ def load_flow_argument_from_entrypoint(
         ):
             for keyword in decorator.keywords:
                 if keyword.arg == arg:
-                    return (
-                        keyword.value.value
-                    )  # Return the string value of the argument
+                    if isinstance(keyword.value, ast.Constant):
+                        return (
+                            keyword.value.value
+                        )  # Return the string value of the argument
+
+                    # if the arg value is not a raw str (i.e. a variable or expression),
+                    # then attempt to evaluate it
+                    namespace = safe_load_namespace(source_code)
+                    literal_arg_value = ast.get_source_segment(
+                        source_code, keyword.value
+                    )
+                    try:
+                        evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
+                    except Exception as e:
+                        logger.info(
+                            "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
+                            arg,
+                            literal_arg_value,
+                            exc_info=e,
+                        )
+                        # ignore the decorator arg and fallback to default behavior
+                        break
+                    return str(evaluated_value)
 
     if arg == "name":
         return func_name.replace(
             "_", "-"
         )  # If no matching decorator or keyword argument is found
+
+    return None

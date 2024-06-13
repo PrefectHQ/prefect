@@ -1,15 +1,11 @@
 """Module containing docker credentials."""
+
 import docker
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, SecretStr
 
-from prefect import get_run_logger
 from prefect.blocks.core import Block
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretStr
-else:
-    from pydantic import Field, SecretStr
 
 
 class DockerRegistryCredentials(Block):
@@ -47,7 +43,7 @@ class DockerRegistryCredentials(Block):
         description=(
             'The URL to the registry. Generally, "http" or "https" can be omitted.'
         ),
-        example="index.docker.io",
+        examples=["index.docker.io"],
     )
     reauth: bool = Field(
         default=True,

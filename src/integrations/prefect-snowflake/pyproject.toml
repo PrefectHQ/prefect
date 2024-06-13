@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "prefect-snowflake"
 dependencies = [
   "snowflake-connector-python>=2.7.6",
-  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "prefect>=3.0.0rc1",
 ]
 dynamic = ["version"]
 description = "Prefect integrations for interacting with Snowflake"
@@ -41,6 +41,7 @@ dev = [
   "pre-commit",
   "pytest-asyncio",
   "pytest",
+  "pytest-env",
   "pytest-xdist",
 ]
 
@@ -53,7 +54,7 @@ prefect_snowflake = "prefect_snowflake"
 [tool.setuptools_scm]
 version_file = "prefect_snowflake/_version.py"
 root = "../../.."
-tag_regex = "^prefect-snowflake-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-snowflake-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-snowflake-*[0-9]*"'
 
@@ -73,3 +74,6 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+  "PREFECT_TEST_MODE=1",
+]

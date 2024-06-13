@@ -9,7 +9,11 @@ from typing_extensions import ParamSpec, Self, TypeVar
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
-from prefect.futures import PrefectConcurrentFuture, PrefectFuture
+from prefect.futures import (
+    PrefectConcurrentFuture,
+    PrefectDistributedFuture,
+    PrefectFuture,
+)
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
@@ -198,12 +202,13 @@ class TaskRunner(abc.ABC, Generic[F]):
 
 
 class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
-    def __init__(self):
+    def __init__(self, max_workers: Optional[int] = None):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
+        self._max_workers = max_workers
 
     def duplicate(self) -> "ThreadPoolTaskRunner":
-        return type(self)()
+        return type(self)(max_workers=self._max_workers)
 
     def submit(
         self,
@@ -274,7 +279,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
 
     def __enter__(self):
         super().__enter__()
-        self._executor = ThreadPoolExecutor()
+        self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -282,3 +287,57 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
             self._executor.shutdown()
             self._executor = None
         super().__exit__(exc_type, exc_value, traceback)
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, ThreadPoolTaskRunner):
+            return False
+        return self._max_workers == value._max_workers
+
+
+# Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility
+ConcurrentTaskRunner = ThreadPoolTaskRunner
+
+
+class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
+    def __init__(self):
+        super().__init__()
+
+    def duplicate(self) -> "PrefectTaskRunner":
+        return type(self)()
+
+    def submit(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDistributedFuture:
+        """
+        Submit a task to the task run engine running in a separate thread.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+
+        Returns:
+            A future object that can be used to wait for the task to complete and
+            retrieve the result.
+        """
+        if not self._started:
+            raise RuntimeError("Task runner is not started")
+        from prefect.context import FlowRunContext
+
+        flow_run_ctx = FlowRunContext.get()
+        if flow_run_ctx:
+            get_run_logger(flow_run_ctx).info(
+                f"Submitting task {task.name} to for execution by a Prefect task worker..."
+            )
+        else:
+            self.logger.info(
+                f"Submitting task {task.name} to for execution by a Prefect task worker..."
+            )
+
+        return task.apply_async(
+            kwargs=parameters, wait_for=wait_for, dependencies=dependencies
+        )

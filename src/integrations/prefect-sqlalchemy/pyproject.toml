@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "prefect-sqlalchemy"
 dependencies = [
   "sqlalchemy>=1.4.31,<3",
-  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "prefect>=3.0.0rc1",
 ]
 dynamic = ["version"]
 description = "Prefect integrations for working with databases"
@@ -42,9 +42,10 @@ dev = [
   "pillow",
   "pre-commit",
   "psycopg2",
-  "pytest-asyncio",
-  "pytest-xdist",
   "pytest",
+  "pytest-asyncio",
+  "pytest-env",
+  "pytest-xdist",
 ]
 
 [project.urls]
@@ -56,7 +57,7 @@ prefect_sqlalchemy = "prefect_sqlalchemy"
 [tool.setuptools_scm]
 version_file = "prefect_sqlalchemy/_version.py"
 root = "../../.."
-tag_regex = "^prefect-sqlalchemy-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-sqlalchemy-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-sqlalchemy-*[0-9]*"'
 
@@ -76,3 +77,6 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+  "PREFECT_TEST_MODE=1",
+]
