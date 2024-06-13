@@ -2341,61 +2341,6 @@ class TestKubernetesWorker:
                 ]
             )
 
-        async def test_timeout_during_log_stream_does_not_fail_completed_job(
-            self,
-            mock_core_client,
-            mock_watch,
-            mock_batch_client,
-            capsys,
-            flow_run,
-            default_configuration,
-        ):
-            # Pretend the job is completed immediately
-            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = True
-
-            # TODO investigate why it needs type
-            async def mock_stream(*args, **kwargs):
-                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                    job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-                    job_pod.status.phase = "Running"
-                    yield {"object": job_pod, "type": "ADDED"}
-
-            async def mock_log_stream(*args, **kwargs):
-                for i in range(10):
-                    await asyncio.sleep(0.25)
-                    yield f"test {i}".encode()
-
-            mock_core_client.return_value.read_namespaced_pod_log.return_value.content = mock_log_stream()
-            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
-
-            default_configuration.job_watch_timeout_seconds = 2
-            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                result = await k8s_worker.run(flow_run, default_configuration)
-
-            # The job should not timeout
-            assert result.status_code == 1
-
-            mock_watch.return_value.stream.assert_has_calls(
-                [
-                    mock.call(
-                        func=mock_core_client.return_value.list_namespaced_pod,
-                        namespace=mock.ANY,
-                        label_selector=mock.ANY,
-                        timeout_seconds=mock.ANY,
-                    ),
-                    # No watch call is made because the job is completed already
-                ]
-            )
-
-            # Check for logs
-            stdout, _ = capsys.readouterr()
-
-            # Before the deadline, logs should be displayed
-            for i in range(4):
-                assert f"test {i}" in stdout
-            for i in range(4, 10):
-                assert f"test {i}" not in stdout
-
         @pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerances
         async def test_watch_timeout_is_restarted_until_job_is_complete(
             self,

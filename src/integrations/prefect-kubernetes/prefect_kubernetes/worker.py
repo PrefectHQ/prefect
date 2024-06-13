@@ -99,6 +99,7 @@ is hard-coded and cannot be changed by deployments.
 For more information about work pools and workers,
 checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
 """
+
 import asyncio
 import base64
 import enum
@@ -114,11 +115,10 @@ from typing import (
     AsyncGenerator,
     Dict,
     Optional,
-    Self,
     Tuple,
 )
+from typing.extensions import Self
 
-import aiohttp
 import anyio.abc
 import kubernetes_asyncio
 from kubernetes_asyncio import config
@@ -914,20 +914,15 @@ class KubernetesWorker(BaseWorker):
         configuration: KubernetesWorkerJobConfiguration,
         client,
     ):
-        timeout = (
-            configuration.job_watch_timeout_seconds
-            if configuration.job_watch_timeout_seconds
-            else aiohttp.ClientTimeout(total=None)
-        )
         core_client = CoreV1Api(client)
         # watch = kubernetes_asyncio.watch.Watch()
+
         logs = await core_client.read_namespaced_pod_log(
             pod_name,
             configuration.namespace,
             follow=True,
             _preload_content=False,
             container="prefect-job",
-            _request_timeout=timeout,
         )
         try:
             async for line in logs.content:
@@ -983,9 +978,7 @@ class KubernetesWorker(BaseWorker):
             finally:
                 await watch.close()
 
-    async def _monitor_job_events(
-        self, batch_client, job_name, namespace, logger, configuration
-    ):
+    async def _monitor_job_events(self, batch_client, job_name, logger, configuration):
         job = await batch_client.read_namespaced_job(
             name=job_name, namespace=configuration.namespace
         )
@@ -1000,7 +993,7 @@ class KubernetesWorker(BaseWorker):
             async for event in self._job_events(
                 batch_client,
                 job_name,
-                namespace,
+                configuration.namespace,
                 watch_kwargs,
             ):
                 if event["type"] == "DELETED":
@@ -1054,31 +1047,29 @@ class KubernetesWorker(BaseWorker):
         if not pod:
             return -1
 
+        # Create a list of tasks to run concurrently
+        batch_client = BatchV1Api(client)
+        tasks = [
+            self._monitor_job_events(
+                batch_client,
+                job_name,
+                logger,
+                configuration,
+            )
+        ]
+
         try:
             with timeout_async(seconds=configuration.job_watch_timeout_seconds):
-                tasks = []
                 if configuration.stream_output:
                     tasks.append(
                         self._stream_job_logs(
                             logger, pod.metadata.name, job_name, configuration, client
                         )
                     )
-
-                namespace = configuration.namespace
                 # The kubernetes library will disable retries if the timeout kwarg is
                 # present regardless of the value so we do not pass it unless given
                 # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
 
-                batch_client = BatchV1Api(client)
-                tasks = tasks + [
-                    self._monitor_job_events(
-                        batch_client,
-                        job_name,
-                        namespace,
-                        logger,
-                        configuration,
-                    )
-                ]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 if any(isinstance(result, Exception) for result in results):
                     for result in results:
