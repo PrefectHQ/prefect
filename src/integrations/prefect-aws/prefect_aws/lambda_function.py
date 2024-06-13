@@ -49,19 +49,14 @@ Examples:
     ```
 
 """
+
 import json
 from typing import Literal, Optional
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_aws.credentials import AwsCredentials
 
 
@@ -108,11 +103,6 @@ class LambdaFunction(Block):
         default_factory=AwsCredentials,
         description="The AWS credentials to invoke the Lambda with.",
     )
-
-    class Config:
-        """Lambda's pydantic configuration."""
-
-        smart_union = True
 
     def _get_lambda_client(self):
         """

@@ -73,7 +73,6 @@ async def stream_workspace_events_out(
     websocket: WebSocket,
 ) -> None:
     """Open a WebSocket to stream Events"""
-
     websocket = await subscriptions.accept_prefect_socket(
         websocket,
     )
@@ -120,6 +119,11 @@ async def stream_workspace_events_out(
 
             # ...before resuming the ongoing stream of events
             async for event in event_stream:
+                if not event:
+                    if await subscriptions.still_connected(websocket):
+                        continue
+                    break
+
                 if wants_backfill and event.id in backfilled_ids:
                     backfilled_ids.remove(event.id)
                     continue

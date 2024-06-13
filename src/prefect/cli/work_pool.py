@@ -1,6 +1,7 @@
 """
 Command line interface for working with work queues.
 """
+
 import json
 import textwrap
 
@@ -9,7 +10,6 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._prompts import prompt_select_from_table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import (
@@ -18,6 +18,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
@@ -30,9 +31,7 @@ from prefect.workers.utilities import (
     get_default_base_job_template_for_infrastructure_type,
 )
 
-work_pool_app = PrefectTyper(
-    name="work-pool", help="Commands for working with work pools."
-)
+work_pool_app = PrefectTyper(name="work-pool", help="Manage work pools.")
 app.add_typer(work_pool_app, aliases=["work-pool"])
 
 

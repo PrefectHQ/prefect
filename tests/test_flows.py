@@ -23,7 +23,7 @@ import regex as re
 
 import prefect
 import prefect.exceptions
-from prefect import flow, get_run_logger, runtime, tags, task
+from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.schedules import (
@@ -47,6 +47,7 @@ from prefect.flows import (
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
 )
+from prefect.logging import get_run_logger
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -1655,9 +1656,12 @@ class TestSubflowTaskInputs:
 # We flush the APILogHandler in a non-blocking manner, so we need to wait for the logs to be
 # written before we can read them to avoid flakiness.
 async def _wait_for_logs(
-    prefect_client: PrefectClient, expected_num_logs: Optional[int] = None
+    prefect_client: PrefectClient,
+    expected_num_logs: Optional[int] = None,
+    timeout: int = 10,
 ):
     logs = []
+    start_time = time.time()
     while True:
         logs = await prefect_client.read_logs()
         if logs:
@@ -1666,6 +1670,8 @@ async def _wait_for_logs(
             else:
                 if len(logs) >= expected_num_logs:
                     break
+        if time.time() - start_time > timeout:
+            raise TimeoutError("Timed out in _wait_for_logs()")
         await asyncio.sleep(1)
     return logs
 
@@ -1679,7 +1685,6 @@ class TestFlowRunLogs:
             logger.info("Hello world!")
 
         my_flow()
-
         await _wait_for_logs(prefect_client, expected_num_logs=3)
 
         logs = await prefect_client.read_logs()
@@ -2334,7 +2339,8 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
     prefect_client,
 ):
     flow_code_with_call = """
-    from prefect import flow, get_run_logger
+    from prefect import flow
+from prefect.logging import get_run_logger
 
     @flow
     def dog():
@@ -4152,6 +4158,95 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         @flow
         def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function"
+
+    def test_load_flow_name_from_entrypoint_dynamic_name_fstring(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        version = "1.0"
+
+        @flow(name=f"flow-function-{version}")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function-1.0"
+
+    def test_load_flow_name_from_entrypoint_dyanmic_name_function(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        def get_name():
+            return "from-a-function"
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "from-a-function"
+
+    def test_load_flow_name_from_entrypoint_dynamic_name_depends_on_missing_import(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import get_name
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function"
+        assert "Failed to parse @flow argument: `name=get_name()`" in caplog.text
+
+    def test_load_async_flow_from_entrypoint_no_name(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+        from prefect import flow
+
+        @flow
+        async def flow_function(name: str) -> str:
             return name
         """
         )

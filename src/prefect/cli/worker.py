@@ -33,9 +33,7 @@ from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.server import start_healthcheck_server
 
-worker_app = PrefectTyper(
-    name="worker", help="Commands for starting and interacting with workers."
-)
+worker_app = PrefectTyper(name="worker", help="Start and interact with workers.")
 app.add_typer(worker_app)
 
 
@@ -169,7 +167,7 @@ async def start(
             work_queues=work_queues,
             limit=limit,
             prefetch_seconds=prefetch_seconds,
-            heartbeat_interval_seconds=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+            heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
             base_job_template=template_contents,
         ) as worker:
             app.console.print(f"Worker {worker.name!r} started!", style="green")
