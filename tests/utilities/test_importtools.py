@@ -316,3 +316,25 @@ def test_safe_load_namespace_ignore_class_declaration_errors():
 
     assert "DataFrame" not in namespace
     assert "CoolDataFrame" not in namespace
+
+
+def test_safe_load_namespace_ignores_code_in_if_name_equals_main_block():
+    source_code = dedent(
+        """
+        import math
+
+        x = 10
+        y = math.sqrt(x)
+
+
+        if __name__ == "__main__":
+            z = 10
+    """
+    )
+
+    # should not raise any errors
+    namespace = safe_load_namespace(source_code)
+
+    assert "x" in namespace
+    assert "y" in namespace
+    assert "z" not in namespace
