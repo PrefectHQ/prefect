@@ -254,8 +254,7 @@ The identifiers for infrastructure types are:
 
 While the cancellation process is robust, there are a few issues than can occur:
 
-- If the infrastructure block for the flow run has been removed or altered, cancellation may not work.
-- If the infrastructure block for the flow run does not have support for cancellation, cancellation will not work.
+- If the infrastructure for the flow run does not support for cancellation, cancellation will not work.
 - If the identifier scope does not match when attempting to cancel a flow run, the worker cannot cancel the flow run. 
 Another worker may attempt cancellation.
 - If the infrastructure associated with the run cannot be found or has already been killed, the worker marks the flow run as cancelled.
