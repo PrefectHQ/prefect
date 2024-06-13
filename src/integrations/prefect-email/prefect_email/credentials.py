@@ -5,6 +5,7 @@ from enum import Enum
 from functools import partial
 from smtplib import SMTP, SMTP_SSL
 from typing import Optional, Union
+from prefect.logging import get_run_logger
 
 from pydantic import Field, SecretStr, field_validator
 
@@ -82,7 +83,7 @@ class EmailServerCredentials(Block):
             keys from the built-in SMTPServer Enum members, like "gmail".
         smtp_type: Either "SSL", "STARTTLS", or "INSECURE".
         smtp_port: If provided, overrides the smtp_type's default port number.
-        unverified_context: Unverified context should be used or not. By default this is False.
+        verify: If `False`, SSL certificates will not be verified. Default to `True`.
 
     Example:
         Load stored email server credentials:
@@ -95,6 +96,7 @@ class EmailServerCredentials(Block):
     _block_type_name = "Email Server Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/82bc6ed16ca42a2252a5512c72233a253b8a58eb-250x250.png"  # noqa
     _documentation_url = "https://prefecthq.github.io/prefect-email/credentials/#prefect_email.credentials.EmailServerCredentials"  # noqa
+    _logger = get_run_logger()
 
     username: Optional[str] = Field(
         default=None,
@@ -129,10 +131,10 @@ class EmailServerCredentials(Block):
         title="SMTP Port",
     )
 
-    unverified_context: Optional[bool] = Field(
-        default=False,
+    verify: Optional[bool] = Field(
+        default=True,
         description=(
-            "Unverified context should be used or not. By default this is False"
+            "If `False`, SSL certificates will not be verified. Default to `True`."
         ),
     )
 
@@ -191,9 +193,8 @@ class EmailServerCredentials(Block):
             server = SMTP(smtp_server, smtp_port)
         else:
             context = (
+                ssl.create_default_context() if self.verify else
                 ssl._create_unverified_context(protocol=ssl.PROTOCOL_TLS_CLIENT)
-                if self.unverified_context
-                else ssl.create_default_context()
             )
             if smtp_type == SMTPType.SSL:
                 server = SMTP_SSL(smtp_server, smtp_port, context=context)
@@ -201,6 +202,12 @@ class EmailServerCredentials(Block):
                 server = SMTP(smtp_server, smtp_port)
                 server.starttls(context=context)
         if self.username is not None:
+            if not self.verify or smtp_type == SMTPType.INSECURE:
+                self._logger.warning(
+                    """SMTP login is not secure without a verified SSL/TLS or SECURE connection. 
+                    Without such a connection, the password may be sent in plain text, 
+                    making it vulnerable to interception."""
+                )
             server.login(self.username, self.password.get_secret_value())
 
         return server
