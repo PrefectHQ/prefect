@@ -589,14 +589,14 @@ class LocalStorage:
         url: str,
         pull_interval: Optional[int] = 60,
     ):
-        self._url = Path(url)
+        self._url = url
         self._logger = get_logger("runner.storage.local-storage")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
 
     @property
     def destination(self) -> Path:
-        return self._url
+        return Path(self._url)
 
     def set_base_path(self, path: Path):
         self._storage_base_path = path

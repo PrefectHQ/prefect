@@ -12,6 +12,7 @@ from prefect.filesystems import ReadableDeploymentStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
     GitRepository,
+    LocalStorage,
     RemoteStorage,
     RunnerStorage,
     create_storage_from_url,
@@ -63,6 +64,16 @@ class TestCreateStorageFromUrl:
     def test_alternative_storage_url(self, url):
         storage = create_storage_from_url(url)
         assert isinstance(storage, RemoteStorage)
+        assert storage._url == url
+        assert storage.pull_interval == 60  # default value
+
+    @pytest.mark.parametrize(
+        "url",
+        ["/path/to/local/flows", "C:\\path\\to\\local\\flows"],
+    )
+    def test_local_storage_url(self, url):
+        storage = create_storage_from_url(url)
+        assert isinstance(storage, LocalStorage)
         assert storage._url == url
         assert storage.pull_interval == 60  # default value
 
