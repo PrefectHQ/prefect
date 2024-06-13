@@ -25,8 +25,10 @@ from prefect.server.schemas.core import Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_TEST_MODE,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
     temporary_settings,
@@ -90,6 +92,21 @@ def enable_enhanced_cancellation():
         }
     ):
         yield
+
+
+@pytest.fixture
+def no_api_url():
+    with temporary_settings(updates={PREFECT_TEST_MODE: False, PREFECT_API_URL: None}):
+        yield
+
+
+async def test_worker_requires_api_url_when_not_in_test_mode(no_api_url):
+    with pytest.raises(ValueError, match="PREFECT_API_URL"):
+        async with WorkerTestImpl(
+            name="test",
+            work_pool_name="test-work-pool",
+        ):
+            pass
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(

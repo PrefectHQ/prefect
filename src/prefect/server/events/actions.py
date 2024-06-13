@@ -109,8 +109,10 @@ class Action(PrefectBaseModel, abc.ABC):
 
     # Captures any additional information about the result of the action we'd like to
     # make available in the payload of the executed or failed events
-    _result_details: Dict[str, Any] = PrivateAttr({})
-    _resulting_related_resources: List[RelatedResource] = PrivateAttr([])
+    _result_details: Dict[str, Any] = PrivateAttr(default_factory=dict)
+    _resulting_related_resources: List[RelatedResource] = PrivateAttr(
+        default_factory=list
+    )
 
     @abc.abstractmethod
     async def act(self, triggered_action: "TriggeredAction") -> None:
@@ -260,8 +262,23 @@ class ExternalDataAction(Action):
         )
 
     def reason_from_response(self, response: Response) -> str:
-        # TODO: handle specific status codes here
-        return f"Unexpected status from {self.type} action: {response.status_code}"
+        error_detail = None
+        if response.status_code in {409, 422}:
+            try:
+                error_detail = response.json().get("detail")
+            except Exception:
+                pass
+
+            if response.status_code == 422 or error_detail:
+                return f"Validation error occurred for {self.type!r}" + (
+                    f" - {error_detail}" if error_detail else ""
+                )
+            else:
+                return f"Conflict (409) occurred for {self.type!r} - {error_detail or response.text!r}"
+        else:
+            return (
+                f"Unexpected status from {self.type!r} action: {response.status_code}"
+            )
 
 
 def _first_resource_of_kind(event: "Event", expected_kind: str) -> Optional["Resource"]:
@@ -707,6 +724,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                     **self.logging_context(triggered_action),
                 },
             )
+
+        if response.status_code == 409:
+            self._result_details["validation_error"] = response.json().get("detail")
 
         return response
 

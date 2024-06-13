@@ -60,15 +60,20 @@ class MockFuture(PrefectWrappedFuture):
 
 class TestThreadPoolTaskRunner:
     def test_duplicate(self):
-        runner = ThreadPoolTaskRunner()
+        runner = ThreadPoolTaskRunner(max_workers=100)
         duplicate_runner = runner.duplicate()
         assert isinstance(duplicate_runner, ThreadPoolTaskRunner)
         assert duplicate_runner is not runner
+        assert duplicate_runner == runner
 
     def test_runner_must_be_started(self):
         runner = ThreadPoolTaskRunner()
         with pytest.raises(RuntimeError, match="Task runner is not started"):
             runner.submit(my_test_task, {})
+
+    def test_set_max_workers(self):
+        with ThreadPoolTaskRunner(max_workers=2) as runner:
+            assert runner._executor._max_workers == 2
 
     def test_submit_sync_task(self):
         with ThreadPoolTaskRunner() as runner:

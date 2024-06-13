@@ -42,9 +42,10 @@ dev = [
   "pillow",
   "pre-commit",
   "psycopg2",
-  "pytest-asyncio",
-  "pytest-xdist",
   "pytest",
+  "pytest-asyncio",
+  "pytest-env",
+  "pytest-xdist",
 ]
 
 [project.urls]
@@ -76,3 +77,6 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+  "PREFECT_TEST_MODE=1",
+]

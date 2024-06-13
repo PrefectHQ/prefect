@@ -170,13 +170,15 @@ async def test_background_task_state_changes(
         "prefect.task-run.Completed",
     ]
 
-    assert [
+    observed = [
         (e.payload["intended"]["from"], e.payload["intended"]["to"])
         for e in events
         if e.event.startswith("prefect.task-run.")
-    ] == [
+    ]
+    expected = [
         (None, "SCHEDULED"),
         ("SCHEDULED", "PENDING"),
         ("PENDING", "RUNNING"),
         ("RUNNING", "COMPLETED"),
     ]
+    assert observed == expected

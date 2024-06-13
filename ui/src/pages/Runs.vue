@@ -55,14 +55,15 @@
                 </p-list-header>
 
                 <template v-if="flowRunCount > 0">
-                  <FlowRunList v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
+                  <FlowRunList v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs />
+                  <p-pager v-model:limit="limit" v-model:page="flowRunsPage" :pages="flowRunPages" />
                 </template>
 
-                <template v-else-if="!flowRunsSubscriptions.executed && flowRunsSubscriptions.loading">
+                <template v-else-if="!flowRunsSubscription.executed && flowRunsSubscription.loading">
                   <p-loading-icon class="m-auto" />
                 </template>
 
-                <template v-else-if="!flowRunsSubscriptions.executed">
+                <template v-else-if="!flowRunsSubscription.executed">
                   <p-message type="error">
                     An error occurred while loading task runs. Please try again.
                   </p-message>
@@ -159,9 +160,10 @@
     FlowRunSortValuesSortParam,
     TaskRunsFilter,
     TaskRunSortValuesSortParam,
-    TaskRunsSort
+    TaskRunsSort,
+    FlowRunsPaginationFilter
   } from '@prefecthq/prefect-ui-library'
-  import { BooleanRouteParam, NullableStringRouteParam, useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
+  import { BooleanRouteParam, NullableStringRouteParam, NumberRouteParam, useDebouncedRef, useLocalStorage, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import merge from 'lodash.merge'
   import { computed, ref, toRef } from 'vue'
   import { useRouter } from 'vue-router'
@@ -194,8 +196,11 @@
   const hideSubflows = useRouteQueryParam('hide-subflows', BooleanRouteParam, false)
   const flowRunsSort = useRouteQueryParam('flow-runs-sort', FlowRunSortValuesSortParam, 'START_TIME_DESC')
   const taskRunsSort = useRouteQueryParam('task-runs-sort', TaskRunSortValuesSortParam, 'EXPECTED_START_TIME_DESC')
+  const flowRunsPage = useRouteQueryParam('flow-runs-page', NumberRouteParam, 1)
 
-  const flowRunsFilter: Getter<FlowRunsFilter> = () => {
+  const { value: limit } = useLocalStorage('workspace-runs-list-limit', 10)
+
+  const flowRunsFilter: Getter<FlowRunsPaginationFilter> = () => {
     const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'FlowRunsFilter')
 
     return merge({}, filter, {
@@ -204,6 +209,8 @@
         parentTaskRunIdNull: hideSubflows.value ? true : undefined,
       },
       sort: flowRunsSort.value,
+      limit: limit.value,
+      page: flowRunsPage.value,
     })
   }
 
@@ -224,14 +231,27 @@
 
   const interval = 30000
 
-  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [flowRunsFilterRef], {
+  const flowRunsHistoryFilter: Getter<FlowRunsFilter> = () => {
+    const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'FlowRunsFilter')
+
+    return merge({}, filter, {
+      flowRuns: {
+        nameLike: flowRunNameLikeDebounced.value ?? undefined,
+        parentTaskRunIdNull: hideSubflows.value ? true : undefined,
+      },
+      sort: flowRunsSort.value,
+    })
+  }
+
+  const flowRunsHistoryFilterRef = toRef(flowRunsHistoryFilter)
+
+  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [flowRunsHistoryFilterRef], {
     interval,
   })
 
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const { flowRuns, total: flowRunCount, subscriptions: flowRunsSubscriptions, next: loadMoreFlowRuns } = usePaginatedFlowRuns(flowRunsFilter, {
-    mode: 'infinite',
+  const { flowRuns, count: flowRunCount, pages: flowRunPages, subscription: flowRunsSubscription } = usePaginatedFlowRuns(flowRunsFilter, {
     interval,
   })
 
@@ -254,7 +274,7 @@
 
   const deleteFlowRuns = (): void => {
     selectedFlowRuns.value = []
-    flowRunsSubscriptions.refresh()
+    flowRunsSubscription.refresh()
   }
 
   const deleteTaskRuns = (): void => {

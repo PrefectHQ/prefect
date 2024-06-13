@@ -10,25 +10,25 @@ Prefect Cloud is a hosted workflow application framework that provides all the c
 - push work pools for running flows on serverless infrastructure without a worker
 - error summaries powered by Marvin AI to help you resolve errors faster
 
-!!! success "Getting Started with Prefect Cloud"
+success "Getting Started with Prefect Cloud"
     Ready to jump right in and start running with Prefect Cloud? See the [Quickstart](/3.0rc/get-started/quickstart/) and follow the instructions on the **Cloud** tabs to write and deploy your first Prefect Cloud-monitored flow run.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI](/3.0rc/img/ui/cloud-dashboard.png)
 
 Prefect Cloud includes all the features in the open-source Prefect server plus the following:
 
-!!! cloud-ad "Prefect Cloud features"
-    - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud.
-    - [Workspaces](/3.0rc/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
-    - [Automations](/3.0rc/react/understand-events/automations-triggers/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
-    - [Email notifications](/3.0rc/react/understand-events/automations-triggers/) &mdash; send email alerts from Prefect's server based on automation triggers.
-    - [Service accounts](/3.0rc/cloud/manage-users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
-    - [Custom role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/) &mdash; assign users granular permissions to perform certain activities within an account or a workspace.
-    - [Single Sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/) &mdash; authentication using your identity provider.
-    - [Audit Log](/3.0rc/cloud/manage-users/audit-logs/) &mdash; a record of user activities to monitor security and compliance.
-    - Collaboration &mdash; invite other people to your account.
-    - Error summaries  &mdash; (enabled by Marvin AI) distill the error logs of `Failed` and `Crashed` flow runs into actionable information.
-    - [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/) &mdash; run flows on your serverless infrastructure without running a worker.
+
+- [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud.
+- [Workspaces](/3.0rc/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
+- [Automations](/3.0rc/react/understand-events/automations-triggers/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
+- [Email notifications](/3.0rc/react/understand-events/automations-triggers/) &mdash; send email alerts from Prefect's server based on automation triggers.
+- [Service accounts](/3.0rc/cloud/manage-users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
+- [Custom role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/) &mdash; assign users granular permissions to perform certain activities within an account or a workspace.
+- [Single Sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/) &mdash; authentication using your identity provider.
+- [Audit Log](/3.0rc/cloud/manage-users/audit-logs/) &mdash; a record of user activities to monitor security and compliance.
+- Collaboration &mdash; invite other people to your account.
+- Error summaries  &mdash; (enabled by Marvin AI) distill the error logs of `Failed` and `Crashed` flow runs into actionable information.
+- [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/) &mdash; run flows on your serverless infrastructure without running a worker.
 
 ## User accounts
 
@@ -54,8 +54,11 @@ Workspace Admins for Pro tier plans have the ability to set [role-based access c
 
 Custom plans have [object-level access control lists](/3.0rc/cloud/manage-users/object-access-control-lists/), [custom roles](/3.0rc/cloud/manage-users/manage-roles/), [teams](/3.0rc/cloud/manage-users/manage-teams/), and [single sign-on (SSO)](#single-sign-on-(sso) with [Directory Sync/SCIM provisioning](/3.0rc/cloud/manage-users/configure-sso/#scim-provisioning).
 
-!!! cloud-ad "Prefect Cloud plans for teams of every size"
-    See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details on Pro and Custom account tiers.
+<Tip> 
+**Prefect Cloud plans for teams of every size**
+
+See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details on Pro and Custom account tiers.
+</Tip>
 
 ## Workspaces
 
@@ -124,8 +127,11 @@ Audit logs provide a chronological record of activities performed by users in an
 The [Prefect REST API](/3.0rc/api-ref/rest-api/) is used for communicating data from Prefect clients to Prefect Cloud or a local Prefect server for orchestration and monitoring.
 This API is mainly consumed by Prefect clients like the Prefect Python Client or the Prefect UI.
 
-!!! note "Prefect Cloud REST API interactive documentation"
-    Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
+<Info> 
+**Prefect Cloud REST API interactive documentation**
+
+Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
+</Info>
 
 ## Start using Prefect Cloud
 
@@ -133,6 +139,9 @@ To create an account or sign in with an existing Prefect Cloud account, go to [h
 
 Then follow the steps in the UI to deploy your first Prefect Cloud-monitored flow run. For more details, see the [Prefect Quickstart](/3.0rc/get-started/quickstart/) and follow the instructions on the **Cloud** tabs.
 
-!!! tip "Need help?"
-    Get your questions answered by a Prefect Product Advocate!
-    [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
+<Tip>
+**Need help?**
+
+Get your questions answered by a Prefect Product Advocate!
+[Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
+</Tip>

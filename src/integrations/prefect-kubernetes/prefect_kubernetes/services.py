@@ -1,4 +1,4 @@
-""" Tasks for working with Kubernetes services. """
+"""Tasks for working with Kubernetes services."""
 
 from typing import Any, Dict, Optional
 

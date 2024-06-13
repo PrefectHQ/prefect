@@ -9,6 +9,7 @@ from typing import (
     Callable,
     Coroutine,
     Dict,
+    Generator,
     Generic,
     Iterable,
     Literal,
@@ -20,22 +21,17 @@ from typing import (
 )
 from uuid import UUID
 
-import anyio
-import anyio._backends._asyncio
-from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
 from prefect import Task
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import ClientContext, FlowRunContext, TagsContext, TaskRunContext
+from prefect.context import ClientContext, FlowRunContext, TagsContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.futures import PrefectFuture, resolve_futures_to_states
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
@@ -43,7 +39,7 @@ from prefect.logging.loggers import (
     patch_print,
 )
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
+from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
     Pending,
@@ -54,7 +50,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
@@ -64,6 +60,7 @@ from prefect.utilities.engine import (
     resolve_to_final_result,
 )
 from prefect.utilities.timeout import timeout, timeout_async
+from prefect.utilities.urls import url_for
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -174,9 +171,6 @@ class FlowRunEngine(Generic[P, R]):
         while state.is_pending():
             time.sleep(0.2)
             state = self.set_state(new_state)
-        if state.is_running():
-            for hook in self.get_hooks(state):
-                hook()
         return state
 
     def set_state(self, state: State, force: bool = False) -> State:
@@ -349,12 +343,14 @@ class FlowRunEngine(Generic[P, R]):
 
         return flow_run
 
-    def get_hooks(self, state: State, as_async: bool = False) -> Iterable[Callable]:
+    def call_hooks(self, state: State = None) -> Iterable[Callable]:
+        if state is None:
+            state = self.state
         flow = self.flow
         flow_run = self.flow_run
 
         if not flow_run:
-            raise ValueError("Task run is not set")
+            raise ValueError("Flow run is not set")
 
         enable_cancellation_and_crashed_hooks = (
             os.environ.get(
@@ -363,7 +359,6 @@ class FlowRunEngine(Generic[P, R]):
             == "true"
         )
 
-        hooks = None
         if state.is_failed() and flow.on_failure_hooks:
             hooks = flow.on_failure_hooks
         elif state.is_completed() and flow.on_completion_hooks:
@@ -382,48 +377,30 @@ class FlowRunEngine(Generic[P, R]):
             hooks = flow.on_crashed_hooks
         elif state.is_running() and flow.on_running_hooks:
             hooks = flow.on_running_hooks
+        else:
+            hooks = None
 
         for hook in hooks or []:
             hook_name = _get_hook_name(hook)
 
-            @contextmanager
-            def hook_context():
-                try:
-                    self.logger.info(
-                        f"Running hook {hook_name!r} in response to entering state"
-                        f" {state.name!r}"
-                    )
-                    yield
-                except Exception:
-                    self.logger.error(
-                        f"An error was encountered while running hook {hook_name!r}",
-                        exc_info=True,
-                    )
-                else:
-                    self.logger.info(
-                        f"Hook {hook_name!r} finished running successfully"
-                    )
-
-            if as_async:
-
-                async def _hook_fn():
-                    with hook_context():
-                        result = hook(flow, flow_run, state)
-                        if inspect.isawaitable(result):
-                            await result
-
+            try:
+                self.logger.info(
+                    f"Running hook {hook_name!r} in response to entering state"
+                    f" {state.name!r}"
+                )
+                result = hook(flow, flow_run, state)
+                if inspect.isawaitable(result):
+                    run_coro_as_sync(result)
+            except Exception:
+                self.logger.error(
+                    f"An error was encountered while running hook {hook_name!r}",
+                    exc_info=True,
+                )
             else:
-
-                def _hook_fn():
-                    with hook_context():
-                        result = hook(flow, flow_run, state)
-                        if inspect.isawaitable(result):
-                            run_coro_as_sync(result)
-
-            yield _hook_fn
+                self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
     @contextmanager
-    def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+    def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
         from prefect.utilities.engine import (
             should_log_prints,
         )
@@ -435,13 +412,6 @@ class FlowRunEngine(Generic[P, R]):
 
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
-
-        # if running in a completely synchronous frame, anyio will not detect the
-        # backend to use for the task group
-        try:
-            task_group = anyio.create_task_group()
-        except AsyncLibraryNotFoundError:
-            task_group = anyio._backends._asyncio.TaskGroup()
 
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -457,7 +427,6 @@ class FlowRunEngine(Generic[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    background_tasks=task_group,
                     result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
                     task_runner=task_runner,
                 )
@@ -482,7 +451,7 @@ class FlowRunEngine(Generic[P, R]):
             yield
 
     @contextmanager
-    def start(self):
+    def initialize_run(self):
         """
         Enters a client context and creates a flow run if needed.
         """
@@ -490,27 +459,29 @@ class FlowRunEngine(Generic[P, R]):
             self._client = client_ctx.sync_client
             self._is_started = True
 
-            # this conditional is engaged whenever a run is triggered via deployment
-            if self.flow_run_id and not self.flow:
-                self.flow_run = self.client.read_flow_run(self.flow_run_id)
-                try:
-                    self.flow = self.load_flow(self.client)
-                except Exception as exc:
-                    self.handle_exception(
-                        exc,
-                        msg="Failed to load flow from entrypoint.",
-                    )
-                    self.short_circuit = True
-
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(self.client)
+                flow_run_url = url_for(self.flow_run)
 
-                ui_url = PREFECT_UI_URL.value()
-                if ui_url:
+                if flow_run_url:
                     self.logger.info(
-                        f"View at {ui_url}/flow-runs/flow-run/{self.flow_run.id}",
-                        extra={"send_to_api": False},
+                        f"View at {flow_run_url}", extra={"send_to_api": False}
                     )
+            else:
+                # Update the empirical policy to match the flow if it is not set
+                if self.flow_run.empirical_policy.retry_delay is None:
+                    self.flow_run.empirical_policy.retry_delay = (
+                        self.flow.retry_delay_seconds
+                    )
+
+                if self.flow_run.empirical_policy.retries is None:
+                    self.flow_run.empirical_policy.retries = self.flow.retries
+
+                self.client.update_flow_run(
+                    flow_run_id=self.flow_run.id,
+                    flow_version=self.flow.version,
+                    empirical_policy=self.flow_run.empirical_policy,
+                )
 
             # validate prior to context so that context receives validated params
             if self.flow.should_validate_parameters:
@@ -536,6 +507,9 @@ class FlowRunEngine(Generic[P, R]):
                 raise
             except (Abort, Pause):
                 raise
+            except GeneratorExit:
+                # Do not capture generator exits as crashes
+                raise
             except BaseException as exc:
                 # BaseExceptions are caught and handled as crashes
                 self.handle_crash(exc)
@@ -550,12 +524,6 @@ class FlowRunEngine(Generic[P, R]):
                     msg=f"Finished in state {display_state}",
                 )
 
-                # flush any logs in the background if this is a "top" level run
-                if not (FlowRunContext.get() or TaskRunContext.get()):
-                    from_sync.call_soon_in_loop_thread(
-                        create_call(APILogHandler.aflush)
-                    )
-
                 self._is_started = False
                 self._client = None
 
@@ -569,58 +537,57 @@ class FlowRunEngine(Generic[P, R]):
             return False  # TODO: handle this differently?
         return getattr(self, "flow_run").state.is_pending()
 
+    # --------------------------
+    #
+    # The following methods compose the main task run loop
+    #
+    # --------------------------
 
-async def run_flow_async(
-    flow: Flow[P, Coroutine[Any, Any, R]],
-    flow_run: Optional[FlowRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
-    return_type: Literal["state", "result"] = "result",
-) -> Union[R, None]:
-    """
-    Runs a flow against the API.
+    @contextmanager
+    def start(self) -> Generator[None, None, None]:
+        with self.initialize_run():
+            self.begin_run()
 
-    We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
-    """
-    engine = FlowRunEngine[P, R](
-        flow=flow,
-        parameters=flow_run.parameters if flow_run else parameters,
-        flow_run=flow_run,
-        wait_for=wait_for,
-    )
+            if self.state.is_running():
+                self.call_hooks()
+            try:
+                yield
+            finally:
+                if self.state.is_final() or self.state.is_cancelling():
+                    self.call_hooks()
 
-    # This is a context manager that keeps track of the state of the flow run.
-    with engine.start() as run:
-        run.begin_run()
+    @contextmanager
+    def run_context(self):
+        timeout_context = timeout_async if self.flow.isasync else timeout
+        # reenter the run context to ensure it is up to date for every run
+        with self.setup_run_context():
+            try:
+                with timeout_context(seconds=self.flow.timeout_seconds):
+                    self.logger.debug(
+                        f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
+                    )
+                    yield self
+            except TimeoutError as exc:
+                self.handle_timeout(exc)
+            except Exception as exc:
+                self.logger.exception(f"Encountered exception during execution: {exc}")
+                self.handle_exception(exc)
 
-        while run.is_running():
-            with run.enter_run_context():
-                try:
-                    # This is where the flow is actually run.
-                    with timeout_async(seconds=run.flow.timeout_seconds):
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            flow.fn, run.parameters or {}
-                        )
-                        run.logger.debug(
-                            f"Executing flow {flow.name!r} for flow run {run.flow_run.name!r}..."
-                        )
-                        result = cast(R, await flow.fn(*call_args, **call_kwargs))  # type: ignore
-                    # If the flow run is successful, finalize it.
-                    run.handle_success(result)
+    def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
+        """
+        Convenience method to call the flow function. Returns a coroutine if the
+        flow is async.
+        """
+        if self.flow.isasync:
 
-                except TimeoutError as exc:
-                    run.handle_timeout(exc)
-                except Exception as exc:
-                    # If the flow fails, and we have retries left, set the flow to retrying.
-                    run.logger.exception("Encountered exception during execution:")
-                    run.handle_exception(exc)
+            async def _call_flow_fn():
+                result = await call_with_parameters(self.flow.fn, self.parameters)
+                self.handle_success(result)
 
-        if run.state.is_final() or run.state.is_cancelling():
-            for hook in run.get_hooks(run.state, as_async=True):
-                await hook()
-        if return_type == "state":
-            return run.state
-        return run.result()
+            return _call_flow_fn()
+        else:
+            result = call_with_parameters(self.flow.fn, self.parameters)
+            self.handle_success(result)
 
 
 def run_flow_sync(
@@ -636,38 +603,33 @@ def run_flow_sync(
         flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
     )
 
-    # This is a context manager that keeps track of the state of the flow run.
-    with engine.start() as run:
-        run.begin_run()
+    with engine.start():
+        while engine.is_running():
+            with engine.run_context():
+                engine.call_flow_fn()
 
-        while run.is_running():
-            with run.enter_run_context():
-                try:
-                    # This is where the flow is actually run.
-                    with timeout(seconds=run.flow.timeout_seconds):
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            flow.fn, run.parameters or {}
-                        )
-                        run.logger.debug(
-                            f"Executing flow {flow.name!r} for flow run {run.flow_run.name!r}..."
-                        )
-                        result = cast(R, flow.fn(*call_args, **call_kwargs))  # type: ignore
-                    # If the flow run is successful, finalize it.
-                    run.handle_success(result)
+    return engine.state if return_type == "state" else engine.result()
 
-                except TimeoutError as exc:
-                    run.handle_timeout(exc)
-                except Exception as exc:
-                    # If the flow fails, and we have retries left, set the flow to retrying.
-                    run.logger.exception("Encountered exception during execution:")
-                    run.handle_exception(exc)
 
-        if run.state.is_final() or run.state.is_cancelling():
-            for hook in run.get_hooks(run.state):
-                hook()
-        if return_type == "state":
-            return run.state
-        return run.result()
+async def run_flow_async(
+    flow: Flow[P, R],
+    flow_run: Optional[FlowRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> Union[R, State, None]:
+    parameters = flow_run.parameters if flow_run else parameters
+
+    engine = FlowRunEngine[P, R](
+        flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
+    )
+
+    with engine.start():
+        while engine.is_running():
+            with engine.run_context():
+                await engine.call_flow_fn()
+
+    return engine.state if return_type == "state" else engine.result()
 
 
 def run_flow(
