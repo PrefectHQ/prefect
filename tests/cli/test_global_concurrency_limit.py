@@ -221,9 +221,7 @@ def test_enable_inactive_gcl(
     )
     update_global_concurrency_limit.assert_called_once_with(
         name=various_global_concurrency_limits[0].name,
-        concurrency_limit=GlobalConcurrencyLimitUpdate(
-            active=True,
-        ),
+        concurrency_limit=GlobalConcurrencyLimitUpdate(active=True),
     )
 
 
