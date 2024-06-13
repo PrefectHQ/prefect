@@ -227,7 +227,7 @@ def test_get_ui_url_for_flow_run_id_with_ui_url(
         url = FlowRunNotifications(handle_signals=False).get_ui_url_for_flow_run_id(
             flow_run_id=flow_run.id
         )
-        assert url == expected_ui_url + "/flow-runs/flow-run/{flow_run_id}".format(
+        assert url == expected_ui_url + "/runs/flow-run/{flow_run_id}".format(
             flow_run_id=flow_run.id
         )
 

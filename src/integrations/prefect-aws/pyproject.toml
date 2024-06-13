@@ -53,6 +53,7 @@ dev = [
   "pytest",
   "pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0", # Cannot override event loop in 0.23.0. See https://github.com/pytest-dev/pytest-asyncio/issues/706 for more details.
   "pytest-cov",
+  "pytest-env",
   "pytest-xdist",
   "types-boto3 >= 1.0.2",
 ]
@@ -86,3 +87,6 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+  "PREFECT_TEST_MODE=1",
+]

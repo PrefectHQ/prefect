@@ -279,13 +279,6 @@ class ResultFactory(BaseModel):
         """
         Create a new result factory for a task.
         """
-        from prefect.context import FlowRunContext
-
-        ctx = FlowRunContext.get()
-
-        if ctx and ctx.autonomous_task_run:
-            return await cls.from_autonomous_task(task, client=client)
-
         return await cls._from_task(task, get_default_result_storage, client=client)
 
     @classmethod

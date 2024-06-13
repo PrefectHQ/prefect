@@ -47,7 +47,7 @@ If using Prefect Cloud, make sure you have
 Here's an example of creating a deployment by calling a 
 single method on the flow object: `flow.serve`.
 
-```python hl_lines="16-17" title="repo_info.py"
+```python repo_info.py
 import httpx
 from prefect import flow
 
@@ -131,7 +131,7 @@ To execute remotely triggered or scheduled runs, your script with `flow.serve` m
 This method is useful for creating deployments for single flows. For two or more flows, you must provide a 
 few additional method calls and imports:
 
-```python hl_lines="2 18-20" title="multi_flow_deployment.py"
+```python multi_flow_deployment.py
 import time
 from prefect import flow, serve
 
@@ -378,7 +378,7 @@ versions set through their respective decorators. These versions are sent to the
 anytime the flow or task runs, allowing you to audit changes.
 </Tip>
 
-### Workers and Work Pools
+### Workers and work pools
 
 [Workers and work pools](/3.0rc/deploy/dynamic-infra/control-runs/) are an advanced deployment pattern that 
 allow you to dynamically provision infrastructure for each flow run.

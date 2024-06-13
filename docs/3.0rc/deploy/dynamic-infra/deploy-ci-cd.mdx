@@ -10,57 +10,57 @@ search:
 ---
 
 Many organizations deploy Prefect workflows through their CI/CD process.
-Each organization has their own unique CI/CD setup, but a common pattern is to use CI/CD to manage 
+Each organization has their own unique CI/CD setup, but a common pattern is to use CI/CD to manage
 Prefect [deployments](/3.0rc/deploy/serve-workflows).
-Combining Prefect's deployment features with CI/CD tools enables efficient management of flow code 
+Combining Prefect's deployment features with CI/CD tools enables efficient management of flow code
 updates, scheduling changes, and container builds.
-This guide uses [GitHub Actions](https://docs.github.com/en/actions) to implement a CI/CD process, 
+This guide uses [GitHub Actions](https://docs.github.com/en/actions) to implement a CI/CD process,
 but these concepts are generally applicable across many CI/CD tools.
 
-Note that Prefect's primary ways for creating deployments, a `.deploy` flow method or a `prefect.yaml` 
+Note that Prefect's primary ways for creating deployments, a `.deploy` flow method or a `prefect.yaml`
 configuration file, are both designed for building and pushing images to a Docker registry.
 
 ## Get started with GitHub Actions and Prefect
 
-In this example, you'll write a GitHub Actions workflow that runs each time you push to your repository's 
+In this example, you'll write a GitHub Actions workflow that runs each time you push to your repository's
 `main` branch. This workflow builds and pushes a Docker image containing your flow code to Docker Hub, then deploys the flow to Prefect Cloud.
 
 ### Repository secrets
 
 Your CI/CD process must be able to authenticate with Prefect in order to deploy flows.
 
-Deploy flows securely and non-interactively in your CI/CD process by saving your `PREFECT_API_URL` and 
+Deploy flows securely and non-interactively in your CI/CD process by saving your `PREFECT_API_URL` and
 `PREFECT_API_KEY` [as secrets in your repository's settings](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions). This allows them to be accessed in your CI/CD runner's environment without exposing them in any scripts or configuration files.
 
-In this scenario, deploying flows involves building and pushing Docker images, so add `DOCKER_USERNAME` 
+In this scenario, deploying flows involves building and pushing Docker images, so add `DOCKER_USERNAME`
 and `DOCKER_PASSWORD` as secrets to your repository as well.
 
-Create secrets for GitHub Actions in your repository under 
+Create secrets for GitHub Actions in your repository under
 **Settings -> Secrets and variables -> Actions -> New repository secret**:
 
 ![Creating a GitHub Actions secret](/3.0rc/img/guides/github-secrets.png)
 
 ### Write a GitHub workflow
 
-To deploy your flow through GitHub Actions, you need a workflow YAML file. GitHub looks for workflow 
-YAML files in the `.github/workflows/` directory in the root of your repository. In their simplest form, 
+To deploy your flow through GitHub Actions, you need a workflow YAML file. GitHub looks for workflow
+YAML files in the `.github/workflows/` directory in the root of your repository. In their simplest form,
 GitHub workflow files are made up of triggers and jobs.
 
 The `on:` trigger is set to run the workflow each time a push occurs on the `main` branch of the repository.
 
 The `deploy` job is comprised of four `steps`:
 
-- **`Checkout`** clones your repository into the GitHub Actions runner so you can reference files or 
+- **`Checkout`** clones your repository into the GitHub Actions runner so you can reference files or
 run scripts from your repository in later steps.
-- **`Log in to Docker Hub`** authenticates to DockerHub so your image can be pushed to the Docker 
-registry in your DockerHub account. [docker/login-action](https://github.com/docker/login-action) is an 
-existing GitHub action maintained by Docker. `with:` passes values into the Action, similar to passing 
+- **`Log in to Docker Hub`** authenticates to DockerHub so your image can be pushed to the Docker
+registry in your DockerHub account. [docker/login-action](https://github.com/docker/login-action) is an
+existing GitHub action maintained by Docker. `with:` passes values into the Action, similar to passing
 parameters to a function.
 - **`Setup Python`** installs your selected version of Python.
-- **`Prefect Deploy`** installs the dependencies used in your flow, then deploys your flow. `env:` makes 
+- **`Prefect Deploy`** installs the dependencies used in your flow, then deploys your flow. `env:` makes
 the `PREFECT_API_KEY` and `PREFECT_API_URL` secrets from your repository available as environment variables during this step's execution.
 
-For reference, the examples below live in their respective branches of 
+For reference, the examples below live in their respective branches of
 [this repository](https://github.com/prefecthq/cicd-example).
 
 <Tabs>
@@ -120,7 +120,7 @@ For reference, the examples below live in their respective branches of
           - name: Setup Python
             uses: actions/setup-python@v5
             with:
-              python-version: '3.11'
+              python-version: "3.11"
 
           - name: Prefect Deploy
             env:
@@ -213,7 +213,7 @@ For reference, the examples below live in their respective branches of
           - name: Setup Python
             uses: actions/setup-python@v5
             with:
-              python-version: '3.11'
+              python-version: "3.11"
 
           - name: Prefect Deploy
             env:
@@ -228,12 +228,12 @@ For reference, the examples below live in their respective branches of
 
 ### Run a GitHub workflow
 
-After pushing commits to your repository, GitHub automatically triggers a run of your workflow. 
+After pushing commits to your repository, GitHub automatically triggers a run of your workflow.
 Monitor the status of running and completed workflows from the **Actions** tab of your repository.
 
 ![A GitHub Action triggered via push](/3.0rc/img/guides/github-actions-trigger.png)
 
-View the logs from each workflow step as they run. The `Prefect Deploy` step includes output about 
+View the logs from each workflow step as they run. The `Prefect Deploy` step includes output about
 your image build and push, and the creation/update of your deployment.
 
 <div class="terminal">
@@ -256,19 +256,19 @@ Successfully created/updated all deployments!
 
 ## Advanced example
 
-In more complex scenarios, CI/CD processes often need to accommodate several additional 
+In more complex scenarios, CI/CD processes often need to accommodate several additional
 considerations to enable a smooth development workflow:
 
 - Making code available in different environments as it advances through stages of development
 - Handling independent deployment of distinct groupings of work, as in a monorepo
 - Efficiently using build time to avoid repeated work
 
-This [example repository](https://github.com/prefecthq/cicd-example-workspaces) addresses each of these 
+This [example repository](https://github.com/prefecthq/cicd-example-workspaces) addresses each of these
 considerations with a combination of Prefect's and GitHub's capabilities.
 
 ### Deploy to multiple workspaces
 
-The deployment processes to run are automatically selected when changes are pushed, depending on 
+The deployment processes to run are automatically selected when changes are pushed, depending on
 two conditions:
 
 ```yaml
@@ -281,15 +281,15 @@ on:
       - "project_1/**"
 ```
 
-- **`branches:`** - which branch has changed. This ultimately selects which Prefect workspace a 
-deployment is created or updated in. In this example, changes on the `stg` branch deploy flows to a 
+- **`branches:`** - which branch has changed. This ultimately selects which Prefect workspace a
+deployment is created or updated in. In this example, changes on the `stg` branch deploy flows to a
 staging workspace, and changes on the `main` branch deploy flows to a production workspace.
-- **`paths:`** - which project folders' files have changed. Since each project folder contains its own flows, 
-dependencies, and `prefect.yaml`, it represents a complete set of logic and configuration that can deploy 
+- **`paths:`** - which project folders' files have changed. Since each project folder contains its own flows,
+dependencies, and `prefect.yaml`, it represents a complete set of logic and configuration that can deploy
 independently. Each project in this repository gets its own GitHub Actions workflow YAML file.
 
-The `prefect.yaml` file in each project folder depends on environment variables dictated by the 
-selected job in each CI/CD workflow; enabling external code storage for Prefect deployments that is clearly 
+The `prefect.yaml` file in each project folder depends on environment variables dictated by the
+selected job in each CI/CD workflow; enabling external code storage for Prefect deployments that is clearly
 separated across projects and environments.
 
 ```
@@ -299,19 +299,19 @@ separated across projects and environments.
   │   └── project_2
   └── cicd-example-workspaces-stg  # staging bucket
       ├── project_1
-      └── project_2  
+      └── project_2
 ```
 
-Deployments in this example use S3 for code storage. So it's important that push steps place flow files 
-in separate locations depending upon their respective environment and project—so no deployment overwrites another 
+Deployments in this example use S3 for code storage. So it's important that push steps place flow files
+in separate locations depending upon their respective environment and project—so no deployment overwrites another
 deployment's files.
 
 ### Caching build dependencies
 
-Since building Docker images and installing Python dependencies are essential parts of the deployment process, 
+Since building Docker images and installing Python dependencies are essential parts of the deployment process,
 it's useful to rely on caching to skip repeated build steps.
 
-The `setup-python` action offers [caching options](https://github.com/actions/setup-python#caching-packages-dependencies) 
+The `setup-python` action offers [caching options](https://github.com/actions/setup-python#caching-packages-dependencies)
 so Python packages do not have to be downloaded on repeat workflow runs.
 
 ```yaml
@@ -327,9 +327,9 @@ Using cached prefect-2.16.1-py3-none-any.whl (2.9 MB)
 Using cached prefect_aws-0.4.10-py3-none-any.whl (61 kB)
 ```
 
-The `build-push-action` for building Docker images also offers 
-[caching options for GitHub Actions](https://docs.docker.com/build/cache/backends/gha/). 
-If you are not using GitHub, other remote [cache backends](https://docs.docker.com/build/cache/backends/) 
+The `build-push-action` for building Docker images also offers
+[caching options for GitHub Actions](https://docs.docker.com/build/cache/backends/gha/).
+If you are not using GitHub, other remote [cache backends](https://docs.docker.com/build/cache/backends/)
 are available as well.
 
 ```yaml
@@ -363,10 +363,10 @@ CACHED
 
 ## Prefect GitHub Actions
 
-Prefect provides its own GitHub Actions for [authentication](https://github.com/PrefectHQ/actions-prefect-auth) 
-and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy). 
-These actions simplify deploying with CI/CD when using `prefect.yaml`, 
-especially in cases where a repository contains flows used in multiple deployments across multiple 
+Prefect provides its own GitHub Actions for [authentication](https://github.com/PrefectHQ/actions-prefect-auth)
+and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy).
+These actions simplify deploying with CI/CD when using `prefect.yaml`,
+especially in cases where a repository contains flows used in multiple deployments across multiple
 Prefect Cloud workspaces.
 
 Here's an example of integrating these actions into the workflow above:
@@ -416,8 +416,8 @@ jobs:
 
 The `docker/login-action` GitHub Action supports pushing images to a wide variety of image registries.
 
-For example, if you are storing Docker images in AWS Elastic Container Registry, you can add your ECR 
-registry URL to the `registry` key in the `with:` part of the action and use an `AWS_ACCESS_KEY_ID` and 
+For example, if you are storing Docker images in AWS Elastic Container Registry, you can add your ECR
+registry URL to the `registry` key in the `with:` part of the action and use an `AWS_ACCESS_KEY_ID` and
 `AWS_SECRET_ACCESS_KEY` as your `username` and `password`.
 
 ```yaml
@@ -431,5 +431,5 @@ registry URL to the `registry` key in the `with:` part of the action and use an 
 
 ## See also
 
-Check out the [Prefect Cloud Terraform provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) 
+Check out the [Prefect Cloud Terraform provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started)
 if you're using Terraform to manage your infrastructure.
