@@ -107,7 +107,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import import_object
+from prefect.utilities.importtools import import_object, safe_load_namespace
 from prefect.utilities.visualization import (
     FlowVisualizationError,
     GraphvizExecutableNotFoundError,
@@ -1861,11 +1861,33 @@ def load_flow_argument_from_entrypoint(
         ):
             for keyword in decorator.keywords:
                 if keyword.arg == arg:
-                    return (
-                        keyword.value.value
-                    )  # Return the string value of the argument
+                    if isinstance(keyword.value, ast.Constant):
+                        return (
+                            keyword.value.value
+                        )  # Return the string value of the argument
+
+                    # if the arg value is not a raw str (i.e. a variable or expression),
+                    # then attempt to evaluate it
+                    namespace = safe_load_namespace(source_code)
+                    literal_arg_value = ast.get_source_segment(
+                        source_code, keyword.value
+                    )
+                    try:
+                        evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
+                    except Exception as e:
+                        logger.info(
+                            "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
+                            arg,
+                            literal_arg_value,
+                            exc_info=e,
+                        )
+                        # ignore the decorator arg and fallback to default behavior
+                        break
+                    return str(evaluated_value)
 
     if arg == "name":
         return func_name.replace(
             "_", "-"
         )  # If no matching decorator or keyword argument is found
+
+    return None

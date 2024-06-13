@@ -1,5 +1,20 @@
 # Prefect Release Notes
 
+## Release 2.19.5
+
+### Fixes
+- Fix `prefect deploy` when using dynamic `@flow` parameters - https://github.com/PrefectHQ/prefect/pull/13991
+- Fix `prefect deploy` to prevent code execution inside main guard  - https://github.com/PrefectHQ/prefect/pull/14004
+- Fix typing on `GlobalConcurrencyLimitUpdate` - https://github.com/PrefectHQ/prefect/pull/14006
+
+### Integrations
+- Restore `jobs_runs_submit_by_id_and_wait_for_completion` to `prefect-databricks` - https://github.com/PrefectHQ/prefect/pull/13957
+
+### Documentation
+- Fix formatting in automations concept docs - https://github.com/PrefectHQ/prefect/pull/13962
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.4...2.19.5
+
 ## Release 2.19.4
 
 ### Fixes
