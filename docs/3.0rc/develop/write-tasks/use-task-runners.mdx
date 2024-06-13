@@ -100,6 +100,9 @@ Sometimes, it's useful to force tasks to run sequentially to make it easier to r
 behavior of your program. Calling your tasks directly without using `.submit()` will automatically execute your tasks
 in order.
 
+<Note>
+In Prefect 3.0 `SequentialTaskRunner` is no longer necessary.
+</Note>
 The following example demonstrates tasks which run sequentially. 
 In the example, the flow `glass_tower` runs the task `stop_at_floor` for floors 1 through 38, in that order.
 
