@@ -816,6 +816,90 @@ class TestFlowCall:
         assert flow_state.is_cancelled()
         assert flow_state.message == "1/1 states cancelled."
 
+    class BaseFooModel(pydantic.BaseModel):
+        model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+        x: int
+
+    class BaseFoo:
+        def __init__(self, x):
+            self.x = x
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_instance_methods(self, T):
+        class Foo(T):
+            @flow
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert Foo(x=5).instance_method() == 5
+        assert f.instance_method() == 1
+        assert isinstance(Foo(x=10).instance_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_class_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @classmethod
+            @flow
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_static_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @staticmethod
+            @flow
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
+    def test_flow_supports_instance_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+            x: int = 5
+
+            @flow
+            def instance_method(self):
+                return self.x
+
+        assert Foo().instance_method() == 5
+        assert isinstance(Foo().instance_method, Flow)
+
+    def test_flow_supports_class_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+
+            @classmethod
+            @flow
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    def test_flow_supports_static_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+
+            @staticmethod
+            @flow
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
 
 class TestSubflowCalls:
     async def test_subflow_call_with_no_tasks(self):
