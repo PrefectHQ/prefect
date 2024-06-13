@@ -1656,9 +1656,12 @@ class TestSubflowTaskInputs:
 # We flush the APILogHandler in a non-blocking manner, so we need to wait for the logs to be
 # written before we can read them to avoid flakiness.
 async def _wait_for_logs(
-    prefect_client: PrefectClient, expected_num_logs: Optional[int] = None
+    prefect_client: PrefectClient,
+    expected_num_logs: Optional[int] = None,
+    timeout: int = 10,
 ):
     logs = []
+    start_time = time.time()
     while True:
         logs = await prefect_client.read_logs()
         if logs:
@@ -1667,6 +1670,8 @@ async def _wait_for_logs(
             else:
                 if len(logs) >= expected_num_logs:
                     break
+        if time.time() - start_time > timeout:
+            raise TimeoutError("Timed out in _wait_for_logs()")
         await asyncio.sleep(1)
     return logs
 
@@ -1680,7 +1685,6 @@ class TestFlowRunLogs:
             logger.info("Hello world!")
 
         my_flow()
-
         await _wait_for_logs(prefect_client, expected_num_logs=3)
 
         logs = await prefect_client.read_logs()
