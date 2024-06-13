@@ -19,10 +19,10 @@ orjson >= 3.7, < 4.0
 packaging >= 21.3, < 24.3
 pathspec >= 0.8.0
 pendulum >= 3.0.0, <4
-# 2024/05/28: we had same as fastapi 0.103.2 -> pydantic 2.4 but for `Secret` we need 2.7
 pydantic >= 2.7, < 3.0.0
 pydantic_core >= 2.12.0, < 3.0.0
-pydantic_extra_types
+# Avoiding 2.8.1 due to https://github.com/pydantic/pydantic-extra-types/issues/188
+pydantic_extra_types > 2.7, != 2.8.1, < 3.0.0
 pydantic_settings
 python_dateutil >= 2.8.2, < 3.0.0
 python-slugify >= 5.0, < 9.0
