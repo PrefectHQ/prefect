@@ -34,7 +34,7 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 from uuid import UUID
 
 import pendulum
@@ -849,6 +849,35 @@ class DeploymentImage:
                     raise PushError(event["error"])
 
 
+def make_deployment_apply_summary_table(
+    deployments: Tuple[RunnerDeployment, ...], deployment_exceptions: List[dict]
+) -> Table:
+    table = Table(
+        title="Deployments",
+        show_lines=True,
+    )
+
+    table.add_column(header="Name", style="blue", no_wrap=True)
+    table.add_column(header="Status", style="blue", no_wrap=True)
+    table.add_column(header="Details", style="blue")
+
+    for deployment in deployments:
+        errored_deployment = next(
+            (d for d in deployment_exceptions if d["deployment"] == deployment),
+            None,
+        )
+        if errored_deployment:
+            table.add_row(
+                f"{deployment.flow_name}/{deployment.name}",
+                "failed",
+                str(errored_deployment["exc"]),
+                style="red",
+            )
+        else:
+            table.add_row(f"{deployment.flow_name}/{deployment.name}", "applied")
+    return table
+
+
 @sync_compatible
 async def deploy(
     *deployments: RunnerDeployment,
@@ -1032,29 +1061,7 @@ async def deploy(
 
     complete_failure = len(deployment_exceptions) == len(deployments)
 
-    table = Table(
-        title="Deployments",
-        show_lines=True,
-    )
-
-    table.add_column(header="Name", style="blue", no_wrap=True)
-    table.add_column(header="Status", style="blue", no_wrap=True)
-    table.add_column(header="Details", style="blue")
-
-    for deployment in deployments:
-        errored_deployment = next(
-            (d for d in deployment_exceptions if d["deployment"] == deployment),
-            None,
-        )
-        if errored_deployment:
-            table.add_row(
-                f"{deployment.flow_name}/{deployment.name}",
-                "failed",
-                str(errored_deployment["exc"]),
-                style="red",
-            )
-        else:
-            table.add_row(f"{deployment.flow_name}/{deployment.name}", "applied")
+    table = make_deployment_apply_summary_table(deployments, deployment_exceptions)
     console.print(table)
 
     if print_next_steps_message and not complete_failure:
