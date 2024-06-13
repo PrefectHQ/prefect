@@ -1,4 +1,3 @@
-import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import (
@@ -13,10 +12,11 @@ from typing import (
 from pydantic import Field
 from typing_extensions import Self
 
-from prefect.context import ContextModel, FlowRunContext
+from prefect.context import ContextModel, FlowRunContext, TaskRunContext
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
-from prefect.results import get_default_result_storage
+from prefect.results import ResultFactory, get_default_result_storage
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 
 
@@ -239,7 +239,8 @@ def transaction(
 
     Args:
         - key: An identifier to use for the transaction
-        - store: The store to use for persisting the transaction result
+        - store: The store to use for persisting the transaction result. If not provided,
+            a default store will be used based on the current run context.
         - commit_mode: The commit mode controlling when the transaction and
             child transactions are committed
         - overwrite: Whether to overwrite an existing transaction record in the store
@@ -247,22 +248,32 @@ def transaction(
     Yields:
         - Transaction: An object representing the transaction state
     """
-    if not store and (flow_run_context := FlowRunContext.get()):
-        if flow_run_context:
+    # if there is no key, we won't persist a record
+    if key and not store:
+        if flow_run_context := FlowRunContext.get():
             new_factory = flow_run_context.result_factory.model_copy(
                 update={
                     "persist_result": True,
                 }
             )
-            if not new_factory.storage_block:
-                default_storage = get_default_result_storage(_sync=True)
-                new_factory.storage_block = default_storage
-            store = ResultFactoryStore(
-                result_factory=new_factory,
+        elif task_run_context := TaskRunContext.get():
+            new_factory = task_run_context.result_factory.model_copy(
+                update={
+                    "persist_result": True,
+                }
             )
-
-    if not key:
-        key = str(uuid.uuid4())
+        else:
+            new_factory = run_coro_as_sync(
+                ResultFactory.default_factory(
+                    persist_result=True,
+                )
+            )
+        if not new_factory.storage_block:
+            default_storage = get_default_result_storage(_sync=True)
+            new_factory.storage_block = default_storage
+        store = ResultFactoryStore(
+            result_factory=new_factory,
+        )
     with Transaction(
         key=key, store=store, commit_mode=commit_mode, overwrite=overwrite
     ) as txn:
