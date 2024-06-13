@@ -4,7 +4,6 @@ Module containing the base workflow class and decorator - for most use cases, us
 
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
-
 import ast
 import datetime
 import importlib.util
@@ -15,6 +14,7 @@ import re
 import sys
 import tempfile
 import warnings
+from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -354,6 +354,28 @@ class Flow(Generic[P, R]):
 
         self._entrypoint = f"{module}:{fn.__name__}"
 
+    @property
+    def ismethod(self) -> bool:
+        return hasattr(self.fn, "__prefect_self__")
+
+    def __get__(self, instance, owner):
+        """
+        Implement the descriptor protocol so that the flow can be used as an instance method.
+        When an instance method is loaded, this method is called with the "self" instance as
+        an argument. We return a copy of the flow with that instance bound to the flow's function.
+        """
+
+        # if no instance is provided, it's being accessed on the class
+        if instance is None:
+            return self
+
+        # if the flow is being accessed on an instance, bind the instance to the __prefect_self__ attribute
+        # of the flow's function. This will allow it to be automatically added to the flow's parameters
+        else:
+            bound_flow = copy(self)
+            bound_flow.fn.__prefect_self__ = instance
+            return bound_flow
+
     def with_options(
         self,
         *,
@@ -555,6 +577,9 @@ class Flow(Generic[P, R]):
         """
         serialized_parameters = {}
         for key, value in parameters.items():
+            # do not serialize the bound self object
+            if self.ismethod and value is self.fn.__prefect_self__:
+                continue
             try:
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):

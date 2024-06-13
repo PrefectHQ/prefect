@@ -429,6 +429,28 @@ class Task(Generic[P, R]):
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
 
+    @property
+    def ismethod(self) -> bool:
+        return hasattr(self.fn, "__prefect_self__")
+
+    def __get__(self, instance, owner):
+        """
+        Implement the descriptor protocol so that the task can be used as an instance method.
+        When an instance method is loaded, this method is called with the "self" instance as
+        an argument. We return a copy of the task with that instance bound to the task's function.
+        """
+
+        # if no instance is provided, it's being accessed on the class
+        if instance is None:
+            return self
+
+        # if the task is being accessed on an instance, bind the instance to the __prefect_self__ attribute
+        # of the task's function. This will allow it to be automatically added to the task's parameters
+        else:
+            bound_task = copy(self)
+            bound_task.fn.__prefect_self__ = instance
+            return bound_task
+
     def with_options(
         self,
         *,
