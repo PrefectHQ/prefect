@@ -4,7 +4,7 @@
 
 ### Fixes
 - Fix `prefect deploy` when using dynamic `@flow` parameters - https://github.com/PrefectHQ/prefect/pull/13991
-- Fix `prefect deploy` to stop executing code inside main guard  - https://github.com/PrefectHQ/prefect/pull/14004
+- Fix `prefect deploy` to prevent code execution inside main guard  - https://github.com/PrefectHQ/prefect/pull/14004
 - Fix typing on `GlobalConcurrencyLimitUpdate` - https://github.com/PrefectHQ/prefect/pull/14006
 
 ### Integrations
