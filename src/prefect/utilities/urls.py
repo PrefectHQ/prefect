@@ -11,7 +11,6 @@ from prefect.events.schemas.automations import Automation
 from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.server.schemas.responses import WorkQueueWithStatus
 from prefect.variables import Variable
 
 logger = get_logger("utilities.urls")
@@ -114,8 +113,6 @@ def url_for(
         name = "automation"
     elif isinstance(obj, ReceivedEvent):
         name = "received-event"
-    elif isinstance(obj, WorkQueueWithStatus):
-        name = "work-queue"
     elif isinstance(obj, Resource):
         if obj.id.startswith("prefect."):
             name = obj.id.split(".")[1]
@@ -126,6 +123,11 @@ def url_for(
         name = obj
     else:
         name = convert_class_to_name(obj)
+
+    # Can't do an isinstance check here because the client build
+    # doesn't have access to that server schema.
+    if name == "work-queue-with-status":
+        name = "work-queue"
 
     if url_type != "ui" and url_type != "api":
         raise ValueError(f"Invalid URL type: {url_type}. Use 'ui' or 'api'.")
