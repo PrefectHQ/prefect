@@ -1,5 +1,5 @@
 ---
-title: Install for development
+title: Contributing
 ---
 
 Thanks for contributing to Prefect!
@@ -8,7 +8,7 @@ Thanks for contributing to Prefect!
 
 First, download the source code and install an editable copy of the Prefect Python package:
 
-```python
+```bash
 # Clone the repository
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
@@ -31,7 +31,7 @@ pre-commit install
 
 If you don't want to install the pre-commit hooks, manually install the formatting dependencies with:
 
-```
+```bash
 pip install $(./scripts/precommit-versions.py)
 
 ```
@@ -41,7 +41,7 @@ Run `ruff check` and `ruff format`.
 
 After installation, you can run the test suite with `pytest`:
 
-```
+```bash
 # Run all the tests
 pytest tests
 
@@ -125,17 +125,14 @@ The Prefect CLI provides several helpful commands to aid development.
 
 Start all services with hot-reloading on code changes (requires installation of UI dependencies):
 
-```
+```bash
 prefect dev start
 ```
 
 Start a Prefect API that reloads on code changes:
 
-```
+```bash
 prefect dev api
-```
-
-
 ```
 
 ### UI development
@@ -144,24 +141,25 @@ Developing the Prefect UI requires installation of [npm](https://github.com/npm/
 
 Start a development UI that reloads on code changes:
 
-```
+```bash
 prefect dev ui
 ```
 
 Build the static UI (the UI served by `prefect server start`):
 
-```
+```bash
 prefect dev build-ui
 ```
 
-### Docs Development
+### Docs development
 
 Prefect uses [mkdocs](https://www.mkdocs.org/) for the docs website and the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) 
 theme. While we use `mkdocs-material-insiders` for production, builds can still happen without the extra plugins. Deploy previews 
 are available on pull requests, so you can browse the final look of your changes before merging.
 
 To build the docs:
-```
+
+```bash
 mkdocs build
 ```
 
@@ -180,42 +178,34 @@ please see the theme documentation [here](https://squidfunk.github.io/mkdocs-mat
 
 Internal developers can install the production theme by running:
 
-```
+```bash
 pip install -e git+https://github.com/PrefectHQ/mkdocs-material-insiders.git#egg=mkdocs-material
 mkdocs build # or mkdocs build --config-file mkdocs.insiders.yml if needed
-
 ```
-
 
 ### Kubernetes development
 
 Generate a manifest to deploy a development API to a local kubernetes cluster:
 
-```
+```bash
 prefect dev kubernetes-manifest
-
 ```
-
 
 To access the Prefect UI running in a Kubernetes cluster, use the `kubectl port-forward` command to forward a port on your local 
 machine to an open port within the cluster. For example:
 
-```
+```bash
 kubectl port-forward deployment/prefect-dev 4200:4200
-
 ```
-
 
 This forwards port 4200 on the default internal loop IP for localhost to the Prefect server deployment.
 
 To tell the local `prefect` command how to communicate with the Prefect API running in Kubernetes, set the `PREFECT_API_URL` 
 environment variable:
 
-```
+```bash
 export PREFECT_API_URL=http://localhost:4200/api
-
 ```
-
 
 Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you can interact 
 with the Prefect API running in Kubernetes when using local Prefect CLI commands.
@@ -225,7 +215,7 @@ with the Prefect API running in Kubernetes when using local Prefect CLI commands
 To make changes to a table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. For example, 
 to add a new column to the `flow_run` table, add a new column to the `FlowRun` model:
 
-```
+```python
 # src/prefect/server/database/orm_models.py
 
 @declarative_mixin
@@ -233,9 +223,7 @@ class ORMFlowRun(ORMRun):
     """SQLAlchemy model of a flow run."""
     ...
     new_column = Column(String, nullable=True) # <-- add this line
-
 ```
-
 
 Next, you will generate new migration files. You must generate a new migration file for each database type. 
 Migrations are generated for whatever database type `PREFECT_API_DATABASE_CONNECTION_URL` is set to. 
@@ -244,11 +232,9 @@ each database type.
 
 To generate a new migration file, run:
 
-```
+```bash
 prefect server database revision --autogenerate -m "<migration name>"
-
 ```
-
 
 Make your migration name brief but descriptive. For example:
 
@@ -261,7 +247,6 @@ The `--autogenerate` flag automatically generates a migration file based on the 
 <Warning>
 **Always inspect the output of `--autogenerate`**
 
-
 `--autogenerate` generates a migration file based on the changes to the models. However, it is not perfect. Check 
 the file to make sure it only includes the changes you want. Additionally, you may need to remove extra statements that 
 were included and not related to your change.
@@ -272,11 +257,9 @@ own subdirectory. For example, the SQLite migrations are stored in `src/prefect/
 
 After you inspect the migration file, you can apply the migration to your database by running:
 
-```
+```bash
 prefect server database upgrade -y
-
 ```
-
 
 Once you successfully create and apply migrations for all database types, update `MIGRATION-NOTES.md` to 
 document your additions.
