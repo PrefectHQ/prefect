@@ -16,6 +16,7 @@ from prefect.context import ContextModel, FlowRunContext, TaskRunContext
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import ResultFactory, get_default_result_storage
+from prefect.settings import PREFECT_DEFAULT_RESULT_STORAGE_BLOCK
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 
@@ -271,6 +272,11 @@ def transaction(
             )
         if not new_factory.storage_block:
             default_storage = get_default_result_storage(_sync=True)
+            if not default_storage._block_document_id:
+                default_name = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value().split("/")[
+                    -1
+                ]
+                default_storage.save(default_name, _sync=True)
             new_factory.storage_block = default_storage
         store = ResultFactoryStore(
             result_factory=new_factory,

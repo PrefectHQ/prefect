@@ -69,10 +69,7 @@ async def get_default_result_storage() -> WritableFileSystem:
     try:
         return await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
     except ValueError:
-        block = LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
-        default_name = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value().split("/")[-1]
-        await block.save(default_name)
-        return block
+        return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
 
 
 _default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
