@@ -10,7 +10,11 @@ from prefect.results import (
     get_default_result_storage,
     get_or_create_default_task_scheduling_storage,
 )
-from prefect.settings import PREFECT_DEFAULT_RESULT_STORAGE_BLOCK, temporary_settings
+from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
+    temporary_settings,
+)
 from prefect.tasks import task
 from prefect.transactions import (
     CommitMode,
@@ -253,7 +257,10 @@ class TestDefaultTransactionStorage:
         name = str(uuid.uuid4())
         LocalFileSystem(basepath=tmp_path).save(name)
         with temporary_settings(
-            {PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}"}
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
         ):
             yield
 
@@ -301,6 +308,8 @@ class TestDefaultTransactionStorage:
         await test_flow() == {"foo": "bar"}
 
     async def test_transaction_inside_task_default_storage(self):
+        default_task_storage = await get_or_create_default_task_scheduling_storage()
+
         @task
         async def test_task():
             with transaction(key="test_transaction_inside_task_default_storage") as txn:
@@ -309,12 +318,7 @@ class TestDefaultTransactionStorage:
 
             result = txn.read()
             # make sure we aren't using an anonymous block
-            assert (
-                result.storage_block_id
-                == (
-                    await get_or_create_default_task_scheduling_storage()
-                )._block_document_id
-            )
+            assert result.storage_block_id == default_task_storage._block_document_id
             return result
 
         assert await test_task() == {"foo": "bar"}
