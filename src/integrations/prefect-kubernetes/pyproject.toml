@@ -3,6 +3,14 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
+dependencies = [
+    "prefect>=3.0.0rc1",
+    "kubernetes-asyncio>=29.0.0",
+    "tenacity>=8.2.3",
+    "exceptiongroup",
+    "pyopenssl==24.1.0",
+
+]
 name = "prefect-kubernetes"
 description = "Prefect integrations for interacting with Kubernetes."
 readme = "README.md"
@@ -21,12 +29,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries",
-]
-dependencies = [
-    "prefect>=3.0.0rc1",
-    "kubernetes-asyncio>=29.0.0",
-    "tenacity>=8.2.3",
-    "exceptiongroup",
 ]
 dynamic = ["version"]
 
