@@ -35,3 +35,8 @@ respx
 # type stubs
 types-cachetools
 types-PyYAML
+
+# documentation
+mkdocs
+mkdocs-material
+mkdocstrings[python]
