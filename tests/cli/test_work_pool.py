@@ -10,11 +10,18 @@ from prefect.client.schemas.actions import WorkPoolUpdate
 from prefect.client.schemas.objects import WorkPool
 from prefect.context import get_settings_context
 from prefect.exceptions import ObjectNotFound
-from prefect.settings import PREFECT_DEFAULT_WORK_POOL_NAME, load_profile
+from prefect.settings import (
+    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_UI_URL,
+    load_profile,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
+
+MOCK_PREFECT_UI_URL = "https://api.prefect.io"
 
 FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
     "job_configuration": {
@@ -71,20 +78,27 @@ class TestCreate:
         self, prefect_client, mock_collection_registry
     ):
         pool_name = "my-olympic-pool"
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=[
-                "work-pool",
-                "create",
-                pool_name,
-                "--type",
-                "process",
-                "--base-job-template",
-                Path(__file__).parent / "base-job-templates" / "process-worker.json",
-            ],
-            expected_code=0,
-            expected_output_contains="Created work pool 'my-olympic-pool'",
-        )
+
+        with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "create",
+                    pool_name,
+                    "--type",
+                    "process",
+                    "--base-job-template",
+                    Path(__file__).parent
+                    / "base-job-templates"
+                    / "process-worker.json",
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    "Created work pool 'my-olympic-pool'",
+                    "/work-pools/work-pool/",
+                ],
+            )
 
         client_res = await prefect_client.read_work_pool(pool_name)
         assert isinstance(client_res, WorkPool)

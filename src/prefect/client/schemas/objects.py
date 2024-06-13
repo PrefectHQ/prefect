@@ -422,8 +422,11 @@ class FlowRunPolicy(PrefectBaseModel):
     )
 
     @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
-        return set_run_policy_deprecated_fields(values)
+    @classmethod
+    def populate_deprecated_fields(cls, values: Any):
+        if isinstance(values, dict):
+            return set_run_policy_deprecated_fields(values)
+        return values
 
 
 class FlowRun(ObjectBaseModel):
@@ -915,6 +918,7 @@ class BlockDocument(ObjectBaseModel):
     _validate_name_format = field_validator("name")(validate_block_document_name)
 
     @model_validator(mode="before")
+    @classmethod
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -1146,8 +1150,11 @@ class BlockDocumentReference(ObjectBaseModel):
     )
 
     @model_validator(mode="before")
+    @classmethod
     def validate_parent_and_ref_are_different(cls, values):
-        return validate_parent_and_ref_diff(values)
+        if isinstance(values, dict):
+            return validate_parent_and_ref_diff(values)
+        return values
 
 
 class Configuration(ObjectBaseModel):

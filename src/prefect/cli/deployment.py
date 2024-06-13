@@ -36,8 +36,8 @@ from prefect.exceptions import (
     PrefectHTTPStatusError,
 )
 from prefect.flow_runs import wait_for_flow_run
-from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
+from prefect.utilities import urls
 from prefect.utilities.collections import listrepr
 
 if TYPE_CHECKING:
@@ -849,11 +849,7 @@ async def run(
             else:
                 raise
 
-    if PREFECT_UI_URL:
-        run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
-    else:
-        run_url = "<no dashboard available>"
-
+    run_url = urls.url_for(flow_run) or "<no dashboard available>"
     datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
     scheduled_display = (
         datetime_local_tz.to_datetime_string()
