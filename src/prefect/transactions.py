@@ -252,35 +252,44 @@ def transaction(
     """
     # if there is no key, we won't persist a record
     if key and not store:
-        if flow_run_context := FlowRunContext.get():
-            new_factory = flow_run_context.result_factory.model_copy(
-                update={
-                    "persist_result": True,
-                }
-            )
-        elif task_run_context := TaskRunContext.get():
-            new_factory = task_run_context.result_factory.model_copy(
+        flow_run_context = FlowRunContext.get()
+        task_run_context = TaskRunContext.get()
+        existing_factory = getattr(task_run_context, "result_factory", None) or getattr(
+            flow_run_context, "result_factory", None
+        )
+
+        if existing_factory and existing_factory.storage_block_id:
+            new_factory = existing_factory.model_copy(
                 update={
                     "persist_result": True,
                 }
             )
         else:
-            new_factory = run_coro_as_sync(
-                ResultFactory.default_factory(
-                    persist_result=True,
-                )
-            )
-        if not new_factory.storage_block:
             default_storage = get_default_result_storage(_sync=True)
             if not default_storage._block_document_id:
                 default_name = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value().split("/")[
                     -1
                 ]
                 default_storage.save(default_name, _sync=True)
-            new_factory.storage_block = default_storage
+            if existing_factory:
+                new_factory = existing_factory.model_copy(
+                    update={
+                        "persist_result": True,
+                        "storage_block": default_storage,
+                        "storage_block_id": default_storage._block_document_id,
+                    }
+                )
+            else:
+                new_factory = run_coro_as_sync(
+                    ResultFactory.default_factory(
+                        persist_result=True,
+                        result_storage=default_storage,
+                    )
+                )
         store = ResultFactoryStore(
             result_factory=new_factory,
         )
+
     with Transaction(
         key=key, store=store, commit_mode=commit_mode, overwrite=overwrite
     ) as txn:

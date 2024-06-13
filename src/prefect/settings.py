@@ -419,7 +419,9 @@ def warn_on_misconfigured_api_url(values):
     return values
 
 
-def default_result_storage_block_name(settings, value):
+def default_result_storage_block_name(
+    settings: Optional["Settings"] = None, value: Optional[str] = None
+):
     """
     `value_callback` for `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK_NAME` that sets the default
     value to the hostname of the machine.
