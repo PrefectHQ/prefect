@@ -1,19 +1,118 @@
+async function loadScript(src) {
+    if (typeof window === 'undefined') return
+    if (typeof src !== 'string') {
+        console.error('src must be a string')
+        return
+    }
 
-(function () {
-    if (typeof window === 'undefined') return;
-    if (typeof window.signals !== 'undefined') return;
-    var script = document.createElement('script');
-    script.src = 'https://cdn.cr-relay.com/v1/site/5c7cdf16-fbc0-4bb8-b39e-a8c6136687b9/signals.js';
-    script.async = true;
-    window.signals = Object.assign(
-        [],
-        ['page', 'identify', 'form'].reduce(function (acc, method) {
-            acc[method] = function () {
-                signals.push([method, arguments]);
-                return signals;
-            };
-            return acc;
+    const script = document.createElement('script')
+    script.src = src
+    script.async = true
+    document.head.appendChild(script)
+    return script
+}
+
+function loadCommonRoom() {
+    const script = loadScript('https://cdn.cr-relay.com/v1/site/5c7cdf16-fbc0-4bb8-b39e-a8c6136687b9/signals.js')
+
+    script.addEventListener('load', () => {            
+        window.signals = Object.assign(
+                    [],
+                ['page', 'identify', 'form'].reduce(function (acc, method) {
+                    acc[method] = function () {
+                        signals.push([method, arguments])
+                    return signals
+                }
+            return acc
         }, {})
-    );
-    document.head.appendChild(script);
-})();
+        )
+    })
+}
+
+function loadAmplitude() {
+    const script = loadScript('https://cdn.amplitude.com/libs/analytics-browser-2.8.1-min.js.gz')
+
+    // TODO: Move the key and url to an env var in mintlify
+    const amplitudeKey = 'c97dd2acbf306ab7bf54aca0aeb7ffa1'
+    const amplitudeUrl = 'https://api2.amplitude.com/2/httpapi'
+
+    const addUrl = (event) => {
+        const deviceId = amplitude.getDeviceId()
+        const { href = '' } = event.target
+        const url = new URL(href)
+        url.searchParams.set('deviceId', deviceId)
+        event.target.href = url.toString()
+    }
+
+    const removeUrl = (event) => {
+        const { href = '' } = event.target
+        const url = new URL(href)
+        url.searchParams.delete('deviceId')
+        event.target.href = url.toString()
+    }
+
+    const urls = [
+        'https://app.prefect.cloud',
+    ]
+
+    const selector = urls.map((url) => `a[href^="${url}"]`).join(',')
+
+    const addDeviceIdToAppLinks = () => {
+        const elements = document.querySelectorAll(selector)
+
+        elements.forEach((element) => {
+            element.addEventListener('mouseenter', addUrl)
+            element.addEventListener('mouseleave', removeUrl)
+            element.addEventListener('focus', addUrl)
+            element.addEventListener('blur', removeUrl)
+            element.addEventListener('touchstart', addUrl)
+            element.addEventListener('touchend', removeUrl)
+        })
+    }
+
+    function trackPageView() {
+        amplitude.track(
+            'Page View: Docs New',
+            {
+                'url': window.href,
+                'title': document.title,
+                'referrer': document.referrer,
+                'path': window.location.pathname,
+                'source': 'docs',
+                'source_detail': '3.x'
+            }
+        )
+    }
+
+    const init = () => {
+        amplitude.init(amplitudeKey, undefined, {
+            useBatch: true,
+            serverUrl: amplitudeUrl,
+            attribution: {
+                disabled: false,
+                trackNewCampaigns: true,
+                trackPageViews: true,
+                resetSessionOnNewCampaign: true,
+            },
+            defaultTracking: {
+                pageViews: {
+                    trackOn: function () { return true },
+                    eventType: "Page View: Docs New",
+                    trackHistoryChanges: "all",
+                },
+                sessions: false,
+                formInteractions: true,
+                fileDownloads: true,
+            },
+        })
+
+        setTimeout(addDeviceIdToAppLinks)
+        setTimeout(trackPageView)
+    }
+
+    script.addEventListener('load', init)
+}
+
+
+loadCommonRoom()
+loadAmplitude()
