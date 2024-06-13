@@ -6,44 +6,46 @@ build-backend = "setuptools.build_meta"
 name = "prefect-kubernetes"
 description = "Prefect integrations for interacting with Kubernetes."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
-  "Natural Language :: English",
-  "Intended Audience :: Developers",
-  "Intended Audience :: System Administrators",
-  "License :: OSI Approved :: Apache Software License",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Topic :: Software Development :: Libraries",
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=3.0.0rc1",
-  "kubernetes-asyncio>=29.0.0",
-  "tenacity>=8.2.3",
-  "exceptiongroup",
+    "prefect>=3.0.0rc1",
+    "kubernetes-asyncio>=29.0.0",
+    "tenacity>=8.2.3",
+    "exceptiongroup",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-  "aiohttp",
-  "coverage",
-  "interrogate",
-  "mkdocs-gen-files",
-  "mkdocs-material",
-  "mkdocs",
-  "mkdocstrings[python]",
-  "mypy",
-  "pillow",
-  "pre-commit",
-  "pytest-asyncio",
-  "pytest",
-  "pytest-env",
-  "pytest-xdist",
+    "aiohttp",
+    "coverage",
+    "interrogate",
+    "mkdocs-gen-files",
+    "mkdocs-material",
+    "mkdocs",
+    "mkdocstrings[python]",
+    "mypy",
+    "pillow",
+    "pre-commit",
+    "pytest-asyncio",
+    "pytest",
+    "pytest-env",
+    "pytest-xdist",
 ]
 
 [project.urls]
@@ -75,6 +77,4 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-env = [
-  "PREFECT_TEST_MODE=1",
-]
+env = ["PREFECT_TEST_MODE=1"]

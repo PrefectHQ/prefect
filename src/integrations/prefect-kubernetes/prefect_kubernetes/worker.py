@@ -796,8 +796,6 @@ class KubernetesWorker(BaseWorker):
                 configuration=configuration, client=client
             )
         try:
-            with open("job_manifest.json", "w") as f:
-                json.dump(configuration.__dict__, f)
             batch_client = BatchV1Api(client)
             job = await batch_client.create_namespaced_job(
                 configuration.namespace,
