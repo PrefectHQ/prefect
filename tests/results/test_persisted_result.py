@@ -155,7 +155,7 @@ class TestExpirationField:
 
         assert result.expiration is None
 
-    async def test_expiration_at_create_defaults_to_now(self, storage_block):
+    async def test_expiration_at_create_defaults_to_none(self, storage_block):
         result = await PersistedResult.create(
             "test-value",
             storage_block_id=storage_block._block_document_id,
@@ -163,11 +163,7 @@ class TestExpirationField:
             storage_key_fn=DEFAULT_STORAGE_KEY_FN,
             serializer=JSONSerializer(),
         )
-        assert (
-            pendulum.now("utc").subtract(seconds=5)
-            <= result.expiration
-            <= pendulum.now("utc")
-        )
+        assert result.expiration is None
 
     async def test_setting_expiration_at_create(self, storage_block):
         expires = pendulum.now("utc").add(days=1)
