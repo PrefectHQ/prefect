@@ -1,5 +1,6 @@
 import abc
 import uuid
+import pendulum
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -18,6 +19,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 from pydantic_core import PydanticUndefinedType
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
@@ -572,6 +574,7 @@ class PersistedResult(BaseResult):
     serializer_type: str
     storage_block_id: uuid.UUID
     storage_key: str
+    created_at: Optional[DateTime] = None
 
     _should_cache_object: bool = PrivateAttr(default=True)
 
@@ -588,6 +591,7 @@ class PersistedResult(BaseResult):
         blob = await self._read_blob(client=client)
         obj = blob.serializer.loads(blob.data)
 
+        self.created_at = blob.created_at
         if self._should_cache_object:
             self._cache_object(obj)
 
@@ -636,8 +640,11 @@ class PersistedResult(BaseResult):
         assert (
             storage_block_id is not None
         ), "Unexpected storage block ID. Was it persisted?"
+        created_at = pendulum.now("utc")
         data = serializer.dumps(obj)
-        blob = PersistedResultBlob(serializer=serializer, data=data)
+        blob = PersistedResultBlob(
+            serializer=serializer, data=data, created_at=created_at
+        )
 
         key = storage_key_fn()
         if not isinstance(key, str):
@@ -662,6 +669,7 @@ class PersistedResult(BaseResult):
             storage_key=key,
             artifact_type="result",
             artifact_description=description,
+            created_at=created_at,
         )
 
         if cache_object:
@@ -683,6 +691,7 @@ class PersistedResultBlob(BaseModel):
     serializer: Serializer
     data: bytes
     prefect_version: str = Field(default=prefect.__version__)
+    created_at: Optional[DateTime] = None
 
     def to_bytes(self) -> bytes:
         return self.model_dump_json(serialize_as_any=True).encode()

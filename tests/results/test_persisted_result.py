@@ -1,5 +1,7 @@
+import uuid
 import json
 
+import pendulum
 import pytest
 
 from prefect.filesystems import LocalFileSystem
@@ -120,3 +122,38 @@ async def test_result_reference_create_uses_storage_key_fn(storage_block):
     assert result.storage_key == "test"
     contents = await storage_block.read_path("test")
     assert contents
+
+
+class TestCreatedAtField:
+    async def test_defaults_when_created(self, storage_block):
+        result = await PersistedResult.create(
+            "test-value",
+            storage_block_id=storage_block._block_document_id,
+            storage_block=storage_block,
+            storage_key_fn=DEFAULT_STORAGE_KEY_FN,
+            serializer=JSONSerializer(),
+        )
+
+        assert isinstance(result.created_at, pendulum.DateTime)
+        assert (
+            pendulum.now("utc").subtract(seconds=10)
+            <= result.created_at
+            <= pendulum.now("utc")
+        )
+
+    async def test_defaults_when_loaded(self, storage_block):
+        path = uuid.uuid4().hex
+        timestamp = pendulum.now("utc").subtract(days=100)
+        blob = PersistedResultBlob(
+            serializer=JSONSerializer(), data=b'42', created_at=timestamp
+        )
+        await storage_block.write_path(path, blob.to_bytes())
+
+        result = PersistedResult(
+            storage_block_id=storage_block._block_document_id,
+            storage_key=path,
+            serializer_type='json',
+        )
+
+        assert await result.get() == 42
+        assert result.created_at == timestamp
