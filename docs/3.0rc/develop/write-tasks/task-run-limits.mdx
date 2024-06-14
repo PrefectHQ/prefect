@@ -1,12 +1,12 @@
 ---
-title: Task run concurrency limits
+title: Limit concurrent task runs
 description: Prevent too many tasks from running simultaneously.
 ---
 
-Task concurrency limits help prevent too many tasks from running simultaneously.
+Task run concurrency limits help prevent too many tasks from running simultaneously.
 For example, if many tasks across multiple flows are designed to interact with a database that only allows 10 connections.
 
-Task concurrency limits use [task tags](#tags). You can specify an optional concurrency limit as the maximum number of concurrent 
+Task run concurrency limits use [task tags](#tags). You can specify an optional concurrency limit as the maximum number of concurrent 
 task runs in a `Running` state for tasks with a given tag.
 
 If a task has multiple tags, it will run only if _all_ tags have available concurrency.
