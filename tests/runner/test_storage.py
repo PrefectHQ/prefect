@@ -15,7 +15,7 @@ from prefect.runner.storage import (
     LocalStorage,
     RemoteStorage,
     RunnerStorage,
-    create_storage_from_url,
+    create_storage_from_source,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.filesystem import tmpchdir
@@ -36,7 +36,7 @@ class TestCreateStorageFromUrl:
         ],
     )
     def test_create_git_storage(self, url, expected_type):
-        storage = create_storage_from_url(url)
+        storage = create_storage_from_source(url)
         assert isinstance(storage, eval(expected_type))
         assert storage.pull_interval == 60  # default value
 
@@ -48,7 +48,7 @@ class TestCreateStorageFromUrl:
         ],
     )
     def test_create_git_storage_custom_pull_interval(self, url, pull_interval):
-        storage = create_storage_from_url(url, pull_interval=pull_interval)
+        storage = create_storage_from_source(url, pull_interval=pull_interval)
         assert isinstance(
             storage, GitRepository
         )  # We already know it's GitRepository from above tests
@@ -62,19 +62,27 @@ class TestCreateStorageFromUrl:
         ],
     )
     def test_alternative_storage_url(self, url):
-        storage = create_storage_from_url(url)
+        storage = create_storage_from_source(url)
         assert isinstance(storage, RemoteStorage)
         assert storage._url == url
         assert storage.pull_interval == 60  # default value
 
     @pytest.mark.parametrize(
-        "url",
-        ["/path/to/local/flows", "C:\\path\\to\\local\\flows"],
+        "path",
+        [
+            "/path/to/local/flows",
+            "C:\\path\\to\\local\\flows",
+            "file:///path/to/local/flows",
+            "flows",  # Relative Path
+        ],
     )
-    def test_local_storage_url(self, url):
-        storage = create_storage_from_url(url)
+    def test_local_storage_path(self, path):
+        storage = create_storage_from_source(path)
+
+        path = path.split("://")[-1]  # split from Scheme when present
+
         assert isinstance(storage, LocalStorage)
-        assert storage._url == url
+        assert storage._path == path
         assert storage.pull_interval == 60  # default value
 
 
@@ -644,6 +652,43 @@ class TestRemoteStorage:
     def test_repr(self):
         rs = RemoteStorage("s3://bucket/path")
         assert repr(rs) == "RemoteStorage(url='s3://bucket/path')"
+
+
+class TestLocalStorage:
+    def test_init(self):
+        ls = LocalStorage("/path/to/directory")
+        assert ls._path == "/path/to/directory"
+        assert ls.pull_interval == 60
+
+    def test_set_base_path(self):
+        locals = LocalStorage("/path/to/directory")
+        path = Path.cwd() / "new_base_path"
+        locals.set_base_path(path)
+        assert locals._storage_base_path == path
+
+    def test_destination(self):
+        locals = LocalStorage("/path/to/directory")
+        assert locals.destination == Path("/path/to/directory")
+
+    def test_to_pull_step(self):
+        locals = LocalStorage("/path/to/directory")
+        pull_step = locals.to_pull_step()
+        assert pull_step == {
+            "prefect.deployments.steps.set_working_directory": {
+                "directory": Path("/path/to/directory")
+            }
+        }
+
+    def test_eq(self):
+        local1 = LocalStorage(path="/path/to/local/flows")
+        local2 = LocalStorage(path="/path/to/local/flows")
+        local3 = LocalStorage(path="C:\\path\\to\\local\\flows")
+        assert local1 == local2
+        assert local1 != local3
+
+    def test_repr(self):
+        local = LocalStorage(path="/path/to/local/flows")
+        assert repr(local) == "LocalStorage(path='/path/to/local/flows')"
 
 
 class TestBlockStorageAdapter:
