@@ -61,6 +61,13 @@ _thread_local = threading.local()
 logger = get_logger()
 
 
+class SyncCompatibleInterrupt(KeyboardInterrupt):
+    """Raised when a sync compatible coroutine is interrupted by the user."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
 def get_thread_limiter():
     global PREFECT_THREAD_LIMITER
 
@@ -181,7 +188,7 @@ def run_coro_as_sync(
     coroutine: Awaitable[R],
     force_new_thread: bool = False,
     wait_for_result: bool = True,
-) -> R:
+) -> Union[R, None]:
     """
     Runs a coroutine from a synchronous context, as if it were a synchronous
     function.
@@ -208,7 +215,7 @@ def run_coro_as_sync(
         The result of the coroutine if wait_for_result is True, otherwise None.
     """
 
-    async def coroutine_wrapper():
+    async def coroutine_wrapper() -> Union[R, None]:
         """
         Set flags so that children (and grandchildren...) of this task know they are running in a new
         thread and do not try to run on the run_sync thread, which would cause a
@@ -237,7 +244,12 @@ def run_coro_as_sync(
         call = _cast_to_call(coroutine_wrapper)
         runner = get_run_sync_loop()
         runner.submit(call)
-        return call.result()
+        try:
+            return call.result()
+        except KeyboardInterrupt:
+            call.cancel()
+            logger.debug("Coroutine cancelled due to KeyboardInterrupt.")
+            raise
 
 
 async def run_sync_in_worker_thread(
