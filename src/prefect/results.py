@@ -18,6 +18,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 from pydantic_core import PydanticUndefinedType
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
@@ -427,7 +428,9 @@ class ResultFactory(BaseModel):
             )
 
     @sync_compatible
-    async def create_result(self, obj: R, key: str = None) -> Union[R, "BaseResult[R]"]:
+    async def create_result(
+        self, obj: R, key: str = None, expiration: Optional[DateTime] = None
+    ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
 
@@ -458,6 +461,7 @@ class ResultFactory(BaseModel):
             storage_key_fn=storage_key_fn,
             serializer=self.serializer,
             cache_object=should_cache_object,
+            expiration=expiration,
         )
 
     @sync_compatible
@@ -580,6 +584,7 @@ class PersistedResult(BaseResult):
     serializer_type: str
     storage_block_id: uuid.UUID
     storage_key: str
+    expiration: Optional[DateTime] = None
 
     _should_cache_object: bool = PrivateAttr(default=True)
 
@@ -595,6 +600,7 @@ class PersistedResult(BaseResult):
 
         blob = await self._read_blob(client=client)
         obj = blob.serializer.loads(blob.data)
+        self.expiration = blob.expiration
 
         if self._should_cache_object:
             self._cache_object(obj)
@@ -634,6 +640,7 @@ class PersistedResult(BaseResult):
         storage_key_fn: Callable[[], str],
         serializer: Serializer,
         cache_object: bool = True,
+        expiration: Optional[DateTime] = None,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
@@ -645,7 +652,9 @@ class PersistedResult(BaseResult):
             storage_block_id is not None
         ), "Unexpected storage block ID. Was it persisted?"
         data = serializer.dumps(obj)
-        blob = PersistedResultBlob(serializer=serializer, data=data)
+        blob = PersistedResultBlob(
+            serializer=serializer, data=data, expiration=expiration
+        )
 
         key = storage_key_fn()
         if not isinstance(key, str):
@@ -670,6 +679,7 @@ class PersistedResult(BaseResult):
             storage_key=key,
             artifact_type="result",
             artifact_description=description,
+            expiration=expiration,
         )
 
         if cache_object:
@@ -691,6 +701,7 @@ class PersistedResultBlob(BaseModel):
     serializer: Serializer
     data: bytes
     prefect_version: str = Field(default=prefect.__version__)
+    expiration: Optional[DateTime] = None
 
     def to_bytes(self) -> bytes:
         return self.model_dump_json(serialize_as_any=True).encode()

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from datetime import timedelta
 from pathlib import Path
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, call
@@ -1137,6 +1138,65 @@ class TestCachePolicy:
         assert state.is_completed()
         assert await state.result() == 1800
         assert state.data.storage_key == "foo-bar"
+
+    async def test_cache_expiration_is_respected(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            persist_result=True,
+            result_storage_key="expiring-foo-bar",
+            cache_expiration=timedelta(seconds=1.0),
+            result_storage=fs,
+        )
+        async def async_task():
+            import random
+
+            return random.randint(0, 10000)
+
+        first_state = await async_task(return_state=True)
+        assert first_state.is_completed()
+        first_result = await first_state.result()
+
+        second_state = await async_task(return_state=True)
+        assert second_state.is_completed()
+        second_result = await second_state.result()
+
+        assert first_result == second_result, "Cache was not used"
+
+        # let cache expire...
+        await asyncio.sleep(1.1)
+
+        third_state = await async_task(return_state=True)
+        assert third_state.is_completed()
+        third_result = await third_state.result()
+
+        # cache expired, new result
+        assert third_result not in [first_result, second_result], "Cache did not expire"
+
+    async def test_cache_expiration_expires(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            persist_result=True,
+            result_storage_key="expiring-foo-bar",
+            cache_expiration=timedelta(seconds=0.0),
+            result_storage=fs,
+        )
+        async def async_task():
+            import random
+
+            return random.randint(0, 10000)
+
+        first_state = await async_task(return_state=True)
+        assert first_state.is_completed()
+        await asyncio.sleep(0.1)
+
+        second_state = await async_task(return_state=True)
+        assert second_state.is_completed()
+
+        assert (
+            await first_state.result() != await second_state.result()
+        ), "Cache did not expire"
 
     async def test_none_policy_doesnt_persist(self, prefect_client):
         @task(cache_policy=None, result_storage_key=None)
