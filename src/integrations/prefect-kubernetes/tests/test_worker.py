@@ -1898,7 +1898,9 @@ class TestKubernetesWorker:
         mock_watch.return_value.stream = _mock_pods_stream_that_returns_running_pod
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(),
-            {"labels": {given: "foo"}},
+            {
+                "labels": {given: "foo"},
+            },
         )
         configuration.prepare_for_flow_run(flow_run)
 
