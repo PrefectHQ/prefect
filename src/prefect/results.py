@@ -37,6 +37,7 @@ from prefect.settings import (
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
+    default_result_storage_block_name,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
@@ -66,11 +67,18 @@ async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
     """
-    return (
-        await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
-        if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
-        else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
-    )
+    try:
+        return await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
+    except ValueError as e:
+        if "Unable to find" not in str(e):
+            raise e
+        elif (
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
+            == default_result_storage_block_name()
+        ):
+            return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+        else:
+            raise
 
 
 _default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
