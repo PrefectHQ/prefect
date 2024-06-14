@@ -9,7 +9,7 @@ Prefect workflow. Tasks can:
 - Take inputs, perform work, and return outputs
 - Encapsulate workflow logic into reusable units across flows and subflows
 - Receive metadata about upstream task dependencies and their state before running
-- Use automatic [logging](/3.0rc/develop/observe-workflows/logging/) to capture runtime details, tags, 
+- Use automatic [logging](/3.0rc/develop/observe-flows/logging/) to capture runtime details, tags, 
 and final state
 - Execute concurrently and cache return values
 - Be defined in the same file as the flow or imported from modules
@@ -19,7 +19,7 @@ Flows and tasks share some common features:
 
 - They can be defined using their respective decorator, which accepts configuration settings 
 (see all [task settings](/3.0rc/develop/write-tasks/#task-arguments) and 
-[flow settings](/3.0rc/develop/write-workflows/#flow-settings))
+[flow settings](/3.0rc/develop/write-flows/#flow-settings))
 - They can have a name, description, and tags for organization and bookkeeping
 - They provide functionality for retries, timeouts, and other hooks to handle failure and completion events
 
