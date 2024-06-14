@@ -174,31 +174,38 @@
       ]
     },
     {
-      "group": "Cloud and Server",
+      "group": "Manage Prefect",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/cloud/connect-to-cloud/index",
         {
-          "group": "Manage users",
+          "group": "Use Prefect Cloud",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/cloud/manage-users/index",
-            "3.0rc/cloud/manage-users/manage-roles",
-            "3.0rc/cloud/manage-users/api-keys",
-            "3.0rc/cloud/manage-users/service-accounts",
-            "3.0rc/cloud/manage-users/configure-sso",
-            "3.0rc/cloud/manage-users/audit-logs",
-            "3.0rc/cloud/manage-users/object-access-control-lists",
-            "3.0rc/cloud/manage-users/manage-teams"
+            "3.0rc/manage/cloud/index",
+            "3.0rc/manage/cloud/connect-to-cloud",
+            {
+              "group": "Manage users",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/manage/cloud/manage-users/index",
+                "3.0rc/manage/cloud/manage-users/manage-roles",
+                "3.0rc/manage/cloud/manage-users/api-keys",
+                "3.0rc/manage/cloud/manage-users/service-accounts",
+                "3.0rc/manage/cloud/manage-users/configure-sso",
+                "3.0rc/manage/cloud/manage-users/audit-logs",
+                "3.0rc/manage/cloud/manage-users/object-access-control-lists",
+                "3.0rc/manage/cloud/manage-users/manage-teams"
+              ]
+            },
+            "3.0rc/manage/cloud/rate-limits",
+            "3.0rc/manage/cloud/terraform-provider",
+            "3.0rc/manage/cloud/troubleshoot-cloud"
           ]
         },
-        "3.0rc/cloud/rate-limits",
         "3.0rc/cloud/self-host",
         "3.0rc/cloud/configure-client",
         "3.0rc/cloud/interact-with-api",
-        "3.0rc/cloud/secrets",
-        "3.0rc/cloud/terraform-provider",
-        "3.0rc/cloud/troubleshoot-cloud"
+        "3.0rc/cloud/secrets"
       ]
     },
     {
