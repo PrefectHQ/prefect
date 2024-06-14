@@ -1480,6 +1480,9 @@ def task(
     """
 
     if __fn:
+        if isinstance(__fn, (classmethod, staticmethod)):
+            method_decorator = type(__fn).__name__
+            raise TypeError(f"@{method_decorator} should be applied on top of @task")
         return cast(
             Task[P, R],
             Task(

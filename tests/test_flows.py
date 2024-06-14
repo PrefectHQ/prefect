@@ -900,6 +900,28 @@ class TestFlowCall:
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
 
+    def test_error_message_if_decorate_classmethod(self):
+        with pytest.raises(
+            TypeError, match="@classmethod should be applied on top of @flow"
+        ):
+
+            class Foo:
+                @flow
+                @classmethod
+                def bar(cls):
+                    pass
+
+    def test_error_message_if_decorate_staticmethod(self):
+        with pytest.raises(
+            TypeError, match="@staticmethod should be applied on top of @flow"
+        ):
+
+            class Foo:
+                @flow
+                @staticmethod
+                def bar():
+                    pass
+
 
 class TestSubflowCalls:
     async def test_subflow_call_with_no_tasks(self):

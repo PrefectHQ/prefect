@@ -1505,6 +1505,9 @@ def flow(
         >>>     pass
     """
     if __fn:
+        if isinstance(__fn, (classmethod, staticmethod)):
+            method_decorator = type(__fn).__name__
+            raise TypeError(f"@{method_decorator} should be applied on top of @flow")
         return cast(
             Flow[P, R],
             Flow(
