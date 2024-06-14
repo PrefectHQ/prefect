@@ -27,7 +27,7 @@ else:
 import pytest
 
 
-class TestCreateStorageFromUrl:
+class TestCreateStorageFromSource:
     @pytest.mark.parametrize(
         "url, expected_type",
         [
@@ -82,7 +82,7 @@ class TestCreateStorageFromUrl:
         path = path.split("://")[-1]  # split from Scheme when present
 
         assert isinstance(storage, LocalStorage)
-        assert storage._path == path
+        assert storage._path == Path(path).resolve()
         assert storage.pull_interval == 60  # default value
 
 
@@ -657,7 +657,7 @@ class TestRemoteStorage:
 class TestLocalStorage:
     def test_init(self):
         ls = LocalStorage("/path/to/directory")
-        assert ls._path == "/path/to/directory"
+        assert ls._path == Path("/path/to/directory")
         assert ls.pull_interval == 60
 
     def test_set_base_path(self):
@@ -688,7 +688,7 @@ class TestLocalStorage:
 
     def test_repr(self):
         local = LocalStorage(path="/path/to/local/flows")
-        assert repr(local) == "LocalStorage(path='/path/to/local/flows')"
+        assert repr(local) == "LocalStorage(path=PosixPath('/path/to/local/flows'))"
 
 
 class TestBlockStorageAdapter:
