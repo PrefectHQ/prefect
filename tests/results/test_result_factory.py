@@ -824,7 +824,7 @@ async def _verify_default_storage_creation_without_persistence(
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
 
     # verify storage settings are correctly set
-    assert result_factory.storage_block._is_anonymous is None
+    assert not result_factory.storage_block._is_anonymous
     assert result_factory.persist_result is False
     assert result_factory.storage_block_id is None
 

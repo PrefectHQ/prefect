@@ -1,11 +1,27 @@
+import uuid
+
 import pytest
 
+from prefect.filesystems import LocalFileSystem
+from prefect.flows import flow
 from prefect.records import RecordStore
+from prefect.records.result_store import ResultFactoryStore
+from prefect.results import (
+    get_default_result_storage,
+    get_or_create_default_task_scheduling_storage,
+)
+from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
+    temporary_settings,
+)
+from prefect.tasks import task
 from prefect.transactions import (
     CommitMode,
     Transaction,
     TransactionState,
     get_transaction,
+    transaction,
 )
 
 
@@ -224,8 +240,103 @@ def test_overwrite_ignores_existing_record():
         def write(self, **kwargs):
             pass
 
-    with Transaction(store=Store()) as txn:
+    with Transaction(
+        key="test_overwrite_ignores_existing_record", store=Store()
+    ) as txn:
         assert txn.is_committed()
 
-    with Transaction(store=Store(), overwrite=True) as txn:
+    with Transaction(
+        key="test_overwrite_ignores_existing_record", store=Store(), overwrite=True
+    ) as txn:
         assert not txn.is_committed()
+
+
+class TestDefaultTransactionStorage:
+    @pytest.fixture(autouse=True)
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
+        ):
+            yield
+
+    async def test_transaction_outside_of_run(self):
+        with transaction(key="test_transaction_outside_of_run") as txn:
+            assert isinstance(txn.store, ResultFactoryStore)
+            txn.stage({"foo": "bar"})
+
+        result = txn.read()
+        assert await result.get() == {"foo": "bar"}
+
+    async def test_transaction_inside_flow_default_storage(self):
+        @flow
+        def test_flow():
+            with transaction(key="test_transaction_inside_flow_default_storage") as txn:
+                assert isinstance(txn.store, ResultFactoryStore)
+                txn.stage({"foo": "bar"})
+
+            result = txn.read()
+            # make sure we aren't using an anonymous block
+            assert (
+                result.storage_block_id
+                == get_default_result_storage()._block_document_id
+            )
+            return result
+
+        assert test_flow() == {"foo": "bar"}
+
+    async def test_transaction_inside_flow_configured_storage(self, tmp_path):
+        block = LocalFileSystem(basepath=tmp_path)
+        await block.save("test-transaction-inside-flow-configured-storage")
+
+        @flow(result_storage=block)
+        async def test_flow():
+            with transaction(
+                key="test_transaction_inside_flow_configured_storage"
+            ) as txn:
+                assert isinstance(txn.store, ResultFactoryStore)
+                txn.stage({"foo": "bar"})
+
+            result = txn.read()
+            result.storage_block_id = block._block_document_id
+            return result
+
+        await test_flow() == {"foo": "bar"}
+
+    async def test_transaction_inside_task_default_storage(self):
+        default_task_storage = await get_or_create_default_task_scheduling_storage()
+
+        @task
+        async def test_task():
+            with transaction(key="test_transaction_inside_task_default_storage") as txn:
+                assert isinstance(txn.store, ResultFactoryStore)
+                txn.stage({"foo": "bar"})
+
+            result = txn.read()
+            # make sure we aren't using an anonymous block
+            assert result.storage_block_id == default_task_storage._block_document_id
+            return result
+
+        assert await test_task() == {"foo": "bar"}
+
+    async def test_transaction_inside_task_configured_storage(self, tmp_path):
+        block = LocalFileSystem(basepath=tmp_path)
+        await block.save("test-transaction-inside-task-configured-storage")
+
+        @task(result_storage=block)
+        async def test_task():
+            with transaction(
+                key="test_transaction_inside_task_configured_storage"
+            ) as txn:
+                assert isinstance(txn.store, ResultFactoryStore)
+                txn.stage({"foo": "bar"})
+
+            result = txn.read()
+            result.storage_block_id = block._block_document_id
+            return result
+
+        await test_task() == {"foo": "bar"}
