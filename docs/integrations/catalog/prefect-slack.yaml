@@ -2,5 +2,5 @@ integrationName: prefect-slack
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-slack
-iconUrl: /3.0rc/images/integrations/slack.png
+iconUrl: /images/integrations/slack.png
 tag: Slack

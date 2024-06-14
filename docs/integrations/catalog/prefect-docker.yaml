@@ -2,5 +2,5 @@ integrationName: prefect-docker
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-docker
-iconUrl: /3.0rc/images/integrations/docker.png
+iconUrl: /images/integrations/docker.png
 tag: Docker

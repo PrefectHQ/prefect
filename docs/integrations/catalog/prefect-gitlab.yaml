@@ -2,5 +2,5 @@ integrationName: prefect-gitlab
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-gitlab
-iconUrl: /3.0rc/images/integrations/gitlab.png
+iconUrl: /images/integrations/gitlab.png
 tag: GitLab

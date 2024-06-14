@@ -2,5 +2,5 @@ integrationName: prefect-fivetran
 author: Fivetran
 authorUrl: https://www.fivetran.com/
 documentation: https://fivetran.github.io/prefect-fivetran/
-iconUrl: /3.0rc/images/integrations/fivetran.png
+iconUrl: /images/integrations/fivetran.png
 tag: Fivetran

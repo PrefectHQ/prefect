@@ -2,5 +2,5 @@ integrationName: prefect-github
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-github
-iconUrl: /3.0rc/images/integrations/github.png
+iconUrl: /images/integrations/github.png
 tag: GitHub
