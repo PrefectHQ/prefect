@@ -4,8 +4,9 @@
 
 {% for integration in integrations %}
     <Card title="{{ integration['tag'] }}">
-        [![{{ integration['integrationName'] }}]({{ integration['iconURL'] }})] {{ integration['documentation'] }})
-        [Maintained by ]( {{ integration['authorUrl'] }} )
+        <a href="{{ integration['documentation'] }}"> <img src="{{ integration['iconUrl'] }}" alt="{{ integration['integrationName'] }}"/>
+        </a>
+        Maintained by <a href="{{ integration['authorUrl'] }}"> {{ integration['author'] }} </a>
     </Card>
 {% endfor %}
 
