@@ -14,6 +14,7 @@ from pydantic import Field
 
 from prefect.context import ContextModel
 from prefect.records import RecordStore
+from prefect.results import BaseResult
 from prefect.utilities.collections import AutoEnum
 
 T = TypeVar("T")
@@ -126,7 +127,7 @@ class Transaction(ContextModel):
         if not self.overwrite and self.store and self.store.exists(key=self.key):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> dict:
+    def read(self) -> BaseResult:
         return self.store.read(key=self.key)
 
     def reset(self) -> None:
@@ -174,7 +175,7 @@ class Transaction(ContextModel):
             return False
 
     def stage(
-        self, value: dict, on_rollback_hooks: list, on_commit_hooks: list
+        self, value: BaseResult, on_rollback_hooks: list, on_commit_hooks: list
     ) -> None:
         """
         Stage a value to be committed later.
