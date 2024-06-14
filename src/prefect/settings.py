@@ -428,7 +428,7 @@ def default_result_storage_block_name(
     """
     if value is None:
         return (
-            f"local-file-system/{slugify(socket.gethostname())}-default-local-storage"
+            f"local-file-system/{slugify(socket.gethostname())}-storage"
         )
     return value
 
