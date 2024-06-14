@@ -1,5 +1,4 @@
 
-<!-- The code below is a jinja2 template that will be rendered by create_integrations_cards.py -->
 <CardGroup cols={4}  className="text-center">
 
     <Card title="Alert">
