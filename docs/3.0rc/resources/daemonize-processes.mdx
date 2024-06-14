@@ -1,5 +1,5 @@
 ---
-title: Daemonize processes for deployments
+title: Daemonize worker processes
 description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution with workers.
 ---
 
@@ -17,10 +17,8 @@ that poll for scheduled flow runs, including how to:
 
 * An environment with a linux operating system with [systemd](https://systemd.io/) and Python 3.9
 or later.
-* A superuser account (you can run `sudo` commands).
-* A Prefect Cloud account, or a local instance of a Prefect server running on your network.
-* If daemonizing a worker, you'll need a Prefect [deployment](/3.0rc/deploy/serve-workflows/) with a
-[work pool](/3.0rc/deploy/dynamic-infra/control-runs/) your worker can connect to.
+* A superuser account that can run `sudo` commands.
+* A Prefect Cloud account, or an instance of a Prefect server running on your network.
 
 If using an [AWS t2-micro EC2 instance](https://aws.amazon.com/ec2/instance-types/t2/) with an
 AWS Linux image, you can install Python and pip with `sudo yum install -y python3 python3-pip`.
@@ -36,8 +34,7 @@ This approach provides resilience by automatically restarting the process if it 
 ### Step 1: Add a user
 
 Create a user account on your Linux system for the Prefect process.
-Although you can run a worker or serve process as root, it's a good security practice to avoid doing
-so.
+You can run a worker or serve process as root, but it's best practice to create a dedicated user.
 
 In a terminal, run:
 
@@ -62,7 +59,7 @@ Run:
 pip3 install prefect
 ```
 
-This guide assumes you are installing Prefect globally, not in a virtual environment.
+This guide assumes you are installing Prefect globally, rather than a virtual environment.
 If running a systemd service in a virtual environment, change the ExecPath.
 For example, if using [venv](https://docs.python.org/3/library/venv.html), change the ExecPath
 to target the `prefect` application in the `bin` subdirectory of your virtual environment.
@@ -78,8 +75,7 @@ prefect cloud login -k YOUR_API_KEY
 
 When prompted, choose the Prefect workspace to log in to.
 
-If connecting to a self-hosted Prefect server instance instead of Prefect Cloud, run the following
-and substitute the IP address of your server:
+If connecting to a self-hosted Prefect server instance instead of Prefect Cloud, run the following command, substituting the IP address of your server:
 
 ```bash
 prefect config set PREFECT_API_URL=http://your-prefect-server-IP:4200
@@ -182,12 +178,25 @@ WantedBy=multi-user.target
 
 To save the file and exit Vim, hit the escape key, type `:wq!`, then press the return key.
 
-Next, run `sudo systemctl daemon-reload` to make systemd aware of your new service.
+Next, make systemd aware of your new service by running:
 
-Then, run `sudo systemctl enable my-prefect-service` to enable the service.
+```bash
+sudo systemctl daemon-reload` to 
+```
+
+Then, enable the service by running:
+
+```bash
+run `sudo systemctl enable my-prefect-service` to 
+```
+
 This command ensures it runs when your system boots.
 
-Next, run `sudo systemctl start my-prefect-service` to start the service.
+Next, start the service:
+
+```bash
+sudo systemctl start my-prefect-service
+```
 
 Run your deployment from the UI and check the logs on the **Flow Runs** page.
 
