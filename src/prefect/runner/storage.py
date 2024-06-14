@@ -1,4 +1,3 @@
-import os
 import shutil
 import subprocess
 from copy import deepcopy
@@ -570,7 +569,7 @@ class LocalStorage:
     Sets the working directory in the local filesystem.
 
     Parameters:
-        url: Local file path to set the working directory for the flow
+        Path: Local file path to set the working directory for the flow
 
     Examples:
         Sets the working directory for the local path to the flow:
@@ -579,24 +578,24 @@ class LocalStorage:
         from prefect.runner.storage import Localstorage
 
         storage = LocalStorage(
-            url="/path/to/local/flow_directory",
+            path="/path/to/local/flow_directory",
         )
         ```
     """
 
     def __init__(
         self,
-        url: str,
+        path: str,
         pull_interval: Optional[int] = 60,
     ):
-        self._url = url
+        self._path = path
         self._logger = get_logger("runner.storage.local-storage")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
 
     @property
     def destination(self) -> Path:
-        return Path(self._url)
+        return Path(self._path)
 
     def set_base_path(self, path: Path):
         self._storage_base_path = path
@@ -606,18 +605,7 @@ class LocalStorage:
         return self._pull_interval
 
     async def pull_code(self):
-        """
-        Pulls the contents of the configured repository to the local filesystem.
-        """
-        self._logger.debug(
-            "Checking local file path '%s'...",
-            self.destination,
-        )
-
-        local_dir = self.destination
-
-        if local_dir.exists():
-            os.chdir(local_dir)
+        pass
 
     def to_pull_step(self) -> dict:
         """
@@ -633,12 +621,15 @@ class LocalStorage:
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, LocalStorage):
-            return self._url == __value._url
+            return self._path == __value._path
         return False
 
+    def __repr__(self) -> str:
+        return f"LocalStorage(path={self._path!r})"
 
-def create_storage_from_url(
-    url: str, pull_interval: Optional[int] = 60
+
+def create_storage_from_source(
+    source: str, pull_interval: Optional[int] = 60
 ) -> RunnerStorage:
     """
     Creates a storage object from a URL.
@@ -652,15 +643,18 @@ def create_storage_from_url(
     Returns:
         RunnerStorage: A runner storage compatible object
     """
-    parsed_url = urlparse(url)
-    if parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
-        return GitRepository(url=url, pull_interval=pull_interval)
-    elif parsed_url.scheme in fsspec.available_protocols():
-        return RemoteStorage(url=url, pull_interval=pull_interval)
+    logger = get_logger("runner.storage")
+    parsed_source = urlparse(source)
+    if parsed_source.scheme == "git" or parsed_source.path.endswith(".git"):
+        return GitRepository(url=source, pull_interval=pull_interval)
+    elif parsed_source.scheme in ("file", "local"):
+        source_path = source.split("://")[-1]
+        return LocalStorage(path=source_path, pull_interval=pull_interval)
+    elif parsed_source.scheme in fsspec.available_protocols():
+        return RemoteStorage(url=source, pull_interval=pull_interval)
     else:
-        logger = get_logger("runner.storage")
         logger.debug("No valid fsspec protocol found for URL, assuming local storage.")
-        return LocalStorage(url=url, pull_interval=pull_interval)
+        return LocalStorage(path=source, pull_interval=pull_interval)
 
 
 def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
