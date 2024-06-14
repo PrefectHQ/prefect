@@ -369,6 +369,28 @@ class TestTaskCall:
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Task)
 
+    def test_error_message_if_decorate_classmethod(self):
+        with pytest.raises(
+            TypeError, match="@classmethod should be applied on top of @task"
+        ):
+
+            class Foo:
+                @task
+                @classmethod
+                def bar():
+                    pass
+
+    def test_error_message_if_decorate_staticmethod(self):
+        with pytest.raises(
+            TypeError, match="@staticmethod should be applied on top of @task"
+        ):
+
+            class Foo:
+                @task
+                @staticmethod
+                def bar():
+                    pass
+
 
 class TestTaskRun:
     async def test_sync_task_run_inside_sync_flow(self):
