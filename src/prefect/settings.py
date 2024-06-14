@@ -427,9 +427,7 @@ def default_result_storage_block_name(
     value to the hostname of the machine.
     """
     if value is None:
-        return (
-            f"local-file-system/{slugify(socket.gethostname())}-storage"
-        )
+        return f"local-file-system/{slugify(socket.gethostname())}-storage"
     return value
 
 

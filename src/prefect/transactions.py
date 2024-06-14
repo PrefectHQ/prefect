@@ -270,7 +270,7 @@ def transaction(
                 default_name = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value().split("/")[
                     -1
                 ]
-                default_storage.save(default_name, _sync=True)
+                default_storage.save(default_name, overwrite=True, _sync=True)
             if existing_factory:
                 new_factory = existing_factory.model_copy(
                     update={
