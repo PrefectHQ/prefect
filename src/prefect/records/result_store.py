@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any
+
 import pendulum
 
 from prefect.results import BaseResult, PersistedResult, ResultFactory

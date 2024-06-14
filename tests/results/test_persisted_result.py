@@ -1,5 +1,5 @@
-import uuid
 import json
+import uuid
 
 import pendulum
 import pytest

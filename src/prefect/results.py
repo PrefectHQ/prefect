@@ -1,6 +1,5 @@
 import abc
 import uuid
-import pendulum
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -421,7 +420,9 @@ class ResultFactory(BaseModel):
             )
 
     @sync_compatible
-    async def create_result(self, obj: R, key: str = None) -> Union[R, "BaseResult[R]"]:
+    async def create_result(
+        self, obj: R, key: str = None, expiration: Optional[DateTime] = None
+    ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
 
@@ -452,6 +453,7 @@ class ResultFactory(BaseModel):
             storage_key_fn=storage_key_fn,
             serializer=self.serializer,
             cache_object=should_cache_object,
+            expiration=expiration,
         )
 
     @sync_compatible
@@ -638,8 +640,6 @@ class PersistedResult(BaseResult):
         The object will be serialized and written to the storage block under a unique
         key. It will then be cached on the returned result.
         """
-        expiration = expiration or pendulum.now("utc")
-
         assert (
             storage_block_id is not None
         ), "Unexpected storage block ID. Was it persisted?"
