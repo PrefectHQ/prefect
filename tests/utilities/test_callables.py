@@ -592,7 +592,7 @@ class TestMethodToSchema:
                         "default": None,
                         "position": 2,
                         "title": "z",
-                        "type": "boolean",
+                        "anyOf": [{"type": "boolean"}, {"type": "null"}],
                     },
                 },
                 "required": ["x"],
