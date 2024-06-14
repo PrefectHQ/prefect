@@ -4,9 +4,122 @@ Title: Integrations
 description: Prefect integrations are PyPI packages you can install to help you build integrate your workflows with third parties.
 ---
 
-## Install an integration library
+Learn how to work with integrations [below](#install-an-integration-package).
 
-Install an integration with `pip`.
+## Integrations
+
+<CardGroup cols={4}  className="text-center">
+  <Card title="Alert">
+    [![prefect_alert](./images/integrations/alert.png)](https://khuyentran1401.github.io/prefect-alert/)
+    [Maintained by Khuyen Tran](https://github.com/khuyentran1401)
+  </Card>
+  <Card title="AWS">
+    [![prefect_aws](./images/integrations/aws.png)](prefect-aws)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-aws)
+  </Card>
+  <Card title="Azure">
+    [![prefect_azure](./images/integrations/azure.png)](prefect-azure/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-azure)
+  </Card>
+  <Card title="Bitbucket">
+    [![prefect_alert](./images/integrations/bitbucket.png)](bitbucket)
+    [Maintained by Prefect]()
+  </Card>
+    <Card title="Coiled">
+    [![prefect_alert](./images/integrations/coiled.png)]()
+    [Maintained by Coiled](h)
+  </Card>
+    <Card title="CubeJS">
+    [![prefect_cubejs](./images/integrations/cubejs.png)]()
+    [Maintained by Alessandro Lollo]()
+  </Card>
+  <Card title="Dask">
+    [![prefect_azure](./images/integrations/dask.png)](prefect-dask/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dask)
+  </Card>
+  <Card title="Databricks">
+    [![prefect_databricks](./images/integrations/databricks.png)](prefect-databricks/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-databricks)
+  </Card>
+  <Card title="dbt">
+    [![prefect_dbt](./images/integrations/dbt.png)](prefect-dbt/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dbt)
+  </Card>
+  <Card title="Docker">
+    [![prefect_docker](./images/integrations/docker.png)](prefect-docker/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-docker)
+  </Card>
+  <Card title="Earthdata">
+    [![prefect_earthdata](./images/integrations/nasa.png)]()
+    [Maintained by Giorgio Basile]()
+  </Card>
+  <Card title="Email">
+    [![prefect_email](./images/integrations/email.png)](prefect-email/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-email)
+  </Card>
+  <Card title="Fivetran">
+    [![prefect_fivetran](./images/integrations/fivetran.png)]()
+    []()
+  </Card>
+  <Card title="Fugue">
+    [![prefect_fugue](https://avatars.githubusercontent.com/u/65140352?s=200&v=4)](https://fugue-project.github.io/prefect-fugue/)
+    [Maintained by The Fugue Development Team](https://github.com/fugue-project/fugue)
+  </Card>
+  <Card title="GCP">
+    [![prefect_gcp](./images/integrations/gcp.png)](prefect-gcp/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-gcp)
+  </Card>
+  <Card title="GitHub">
+    [![prefect_github](./images/integrations/github.png)](prefect-github)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-github)
+  </Card>
+  <Card title="GitLab">
+    [![prefect_gitlab](./images/integrations/gitlab.png)](prefect-gitlab/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-gitlab)
+  </Card>
+  <Card title="Google Sheets">
+    [![prefect_email](./images/integrations/azure.png)](prefect-azure/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-azure)
+  </Card>
+  <Card title="HashiCorp Vault">
+    [![prefect_email](./images/integrations/azure.png)](prefect-azure/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-azure)
+  </Card>
+    <Card title="Kubernetes">
+    [![prefect_azure](./images/integrations/dask.png)](prefect-dask/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dask)
+  </Card>
+  <Card title="KV"> 
+    [prefect-kv](https://github.com/zanieb/prefect-kv)](https://github.com/zanieb/prefect-kv)
+    [Maintained by Zanie Blue](https://github.com/zanieb)
+  </Card>
+  <Card title="dbt">
+    [![prefect_dbt](./images/integrations/dbt.png)](prefect-dbt/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dbt)
+  </Card>
+  <Card title="Docker">
+    [![prefect_docker](./images/integrations/docker.png)](prefect-docker/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-docker)
+  </Card>
+  <Card title="Earthdata">
+    [Giorgio Basile]()
+  </Card>
+  <Card title="Email">
+    [![prefect_email](./images/integrations/azure.png)](prefect-azure/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-azure)
+  </Card>
+  <Card title="Email">
+    [![prefect_email](./images/integrations/azure.png)](prefect-azure/)
+    [Maintained by Prefect](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-azure)
+  </Card>
+
+
+</CardGroup>
+
+
+## Install an integration package
+
+Install an integration package with `pip`.
 
 For example, to use `prefect-aws`:
 
@@ -26,11 +139,11 @@ prefect block register -m prefect_aws
 
 To use a block's `load` method, you must have a block [saved](/3.0rc/develop/connect-third-party/#saving-blocks). [Learn more about blocks](/3.0rc/develop/connect-third-party).
 
-## Using Tasks and Flows from an Integration
+## Use tasks and flows from an Integration
 
-Integrations also contain pre-built tasks and flows that can be imported and called within your code.
+Integrations may contain pre-built tasks and flows that can be imported and called within your code.
 
-For example, =read a secret from AWS Secrets Manager with the `read_secret` task with the following code:
+For example, read a secret from AWS Secrets Manager with the `read_secret` task with the following code:
 
 ```python
 from prefect import flow
@@ -45,7 +158,7 @@ def connect_to_database():
         aws_credentials=aws_credentials
     )
 
-    # Use secret_value to connect to a database
+    # Then, use secret_value to connect to a database
 ```
 
 ## Customize tasks and flows from an integration
@@ -71,89 +184,8 @@ def run_dbt_job_flow():
         job_id=1
     )
 
+
 if __name__ == "__main__":  
     run_dbt_job_flow()
 ```
 
-## Create a custom block for use in an integration
-
-Prefect welcomes community contributions of integration libraries.
-
-Most integrations contain custom blocks to interact with third-party services.
-
-Here's the process to create a custom block:
-
-1. Subclass from `Block`.
-1. Add a description alongside an `Attributes` and `Example` section in the docstring.
-1. Set a `_logo_url` to point to a relevant image.
-1. Create the `pydantic.Field`s of the block with a type annotation, `default` or `default_factory`, and a short description about the field.
-1. Define the methods of the block.
-
-For example, this is how the [Secret block is implemented](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/system.py#L76-L102):
-
-```python
-from pydantic import Field, SecretStr
-from prefect.blocks.core import Block
-
-class Secret(Block):
-    """
-    A block that represents a secret value. The value stored in this block will be obfuscated when
-    this block is logged or shown in the UI.
-
-    Attributes:
-        value: A string value that should be kept secret.
-
-    Example:
-        (wrap in tripple backticsk and *python* to render correctly in the docs)
-        from prefect.blocks.system import Secret
-        secret_block = Secret.load("BLOCK_NAME")
-
-        # Access the stored secret
-        secret_block.get()
-        
-    """
-
-    _logo_url = "https://example.com/logo.png"
-
-    value: SecretStr = Field(
-        default=..., description="A string value that should be kept secret."
-    )  # ... indicates it's a required field
-
-    def get(self):
-        return self.value.get_secret_value()
-```
-
-To view in Prefect Cloud or the Prefect server UI, [register the block](https://docs.prefect.io/develop/connect-third-party/#registering-blocks-for-use-in-the-prefect-ui).
-
-## Create a Prefect integration library
-
-### Generate a project
-
-To help you get started with your integration, we've created a template that gives the tools you need to create and publish your integration.
-
-Use the [Prefect Integration template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to get started creating an integration with a bootstrapped project!
-
-### List a project in the integrations catalog
-
-To list your integration in the Prefect integrations catalog, submit a PR to the Prefect repository adding a file to the `docs/integrations/catalog` directory with details about your integration. Please use `TEMPLATE.yaml` in that folder as a guide.
-
-## Contribute fixes or enhancements to integrations
-
-To fix an issue or add a feature to any Prefect-maintained ntegrations, please [propose changes through a pull request from a fork of the prefecthq/prefect repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
-
-1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
-2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
-3. Install the repository and its dependencies:
-
-```
-pip install -e ".[dev]"
-```
-
-4. Make desired changes
-5. Add tests
-6. Insert an entry to the Integration's CHANGELOG.md
-7. Install `pre-commit` to perform quality checks prior to commit:
-```
-pre-commit install
-```
-8. `git commit`, `git push`, and create a pull request
