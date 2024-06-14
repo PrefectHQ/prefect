@@ -7,7 +7,7 @@ import pathlib
 import threading
 from contextlib import contextmanager
 from pathlib import Path, PureWindowsPath
-from typing import Union
+from typing import Optional, Union
 
 import fsspec
 import pathspec
@@ -33,7 +33,7 @@ def create_default_ignore_file(path: str) -> bool:
 
 
 def filter_files(
-    root: str = ".", ignore_patterns: list = None, include_dirs: bool = True
+    root: str = ".", ignore_patterns: Optional[list] = None, include_dirs: bool = True
 ) -> set:
     """
     This function accepts a root directory path and a list of file patterns to ignore, and returns
@@ -41,9 +41,7 @@ def filter_files(
 
     The specification matches that of [.gitignore files](https://git-scm.com/docs/gitignore).
     """
-    if ignore_patterns is None:
-        ignore_patterns = []
-    spec = pathspec.PathSpec.from_lines("gitwildmatch", ignore_patterns)
+    spec = pathspec.PathSpec.from_lines("gitwildmatch", ignore_patterns or [])
     ignored_files = {p.path for p in spec.match_tree_entries(root)}
     if include_dirs:
         all_files = {p.path for p in pathspec.util.iter_tree_entries(root)}

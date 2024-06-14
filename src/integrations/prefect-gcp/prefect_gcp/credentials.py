@@ -323,7 +323,7 @@ class GcpCredentials(CredentialsBlock):
 
     @_raise_help_msg("bigquery")
     def get_bigquery_client(
-        self, project: str = None, location: str = None
+        self, project: Optional[str] = None, location: Optional[str] = None
     ) -> "BigQueryClient":
         """
         Gets an authenticated BigQuery client.

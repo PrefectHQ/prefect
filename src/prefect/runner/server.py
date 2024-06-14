@@ -42,7 +42,7 @@ class RunnerGenericFlowRunRequest(BaseModel):
     parent_task_run_id: Optional[uuid.UUID] = None
 
 
-def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
+def perform_health_check(runner, delay_threshold: Optional[int] = None) -> JSONResponse:
     if delay_threshold is None:
         delay_threshold = (
             PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE.value()

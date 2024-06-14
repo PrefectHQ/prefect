@@ -3,6 +3,7 @@ The FailExpiredPauses service. Responsible for putting Paused flow runs in a Fai
 """
 
 import asyncio
+from typing import Optional
 
 import pendulum
 import sqlalchemy as sa
@@ -21,7 +22,7 @@ class FailExpiredPauses(LoopService):
     A simple loop service responsible for identifying Paused flow runs that no longer can be resumed.
     """
 
-    def __init__(self, loop_seconds: float = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS.value(),

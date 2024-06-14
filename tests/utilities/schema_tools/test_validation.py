@@ -1031,7 +1031,7 @@ class TestPreprocessSchemaPydanticV1NullTypes:
 
     def test_pydantic_v1_optional_int_default_none(self):
         """
-        optional_int_default_none: int = None
+        optional_int_default_none:Optional[int] = None
         """
         schema = {
             "title": "Parameters",
@@ -1386,7 +1386,7 @@ class TestPreprocessSchemaPydanticV2NullTypes:
 
     def test_pydantic_v2_optional_int_default_none(self):
         """
-        optional_int_default_none: int = None
+        optional_int_default_none:Optional[int] = None
         """
         schema = {
             "title": "Parameters",
@@ -1529,7 +1529,7 @@ class TestPreprocessSchemaPydanticV2NullTypes:
 
     def test_pydantic_v2_model_optional_int_default_none(self):
         """
-        optional_int_default_none: int = None
+        optional_int_default_none:Optional[int] = None
         """
         schema = {
             "title": "Parameters",

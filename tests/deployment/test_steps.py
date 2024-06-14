@@ -4,6 +4,7 @@ import sys
 import warnings
 from pathlib import Path
 from textwrap import dedent
+from typing import Optional
 from unittest.mock import ANY, call
 
 import pytest
@@ -347,7 +348,9 @@ class TestRunSteps:
 
 
 class MockCredentials:
-    def __init__(self, token: str, username: str = None, password: str = None):
+    def __init__(
+        self, token: str, username: Optional[str] = None, password: Optional[str] = None
+    ):
         self.token = token
         self.username = username
         self.password = password

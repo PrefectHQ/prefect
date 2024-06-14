@@ -166,8 +166,8 @@ async def read_work_queue_by_name(
 
 async def read_work_queues(
     session: AsyncSession,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
 ) -> Sequence[orm_models.WorkQueue]:
     """
@@ -292,7 +292,7 @@ async def get_runs_in_work_queue(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
-    limit: int = None,
+    limit: Optional[int] = None,
     scheduled_before: datetime.datetime = None,
 ) -> Tuple[orm_models.WorkQueue, Sequence[orm_models.FlowRun]]:
     """
@@ -335,7 +335,7 @@ async def _legacy_get_runs_in_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
     scheduled_before: datetime.datetime = None,
-    limit: int = None,
+    limit: Optional[int] = None,
 ) -> Sequence[orm_models.FlowRun]:
     """
     DEPRECATED method for getting runs from a tag-based work queue

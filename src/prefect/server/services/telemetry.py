@@ -5,6 +5,7 @@ The Telemetry service.
 import asyncio
 import os
 import platform
+from typing import Optional
 from uuid import uuid4
 
 import httpx
@@ -27,7 +28,7 @@ class Telemetry(LoopService):
 
     loop_seconds: int = 600
 
-    def __init__(self, loop_seconds: int = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[int] = None, **kwargs):
         super().__init__(loop_seconds=loop_seconds, **kwargs)
         self.telemetry_environment = os.environ.get(
             "PREFECT_API_TELEMETRY_ENVIRONMENT", "production"

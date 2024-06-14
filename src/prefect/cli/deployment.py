@@ -214,7 +214,7 @@ async def _print_deployment_work_pool_instructions(
 
 
 class RichTextIO:
-    def __init__(self, console, prefix: str = None) -> None:
+    def __init__(self, console, prefix: Optional[str] = None) -> None:
         self.console = console
         self.prefix = prefix
 

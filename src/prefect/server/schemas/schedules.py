@@ -254,7 +254,7 @@ class CronSchedule(PrefectBaseModel):
 
     def _get_dates_generator(
         self,
-        n: int = None,
+        n: Optional[int] = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> Generator[pendulum.DateTime, None, None]:
@@ -477,7 +477,7 @@ class RRuleSchedule(PrefectBaseModel):
 
     async def get_dates(
         self,
-        n: int = None,
+        n: Optional[int] = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> List[pendulum.DateTime]:
@@ -500,7 +500,7 @@ class RRuleSchedule(PrefectBaseModel):
 
     def _get_dates_generator(
         self,
-        n: int = None,
+        n: Optional[int] = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> Generator[pendulum.DateTime, None, None]:

@@ -2,7 +2,7 @@ import datetime
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pendulum
 import pydantic.version
@@ -559,15 +559,15 @@ class TestMethodToSchema:
 
     def test_methods_with_complex_arguments(self):
         class Foo:
-            def f(self, x: datetime.datetime, y: int = 42, z: bool = None):
+            def f(self, x: datetime.datetime, y: int = 42, z: Optional[bool] = None):
                 pass
 
             @classmethod
-            def g(cls, x: datetime.datetime, y: int = 42, z: bool = None):
+            def g(cls, x: datetime.datetime, y: int = 42, z: Optional[bool] = None):
                 pass
 
             @staticmethod
-            def h(x: datetime.datetime, y: int = 42, z: bool = None):
+            def h(x: datetime.datetime, y: int = 42, z: Optional[bool] = None):
                 pass
 
         for method in [Foo().f, Foo.g, Foo.h]:

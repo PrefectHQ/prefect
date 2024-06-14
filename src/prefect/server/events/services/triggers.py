@@ -43,7 +43,7 @@ class ReactiveTriggers:
 
 
 class ProactiveTriggers(LoopService):
-    def __init__(self, loop_seconds: float = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         super().__init__(
             loop_seconds=(
                 loop_seconds

@@ -8,7 +8,7 @@ GitHub query_organization* tasks
 # is outdated, rerun scripts/generate.py.
 
 from pathlib import Path
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Optional
 
 from sgqlc.operation import Operation
 
@@ -28,7 +28,7 @@ return_fields_defaults = initialize_return_fields_defaults(config_path)
 async def query_organization(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The query root of GitHub's GraphQL interface.
@@ -63,7 +63,7 @@ async def query_organization_team(  # noqa
     login: str,
     slug: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find an organization's team by its slug.
@@ -108,15 +108,15 @@ async def query_organization_teams(  # noqa
     github_credentials: GitHubCredentials,
     privacy: graphql_schema.TeamPrivacy = None,
     role: graphql_schema.TeamRole = None,
-    query: str = None,
+    query: Optional[str] = None,
     order_by: graphql_schema.TeamOrder = None,
-    ldap_mapped: bool = None,
+    ldap_mapped: Optional[bool] = None,
     root_teams_only: bool = False,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of teams in this organization.
@@ -184,7 +184,7 @@ async def query_organization_project(  # noqa
     login: str,
     number: int,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find project by number.
@@ -226,17 +226,17 @@ async def query_organization_project(  # noqa
 async def query_organization_domains(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    is_verified: bool = None,
-    is_approved: bool = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    is_verified: Optional[bool] = None,
+    is_approved: Optional[bool] = None,
     order_by: graphql_schema.VerifiableDomainOrder = {
         "field": "DOMAIN",
         "direction": "ASC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of domains owned by the organization.
@@ -292,18 +292,18 @@ async def query_organization_domains(  # noqa
 async def query_organization_packages(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    names: Iterable[str] = None,
-    repository_id: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    names: Optional[Iterable[str]] = None,
+    repository_id: Optional[str] = None,
     package_type: graphql_schema.PackageType = None,
     order_by: graphql_schema.PackageOrder = {
         "field": "CREATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of packages under the owner.
@@ -363,12 +363,12 @@ async def query_organization_projects(  # noqa
     states: Iterable[graphql_schema.ProjectState],
     github_credentials: GitHubCredentials,
     order_by: graphql_schema.ProjectOrder = None,
-    search: str = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    search: Optional[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of projects under the owner.
@@ -426,13 +426,13 @@ async def query_organization_projects(  # noqa
 async def query_organization_sponsors(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    tier_id: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    tier_id: Optional[str] = None,
     order_by: graphql_schema.SponsorOrder = {"field": "RELEVANCE", "direction": "DESC"},
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of sponsors for this user or organization.
@@ -489,16 +489,16 @@ async def query_organization_sponsors(  # noqa
 async def query_organization_audit_log(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    query: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    query: Optional[str] = None,
     order_by: graphql_schema.AuditLogOrder = {
         "field": "CREATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Audit log entries of the organization.
@@ -553,7 +553,7 @@ async def query_organization_project_v2(  # noqa
     login: str,
     number: int,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find a project by number.
@@ -595,13 +595,13 @@ async def query_organization_project_v2(  # noqa
 async def query_organization_projects_v2(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    query: str = None,
+    query: Optional[str] = None,
     order_by: graphql_schema.ProjectV2Order = {"field": "NUMBER", "direction": "DESC"},
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of projects under the owner.
@@ -657,7 +657,7 @@ async def query_organization_repository(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find Repository.
@@ -702,12 +702,12 @@ async def query_organization_repository(  # noqa
 async def query_organization_sponsoring(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.SponsorOrder = {"field": "RELEVANCE", "direction": "DESC"},
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of users and organizations this entity is sponsoring.
@@ -761,7 +761,7 @@ async def query_organization_project_next(  # noqa
     login: str,
     number: int,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find a project by project (beta) number.
@@ -804,11 +804,11 @@ async def query_organization_pinned_items(  # noqa
     login: str,
     types: Iterable[graphql_schema.PinnableItemType],
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories and gists this profile owner has pinned to their profile.
@@ -860,13 +860,13 @@ async def query_organization_pinned_items(  # noqa
 async def query_organization_projects_next(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    query: str = None,
+    query: Optional[str] = None,
     sort_by: graphql_schema.ProjectNextOrderField = "TITLE",
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of projects (beta) under the owner.
@@ -927,13 +927,13 @@ async def query_organization_repositories(  # noqa
         "OWNER",
         "COLLABORATOR",
     ),
-    is_locked: bool = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    is_fork: bool = None,
-    return_fields: Iterable[str] = None,
+    is_locked: Optional[bool] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    is_fork: Optional[bool] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories that the user owns.
@@ -1005,7 +1005,7 @@ async def query_organization_repositories(  # noqa
 async def query_organization_item_showcase(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Showcases a selection of repositories and gists that the profile owner has
@@ -1044,11 +1044,11 @@ async def query_organization_pinnable_items(  # noqa
     login: str,
     types: Iterable[graphql_schema.PinnableItemType],
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories and gists this profile owner can pin to their profile.
@@ -1101,11 +1101,11 @@ async def query_organization_pinnable_items(  # noqa
 async def query_organization_recent_projects(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Recent projects that this user has modified in the context of the owner.
@@ -1155,15 +1155,15 @@ async def query_organization_recent_projects(  # noqa
 async def query_organization_member_statuses(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.UserStatusOrder = {
         "field": "UPDATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Get the status messages members of this entity have set that are either public
@@ -1217,11 +1217,11 @@ async def query_organization_member_statuses(  # noqa
 async def query_organization_pending_members(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of users who have been invited to join this organization.
@@ -1271,7 +1271,7 @@ async def query_organization_pending_members(  # noqa
 async def query_organization_sponsors_listing(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The GitHub Sponsors listing for this user or organization.
@@ -1308,11 +1308,11 @@ async def query_organization_sponsors_listing(  # noqa
 async def query_organization_members_with_role(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of users who are members of this organization.
@@ -1362,17 +1362,17 @@ async def query_organization_members_with_role(  # noqa
 async def query_organization_enterprise_owners(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    query: str = None,
+    query: Optional[str] = None,
     organization_role: graphql_schema.RoleInOrganization = None,
     order_by: graphql_schema.OrgEnterpriseOwnerOrder = {
         "field": "LOGIN",
         "direction": "ASC",
     },
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of owners of the organization's enterprise account.
@@ -1430,16 +1430,16 @@ async def query_organization_sponsors_activities(  # noqa
     login: str,
     actions: Iterable[graphql_schema.SponsorsActivityAction],
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     period: graphql_schema.SponsorsActivityPeriod = "MONTH",
     order_by: graphql_schema.SponsorsActivityOrder = {
         "field": "TIMESTAMP",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Events involving this sponsorable, such as new sponsorships.
@@ -1499,7 +1499,7 @@ async def query_organization_sponsors_activities(  # noqa
 async def query_organization_interaction_ability(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The interaction ability settings for this organization.
@@ -1536,15 +1536,15 @@ async def query_organization_interaction_ability(  # noqa
 async def query_organization_ip_allow_list_entries(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.IpAllowListEntryOrder = {
         "field": "ALLOW_LIST_VALUE",
         "direction": "ASC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The IP addresses that are allowed to access resources owned by the organization.
@@ -1598,17 +1598,17 @@ async def query_organization_ip_allow_list_entries(  # noqa
 async def query_organization_repository_migrations(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     state: graphql_schema.MigrationState = None,
-    repository_name: str = None,
+    repository_name: Optional[str] = None,
     order_by: graphql_schema.RepositoryMigrationOrder = {
         "field": "CREATED_AT",
         "direction": "ASC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of all repository migrations for this organization.
@@ -1667,7 +1667,7 @@ async def query_organization_repository_migrations(  # noqa
 async def query_organization_saml_identity_provider(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The Organization's SAML identity providers.
@@ -1704,17 +1704,17 @@ async def query_organization_saml_identity_provider(  # noqa
 async def query_organization_repository_discussions(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.DiscussionOrder = {
         "field": "CREATED_AT",
         "direction": "DESC",
     },
-    repository_id: str = None,
-    answered: bool = None,
-    return_fields: Iterable[str] = None,
+    repository_id: Optional[str] = None,
+    answered: Optional[bool] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Discussions this user has started.
@@ -1776,12 +1776,12 @@ async def query_organization_repository_discussions(  # noqa
 async def query_organization_sponsorships_as_sponsor(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.SponsorshipOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     This object's sponsorships as the sponsor.
@@ -1838,15 +1838,15 @@ async def query_organization_sponsorships_as_sponsor(  # noqa
 async def query_organization_sponsorship_newsletters(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.SponsorshipNewsletterOrder = {
         "field": "CREATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of sponsorship updates sent from this sponsorable to sponsors.
@@ -1901,13 +1901,13 @@ async def query_organization_sponsorship_newsletters(  # noqa
 async def query_organization_sponsorships_as_maintainer(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     include_private: bool = False,
     order_by: graphql_schema.SponsorshipOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     This object's sponsorships as the maintainer.
@@ -1967,13 +1967,13 @@ async def query_organization_sponsorships_as_maintainer(  # noqa
 async def query_organization_repository_discussion_comments(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    repository_id: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    repository_id: Optional[str] = None,
     only_answers: bool = False,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Discussion comments this user has authored.
@@ -2031,7 +2031,7 @@ async def query_organization_repository_discussion_comments(  # noqa
 async def query_organization_sponsorship_for_viewer_as_sponsor(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The sponsorship from the viewer to this user/organization; that is, the
@@ -2070,7 +2070,7 @@ async def query_organization_sponsorship_for_viewer_as_sponsor(  # noqa
 async def query_organization_sponsorship_for_viewer_as_sponsorable(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The sponsorship from this user/organization to the viewer; that is, the

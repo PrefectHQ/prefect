@@ -29,7 +29,7 @@ from prefect.utilities.templating import apply_values
 
 
 def create_default_prefect_yaml(
-    path: str, name: str = None, contents: Optional[Dict[str, Any]] = None
+    path: str, name: Optional[str] = None, contents: Optional[Dict[str, Any]] = None
 ) -> bool:
     """
     Creates default `prefect.yaml` file in the provided path if one does not already exist;
@@ -176,7 +176,9 @@ def _get_git_branch() -> Optional[str]:
 
 
 def initialize_project(
-    name: str = None, recipe: str = None, inputs: Optional[Dict[str, Any]] = None
+    name: Optional[str] = None,
+    recipe: Optional[str] = None,
+    inputs: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     """
     Initializes a basic project structure with base files.  If no name is provided, the name
