@@ -588,14 +588,14 @@ class LocalStorage:
         path: str,
         pull_interval: Optional[int] = 60,
     ):
-        self._path = path
+        self._path = Path(path).resolve()
         self._logger = get_logger("runner.storage.local-storage")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
 
     @property
     def destination(self) -> Path:
-        return Path(self._path)
+        return self._path
 
     def set_base_path(self, path: Path):
         self._storage_base_path = path
@@ -605,6 +605,8 @@ class LocalStorage:
         return self._pull_interval
 
     async def pull_code(self):
+        # Local storage assumes the code already exists on the local filesystem
+        # and does not need to be pulled from a remote location
         pass
 
     def to_pull_step(self) -> dict:
@@ -648,7 +650,7 @@ def create_storage_from_source(
     if parsed_source.scheme == "git" or parsed_source.path.endswith(".git"):
         return GitRepository(url=source, pull_interval=pull_interval)
     elif parsed_source.scheme in ("file", "local"):
-        source_path = source.split("://")[-1]
+        source_path = source.split("://", 1)[-1]
         return LocalStorage(path=source_path, pull_interval=pull_interval)
     elif parsed_source.scheme in fsspec.available_protocols():
         return RemoteStorage(url=source, pull_interval=pull_interval)
