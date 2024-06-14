@@ -61,13 +61,6 @@ _thread_local = threading.local()
 logger = get_logger()
 
 
-class SyncCompatibleInterrupt(KeyboardInterrupt):
-    """Raised when a sync compatible coroutine is interrupted by the user."""
-
-    def __init__(self, message: str):
-        super().__init__(message)
-
-
 def get_thread_limiter():
     global PREFECT_THREAD_LIMITER
 
