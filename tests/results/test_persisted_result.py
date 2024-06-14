@@ -1,5 +1,7 @@
 import json
+import uuid
 
+import pendulum
 import pytest
 
 from prefect.filesystems import LocalFileSystem
@@ -120,3 +122,75 @@ async def test_result_reference_create_uses_storage_key_fn(storage_block):
     assert result.storage_key == "test"
     contents = await storage_block.read_path("test")
     assert contents
+
+
+async def test_init_doesnt_error_when_doesnt_exist(storage_block):
+    path = uuid.uuid4().hex
+
+    result = PersistedResult(
+        storage_block_id=storage_block._block_document_id,
+        storage_key=path,
+        serializer_type="json",
+    )
+
+    with pytest.raises(ValueError, match="does not exist"):
+        await result.get()
+
+    blob = PersistedResultBlob(serializer=JSONSerializer(), data=b"38")
+    await storage_block.write_path(path, blob.to_bytes())
+    assert await result.get() == 38
+
+
+class TestExpirationField:
+    async def test_expiration_at_init_defaults_to_none(self, storage_block):
+        """
+        Setting a default on create but not init ensures that loading results with no
+        expiration set will not have an expiration.
+        """
+        result = PersistedResult(
+            storage_block_id=storage_block._block_document_id,
+            storage_key="my-path",
+            serializer_type="json",
+        )
+
+        assert result.expiration is None
+
+    async def test_expiration_at_create_defaults_to_none(self, storage_block):
+        result = await PersistedResult.create(
+            "test-value",
+            storage_block_id=storage_block._block_document_id,
+            storage_block=storage_block,
+            storage_key_fn=DEFAULT_STORAGE_KEY_FN,
+            serializer=JSONSerializer(),
+        )
+        assert result.expiration is None
+
+    async def test_setting_expiration_at_create(self, storage_block):
+        expires = pendulum.now("utc").add(days=1)
+
+        result = await PersistedResult.create(
+            "test-value",
+            storage_block_id=storage_block._block_document_id,
+            storage_block=storage_block,
+            storage_key_fn=DEFAULT_STORAGE_KEY_FN,
+            serializer=JSONSerializer(),
+            expiration=expires,
+        )
+        assert result.expiration == expires
+
+    async def test_expiration_when_loaded(self, storage_block):
+        path = uuid.uuid4().hex
+        timestamp = pendulum.now("utc").subtract(days=100)
+        blob = PersistedResultBlob(
+            serializer=JSONSerializer(), data=b"42", expiration=timestamp
+        )
+        await storage_block.write_path(path, blob.to_bytes())
+
+        result = PersistedResult(
+            storage_block_id=storage_block._block_document_id,
+            storage_key=path,
+            serializer_type="json",
+        )
+
+        assert await result.get() == 42
+        assert result.expiration == timestamp

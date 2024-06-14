@@ -299,9 +299,17 @@ class TaskRunEngine(Generic[P, R]):
         if result_factory is None:
             raise ValueError("Result factory is not set")
 
+        if self.task.cache_expiration is not None:
+            expiration = pendulum.now("utc") + self.task.cache_expiration
+        else:
+            expiration = None
+
         terminal_state = run_coro_as_sync(
             return_value_to_state(
-                result, result_factory=result_factory, key=transaction.key
+                result,
+                result_factory=result_factory,
+                key=transaction.key,
+                expiration=expiration,
             )
         )
         transaction.stage(
@@ -502,20 +510,20 @@ class TaskRunEngine(Generic[P, R]):
                         )
                         msg += dedent(
                             """
-                                      
+
                             Example:
-                            
+
                             from prefect import flow, task
-                                      
+
                             @task
                             def say_hello(name):
                                 print f"Hello, {name}!"
-                                      
+
                             @flow
                             def example_flow():
                                 say_hello.submit(name="Marvin)
                                 say_hello.wait()
-                                      
+
                             example_flow()
                                       """
                         )

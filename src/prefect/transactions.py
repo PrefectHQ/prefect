@@ -15,7 +15,7 @@ from typing_extensions import Self
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
-from prefect.results import ResultFactory, get_default_result_storage
+from prefect.results import BaseResult, ResultFactory, get_default_result_storage
 from prefect.settings import PREFECT_DEFAULT_RESULT_STORAGE_BLOCK
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
@@ -134,11 +134,11 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> dict:
+    def read(self) -> BaseResult:
         if self.store and self.key:
             return self.store.read(key=self.key)
         else:
-            return {}
+            return {}  # TODO: Determine what this should be
 
     def reset(self) -> None:
         parent = self.get_parent()
@@ -187,7 +187,7 @@ class Transaction(ContextModel):
 
     def stage(
         self,
-        value: dict,
+        value: BaseResult,
         on_rollback_hooks: Optional[List] = None,
         on_commit_hooks: Optional[List] = None,
     ) -> None:

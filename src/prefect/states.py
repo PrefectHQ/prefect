@@ -205,7 +205,10 @@ async def exception_to_failed_state(
 
 
 async def return_value_to_state(
-    retval: R, result_factory: ResultFactory, key: str = None
+    retval: R,
+    result_factory: ResultFactory,
+    key: str = None,
+    expiration: Optional[datetime.datetime] = None,
 ) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
@@ -238,7 +241,9 @@ async def return_value_to_state(
         # Unless the user has already constructed a result explicitly, use the factory
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
-            state.data = await result_factory.create_result(state.data, key=key)
+            state.data = await result_factory.create_result(
+                state.data, key=key, expiration=expiration
+            )
 
         return state
 
@@ -278,7 +283,9 @@ async def return_value_to_state(
         return State(
             type=new_state_type,
             message=message,
-            data=await result_factory.create_result(retval, key=key),
+            data=await result_factory.create_result(
+                retval, key=key, expiration=expiration
+            ),
         )
 
     # Generators aren't portable, implicitly convert them to a list.
@@ -291,7 +298,11 @@ async def return_value_to_state(
     if isinstance(data, BaseResult):
         return Completed(data=data)
     else:
-        return Completed(data=await result_factory.create_result(data, key=key))
+        return Completed(
+            data=await result_factory.create_result(
+                data, key=key, expiration=expiration
+            )
+        )
 
 
 @sync_compatible
