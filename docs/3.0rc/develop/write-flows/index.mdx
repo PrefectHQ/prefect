@@ -11,13 +11,13 @@ They can take inputs, perform work, and return an output.
 You can turn any function into a Prefect flow by adding the `@flow` decorator.
 When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-- All runs of the flow have persistent [state](/3.0rc/develop/observe-workflows/manage-states/). Transitions between states are recorded, 
+- All runs of the flow have persistent [state](/3.0rc/develop/observe-flows/manage-states/). Transitions between states are recorded, 
 allowing you to observe and act on flow execution.
-- Input arguments can be type validated as workflow parameters.
+- Input arguments can be type validated as flow parameters.
 - Retries can be performed on failure.
-- Timeouts can be enforced to prevent unintentional, long-running workflows.
+- Timeouts can be enforced to prevent unintentional, long-running flows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
-- A flow can be elevated to a [deployment](/3.0rc/deploy/serve-workflows/), which exposes a remote API for interacting with it.
+- A flow can be elevated to a [deployment](/3.0rc/deploy/serve-flows/), which exposes a remote API for interacting with it.
 
 ## Run your first flow
 
@@ -73,7 +73,7 @@ As shown above, flow definitions can contain arbitrary Python logic.
 ## Parameters
 
 As with any Python function, you can pass arguments to a flow.
-The positional and keyword arguments defined on your flow function are called [parameters](/3.0rc/develop/write-workflows/#parameters).
+The positional and keyword arguments defined on your flow function are called [parameters](/3.0rc/develop/write-flows/#parameters).
 Prefect automatically performs type conversion using any provided type hints.
 
 Make the repository a string parameter with a default value:
@@ -118,8 +118,8 @@ Navigate to your Prefect dashboard and compare the displays for these two runs.
 **Logging**
 
 Prefect enables you to log a variety of useful information about your flow and task runs. You can capture information 
-about your workflows for purposes such as monitoring, troubleshooting, and auditing.
-Check out [Logging](/3.0rc/develop/observe-workflows/logging) for more information.
+about your flows for purposes such as monitoring, troubleshooting, and auditing.
+Check out [Logging](/3.0rc/develop/observe-flows/logging) for more information.
 </Tip>
 
 <Tip>
@@ -139,7 +139,7 @@ For example, by running a Python script or importing the flow into an interactiv
 You can also create a flow run by:
 
 - Using external schedulers such as `cron` to invoke a flow function
-- Creating a [deployment](/3.0rc/deploy/serve-workflows/) on Prefect Cloud or a locally run Prefect server
+- Creating a [deployment](/3.0rc/deploy/serve-flows/) on Prefect Cloud or a locally run Prefect server
 - Creating a flow run for the deployment through a schedule, the Prefect UI, or the Prefect API
 
 However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
@@ -198,7 +198,7 @@ and must be retried from the beginning.
 You can avoid this by breaking up the code into multiple tasks.
 
 You may call any number of other tasks, subflows, and even regular Python functions within your flow. 
-You can pass parameters to your flow function to use elsewhere in the workflow, and Prefect will report on the progress 
+You can pass parameters to your flow function to use elsewhere in the flow, and Prefect will report on the progress 
 and [final state](#final-state-determination) of any invocation.
 
 Prefect encourages "small tasks." Each one should represent a single logical step of your workflow. 
@@ -208,10 +208,10 @@ This allows Prefect to better contain task failures.
 ## Subflows
 
 In addition to calling tasks within a flow, you can also call other flows.
-Child flows are called [subflows](/3.0rc/develop/write-workflows/#composing-flows) and allow you to efficiently manage, 
+Child flows are called [subflows](/3.0rc/develop/write-flows/#composing-flows) and allow you to efficiently manage, 
 track, and version common multi-task logic.
 
-Subflows are a great way to organize your workflows and offer more visibility within the UI.
+Subflows are a great way to organize your flows and offer more visibility within the UI.
 
 Add a `flow` decorator to the `get_open_issues` function:
 
@@ -362,7 +362,7 @@ A task that represents a subflow is annotated in its `state_details` with the pr
 A subflow is identified with the presence of a `parent_task_run_id` on `state_details`.
 
 You can define multiple flows within the same file.
-Whether running locally or through a [deployment](/3.0rc/deploy/serve-workflows/), you must indicate which flow is the entrypoint for a flow run.
+Whether running locally or through a [deployment](/3.0rc/deploy/serve-flows/), you must indicate which flow is the entrypoint for a flow run.
 
 <Warning>
 **Cancelling subflow runs**
@@ -444,17 +444,17 @@ Subflow says: Hello Marvin!
 <Tip> 
 **Subflows or tasks?**
 
-In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow.
+In Prefect you can call tasks _or_ subflows to do work within your flow, including passing results from other tasks to your subflow.
 
 A common question is: "When should I use a subflow instead of a task?"
 
-We recommend writing tasks that do a discrete, specific piece of work in your workflow. For example, calling an API, performing a database operation, 
+We recommend writing tasks that do a discrete, specific piece of work in your flow. For example, calling an API, performing a database operation, 
 analyzing or transforming a data point. 
 
 Prefect tasks are well suited for parallel or distributed execution using distributed computation frameworks such as Dask or Ray. 
 For troubleshooting, the more granular you make your tasks, the easier it is to find and fix issues if a task fails.
 
-Subflows enable you to group related tasks within your workflow. 
+Subflows enable you to group related tasks within your flow. 
 Here are some scenarios where you should choose a subflow rather than calling tasks individually:
 
 - Observability: Subflows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll 
@@ -498,7 +498,7 @@ def model_validator(model: Model):
     print(model)
 ```
 
-Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/serve-workflows/).
+Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/serve-flows/).
 Flow run parameters sent to the API on flow calls are coerced to a serializable form.
 Type hints on your flow functions provide a way of automatically coercing JSON provided values to their appropriate Python representation.
 
@@ -537,7 +537,7 @@ Flow run parameters cannot exceed `512kb` in size.
 ## Final state determination
 
 <Note>
-Read the documentation about [states](/3.0rc/develop/observe-workflows/manage-states) before proceeding with this section.
+Read the documentation about [states](/3.0rc/develop/observe-flows/manage-states) before proceeding with this section.
 </Note>
 
 The final state of the flow is determined by its return value. The following rules apply:
@@ -819,7 +819,7 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 
 ## See also
 
-- Store and reuse non-sensitive bits of data, such as configuration information, by using [variables](/3.0rc/develop/write-workflows/variables).
-- Supercharge this flow with [tasks](/3.0rc/develop/write-tasks/) to break down the workflow's complexity and make it more performant and observable.
+- Store and reuse non-sensitive bits of data, such as configuration information, by using [variables](/3.0rc/develop/write-flows/variables).
+- Supercharge this flow with [tasks](/3.0rc/develop/write-tasks/) to break down the flow's complexity and make it more performant and observable.
 
 

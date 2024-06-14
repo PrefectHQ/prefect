@@ -8,7 +8,7 @@ In this guide, you will configure a deployment that uses a work pool for dynamic
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
 You can call a flow locally or on a remote environment and it will be trackable.
 
-A deployment turns your workflow into an application you can manage through the Prefect API.
+A deployment turns your flow into an application you can manage through the Prefect API.
 A deployment enables you to:
 
 - Schedule flow runs.
@@ -28,7 +28,7 @@ A deployment enables you to:
 ## Work pool-based deployments
 
 A work pool-based deployment is useful to dynamically scale the infrastructure where your flow code runs.
-Work pool-based deployments contain information about the infrastructure type and configuration for your workflow execution.
+Work pool-based deployments contain information about the infrastructure type and configuration for your flow execution.
 
 Work pool-based deployment infrastructure options include the following:
 
@@ -104,7 +104,7 @@ When creating a deployment that uses a work pool and worker, there are two impor
 For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
-[Serve workflows](/3.0rc/deploy/serve-workflows/) shows how to create a deployment with a long-running process using `.serve`, 
+[Serve flows](/3.0rc/deploy/serve-flows/) shows how to create a deployment with a long-running process using `.serve`, 
 and how to move to a [work-pool-based deployment](/3.0rc/deploy/dynamic-infra/push-runs-remote/) setup with `.deploy`.
 Learn more about when to move to [work-pool-based deployments](/3.0rc/deploy/dynamic-infra/push-runs-remote/#why-workers-and-work-pools).
 
@@ -305,7 +305,7 @@ See all the optional keyword arguments for the [DeploymentImage class](https://d
 
 ### Store your code in git-based cloud storage
 
-While baking code into Docker images is a popular deployment option, many teams store their workflow code in git-based 
+While baking code into Docker images is a popular deployment option, many teams store their flow code in git-based 
 storage, such as GitHub, Bitbucket, or Gitlab.
 
 If you don't specify an `image` argument for `.deploy`, you must specify where to pull the flow code from at runtime 
@@ -554,7 +554,7 @@ if __name__ == "__main__":
 ```
 
 You could pass any number of flows to the `deploy` function.
-This is useful if using a monorepo approach to your workflows.
+This is useful if using a monorepo approach to your flows.
 
 ## Create work pool-based deployments with prefect.yaml
 
@@ -1182,8 +1182,8 @@ These are fields you can add to each deployment declaration.
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                                  |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
-| `schedule`                                 | An optional [schedule](/3.0rc/deploy/serve-workflows/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
-| `triggers`                                  | An optional array of [triggers](/3.0rc/deploy/serve-workflows/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
+| `schedule`                                 | An optional [schedule](/3.0rc/deploy/serve-flows/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `triggers`                                  | An optional array of [triggers](/3.0rc/deploy/serve-flows/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
@@ -1202,7 +1202,7 @@ These are fields you can add to a deployment declaration's `schedule` section.
 | `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must use with `cron`. Defaults to `True`.                                                                                                     |
 | `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot used them in conjunction with `interval` or `cron`. |
 
-For more information, see the [Schedules](/3.0rc/deploy/serve-workflows/add-schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section).
+For more information, see the [Schedules](/3.0rc/deploy/serve-flows/add-schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section).
 
 #### Work pool fields
 

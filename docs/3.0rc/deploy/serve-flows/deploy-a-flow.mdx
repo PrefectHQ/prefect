@@ -12,9 +12,9 @@ search:
   boost: 2
 ---
 
-[Deployments](/3.0rc/deploy/serve-workflows/) are server-side representations of flows. 
+[Deployments](/3.0rc/deploy/serve-flows/) are server-side representations of flows. 
 They store the crucial metadata for remote orchestration including when, where, and 
-how a workflow should run.
+how a flow should run.
 
 Attributes of a deployment include:
 
@@ -23,11 +23,11 @@ Attributes of a deployment include:
 - **Tags**: optional text labels for organizing deployments
 
 Some of the most common reasons to use an orchestration tool like Prefect are for 
-[scheduling](/3.0rc/deploy/serve-workflows/add-schedules/) and [event-based triggering](/3.0rc/react/understand-events/automations-triggers/).
+[scheduling](/3.0rc/deploy/serve-flows/add-schedules/) and [event-based triggering](/3.0rc/react/understand-events/automations-triggers/).
 As opposed to manually triggering and managing flow runs, deploying a flow exposes an API and 
 UI that allow you to:
 
-- trigger new runs, [cancel active runs](/3.0rc/develop/write-workflows/#cancel-a-flow-run), 
+- trigger new runs, [cancel active runs](/3.0rc/develop/write-flows/#cancel-a-flow-run), 
 pause scheduled runs, customize parameters, and more
 - remotely configure schedules and automation rules for your deployments
 - dynamically provision infrastructure using [workers](/3.0rc/tutorials/workers/)
@@ -93,11 +93,11 @@ In your terminal or UI, you should see the newly created run execute successfull
 ### Additional options
 
 The `serve` method on flows exposes many options for the deployment. For more information, see 
-[Serve a flow](3.0rc/deploy/serve-workflows/serve-a-flow)
+[Serve a flow](3.0rc/deploy/serve-flows/serve-a-flow)
 Here's how to use some of those options:
 
 - `cron`: a keyword that allows you to set a cron string schedule for the deployment; see 
-[schedules](/3.0rc/deploy/serve-workflows/add-schedules/) for more advanced scheduling options
+[schedules](/3.0rc/deploy/serve-flows/add-schedules/) for more advanced scheduling options
 - `tags`: a keyword that allows you to tag this deployment and its runs for bookkeeping and filtering purposes
 - `description`: a keyword that allows you to document what this deployment does; by default the 
 description is set from the docstring of the flow function (if documented)
@@ -172,7 +172,7 @@ A few optional steps for exploration include:
 **Hybrid execution option**
 
 Prefect's deployment interface allows you to choose a hybrid execution model.
-Whether you use Prefect Cloud or host a Prefect server instance, you can run workflows in the 
+Whether you use Prefect Cloud or host a Prefect server instance, you can run flows in the 
 environments best suited to their execution.
 This model enables efficient use of your infrastructure resources while maintaining the privacy 
 of your code and data.
@@ -196,7 +196,7 @@ class Deployment:
     entrypoint: str
     path: str = None
 
-    # workflow scheduling and parametrization
+    # flow scheduling and parametrization
     parameters: Optional[Dict[str, Any]] = None
     parameter_openapi_schema: Optional[Dict[str, Any]] = None
     schedules: list[Schedule] = None
@@ -237,8 +237,8 @@ prefect deployment run my-first-flow/my-first-deployment
 The other two fields are:
 
 - **`path`**: think of the path as the runtime working directory for the flow. 
-For example, if a deployment references a workflow defined within a Docker image, the `path` is the  
-absolute path to the parent directory where that workflow will run anytime the deployment is triggered. 
+For example, if a deployment references a flow defined within a Docker image, the `path` is the  
+absolute path to the parent directory where that flow will run anytime the deployment is triggered. 
 This interpretation is more subtle in the case of flows defined in remote filesystems.
 - **`entrypoint`**: the entrypoint of a deployment is a relative reference to a function decorated as a 
 flow that exists on some filesystem. It is always specified relative to the `path`. 
@@ -271,9 +271,9 @@ scheduled with different values through parameters.
 
 These are the fields to capture the required metadata for those actions:
 
-- **`schedules`**: a list of [schedule objects](/3.0rc/deploy/serve-workflows/add-schedules/).
+- **`schedules`**: a list of [schedule objects](/3.0rc/deploy/serve-flows/add-schedules/).
 Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves.
-For example, when [updating a deployment schedule in the UI](/3.0rc/deploy/serve-workflows/add-schedules/#creating-schedules-through-the-ui) 
+For example, when [updating a deployment schedule in the UI](/3.0rc/deploy/serve-flows/add-schedules/#creating-schedules-through-the-ui) 
 basic information such as a cron string or interval is all that's required.
 - **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment.
 For more information see [Automations](/3.0rc/react/understand-events/automations-triggers/).
@@ -383,7 +383,7 @@ anytime the flow or task runs, allowing you to audit changes.
 [Workers and work pools](/3.0rc/deploy/dynamic-infra/control-runs/) are an advanced deployment pattern that 
 allow you to dynamically provision infrastructure for each flow run.
 The work pool job template interface allows users to create and govern opinionated interfaces 
-to their workflow infrastructure.
+to their flow infrastructure.
 To do this, a deployment using workers needs the following fields:
 
 - **`work_pool_name`**: the name of the work pool this deployment is associated with.
@@ -396,16 +396,16 @@ deployment authors to customize whatever infrastructure options have been expose
 This field is often used for Docker image names, Kubernetes annotations and limits, 
 and environment variables.
 - **`pull_steps`**: a JSON description of steps that retrieves flow code or 
-configuration, and prepares the runtime environment for workflow execution.
+configuration, and prepares the runtime environment for flow execution.
 
-Pull steps allow users to highly decouple their workflow architecture.
+Pull steps allow users to highly decouple their flow architecture.
 For example, a common use of pull steps is to dynamically pull code from remote filesystems such as 
 GitHub with each run of their deployment.
 
 ### Serving flows on long-lived infrastructure
 
-When you have several flows running regularly, [the `serve` method](/3.0rc/develop/write-workflows/#serving-a-flow) 
-of the `Flow` object or [the `serve` utility](/3.0rc/develop/write-workflows/#serving-multiple-flows-at-once) 
+When you have several flows running regularly, [the `serve` method](/3.0rc/develop/write-flows/#serving-a-flow) 
+of the `Flow` object or [the `serve` utility](/3.0rc/develop/write-flows/#serving-multiple-flows-at-once) 
 is a great option for managing multiple flows simultaneously.
 
 Once you have authored your flow and decided on its deployment settings, run this long-running 
@@ -437,7 +437,7 @@ than the team managing infrastructure.
 [Work pools](/3.0rc/deploy/dynamic-infra/control-runs/) allow Prefect to exercise greater control 
 of the infrastructure on which flows run.
 Options for [serverless work pools](/3.0rc/deploy/dynamic-infra/push-runs-remote/) allow you to 
-scale to zero when workflows aren't running.
+scale to zero when flows aren't running.
 Prefect even provides you with the ability to 
 [provision cloud infrastructure via a single CLI command](/3.0rc/deploy/dynamic-infra/push-runs-serverless/#automatically-creating-a-new-push-work-pool-and-provisioning-infrastructure), 
 if you use a Prefect Cloud push work pool option.

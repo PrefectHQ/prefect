@@ -74,9 +74,9 @@
           "group": "Write workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/write-workflows/index",
-            "3.0rc/develop/write-workflows/pause-cancel-flows",
-            "3.0rc/develop/write-workflows/variables"
+            "3.0rc/develop/write-flows/index",
+            "3.0rc/develop/write-flows/pause-cancel-flows",
+            "3.0rc/develop/write-flows/variables"
           ]
         },
         {
@@ -99,22 +99,22 @@
           "group": "Observe workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/observe-workflows/index",
-            "3.0rc/develop/observe-workflows/logging",
-            "3.0rc/develop/observe-workflows/create-artifacts",
-            "3.0rc/develop/observe-workflows/manage-states"
+            "3.0rc/develop/observe-flows/index",
+            "3.0rc/develop/observe-flows/logging",
+            "3.0rc/develop/observe-flows/create-artifacts",
+            "3.0rc/develop/observe-flows/manage-states"
           ]
         },
         {
           "group": "Control workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/control-workflows/index",
-            "3.0rc/develop/control-workflows/global-concurrency-limits"
+            "3.0rc/develop/control-flows/index",
+            "3.0rc/develop/control-flows/global-concurrency-limits"
           ]
         },
         "3.0rc/develop/connect-third-party",
-        "3.0rc/develop/test-workflows"
+        "3.0rc/develop/test-flows"
       ]
     },
     {
@@ -125,9 +125,9 @@
           "group": "Serve workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/serve-workflows/deploy-a-flow",
-            "3.0rc/deploy/serve-workflows/serve-a-flow",
-            "3.0rc/deploy/serve-workflows/add-schedules"
+            "3.0rc/deploy/serve-flows/deploy-a-flow",
+            "3.0rc/deploy/serve-flows/serve-a-flow",
+            "3.0rc/deploy/serve-flows/add-schedules"
           ]
         },
         {

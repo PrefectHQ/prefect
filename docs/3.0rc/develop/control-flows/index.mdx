@@ -1,12 +1,12 @@
 ---
-title: Create interactive workflows
-description: Learn how to create interactive workflows with Prefect.
+title: Create interactive flows
+description: Learn how to create interactive flows with Prefect.
 ---
 
 Flows can pause or suspend execution and automatically resume when they receive type-checked input in Prefect's UI. 
 Flows can also send and receive type-checked input at any time while running—without pausing or suspending. 
 
-This guide explains how to use these features to build _interactive workflows_.
+This guide explains how to use these features to build _interactive flows_.
 
 <Note>
 **Async Python syntax**
@@ -17,12 +17,12 @@ you can call these functions with or without `await`.
 ## Pause or suspend a flow until it receives input
 
 You can pause or suspend a flow until it receives input from a user in Prefect's UI. This is useful when you need to ask for 
-additional information or feedback before resuming a flow. These workflows are often called 
+additional information or feedback before resuming a flow. These flows are often called 
 [human-in-the-loop](https://hai.stanford.edu/news/humans-loop-design-interactive-ai-systems) (HITL) systems.
 
 <Note>
 **Human-in-the-loop interactivity**
-Approval workflows that pause to ask a human to confirm whether a workflow should continue are very common in the business world. 
+Approval flows that pause to ask a human to confirm whether a workflow should continue are very common in the business world. 
 Certain types of [machine learning training](https://link.springer.com/article/10.1007/s10462-022-10246-w) and artificial intelligence 
 workflows benefit from incorporating HITL design.
 </Note>
