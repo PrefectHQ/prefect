@@ -7,7 +7,7 @@
         <img src="https://img.shields.io/pypi/dm/prefect-snowflake?color=26272B&labelColor=090422" /></a>
 </p>
 
-## Welcome!
+## Welcome
 
 The prefect-snowflake collection makes it easy to connect to a Snowflake database in your Prefect flows. Check out the examples below to get started!
 
@@ -172,7 +172,7 @@ Note, to use the `load` method on Blocks, you must already have a block document
 
 Below is a walkthrough on saving a `SnowflakeCredentials` block through code.
 
-1. Head over to https://app.snowflake.com/.
+1. Head over to <https://app.snowflake.com/>.
 2. Login to your Snowflake account, e.g. nh12345.us-east-2.aws, with your username and password.
 3. Use those credentials to fill replace the placeholders below.
 
@@ -217,8 +217,6 @@ SnowflakeCredentials.load("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
 SnowflakeConnector.load("CONNECTOR-BLOCK-NAME-PLACEHOLDER")
 ```
 
-!!! info "Registering blocks"
-
 Register blocks in this module to
 [view and edit them](https://docs.prefect.io/ui/blocks/)
 on Prefect Cloud:
@@ -246,14 +244,18 @@ Here are the steps:
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:
+
 ```
 pip install -e ".[dev]"
 ```
+
 4. Make desired changes
 5. Add tests
 6. Insert an entry to [CHANGELOG.md](https://github.com/PrefectHQ/prefect-snowflake/blob/main/CHANGELOG.md)
 7. Install `pre-commit` to perform quality checks prior to commit:
+
 ```
 pre-commit install
 ```
+
 8. `git commit`, `git push`, and create a pull request

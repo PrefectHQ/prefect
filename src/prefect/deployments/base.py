@@ -1,8 +1,6 @@
 """
 Core primitives for managing Prefect deployments via `prefect deploy`, providing a minimally opinionated
 build system for managing flows and deployments.
-
-To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
 """
 
 import ast

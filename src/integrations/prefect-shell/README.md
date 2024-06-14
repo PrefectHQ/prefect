@@ -62,6 +62,7 @@ download_data()
 ```
 
 Outputs:
+
 ```bash
 14:48:16.550 | INFO    | prefect.engine - Created flow run 'tentacled-chachalaca' for flow 'download-data'
 14:48:17.977 | INFO    | Flow run 'tentacled-chachalaca' - PID 19360 triggered with 2 commands running inside the '.' directory.
@@ -86,32 +87,30 @@ oad  Upload   Total   Spent    Left  Speed
 14:48:20.203 | INFO    | Flow run 'tentacled-chachalaca' - Finished in state Completed()
 ```
 
-!!! info "Utilize Previously Saved Blocks"
+Note that you can save commands within a `ShellOperation` block, then reuse them across multiple flows, or even plain Python scripts.
 
-    You can save commands within a `ShellOperation` block, then reuse them across multiple flows, or even plain Python scripts.
-    
-    Save the block with desired commands:
+Save the block with desired commands:
 
-    ```python
-    from prefect_shell import ShellOperation
+```python
+from prefect_shell import ShellOperation
 
-    ping_op = ShellOperation(commands=["ping -t 1 prefect.io"])
-    ping_op.save("block-name")
-    ```
+ping_op = ShellOperation(commands=["ping -t 1 prefect.io"])
+ping_op.save("block-name")
+```
 
-    Load the saved block:
+Load the saved block:
 
-    ```python
-    from prefect_shell import ShellOperation
+```python
+from prefect_shell import ShellOperation
 
-    ping_op = ShellOperation.load("block-name")
-    ```
+ping_op = ShellOperation.load("block-name")
+```
 
-    To [view and edit the blocks](https://orion-docs.prefect.io/ui/blocks/) on Prefect UI:
+To [view and edit the blocks](https://orion-docs.prefect.io/ui/blocks/) on Prefect UI:
 
-    ```bash
-    prefect block register -m prefect_shell
-    ```
+```bash
+prefect block register -m prefect_shell
+```
 
 ## Resources
 
@@ -140,24 +139,28 @@ If you encounter any bugs while using `prefect-shell`, feel free to open an issu
 If you have any questions or issues while using `prefect-shell`, you can find help in either the [Prefect Discourse forum](https://discourse.prefect.io/) or the [Prefect Slack community](https://prefect.io/slack).
 
 Feel free to star or watch [`prefect-shell`](https://github.com/PrefectHQ/prefect-shell) for updates too!
- 
+
 ### Contributing
- 
+
 If you'd like to help contribute to fix an issue or add a feature to `prefect-shell`, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
- 
+
 Here are the steps:
 
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:
+
 ```
 pip install -e ".[dev]"
 ```
+
 4. Make desired changes
 5. Add tests
 6. Insert an entry to [CHANGELOG.md](https://github.com/PrefectHQ/prefect-shell/blob/main/CHANGELOG.md)
 7. Install `pre-commit` to perform quality checks prior to commit:
+
 ```
 pre-commit install
 ```
+
 8. `git commit`, `git push`, and create a pull request

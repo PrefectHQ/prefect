@@ -20,16 +20,19 @@ pip install prefect-azure
 ```
 
 To use Blob Storage:
+
 ```bash
 pip install "prefect-azure[blob_storage]"
 ```
 
 To use Cosmos DB:
+
 ```bash
 pip install "prefect-azure[cosmos_db]"
 ```
 
 To use ML Datastore:
+
 ```bash
 pip install "prefect-azure[ml_datastore]"
 ```
@@ -61,6 +64,7 @@ example_blob_storage_download_flow()
 ```
 
 Use `with_options` to customize options on any existing task or flow:
+
 ```python
 custom_blob_storage_download_flow = example_blob_storage_download_flow.with_options(
     name="My custom task name",
@@ -121,25 +125,27 @@ container_instance_job.save("aci-dev")
 ```
 
 Then, create the deployment either on the UI or through the CLI:
+
 ```bash
 prefect deployment build a_flow_module.py:log_hello_flow --name aci-dev -ib container-instance-job/aci-dev
 ```
 
-Visit [Prefect Deployments](https://docs.prefect.io/tutorials/deployments/) for more information about deployments.
-
 ## Azure Container Instance Worker
-The Azure Container Instance worker is an excellent way to run 
-your workflows on Azure. 
+
+The Azure Container Instance worker is an excellent way to run
+your workflows on Azure.
 
 To get started, create an Azure Container Instances typed work pool:
-```
+
+```bash
 prefect work-pool create -t azure-container-instance my-aci-work-pool
 ```
 
 Then, run a worker that pulls jobs from the work pool:
-```
+
+```bash
 prefect worker start -n my-aci-worker -p my-aci-work-pool
 ```
 
-The worker should automatically read the work pool's type and start an 
+The worker should automatically read the work pool's type and start an
 Azure Container Instance worker.

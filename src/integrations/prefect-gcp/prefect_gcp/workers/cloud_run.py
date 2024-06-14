@@ -19,140 +19,144 @@ Read more about configuring work pools
 [here](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-overview).
 
 ## Advanced Configuration
-!!! example "Using a custom Cloud Run job template"
-    Below is the default job body template used by the Cloud Run Worker:
-    ```json
-    {
-        "apiVersion": "run.googleapis.com/v1",
-        "kind": "Job",
-        "metadata":
-            {
-                "name": "{{ name }}",
-                "annotations":
-                {
-                    "run.googleapis.com/launch-stage": "BETA",
-                }
-            },
-            "spec":
-            {
-                "template":
-                {
-                    "spec":
-                    {
-                        "template":
-                        {
-                            "spec":
-                            {
-                                "containers":
-                                [
-                                    {
-                                        "image": "{{ image }}",
-                                        "args": "{{ args }}",
-                                        "resources":
-                                        {
-                                            "limits":
-                                            {
-                                                "cpu": "{{ cpu }}",
-                                                "memory": "{{ memory }}"
-                                            },
-                                            "requests":
-                                            {
-                                                "cpu": "{{ cpu }}",
-                                                "memory": "{{ memory }}"
-                                            }
-                                        }
-                                    }
-                                ],
-                                "timeoutSeconds": "{{ timeout }}",
-                                "serviceAccountName": "{{ service_account_name }}"
-                            }
-                        }
-                    }
-                    }
-                },
-                "metadata":
-                {
-                    "annotations":
-                    {
-                        "run.googleapis.com/vpc-access-connector": "{{ vpc_connector_name }}"
-                    }
-                }
-            },
-        },
-        "timeout": "{{ timeout }}",
-        "keep_job": "{{ keep_job }}"
-    }
-    ```
-    Each values enclosed in `{{ }}` is a placeholder that will be replaced with
-    a value at runtime on a per-deployment basis. The values that can be used a
-    placeholders are defined by the `variables` schema defined in the base job template.
 
-    The default job body template and available variables can be customized on a work pool
-    by work pool basis. By editing the default job body template you can:
+Use a custom Cloud Run job template.
 
-    - Add additional placeholders to the default job template
-    - Remove placeholders from the default job template
-    - Pass values to Cloud Run that are not defined in the `variables` schema
+Below is the default job body template used by the Cloud Run Worker:
 
-    ### Adding additional placeholders
-    For example, to allow for extra customization of a new annotation not described in
-    the default job template, you can add the following:
-    ```json
-    {
-        "apiVersion": "run.googleapis.com/v1",
-        "kind": "Job",
-        "metadata":
+```json
+{
+    "apiVersion": "run.googleapis.com/v1",
+    "kind": "Job",
+    "metadata":
         {
             "name": "{{ name }}",
             "annotations":
             {
-                "run.googleapis.com/my-custom-annotation": "{{ my_custom_annotation }}",
                 "run.googleapis.com/launch-stage": "BETA",
-            },
-          ...
+            }
         },
-      ...
-    }
-    ```
-    `my_custom_annotation` can now be used as a placeholder in the job template and set
-    on a per-deployment basis.
-
-    ```yaml
-    # prefect.yaml
-    deployments:
-    ...
-      - name: my-deployment
-      ...
-      work_pool: my-cloud-run-pool
-        job_variables: {"my_custom_annotation": "my-custom-value"}
-    ```
-
-    Additionally, fields can be set to prevent configuration at the deployment
-    level. For example to configure the `vpc_connector_name` field, the placeholder can
-    be removed and replaced with an actual value. Now all deployments that point to this
-    work pool will use the same `vpc_connector_name` value.
-
-    ```json
-    {
-        "apiVersion": "run.googleapis.com/v1",
-        "kind": "Job",
         "spec":
         {
             "template":
             {
-                "metadata":
+                "spec":
                 {
-                    "annotations":
+                    "template":
                     {
-                        "run.googleapis.com/vpc-access-connector": "my-vpc-connector"
+                        "spec":
+                        {
+                            "containers":
+                            [
+                                {
+                                    "image": "{{ image }}",
+                                    "args": "{{ args }}",
+                                    "resources":
+                                    {
+                                        "limits":
+                                        {
+                                            "cpu": "{{ cpu }}",
+                                            "memory": "{{ memory }}"
+                                        },
+                                        "requests":
+                                        {
+                                            "cpu": "{{ cpu }}",
+                                            "memory": "{{ memory }}"
+                                        }
+                                    }
+                                }
+                            ],
+                            "timeoutSeconds": "{{ timeout }}",
+                            "serviceAccountName": "{{ service_account_name }}"
+                        }
                     }
-                },
-                ...
+                }
+                }
+            },
+            "metadata":
+            {
+                "annotations":
+                {
+                    "run.googleapis.com/vpc-access-connector": "{{ vpc_connector_name }}"
+                }
+            }
+        },
+    },
+    "timeout": "{{ timeout }}",
+    "keep_job": "{{ keep_job }}"
+}
+```
+
+Each values enclosed in `{{ }}` is a placeholder that will be replaced with
+a value at runtime on a per-deployment basis. The values that can be used a
+placeholders are defined by the `variables` schema defined in the base job template.
+
+The default job body template and available variables can be customized on a work pool
+by work pool basis. By editing the default job body template you can:
+
+- Add additional placeholders to the default job template
+- Remove placeholders from the default job template
+- Pass values to Cloud Run that are not defined in the `variables` schema
+
+### Adding additional placeholders
+For example, to allow for extra customization of a new annotation not described in
+the default job template, you can add the following:
+```json
+{
+    "apiVersion": "run.googleapis.com/v1",
+    "kind": "Job",
+    "metadata":
+    {
+        "name": "{{ name }}",
+        "annotations":
+        {
+            "run.googleapis.com/my-custom-annotation": "{{ my_custom_annotation }}",
+            "run.googleapis.com/launch-stage": "BETA",
+        },
+        ...
+    },
+    ...
+}
+```
+`my_custom_annotation` can now be used as a placeholder in the job template and set
+on a per-deployment basis.
+
+```yaml
+# prefect.yaml
+deployments:
+...
+    - name: my-deployment
+    ...
+    work_pool: my-cloud-run-pool
+    job_variables: {"my_custom_annotation": "my-custom-value"}
+```
+
+Additionally, fields can be set to prevent configuration at the deployment
+level. For example to configure the `vpc_connector_name` field, the placeholder can
+be removed and replaced with an actual value. Now all deployments that point to this
+work pool will use the same `vpc_connector_name` value.
+
+```json
+{
+    "apiVersion": "run.googleapis.com/v1",
+    "kind": "Job",
+    "spec":
+    {
+        "template":
+        {
+            "metadata":
+            {
+                "annotations":
+                {
+                    "run.googleapis.com/vpc-access-connector": "my-vpc-connector"
+                }
             },
             ...
-        }
+        },
+        ...
     }
-    ```
+}
+```
 """
 
 import re

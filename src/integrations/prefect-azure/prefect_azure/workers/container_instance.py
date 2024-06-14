@@ -11,7 +11,7 @@ prefect worker start --pool 'my-work-pool' --type azure-container-instance
 Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
-!!! example "Using a custom ARM template"
+Using a custom ARM template
     To facilitate easy customization, the Azure Container worker provisions a
     containing group using an ARM template. The default ARM template is represented
     in YAML as follows:

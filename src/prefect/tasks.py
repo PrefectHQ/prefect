@@ -1,6 +1,7 @@
 """
 Module containing the base workflow task class and decorator - for most use cases, using the [`@task` decorator][prefect.tasks.task] is preferred.
 """
+
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
@@ -178,8 +179,7 @@ class Task(Generic[P, R]):
     """
     A Prefect task definition.
 
-    !!! note
-        We recommend using [the `@task` decorator][prefect.tasks.task] for most use-cases.
+    Use [the `@task` decorator][prefect.tasks.task] for most use-cases.
 
     Wraps a function with an entrypoint to the Prefect engine. Calling this class within a flow function
     creates a new task run.
@@ -569,9 +569,9 @@ class Task(Generic[P, R]):
             name=name or self.name,
             description=description or self.description,
             tags=tags or copy(self.tags),
-            cache_policy=cache_policy
-            if cache_policy is not NotSet
-            else self.cache_policy,
+            cache_policy=(
+                cache_policy if cache_policy is not NotSet else self.cache_policy
+            ),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
             task_run_name=task_run_name,

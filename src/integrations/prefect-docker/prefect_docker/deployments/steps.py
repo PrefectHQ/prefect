@@ -6,22 +6,22 @@ These steps can be used in a `prefect.yaml` file to define the default
 build steps for a group of deployments, or they can be used to define
 the build step for a specific deployment.
 
-!!! example
-    Build a Docker image before deploying a flow:
-    ```yaml
-    build:
-        - prefect_docker.deployments.steps.build_docker_image:
-            id: build-image
-            requires: prefect-docker
-            image_name: repo-name/image-name
-            tag: dev
+Build a Docker image before deploying a flow:
 
-    push:
-        - prefect_docker.deployments.steps.push_docker_image:
-            requires: prefect-docker
-            image_name: "{{ build-image.image_name }}"
-            tag: "{{ build-image.tag }}"
-    ```
+```yaml
+build:
+    - prefect_docker.deployments.steps.build_docker_image:
+        id: build-image
+        requires: prefect-docker
+        image_name: repo-name/image-name
+        tag: dev
+
+push:
+    - prefect_docker.deployments.steps.push_docker_image:
+        requires: prefect-docker
+        image_name: "{{ build-image.image_name }}"
+        tag: "{{ build-image.tag }}"
+```
 """
 
 import os

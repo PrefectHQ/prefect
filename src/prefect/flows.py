@@ -128,8 +128,7 @@ class Flow(Generic[P, R]):
     """
     A Prefect workflow definition.
 
-    !!! note
-        We recommend using the [`@flow` decorator][prefect.flows.flow] for most use-cases.
+    Use the [`@flow` decorator][prefect.flows.flow] for most use-cases.
 
     Wraps a function with an entrypoint to the Prefect engine. To preserve the input
     and output types, we use the generic type variables `P` and `R` for "Parameters" and

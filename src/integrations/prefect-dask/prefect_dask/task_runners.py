@@ -142,10 +142,9 @@ class DaskTaskRunner(TaskRunner):
     Alternatively, if you already have a dask cluster running, you can provide
     the cluster object via the `cluster` kwarg or the address of the scheduler
     via the `address` kwarg.
-    !!! warning "Multiprocessing safety"
-        Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows
-        in scripts must be guarded with `if __name__ == "__main__":` or warnings will
-        be displayed.
+
+    Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows in scripts
+    must be guarded with `if __name__ == "__main__":` or warnings will be displayed.
 
     Args:
         cluster (distributed.deploy.Cluster, optional): Currently running dask cluster;

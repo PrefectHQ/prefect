@@ -7,8 +7,7 @@
         <img src="https://img.shields.io/pypi/dm/prefect-bitbucket?color=0052FF&labelColor=090422" /></a>
 </p>
 
-
-## Welcome!
+## Welcome
 
 Prefect integrations for working with Bitbucket repositories.
 
@@ -39,6 +38,7 @@ prefect block register -m prefect_bitbucket
 Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or [saved through the UI](https://docs.prefect.io/ui/blocks/).
 
 ### Write and run a flow
+
 #### Load a pre-existing BitBucketCredentials block
 
 ```python
@@ -71,6 +71,7 @@ create_new_bitbucket_creds_flow()
 ```
 
 #### Create a BitBucketRepository block for a public repo
+
 ```python
 from prefect_bitbucket import BitBucketRepository
 
@@ -86,6 +87,7 @@ public_bitbucket_block.save("my-bitbucket-block")
 ```
 
 #### Create a BitBucketRepository block for a public repo at a specific branch or tag
+
 ```python
 from prefect_bitbucket import BitBucketRepository
 
@@ -100,7 +102,9 @@ branch_bitbucket_block = BitBucketRepository(
 # Saves the BitBucketRepository block to your Prefect workspace (in the Blocks tab)
 branch_bitbucket_block.save("my-bitbucket-branch-block")
 ```
+
 #### Create a new BitBucketCredentials block and a BitBucketRepository block for a private repo
+
 ```python
 from prefect_bitbucket import BitBucketCredentials, BitBucketRepository
 
@@ -126,6 +130,7 @@ private_bitbucket_block.save(name="my-private-bitbucket-block")
 ```
 
 #### Use a preexisting BitBucketCredentials block to create a BitBucketRepository block for a private repo
+
 ```python
 from prefect_bitbucket import BitBucketCredentials, BitBucketRepository
 
@@ -143,6 +148,4 @@ private_bitbucket_block = BitBucketRepository(
 private_bitbucket_block.save(name="my-private-bitbucket-block")
 ```
 
-!!! info "Differences between Bitbucket Server and Bitbucket Cloud"
-
-    For Bitbucket Cloud, only set the `token` to authenticate. For Bitbucket Server, set both the `token` and the `username`.
+For Bitbucket Cloud, only set the `token` to authenticate. For Bitbucket Server, set both the `token` and the `username`.

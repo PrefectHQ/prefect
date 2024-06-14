@@ -9,7 +9,8 @@
         <img src="https://img.shields.io/pypi/dm/prefect-ray?color=26272B&labelColor=090422" /></a>
 </p>
 
-## Welcome!
+## Welcome
+
 Visit the full docs [here](https://PrefectHQ.github.io/prefect-ray) to see additional examples and the API reference.
 
 `prefect-ray` contains Prefect integrations with the [Ray](https://www.ray.io/) execution framework, a flexible distributed computing framework for Python.
@@ -115,10 +116,11 @@ def my_flow():
 
 Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
-!!! warning "Ray environment limitations"
-    Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
+Note that Ray requires Prefect<3.0 and has several environment limitations.
 
-    See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overview/installation.html) for further compatibility information.
+Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
+
+See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overview/installation.html) for further compatibility information.
 
 ## Running tasks on a Ray remote cluster
 
@@ -129,6 +131,7 @@ When using the `RayTaskRunner` with a remote Ray cluster, you may run into issue
 We recommend using the [Prefect UI to configure a storage block](https://docs.prefect.io/concepts/blocks/) to use for remote results storage.
 
 Here's an example of a flow that uses caching and remote result storage:
+
 ```python
 from typing import List
 
@@ -165,16 +168,19 @@ if __name__ == "__main__":
 ```
 
 2. If you get an error stating that the module 'prefect' cannot be found, ensure `prefect` is installed on the remote cluster, with:
+
 ```bash
 pip install prefect
 ```
 
 3. If you get an error with a message similar to "File system created with scheme 's3' could not be created", ensure the required Python modules are installed on **both local and remote machines**. For example, if using S3 for the remote storage:
+
 ```bash
 pip install s3fs
 ```
 
 4. If you are seeing timeout or other connection errors, double check the address provided to the `RayTaskRunner`. The address should look similar to: `address='ray://<head_node_ip_address>:10001'`:
+
 ```bash
 RayTaskRunner(address="ray://1.23.199.255:10001")
 ```

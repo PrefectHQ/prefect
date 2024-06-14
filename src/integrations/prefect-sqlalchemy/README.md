@@ -23,22 +23,20 @@ By using the `SqlAlchemyConnector` as a context manager, you can make sure that 
 
 Be sure to install [prefect-sqlalchemy](#installation) and [save your credentials to a Prefect block](#saving-credentials-to-block) to run the examples below!
 
-!!! note "Async support"
+`SqlAlchemyConnector` also supports async workflows. Just be sure to save, load, and use an async driver as in the example below.
 
-    `SqlAlchemyConnector` also supports async workflows! Just be sure to save, load, and use an async driver as in the example below.
+```python
+from prefect_sqlalchemy import SqlAlchemyConnector, ConnectionComponents, AsyncDriver
 
-    ```python
-    from prefect_sqlalchemy import SqlAlchemyConnector, ConnectionComponents, AsyncDriver
-
-    connector = SqlAlchemyConnector(
-        connection_info=ConnectionComponents(
-            driver=AsyncDriver.SQLITE_AIOSQLITE,
-            database="DATABASE-PLACEHOLDER.db"
-        )
+connector = SqlAlchemyConnector(
+    connection_info=ConnectionComponents(
+        driver=AsyncDriver.SQLITE_AIOSQLITE,
+        database="DATABASE-PLACEHOLDER.db"
     )
+)
 
-    connector.save("BLOCK_NAME-PLACEHOLDER")
-    ```
+connector.save("BLOCK_NAME-PLACEHOLDER")
+```
 
 === "Sync"
 
@@ -200,22 +198,19 @@ connector = SqlAlchemyConnector(
 connector.save("BLOCK_NAME-PLACEHOLDER")
 ```
 
-!!! info "Registering blocks"
+Register blocks in this module to
+[view and edit them](https://orion-docs.prefect.io/ui/blocks/)
+on Prefect Cloud:
 
-    Register blocks in this module to
-    [view and edit them](https://orion-docs.prefect.io/ui/blocks/)
-    on Prefect Cloud:
-
-    ```bash
-    prefect block register -m prefect_sqlalchemy
-    ```
+```bash
+prefect block register -m prefect_sqlalchemy
+```
 
 ### Feedback
 
 If you encounter any bugs while using `prefect-sqlalchemy`, please open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
 
-If you have any questions or issues while using `prefect-sqlalchemy`, you can find help in the [Prefect Community Slack ](https://prefect.io/slack).
-
+If you have any questions or issues while using `prefect-sqlalchemy`, you can find help in the [Prefect Community Slack](https://prefect.io/slack).
 
 ### Contributing
 
@@ -226,13 +221,17 @@ Here are the steps:
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:
+
 ```
 pip install -e ".[dev]"
 ```
+
 4. Make desired changes
 5. Add tests
 6. Install `pre-commit` to perform quality checks prior to commit:
+
 ```
 pre-commit install
 ```
+
 7. `git commit`, `git push`, and create a pull request

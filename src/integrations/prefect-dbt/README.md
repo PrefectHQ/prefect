@@ -136,15 +136,16 @@ To use dbt Core with Postgres profiles:
 pip install "prefect-dbt[postgres]"
 ```
 
-!!! warning "Some dbt Core profiles require additional installation"
+Note that some dbt Core profiles require additional installation.
 
-    According to dbt's [Databricks setup page](https://docs.getdbt.com/reference/warehouse-setups/databricks-setup), users must first install the adapter:
+According to dbt's [Databricks setup page](https://docs.getdbt.com/reference/warehouse-setups/databricks-setup),
+users must first install the adapter:
 
-    ```bash
-    pip install dbt-databricks
-    ```
+```bash
+pip install dbt-databricks
+```
 
-    Check out the [desired profile setup page](https://docs.getdbt.com/reference/profiles.yml) on the sidebar for others.
+Check out the [desired profile setup page](https://docs.getdbt.com/reference/profiles.yml) on the sidebar for others.
 
 Requires an installation of Python 3.9+.
 
@@ -156,15 +157,12 @@ These tasks are designed to work with Prefect 2. For more information about how 
 
 Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or [saved through the UI](https://docs.prefect.io/ui/blocks/).
 
-!!! info "Registering blocks"
+Register blocks in this module to [view and edit them](https://docs.prefect.io/ui/blocks/)
+on Prefect Cloud:
 
-    Register blocks in this module to
-    [view and edit them](https://docs.prefect.io/ui/blocks/)
-    on Prefect Cloud:
-
-    ```bash
-    prefect block register -m prefect_dbt
-    ```
+```bash
+prefect block register -m prefect_dbt
+```
 
 #### dbt Cloud
 
@@ -215,15 +213,13 @@ DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
 
 #### dbt Core CLI
 
-!!! info "Available `TargetConfigs` blocks"
+The following `TargetConfigs` blocks specifications vary slightly depending upon the service you want to incorporate.
 
-    The following may vary slightly depending on the service you want to incorporate.
+Visit the API Reference to see other built-in `TargetConfigs` blocks.
 
-    Visit the [API Reference](cli/configs/base) to see other built-in `TargetConfigs` blocks.
-
-    If the desired service profile is not available, check out the
-    [Examples Catalog](examples_catalog/#clicredentials-module) to see how you can
-    build one from the generic `TargetConfigs` class.
+If the desired service profile is not available, check out the
+[Examples Catalog](examples_catalog/#clicredentials-module) to see how you can
+build one from the generic `TargetConfigs` class.
 
 To create dbt Core target config and profile blocks for BigQuery:
 
@@ -290,13 +286,17 @@ Here are the steps:
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:
+
 ```
 pip install -e ".[dev]"
 ```
+
 4. Make desired changes
 5. Add tests
 6. Install `pre-commit` to perform quality checks prior to commit:
+
 ```
 pre-commit install
 ```
+
 7. `git commit`, `git push`, and create a pull request

@@ -134,12 +134,10 @@ from prefect_email import EmailServerCredentials
 EmailServerCredentials.load("BLOCK_NAME_PLACEHOLDER")
 ```
 
-!!! info "Registering blocks"
+Register blocks in this module to
+[view and edit them](https://docs.prefect.io/ui/blocks/)
+on Prefect Cloud:
 
-    Register blocks in this module to
-    [view and edit them](https://docs.prefect.io/ui/blocks/)
-    on Prefect Cloud:
-
-    ```bash
-    prefect block register -m prefect_email
-    ```
+```bash
+prefect block register -m prefect_email
+```

@@ -5,31 +5,31 @@ These steps can be used in a `prefect.yaml` file to define the default
 push and pull steps for a group of deployments, or they can be used to
 define the push and pull steps for a specific deployment.
 
-!!! example
-    Sample `prefect.yaml` file that is configured to push and pull to and
-    from an Azure Blob Storage container:
 
-    ```yaml
-    prefect_version: ...
-    name: ...
+Sample `prefect.yaml` file that is configured to push and pull to and
+from an Azure Blob Storage container:
 
-    push:
-        - prefect_azure.deployments.steps.push_to_azure_blob_storage:
-            requires: prefect-azure[blob_storage]
-            container: my-container
-            folder: my-folder
-            credentials: "{{ prefect.blocks.azure-blob-storage-credentials.dev-credentials }}"
+```yaml
+prefect_version: ...
+name: ...
 
-    pull:
-        - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
-            requires: prefect-azure[blob_storage]
-            container: "{{ container }}"
-            folder: "{{ folder }}"
-            credentials: "{{ prefect.blocks.azure-blob-storage-credentials.dev-credentials }}"
-    ```
+push:
+    - prefect_azure.deployments.steps.push_to_azure_blob_storage:
+        requires: prefect-azure[blob_storage]
+        container: my-container
+        folder: my-folder
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.dev-credentials }}"
 
-!!! note
-    Azure Storage account needs to have Hierarchical Namespace disabled.
+pull:
+    - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
+        requires: prefect-azure[blob_storage]
+        container: "{{ container }}"
+        folder: "{{ folder }}"
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.dev-credentials }}"
+```
+
+
+Note that the Azure Storage account needs to have Hierarchical Namespace disabled.
 
 For more information about using deployment steps, check out out the Prefect [docs](https://docs.prefect.io/latest/concepts/projects/#the-prefect-yaml-file).
 """  # noqa
