@@ -141,8 +141,21 @@ async def test_init_doesnt_error_when_doesnt_exist(storage_block):
     assert await result.get() == 38
 
 
-class TestCreatedAtField:
-    async def test_defaults_when_created(self, storage_block):
+class TestExpirationField:
+    async def test_expiration_at_init_defaults_to_none(self, storage_block):
+        """
+        Setting a default on create but not init ensures that loading results with no
+        expiration set will not have an expiration.
+        """
+        result = PersistedResult(
+            storage_block_id=storage_block._block_document_id,
+            storage_key="my-path",
+            serializer_type="json",
+        )
+
+        assert result.expiration is None
+
+    async def test_expiration_at_create_defaults_to_now(self, storage_block):
         result = await PersistedResult.create(
             "test-value",
             storage_block_id=storage_block._block_document_id,
@@ -150,19 +163,30 @@ class TestCreatedAtField:
             storage_key_fn=DEFAULT_STORAGE_KEY_FN,
             serializer=JSONSerializer(),
         )
-
-        assert isinstance(result.created_at, pendulum.DateTime)
         assert (
-            pendulum.now("utc").subtract(seconds=10)
-            <= result.created_at
+            pendulum.now("utc").subtract(seconds=5)
+            <= result.expiration
             <= pendulum.now("utc")
         )
 
-    async def test_defaults_when_loaded(self, storage_block):
+    async def test_setting_expiration_at_create(self, storage_block):
+        expires = pendulum.now("utc").add(days=1)
+
+        result = await PersistedResult.create(
+            "test-value",
+            storage_block_id=storage_block._block_document_id,
+            storage_block=storage_block,
+            storage_key_fn=DEFAULT_STORAGE_KEY_FN,
+            serializer=JSONSerializer(),
+            expiration=expires,
+        )
+        assert result.expiration == expires
+
+    async def test_expiration_when_loaded(self, storage_block):
         path = uuid.uuid4().hex
         timestamp = pendulum.now("utc").subtract(days=100)
         blob = PersistedResultBlob(
-            serializer=JSONSerializer(), data=b"42", created_at=timestamp
+            serializer=JSONSerializer(), data=b"42", expiration=timestamp
         )
         await storage_block.write_path(path, blob.to_bytes())
 
@@ -173,4 +197,4 @@ class TestCreatedAtField:
         )
 
         assert await result.get() == 42
-        assert result.created_at == timestamp
+        assert result.expiration == timestamp

@@ -502,20 +502,20 @@ class TaskRunEngine(Generic[P, R]):
                         )
                         msg += dedent(
                             """
-                                      
+
                             Example:
-                            
+
                             from prefect import flow, task
-                                      
+
                             @task
                             def say_hello(name):
                                 print f"Hello, {name}!"
-                                      
+
                             @flow
                             def example_flow():
                                 say_hello.submit(name="Marvin)
                                 say_hello.wait()
-                                      
+
                             example_flow()
                                       """
                         )

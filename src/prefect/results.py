@@ -574,7 +574,7 @@ class PersistedResult(BaseResult):
     serializer_type: str
     storage_block_id: uuid.UUID
     storage_key: str
-    created_at: Optional[DateTime] = None
+    expiration: Optional[DateTime] = None
 
     _should_cache_object: bool = PrivateAttr(default=True)
 
@@ -590,8 +590,8 @@ class PersistedResult(BaseResult):
 
         blob = await self._read_blob(client=client)
         obj = blob.serializer.loads(blob.data)
+        self.expiration = blob.expiration
 
-        self.created_at = blob.created_at
         if self._should_cache_object:
             self._cache_object(obj)
 
@@ -630,6 +630,7 @@ class PersistedResult(BaseResult):
         storage_key_fn: Callable[[], str],
         serializer: Serializer,
         cache_object: bool = True,
+        expiration: Optional[DateTime] = None,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
@@ -637,13 +638,14 @@ class PersistedResult(BaseResult):
         The object will be serialized and written to the storage block under a unique
         key. It will then be cached on the returned result.
         """
+        expiration = expiration or pendulum.now("utc")
+
         assert (
             storage_block_id is not None
         ), "Unexpected storage block ID. Was it persisted?"
-        created_at = pendulum.now("utc")
         data = serializer.dumps(obj)
         blob = PersistedResultBlob(
-            serializer=serializer, data=data, created_at=created_at
+            serializer=serializer, data=data, expiration=expiration
         )
 
         key = storage_key_fn()
@@ -669,7 +671,7 @@ class PersistedResult(BaseResult):
             storage_key=key,
             artifact_type="result",
             artifact_description=description,
-            created_at=created_at,
+            expiration=expiration,
         )
 
         if cache_object:
@@ -691,7 +693,7 @@ class PersistedResultBlob(BaseModel):
     serializer: Serializer
     data: bytes
     prefect_version: str = Field(default=prefect.__version__)
-    created_at: Optional[DateTime] = None
+    expiration: Optional[DateTime] = None
 
     def to_bytes(self) -> bytes:
         return self.model_dump_json(serialize_as_any=True).encode()
