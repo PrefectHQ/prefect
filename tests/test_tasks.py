@@ -10,6 +10,7 @@ from unittest.mock import ANY, MagicMock, call
 from uuid import UUID, uuid4
 
 import anyio
+import pydantic
 import pytest
 import regex as re
 
@@ -323,6 +324,50 @@ class TestTaskCall:
             return foo("a", suffix="b")
 
         assert bar() == "ahellob"
+
+    class BaseFooModel(pydantic.BaseModel):
+        model_config = pydantic.ConfigDict(ignored_types=(Task,))
+        x: int
+
+    class BaseFoo:
+        def __init__(self, x):
+            self.x = x
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_instance_methods(self, T):
+        class Foo(T):
+            @task
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert Foo(x=5).instance_method() == 5
+        # ensure the instance binding is not global
+        assert f.instance_method() == 1
+
+        assert isinstance(Foo(x=10).instance_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_class_methods(self, T):
+        class Foo(T):
+            @classmethod
+            @task
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_static_methods(self, T):
+        class Foo(T):
+            @staticmethod
+            @task
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Task)
 
 
 class TestTaskRun:
@@ -1269,6 +1314,105 @@ class TestTaskCaching:
             assert third_state.name == "Cached"
             assert await second_state.result() != await first_state.result()
             assert await third_state.result() == await second_state.result()
+
+    async def test_cache_key_fn_receives_self_if_method(self):
+        """
+        The `self` argument of a bound method is implicitly passed as a parameter to the decorated
+        function. This test ensures that it is passed to the cache key function by checking that
+        two instances of the same class do not share a cache (both instances yield COMPLETED states
+        the first time they run and CACHED states the second time).
+        """
+
+        cache_args = []
+
+        def stringed_inputs(context, args):
+            cache_args.append(args)
+            return str(args)
+
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @task(cache_key_fn=stringed_inputs)
+            def add(self, a):
+                return a + self.x
+
+        # create an instance that adds 1 and another that adds 100
+        f1 = Foo(1)
+        f2 = Foo(100)
+
+        @flow
+        def bar():
+            return (
+                f1.add(5, return_state=True),
+                f1.add(5, return_state=True),
+                f2.add(5, return_state=True),
+                f2.add(5, return_state=True),
+            )
+
+        s1, s2, s3, s4 = bar()
+        # the first two calls are completed / cached
+        assert s1.name == "Completed"
+        assert s2.name == "Cached"
+        # the second two calls are completed / cached because it's a different instance
+        assert s3.name == "Completed"
+        assert s4.name == "Cached"
+
+        # check that the cache key function received the self arg
+        assert cache_args[0] == dict(self=f1, a=5)
+        assert cache_args[1] == dict(self=f1, a=5)
+        assert cache_args[2] == dict(self=f2, a=5)
+        assert cache_args[3] == dict(self=f2, a=5)
+
+        assert await s1.result() == 6
+        assert await s2.result() == 6
+        assert await s3.result() == 105
+        assert await s4.result() == 105
+
+    async def test_instance_methods_can_share_a_cache(self):
+        """
+        Test that instance methods can share a cache by using a cache key function that
+        ignores the bound instance argument
+        """
+
+        def stringed_inputs(context, args):
+            # remove the self arg from the cache key
+            cache_args = args.copy()
+            cache_args.pop("self")
+            return str(cache_args)
+
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @task(cache_key_fn=stringed_inputs)
+            def add(self, a):
+                return a + self.x
+
+        # create an instance that adds 1 and another that adds 100
+        f1 = Foo(1)
+        f2 = Foo(100)
+
+        @flow
+        def bar():
+            return (
+                f1.add(5, return_state=True),
+                f1.add(5, return_state=True),
+                f2.add(5, return_state=True),
+                f2.add(5, return_state=True),
+            )
+
+        s1, s2, s3, s4 = bar()
+        # all subsequent calls are cached because the instance is not part of the cache key
+        assert s1.name == "Completed"
+        assert s2.name == "Cached"
+        assert s3.name == "Cached"
+        assert s4.name == "Cached"
+
+        assert await s1.result() == 6
+        assert await s2.result() == 6
+        assert await s3.result() == 6
+        assert await s4.result() == 6
 
 
 class TestCacheFunctionBuiltins:
@@ -2739,10 +2883,12 @@ class TestTaskWithOptions:
 
 
 class TestTaskMap:
+    @staticmethod
     @task
     async def add_one(x):
         return x + 1
 
+    @staticmethod
     @task
     def add_together(x, y):
         return x + y
@@ -2839,10 +2985,12 @@ class TestTaskMap:
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
+    @staticmethod
     @task
     def echo(x):
         return x
 
+    @staticmethod
     @task
     def numbers():
         return [1, 2, 3]
