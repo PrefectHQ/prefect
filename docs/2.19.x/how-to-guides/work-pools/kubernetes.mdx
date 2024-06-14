@@ -341,11 +341,11 @@ worker:
 #### Using Prefect Server
 ```
 worker:
-  serverApiConfig:
-    apiUrl: <dns or ip address of your Prefect Server instance>
-
+  apiConfig: server
   config:
-    workPool: <target work pool name>
+    workPool: <target workpool name>
+  serverApiConfig:
+    apiUrl: <server URL>
 
 ```
 
