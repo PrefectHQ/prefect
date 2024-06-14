@@ -492,6 +492,51 @@ class TestVisitCollection:
         # Only the first two items should be visited
         assert result == [2, 3, [3, [4, 5, 6]]]
 
+    @pytest.mark.parametrize(
+        "val",
+        [
+            1,
+            [1, 2, 3],
+            SimplePydantic(x=1, y=2),
+            {"x": 1},
+        ],
+    )
+    def test_visit_collection_simple_identity(self, val):
+        """test that visit collection does not modify an object at all in the identity case"""
+        result = visit_collection(val, lambda x: x, return_data=True)
+        # same object, unmodified
+        assert result is val
+
+    def test_visit_collection_only_modify_changed_objects_1(self):
+        val = [[1, 2], [3, 5]]
+        result = visit_collection(val, negative_even_numbers, return_data=True)
+        assert result == [[1, -2], [3, 5]]
+        assert result is not val
+        assert result[0] is not val[0]
+        assert result[1] is val[1]
+
+    def test_visit_collection_only_modify_changed_objects_2(self):
+        val = [[[1], {2: 3}], [3, 5]]
+        result = visit_collection(val, negative_even_numbers, return_data=True)
+        assert result == [[[1], {-2: 3}], [3, 5]]
+        assert result[0] is not val[0]
+        assert result[0][0] is val[0][0]
+        assert result[0][1] is not val[0][1]
+        assert result[1] is val[1]
+
+    def test_visit_collection_only_modify_changed_objects_3(self):
+        class Foo(pydantic.BaseModel):
+            x: list
+            y: dict
+
+        val = Foo(x=[[1, 2], [3, 5]], y=dict(a=dict(b=1, c=2), d=dict(e=3, f=5)))
+        result: Foo = visit_collection(val, negative_even_numbers, return_data=True)
+        assert result is not val
+        assert result.x[0] is not val.x[0]
+        assert result.x[1] is val.x[1]
+        assert result.y["a"] is not val.y["a"]
+        assert result.y["d"] is val.y["d"]
+
 
 class TestRemoveKeys:
     def test_remove_single_key(self):

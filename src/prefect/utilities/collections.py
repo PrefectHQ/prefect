@@ -220,22 +220,27 @@ class StopVisiting(BaseException):
 
 
 def visit_collection(
-    expr,
-    visit_fn: Union[Callable[[Any, dict], Any], Callable[[Any], Any]],
+    expr: Any,
+    visit_fn: Union[Callable[[Any, Optional[dict]], Any], Callable[[Any], Any]],
     return_data: bool = False,
     max_depth: int = -1,
     context: Optional[dict] = None,
     remove_annotations: bool = False,
-):
+) -> Any:
     """
-    This function visits every element of an arbitrary Python collection. If an element
-    is a Python collection, it will be visited recursively. If an element is not a
-    collection, `visit_fn` will be called with the element. The return value of
-    `visit_fn` can be used to alter the element if `return_data` is set.
+    Visits and potentially transforms every element of an arbitrary Python collection.
 
-    Note that when using `return_data` a copy of each collection is created to avoid
-    mutating the original object. This may have significant performance penalties and
-    should only be used if you intend to transform the collection.
+    If an element is a Python collection, it will be visited recursively. If an element
+    is not a collection, `visit_fn` will be called with the element. The return value of
+    `visit_fn` can be used to alter the element if `return_data` is set to `True`.
+
+    Note:
+    - When `return_data` is `True`, a copy of each collection is created to avoid
+      mutating the original object. This may have significant performance penalties and
+      should only be used if you intend to transform the collection.
+    - When `return_data` is `False`, no copies are created, and only side effects from
+      `visit_fn` are applied. This mode is faster and should be used when no transformation
+      of the collection is required.
 
     Supported types:
     - List
@@ -247,29 +252,30 @@ def visit_collection(
     - Prefect annotations
 
     Args:
-        expr (Any): a Python object or expression
-        visit_fn (Callable[[Any, Optional[dict]], Awaitable[Any]]): a function that
-            will be applied to every non-collection element of expr. The function can
-            accept one or two arguments. If two arguments are accepted, the second
-            argument will be the context dictionary.
-        return_data (bool): if `True`, a copy of `expr` containing data modified
-            by `visit_fn` will be returned. This is slower than `return_data=False`
-            (the default).
-        max_depth: Controls the depth of recursive visitation. If set to zero, no
-            recursion will occur. If set to a positive integer N, visitation will only
-            descend to N layers deep. If set to any negative integer, no limit will be
+        expr (Any): A Python object or expression.
+        visit_fn (Callable[[Any, Optional[dict]], Any] or Callable[[Any], Any]): A function
+            that will be applied to every non-collection element of `expr`. The function can
+            accept one or two arguments. If two arguments are accepted, the second argument
+            will be the context dictionary.
+        return_data (bool): If `True`, a copy of `expr` containing data modified by `visit_fn`
+            will be returned. This is slower than `return_data=False` (the default).
+        max_depth (int): Controls the depth of recursive visitation. If set to zero, no
+            recursion will occur. If set to a positive integer `N`, visitation will only
+            descend to `N` layers deep. If set to any negative integer, no limit will be
             enforced and recursion will continue until terminal items are reached. By
             default, recursion is unlimited.
-        context: An optional dictionary. If passed, the context will be sent to each
-            call to the `visit_fn`. The context can be mutated by each visitor and will
-            be available for later visits to expressions at the given depth. Values
+        context (Optional[dict]): An optional dictionary. If passed, the context will be sent
+            to each call to the `visit_fn`. The context can be mutated by each visitor and
+            will be available for later visits to expressions at the given depth. Values
             will not be available "up" a level from a given expression.
-
             The context will be automatically populated with an 'annotation' key when
-            visiting collections within a `BaseAnnotation` type. This requires the
-            caller to pass `context={}` and will not be activated by default.
-        remove_annotations: If set, annotations will be replaced by their contents. By
+            visiting collections within a `BaseAnnotation` type. This requires the caller to
+            pass `context={}` and will not be activated by default.
+        remove_annotations (bool): If set, annotations will be replaced by their contents. By
             default, annotations are preserved but their contents are visited.
+
+    Returns:
+        Any: The modified collection if `return_data` is `True`, otherwise `None`.
     """
 
     def visit_nested(expr):
@@ -298,7 +304,8 @@ def visit_collection(
         result = expr
 
     if return_data:
-        # Only mutate the expression while returning data, otherwise it could be null
+        # Only mutate the root expression if the user indicated we're returning data,
+        # otherwise the function could return null and we have no collection to check
         expr = result
 
     # Then, visit every child of the expression recursively
@@ -328,17 +335,28 @@ def visit_collection(
 
     elif typ in (list, tuple, set):
         items = [visit_nested(o) for o in expr]
-        result = typ(items) if return_data else None
+        modified = any(item is not orig for item, orig in zip(items, expr))
+        result = typ(items) if return_data and modified else expr
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
         items = [(visit_nested(k), visit_nested(v)) for k, v in expr.items()]
-        result = typ(items) if return_data else None
+        modified = any(
+            k1 is not k2 or v1 is not v2
+            for (k1, v1), (k2, v2) in zip(items, expr.items())
+        )
+        result = typ(items) if return_data and modified else expr
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         values = [visit_nested(getattr(expr, f.name)) for f in fields(expr)]
-        items = {field.name: value for field, value in zip(fields(expr), values)}
-        result = typ(**items) if return_data else None
+        modified = any(
+            getattr(expr, f.name) is not v for f, v in zip(fields(expr), values)
+        )
+        result = (
+            typ(**{f.name: v for f, v in zip(fields(expr), values)})
+            if return_data and modified
+            else expr
+        )
 
     elif isinstance(expr, pydantic.BaseModel):
         typ = cast(Type[pydantic.BaseModel], typ)
@@ -354,7 +372,11 @@ def visit_collection(
                 field: visit_nested(getattr(expr, field)) for field in model_fields
             }
 
-        if return_data:
+        modified = any(
+            getattr(expr, field) is not updated_data[field] for field in model_fields
+        )
+
+        if return_data and modified:
             # Use construct to avoid validation and handle immutability
             model_instance = typ.model_construct(
                 _fields_set=expr.model_fields_set, **updated_data
@@ -363,12 +385,13 @@ def visit_collection(
                 setattr(model_instance, private_attr, getattr(expr, private_attr))
             result = model_instance
         else:
-            result = None
+            result = expr
 
-    else:
-        result = result if return_data else None
+    elif not return_data:
+        result = None
 
-    return result
+    if return_data:
+        return result
 
 
 def remove_nested_keys(keys_to_remove: List[Hashable], obj):

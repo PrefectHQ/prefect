@@ -14,6 +14,7 @@ import pydantic
 import pytest
 import regex as re
 
+import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
@@ -260,6 +261,22 @@ class TestTaskCall:
 
         assert test_flow() == (1, 2, dict(x=3, y=4, z=5))
 
+    def test_task_doesnt_modify_args(self):
+        @task
+        def identity(x):
+            return x
+
+        @task
+        def appender(x):
+            x.append(3)
+            return x
+
+        val = [1, 2]
+        assert identity(val) is val
+        assert val == [1, 2]
+        assert appender(val) is val
+        assert val == [1, 2, 3]
+
     async def test_task_failure_raises_in_flow(self):
         @task
         def foo():
@@ -368,6 +385,25 @@ class TestTaskCall:
 
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Task)
+
+    def test_instance_method_doesnt_create_copy_of_self(self):
+        class Foo(pydantic.BaseModel):
+            model_config = dict(
+                ignored_types=(prefect.Flow, prefect.Task),
+            )
+            x: dict
+
+            @task
+            def get_x(self):
+                return self.x
+
+        val = dict(a=1)
+        f = Foo(x=val)
+
+        # assert that the value is equal to the original
+        assert f.get_x() == val
+        # assert that the value IS the original and was never copied
+        assert f.get_x() is val
 
     def test_error_message_if_decorate_classmethod(self):
         with pytest.raises(
