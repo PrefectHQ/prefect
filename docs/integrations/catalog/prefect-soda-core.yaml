@@ -1,6 +1,6 @@
-collectionName: prefect-soda-core
+integrationName: prefect-soda-core
 author: Soda and Alessandro Lollo
 authorUrl: https://github.com/sodadata
 documentation: https://sodadata.github.io/prefect-soda-core/
-iconUrl: /3.0rc/img/collections/soda.png
+iconUrl: /3.0rc/images/integrations/soda.png
 tag: Soda Core

@@ -1,6 +1,6 @@
-collectionName: prefect-transform
+integrationName: prefect-transform
 author: Alessandro Lollo
 authorUrl: https://github.com/AlessandroLollo
 documentation: https://alessandrolollo.github.io/prefect-transform/
-iconUrl: /3.0rc/img/collections/transform.png
+iconUrl: /3.0rc/images/integrations/transform.png
 tag: Transform
