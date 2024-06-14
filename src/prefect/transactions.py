@@ -138,7 +138,7 @@ class Transaction(ContextModel):
         if self.store and self.key:
             return self.store.read(key=self.key)
         else:
-            return {} # TODO: Determine what this should be
+            return {}  # TODO: Determine what this should be
 
     def reset(self) -> None:
         parent = self.get_parent()
