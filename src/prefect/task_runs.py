@@ -71,7 +71,7 @@ class TaskRunWaiter:
         self.logger = get_logger("TaskRunWaiter")
         self._consumer_task: Optional[asyncio.Task] = None
         self._observed_completed_task_runs: TTLCache[uuid.UUID, bool] = TTLCache(
-            maxsize=100, ttl=60
+            maxsize=10000, ttl=600
         )
         self._completion_events: Dict[uuid.UUID, asyncio.Event] = {}
         self._loop: Optional[asyncio.AbstractEventLoop] = None
