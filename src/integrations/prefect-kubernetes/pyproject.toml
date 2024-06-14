@@ -8,7 +8,7 @@ dependencies = [
     "kubernetes-asyncio>=29.0.0",
     "tenacity>=8.2.3",
     "exceptiongroup",
-    "pyopenssl==24.1.0",
+    "pyopenssl>=24.1.0",
 
 ]
 name = "prefect-kubernetes"
