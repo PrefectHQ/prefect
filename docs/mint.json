@@ -165,6 +165,7 @@
           "pages": [
             "3.0rc/react/understand-events/index",
             "3.0rc/react/understand-events/automations-triggers",
+            "3.0rc/react/understand-events/custom-triggers",
             "3.0rc/react/understand-events/webhook-triggers"
           ]
         },
