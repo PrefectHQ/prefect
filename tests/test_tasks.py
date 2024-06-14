@@ -391,6 +391,23 @@ class TestTaskCall:
             model_config = dict(
                 ignored_types=(prefect.Flow, prefect.Task),
             )
+
+            @task
+            def get_x(self):
+                return self
+
+        f = Foo()
+
+        # assert that the value is equal to the original
+        assert f.get_x() == f
+        # assert that the value IS the original and was never copied
+        assert f.get_x() is f
+
+    def test_instance_method_doesnt_create_copy_of_args(self):
+        class Foo(pydantic.BaseModel):
+            model_config = dict(
+                ignored_types=(prefect.Flow, prefect.Task),
+            )
             x: dict
 
             @task
@@ -400,10 +417,17 @@ class TestTaskCall:
         val = dict(a=1)
         f = Foo(x=val)
 
+        # this is surprising but pydantic sometimes copies values during
+        # construction/validation (it doesn't for nested basemodels, by default)
+        # Therefore this assert is to set a baseline for the test, because if
+        # you try to write the test as `assert f.get_x() is val` it will fail
+        # and it's not Prefect's fault.
+        assert f.x is not val
+
         # assert that the value is equal to the original
-        assert f.get_x() == val
+        assert f.get_x() == f.x
         # assert that the value IS the original and was never copied
-        assert f.get_x() is val
+        assert f.get_x() is f.x
 
     def test_error_message_if_decorate_classmethod(self):
         with pytest.raises(
