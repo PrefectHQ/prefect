@@ -4,12 +4,12 @@ description: Learn the basics of writing tasks.
 ---
 
 A Prefect task is a Python function decorated with @task that represents a discrete unit of work in a 
-Prefect flow. Tasks can:
+Prefect workflow. Tasks can:
 
 - Take inputs, perform work, and return outputs
 - Encapsulate workflow logic into reusable units across flows and subflows
 - Receive metadata about upstream task dependencies and their state before running
-- Use automatic [logging](/3.0rc/develop/observe-flows/logging/) to capture runtime details, tags, 
+- Use automatic [logging](/3.0rc/develop/observe-workflows/logging/) to capture runtime details, tags, 
 and final state
 - Execute concurrently and cache return values
 - Be defined in the same file as the flow or imported from modules
@@ -19,7 +19,7 @@ Flows and tasks share some common features:
 
 - They can be defined using their respective decorator, which accepts configuration settings 
 (see all [task settings](/3.0rc/develop/write-tasks/#task-arguments) and 
-[flow settings](/3.0rc/develop/write-flows/#flow-settings))
+[flow settings](/3.0rc/develop/write-workflows/#flow-settings))
 - They can have a name, description, and tags for organization and bookkeeping
 - They provide functionality for retries, timeouts, and other hooks to handle failure and completion events
 
@@ -70,7 +70,7 @@ This task run is tracked in the UI as well.
 ## Concurrency
 
 Tasks enable concurrency, allowing you to execute multiple tasks asynchronously.
-This concurrency greatly enhances the efficiency and performance of your flows.
+This concurrency greatly enhances the efficiency and performance of your workflows.
 
 Expand the script to calculate the average open issues per user by making more requests:
 
@@ -574,7 +574,7 @@ for examples.
 <Tip>
 **Task runners are optional**
 
-If you just need the result from a task, call the task from your flow. For most flows, 
+If you just need the result from a task, call the task from your flow. For most workflows, 
 the default behavior of calling a task directly and receiving a result is enough.
 </Tip>
 

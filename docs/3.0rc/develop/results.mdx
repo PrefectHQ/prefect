@@ -540,7 +540,7 @@ Prefect tracks the following result metadata:
 
 ## Caching of results in memory
 
-When running your flows, Prefect keeps the results of all tasks and flows in memory 
+When running your workflows, Prefect keeps the results of all tasks and flows in memory 
 so they can be passed downstream. In some cases, it is desirable to override this behavior. 
 For example, if you are returning a large amount of data from a task, it can be costly to 
 keep it in memory for the entire duration of the flow run.

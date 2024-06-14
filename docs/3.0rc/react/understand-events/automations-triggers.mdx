@@ -472,11 +472,11 @@ if __name__ == "__main__":
     list_of_names = build_names()
 ```
 
-The data cleaning flow has visibility into each step, and sends a list of names to the next step of the pipeline.
+The data cleaning workflow has visibility into each step, and sends a list of names to the next step of the pipeline.
 
 ### Create a notification block in the UI
 Next, send a notification based off a completed state outcome. Configure a notification that shows when to look into your 
-flow logic. 
+workflow logic. 
 
 1. Prior to creating the automation, confirm the notification location. Create a notification block to help define where
 the notification is sent. 
@@ -644,7 +644,7 @@ context is "custom" on UI.
 Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names`. 
 You can see this new deployment get initiated with the custom parameters outlined above. 
 
-In a few quick changes, you can programmatically create an automation that deploys flows with custom parameters. 
+In a few quick changes, you can programmatically create an automation that deploys workflows with custom parameters. 
 
 ## Use an underlying .yaml file
 
@@ -711,9 +711,9 @@ In this example, you created the automation by registering the .yaml file with a
 ## Kick off an automation with a custom webhook
 
 Use webhooks to expose the events API. This allows you to extend the functionality of deployments and respond to 
-changes in your flow. 
+changes in your workflow. 
 
-By exposing a webhook endpoint, you can kick off flows that trigger deployments, all from an event created from an 
+By exposing a webhook endpoint, you can kick off workflows that trigger deployments, all from an event created from an 
 HTTP request. 
 
 Create this webhook in the UI to create these dynamic events.

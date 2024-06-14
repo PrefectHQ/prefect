@@ -135,7 +135,7 @@ They should be upgraded simultaneously with the core library, using the same met
 
 ## Logs
 
-In many cases, there is an informative stack trace in Prefect's [logs](/3.0rc/develop/observe-flows/logging/). 
+In many cases, there is an informative stack trace in Prefect's [logs](/3.0rc/develop/observe-workflows/logging/). 
 **Read it carefully**, locate the source of the error, and try to identify the cause.
 
 There are two types of logs:
@@ -203,7 +203,7 @@ Insufficient permissions result in an error. For example, starting a worker with
 
 The user can execute flows locally, or remotely by a worker. Local execution generally means that you, the user, 
 run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow 
-through a [deployment](/3.0rc/deploy/serve-flows/) (optionally on different infrastructure).
+through a [deployment](/3.0rc/deploy/serve-workflows/) (optionally on different infrastructure).
 
 With remote execution, the creation of your flow run happens separately from its execution. 
 Flow runs are assigned to a work pool and a work queue. For flow runs to execute, a worker must be subscribed 

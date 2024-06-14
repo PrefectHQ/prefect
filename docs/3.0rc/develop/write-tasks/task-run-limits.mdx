@@ -21,7 +21,7 @@ If the concurrency limit is set to 0 for a tag, any attempt to run a task with t
 
 ### Execution behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/3.0rc/develop/observe-flows/manage-states/).
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/3.0rc/develop/observe-workflows/manage-states/).
 
 If there are no concurrency slots available for any one of your task's tags, it delays the transition to a `Running` state 
 and instructs the client to try entering a `Running` state again in 30 seconds 

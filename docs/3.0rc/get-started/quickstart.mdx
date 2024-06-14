@@ -3,9 +3,9 @@ title: Quickstart
 description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
 ---
 
-Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly, turning Python scripts into resilient, recurring flows. Take a Python script to a production-ready, remotely executable flow in minutes.
+Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly, turning Python scripts into resilient, recurring workflows. Take a Python script to a production-ready, remotely executable workflow in minutes.
 
-In this quickstart, you'll schedule your code on remote infrastructure and observe the state of your flows.
+In this quickstart, you'll schedule your code on remote infrastructure and observe the state of your workflows.
 
 ## Example
 
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-The following steps convert this script to a schedulable, observable, resilient, and deployable flow.
+The following steps convert this script to a schedulable, observable, resilient, and deployable workflow.
 
 ## Install Prefect
 
@@ -58,10 +58,10 @@ Note that you need to both host your own server and run flows on your own infras
 
 ## Convert your function to a Prefect flow
 
-The easiest way convert a Python function into a flow is to add a `@flow` decorator.
-[Flows](/3.0rc/develop/write-flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
+The easiest way convert a Python function into a workflow is to add a `@flow` decorator.
+[Flows](/3.0rc/develop/write-workflows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
 
-```python my_gh_flow.py
+```python my_gh_workflow.py
 import httpx   # an HTTP client library and dependency of Prefect
 from prefect import flow, task
 
@@ -110,7 +110,7 @@ The flow calls two tasks, defined by the `@task` decorator. Tasks are the smalle
 Run the script:
 
 ```bash
-python my_gh_flow.py
+python my_gh_workflow.py
 ```
 
 Prefect automatically tracks the state of the flow run and logs the output in the UI and CLI.
@@ -131,9 +131,9 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 
 ## Deploy on a remote infrastructure
 
-Running a flow locally is a good start, but a remote destination is used for production. Tell Prefect where to run the flow by creating a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/).
+Running a flow locally is a good start, but a remote destination is used for production. Tell Prefect where to run the workflow by creating a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/).
 
-Prefect Cloud can run the flow code using a [Prefect Managed work pool](/3.0rc/deploy/serve-flows/index). You can create a work pool in the UI or from the CLI.
+Prefect Cloud can run the flow code using a [Prefect Managed work pool](/3.0rc/deploy/serve-workflows/index). You can create a work pool in the UI or from the CLI.
 
 ```bash
 prefect work-pool create my-managed-pool --type prefect:managed
@@ -145,12 +145,12 @@ You'll see the work pool created by the CLI. You can also view your new work poo
 
 The final step is to deploy your flow so it can run remotely on a schedule. 
 
-A [deployment](/3.0rc/deploy/serve-flows/) schedules a flow function to run in your work pool. Deployments elevate flows to remotely configurable entities that have their own API.
+A [deployment](/3.0rc/deploy/serve-workflows/) schedules a flow function to run in your work pool. Deployments elevate flows to remotely configurable entities that have their own API.
 
 This next script builds a deployment, identifying:
 
 - Source for the code to deploy (here, a GitHub repo)
-- Specific flow to run (`my_gh_flow.py:repo_info`)
+- Specific flow to run (`my_gh_workflow.py:repo_info`)
 - Work pool target (`my-managed-pool`)
 - Cron schedule (1am every day)
 
@@ -164,7 +164,7 @@ from prefect import flow
 if __name__ == "__main__":
     flow.from_source(
         source="https://github.com/prefecthq/demos.git",
-        entrypoint="my_gh_flow.py:repo_info",
+        entrypoint="my_gh_workflow.py:repo_info",
     ).deploy(
         name="my-first-deployment",
         work_pool_name="my-managed-pool",
@@ -173,7 +173,7 @@ if __name__ == "__main__":
 ```
 
 <Tip>
-You can store your flow code in nearly any location as long as Prefect can access it. This example uses a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage. Read [Where to store your flow code](/3.0rc/deploy/dynamic-infra/retrieve-flow-code) for details.
+You can store your flow code in nearly any location as long as Prefect can access it. This example uses a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage. Read [Where to store your flow code](/3.0rc/deploy/dynamic-infra/retrieve-workflow-code) for details.
 </Tip>
 
 Run the script to create the deployment on the Prefect Cloud server.
@@ -210,14 +210,14 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 ![Managed flow run graph and logs](/3.0rc/img/ui/qs-flow-run.png)
 
 <Warning>
-    After testing this process, click the **Remove** button in the top right of the **Deployment** page so that the flow is no longer scheduled to run once per day.
+    After testing this process, click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
 </Warning>
 
 ## Next steps
 
-You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated flow with Prefect. Now considering reading: 
+You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect. Now considering reading: 
 
-* [Write flows](/3.0rc/develop/write-flows/index)
+* [Write workflows](/3.0rc/develop/write-workflows/index)
 * [Write tasks](/3.0rc/develop/write-tasks/index)
 * [Self-host](/3.0rc/cloud/self-host) your Prefect server
 

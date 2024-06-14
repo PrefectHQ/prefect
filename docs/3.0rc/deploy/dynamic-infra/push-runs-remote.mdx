@@ -116,7 +116,7 @@ Next, deploy your tutorial flow to `my-docker-pool`.
 
 From the previous steps, you now have:
 
-1. [A flow](/3.0rc/develop/write-flows/)
+1. [A flow](/3.0rc/develop/write-workflows/)
 2. A work pool
 3. A worker
 
@@ -174,7 +174,7 @@ python repo_info.py
 ```
     
 Prefect builds a custom Docker image containing your flow code. The worker can use it to dynamically spawn Docker 
-containers whenever this flow needs to run.
+containers whenever this workflow needs to run.
 
 <Note>
     **Dockerfile**
@@ -225,7 +225,7 @@ The `job_variables` section allows you to fine-tune the infrastructure settings 
 default values in the specified work pool's [base job template](/3.0rc/deploy/dynamic-infra/control-runs/#base-job-template).
 
 When testing images locally without pushing them to a registry (to avoid potential errors like docker.errors.NotFound), 
-we recommend including an `image_pull_policy` job_variable set to `Never`. However, for production flows, push images to a 
+we recommend including an `image_pull_policy` job_variable set to `Never`. However, for production workflows, push images to a 
 remote registry for more reliability and accessibility.
 
 Set the `image_pull_policy` as `Never` for this test deployment without affecting the default value set on your work pool:
@@ -322,7 +322,7 @@ These push work pool options require connection configuration information to be 
 Read more in the [Serverless push work pool guide](/3.0rc/deploy/dynamic-infra/push-runs-serverless/).
 </Note>
 
-This is a brief overview of the options to run flows on serverless infrastructure.
+This is a brief overview of the options to run workflows on serverless infrastructure.
 For in-depth guides, see the Prefect integration libraries:
 
 - [AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)

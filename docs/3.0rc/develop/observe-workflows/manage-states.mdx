@@ -4,7 +4,7 @@ description: Prefect states contain information about the status of a flow or ta
 ---
 
 States are rich objects that contain information about the status of a particular [task](/3.0rc/develop/write-tasks) 
-run or [flow](/3.0rc/develop/write-flows/) run.
+run or [flow](/3.0rc/develop/write-workflows/) run.
 
 You can learn anything about a task or flow by examining its current state or the 
 history of its states. For example, a state could tell you that a task:
@@ -16,7 +16,7 @@ history of its states. For example, a state could tell you that a task:
 - failed because it timed out
 
 By manipulating a relatively small number of task states, Prefect flows can harness the complexity 
-that emerges in flows.
+that emerges in workflows.
 
 <Note>
 **Only runs have states**
@@ -169,13 +169,13 @@ The final state of a flow is determined by its return value.  The following rule
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 - If the flow run returns _any other object_, then it is marked as successfully completed.
 
-See the [Final state determination](/3.0rc/develop/write-flows/#final-state-determination) section of the [Flows](/3.0rc/develop/write-flows/) 
+See the [Final state determination](/3.0rc/develop/write-workflows/#final-state-determination) section of the [Flows](/3.0rc/develop/write-workflows/) 
 documentation for further details and examples.
 
 ## State Change Hooks
 
 State change hooks execute code in response to changes in flow or task run states, enabling you to define actions for 
-specific state transitions in a flow.
+specific state transitions in a workflow.
 
 #### A simple example
 

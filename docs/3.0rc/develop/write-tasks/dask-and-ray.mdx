@@ -431,10 +431,10 @@ See [Running tasks on Ray](/3.0rc/develop/write-tasks/use-task-runners/#running_
 
 ## Use multiple task runners
 
-Many flows include a variety of tasks, and not all of them benefit from parallel execution.
+Many workflows include a variety of tasks, and not all of them benefit from parallel execution.
 
 Because task runners are specified on flows, you can assign different task runners to tasks by using 
-[subflows](/3.0rc/develop/write-flows/#composing-flows) to organize those tasks.
+[subflows](/3.0rc/develop/write-workflows/#composing-flows) to organize those tasks.
 
 This example uses the default `ConcurrentTaskRunner`. Then you call a `ray_greetings()` subflow that 
 uses the `RayTaskRunner` to execute the same tasks in a Ray instance.
