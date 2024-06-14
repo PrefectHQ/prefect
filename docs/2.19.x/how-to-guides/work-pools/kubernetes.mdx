@@ -10,7 +10,7 @@ Prerequisites
 
 Before we begin, there are a few pre-requisites:
 
-1.  A Prefect Cloud account
+1.  A Prefect Cloud account or a self-hosted Prefect server instance (see [self-hosting docs](https://docs.prefect.io/latest/guides/host/))
 2.  A cloud provider (AWS, GCP, or Azure) account
 3.  [Install](https://docs.prefect.io/getting-started/installation/) Python and Prefect
 4.  Install [Helm](https://helm.sh/docs/intro/install/)
@@ -20,7 +20,7 @@ Prefect is tested against Kubernetes 1.26.0 and newer minor versions.
 <Note>
 **Administrator Access**
 
-Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider. Admin access is only necessary during the initial setup and can be downgraded after.
+Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud (if applicable) and in your cloud provider. Admin access is only necessary during the initial setup and can be downgraded after.
 </Note>
 
 Create a cluster
@@ -326,6 +326,8 @@ kubectl create secret generic prefect-api-key \
 
 Create a `values.yaml` file to customize the Prefect worker configuration. Add the following contents to the file:
 
+
+#### Using Prefect Cloud
 ```
 worker:
   cloudApiConfig:
@@ -336,6 +338,16 @@ worker:
 
 ```
 
+#### Using Prefect Server
+```
+worker:
+  serverApiConfig:
+  apiUrl: <dns or ip address of your Prefect Server instance>
+
+  config:
+    workPool: <target work pool name>
+
+```
 
 These settings will ensure that the worker connects to the proper account, workspace, and work pool.
 
@@ -513,7 +525,7 @@ definitions:
 ```
 
 
-Authenticate to Prefect
+Authenticate to Prefect (if using Prefect Cloud)
 ---------------------------------------------------------------------
 
 Before we deploy the flows to Prefect, we will need to authenticate via the Prefect CLI. We will also need to ensure that all of our flow's dependencies are present at `deploy` time.
