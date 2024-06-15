@@ -864,6 +864,46 @@ class TestFlowCall:
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
 
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_instance_methods(self, T):
+        class Foo(T):
+            @flow
+            async def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert await Foo(x=5).instance_method() == 5
+        assert await f.instance_method() == 1
+        assert isinstance(Foo(x=10).instance_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_class_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @classmethod
+            @flow
+            async def class_method(cls):
+                return cls.__name__
+
+        assert await Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_static_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @staticmethod
+            @flow
+            async def static_method():
+                return "static"
+
+        assert await Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
     def test_flow_supports_instance_methods_with_basemodel(self):
         class Foo(pydantic.BaseModel):
             model_config = pydantic.ConfigDict(ignored_types=(Flow,))
