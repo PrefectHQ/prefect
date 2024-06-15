@@ -4,11 +4,6 @@ Title: Integrations
 description: Prefect integrations are PyPI packages you can install to help you build integrate your workflows with third parties.
 ---
 
-Learn how to work with integrations [below](#install-an-integration-package).
-
-## Integrations
-
-
 <CardGroup cols={4}  className="text-center">
 
     <Card title="Alert">
@@ -216,78 +211,3 @@ Learn how to work with integrations [below](#install-an-integration-package).
     </Card>
 
 </CardGroup>
-
-
-
-## Install an integration package
-
-Install an integration package with `pip`.
-
-For example, to use `prefect-aws`:
-
-```bash
-pip install -U prefect-aws
-```
-
-## Register blocks from an integration
-
-Once the packages is installed, [register the blocks](/3.0rc/develop/connect-third-party/#registering-blocks-for-use-in-the-prefect-ui) within the integration to view them in the Prefect Cloud UI:
-
-For example, to register the blocks available in `prefect-aws`:
-
-```bash
-prefect block register -m prefect_aws
-```
-
-To use a block's `load` method, you must have a block [saved](/3.0rc/develop/connect-third-party/#saving-blocks). [Learn more about blocks](/3.0rc/develop/connect-third-party).
-
-## Use tasks and flows from an Integration
-
-Integrations may contain pre-built tasks and flows that can be imported and called within your code.
-
-For example, read a secret from AWS Secrets Manager with the `read_secret` task with the following code:
-
-```python
-from prefect import flow
-from prefect_aws import AwsCredentials
-from prefect_aws.secrets_manager import read_secret
-
-@flow
-def connect_to_database():
-    aws_credentials = AwsCredentials.load("MY_BLOCK_NAME")
-    secret_value = read_secret(
-        secret_name="db_password",
-        aws_credentials=aws_credentials
-    )
-
-    # Then, use secret_value to connect to a database
-```
-
-## Customize tasks and flows from an integration
-
-To customize pre-configured tasks or flows use `with_options`:
-    
-```python
-from prefect import flow
-from prefect_dbt.cloud import DbtCloudCredentials
-from prefect_dbt.cloud.jobs import trigger_dbt_cloud_job_run_and_wait_for_completion
-
-
-custom_run_dbt_cloud_job = trigger_dbt_cloud_job_run_and_wait_for_completion.with_options(
-    name="Run My DBT Cloud Job",
-    retries=2,
-    retry_delay_seconds=10
-)
-
-@flow
-def run_dbt_job_flow():
-    run_result = custom_run_dbt_cloud_job(
-        dbt_cloud_credentials=DbtCloudCredentials.load("my-dbt-cloud-credentials"),
-        job_id=1
-    )
-
-
-if __name__ == "__main__":  
-    run_dbt_job_flow()
-```
-
