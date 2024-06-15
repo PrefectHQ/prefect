@@ -4,7 +4,7 @@ The Scheduler service.
 
 import asyncio
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID
 
 import pendulum
@@ -40,7 +40,7 @@ class Scheduler(LoopService):
     # PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS
     loop_seconds = None
 
-    def __init__(self, loop_seconds: float = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         super().__init__(
             loop_seconds=(
                 loop_seconds

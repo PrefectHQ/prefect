@@ -69,7 +69,7 @@ class PrefectLogAdapter(logging.LoggerAdapter):
 
 
 @lru_cache()
-def get_logger(name: str = None) -> logging.Logger:
+def get_logger(name: Optional[str] = None) -> logging.Logger:
     """
     Get a `prefect` logger. These loggers are intended for internal use within the
     `prefect` package.
