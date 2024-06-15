@@ -110,8 +110,7 @@
             "3.0rc/develop/control-workflows/task-run-limits",
             "3.0rc/develop/control-workflows/global-concurrency-limits",
             "3.0rc/develop/control-workflows/pause-cancel-flows",
-            "3.0rc/develop/control-workflows/index"
-            
+            "3.0rc/develop/control-workflows/inputs"
           ]
         },
         "3.0rc/develop/connect-third-party",
