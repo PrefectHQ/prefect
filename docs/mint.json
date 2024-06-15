@@ -75,7 +75,6 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-workflows/index",
-            "3.0rc/develop/write-workflows/pause-cancel-flows",
             "3.0rc/develop/write-workflows/variables"
           ]
         },
@@ -85,7 +84,6 @@
           "pages": [
             "3.0rc/develop/write-tasks/index",
             "3.0rc/develop/write-tasks/separate-logic",
-            "3.0rc/develop/write-tasks/task-run-limits",
             "3.0rc/develop/write-tasks/use-task-runners",
             "3.0rc/develop/write-tasks/dask-and-ray",
             "3.0rc/develop/write-tasks/upstream-dependencies",
@@ -109,8 +107,11 @@
           "group": "Control workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/control-workflows/index",
-            "3.0rc/develop/control-workflows/global-concurrency-limits"
+            "3.0rc/develop/control-workflows/task-run-limits",
+            "3.0rc/develop/control-workflows/global-concurrency-limits",
+            "3.0rc/develop/write-workflows/pause-cancel-flows",
+            "3.0rc/develop/control-workflows/index"
+            
           ]
         },
         "3.0rc/develop/connect-third-party",
