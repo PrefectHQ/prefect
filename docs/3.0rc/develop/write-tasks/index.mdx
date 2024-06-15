@@ -91,7 +91,8 @@ print_message()
 
 ### Async functions
 
-Prefect also supports async functions. The resulting tasks are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
+Prefect also supports async Python functions. 
+The resulting tasks are coroutines that can be awaited or run concurrently, following [standard async Python behavior](https://docs.python.org/3/library/asyncio-task.html).
 
 ```python
 from prefect import task
