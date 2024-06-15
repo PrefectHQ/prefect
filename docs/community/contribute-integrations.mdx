@@ -1,0 +1,43 @@
+---
+sidebarTitle: Contribute integrations
+title: Contribute integrations
+---
+
+We welcome contributors! You can help contribute integrations with the community by following the steps in this guide.
+
+### Generate a project
+
+To help you get started with your integration, we've created a template that gives you the tools to build and publish your integration.
+
+Use the [Prefect Integration Template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to create an integration with a bootstrapped project.
+
+### List a project in the Integrations Catalog
+
+To list your integration in the Prefect Integrations Catalog, submit a PR to the Prefect repository.
+
+Add a file to the `docs/integrations/catalog` directory with details about your integration. 
+Use `TEMPLATE.yaml` in that folder as a guide.
+
+## Contribute fixes or enhancements to integrations
+
+To fix an issue or add a feature to any of our Integrations, propose changes through 
+[a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork):
+
+1.  [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
+2.  [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
+3.  Install the repository and its dependencies:
+
+```bash
+pip install -e ".[dev]"
+```
+
+4.  Make desired changes
+5.  Add tests
+6.  Insert an entry to the Integration's CHANGELOG.md
+7.  Install `pre-commit` to perform quality checks prior to commit:
+
+```bash
+pre-commit install
+```
+
+8.  `git commit`, `git push`, and create a pull request
