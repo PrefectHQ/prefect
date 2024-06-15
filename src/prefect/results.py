@@ -429,7 +429,7 @@ class ResultFactory(BaseModel):
 
     @sync_compatible
     async def create_result(
-        self, obj: R, key: str = None, expiration: Optional[DateTime] = None
+        self, obj: R, key: Optional[str] = None, expiration: Optional[DateTime] = None
     ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.

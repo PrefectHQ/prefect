@@ -115,7 +115,7 @@ class LambdaFunction(Block):
     @sync_compatible
     async def invoke(
         self,
-        payload: dict = None,
+        payload: Optional[dict] = None,
         invocation_type: Literal[
             "RequestResponse", "Event", "DryRun"
         ] = "RequestResponse",

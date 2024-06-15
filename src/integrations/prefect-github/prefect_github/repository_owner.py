@@ -8,7 +8,7 @@ GitHub query_repository_owner* tasks
 # is outdated, rerun scripts/generate.py.
 
 from pathlib import Path
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Optional
 
 from sgqlc.operation import Operation
 
@@ -28,7 +28,7 @@ return_fields_defaults = initialize_return_fields_defaults(config_path)
 async def query_repository_owner(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The query root of GitHub's GraphQL interface.
@@ -64,7 +64,7 @@ async def query_repository_owner_repository(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find Repository.
@@ -109,20 +109,20 @@ async def query_repository_owner_repository(  # noqa
 async def query_repository_owner_repositories(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    privacy: graphql_schema.RepositoryPrivacy = None,
-    order_by: graphql_schema.RepositoryOrder = None,
-    affiliations: Iterable[graphql_schema.RepositoryAffiliation] = None,
-    owner_affiliations: Iterable[graphql_schema.RepositoryAffiliation] = (
+    privacy: Optional[graphql_schema.RepositoryPrivacy] = None,
+    order_by: Optional[graphql_schema.RepositoryOrder] = None,
+    affiliations: Optional[Iterable[graphql_schema.RepositoryAffiliation]] = None,
+    owner_affiliations: Optional[Iterable[graphql_schema.RepositoryAffiliation]] = (
         "OWNER",
         "COLLABORATOR",
     ),
-    is_locked: bool = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    is_fork: bool = None,
-    return_fields: Iterable[str] = None,
+    is_locked: Optional[bool] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    is_fork: Optional[bool] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories that the user owns.

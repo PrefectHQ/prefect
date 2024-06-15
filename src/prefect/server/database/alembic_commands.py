@@ -1,6 +1,7 @@
 from functools import wraps
 from pathlib import Path
 from threading import Lock
+from typing import Optional
 
 import prefect.server
 
@@ -69,7 +70,9 @@ def alembic_downgrade(revision: str = "-1", dry_run: bool = False):
 
 
 @with_alembic_lock
-def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
+def alembic_revision(
+    message: Optional[str] = None, autogenerate: bool = False, **kwargs
+):
     """
     Create a new revision file for the database.
 

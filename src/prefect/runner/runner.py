@@ -209,7 +209,7 @@ class Runner:
     async def add_flow(
         self,
         flow: Flow,
-        name: str = None,
+        name: Optional[str] = None,
         interval: Optional[
             Union[
                 Iterable[Union[int, float, datetime.timedelta]],

@@ -74,8 +74,8 @@ async def read_variables(
     session: AsyncSession,
     variable_filter: Optional[filters.VariableFilter] = None,
     sort: sorting.VariableSort = sorting.VariableSort.NAME_ASC,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
 ) -> Sequence["ORMVariable"]:
     """
     Read variables, applying filers.

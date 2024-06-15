@@ -3,7 +3,7 @@ Functions for interacting with log ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,8 +61,8 @@ async def read_logs(
     session: AsyncSession,
     db: PrefectDBInterface,
     log_filter: schemas.filters.LogFilter,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
     sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC,
 ):
     """

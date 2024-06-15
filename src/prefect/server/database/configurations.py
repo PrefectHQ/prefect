@@ -113,11 +113,11 @@ class BaseDatabaseConfiguration(ABC):
     def __init__(
         self,
         connection_url: str,
-        echo: bool = None,
-        timeout: float = None,
-        connection_timeout: float = None,
-        sqlalchemy_pool_size: int = None,
-        sqlalchemy_max_overflow: int = None,
+        echo: Optional[bool] = None,
+        timeout: Optional[float] = None,
+        connection_timeout: Optional[float] = None,
+        sqlalchemy_pool_size: Optional[int] = None,
+        sqlalchemy_max_overflow: Optional[int] = None,
     ):
         self.connection_url = connection_url
         self.echo = echo or PREFECT_API_DATABASE_ECHO.value()

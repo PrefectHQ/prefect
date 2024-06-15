@@ -41,7 +41,9 @@ def python_version_micro() -> str:
 
 
 def get_prefect_image_name(
-    prefect_version: str = None, python_version: str = None, flavor: str = None
+    prefect_version: Optional[str] = None,
+    python_version: Optional[str] = None,
+    flavor: Optional[str] = None,
 ) -> str:
     """
     Get the Prefect image name matching the current Prefect and Python versions.
@@ -138,7 +140,7 @@ def build_image(
     dockerfile: str = "Dockerfile",
     tag: Optional[str] = None,
     pull: bool = False,
-    platform: str = None,
+    platform: Optional[str] = None,
     stream_progress_to: Optional[TextIO] = None,
     **kwargs,
 ) -> str:
@@ -209,7 +211,7 @@ class ImageBuilder:
         self,
         base_image: str,
         base_directory: Path = None,
-        platform: str = None,
+        platform: Optional[str] = None,
         context: Path = None,
     ):
         """Create an ImageBuilder

@@ -77,7 +77,7 @@ class CacheKeyFnPolicy(CachePolicy):
 
 @dataclass
 class CompoundCachePolicy(CachePolicy):
-    policies: list = None
+    policies: Optional[list] = None
 
     def compute_key(
         self,
@@ -87,7 +87,7 @@ class CompoundCachePolicy(CachePolicy):
         **kwargs,
     ) -> Optional[str]:
         keys = []
-        for policy in self.policies:
+        for policy in self.policies or []:
             keys.append(
                 policy.compute_key(
                     task_ctx=task_ctx,
@@ -153,7 +153,7 @@ class Inputs(CachePolicy):
     And exclude/include config.
     """
 
-    exclude: list = None
+    exclude: Optional[list] = None
 
     def compute_key(
         self,

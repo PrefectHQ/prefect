@@ -12,6 +12,7 @@ import textwrap
 import time
 from functools import partial
 from string import Template
+from typing import Optional
 
 import anyio
 import typer
@@ -54,9 +55,7 @@ def exit_with_error_if_not_editable_install():
 
 
 @dev_app.command()
-def build_docs(
-    schema_path: str = None,
-):
+def build_docs(schema_path: Optional[str] = None):
     """
     Builds REST API reference documentation for static display.
     """
@@ -67,14 +66,16 @@ def build_docs(
     schema = create_app(ephemeral=True).openapi()
 
     if not schema_path:
-        schema_path = (
+        path_to_schema = (
             prefect.__development_base_path__ / "docs" / "api-ref" / "schema.json"
         ).absolute()
+    else:
+        path_to_schema = os.path.abspath(schema_path)
     # overwrite info for display purposes
     schema["info"] = {}
-    with open(schema_path, "w") as f:
+    with open(path_to_schema, "w") as f:
         json.dump(schema, f)
-    app.console.print(f"OpenAPI schema written to {schema_path}")
+    app.console.print(f"OpenAPI schema written to {path_to_schema}")
 
 
 BUILD_UI_HELP = f"""
@@ -297,7 +298,9 @@ def build_image(
 
 
 @dev_app.command()
-def container(bg: bool = False, name="prefect-dev", api: bool = True, tag: str = None):
+def container(
+    bg: bool = False, name="prefect-dev", api: bool = True, tag: Optional[str] = None
+):
     """
     Run a docker container with local code mounted and installed.
     """

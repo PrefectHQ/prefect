@@ -3,6 +3,7 @@ import logging
 import time
 import warnings
 from textwrap import dedent
+from typing import Optional
 from unittest.mock import MagicMock
 from uuid import UUID
 
@@ -112,7 +113,7 @@ class TestFlowRunsAsync:
 
     async def test_with_params(self):
         @flow
-        async def bar(x: int, y: str = None):
+        async def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
@@ -265,7 +266,7 @@ class TestFlowRunsSync:
 
     async def test_with_params(self):
         @flow
-        def bar(x: int, y: str = None):
+        def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))

@@ -314,7 +314,7 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
 
     @wraps(async_fn)
-    def coroutine_wrapper(*args, _sync: bool = None, **kwargs):
+    def coroutine_wrapper(*args, _sync: Optional[bool] = None, **kwargs):
         from prefect.context import MissingContextError, get_run_context
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
