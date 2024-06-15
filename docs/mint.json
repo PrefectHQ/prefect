@@ -681,7 +681,7 @@
         "community/index",
         "community/install-contribute",
         "community/styles-practices",
-        "community/developing-a-new-worker-type",
+        "community/develop-a-new-worker-type",
         "community/contribute-integrations",
         "community/code-of-conduct"
       ]
