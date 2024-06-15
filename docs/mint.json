@@ -228,6 +228,7 @@
       "group": "Integrations",
       "pages": [
         "integrations/integrations",
+        "integrations/use-integrations",
         {
           "group": "AWS",
           "pages": [
