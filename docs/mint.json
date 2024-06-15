@@ -203,8 +203,7 @@
         },
         "3.0rc/manage/self-host",
         "3.0rc/manage/configure-client",
-        "3.0rc/manage/interact-with-api",
-        "3.0rc/manage/secrets"
+        "3.0rc/manage/interact-with-api"
       ]
     },
     {
@@ -219,9 +218,10 @@
           ]
         },
         "3.0rc/resources/visualize-flow-structure",
-        "3.0rc/resources/cli-shell",
         "3.0rc/resources/daemonize-processes",
-        "3.0rc/resources/big-data"
+        "3.0rc/resources/big-data",
+        "3.0rc/resources/cli-shell",
+        "3.0rc/resources/secrets"
       ]
     },
     {
