@@ -160,13 +160,13 @@
       "version": "3.0rc",
       "pages": [
         {
-          "group": "Understand events",
+          "group": "Automate responses to events",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/react/understand-events/index",
-            "3.0rc/react/understand-events/automations-triggers",
-            "3.0rc/react/understand-events/custom-triggers",
-            "3.0rc/react/understand-events/webhook-triggers"
+            "3.0rc/react/events/events",
+            "3.0rc/react/events/automations-triggers",
+            "3.0rc/react/events/custom-triggers",
+            "3.0rc/react/events/webhook-triggers"
           ]
         },
         "3.0rc/react/incidents",
