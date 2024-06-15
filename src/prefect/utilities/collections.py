@@ -235,12 +235,12 @@ def visit_collection(
     `visit_fn` can be used to alter the element if `return_data` is set to `True`.
 
     Note:
-    - When `return_data` is `True`, a copy of each collection is created to avoid
-      mutating the original object. This may have significant performance penalties and
-      should only be used if you intend to transform the collection.
+    - When `return_data` is `True`, a copy of each collection is created only if
+      `visit_fn` modifies an element within that collection. This approach minimizes
+      performance penalties by avoiding unnecessary copying.
     - When `return_data` is `False`, no copies are created, and only side effects from
       `visit_fn` are applied. This mode is faster and should be used when no transformation
-      of the collection is required.
+      of the collection is required, because it never has to copy any data.
 
     Supported types:
     - List
@@ -319,44 +319,66 @@ def visit_collection(
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
     # Then visit every item in the expression if it is a collection
+
+    # first, presume that the result is the original expression
+    result = expr
+
+    # next see if we have reason to update the result
+
+    # --- Mocks
+
     if isinstance(expr, Mock):
         # Do not attempt to recurse into mock objects
-        result = expr
+        pass
+
+    # --- Annotations
 
     elif isinstance(expr, BaseAnnotation):
         if context is not None:
             context["annotation"] = expr
-        value = visit_nested(expr.unwrap())
+        unwrapped = expr.unwrap()
+        value = visit_nested(unwrapped)
 
-        if remove_annotations:
-            result = value if return_data else None
-        else:
-            result = expr.rewrap(value) if return_data else None
+        if return_data and value is not unwrapped:
+            if remove_annotations:
+                result = value
+            else:
+                result = expr.rewrap(value)
+
+    # --- Sequences
 
     elif typ in (list, tuple, set):
         items = [visit_nested(o) for o in expr]
-        modified = any(item is not orig for item, orig in zip(items, expr))
-        result = typ(items) if return_data and modified else expr
+        if return_data:
+            modified = any(item is not orig for item, orig in zip(items, expr))
+            if modified:
+                result = typ(items)
+
+    # --- Dictionaries
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
         items = [(visit_nested(k), visit_nested(v)) for k, v in expr.items()]
-        modified = any(
-            k1 is not k2 or v1 is not v2
-            for (k1, v1), (k2, v2) in zip(items, expr.items())
-        )
-        result = typ(items) if return_data and modified else expr
+        if return_data:
+            modified = any(
+                k1 is not k2 or v1 is not v2
+                for (k1, v1), (k2, v2) in zip(items, expr.items())
+            )
+            if modified:
+                result = typ(items)
+
+    # --- Dataclasses
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         values = [visit_nested(getattr(expr, f.name)) for f in fields(expr)]
-        modified = any(
-            getattr(expr, f.name) is not v for f, v in zip(fields(expr), values)
-        )
-        result = (
-            typ(**{f.name: v for f, v in zip(fields(expr), values)})
-            if return_data and modified
-            else expr
-        )
+        if return_data:
+            modified = any(
+                getattr(expr, f.name) is not v for f, v in zip(fields(expr), values)
+            )
+            if modified:
+                result = typ(**{f.name: v for f, v in zip(fields(expr), values)})
+
+    # --- Pydantic models
 
     elif isinstance(expr, pydantic.BaseModel):
         typ = cast(Type[pydantic.BaseModel], typ)
@@ -372,23 +394,19 @@ def visit_collection(
                 field: visit_nested(getattr(expr, field)) for field in model_fields
             }
 
-        modified = any(
-            getattr(expr, field) is not updated_data[field] for field in model_fields
-        )
-
-        if return_data and modified:
-            # Use construct to avoid validation and handle immutability
-            model_instance = typ.model_construct(
-                _fields_set=expr.model_fields_set, **updated_data
+        if return_data:
+            modified = any(
+                getattr(expr, field) is not updated_data[field]
+                for field in model_fields
             )
-            for private_attr in expr.__private_attributes__:
-                setattr(model_instance, private_attr, getattr(expr, private_attr))
-            result = model_instance
-        else:
-            result = expr
-
-    elif not return_data:
-        result = None
+            if modified:
+                # Use construct to avoid validation and handle immutability
+                model_instance = typ.model_construct(
+                    _fields_set=expr.model_fields_set, **updated_data
+                )
+                for private_attr in expr.__private_attributes__:
+                    setattr(model_instance, private_attr, getattr(expr, private_attr))
+                result = model_instance
 
     if return_data:
         return result
