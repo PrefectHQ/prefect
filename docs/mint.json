@@ -202,10 +202,10 @@
             "3.0rc/manage/cloud/troubleshoot-cloud"
           ]
         },
-        "3.0rc/cloud/self-host",
-        "3.0rc/cloud/configure-client",
-        "3.0rc/cloud/interact-with-api",
-        "3.0rc/cloud/secrets"
+        "3.0rc/manage/cloud/self-host",
+        "3.0rc/manage/cloud/configure-client",
+        "3.0rc/manage/cloud/interact-with-api",
+        "3.0rc/manage/cloud/secrets"
       ]
     },
     {
