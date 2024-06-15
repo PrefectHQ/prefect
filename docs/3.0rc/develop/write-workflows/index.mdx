@@ -94,9 +94,7 @@ print_message()
 
 ### Async functions
 
-Prefect also supports asynchronous functions. The resulting flows are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
-
-
+Prefect also supports async functions. The resulting flows are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
 
 ```python
 import asyncio
@@ -125,7 +123,7 @@ asyncio.run(async_flow())
 
 ### Methods
 
-Prefect supports instance methods, class methods, and static methods as flows. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
+Prefect supports synchronous and async methods as flows, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
 
 ```python
 from prefect import flow

@@ -91,7 +91,7 @@ print_message()
 
 ### Async functions
 
-Prefect also supports asynchronous functions. The resulting tasks are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
+Prefect also supports async functions. The resulting tasks are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
 
 ```python
 from prefect import task
@@ -107,7 +107,7 @@ asyncio.run(print_message())
 
 ### Methods
 
-Prefect supports instance methods, class methods, and static methods as tasks. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@task` decorator:
+Prefect supports snchronous and async methods as tasks, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@task` decorator:
 
 ```python
 from prefect import task
@@ -135,7 +135,7 @@ MyClass.my_static_method()
 
 ### Generators
 
-Prefect supports synchronous and asynchronous generators as tasks. The task is considered to be `Running` as long as the generator is yielding values. When the generator is exhausted, the task is considered `Completed`. Any values yielded by the generator can be consumed by other tasks, and they will automatically record the generator task as their parent. 
+Prefect supports synchronous and async generators as tasks. The task is considered to be `Running` as long as the generator is yielding values. When the generator is exhausted, the task is considered `Completed`. Any values yielded by the generator can be consumed by other tasks, and they will automatically record the generator task as their parent. 
 
 ```python
 from prefect import task
