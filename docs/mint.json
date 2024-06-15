@@ -148,7 +148,7 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/work-pools/control-runs",
-            "3.0rc/deploy/work-pools/developing-a-new-worker-type",
+            "3.0rc/deploy/work-pools/develop-a-new-worker-type",
             "3.0rc/deploy/work-pools/prefect-deploy",
             "3.0rc/deploy/work-pools/managed-execution"
           ]

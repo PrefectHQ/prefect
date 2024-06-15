@@ -1,68 +1,15 @@
 ---
-sidebarTitle: Contribute Integrations
-title: Contribute
+sidebarTitle: Contribute integrations
+title: Contribute integrations
 ---
 
-We welcome contributors! You can help contribute blocks and integrations by following the steps in this guide.
-
-## Contributing blocks
-
-Building your own custom block is simple:
-
-1.  Subclass from `Block`.
-2.  Add a description alongside an `Attributes` and `Example` section in the docstring.
-3.  Set a `_logo_url` to point to a relevant image.
-4.  Create the `pydantic.Field`s of the block with a type annotation, `default` or `default_factory`, and a short description 
-about the field.
-5.  Define the methods of the block.
-
-For example, this is how the [Secret block is implemented](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/system.py#L76-L102):
-
-```python
-from pydantic import Field, SecretStr
-from prefect.blocks.core import Block
-
-class Secret(Block):
-    """
-    A block that represents a secret value. The value stored in this block will be obfuscated when
-    this block is logged or shown in the UI.
-
-    Attributes:
-        value: A string value that should be kept secret.
-
-    Example:
-        ```python
-        from prefect.blocks.system import Secret
-        secret_block = Secret.load("BLOCK_NAME")
-
-        # Access the stored secret
-        secret_block.get()
-        ```
-    """
-
-    _logo_url = "https://example.com/logo.png"
-
-    value: SecretStr = Field(
-        default=..., description="A string value that should be kept secret."
-    )  # ... indicates it's a required field
-
-    def get(self):
-        return self.value.get_secret_value()
-
-```
-
-
-To view in Prefect Cloud or the Prefect server UI, [register the block](https://docs.prefect.io/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui).
-
-Anyone can create and share a Prefect Integration!
+We welcome contributors! You can help contribute integrations with the community by following the steps in this guide.
 
 ### Generate a project
 
-To help you get started with your integration, we've created a template that gives you the tools to build and publish your 
-integration.
+To help you get started with your integration, we've created a template that gives you the tools to build and publish your integration.
 
-Use the [Prefect Integration Template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to create 
-an integration with a bootstrapped project!
+Use the [Prefect Integration Template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to create an integration with a bootstrapped project.
 
 ### List a project in the Integrations Catalog
 
@@ -71,7 +18,7 @@ To list your integration in the Prefect Integrations Catalog, submit a PR to the
 Add a file to the `docs/integrations/catalog` directory with details about your integration. 
 Use `TEMPLATE.yaml` in that folder as a guide.
 
-## Contribute fixes or enhancements to Integrations
+## Contribute fixes or enhancements to integrations
 
 To fix an issue or add a feature to any of our Integrations, propose changes through 
 [a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork):
@@ -80,7 +27,7 @@ To fix an issue or add a feature to any of our Integrations, propose changes thr
 2.  [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3.  Install the repository and its dependencies:
 
-```
+```bash
 pip install -e ".[dev]"
 ```
 
@@ -89,7 +36,7 @@ pip install -e ".[dev]"
 6.  Insert an entry to the Integration's CHANGELOG.md
 7.  Install `pre-commit` to perform quality checks prior to commit:
 
-```
+```bash
 pre-commit install
 ```
 
