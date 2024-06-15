@@ -41,7 +41,7 @@
     }
   },
   "topbarCtaButton": {
-    "name": "TRY PREFECT CLOUD →",
+    "name": "TRY PREFECT CLOUD",
     "url": "https://app.prefect.cloud/auth/login"
   },
   "anchors": [
@@ -75,7 +75,6 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-workflows/index",
-            "3.0rc/develop/write-workflows/pause-cancel-flows",
             "3.0rc/develop/write-workflows/variables"
           ]
         },
@@ -85,7 +84,6 @@
           "pages": [
             "3.0rc/develop/write-tasks/index",
             "3.0rc/develop/write-tasks/separate-logic",
-            "3.0rc/develop/write-tasks/task-run-limits",
             "3.0rc/develop/write-tasks/use-task-runners",
             "3.0rc/develop/write-tasks/dask-and-ray",
             "3.0rc/develop/write-tasks/upstream-dependencies",
@@ -109,8 +107,10 @@
           "group": "Control workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/control-workflows/index",
-            "3.0rc/develop/control-workflows/global-concurrency-limits"
+            "3.0rc/develop/control-workflows/task-run-limits",
+            "3.0rc/develop/control-workflows/global-concurrency-limits",
+            "3.0rc/develop/control-workflows/pause-cancel-flows",
+            "3.0rc/develop/control-workflows/inputs"
           ]
         },
         "3.0rc/develop/connect-third-party",
@@ -160,13 +160,13 @@
       "version": "3.0rc",
       "pages": [
         {
-          "group": "Understand events",
+          "group": "Automate responses to events",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/react/understand-events/index",
-            "3.0rc/react/understand-events/automations-triggers",
-            "3.0rc/react/understand-events/custom-triggers",
-            "3.0rc/react/understand-events/webhook-triggers"
+            "3.0rc/react/events/events",
+            "3.0rc/react/events/automations-triggers",
+            "3.0rc/react/events/custom-triggers",
+            "3.0rc/react/events/webhook-triggers"
           ]
         },
         "3.0rc/react/incidents",
@@ -177,28 +177,35 @@
       "group": "Cloud and Server",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/cloud/connect-to-cloud/index",
         {
-          "group": "Manage users",
+          "group": "Use Prefect Cloud",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/cloud/manage-users/index",
-            "3.0rc/cloud/manage-users/manage-roles",
-            "3.0rc/cloud/manage-users/api-keys",
-            "3.0rc/cloud/manage-users/service-accounts",
-            "3.0rc/cloud/manage-users/configure-sso",
-            "3.0rc/cloud/manage-users/audit-logs",
-            "3.0rc/cloud/manage-users/object-access-control-lists",
-            "3.0rc/cloud/manage-users/manage-teams"
+            "3.0rc/manage/cloud/index",
+            "3.0rc/manage/cloud/connect-to-cloud",
+            {
+              "group": "Manage users",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/manage/cloud/manage-users/index",
+                "3.0rc/manage/cloud/manage-users/manage-roles",
+                "3.0rc/manage/cloud/manage-users/api-keys",
+                "3.0rc/manage/cloud/manage-users/service-accounts",
+                "3.0rc/manage/cloud/manage-users/configure-sso",
+                "3.0rc/manage/cloud/manage-users/audit-logs",
+                "3.0rc/manage/cloud/manage-users/object-access-control-lists",
+                "3.0rc/manage/cloud/manage-users/manage-teams"
+              ]
+            },
+            "3.0rc/manage/cloud/rate-limits",
+            "3.0rc/manage/cloud/terraform-provider",
+            "3.0rc/manage/cloud/troubleshoot-cloud"
           ]
         },
-        "3.0rc/cloud/rate-limits",
-        "3.0rc/cloud/self-host",
-        "3.0rc/cloud/configure-client",
-        "3.0rc/cloud/interact-with-api",
-        "3.0rc/cloud/secrets",
-        "3.0rc/cloud/terraform-provider",
-        "3.0rc/cloud/troubleshoot-cloud"
+        "3.0rc/manage/self-host",
+        "3.0rc/manage/configure-client",
+        "3.0rc/manage/interact-with-api",
+        "3.0rc/manage/secrets"
       ]
     },
     {
