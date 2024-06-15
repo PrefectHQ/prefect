@@ -249,6 +249,22 @@ class TestVisitCollection:
         assert result is None
         assert EVEN == expected
 
+    def test_visit_collection_does_not_consume_generators(self):
+        def f():
+            yield from [1, 2, 3]
+
+        result = visit_collection([f()], visit_fn=visit_even_numbers, return_data=False)
+        assert result is None
+        assert not EVEN
+
+    def test_visit_collection_does_not_consume_generators_when_returning_data(self):
+        def f():
+            yield from [1, 2, 3]
+
+        result = visit_collection([f()], visit_fn=visit_even_numbers, return_data=True)
+        assert result is None
+        assert not EVEN
+
     @pytest.mark.parametrize(
         "inp,expected",
         [

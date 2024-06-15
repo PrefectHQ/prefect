@@ -4,6 +4,7 @@ Utilities for extensions of and operations on Python collections.
 
 import io
 import itertools
+import types
 import warnings
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
@@ -243,13 +244,16 @@ def visit_collection(
       of the collection is required, because it never has to copy any data.
 
     Supported types:
-    - List
+    - List (including iterators)
     - Tuple
     - Set
     - Dict (note: keys are also visited recursively)
     - Dataclass
     - Pydantic model
     - Prefect annotations
+
+    Note that visit_collection will not consume generators or async generators, as it would prevent
+    the caller from iterating over them.
 
     Args:
         expr (Any): A Python object or expression.
@@ -320,14 +324,19 @@ def visit_collection(
 
     # Then visit every item in the expression if it is a collection
 
-    # first, presume that the result is the original expression
+    # presume that the result is the original expression.
+    # in each of the following cases, we will update the result if we need to.
     result = expr
 
-    # next see if we have reason to update the result
+    # --- Generators
+
+    if isinstance(expr, (types.GeneratorType, types.AsyncGeneratorType)):
+        # Do not attempt to iterate over generators, as it will exhaust them
+        pass
 
     # --- Mocks
 
-    if isinstance(expr, Mock):
+    elif isinstance(expr, Mock):
         # Do not attempt to recurse into mock objects
         pass
 
