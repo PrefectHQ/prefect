@@ -74,20 +74,20 @@
           "group": "Write workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/write-workflows/index",
-            "3.0rc/develop/write-workflows/variables"
+            "3.0rc/develop/write-workflows/flows",
+            "3.0rc/develop/write-workflows/tasks",
+            "3.0rc/develop/write-workflows/separate-logic",
+            "3.0rc/develop/write-workflows/variables",
+            "3.0rc/develop/write-workflows/upstream-dependencies"
           ]
         },
         {
-          "group": "Write tasks",
+          "group": "Alter task execution",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/write-tasks/index",
-            "3.0rc/develop/write-tasks/separate-logic",
-            "3.0rc/develop/write-tasks/use-task-runners",
-            "3.0rc/develop/write-tasks/dask-and-ray",
-            "3.0rc/develop/write-tasks/upstream-dependencies",
-            "3.0rc/develop/write-tasks/deferred-tasks"
+            "3.0rc/develop/task-execution/deferred-tasks",
+            "3.0rc/develop/task-execution/use-task-runners",
+            "3.0rc/develop/task-execution/dask-and-ray"
           ]
         },
         "3.0rc/develop/recover-from-failure",
