@@ -1,6 +1,6 @@
-collectionName: prefect-stitch
+integrationName: prefect-stitch
 author: Alessandro Lollo
 authorUrl: https://github.com/AlessandroLollo
 documentation: https://alessandrolollo.github.io/prefect-stitch/
-iconUrl: /3.0rc/img/collections/stitch.png
+iconUrl: /images/integrations/stitch.png
 tag: Stitch
