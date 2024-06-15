@@ -429,6 +429,42 @@ class TestTaskCall:
         # assert that the value IS the original and was never copied
         assert f.get_x() is f.x
 
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_task_supports_async_instance_methods(self, T):
+        class Foo(T):
+            @task
+            async def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert await Foo(x=5).instance_method() == 5
+        # ensure the instance binding is not global
+        assert await f.instance_method() == 1
+
+        assert isinstance(Foo(x=10).instance_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_task_supports_async_class_methods(self, T):
+        class Foo(T):
+            @classmethod
+            @task
+            async def class_method(cls):
+                return cls.__name__
+
+        assert await Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_task_supports_async_static_methods(self, T):
+        class Foo(T):
+            @staticmethod
+            @task
+            async def static_method():
+                return "static"
+
+        assert await Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Task)
+
     def test_error_message_if_decorate_classmethod(self):
         with pytest.raises(
             TypeError, match="@classmethod should be applied on top of @task"
@@ -4078,8 +4114,7 @@ class TestTaskHooksOnFailure:
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
-            def my_task():
-                ...
+            def my_task(): ...
 
 
 class TestNestedTasks:

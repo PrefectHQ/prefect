@@ -491,7 +491,7 @@ from prefect import flow
 from datetime import datetime
 
 @flow
-def what_day_is_it(date: datetime = None):
+def what_day_is_it(date: Optional[datetime] = None):
     if date is None:
         date = datetime.now(timezone.utc)
     print(f"It was {date.strftime('%A')} on {date.isoformat()}")

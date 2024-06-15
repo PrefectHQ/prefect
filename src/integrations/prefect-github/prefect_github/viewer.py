@@ -9,7 +9,7 @@ GitHub query_viewer* tasks
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Optional
 
 from sgqlc.operation import Operation
 
@@ -26,7 +26,7 @@ return_fields_defaults = initialize_return_fields_defaults(config_path)
 @task
 async def query_viewer(  # noqa
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The query root of GitHub's GraphQL interface.
@@ -55,7 +55,7 @@ async def query_viewer(  # noqa
 async def query_viewer_gist(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find gist by repo name.
@@ -93,11 +93,11 @@ async def query_viewer_gists(  # noqa
     github_credentials: GitHubCredentials,
     privacy: graphql_schema.GistPrivacy = None,
     order_by: graphql_schema.GistOrder = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of the Gists the user has created.
@@ -149,11 +149,11 @@ async def query_viewer_issues(  # noqa
     github_credentials: GitHubCredentials,
     order_by: graphql_schema.IssueOrder = None,
     filter_by: graphql_schema.IssueFilters = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of issues associated with this user.
@@ -207,7 +207,7 @@ async def query_viewer_issues(  # noqa
 @task
 async def query_viewer_status(  # noqa
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The user's description of what they're currently doing.
@@ -239,7 +239,7 @@ async def query_viewer_status(  # noqa
 async def query_viewer_project(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find project by number.
@@ -275,18 +275,18 @@ async def query_viewer_project(  # noqa
 @task
 async def query_viewer_packages(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    names: Iterable[str] = None,
-    repository_id: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    names: Optional[Iterable[str]] = None,
+    repository_id: Optional[str] = None,
     package_type: graphql_schema.PackageType = None,
     order_by: graphql_schema.PackageOrder = {
         "field": "CREATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of packages under the owner.
@@ -340,12 +340,12 @@ async def query_viewer_projects(  # noqa
     states: Iterable[graphql_schema.ProjectState],
     github_credentials: GitHubCredentials,
     order_by: graphql_schema.ProjectOrder = None,
-    search: str = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    search: Optional[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of projects under the owner.
@@ -397,13 +397,13 @@ async def query_viewer_projects(  # noqa
 @task
 async def query_viewer_sponsors(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    tier_id: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    tier_id: Optional[str] = None,
     order_by: graphql_schema.SponsorOrder = {"field": "RELEVANCE", "direction": "DESC"},
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of sponsors for this user or organization.
@@ -461,12 +461,12 @@ async def query_viewer_watching(  # noqa
         "OWNER",
         "COLLABORATOR",
     ),
-    is_locked: bool = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    is_locked: Optional[bool] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories the given user is watching.
@@ -529,7 +529,7 @@ async def query_viewer_watching(  # noqa
 async def query_viewer_project_v2(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find a project by number.
@@ -565,11 +565,11 @@ async def query_viewer_project_v2(  # noqa
 @task
 async def query_viewer_followers(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of users the given user is followed by.
@@ -613,11 +613,11 @@ async def query_viewer_followers(  # noqa
 @task
 async def query_viewer_following(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of users the given user is following.
@@ -661,13 +661,13 @@ async def query_viewer_following(  # noqa
 @task
 async def query_viewer_projects_v2(  # noqa
     github_credentials: GitHubCredentials,
-    query: str = None,
+    query: Optional[str] = None,
     order_by: graphql_schema.ProjectV2Order = {"field": "NUMBER", "direction": "DESC"},
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of projects under the owner.
@@ -717,7 +717,7 @@ async def query_viewer_repository(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find Repository.
@@ -756,12 +756,12 @@ async def query_viewer_repository(  # noqa
 @task
 async def query_viewer_sponsoring(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.SponsorOrder = {"field": "RELEVANCE", "direction": "DESC"},
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of users and organizations this entity is sponsoring.
@@ -808,11 +808,11 @@ async def query_viewer_sponsoring(  # noqa
 @task
 async def query_viewer_public_keys(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of public keys associated with this user.
@@ -857,7 +857,7 @@ async def query_viewer_public_keys(  # noqa
 async def query_viewer_project_next(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find a project by project (beta) number.
@@ -894,11 +894,11 @@ async def query_viewer_project_next(  # noqa
 async def query_viewer_pinned_items(  # noqa
     types: Iterable[graphql_schema.PinnableItemType],
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories and gists this profile owner has pinned to their profile.
@@ -944,13 +944,13 @@ async def query_viewer_pinned_items(  # noqa
 @task
 async def query_viewer_projects_next(  # noqa
     github_credentials: GitHubCredentials,
-    query: str = None,
+    query: Optional[str] = None,
     sort_by: graphql_schema.ProjectNextOrderField = "TITLE",
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of projects (beta) under the owner.
@@ -1005,13 +1005,13 @@ async def query_viewer_repositories(  # noqa
         "OWNER",
         "COLLABORATOR",
     ),
-    is_locked: bool = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    is_fork: bool = None,
-    return_fields: Iterable[str] = None,
+    is_locked: Optional[bool] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    is_fork: Optional[bool] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories that the user owns.
@@ -1077,7 +1077,7 @@ async def query_viewer_repositories(  # noqa
 @task
 async def query_viewer_item_showcase(  # noqa
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Showcases a selection of repositories and gists that the profile owner has
@@ -1109,11 +1109,11 @@ async def query_viewer_item_showcase(  # noqa
 @task
 async def query_viewer_gist_comments(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of gist comments made by this user.
@@ -1158,7 +1158,7 @@ async def query_viewer_gist_comments(  # noqa
 async def query_viewer_organization(  # noqa
     login: str,
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find an organization by its login that the user belongs to.
@@ -1196,14 +1196,14 @@ async def query_viewer_pull_requests(  # noqa
     states: Iterable[graphql_schema.PullRequestState],
     labels: Iterable[str],
     github_credentials: GitHubCredentials,
-    head_ref_name: str = None,
-    base_ref_name: str = None,
+    head_ref_name: Optional[str] = None,
+    base_ref_name: Optional[str] = None,
     order_by: graphql_schema.IssueOrder = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of pull requests associated with this user.
@@ -1261,15 +1261,15 @@ async def query_viewer_pull_requests(  # noqa
 @task
 async def query_viewer_saved_replies(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.SavedReplyOrder = {
         "field": "UPDATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Replies this user has saved.
@@ -1316,11 +1316,11 @@ async def query_viewer_saved_replies(  # noqa
 async def query_viewer_pinnable_items(  # noqa
     types: Iterable[graphql_schema.PinnableItemType],
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories and gists this profile owner can pin to their profile.
@@ -1368,11 +1368,11 @@ async def query_viewer_pinnable_items(  # noqa
 async def query_viewer_issue_comments(  # noqa
     github_credentials: GitHubCredentials,
     order_by: graphql_schema.IssueCommentOrder = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of issue comments made by this user.
@@ -1419,11 +1419,11 @@ async def query_viewer_issue_comments(  # noqa
 @task
 async def query_viewer_organizations(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of organizations the user belongs to.
@@ -1467,11 +1467,11 @@ async def query_viewer_organizations(  # noqa
 @task
 async def query_viewer_recent_projects(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Recent projects that this user has modified in the context of the owner.
@@ -1515,11 +1515,11 @@ async def query_viewer_recent_projects(  # noqa
 @task
 async def query_viewer_commit_comments(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of commit comments made by this user.
@@ -1563,7 +1563,7 @@ async def query_viewer_commit_comments(  # noqa
 @task
 async def query_viewer_sponsors_listing(  # noqa
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The GitHub Sponsors listing for this user or organization.
@@ -1595,12 +1595,12 @@ async def query_viewer_sponsors_listing(  # noqa
 async def query_viewer_top_repositories(  # noqa
     order_by: graphql_schema.RepositoryOrder,
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    since: datetime = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    since: Optional[datetime] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Repositories the user has contributed to, ordered by contribution rank, plus
@@ -1652,16 +1652,16 @@ async def query_viewer_top_repositories(  # noqa
 async def query_viewer_sponsors_activities(  # noqa
     actions: Iterable[graphql_schema.SponsorsActivityAction],
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     period: graphql_schema.SponsorsActivityPeriod = "MONTH",
     order_by: graphql_schema.SponsorsActivityOrder = {
         "field": "TIMESTAMP",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Events involving this sponsorable, such as new sponsorships.
@@ -1715,7 +1715,7 @@ async def query_viewer_sponsors_activities(  # noqa
 @task
 async def query_viewer_interaction_ability(  # noqa
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The interaction ability settings for this user.
@@ -1746,13 +1746,13 @@ async def query_viewer_interaction_ability(  # noqa
 @task
 async def query_viewer_starred_repositories(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    owned_by_viewer: bool = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    owned_by_viewer: Optional[bool] = None,
     order_by: graphql_schema.StarOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Repositories the user has starred.
@@ -1802,17 +1802,17 @@ async def query_viewer_starred_repositories(  # noqa
 @task
 async def query_viewer_repository_discussions(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.DiscussionOrder = {
         "field": "CREATED_AT",
         "direction": "DESC",
     },
-    repository_id: str = None,
-    answered: bool = None,
-    return_fields: Iterable[str] = None,
+    repository_id: Optional[str] = None,
+    answered: Optional[bool] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Discussions this user has started.
@@ -1868,12 +1868,12 @@ async def query_viewer_repository_discussions(  # noqa
 @task
 async def query_viewer_sponsorships_as_sponsor(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.SponsorshipOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     This object's sponsorships as the sponsor.
@@ -1924,15 +1924,15 @@ async def query_viewer_sponsorships_as_sponsor(  # noqa
 @task
 async def query_viewer_sponsorship_newsletters(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.SponsorshipNewsletterOrder = {
         "field": "CREATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of sponsorship updates sent from this sponsorable to sponsors.
@@ -1981,10 +1981,10 @@ async def query_viewer_sponsorship_newsletters(  # noqa
 @task
 async def query_viewer_contributions_collection(  # noqa
     github_credentials: GitHubCredentials,
-    organization_id: str = None,
-    from_: datetime = None,
-    to: datetime = None,
-    return_fields: Iterable[str] = None,
+    organization_id: Optional[str] = None,
+    from_: Optional[datetime] = None,
+    to: Optional[datetime] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The collection of contributions this user has made to different repositories.
@@ -2029,13 +2029,13 @@ async def query_viewer_contributions_collection(  # noqa
 @task
 async def query_viewer_sponsorships_as_maintainer(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     include_private: bool = False,
     order_by: graphql_schema.SponsorshipOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     This object's sponsorships as the maintainer.
@@ -2091,14 +2091,14 @@ async def query_viewer_repositories_contributed_to(  # noqa
     github_credentials: GitHubCredentials,
     privacy: graphql_schema.RepositoryPrivacy = None,
     order_by: graphql_schema.RepositoryOrder = None,
-    is_locked: bool = None,
-    include_user_repositories: bool = None,
+    is_locked: Optional[bool] = None,
+    include_user_repositories: Optional[bool] = None,
     contribution_types: Iterable[graphql_schema.RepositoryContributionType] = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of repositories that the user recently contributed to.
@@ -2160,13 +2160,13 @@ async def query_viewer_repositories_contributed_to(  # noqa
 @task
 async def query_viewer_repository_discussion_comments(  # noqa
     github_credentials: GitHubCredentials,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    repository_id: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    repository_id: Optional[str] = None,
     only_answers: bool = False,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Discussion comments this user has authored.
@@ -2218,7 +2218,7 @@ async def query_viewer_repository_discussion_comments(  # noqa
 @task
 async def query_viewer_sponsorship_for_viewer_as_sponsor(  # noqa
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The sponsorship from the viewer to this user/organization; that is, the
@@ -2253,7 +2253,7 @@ async def query_viewer_sponsorship_for_viewer_as_sponsor(  # noqa
 @task
 async def query_viewer_sponsorship_for_viewer_as_sponsorable(  # noqa
     github_credentials: GitHubCredentials,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The sponsorship from this user/organization to the viewer; that is, the
