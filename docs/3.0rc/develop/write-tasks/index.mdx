@@ -67,6 +67,136 @@ Running that flow in the terminal results in something like this:
 
 This task run is tracked in the UI as well.
 
+## Supported functions
+
+Almost any standard Python function can be turned into a Prefect task by adding the `@task` decorator. 
+
+<Tip>
+Tasks are always executed in the main thread by default, unless a specific [task runner](/3.0rc/develop/write-tasks/use-task-runners) is used to execute them on different threads, processes, or infrastructure. This facilitates native Python debugging and profiling.
+</Tip>
+
+### Synchronous functions
+
+The simplest Prefect task is a synchronous Python function. Here's an example of a synchronous task that prints a message:
+
+```python
+from prefect import task
+
+@task
+def print_message():
+    print("Hello, I'm a task")
+
+print_message()
+```
+
+### Async functions
+
+Prefect also supports async Python functions. 
+The resulting tasks are coroutines that can be awaited or run concurrently, following [standard async Python behavior](https://docs.python.org/3/library/asyncio-task.html).
+
+```python
+from prefect import task
+import asyncio
+
+@task
+async def print_message():
+    await asyncio.sleep(1)
+    print("Hello, I'm an async task")
+
+asyncio.run(print_message())
+```
+
+### Methods
+
+Prefect supports snchronous and async methods as tasks, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@task` decorator:
+
+```python
+from prefect import task
+
+class MyClass:
+
+    @task
+    def my_instance_method(self):
+        pass
+
+    @classmethod
+    @task
+    def my_class_method(cls):
+        pass
+
+    @staticmethod
+    @task
+    def my_static_method():
+        pass
+
+MyClass().my_instance_method()
+MyClass.my_class_method()
+MyClass.my_static_method()
+```
+
+### Generators
+
+Prefect supports synchronous and async generators as tasks. The task is considered to be `Running` as long as the generator is yielding values. When the generator is exhausted, the task is considered `Completed`. Any values yielded by the generator can be consumed by other tasks, and they will automatically record the generator task as their parent. 
+
+```python
+from prefect import task
+
+@task
+def generator():
+    for i in range(10):
+        yield i
+
+@task
+def consumer(x):
+    print(x)
+
+for val in generator():
+    consumer(val)
+```
+
+<Warning>
+**Generator functions are consumed when returned from tasks**
+
+The result of a completed task must be serializable, but generators cannot be serialized. 
+Therefore, if you return a generator from a task, the generator will be fully consumed and its yielded values will be returned as a list. 
+This can lead to unexpected behavior or blocking if the generator is infinite or very large.
+
+Here is an example of proactive generator consumption:
+
+```python
+from prefect import task
+
+def gen():
+    yield from [1, 2, 3]
+    print('Generator consumed!')
+
+@task
+def f():
+    return gen()
+    
+f()  # prints 'Generator consumed!'
+```
+
+If you need to return a generator without consuming it, you can `yield` it instead of using `return`. 
+Values yielded from generator tasks are not considered final results and do not face the same serialization constraints:
+
+```python
+from prefect import task
+
+def gen():
+    yield from [1, 2, 3]
+    print('Generator consumed!')
+
+@task
+def f():
+    yield gen()
+    
+generator = next(f())
+list(generator) # prints 'Generator consumed!'
+
+```
+</Warning>
+
 ## Concurrency
 
 Tasks enable concurrency, allowing you to execute multiple tasks asynchronously.
@@ -190,7 +320,7 @@ def my_flow():
 
 **Call a task from another task**
 
-As of `prefect 2.18.x`, you can call a task from within another task:
+A task can be called from within another task:
 
 ```python
 from prefect import task
@@ -662,36 +792,3 @@ def sum_it(numbers, static_iterable):
 
 sum_it([4, 5, 6], unmapped([1, 2, 3]))
 ```
-
-## Async tasks
-
-Prefect supports asynchronous task and flow definitions by default. All of 
-[the standard rules of async](https://docs.python.org/3/library/asyncio-task.html) apply:
-
-```python
-import asyncio
-
-from prefect import task, flow
-
-@task
-async def print_values(values):
-    for value in values:
-        await asyncio.sleep(1) # yield
-        print(value, end=" ")
-
-@flow
-async def async_flow():
-    await print_values([1, 2])  # runs immediately
-    coros = [print_values("abcd"), print_values("6789")]
-
-    # asynchronously gather the tasks
-    await asyncio.gather(*coros)
-
-asyncio.run(async_flow())
-```
-
-If you are not using `asyncio.gather`, 
-calling [`.submit()`](/3.0rc/develop/write-tasks/use-task-runners/#using-a-task-runner) 
-is required for asynchronous execution on the `ConcurrentTaskRunner`.
-
-
