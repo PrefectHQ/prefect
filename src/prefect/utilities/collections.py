@@ -331,7 +331,7 @@ def visit_collection(
         # Do not attempt to recurse into mock objects
         pass
 
-    # --- Annotations
+    # --- Annotations (unmapped, quote, etc.)
 
     elif isinstance(expr, BaseAnnotation):
         if context is not None:
@@ -339,11 +339,14 @@ def visit_collection(
         unwrapped = expr.unwrap()
         value = visit_nested(unwrapped)
 
-        if return_data and value is not unwrapped:
+        if return_data:
+            # if we are removing annotations, return the value
             if remove_annotations:
                 result = value
-            else:
+            # if the value was modified, rewrap it
+            elif value is not unwrapped:
                 result = expr.rewrap(value)
+            # otherwise return the expr
 
     # --- Sequences
 
