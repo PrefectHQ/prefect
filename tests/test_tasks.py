@@ -4114,7 +4114,8 @@ class TestTaskHooksOnFailure:
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
-            def my_task(): ...
+            def my_task():
+                ...
 
 
 class TestNestedTasks:
