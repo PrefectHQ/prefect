@@ -148,7 +148,6 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/work-pools/control-runs",
-            "3.0rc/deploy/work-pools/developing-a-new-worker-type",
             "3.0rc/deploy/work-pools/prefect-deploy",
             "3.0rc/deploy/work-pools/managed-execution"
           ]
@@ -678,13 +677,13 @@
     },
     {
       "group": "Community",
-      "version": "3.0rc",
       "pages": [
-        "3.0rc/community/index",
-        "3.0rc/community/install-contribute",
-        "3.0rc/community/styles-practices",
-        "3.0rc/community/developing-a-new-worker-type",
-        "3.0rc/community/contribute-integrations"
+        "community/index",
+        "community/install-contribute",
+        "community/styles-practices",
+        "community/develop-a-new-worker-type",
+        "community/contribute-integrations",
+        "community/code-of-conduct"
       ]
     }
   ]
