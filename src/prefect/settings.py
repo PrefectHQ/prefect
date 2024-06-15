@@ -42,6 +42,7 @@ dependent on the value of other settings or perform other dynamic effects.
 
 import logging
 import os
+import socket
 import string
 import warnings
 from contextlib import contextmanager
@@ -84,6 +85,7 @@ from prefect._internal.schemas.validators import validate_settings
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
+from prefect.utilities.slugify import slugify
 
 T = TypeVar("T")
 
@@ -415,6 +417,18 @@ def warn_on_misconfigured_api_url(values):
             warnings.warn("\n".join(warnings_list), stacklevel=2)
 
     return values
+
+
+def default_result_storage_block_name(
+    settings: Optional["Settings"] = None, value: Optional[str] = None
+):
+    """
+    `value_callback` for `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK_NAME` that sets the default
+    value to the hostname of the machine.
+    """
+    if value is None:
+        return f"local-file-system/{slugify(socket.gethostname())}-storage"
+    return value
 
 
 def default_database_connection_url(settings, value):
@@ -1575,8 +1589,7 @@ PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    Optional[str],
-    default=None,
+    Optional[str], default=None, value_callback=default_result_storage_block_name
 )
 """The `block-type/block-document` slug of a block to use as the default result storage."""
 

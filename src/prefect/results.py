@@ -18,6 +18,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 from pydantic_core import PydanticUndefinedType
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
@@ -37,6 +38,7 @@ from prefect.settings import (
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
+    default_result_storage_block_name,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
@@ -66,11 +68,18 @@ async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
     """
-    return (
-        await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
-        if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
-        else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
-    )
+    try:
+        return await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
+    except ValueError as e:
+        if "Unable to find" not in str(e):
+            raise e
+        elif (
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
+            == default_result_storage_block_name()
+        ):
+            return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+        else:
+            raise
 
 
 _default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
@@ -419,7 +428,9 @@ class ResultFactory(BaseModel):
             )
 
     @sync_compatible
-    async def create_result(self, obj: R, key: str = None) -> Union[R, "BaseResult[R]"]:
+    async def create_result(
+        self, obj: R, key: str = None, expiration: Optional[DateTime] = None
+    ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
 
@@ -450,6 +461,7 @@ class ResultFactory(BaseModel):
             storage_key_fn=storage_key_fn,
             serializer=self.serializer,
             cache_object=should_cache_object,
+            expiration=expiration,
         )
 
     @sync_compatible
@@ -572,6 +584,7 @@ class PersistedResult(BaseResult):
     serializer_type: str
     storage_block_id: uuid.UUID
     storage_key: str
+    expiration: Optional[DateTime] = None
 
     _should_cache_object: bool = PrivateAttr(default=True)
 
@@ -587,6 +600,7 @@ class PersistedResult(BaseResult):
 
         blob = await self._read_blob(client=client)
         obj = blob.serializer.loads(blob.data)
+        self.expiration = blob.expiration
 
         if self._should_cache_object:
             self._cache_object(obj)
@@ -626,6 +640,7 @@ class PersistedResult(BaseResult):
         storage_key_fn: Callable[[], str],
         serializer: Serializer,
         cache_object: bool = True,
+        expiration: Optional[DateTime] = None,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
@@ -637,7 +652,9 @@ class PersistedResult(BaseResult):
             storage_block_id is not None
         ), "Unexpected storage block ID. Was it persisted?"
         data = serializer.dumps(obj)
-        blob = PersistedResultBlob(serializer=serializer, data=data)
+        blob = PersistedResultBlob(
+            serializer=serializer, data=data, expiration=expiration
+        )
 
         key = storage_key_fn()
         if not isinstance(key, str):
@@ -662,6 +679,7 @@ class PersistedResult(BaseResult):
             storage_key=key,
             artifact_type="result",
             artifact_description=description,
+            expiration=expiration,
         )
 
         if cache_object:
@@ -683,6 +701,7 @@ class PersistedResultBlob(BaseModel):
     serializer: Serializer
     data: bytes
     prefect_version: str = Field(default=prefect.__version__)
+    expiration: Optional[DateTime] = None
 
     def to_bytes(self) -> bytes:
         return self.model_dump_json(serialize_as_any=True).encode()
