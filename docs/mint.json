@@ -168,8 +168,8 @@
             "3.0rc/react/events/webhook-triggers"
           ]
         },
-        "3.0rc/react/incidents",
-        "3.0rc/react/state-change-hooks"
+        "3.0rc/react/state-hooks",
+        "3.0rc/react/incidents"
       ]
     },
     {
