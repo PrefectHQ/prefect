@@ -3,6 +3,7 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 """
 
 import asyncio
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -26,7 +27,7 @@ class CancellationCleanup(LoopService):
     cancelling flow runs
     """
 
-    def __init__(self, loop_seconds: float = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value(),

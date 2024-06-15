@@ -4,6 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import textwrap
+from typing import Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -75,9 +76,11 @@ async def read_flow_run_notification_policy(
 async def read_flow_run_notification_policies(
     db: PrefectDBInterface,
     session: sa.orm.Session,
-    flow_run_notification_policy_filter: schemas.filters.FlowRunNotificationPolicyFilter = None,
-    offset: int = None,
-    limit: int = None,
+    flow_run_notification_policy_filter: Optional[
+        schemas.filters.FlowRunNotificationPolicyFilter
+    ] = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
 ):
     """
     Read notification policies.

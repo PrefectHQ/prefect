@@ -5,7 +5,7 @@ description: Learn the basics of defining and running flows.
 
 Flows are the most central Prefect object. A flow is a container for workflow logic as code and allows users to configure 
 how their workflows behave.
-Flows are defined as Python functions, and any Python function is eligible to be a flow.
+Flows are defined as Python functions. Almost any Python function is eligible to be a flow.
 
 They can take inputs, perform work, and return an output.
 You can turn any function into a Prefect flow by adding the `@flow` decorator.
@@ -69,6 +69,85 @@ Forks 🍴 : 1245
 
 As shown above, flow definitions can contain arbitrary Python logic.
 </Tip>
+
+## Supported functions
+
+Almost any standard Python function can be turned into a Prefect flow by adding the `@flow` decorator. 
+
+<Tip>
+Flows are always executed in the main thread by default to facilitate native Python debugging and profiling.
+</Tip>
+
+### Synchronous functions
+
+The simplest Prefect flow is a synchronous Python function. Here's an example of a synchronous flow that prints a message:
+
+```python
+from prefect import flow
+
+@flow
+def print_message():
+    print("Hello, I'm a flow")
+
+print_message()
+```
+
+### Async functions
+
+Prefect also supports async functions. The resulting flows are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
+
+```python
+import asyncio
+
+from prefect import task, flow
+
+@task
+async def print_values(values):
+    for value in values:
+        await asyncio.sleep(1)
+        print(value, end=" ")
+
+@flow
+async def async_flow():
+    print("Hello, I'm an async flow")
+
+    # runs immediately
+    await print_values([1, 2])  
+
+    # runs concurrently
+    coros = [print_values("abcd"), print_values("6789")]
+    await asyncio.gather(*coros)
+
+asyncio.run(async_flow())
+```
+
+### Methods
+
+Prefect supports synchronous and async methods as flows, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
+
+```python
+from prefect import flow
+
+class MyClass:
+
+    @flow
+    def my_instance_method(self):
+        pass
+
+    @classmethod
+    @flow
+    def my_class_method(cls):
+        pass
+
+    @staticmethod
+    @flow
+    def my_static_method():
+        pass
+
+MyClass().my_instance_method()
+MyClass.my_class_method()
+MyClass.my_static_method()
+```
 
 ## Parameters
 
@@ -150,7 +229,7 @@ When you run a flow that contains tasks or additional flows, Prefect tracks the 
 
 ## Writing flows
 
-The [`@flow`] decorator is used to designate a flow:
+The `@flow` decorator is used to designate a flow:
 
 ```python hl_lines="3"
 from prefect import flow
@@ -509,7 +588,7 @@ from prefect import flow
 from datetime import datetime
 
 @flow
-def what_day_is_it(date: datetime = None):
+def what_day_is_it(date: Optional[datetime] = None):
     if date is None:
         date = datetime.now(timezone.utc)
     print(f"It was {date.strftime('%A')} on {date.isoformat()}")

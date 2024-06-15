@@ -1235,8 +1235,8 @@ class ECSWorker(BaseWorker):
         cluster_arn: str,
         ecs_client: _ECSClient,
         current_status: str = "UNKNOWN",
-        until_status: str = None,
-        timeout: int = None,
+        until_status: Optional[str] = None,
+        timeout: Optional[int] = None,
     ) -> Generator[None, None, dict]:
         """
         Watches an ECS task run by querying every `poll_interval` seconds. After each
