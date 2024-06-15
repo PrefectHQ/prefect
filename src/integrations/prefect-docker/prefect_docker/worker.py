@@ -368,7 +368,9 @@ class DockerWorker(BaseWorker):
     _documentation_url = "https://prefecthq.github.io/prefect-docker/worker/"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"  # noqa
 
-    def __init__(self, *args: Any, test_mode: bool = None, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, test_mode: Optional[bool] = None, **kwargs: Any
+    ) -> None:
         if test_mode is None:
             self.test_mode = bool(os.getenv("PREFECT_DOCKER_TEST_MODE", False))
         else:
