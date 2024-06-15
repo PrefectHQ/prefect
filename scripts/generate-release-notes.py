@@ -21,13 +21,14 @@ release notes for a different release. In this case, the target must be provided
 
     generate-release-notes.py "2.3.3" "main" "2.3.2"
 """
+
 import os
 import re
 import shutil
 import subprocess
 import sys
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 import httpx
 
@@ -140,7 +141,7 @@ def generate_release_notes(
     tag_name: str,
     github_token: str,
     target_commit: str,
-    previous_tag: str = None,
+    previous_tag: Optional[str] = None,
 ):
     """
     Generate release notes using the GitHub API.

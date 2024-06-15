@@ -363,8 +363,8 @@ async def _apply_deployment_filters(
 
 async def read_deployments(
     session: AsyncSession,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -483,8 +483,8 @@ async def schedule_runs(
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
     min_time: datetime.timedelta = None,
-    min_runs: int = None,
-    max_runs: int = None,
+    min_runs: Optional[int] = None,
+    max_runs: Optional[int] = None,
     auto_scheduled: bool = True,
 ) -> List[UUID]:
     """

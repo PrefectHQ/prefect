@@ -207,7 +207,7 @@ async def exception_to_failed_state(
 async def return_value_to_state(
     retval: R,
     result_factory: ResultFactory,
-    key: str = None,
+    key: Optional[str] = None,
     expiration: Optional[datetime.datetime] = None,
 ) -> State[R]:
     """

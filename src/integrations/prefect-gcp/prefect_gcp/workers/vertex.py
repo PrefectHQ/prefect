@@ -538,7 +538,7 @@ class VertexAIWorker(BaseWorker):
         until_states: Tuple["JobState"],
         configuration: VertexAIWorkerJobConfiguration,
         logger: PrefectLogAdapter,
-        timeout: int = None,
+        timeout: Optional[int] = None,
     ) -> "CustomJob":
         """
         Polls job run to see if status changed.

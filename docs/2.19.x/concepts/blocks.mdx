@@ -476,7 +476,7 @@ Add the new field to the class definition:
 class S3Bucket(Block):
     bucket_name: str
     credentials: AWSCredentials
-    bucket_folder: str = None
+    bucket_folder: Optional[str] = None
     ...
 
 ```

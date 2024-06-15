@@ -23,7 +23,7 @@ class Deployment:
     name: str 
     flow_id: UUID
     entrypoint: str
-    path: str = None
+    path: Optional[str] = None
 
     # workflow scheduling and parametrization
     parameters: Optional[Dict[str, Any]] = None
@@ -33,13 +33,13 @@ class Deployment:
     trigger: Trigger = None
 
     # metadata for bookkeeping
-    version: str = None
-    description: str = None
-    tags: list = None
+    version: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[list] = None
 
     # worker-specific fields
-    work_pool_name: str = None
-    work_queue_name: str = None
+    work_pool_name: Optional[str] = None
+    work_queue_name: Optional[str] = None
     infra_overrides: Optional[Dict[str, Any]] = None
     pull_steps: Optional[Dict[str, Any]] = None
 

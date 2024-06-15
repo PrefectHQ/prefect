@@ -375,8 +375,8 @@ class AwsSecret(SecretBlock):
     @sync_compatible
     async def read_secret(
         self,
-        version_id: str = None,
-        version_stage: str = None,
+        version_id: Optional[str] = None,
+        version_stage: Optional[str] = None,
         **read_kwargs: Dict[str, Any],
     ) -> bytes:
         """

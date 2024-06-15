@@ -253,8 +253,8 @@ async def read_flow_runs(
     deployment_filter: schemas.filters.DeploymentFilter = None,
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
 ) -> Sequence[orm_models.FlowRun]:
     """

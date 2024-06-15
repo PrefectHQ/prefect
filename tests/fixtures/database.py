@@ -4,7 +4,7 @@ import gc
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import AsyncContextManager, AsyncGenerator, Callable, Type
+from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
 import pendulum
 import pytest
@@ -955,12 +955,12 @@ def initialize_orchestration(flow):
         initial_details=None,
         initial_state_data=None,
         proposed_details=None,
-        flow_retries: int = None,
-        flow_run_count: int = None,
-        resuming: bool = None,
+        flow_retries: Optional[int] = None,
+        flow_run_count: Optional[int] = None,
+        resuming: Optional[bool] = None,
         initial_flow_run_state_details=None,
-        initial_state_name: str = None,
-        proposed_state_name: str = None,
+        initial_state_name: Optional[str] = None,
+        proposed_state_name: Optional[str] = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}

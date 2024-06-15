@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -242,13 +243,13 @@ async def _apply_artifact_collection_filters(
 
 async def read_artifacts(
     session: sa.orm.Session,
-    offset: int = None,
-    limit: int = None,
-    artifact_filter: filters.ArtifactFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
+    artifact_filter: Optional[filters.ArtifactFilter] = None,
+    flow_run_filter: Optional[filters.FlowRunFilter] = None,
+    task_run_filter: Optional[filters.TaskRunFilter] = None,
+    deployment_filter: Optional[filters.DeploymentFilter] = None,
+    flow_filter: Optional[filters.FlowFilter] = None,
     sort: sorting.ArtifactSort = sorting.ArtifactSort.ID_DESC,
 ):
     """
@@ -287,8 +288,8 @@ async def read_artifacts(
 
 async def read_latest_artifacts(
     session: sa.orm.Session,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
     artifact_filter: filters.ArtifactCollectionFilter = None,
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,

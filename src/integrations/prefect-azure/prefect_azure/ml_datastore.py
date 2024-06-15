@@ -3,7 +3,7 @@
 import os
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from anyio import to_thread
 from azureml.core.datastore import Datastore
@@ -59,7 +59,7 @@ def ml_list_datastores(ml_credentials: "AzureMlCredentials") -> Dict:
 
 
 async def _get_datastore(
-    ml_credentials: "AzureMlCredentials", datastore_name: str = None
+    ml_credentials: "AzureMlCredentials", datastore_name: Optional[str] = None
 ):
     """
     Helper method for get datastore to prevent Task calling another Task.
@@ -77,7 +77,7 @@ async def _get_datastore(
 
 @task
 async def ml_get_datastore(
-    ml_credentials: "AzureMlCredentials", datastore_name: str = None
+    ml_credentials: "AzureMlCredentials", datastore_name: Optional[str] = None
 ) -> Datastore:
     """
     Gets the Datastore within the Workspace.
@@ -119,9 +119,9 @@ async def ml_get_datastore(
 async def ml_upload_datastore(
     path: Union[str, Path, List[Union[str, Path]]],
     ml_credentials: "AzureMlCredentials",
-    target_path: Union[str, Path] = None,
-    relative_root: Union[str, Path] = None,
-    datastore_name: str = None,
+    target_path: Union[str, Path, None] = None,
+    relative_root: Union[str, Path, None] = None,
+    datastore_name: Optional[str] = None,
     overwrite: bool = False,
 ) -> "DataReference":
     """
@@ -209,7 +209,7 @@ async def ml_register_datastore_blob_container(
     container_name: str,
     ml_credentials: "AzureMlCredentials",
     blob_storage_credentials: "AzureBlobStorageCredentials",
-    datastore_name: str = None,
+    datastore_name: Optional[str] = None,
     create_container_if_not_exists: bool = False,
     overwrite: bool = False,
     set_as_default: bool = False,

@@ -81,9 +81,9 @@ if TYPE_CHECKING:
 
 @app.command()
 async def init(
-    name: str = None,
-    recipe: str = None,
-    fields: List[str] = typer.Option(
+    name: Optional[str] = None,
+    recipe: Optional[str] = None,
+    fields: Optional[List[str]] = typer.Option(
         None,
         "-f",
         "--field",
