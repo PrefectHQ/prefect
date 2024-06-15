@@ -157,7 +157,9 @@ for val in generator():
 <Warning>
 **Generator functions are consumed when returned from tasks**
 
-The result of a completed task must be serializable, but generators can not be serialized. Therefore, if you return a generator from a task, the generator will be fully consumed and its yielded values will be returned as a list. This can lead to unexpected behavior or blocking if the generator is infinite or very large.
+The result of a completed task must be serializable, but generators cannot be serialized. 
+Therefore, if you return a generator from a task, the generator will be fully consumed and its yielded values will be returned as a list. 
+This can lead to unexpected behavior or blocking if the generator is infinite or very large.
 
 Here is an example of proactive generator consumption:
 
@@ -175,7 +177,8 @@ def f():
 f()  # prints 'Generator consumed!'
 ```
 
-If you need to return a generator without consuming it, you can `yield` it instead of using `return`. Values yielded from generator tasks are not considered final results and do not face the same serialization constraints:
+If you need to return a generator without consuming it, you can `yield` it instead of using `return`. 
+Values yielded from generator tasks are not considered final results and do not face the same serialization constraints:
 
 ```python
 from prefect import task
@@ -317,7 +320,7 @@ def my_flow():
 
 **Call a task from another task**
 
-Task can be called from within another task:
+A task can be called from within another task:
 
 ```python
 from prefect import task
