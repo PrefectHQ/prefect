@@ -1,4 +1,4 @@
-collectionName: prefect-fugue
+integrationName: prefect-fugue
 author: The Fugue Development Team
 authorUrl: https://github.com/fugue-project/fugue
 documentation: https://fugue-project.github.io/prefect-fugue/
