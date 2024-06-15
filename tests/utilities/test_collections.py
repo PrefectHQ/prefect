@@ -261,8 +261,9 @@ class TestVisitCollection:
         def f():
             yield from [1, 2, 3]
 
-        result = visit_collection([f()], visit_fn=visit_even_numbers, return_data=True)
-        assert result is None
+        val = [f()]
+        result = visit_collection(val, visit_fn=visit_even_numbers, return_data=True)
+        assert result is val
         assert not EVEN
 
     @pytest.mark.parametrize(
