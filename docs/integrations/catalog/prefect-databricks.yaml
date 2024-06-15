@@ -1,6 +1,6 @@
-collectionName: prefect-databricks
+integrationName: prefect-databricks
 author: Prefect
 authorUrl: https://prefect.io
 documentation: https://prefecthq.github.io/prefect-databricks/
-iconUrl: /3.0rc/img/collections/databricks.png
+iconUrl: /images/integrations/databricks.png
 tag: Databricks
