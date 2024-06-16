@@ -307,14 +307,9 @@ def visit_collection(
         else:
             return visit_fn(expr)
 
-    if id(expr) in _seen:
-        # If we have already visited this expression, do not visit it again
-        return expr if return_data else None
-
-    # Visit every expression
+    # --- 1. Visit every expression
     try:
         result = visit_expression(expr)
-        _seen.add(id(expr))
     except StopVisiting:
         max_depth = 0
         result = expr
@@ -324,11 +319,14 @@ def visit_collection(
         # otherwise the function could return null and we have no collection to check
         expr = result
 
-    # Then, visit every child of the expression recursively
+    # --- 2. Visit every child of the expression recursively
 
-    # If we have reached the maximum depth, do not perform any recursion
-    if max_depth == 0:
+    # If we have reached the maximum depth or we have already visited this object,
+    # return the result if we are returning data, otherwise return None
+    if max_depth == 0 or id(expr) in _seen:
         return result if return_data else None
+    else:
+        _seen.add(id(expr))
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) and isiterable(expr) else type(expr)

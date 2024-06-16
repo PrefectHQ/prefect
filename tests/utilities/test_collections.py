@@ -389,31 +389,23 @@ class TestVisitCollection:
                 result, field
             ), f"The field '{field}' should be set in the result"
 
-    @pytest.mark.skipif(True, reason="We will recurse forever in this case")
-    def test_visit_collection_does_not_recurse_forever_in_reference_cycle(self):
+    def test_visit_collection_recursive_1(self):
+        obj = dict()
+        obj["a"] = obj
+        # this would raise a RecursionError if we didn't handle it properly
+        val = visit_collection(obj, lambda x: x, return_data=True)
+        assert val is obj
+
+    def test_visit_recursive_collection_2(self):
         # Create references to each other
         foo = Foo(x=None)
         bar = Bar(y=foo)
         foo.x = bar
 
-        visit_collection([foo, bar], visit_fn=negative_even_numbers, return_data=True)
+        val = [foo, bar]
 
-    @pytest.mark.skipif(True, reason="We will recurse forever in this case")
-    @pytest.mark.xfail(reason="We do not return correct results in this case")
-    def test_visit_collection_returns_correct_result_in_reference_cycle(self):
-        # Create references to each other
-        foo = Foo(x=None)
-        bar = Bar(y=foo)
-        foo.x = bar
-
-        result = visit_collection(
-            [foo, bar], visit_fn=negative_even_numbers, return_data=True
-        )
-        expected_foo = Foo(x=None)
-        expected_bar = Bar(y=foo, z=-2)
-        expected_foo.x = expected_bar
-
-        assert result == [expected_foo, expected_bar]
+        result = visit_collection(val, lambda x: x, return_data=True)
+        assert result is val
 
     def test_visit_collection_works_with_field_alias(self):
         class TargetConfigs(pydantic.BaseModel):
@@ -553,13 +545,6 @@ class TestVisitCollection:
         assert result.x[1] is val.x[1]
         assert result.y["a"] is not val.y["a"]
         assert result.y["d"] is val.y["d"]
-
-    def test_visit_collection_recursive(self):
-        obj = dict()
-        obj["a"] = obj
-        # this would raise a RecursionError if we didn't handle it properly
-        val = visit_collection(obj, lambda x: x, return_data=True)
-        assert val is obj
 
 
 class TestRemoveKeys:
