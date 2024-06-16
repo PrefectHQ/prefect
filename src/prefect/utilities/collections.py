@@ -227,6 +227,7 @@ def visit_collection(
     max_depth: int = -1,
     context: Optional[dict] = None,
     remove_annotations: bool = False,
+    _seen: Optional[Set[int]] = None,
 ) -> Any:
     """
     Visits and potentially transforms every element of an arbitrary Python collection.
@@ -277,10 +278,15 @@ def visit_collection(
             pass `context={}` and will not be activated by default.
         remove_annotations (bool): If set, annotations will be replaced by their contents. By
             default, annotations are preserved but their contents are visited.
+        _seen (Optional[Set[int]]): A set of object ids that have already been visited. This
+            prevents infinite recursion when visiting recursive data structures.
 
     Returns:
         Any: The modified collection if `return_data` is `True`, otherwise `None`.
     """
+
+    if _seen is None:
+        _seen = set()
 
     def visit_nested(expr):
         # Utility for a recursive call, preserving options and updating the depth.
@@ -292,6 +298,7 @@ def visit_collection(
             max_depth=max_depth - 1,
             # Copy the context on nested calls so it does not "propagate up"
             context=context.copy() if context is not None else None,
+            _seen=_seen,
         )
 
     def visit_expression(expr):
@@ -300,9 +307,14 @@ def visit_collection(
         else:
             return visit_fn(expr)
 
+    if id(expr) in _seen:
+        # If we have already visited this expression, do not visit it again
+        return expr if return_data else None
+
     # Visit every expression
     try:
         result = visit_expression(expr)
+        _seen.add(id(expr))
     except StopVisiting:
         max_depth = 0
         result = expr

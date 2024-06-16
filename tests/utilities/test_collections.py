@@ -554,6 +554,13 @@ class TestVisitCollection:
         assert result.y["a"] is not val.y["a"]
         assert result.y["d"] is val.y["d"]
 
+    def test_visit_collection_recursive(self):
+        obj = dict()
+        obj["a"] = obj
+        # this would raise a RecursionError if we didn't handle it properly
+        val = visit_collection(obj, lambda x: x, return_data=True)
+        assert val is obj
+
 
 class TestRemoveKeys:
     def test_remove_single_key(self):
