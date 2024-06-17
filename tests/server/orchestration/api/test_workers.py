@@ -12,7 +12,7 @@ from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
-from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
 from prefect.utilities.pydantic import parse_obj_as
 
 RESERVED_POOL_NAMES = [
@@ -1872,9 +1872,27 @@ class TestGetScheduledRuns:
             ), "Work queue should have updated last_polled"
             assert work_queue.last_polled > now
 
-    async def test_updates_work_queue_status_on_a_full_work_pool(
-        self, client, session, work_queues, work_pools
+    # @mock.patch("prefect.server.api.workers.mark_deployments_ready")
+    async def test_updates_statuses_on_a_full_work_pool(
+        self,
+        # mock_mark_deployments_ready: mock.MagicMock,
+        client,
+        session,
+        work_queues,
+        work_pools,
+        flow,
     ):
+        async def create_deployment_for_work_queue(work_queue_id):
+            return await models.deployments.create_deployment(
+                session=session,
+                deployment=schemas.core.Deployment(
+                    name="My Deployment",
+                    tags=["test"],
+                    flow_id=flow.id,
+                    work_queue_id=work_queue_id,
+                ),
+            )
+
         work_pool = work_pools["wp_a"]
 
         wq_not_ready = work_queues["wq_aa"]
@@ -1885,6 +1903,11 @@ class TestGetScheduledRuns:
 
         wq_ready = work_queues["wq_ac"]
         wq_ready.status = WorkQueueStatus.READY
+
+        deployments = [
+            await create_deployment_for_work_queue(wq.id)
+            for wq in (wq_not_ready, wq_paused, wq_ready)
+        ]
 
         await session.commit()
 
@@ -1908,6 +1931,10 @@ class TestGetScheduledRuns:
                 assert work_queue.status == WorkQueueStatus.PAUSED
             elif work_queue.id == wq_ready.id:
                 assert work_queue.status == WorkQueueStatus.READY
+
+        for deployment in deployments:
+            await session.refresh(deployment)
+            assert deployment.status == DeploymentStatus.READY
 
     async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
         self, client, work_pools, deployment
