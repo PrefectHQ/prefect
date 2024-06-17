@@ -151,7 +151,7 @@ MyClass.my_static_method()
 
 ### Generators
 
-Prefect supports synchronous and async generators as flows. The flow is considered to be `Running` as long as the generator is yielding values. When the generator is exhausted, the flow is considered `Completed`. Any values yielded by the generator can be consumed by other flows or tasks. 
+Prefect supports synchronous and asynchronous generators as flows. The flow is considered to be `Running` as long as the generator is yielding values. When the generator is exhausted, the flow is considered `Completed`. Any values yielded by the generator can be consumed by other flows or tasks. 
 
 ```python
 from prefect import flow
