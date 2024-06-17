@@ -182,11 +182,9 @@ This next script builds a deployment, identifying:
 
 - Source for the code to deploy (here, a GitHub repo)
 - Specific flow to run (`my_gh_workflow.py:repo_info`)
-- Work pool target (for example, `my-managed-pool`)
+- Work pool target (`my-work-pool`)
 - Cron schedule (1am every day)
 
-<Tabs>
-  <Tab title="Cloud">
 ```bash create_deployment.py
 from prefect import flow
 
@@ -199,17 +197,10 @@ if __name__ == "__main__":
         entrypoint="my_gh_workflow.py:repo_info",
     ).deploy(
         name="my-first-deployment",
-        work_pool_name="my-managed-pool",
+        work_pool_name="my-work-pool",
         cron="0 1 * * *",
     )
 ```
-  </Tab>
-  <Tab title="OSS">
-```bash
-TBD
-```
-  </Tab>
-</Tabs>
 
 <Tip>
 You can store your flow code in nearly any location as long as Prefect can access it.
