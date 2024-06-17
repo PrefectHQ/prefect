@@ -1476,11 +1476,8 @@ class TestTaskCaching:
         def foo(x):
             return x
 
-        @flow
-        def bar():
-            return foo(1, return_state=True), foo(2, return_state=True)
-
-        first_state, second_state = bar()
+        first_state = foo(1, return_state=True)
+        second_state = foo(2, return_state=True)
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert await second_state.result() == await first_state.result()
@@ -1491,13 +1488,10 @@ class TestTaskCaching:
         def foo(x):
             return x
 
-        @flow
-        def bar():
-            return foo(1, return_state=True), foo.with_options(
-                result_storage_key="after"
-            )(2, return_state=True)
-
-        first_state, second_state = bar()
+        first_state = foo(1, return_state=True)
+        second_state = foo.with_options(result_storage_key="after")(
+            2, return_state=True
+        )
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert await first_state.result() == 1
