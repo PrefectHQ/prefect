@@ -17,7 +17,7 @@ allowing you to observe and act on flow execution.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
-- A flow can be elevated to a [deployment](/3.0rc/deploy/serve-workflows/), which exposes a remote API for interacting with it.
+- A flow can be elevated to a [deployment](/3.0rc/deploy/serve-flows/), which exposes a remote API for interacting with it.
 
 ## Run your first flow
 
@@ -216,7 +216,7 @@ list(generator) # prints 'Generator consumed!'
 ## Parameters
 
 As with any Python function, you can pass arguments to a flow.
-The positional and keyword arguments defined on your flow function are called [parameters](/3.0rc/develop/write-workflows/#parameters).
+The positional and keyword arguments defined on your flow function are called [parameters](/3.0rc/develop/write-flows/#parameters).
 Prefect automatically performs type conversion using any provided type hints.
 
 Make the repository a string parameter with a default value:
@@ -282,7 +282,7 @@ For example, by running a Python script or importing the flow into an interactiv
 You can also create a flow run by:
 
 - Using external schedulers such as `cron` to invoke a flow function
-- Creating a [deployment](/3.0rc/deploy/serve-workflows/) on Prefect Cloud or a locally run Prefect server
+- Creating a [deployment](/3.0rc/deploy/serve-flows/) on Prefect Cloud or a locally run Prefect server
 - Creating a flow run for the deployment through a schedule, the Prefect UI, or the Prefect API
 
 However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
@@ -351,7 +351,7 @@ This allows Prefect to better contain task failures.
 ## Subflows
 
 In addition to calling tasks within a flow, you can also call other flows.
-Child flows are called [subflows](/3.0rc/develop/write-workflows/#composing-flows) and allow you to efficiently manage, 
+Child flows are called [subflows](/3.0rc/develop/write-flows/#composing-flows) and allow you to efficiently manage, 
 track, and version common multi-task logic.
 
 Subflows are a great way to organize your workflows and offer more visibility within the UI.
@@ -510,7 +510,7 @@ A task that represents a subflow is annotated in its `state_details` with the pr
 A subflow is identified with the presence of a `parent_task_run_id` on `state_details`.
 
 You can define multiple flows within the same file.
-Whether running locally or through a [deployment](/3.0rc/deploy/serve-workflows/), you must indicate which flow is the entrypoint for a flow run.
+Whether running locally or through a [deployment](/3.0rc/deploy/serve-flows/), you must indicate which flow is the entrypoint for a flow run.
 
 <Warning>
 **Cancelling subflow runs**
@@ -646,7 +646,7 @@ def model_validator(model: Model):
     print(model)
 ```
 
-Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/serve-workflows/).
+Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/serve-flows/).
 Flow run parameters sent to the API on flow calls are coerced to a serializable form.
 Type hints on your flow functions provide a way of automatically coercing JSON provided values to their appropriate Python representation.
 
@@ -967,7 +967,7 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 
 ## See also
 
-- Store and reuse non-sensitive bits of data, such as configuration information, by using [variables](/3.0rc/develop/write-workflows/variables).
+- Store and reuse non-sensitive bits of data, such as configuration information, by using [variables](/3.0rc/develop/write-flows/variables).
 - Supercharge this flow with [tasks](/3.0rc/develop/write-tasks/) to break down the workflow's complexity and make it more performant and observable.
 
 
