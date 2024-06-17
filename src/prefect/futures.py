@@ -245,6 +245,10 @@ def resolve_futures_to_states(
         context={},
     )
 
+    # if no futures were found, return the original expression
+    if not futures:
+        return expr
+
     # Get final states for each future
     states = []
     for future in futures:
