@@ -467,9 +467,6 @@ class TaskRunEngine(Generic[P, R]):
                                 extra_task_inputs=dependencies,
                             )
                         )
-                        self.logger.info(
-                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
-                        )
                     # Emit an event to capture that the task run was in the `PENDING` state.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
@@ -478,6 +475,10 @@ class TaskRunEngine(Generic[P, R]):
                     )
 
                     with self.setup_run_context():
+                        # setup_run_context might update the task run name, so log creation here
+                        self.logger.info(
+                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                        )
                         yield self
 
                 except Exception:
