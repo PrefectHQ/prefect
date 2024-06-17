@@ -2789,6 +2789,63 @@
                 }
             }
         },
+        "/api/deployments/paginate": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Paginate Deployments",
+                "description": "Pagination query for flow runs.",
+                "operationId": "paginate_deployments_deployments_paginate_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_paginate_deployments_deployments_paginate_post"
+                                    }
+                                ],
+                                "title": "Body"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentPaginationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/deployments/get_scheduled_flow_runs": {
             "post": {
                 "tags": [
@@ -13153,6 +13210,73 @@
                 ],
                 "title": "Body_next_runs_by_flow_ui_flows_next_runs_post"
             },
+            "Body_paginate_deployments_deployments_paginate_post": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
+                    },
+                    "flows": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
+                    },
+                    "flow_runs": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
+                    },
+                    "task_runs": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
+                    },
+                    "deployments": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
+                    },
+                    "work_pools": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
+                    },
+                    "work_pool_queues": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
+                    },
+                    "sort": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentSort"
+                            }
+                        ],
+                        "default": "NAME_ASC"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_paginate_deployments_deployments_paginate_post"
+            },
             "Body_paginate_flow_runs_flow_runs_paginate_post": {
                 "properties": {
                     "sort": {
@@ -16036,6 +16160,42 @@
                 "type": "object",
                 "title": "DeploymentOrFlowNameFilter",
                 "description": "Filter by `Deployment.name` or `Flow.name` with a single input string for ilike filtering."
+            },
+            "DeploymentPaginationResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DeploymentResponse"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "title": "Count"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit"
+                    },
+                    "pages": {
+                        "type": "integer",
+                        "title": "Pages"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "results",
+                    "count",
+                    "limit",
+                    "pages",
+                    "page"
+                ],
+                "title": "DeploymentPaginationResponse"
             },
             "DeploymentResponse": {
                 "properties": {

@@ -470,6 +470,7 @@
             "3.0rc/api-ref/server/deployments/update-deployment",
             "3.0rc/api-ref/server/deployments/read-deployment-by-name",
             "3.0rc/api-ref/server/deployments/read-deployments",
+            "3.0rc/api-ref/server/deployments/paginate-deployments",
             "3.0rc/api-ref/server/deployments/get-scheduled-flow-runs-for-deployments",
             "3.0rc/api-ref/server/deployments/count-deployments",
             "3.0rc/api-ref/server/deployments/schedule-deployment",
