@@ -115,7 +115,7 @@ The `log_prints=True` argument provided to the `@flow` decorator logs output fro
 
 ## Run your flow
 
-Run your flow using Python.
+Run your Prefect flow.
 
 ```bash
 python my_gh_workflow.py
@@ -139,25 +139,36 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 
 ## Create a work pool
 
-Running a flow locally is a good start, but a remote destination is used for production.
+Running a flow locally is a good start, but you should use a remote destination for production flows.
 Create a work pool with Cloud or OSS.
 
 <Tabs>
   <Tab title="Cloud">
-You can create a [managed work pool](/3.0rc/deploy/serve-flows/index) in the UI or from the CLI.
+Create a [managed work pool](/3.0rc/deploy/serve-flows/index):
 
 ```bash
-prefect work-pool create my-managed-pool --type prefect:managed
+prefect work-pool create my-work-pool --type prefect:managed
 ```
 
 You can view your new work pool on the **Work Pools** page of the UI.
   </Tab>
   <Tab title="OSS">
-You can create a worker-based work pool using the CLI.
 In this example, we'll create a Docker type work pool, but you can choose from other [work pool types](https://docs.prefect.io/concepts/work-pools/#worker-types).
 
+<Info>
+You need to have Docker installed and running on your machine to create a Docker work pool.
+</Info>
+
+Create a Docker type work pool:
+
 ```bash
-TBD
+prefect work-pool create --type docker my-work-pool
+```
+
+Verify that the work pool was created:
+
+```bash
+prefect work-pool ls
 ```
   </Tab>
 </Tabs>
