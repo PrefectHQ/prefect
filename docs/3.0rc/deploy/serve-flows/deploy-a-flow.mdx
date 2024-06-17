@@ -12,7 +12,7 @@ search:
   boost: 2
 ---
 
-[Deployments](/3.0rc/deploy/serve-workflows/) are server-side representations of flows. 
+[Deployments](/3.0rc/deploy/serve-flows/) are server-side representations of flows. 
 They store the crucial metadata for remote orchestration including when, where, and 
 how a workflow should run.
 
@@ -23,11 +23,11 @@ Attributes of a deployment include:
 - **Tags**: optional text labels for organizing deployments
 
 Some of the most common reasons to use an orchestration tool like Prefect are for 
-[scheduling](/3.0rc/deploy/serve-workflows/add-schedules/) and [event-based triggering](/3.0rc/react/understand-events/automations-triggers/).
+[scheduling](/3.0rc/deploy/serve-flows/add-schedules/) and [event-based triggering](/3.0rc/react/understand-events/automations-triggers/).
 As opposed to manually triggering and managing flow runs, deploying a flow exposes an API and 
 UI that allow you to:
 
-- trigger new runs, [cancel active runs](/3.0rc/develop/write-workflows/#cancel-a-flow-run), 
+- trigger new runs, [cancel active runs](/3.0rc/develop/write-flows/#cancel-a-flow-run), 
 pause scheduled runs, customize parameters, and more
 - remotely configure schedules and automation rules for your deployments
 - dynamically provision infrastructure using [workers](/3.0rc/tutorials/workers/)
@@ -93,11 +93,11 @@ In your terminal or UI, you should see the newly created run execute successfull
 ### Additional options
 
 The `serve` method on flows exposes many options for the deployment. For more information, see 
-[Serve a flow](3.0rc/deploy/serve-workflows/serve-a-flow)
+[Serve a flow](3.0rc/deploy/serve-flows/serve-a-flow)
 Here's how to use some of those options:
 
 - `cron`: a keyword that allows you to set a cron string schedule for the deployment; see 
-[schedules](/3.0rc/deploy/serve-workflows/add-schedules/) for more advanced scheduling options
+[schedules](/3.0rc/deploy/serve-flows/add-schedules/) for more advanced scheduling options
 - `tags`: a keyword that allows you to tag this deployment and its runs for bookkeeping and filtering purposes
 - `description`: a keyword that allows you to document what this deployment does; by default the 
 description is set from the docstring of the flow function (if documented)
@@ -271,9 +271,9 @@ scheduled with different values through parameters.
 
 These are the fields to capture the required metadata for those actions:
 
-- **`schedules`**: a list of [schedule objects](/3.0rc/deploy/serve-workflows/add-schedules/).
+- **`schedules`**: a list of [schedule objects](/3.0rc/deploy/serve-flows/add-schedules/).
 Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves.
-For example, when [updating a deployment schedule in the UI](/3.0rc/deploy/serve-workflows/add-schedules/#creating-schedules-through-the-ui) 
+For example, when [updating a deployment schedule in the UI](/3.0rc/deploy/serve-flows/add-schedules/#creating-schedules-through-the-ui) 
 basic information such as a cron string or interval is all that's required.
 - **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment.
 For more information see [Automations](/3.0rc/react/understand-events/automations-triggers/).
@@ -404,8 +404,8 @@ GitHub with each run of their deployment.
 
 ### Serving flows on long-lived infrastructure
 
-When you have several flows running regularly, [the `serve` method](/3.0rc/develop/write-workflows/#serving-a-flow) 
-of the `Flow` object or [the `serve` utility](/3.0rc/develop/write-workflows/#serving-multiple-flows-at-once) 
+When you have several flows running regularly, [the `serve` method](/3.0rc/develop/write-flows/#serving-a-flow) 
+of the `Flow` object or [the `serve` utility](/3.0rc/develop/write-flows/#serving-multiple-flows-at-once) 
 is a great option for managing multiple flows simultaneously.
 
 Once you have authored your flow and decided on its deployment settings, run this long-running 

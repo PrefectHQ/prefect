@@ -59,7 +59,7 @@ Note that you need to both host your own server and run flows on your own infras
 ## Convert your function to a Prefect flow
 
 The easiest way convert a Python function into a workflow is to add a `@flow` decorator.
-[Flows](/3.0rc/develop/write-workflows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
+[Flows](/3.0rc/develop/write-flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
 
 ```python my_gh_workflow.py
 import httpx   # an HTTP client library and dependency of Prefect
@@ -133,7 +133,7 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 
 Running a flow locally is a good start, but a remote destination is used for production. Tell Prefect where to run the workflow by creating a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/).
 
-Prefect Cloud can run the flow code using a [Prefect Managed work pool](/3.0rc/deploy/serve-workflows/index). You can create a work pool in the UI or from the CLI.
+Prefect Cloud can run the flow code using a [Prefect Managed work pool](/3.0rc/deploy/serve-flows/index). You can create a work pool in the UI or from the CLI.
 
 ```bash
 prefect work-pool create my-managed-pool --type prefect:managed
@@ -145,7 +145,7 @@ You'll see the work pool created by the CLI. You can also view your new work poo
 
 The final step is to deploy your flow so it can run remotely on a schedule. 
 
-A [deployment](/3.0rc/deploy/serve-workflows/) schedules a flow function to run in your work pool. Deployments elevate flows to remotely configurable entities that have their own API.
+A [deployment](/3.0rc/deploy/serve-flows/) schedules a flow function to run in your work pool. Deployments elevate flows to remotely configurable entities that have their own API.
 
 This next script builds a deployment, identifying:
 
@@ -173,7 +173,7 @@ if __name__ == "__main__":
 ```
 
 <Tip>
-You can store your flow code in nearly any location as long as Prefect can access it. This example uses a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage. Read [Where to store your flow code](/3.0rc/deploy/dynamic-infra/retrieve-workflow-code) for details.
+You can store your flow code in nearly any location as long as Prefect can access it. This example uses a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage. Read [Where to store your flow code](/3.0rc/deploy/dynamic-infra/retrieve-flow-code) for details.
 </Tip>
 
 Run the script to create the deployment on the Prefect Cloud server.
@@ -217,7 +217,7 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 
 You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect. Now considering reading: 
 
-* [Write workflows](/3.0rc/develop/write-workflows/index)
+* [Write flows](/3.0rc/develop/write-flows/index)
 * [Write tasks](/3.0rc/develop/write-tasks/index)
 * [Self-host](/3.0rc/cloud/self-host) your Prefect server
 

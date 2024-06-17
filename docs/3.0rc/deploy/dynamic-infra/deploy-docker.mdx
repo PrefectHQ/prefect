@@ -3,7 +3,7 @@ title: Run Flows with Docker
 description: Learn how to store your flow code in a Docker image and serve your flow on any docker-compatible infrastructure.
 ---
 
-The [Deployments](/3.0rc/deploy/serve-workflows/) guide showed how to serve a flow on a schedule.
+The [Deployments](/3.0rc/deploy/serve-flows/) guide showed how to serve a flow on a schedule.
 
 With a Python script, you can build a Docker image for that script, allowing you to serve your flow 
 This guide demonstrates running a flow in Kubernetes, but you can use any Docker-compatible 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
 ## Prerequisites
 
 - A Python script that defines and serves a flow. This guide uses the flow script and 
-deployment from the [Deployments](/3.0rc/deploy/serve-workflows/) guide.
+deployment from the [Deployments](/3.0rc/deploy/serve-flows/) guide.
 - Access to a running Prefect API server. Sign up for a forever free 
 [Prefect Cloud account](https://docs.prefect.io/cloud/), or run a Prefect API server 
 locally with `prefect server start`.
@@ -59,7 +59,7 @@ cd prefect-docker-guide
 ```
 
 In this directory, create a sub-directory named `flows` and put your flow script 
-from the [Deployments](/3.0rc/deploy/serve-workflows/) guide in it.
+from the [Deployments](/3.0rc/deploy/serve-flows/) guide in it.
 
 ```bash
 mkdir flows
@@ -432,8 +432,8 @@ not when a flow's code changes.
 - You can extend this setup to serve 
 multiple flows in a single Docker image by updating your Python script to use 
 `flow.to_deployment` and `serve` to [serve multiple flows or the same flow with 
-different configuration](/3.0rc/develop/write-workflows#serving-multiple-flows-at-once).
-- To learn more about deploying flows, check out the [Deployments](/3.0rc/deploy/serve-workflows/) 
+different configuration](/3.0rc/develop/write-flows#serving-multiple-flows-at-once).
+- To learn more about deploying flows, check out the [Deployments](/3.0rc/deploy/serve-flows/) 
 concept doc.
 - For advanced infrastructure requirements, such as executing each flow run within its own dedicated 
 Docker container, learn more in the [Work pool deployment guide](/3.0rc/guides/prefect-deploy/).

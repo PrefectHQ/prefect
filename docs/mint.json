@@ -71,11 +71,11 @@
       "version": "3.0rc",
       "pages": [
         {
-          "group": "Write workflows",
+          "group": "Write flows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/write-workflows/index",
-            "3.0rc/develop/write-workflows/variables"
+            "3.0rc/develop/write-flows/index",
+            "3.0rc/develop/write-flows/variables"
           ]
         },
         {
@@ -114,7 +114,7 @@
           ]
         },
         "3.0rc/develop/connect-third-party",
-        "3.0rc/develop/test-workflows"
+        "3.0rc/develop/test-flows"
       ]
     },
     {
@@ -122,12 +122,12 @@
       "version": "3.0rc",
       "pages": [
         {
-          "group": "Serve workflows",
+          "group": "Serve flows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/serve-workflows/deploy-a-flow",
-            "3.0rc/deploy/serve-workflows/serve-a-flow",
-            "3.0rc/deploy/serve-workflows/add-schedules"
+            "3.0rc/deploy/serve-flows/deploy-a-flow",
+            "3.0rc/deploy/serve-flows/serve-a-flow",
+            "3.0rc/deploy/serve-flows/add-schedules"
           ]
         },
         {
