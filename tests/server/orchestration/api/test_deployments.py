@@ -1411,8 +1411,10 @@ class TestPaginateDeployments:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()["results"]) == 1
 
-    async def test_paginate_deployments_offset(self, deployments, client, session):
-        response = await client.post("/deployments/paginate", json=dict(offset=1))
+    async def test_paginate_deployments_page(self, deployments, client, session):
+        response = await client.post(
+            "/deployments/paginate", json=dict(page=2, limit=1)
+        )
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()["results"]) == 1
         # sorted by name by default
