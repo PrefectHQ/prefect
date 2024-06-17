@@ -1686,7 +1686,7 @@ def load_flow_from_entrypoint(
         FlowScriptError: If an exception is encountered while running the script
         MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
-    with PrefectObjectRegistry(
+    with PrefectObjectRegistry(  # type: ignore
         block_code_execution=True,
         capture_failures=True,
     ):
@@ -1711,7 +1711,7 @@ def load_flow_from_entrypoint(
         return flow
 
 
-def load_flow_from_text(script_contents: AnyStr, flow_name: str):
+def load_flow_from_text(script_contents: AnyStr, flow_name: str) -> Flow:
     """
     Load a flow from a text script.
 
@@ -1742,7 +1742,7 @@ async def serve(
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs,
-):
+) -> NoReturn:
     """
     Serve the provided list of deployments.
 
@@ -1832,7 +1832,7 @@ async def load_flow_from_flow_run(
     flow_run: "FlowRun",
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
-) -> "Flow":
+) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
 
@@ -1886,7 +1886,9 @@ async def load_flow_from_flow_run(
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        run_logger.debug(
+            f"Running {len(deployment.pull_steps)} deployment pull step(s)"
+        )
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
