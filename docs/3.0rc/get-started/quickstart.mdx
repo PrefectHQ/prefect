@@ -64,9 +64,9 @@ Note that you need to both host your own server and run flows on your own infras
   </Tab>
 </Tabs>
 
-## Convert your function to a Prefect flow
+## Convert your script to a Prefect flow
 
-The easiest way convert a Python function into a workflow is to add a `@flow` decorator.
+The easiest way convert a Python script into a workflow is to add a `@flow` decorator.
 [Flows](/3.0rc/develop/write-flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
 
 The following flow calls two tasks, each defined by the `@task` decorator.
