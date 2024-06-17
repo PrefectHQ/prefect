@@ -3,7 +3,7 @@ import logging
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from unittest.mock import AsyncMock, MagicMock, call
 from uuid import UUID, uuid4
 
@@ -160,7 +160,7 @@ class TestTaskRunsAsync:
 
     async def test_with_params(self):
         @task
-        async def bar(x: int, y: str = None):
+        async def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
@@ -463,7 +463,7 @@ class TestTaskRunsSync:
 
     def test_with_params(self):
         @task
-        def bar(x: int, y: str = None):
+        def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
@@ -1412,6 +1412,34 @@ class TestGenerators:
         except ValueError:
             pass
         assert values == [1, 2]
+
+    def test_generators_can_be_yielded_without_being_consumed(self):
+        CONSUMED = []
+
+        @task
+        def g():
+            CONSUMED.append("g")
+            yield 1
+            yield 2
+
+        @task
+        def f_return():
+            return g()
+
+        @task
+        def f_yield():
+            yield g()
+
+        # returning a generator automatically consumes it
+        # because it can't be serialized
+        f_return()
+        assert CONSUMED == ["g"]
+        CONSUMED.clear()
+
+        gen = next(f_yield())
+        assert CONSUMED == []
+        list(gen)
+        assert CONSUMED == ["g"]
 
 
 class TestAsyncGenerators:

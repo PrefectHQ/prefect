@@ -89,7 +89,6 @@ from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
-    is_async_fn,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -289,7 +288,18 @@ class Flow(Generic[P, R]):
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
-        self.isasync = is_async_fn(self.fn)
+
+        # the flow is considered async if its function is async or an async
+        # generator
+        self.isasync = inspect.iscoroutinefunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
+
+        # the flow is considered a generator if its function is a generator or
+        # an async generator
+        self.isgenerator = inspect.isgeneratorfunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
 
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
@@ -1349,8 +1359,8 @@ def flow(
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
     task_runner: Optional[TaskRunner] = None,
-    description: str = None,
-    timeout_seconds: Union[int, float] = None,
+    description: Optional[str] = None,
+    timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -1378,11 +1388,11 @@ def flow(
     name: Optional[str] = None,
     version: Optional[str] = None,
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = None,
-    retry_delay_seconds: Union[int, float] = None,
+    retries: Optional[int] = None,
+    retry_delay_seconds: Union[int, float, None] = None,
     task_runner: Optional[TaskRunner] = None,
-    description: str = None,
-    timeout_seconds: Union[int, float] = None,
+    description: Optional[str] = None,
+    timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -1583,7 +1593,9 @@ flow.from_source = Flow.from_source
 
 
 def select_flow(
-    flows: Iterable[Flow], flow_name: str = None, from_message: str = None
+    flows: Iterable[Flow],
+    flow_name: Optional[str] = None,
+    from_message: Optional[str] = None,
 ) -> Flow:
     """
     Select the only flow in an iterable or a flow specified by name.
@@ -1597,33 +1609,33 @@ def select_flow(
         UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
     # Convert to flows by name
-    flows = {f.name: f for f in flows}
+    flows_dict = {f.name: f for f in flows}
 
     # Add a leading space if given, otherwise use an empty string
     from_message = (" " + from_message) if from_message else ""
-    if not flows:
+    if not Optional:
         raise MissingFlowError(f"No flows found{from_message}.")
 
-    elif flow_name and flow_name not in flows:
+    elif flow_name and flow_name not in flows_dict:
         raise MissingFlowError(
             f"Flow {flow_name!r} not found{from_message}. "
-            f"Found the following flows: {listrepr(flows.keys())}. "
+            f"Found the following flows: {listrepr(flows_dict.keys())}. "
             "Check to make sure that your flow function is decorated with `@flow`."
         )
 
-    elif not flow_name and len(flows) > 1:
+    elif not flow_name and len(flows_dict) > 1:
         raise UnspecifiedFlowError(
             (
-                f"Found {len(flows)} flows{from_message}:"
-                f" {listrepr(sorted(flows.keys()))}. Specify a flow name to select a"
+                f"Found {len(flows_dict)} flows{from_message}:"
+                f" {listrepr(sorted(flows_dict.keys()))}. Specify a flow name to select a"
                 " flow."
             ),
         )
 
     if flow_name:
-        return flows[flow_name]
+        return flows_dict[flow_name]
     else:
-        return list(flows.values())[0]
+        return list(flows_dict.values())[0]
 
 
 def load_flows_from_script(path: str) -> List[Flow]:
@@ -1640,7 +1652,7 @@ def load_flows_from_script(path: str) -> List[Flow]:
     return registry_from_script(path).get_instances(Flow)
 
 
-def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
+def load_flow_from_script(path: str, flow_name: Optional[str] = None) -> Flow:
     """
     Extract a flow object from a script by running all of the code in the file.
 
@@ -1684,7 +1696,7 @@ def load_flow_from_entrypoint(
         FlowScriptError: If an exception is encountered while running the script
         MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
-    with PrefectObjectRegistry(
+    with PrefectObjectRegistry(  # type: ignore
         block_code_execution=True,
         capture_failures=True,
     ):
@@ -1709,7 +1721,7 @@ def load_flow_from_entrypoint(
         return flow
 
 
-def load_flow_from_text(script_contents: AnyStr, flow_name: str):
+def load_flow_from_text(script_contents: AnyStr, flow_name: str) -> Flow:
     """
     Load a flow from a text script.
 
@@ -1740,7 +1752,7 @@ async def serve(
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs,
-):
+) -> NoReturn:
     """
     Serve the provided list of deployments.
 
@@ -1830,7 +1842,7 @@ async def load_flow_from_flow_run(
     flow_run: "FlowRun",
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
-) -> "Flow":
+) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
 
@@ -1884,7 +1896,9 @@ async def load_flow_from_flow_run(
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        run_logger.debug(
+            f"Running {len(deployment.pull_steps)} deployment pull step(s)"
+        )
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
