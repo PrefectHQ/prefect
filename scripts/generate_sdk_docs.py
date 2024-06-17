@@ -27,7 +27,7 @@ def main():
                 continue
             modules.append(submodule)
 
-        package_docs = docs_path() / "mkdocs/sdk"
+        package_docs = docs_path() / "mkdocs"
 
         print(modules)
 
