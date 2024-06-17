@@ -1471,12 +1471,17 @@ class TestTaskCaching:
         assert await s3.result() == 6
         assert await s4.result() == 6
 
-    async def test_cache_key_fn_takes_precedence_over_cache_policy(self, caplog):
-        # TODO: remove the need to set persist_result=True
+    async def test_cache_key_fn_takes_precedence_over_cache_policy(
+        self, caplog, tmpdir
+    ):
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        block.save("test-cache-key-fn-takes-precedence-over-cache-policy")
+
         @task(
             cache_key_fn=lambda *_: "cache-hit-9",
             cache_policy=INPUTS,
-            persist_result=True,
+            result_storage=block,
         )
         def foo(x):
             return x
