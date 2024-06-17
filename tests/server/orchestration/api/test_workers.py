@@ -1845,23 +1845,31 @@ class TestGetScheduledRuns:
                 assert work_queue.last_polled is None
 
     async def test_updates_last_polled_on_a_full_work_pool(
-        self, client, work_queues, work_pools
+        self, client, session, work_queues, work_pools
     ):
+        work_pool = work_pools["wp_a"]
+        work_queues["wq_aa"].status = WorkQueueStatus.NOT_READY
+        work_queues["wq_ab"].status = WorkQueueStatus.PAUSED
+        work_queues["wq_ac"].status = WorkQueueStatus.READY
+        await session.commit()
+
         now = pendulum.now("UTC")
         poll_response = await client.post(
-            f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/work_pools/{work_pool.name}/get_scheduled_flow_runs",
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
         work_queues_response = await client.post(
-            f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
+            f"/work_pools/{work_pool.name}/queues/filter"
         )
         assert work_queues_response.status_code == status.HTTP_200_OK
 
         work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
         for work_queue in work_queues:
-            assert work_queue.last_polled is not None
+            assert (
+                work_queue.last_polled is not None
+            ), "Work queue should have updated last_polled"
             assert work_queue.last_polled > now
 
     async def test_updates_work_queue_status_on_a_full_work_pool(
