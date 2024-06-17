@@ -387,6 +387,7 @@ async def serve(
     """
     task_worker = TaskWorker(*tasks, limit=limit)
 
+    status_server_task = None
     if status_server_port is not None:
         server = uvicorn.Server(
             uvicorn.Config(
