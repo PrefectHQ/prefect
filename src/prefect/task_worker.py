@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import AsyncExitStack
 from contextvars import copy_context
 from typing import List, Optional
+from uuid import UUID
 
 import anyio
 import anyio.abc
@@ -160,6 +161,26 @@ class TaskWorker:
 
         raise StopTaskWorker
 
+    async def _acquire_token(self, task_run_id: UUID) -> bool:
+        try:
+            if self._limiter:
+                await self._limiter.acquire_on_behalf_of(task_run_id)
+        except RuntimeError:
+            logger.debug(f"Token already acquired for task run: {task_run_id!r}")
+            return False
+
+        return True
+
+    def _release_token(self, task_run_id: UUID) -> bool:
+        try:
+            if self._limiter:
+                self._limiter.release_on_behalf_of(task_run_id)
+        except RuntimeError:
+            logger.debug(f"No token to release for task run: {task_run_id!r}")
+            return False
+
+        return True
+
     async def _subscribe_to_task_scheduling(self):
         base_url = PREFECT_API_URL.value()
         if base_url is None:
@@ -179,11 +200,12 @@ class TaskWorker:
             base_url=base_url,
         ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
-            if self._limiter:
-                await self._limiter.acquire_on_behalf_of(task_run.id)
-            self._runs_task_group.start_soon(
-                self._safe_submit_scheduled_task_run, task_run
-            )
+
+            token_acquired = await self._acquire_token(task_run.id)
+            if token_acquired:
+                self._runs_task_group.start_soon(
+                    self._safe_submit_scheduled_task_run, task_run
+                )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
         self.in_flight_task_runs[task_run.task_key].add(task_run.id)
@@ -196,8 +218,7 @@ class TaskWorker:
             )
         finally:
             self.in_flight_task_runs[task_run.task_key].discard(task_run.id)
-            if self._limiter:
-                self._limiter.release_on_behalf_of(task_run.id)
+            self._release_token(task_run.id)
 
     async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
@@ -308,9 +329,9 @@ class TaskWorker:
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task worker."""
         async with self if not self.started else asyncnullcontext():
-            if self._limiter:
-                await self._limiter.acquire_on_behalf_of(task_run.id)
-            await self._safe_submit_scheduled_task_run(task_run)
+            token_acquired = await self._acquire_token(task_run.id)
+            if token_acquired:
+                await self._safe_submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
         logger.debug("Starting task worker...")
