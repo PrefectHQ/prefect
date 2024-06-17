@@ -1,8 +1,10 @@
 """
 Prefect deployment steps for building and pushing Docker images.
+
 These steps can be used in a `prefect.yaml` file to define the default
 build steps for a group of deployments, or they can be used to define
 the build step for a specific deployment.
+
 !!! example
     Build a Docker image before deploying a flow:
     ```yaml
@@ -12,6 +14,7 @@ the build step for a specific deployment.
             requires: prefect-docker
             image_name: repo-name/image-name
             tag: dev
+
     push:
         - prefect_docker.deployments.steps.push_docker_image:
             requires: prefect-docker
@@ -44,6 +47,7 @@ from prefect.utilities.slugify import slugify
 class BuildDockerImageResult(TypedDict):
     """
     The result of a `build_docker_image` step.
+
     Attributes:
         image_name: The name of the built image.
         tag: The tag of the built image.
@@ -62,6 +66,7 @@ class BuildDockerImageResult(TypedDict):
 class PushDockerImageResult(TypedDict):
     """
     The result of a `push_docker_image` step.
+
     Attributes:
         image_name: The name of the pushed image.
         tag: The tag of the pushed image.
@@ -111,8 +116,10 @@ def build_docker_image(
 ) -> BuildDockerImageResult:
     """
     Builds a Docker image for a Prefect deployment.
+
     Can be used within a `prefect.yaml` file to build a Docker
     image prior to creating or updating a deployment.
+
     Args:
         image_name: The name of the Docker image to build, including the registry and
             repository.
@@ -254,6 +261,7 @@ def push_docker_image(
 ) -> PushDockerImageResult:
     """
     Push a Docker image to a remote registry.
+
     Args:
         image_name: The name of the Docker image to push, including the registry and
             repository.
