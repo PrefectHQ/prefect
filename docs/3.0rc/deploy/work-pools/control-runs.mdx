@@ -22,7 +22,7 @@ Work pools organize work for execution. Work pools have types corresponding to t
 as well as the delivery method of work to that environment. Pull work pools require workers to poll the work 
 pool for flow runs to execute. [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless) submit runs directly to your 
 serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
-[Managed work pools](/3.0rc/guides/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
+[Managed work pools](/3.0rc/deploy/work-pools/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
 
 <Tip>
 **Work pools are like pub/sub topics**
@@ -646,7 +646,7 @@ scheduled start time.
 
 ### Polling for work
 
-Workers poll for work every 15 seconds by default. You can configure this interval in your [profile settings](/3.0rc/cloud/configure-client/) 
+Workers poll for work every 15 seconds by default. You can configure this interval in your [profile settings](/3.0rc/manage/configure-client/) 
 with the
 `PREFECT_WORKER_QUERY_SECONDS` setting.
 
@@ -700,9 +700,9 @@ Other advantages of work pools:
 
 - Configure default infrastructure configurations on your work pools that all jobs inherit and can override.
 - Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
-- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/dynamic-infra/control-runs/#work-queues).
+- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/work-pools/control-runs/#work-queues).
 
-Prefect provides several [types of work pools](/3.0rc/deploy/dynamic-infra/control-runs/#work-pool-types).
+Prefect provides several [types of work pools](/3.0rc/deploy/work-pools/control-runs/#work-pool-types).
 Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
