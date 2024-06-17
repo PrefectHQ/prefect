@@ -123,6 +123,7 @@ from prefect.task_runners import SequentialTaskRunner
 @flow(
     name="My Flow",
     description="My flow using SequentialTaskRunner",
+    task_runner=SequentialTaskRunner())
 )
 def my_flow():
     return
