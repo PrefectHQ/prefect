@@ -1139,7 +1139,9 @@ class TestCachePolicy:
         assert await state.result() == 1800
         assert state.data.storage_key == "foo-bar"
 
-    async def test_cache_expiration_is_respected(self, prefect_client, tmp_path):
+    async def test_cache_expiration_is_respected(
+        self, prefect_client, tmp_path, advance_time
+    ):
         fs = LocalFileSystem(basepath=tmp_path)
 
         @task(
@@ -1164,7 +1166,7 @@ class TestCachePolicy:
         assert first_result == second_result, "Cache was not used"
 
         # let cache expire...
-        await asyncio.sleep(1.1)
+        advance_time(timedelta(seconds=1.1))
 
         third_state = await async_task(return_state=True)
         assert third_state.is_completed()
