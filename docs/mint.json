@@ -182,6 +182,7 @@
           "pages": [
             "3.0rc/manage/cloud/index",
             "3.0rc/manage/cloud/connect-to-cloud",
+            "3.0rc/manage/cloud/workspaces",
             {
               "group": "Manage users",
               "version": "3.0rc",
