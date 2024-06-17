@@ -25,8 +25,14 @@ def prefect_db():
     """
     Sets up test harness for temporary DB during test runs.
     """
-    with prefect_test_harness():
-        yield
+    try:
+        with prefect_test_harness():
+            yield
+    except OSError as e:
+        if "Directory not empty" in str(e):
+            pass
+        else:
+            raise e
 
 
 @pytest.fixture(autouse=True)
@@ -50,18 +56,6 @@ def credentials_params():
 
 
 @pytest.fixture()
-def connector_params(credentials_params):
-    snowflake_credentials = SnowflakeCredentials(**credentials_params)
-    _connector_params = {
-        "schema": "schema_input",
-        "database": "database",
-        "warehouse": "warehouse",
-        "credentials": snowflake_credentials,
-    }
-    return _connector_params
-
-
-@pytest.fixture()
 def private_credentials_params():
     return {
         "account": "account",
@@ -79,18 +73,6 @@ def private_key_path_credentials_params():
         "private_key_path": "path/to/private/key",
         "private_key_passphrase": "letmein",
     }
-
-
-@pytest.fixture()
-def private_connector_params(private_credentials_params):
-    snowflake_credentials = SnowflakeCredentials(**private_credentials_params)
-    _connector_params = {
-        "schema": "schema_input",
-        "database": "database",
-        "warehouse": "warehouse",
-        "credentials": snowflake_credentials,
-    }
-    return _connector_params
 
 
 @pytest.fixture()

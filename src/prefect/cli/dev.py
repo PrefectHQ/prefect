@@ -12,7 +12,7 @@ import textwrap
 import time
 from functools import partial
 from string import Template
-from typing import List
+from typing import Optional
 
 import anyio
 import typer
@@ -20,10 +20,8 @@ import typer
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
 from prefect.settings import (
-    PREFECT_API_URL,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
 )
@@ -32,13 +30,13 @@ from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import run_process
 
 DEV_HELP = """
-Commands for development.
+Internal Prefect development.
 
 Note that many of these commands require extra dependencies (such as npm and MkDocs)
 to function properly.
 """
 dev_app = PrefectTyper(
-    name="dev", short_help="Commands for development.", help=DEV_HELP
+    name="dev", short_help="Internal Prefect development.", help=DEV_HELP
 )
 app.add_typer(dev_app)
 
@@ -56,50 +54,8 @@ def exit_with_error_if_not_editable_install():
         )
 
 
-def agent_process_entrypoint(**kwargs):
-    """
-    An entrypoint for starting an agent in a subprocess. Adds a Rich console
-    to the Typer app, processes Typer default parameters, then starts an agent.
-    All kwargs are forwarded to  `prefect.cli.agent.start`.
-    """
-    import inspect
-
-    # import locally so only the `dev` command breaks if Typer internals change
-    from typer.models import ParameterInfo
-
-    # Typer does not process default parameters when calling a function
-    # directly, so we must set `start_agent`'s default parameters manually.
-    # get the signature of the `start_agent` function
-    start_agent_signature = inspect.signature(start_agent)
-
-    # for any arguments not present in kwargs, use the default value.
-    for name, param in start_agent_signature.parameters.items():
-        if name not in kwargs:
-            # All `param.default` values for start_agent are Typer params that store the
-            # actual default value in their `default` attribute and we must call
-            # `param.default.default` to get the actual default value. We should also
-            # ensure we extract the right default if non-Typer defaults are added
-            # to `start_agent` in the future.
-            if isinstance(param.default, ParameterInfo):
-                default = param.default.default
-            else:
-                default = param.default
-
-            # Some defaults are Prefect `SettingsOption.value` methods
-            # that must be called to get the actual value.
-            kwargs[name] = default() if callable(default) else default
-
-    try:
-        start_agent(**kwargs)  # type: ignore
-    except KeyboardInterrupt:
-        # expected when watchfiles kills the process
-        pass
-
-
 @dev_app.command()
-def build_docs(
-    schema_path: str = None,
-):
+def build_docs(schema_path: Optional[str] = None):
     """
     Builds REST API reference documentation for static display.
     """
@@ -110,14 +66,16 @@ def build_docs(
     schema = create_app(ephemeral=True).openapi()
 
     if not schema_path:
-        schema_path = (
+        path_to_schema = (
             prefect.__development_base_path__ / "docs" / "api-ref" / "schema.json"
         ).absolute()
+    else:
+        path_to_schema = os.path.abspath(schema_path)
     # overwrite info for display purposes
     schema["info"] = {}
-    with open(schema_path, "w") as f:
+    with open(path_to_schema, "w") as f:
         json.dump(schema, f)
-    app.console.print(f"OpenAPI schema written to {schema_path}")
+    app.console.print(f"OpenAPI schema written to {path_to_schema}")
 
 
 BUILD_UI_HELP = f"""
@@ -244,47 +202,9 @@ async def api(
 
 
 @dev_app.command()
-async def agent(
-    api_url: str = SettingsOption(PREFECT_API_URL),
-    work_queues: List[str] = typer.Option(
-        ["default"],
-        "-q",
-        "--work-queue",
-        help="One or more work queue names for the agent to pull from.",
-    ),
-):
-    """
-    Starts a hot-reloading development agent process.
-    """
-    # Delayed import since this is only a 'dev' dependency
-    import watchfiles
-
-    app.console.print("Creating hot-reloading agent process...")
-
-    try:
-        await watchfiles.arun_process(
-            prefect.__module_path__,
-            target=agent_process_entrypoint,
-            kwargs=dict(api=api_url, work_queues=work_queues),
-        )
-    except RuntimeError as err:
-        # a bug in watchfiles causes an 'Already borrowed' error from Rust when
-        # exiting: https://github.com/samuelcolvin/watchfiles/issues/200
-        if str(err).strip() != "Already borrowed":
-            raise
-
-
-@dev_app.command()
 async def start(
     exclude_api: bool = typer.Option(False, "--no-api"),
     exclude_ui: bool = typer.Option(False, "--no-ui"),
-    exclude_agent: bool = typer.Option(False, "--no-agent"),
-    work_queues: List[str] = typer.Option(
-        ["default"],
-        "-q",
-        "--work-queue",
-        help="One or more work queue names for the dev agent to pull from.",
-    ),
 ):
     """
     Starts a hot-reloading development server with API, UI, and agent processes.
@@ -296,20 +216,16 @@ async def start(
         if not exclude_api:
             tg.start_soon(
                 partial(
-                    api,
+                    # CLI commands are wrapped in sync_compatible, but this
+                    # task group is async, so we need use the wrapped function
+                    # directly
+                    api.aio,
                     host=PREFECT_SERVER_API_HOST.value(),
                     port=PREFECT_SERVER_API_PORT.value(),
                 )
             )
         if not exclude_ui:
-            tg.start_soon(ui)
-        if not exclude_agent:
-            # Hook the agent to the hosted API if running
-            if not exclude_api:
-                host = f"http://{PREFECT_SERVER_API_HOST.value()}:{PREFECT_SERVER_API_PORT.value()}/api"  # noqa
-            else:
-                host = PREFECT_API_URL.value()
-            tg.start_soon(agent, host, work_queues)
+            tg.start_soon(ui.aio)
 
 
 @dev_app.command()
@@ -382,7 +298,9 @@ def build_image(
 
 
 @dev_app.command()
-def container(bg: bool = False, name="prefect-dev", api: bool = True, tag: str = None):
+def container(
+    bg: bool = False, name="prefect-dev", api: bool = True, tag: Optional[str] = None
+):
     """
     Run a docker container with local code mounted and installed.
     """

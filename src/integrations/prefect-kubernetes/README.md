@@ -24,7 +24,7 @@ Install `prefect-kubernetes` with `pip`:
  pip install prefect-kubernetes
  ```
 
-Requires an installation of Python 3.8+.
+Requires an installation of Python 3.9+.
 
 We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
 
@@ -112,27 +112,21 @@ def kubernetes_orchestrator():
 #### Patch an existing deployment
 
 ```python
+import yaml
 from kubernetes.client.models import V1Deployment
-
 from prefect import flow
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.deployments import patch_namespaced_deployment
-from prefect_kubernetes.utilities import convert_manifest_to_model
 
 @flow
 def kubernetes_orchestrator():
-
-    v1_deployment_updates = convert_manifest_to_model(
-        manifest="path/to/manifest.yaml",
-        v1_model_name="V1Deployment",
-    )
-
     v1_deployment = patch_namespaced_deployment(
         kubernetes_credentials=KubernetesCredentials.load("k8s-creds"),
         deployment_name="my-deployment",
-        deployment_updates=v1_deployment_updates,
+        deployment_updates=yaml.safe_load(...),
         namespace="my-namespace"
     )
+    print(v1_deployment)
 ```
 
 ## Feedback
@@ -144,9 +138,9 @@ If you have any questions or issues while using `prefect-kubernetes`, you can fi
 ## Contributing
 
 If you'd like to help contribute to fix an issue or add a feature to `prefect-kubernetes`, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
- 
+
 Here are the steps:
- 
+
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:

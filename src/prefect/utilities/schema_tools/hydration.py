@@ -11,10 +11,14 @@ from prefect.server.utilities.user_templates import (
     render_user_template_sync,
     validate_user_template,
 )
+from prefect.types import StrictVariableValue
 
 
 class HydrationContext(BaseModel):
-    workspace_variables: Dict[str, str] = Field(default_factory=dict)
+    workspace_variables: Dict[
+        str,
+        StrictVariableValue,
+    ] = Field(default_factory=dict)
     render_workspace_variables: bool = Field(default=False)
     raise_on_error: bool = Field(default=False)
     render_jinja: bool = Field(default=False)

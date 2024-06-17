@@ -38,7 +38,6 @@ jobs:
           - "-conda"
           - "-kubernetes"
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
@@ -100,7 +99,7 @@ jobs:
             type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false }}
             type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
-            type=raw,value=2-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
+            type=raw,value=3-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
           flavor: |
             latest=false
 
@@ -112,7 +111,7 @@ jobs:
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
-            ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'EXTRA_PIP_PACKAGES=prefect-kubernetes' ) || '' }}
+            ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[kubernetes]' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
           labels: ${{ steps.metadata-dev.outputs.labels }}
           push: true

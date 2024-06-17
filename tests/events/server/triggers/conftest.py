@@ -1,9 +1,10 @@
-from typing import Tuple
+from typing import Callable, List, Tuple, Union
 from unittest import mock
 
 import pytest
 
 from prefect.server.events import messaging, triggers
+from prefect.server.events.schemas.automations import Firing
 
 
 @pytest.fixture(autouse=True)
@@ -48,3 +49,24 @@ def create_actions_publisher(
     actions_publish_mocks: Tuple[mock.MagicMock, mock.AsyncMock],
 ) -> mock.MagicMock:
     return actions_publish_mocks[0]
+
+
+@pytest.fixture
+def assert_acted_with(
+    act: mock.AsyncMock,
+) -> Callable[[Union[Firing, List[Firing]]], None]:
+    def assertion(expected: Union[Firing, List[Firing]]):
+        if not isinstance(expected, list):
+            expected = [expected]
+
+        assert act.await_count == len(expected)
+        actuals: list[Firing] = [args[0][0] for args in act.await_args_list]
+        for actual in actuals:
+            assert isinstance(actual, Firing)
+
+        dumped_actuals = [actual.model_dump(exclude={"id"}) for actual in actuals]
+        dumped_expected = [exp.model_dump(exclude={"id"}) for exp in expected]
+        for exp in dumped_expected:
+            assert exp in dumped_actuals
+
+    return assertion

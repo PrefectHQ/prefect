@@ -1,6 +1,6 @@
-collectionName: prefect-ray
+integrationName: prefect-ray
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-ray
-iconUrl: /img/collections/ray.png
+iconUrl: /images/integrations/ray.png
 tag: Ray

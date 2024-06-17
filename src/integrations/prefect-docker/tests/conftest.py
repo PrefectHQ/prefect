@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import Generator
 from unittest.mock import MagicMock, patch
 
+from anyio import to_thread
 from prefect_docker.worker import CONTAINER_LABELS
 
 from prefect.server.database.alembic_commands import alembic_upgrade
@@ -27,7 +28,7 @@ def prefect_db():
     Sets up test harness for temporary DB during test runs.
     """
     with prefect_test_harness():
-        alembic_upgrade()
+        asyncio.run(to_thread.run_sync(alembic_upgrade))
         yield
 
 
@@ -50,18 +51,10 @@ def event_loop(request):
 
     When running on Windows we need to use a non-default loop for subprocess support.
     """
-    if sys.platform == "win32" and sys.version_info >= (3, 8):
+    if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
     policy = asyncio.get_event_loop_policy()
-
-    if sys.version_info < (3, 8) and sys.platform != "win32":
-        from prefect.utilities.compat import ThreadedChildWatcher
-
-        # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
-        # lead to errors in tests as the previous default `SafeChildWatcher`  is not
-        # compatible with threaded event loops.
-        policy.set_child_watcher(ThreadedChildWatcher())
 
     loop = policy.new_event_loop()
 

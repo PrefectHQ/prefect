@@ -3,19 +3,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Tuple
 
-import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.testing.utilities import AsyncMock
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1.error_wrappers import ValidationError
-else:
-    from pydantic.error_wrappers import ValidationError
-
 import prefect_github
+import pytest
 from prefect_github import GitHubCredentials
 from prefect_github.repository import GitHubRepository
+
+from prefect.testing.utilities import AsyncMock
 
 
 class TestGitHubRepository:
@@ -79,28 +72,6 @@ class TestGitHubRepository:
             "git clone https://XYZ@github.com/PrefectHQ/prefect.git --depth 1"
             in " ".join(mock.await_args[0][0])
         )
-
-    async def test_ssh_fails_with_credential(self, monkeypatch):
-        """Ensure that credentials cannot be passed in if the URL is not in the HTTPS
-        format.
-        """
-
-        class p:
-            returncode = 0
-
-        mock = AsyncMock(return_value=p())
-        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
-        credential = GitHubCredentials(token="XYZ")
-        error_msg = (
-            "Crendentials can only be used with GitHub repositories using the 'HTTPS' format"  # noqa
-            ".*"
-            "(type=value_error.invalidrepositoryurl)"
-        )
-        with pytest.raises(ValidationError, match=error_msg):
-            GitHubRepository(
-                repository_url="git@github.com:PrefectHQ/prefect.git",
-                credentials=credential,
-            )
 
     def setup_test_directory(
         self, tmp_src: str, sub_dir: str = "puppy"

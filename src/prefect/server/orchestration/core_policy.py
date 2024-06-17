@@ -13,7 +13,6 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
-from prefect.client.schemas.objects import TaskRun
 from prefect.results import UnknownResult
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
@@ -34,8 +33,6 @@ from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
-    PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
 )
 from prefect.utilities.math import clamped_poisson_interval
@@ -61,7 +58,8 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedFlows,
-        ] + ([InstrumentFlowRunStateTransitions] if PREFECT_EXPERIMENTAL_EVENTS else [])
+            InstrumentFlowRunStateTransitions,
+        ]
 
 
 class CoreTaskPolicy(BaseOrchestrationPolicy):
@@ -85,7 +83,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
-class AutonomousTaskPolicy(BaseOrchestrationPolicy):
+class BackgroundTaskPolicy(BaseOrchestrationPolicy):
     """
     Orchestration rules that run against task-run-state transitions in priority order.
     """
@@ -97,6 +95,7 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
             HandleTaskTerminalStateTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
+            CopyTaskParametersID,
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
@@ -109,24 +108,19 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
 
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
-        return (
-            [
-                AddUnknownResult,  # mark forced completions with an unknown result
-                BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
-            ]
-            + (
-                [InstrumentFlowRunStateTransitions]
-                if PREFECT_EXPERIMENTAL_EVENTS
-                else []
-            )
-        )
+        return [
+            AddUnknownResult,  # mark forced completions with an unknown result
+            BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
+            InstrumentFlowRunStateTransitions,
+        ]
 
 
 class MarkLateRunsPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             EnsureOnlyScheduledFlowsMarkedLate,
-        ] + ([InstrumentFlowRunStateTransitions] if PREFECT_EXPERIMENTAL_EVENTS else [])
+            InstrumentFlowRunStateTransitions,
+        ]
 
 
 class MinimalTaskPolicy(BaseOrchestrationPolicy):
@@ -281,7 +275,7 @@ class AddUnknownResult(BaseOrchestrationRule):
             and initial_state.data.get("type") == "reference"
         ):
             unknown_result = await UnknownResult.create()
-            self.context.proposed_state.data = unknown_result.dict()
+            self.context.proposed_state.data = unknown_result.model_dump()
 
 
 class CacheInsertion(BaseOrchestrationRule):
@@ -353,7 +347,7 @@ class CacheRetrieval(BaseOrchestrationRule):
             query = select(db.TaskRunState).where(db.TaskRunState.id == cached_state_id)
             cached_state = (await context.session.execute(query)).scalar()
             if cached_state:
-                new_state = cached_state.as_state().copy(reset_fields=True)
+                new_state = cached_state.as_state().fresh_copy()
                 new_state.name = "Cached"
                 await self.reject_transition(
                     state=new_state, reason="Retrieved state from cache"
@@ -414,7 +408,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
         # Pauses as a concept only exist after API version 0.8.4
         api_version = context.parameters.get("api-version", None)
         if api_version is None or api_version >= Version("0.8.4"):
-            updated_policy = context.run.empirical_policy.dict()
+            updated_policy = context.run.empirical_policy.model_dump()
             updated_policy["resuming"] = False
             updated_policy["pause_keys"] = set()
             context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
@@ -479,7 +473,7 @@ class RetryFailedTasks(BaseOrchestrationRule):
 
 class EnqueueScheduledTasks(BaseOrchestrationRule):
     """
-    Enqueues autonomous task runs when they are scheduled
+    Enqueues background task runs when they are scheduled
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -489,22 +483,18 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
         self,
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
-        context: OrchestrationContext,
+        context: TaskOrchestrationContext,
     ) -> None:
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            # Only if task scheduling is enabled
-            return
-
         if not validated_state:
             # Only if the transition was valid
             return
 
-        if context.run.flow_run_id:
-            # Only for autonomous tasks
+        if not validated_state.state_details.deferred:
+            # Only for tasks that are deferred
             return
 
-        task_run: TaskRun = TaskRun.from_orm(context.run)
-        queue = TaskQueue.for_key(task_run.task_key)
+        task_run: core.TaskRun = core.TaskRun.model_validate(context.run)
+        queue: TaskQueue = TaskQueue.for_key(task_run.task_key)
 
         if validated_state.name == "AwaitingRetry":
             await queue.retry(task_run)
@@ -562,7 +552,7 @@ class CopyScheduledTime(BaseOrchestrationRule):
 
 class WaitForScheduledTime(BaseOrchestrationRule):
     """
-    Prevents transitions to running states from happening to early.
+    Prevents transitions to running states from happening too early.
 
     This rule enforces that all scheduled states will only start with the machine clock
     used by the Prefect REST API instance. This rule will identify transitions from scheduled
@@ -592,6 +582,30 @@ class WaitForScheduledTime(BaseOrchestrationRule):
         if delay_seconds > 0:
             await self.delay_transition(
                 delay_seconds, reason="Scheduled time is in the future"
+            )
+
+
+class CopyTaskParametersID(BaseOrchestrationRule):
+    """
+    Ensures a task's parameters ID is copied from Scheduled to Pending and from
+    Pending to Running states.
+
+    If a parameters ID has been included on the proposed state, the parameters ID
+    on the initial state will be ignored.
+    """
+
+    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING]
+    TO_STATES = [StateType.PENDING, StateType.RUNNING]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if not proposed_state.state_details.task_parameters_id:
+            proposed_state.state_details.task_parameters_id = (
+                initial_state.state_details.task_parameters_id
             )
 
 
@@ -652,7 +666,7 @@ class HandlePausingFlows(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        updated_policy = context.run.empirical_policy.dict()
+        updated_policy = context.run.empirical_policy.model_dump()
         updated_policy["pause_keys"].add(self.key)
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
@@ -672,9 +686,12 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         if not (
-            proposed_state.is_running()
-            or proposed_state.is_scheduled()
-            or proposed_state.is_final()
+            proposed_state
+            and (
+                proposed_state.is_running()
+                or proposed_state.is_scheduled()
+                or proposed_state.is_final()
+            )
         ):
             await self.reject_transition(
                 state=None,
@@ -716,7 +733,7 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        updated_policy = context.run.empirical_policy.dict()
+        updated_policy = context.run.empirical_policy.model_dump()
         updated_policy["resuming"] = True
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
@@ -828,7 +845,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        self.original_flow_policy = context.run.empirical_policy.dict()
+        self.original_flow_policy = context.run.empirical_policy.model_dump()
 
         # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
         if proposed_state.type in {
@@ -863,7 +880,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
             # Reset pause metadata when leaving a terminal state
             api_version = context.parameters.get("api-version", None)
             if api_version is None or api_version >= Version("0.8.4"):
-                updated_policy = context.run.empirical_policy.dict()
+                updated_policy = context.run.empirical_policy.model_dump()
                 updated_policy["resuming"] = False
                 updated_policy["pause_keys"] = set()
                 context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
@@ -1018,8 +1035,10 @@ class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
     exiting the flow and tearing down infra.
 
     The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
-    to clean up, we can transition directly to `Cancelled`. Runs that are `AwaitingRetry` are
-    a `Scheduled` state that may have associated infrastructure.
+    to clean up, we can transition directly to `Cancelled`. Runs that are `Resuming` are in a
+    `Scheduled` state that were previously `Suspended` and do not yet have infrastructure.
+
+    Runs that are `AwaitingRetry` are a `Scheduled` state that may have associated infrastructure.
     """
 
     FROM_STATES = {StateType.SCHEDULED, StateType.PAUSED}
@@ -1034,6 +1053,7 @@ class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
         if (
             initial_state.type == states.StateType.SCHEDULED
             and not context.run.infrastructure_pid
+            or initial_state.name == "Resuming"
         ):
             await self.reject_transition(
                 state=states.Cancelled(),

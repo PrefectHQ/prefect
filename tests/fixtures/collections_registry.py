@@ -20,7 +20,7 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 }
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def k8s_default_base_job_template():
     return {
         "job_configuration": {
@@ -114,7 +114,7 @@ def k8s_default_base_job_template():
                         "The image reference of a container image to use for created"
                         " jobs. If not set, the latest Prefect image will be used."
                     ),
-                    "example": "docker.io/prefecthq/prefect:2-latest",
+                    "example": "docker.io/prefecthq/prefect:3-latest",
                     "type": "string",
                 },
                 "service_account_name": {
@@ -208,7 +208,7 @@ def k8s_default_base_job_template():
     }
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def docker_default_base_job_template():
     return {
         "job_configuration": {
@@ -300,7 +300,7 @@ def docker_default_base_job_template():
                         "The image reference of a container image to use for created"
                         " jobs. If not set, the latest Prefect image will be used."
                     ),
-                    "example": "docker.io/prefecthq/prefect:2-latest",
+                    "example": "docker.io/prefecthq/prefect:3-latest",
                     "type": "string",
                 },
                 "image_pull_policy": {
@@ -393,14 +393,6 @@ def mock_collection_registry(
     k8s_default_base_job_template,
 ):
     mock_body = {
-        "prefect": {
-            "prefect-agent": {
-                "type": "prefect-agent",
-                "default_base_job_configuration": {},
-                "display_name": "Prefect Agent",
-                "description": "A Prefect Agent pool.",
-            }
-        },
         "prefect-fake": {
             "fake": {
                 "type": "fake",

@@ -1,15 +1,9 @@
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Tuple
 
+import pydantic
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
 
 from prefect.logging.loggers import get_logger
 from prefect.server.database.dependencies import db_injector, provide_database_interface
@@ -49,11 +43,11 @@ async def query_events(
     session: AsyncSession,
     filter: EventFilter,
     page_size: int = INTERACTIVE_PAGE_SIZE,
-) -> Tuple[List[ReceivedEvent], int, "str | None"]:
+) -> Tuple[List[ReceivedEvent], int, Optional[str]]:
     assert isinstance(session, AsyncSession)
     count = await raw_count_events(session, filter)
     page = await read_events(session, filter, limit=page_size, offset=0)
-    events = [ReceivedEvent.from_orm(e) for e in page]
+    events = [ReceivedEvent.model_validate(e, from_attributes=True) for e in page]
     page_token = to_page_token(filter, count, page_size, 0)
     return events, count, page_token
 
@@ -61,11 +55,11 @@ async def query_events(
 async def query_next_page(
     session: AsyncSession,
     page_token: str,
-) -> Tuple[List[ReceivedEvent], int, "str | None"]:
+) -> Tuple[List[ReceivedEvent], int, Optional[str]]:
     assert isinstance(session, AsyncSession)
     filter, count, page_size, offset = from_page_token(page_token)
     page = await read_events(session, filter, limit=page_size, offset=offset)
-    events = [ReceivedEvent.from_orm(e) for e in page]
+    events = [ReceivedEvent.model_validate(e, from_attributes=True) for e in page]
     next_token = to_page_token(filter, count, page_size, offset)
     return events, count, next_token
 
@@ -84,7 +78,9 @@ async def count_events(
         countable.get_database_query(filter, time_unit, time_interval)
     )
 
-    counts = pydantic.parse_obj_as(List[EventCount], results.mappings().all())
+    counts = pydantic.TypeAdapter(List[EventCount]).validate_python(
+        results.mappings().all()
+    )
 
     if countable in (Countable.day, Countable.time):
         counts = process_time_based_counts(filter, time_unit, time_interval, counts)
@@ -120,7 +116,7 @@ async def raw_count_events(
         ).select_from(db.Event)
 
     select_events_query_result = await session.execute(
-        select_events_query.where(sa.and_(*events_filter.build_where_clauses(db)))
+        select_events_query.where(sa.and_(*events_filter.build_where_clauses()))
     )
     return select_events_query_result.scalar() or 0
 
@@ -130,8 +126,8 @@ async def read_events(
     db: PrefectDBInterface,
     session: AsyncSession,
     events_filter: EventFilter,
-    limit: "int | None" = None,
-    offset: "int | None" = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
 ) -> Sequence["ORMEvent"]:
     """
     Read events from the Postgres database.
@@ -161,7 +157,7 @@ async def read_events(
             sa.select(db.Event, window_function)
             .where(
                 sa.and_(
-                    *events_filter.build_where_clauses(db)
+                    *events_filter.build_where_clauses()
                 )  # Ensure the same filters are applied here
             )
             .subquery()
@@ -179,7 +175,7 @@ async def read_events(
     else:
         # If no distinct fields are provided, create a query for all events
         select_events_query = sa.select(db.Event).where(
-            sa.and_(*events_filter.build_where_clauses(db))
+            sa.and_(*events_filter.build_where_clauses())
         )
         # Order by the occurred timestamp
         select_events_query = select_events_query.order_by(order(db.Event.occurred))

@@ -4,10 +4,8 @@ import gc
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import AsyncContextManager, AsyncGenerator, Callable, Type
+from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
-import aiosqlite
-import asyncpg
 import pendulum
 import pytest
 from sqlalchemy.exc import InterfaceError
@@ -15,8 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
-from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.database.configurations import ENGINES, TRACKER
 from prefect.server.database.dependencies import (
     PrefectDBInterface,
@@ -30,7 +28,6 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitV2
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
 
@@ -60,26 +57,6 @@ async def database_engine(db: PrefectDBInterface):
 
     for engine in engines:
         await engine.dispose()
-
-    # Now confirm that after disposing all engines, all connections are closed
-    #
-    # A note to maintainers: if this section flakes out, let's just remove it since we
-    # are filtering the resource-related warnings that were emitted when connections
-    # weren't closed.
-
-    for connection in TRACKER.all_connections:
-        driver_connection = connection.driver_connection
-
-        if isinstance(driver_connection, asyncpg.Connection):
-            if driver_connection.is_closed():
-                continue
-        elif isinstance(driver_connection, aiosqlite.Connection):
-            if not driver_connection._connection:
-                continue
-        else:
-            continue
-
-        await driver_connection.close()
 
     # Finally, free up all references to connections and clean up proactively so that
     # we don't have any lingering connections after this.  This should prevent
@@ -126,10 +103,10 @@ async def clear_db(db, request):
         for attempt in range(max_retries):
             try:
                 async with db.session_context(begin_transaction=True) as session:
-                    await session.execute(db.Agent.__table__.delete())
-                    await session.execute(db.WorkPool.__table__.delete())
+                    await session.execute(orm_models.Agent.__table__.delete())
+                    await session.execute(orm_models.WorkPool.__table__.delete())
 
-                    for table in reversed(db.Base.metadata.sorted_tables):
+                    for table in reversed(orm_models.Base.metadata.sorted_tables):
                         await session.execute(table.delete())
                     break
             except InterfaceError:
@@ -403,26 +380,9 @@ async def task_run_states(session, task_run, task_run_state):
 
 @pytest.fixture
 async def storage_document_id(prefect_client, tmpdir):
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
-        return await LocalFileSystem(basepath=str(tmpdir)).save(
-            name=f"local-test-{uuid.uuid4()}", client=prefect_client
-        )
-
-
-@pytest.fixture
-async def infrastructure_document_id(prefect_client):
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
-        return await Process(env={"MY_TEST_VARIABLE": 1})._save(
-            is_anonymous=True, client=prefect_client
-        )
-
-
-@pytest.fixture
-async def infrastructure_document_id_2(prefect_client):
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
-        return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
-            is_anonymous=True, client=prefect_client
-        )
+    return await LocalFileSystem(basepath=str(tmpdir)).save(
+        name=f"local-test-{uuid.uuid4()}", client=prefect_client
+    )
 
 
 @pytest.fixture
@@ -430,13 +390,10 @@ async def deployment(
     session,
     flow,
     flow_function,
-    infrastructure_document_id,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+    simple_parameter_schema,
 ):
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -455,9 +412,8 @@ async def deployment(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -470,13 +426,10 @@ async def deployment_with_version(
     session,
     flow,
     flow_function,
-    infrastructure_document_id,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+    simple_parameter_schema,
 ):
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -495,9 +448,8 @@ async def deployment_with_version(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
             version="1.0",
         ),
@@ -511,13 +463,10 @@ async def deployment_2(
     session,
     flow,
     flow_function,
-    infrastructure_document_id_2,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+    simple_parameter_schema,
 ):
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -536,9 +485,8 @@ async def deployment_2(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id_2,
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -551,15 +499,11 @@ async def deployment_in_default_work_pool(
     session,
     flow,
     flow_function,
-    infrastructure_document_id,
     storage_document_id,
     work_queue,  # not attached to a work pool
+    simple_parameter_schema,
 ):
     """This will create a deployment in the default work pool called `default-agent-pool`"""
-
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -573,9 +517,8 @@ async def deployment_in_default_work_pool(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue.id,
         ),
     )
@@ -584,17 +527,22 @@ async def deployment_in_default_work_pool(
 
 
 @pytest.fixture
+def simple_parameter_schema():
+    def hello(name=None):
+        pass
+
+    return parameter_schema(hello)
+
+
+@pytest.fixture
 async def deployment_in_non_default_work_pool(
     session,
     flow,
     flow_function,
-    infrastructure_document_id,
     storage_document_id,
     work_queue_1,
+    simple_parameter_schema,
 ):
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -608,9 +556,8 @@ async def deployment_in_non_default_work_pool(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1008,12 +955,12 @@ def initialize_orchestration(flow):
         initial_details=None,
         initial_state_data=None,
         proposed_details=None,
-        flow_retries: int = None,
-        flow_run_count: int = None,
-        resuming: bool = None,
+        flow_retries: Optional[int] = None,
+        flow_run_count: Optional[int] = None,
+        resuming: Optional[bool] = None,
         initial_flow_run_state_details=None,
-        initial_state_name: str = None,
-        proposed_state_name: str = None,
+        initial_state_name: Optional[str] = None,
+        proposed_state_name: Optional[str] = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
@@ -1135,7 +1082,7 @@ async def worker_deployment_wq1(
     flow_function,
     work_queue_1,
 ):
-    def hello(name: str):
+    def hello(name: str = "world"):
         pass
 
     deployment = await models.deployments.create_deployment(
@@ -1150,7 +1097,7 @@ async def worker_deployment_wq1(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1159,10 +1106,8 @@ async def worker_deployment_wq1(
 
 
 @pytest.fixture
-async def worker_deployment_infra_wq1(
-    session, flow, flow_function, work_queue_1, infrastructure_document_id
-):
-    def hello(name: str):
+async def worker_deployment_infra_wq1(session, flow, flow_function, work_queue_1):
+    def hello(name: str = "world"):
         pass
 
     deployment = await models.deployments.create_deployment(
@@ -1177,9 +1122,8 @@ async def worker_deployment_infra_wq1(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
-            infrastructure_document_id=infrastructure_document_id,
         ),
     )
     await session.commit()
@@ -1193,7 +1137,7 @@ async def worker_deployment_wq_2(
     flow_function,
     work_queue_2,
 ):
-    def hello(name: str):
+    def hello(name: str = "world"):
         pass
 
     deployment = await models.deployments.create_deployment(
@@ -1208,7 +1152,7 @@ async def worker_deployment_wq_2(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_2.id,
         ),
     )
@@ -1228,4 +1172,4 @@ async def concurrency_limit_v2(session: AsyncSession) -> ConcurrencyLimitV2:
 
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)

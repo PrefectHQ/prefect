@@ -4,13 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
 from prefect.utilities.annotations import BaseAnnotation, quote
@@ -125,27 +119,22 @@ class SimplePydantic(pydantic.BaseModel):
 
 
 class ExtraPydantic(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(extra="allow")
     x: int
-
-    class Config:
-        extra = pydantic.Extra.allow
 
 
 class PrivatePydantic(pydantic.BaseModel):
     """Pydantic model with private attrs"""
 
-    x: int
-    _y: int
-    _z: Any = pydantic.PrivateAttr()
+    model_config = pydantic.ConfigDict(extra="forbid")
 
-    class Config:
-        underscore_attrs_are_private = True
-        extra = pydantic.Extra.forbid  # Forbid extras to raise in tests
+    x: int
+    _y: int  # this is an implicit private attribute
+    _z: Any = pydantic.PrivateAttr()  # this is an explicit private attribute
 
 
 class ImmutablePrivatePydantic(PrivatePydantic):
-    class Config:
-        allow_mutation = False
+    model_config = pydantic.ConfigDict(frozen=True)
 
 
 class PydanticWithDefaults(pydantic.BaseModel):
@@ -178,12 +167,10 @@ class TestPydanticObjects:
 
         # Public attr accessible immediately
         assert input.x == 1
+
         # Extras not allowed
         with pytest.raises(ValueError):
-            input._a = 1
-        # Private attr not accessible until set
-        with pytest.raises(AttributeError):
-            input._y
+            input.a = 1
 
         # Private attrs accessible after setting
         input._y = 4
@@ -198,7 +185,7 @@ class TestPydanticObjects:
         assert input.x == 1
         # Extras not allowed
         with pytest.raises(ValueError):
-            input._a = 1
+            input.a = 1
         # Private attr not accessible until set
         with pytest.raises(AttributeError):
             input._y
@@ -209,8 +196,8 @@ class TestPydanticObjects:
         assert input._y == 4
         assert input._z == 5
 
-        # Mutating not allowed
-        with pytest.raises(TypeError):
+        # Mutating not allowed because frozen=True
+        with pytest.raises(pydantic.ValidationError):
             input.x = 2
 
         # Can still mutate private attrs
@@ -253,7 +240,7 @@ class TestVisitCollection:
             (SimpleDataclass(x=1, y=2), {2}),
             (SimplePydantic(x=1, y=2), {2}),
             (ExtraPydantic(x=1, y=2, z=4), {2, 4}),
-            (ExtraPydantic(x=1, y=2, z=4).copy(exclude={"z"}), {2}),
+            (ExtraPydantic(x=1, y=2, z=4).model_copy(), {2, 4}),
             (ExampleAnnotation(4), {4}),
         ],
     )
@@ -355,7 +342,7 @@ class TestVisitCollection:
             input_model, visit_fn=visit_even_numbers, return_data=True
         )
         assert (
-            output_model.dict(exclude_unset=True) == input
+            output_model.model_dump(exclude_unset=True) == input
         ), "Unset fields values should be remembered and preserved"
 
     @pytest.mark.parametrize("immutable", [True, False])
@@ -363,24 +350,27 @@ class TestVisitCollection:
         self, immutable
     ):
         model = ImmutablePrivatePydantic if immutable else PrivatePydantic
-        input = model(x=2)
-        input._y = 3
-        input._z = 4
+        model_instance = model(x=2)
+        model_instance._y = 3
+        model_instance._z = 4
 
         result = visit_collection(
-            input, visit_fn=negative_even_numbers, return_data=True
+            model_instance, visit_fn=negative_even_numbers, return_data=True
         )
+
+        assert isinstance(result, model), "The model should be returned"
 
         assert result.x == -2, "The public attribute should be modified"
 
-        # Pydantic dunders are retained
-        assert result.__private_attributes__ == input.__private_attributes__
-        assert result.__fields__ == input.__fields__
-        assert result.__fields_set__ == input.__fields_set__
+        # Verify that private attributes are retained
+        assert getattr(result, "_y") == 3
+        assert getattr(result, "_z") == 4
 
-        # Private attributes are retained without modification
-        assert result._y == 3
-        assert result._z == 4
+        # Verify fields set indirectly by checking the expected fields are still set
+        for field in model_instance.model_fields_set:
+            assert hasattr(
+                result, field
+            ), f"The field '{field}' should be set in the result"
 
     @pytest.mark.skipif(True, reason="We will recurse forever in this case")
     def test_visit_collection_does_not_recurse_forever_in_reference_cycle(self):

@@ -1,6 +1,7 @@
 """
 Utilities for managing worker threads.
 """
+
 import asyncio
 import atexit
 import concurrent.futures
@@ -233,7 +234,10 @@ class EventLoopThread(Portal):
         self.shutdown()
 
 
+# the GLOBAL LOOP is used for background services, like logs
 GLOBAL_LOOP: Optional[EventLoopThread] = None
+# the RUN SYNC LOOP is used exclusively for running async functions in a sync context via asyncutils.run_sync
+RUN_SYNC_LOOP: Optional[EventLoopThread] = None
 
 
 def get_global_loop() -> EventLoopThread:
@@ -265,6 +269,37 @@ def in_global_loop() -> bool:
         return False
 
     return get_global_loop()._loop == get_running_loop()
+
+
+def get_run_sync_loop() -> EventLoopThread:
+    """
+    Get the run_sync loop thread.
+
+    Creates a new one if there is not one available.
+    """
+    global RUN_SYNC_LOOP
+
+    # Create a new worker on first call or if the existing worker is dead
+    if (
+        RUN_SYNC_LOOP is None
+        or not RUN_SYNC_LOOP.thread.is_alive()
+        or RUN_SYNC_LOOP._shutdown_event.is_set()
+    ):
+        RUN_SYNC_LOOP = EventLoopThread(daemon=True, name="RunSyncEventLoopThread")
+        RUN_SYNC_LOOP.start()
+
+    return RUN_SYNC_LOOP
+
+
+def in_run_sync_loop() -> bool:
+    """
+    Check if called from the global loop.
+    """
+    if RUN_SYNC_LOOP is None:
+        # Avoid creating a global loop if there isn't one
+        return False
+
+    return get_run_sync_loop()._loop == get_running_loop()
 
 
 def wait_for_global_loop_exit(timeout: Optional[float] = None) -> None:

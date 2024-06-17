@@ -16,7 +16,7 @@ Prefect integrations for working with Bitbucket repositories.
 
 ### Python setup
 
-Requires an installation of Python 3.8+.
+Requires an installation of Python 3.9+.
 
 We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
 

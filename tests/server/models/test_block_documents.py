@@ -4,18 +4,13 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretBytes, SecretStr
-else:
-    from pydantic import SecretBytes, SecretStr
+from pydantic import SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
-from prefect.blocks.fields import SecretDict
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.schemas.actions import BlockDocumentCreate
+from prefect.types import SecretDict
 from prefect.utilities.names import obfuscate, obfuscate_string
 
 
@@ -229,7 +224,7 @@ class TestCreateBlockDocument:
         )
 
         before_count = await session.execute(
-            sa.select(sa.func.count()).select_from(db.BlockDocument)
+            sa.select(sa.func.count()).select_from(orm_models.BlockDocument)
         )
         await models.block_documents.create_block_document(
             session=session, block_document=block_document
@@ -243,7 +238,7 @@ class TestCreateBlockDocument:
         await session.rollback()
 
         after_count = await session.execute(
-            sa.select(sa.func.count()).select_from(db.BlockDocument)
+            sa.select(sa.func.count()).select_from(orm_models.BlockDocument)
         )
 
         # only one block created
@@ -1586,18 +1581,18 @@ class TestUpdateBlockDocument:
 class TestSecretBlockDocuments:
     @pytest.fixture()
     async def secret_block_type_and_schema(self, session):
-        class SecretBlock(Block):
+        class SecretBlockC(Block):
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
         secret_block_type = await models.block_types.create_block_type(
-            session=session, block_type=SecretBlock._to_block_type()
+            session=session, block_type=SecretBlockC._to_block_type()
         )
         secret_block_schema = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=SecretBlock._to_block_schema(
+            block_schema=SecretBlockC._to_block_schema(
                 block_type_id=secret_block_type.id
             ),
         )

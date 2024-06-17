@@ -2,7 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Query, status
+from fastapi import Body, Depends, HTTPException, Path, Query, status
 
 from prefect.blocks.core import _should_update_block_type
 from prefect.server import models, schemas
@@ -120,7 +120,8 @@ async def update_block_type(
         # This check happens client side, but we do it server side as well
         # to accommodate older clients.
         if _should_update_block_type(
-            block_type, schemas.core.BlockType.from_orm(db_block_type)
+            block_type,
+            schemas.core.BlockType.model_validate(db_block_type, from_attributes=True),
         ):
             await models.block_types.update_block_type(
                 session=session, block_type=block_type, block_type_id=block_type_id

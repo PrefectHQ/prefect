@@ -15,7 +15,7 @@ from prefect.events.clients import (
     get_events_subscriber,
 )
 
-events_app = PrefectTyper(name="events", help="Commands for working with events.")
+events_app = PrefectTyper(name="events", help="Stream events.")
 app.add_typer(events_app, aliases=["event"])
 
 
@@ -62,7 +62,7 @@ async def stream(
 
 async def handle_event(event: Event, format: StreamFormat, output_file: str):
     if format == StreamFormat.json:
-        event_data = orjson.dumps(event.dict(), default=str).decode()
+        event_data = orjson.dumps(event.model_dump(), default=str).decode()
     elif format == StreamFormat.text:
         event_data = f"{event.occurred.isoformat()} {event.event} {event.resource.id}"
     else:

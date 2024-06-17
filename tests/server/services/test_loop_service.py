@@ -1,6 +1,5 @@
 import asyncio
 import signal
-import sys
 
 import pendulum
 import pytest
@@ -155,9 +154,6 @@ async def test_stop_block_escapes_deadlock(caplog):
     assert "`stop(block=True)` was called on Service but" in caplog.text
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 8), reason="signal.raise_signal requires Python >= 3.8"
-)
 class TestSignalHandling:
     @pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
     async def test_handle_signals_to_shutdown(self, sig):

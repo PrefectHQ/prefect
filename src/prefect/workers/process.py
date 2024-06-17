@@ -14,7 +14,6 @@ For more information about work pools and workers,
 checkout out the [Prefect docs](/concepts/work-pools/).
 """
 
-import asyncio
 import contextlib
 import os
 import signal
@@ -27,14 +26,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 import anyio
 import anyio.abc
-import sniffio
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
+from pydantic import Field, field_validator
 
 from prefect._internal.schemas.validators import validate_command
 from prefect.client.schemas import FlowRun
@@ -56,20 +48,6 @@ if sys.platform == "win32":
     STATUS_CONTROL_C_EXIT = 0xC000013A
 
 
-def _use_threaded_child_watcher():
-    if (
-        sys.version_info < (3, 8)
-        and sniffio.current_async_library() == "asyncio"
-        and sys.platform != "win32"
-    ):
-        from prefect.utilities.compat import ThreadedChildWatcher
-
-        # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
-        # lead to errors in tests on unix as the previous default `SafeChildWatcher`
-        # is not compatible with threaded event loops.
-        asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
-
-
 def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
     hostname = socket.gethostname()
     return f"{hostname}:{process.pid}"
@@ -84,7 +62,8 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(default=True)
     working_dir: Optional[Path] = Field(default=None)
 
-    @validator("working_dir")
+    @field_validator("working_dir")
+    @classmethod
     def validate_command(cls, v):
         return validate_command(v)
 
@@ -168,7 +147,6 @@ class ProcessWorker(BaseWorker):
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
-        _use_threaded_child_watcher()
         flow_run_logger.info("Opening process...")
 
         working_dir_ctx = (

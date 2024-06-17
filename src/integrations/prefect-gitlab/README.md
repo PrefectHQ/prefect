@@ -15,7 +15,7 @@
 
 ### Python setup
 
-Requires an installation of Python 3.8 or higher.
+Requires an installation of Python 3.9 or higher.
 
 We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
 

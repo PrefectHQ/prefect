@@ -1,5 +1,4 @@
 import urllib
-from importlib import reload
 from typing import Type
 from unittest.mock import patch
 
@@ -7,7 +6,6 @@ import cloudpickle
 import pytest
 import respx
 
-import prefect
 from prefect.blocks.notifications import (
     PREFECT_NOTIFY_TYPE_DEFAULT,
     AppriseNotificationBlock,
@@ -19,23 +17,8 @@ from prefect.blocks.notifications import (
     SendgridEmail,
     TwilioSMS,
 )
+from prefect.flows import flow
 from prefect.testing.utilities import AsyncMock
-
-
-def reload_modules():
-    """
-    Reloads the prefect.blocks.notifications module so patches to modules it imports
-    will be visible to the blocks under test.
-    """
-    try:
-        reload(prefect.blocks.notifications)
-    except UserWarning:
-        # ignore the warning Prefect gives when reloading the notifications module
-        # because we reload prefect itself immediately afterward.
-        pass
-
-    reload(prefect)
-
 
 # A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
 notification_classes = sorted(
@@ -51,8 +34,6 @@ class TestAppriseNotificationBlock:
 
     async def test_notify_async(self, block_class: Type[AppriseNotificationBlock]):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -71,13 +52,16 @@ class TestAppriseNotificationBlock:
 
     def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
             block = block_class(url="https://example.com/notification")
-            block.notify("test")
+
+            @flow
+            def test_flow():
+                block.notify("test")
+
+            test_flow()
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
@@ -88,7 +72,6 @@ class TestAppriseNotificationBlock:
             )
 
     def test_is_picklable(self, block_class: Type[AppriseNotificationBlock]):
-        reload_modules()
         block = block_class(url="http://example.com/notification")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
@@ -98,8 +81,6 @@ class TestAppriseNotificationBlock:
 class TestMattermostWebhook:
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -121,13 +102,16 @@ class TestMattermostWebhook:
 
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
             mm_block = MattermostWebhook(hostname="example.com", token="token")
-            mm_block.notify("test")
+
+            @flow
+            def test_flow():
+                mm_block.notify("test")
+
+            test_flow()
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
@@ -140,8 +124,6 @@ class TestMattermostWebhook:
 
     def test_notify_with_multiple_channels(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -150,7 +132,12 @@ class TestMattermostWebhook:
                 token="token",
                 channels=["general", "death-metal-anonymous"],
             )
-            mm_block.notify("test")
+
+            @flow
+            def test_flow():
+                mm_block.notify("test")
+
+            test_flow()
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
@@ -164,7 +151,6 @@ class TestMattermostWebhook:
             )
 
     def test_is_picklable(self):
-        reload_modules()
         block = MattermostWebhook(token="token", hostname="example.com")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
@@ -174,8 +160,6 @@ class TestMattermostWebhook:
 class TestDiscordWebhook:
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -196,15 +180,18 @@ class TestDiscordWebhook:
 
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
             discord_block = DiscordWebhook(
                 webhook_id="123456", webhook_token="abc123EFG"
             )
-            discord_block.notify("test")
+
+            @flow
+            def test_flow():
+                discord_block.notify("test")
+
+            test_flow()
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
@@ -216,7 +203,6 @@ class TestDiscordWebhook:
             )
 
     def test_is_picklable(self):
-        reload_modules()
         block = DiscordWebhook(webhook_id="123456", webhook_token="abc123EFG")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
@@ -228,8 +214,6 @@ class TestOpsgenieWebhook:
 
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -248,8 +232,6 @@ class TestOpsgenieWebhook:
 
     def _test_notify_sync(self, targets="", params=None, **kwargs):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             if params is None:
                 params = "region=us&priority=normal&batch=no"
 
@@ -257,7 +239,12 @@ class TestOpsgenieWebhook:
             apprise_instance_mock.async_notify = AsyncMock()
 
             block = OpsgenieWebhook(apikey=self.API_KEY, **kwargs)
-            block.notify("test")
+
+            @flow
+            def test_flow():
+                block.notify("test")
+
+            test_flow()
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
@@ -304,8 +291,6 @@ class TestOpsgenieWebhook:
 class TestPagerDutyWebhook:
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -325,13 +310,16 @@ class TestPagerDutyWebhook:
 
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
             block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
-            block.notify("test")
+
+            @flow
+            def test_flow():
+                block.notify("test")
+
+            test_flow()
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
@@ -357,8 +345,6 @@ class TestTwilioSMS:
 
     async def test_twilio_notify_async(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             client_instance_mock = AppriseMock.return_value
             client_instance_mock.async_notify = AsyncMock()
 
@@ -382,8 +368,6 @@ class TestTwilioSMS:
 
     def test_twilio_notify_sync(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             client_instance_mock = AppriseMock.return_value
             client_instance_mock.async_notify = AsyncMock()
 
@@ -394,7 +378,11 @@ class TestTwilioSMS:
                 to_phone_numbers=["+15555555556", "+15555555557"],
             )
 
-            twilio_sms_block.notify("hello from prefect")
+            @flow
+            def test_flow():
+                twilio_sms_block.notify("hello from prefect")
+
+            test_flow()
 
             AppriseMock.assert_called_once()
             client_instance_mock.add.assert_called_once_with(valid_apprise_url)
@@ -459,7 +447,12 @@ class TestCustomWebhook:
                 json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
                 secrets={"token": "someSecretToken"},
             )
-            custom_block.notify("test", "subject")
+
+            @flow
+            def test_flow():
+                custom_block.notify("test", "subject")
+
+            test_flow()
 
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "Prefect Notifications"
@@ -471,7 +464,7 @@ class TestCustomWebhook:
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
-    def test_user_agent_override(self):
+    async def test_user_agent_override(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
 
@@ -482,7 +475,7 @@ class TestCustomWebhook:
                 json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
                 secrets={"token": "someSecretToken"},
             )
-            custom_block.notify("test", "subject")
+            await custom_block.notify("test", "subject")
 
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "CustomUA"
@@ -494,7 +487,7 @@ class TestCustomWebhook:
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
-    def test_timeout_override(self):
+    async def test_timeout_override(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
 
@@ -505,7 +498,7 @@ class TestCustomWebhook:
                 secrets={"token": "someSecretToken"},
                 timeout=30,
             )
-            custom_block.notify("test", "subject")
+            await custom_block.notify("test", "subject")
 
             last_req = xmock.calls.last.request
             assert (
@@ -516,7 +509,7 @@ class TestCustomWebhook:
                 "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
             }
 
-    def test_request_cookie(self):
+    async def test_request_cookie(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
 
@@ -528,7 +521,7 @@ class TestCustomWebhook:
                 secrets={"token": "someSecretToken", "cookie": "secretCookieValue"},
                 timeout=30,
             )
-            custom_block.notify("test", "subject")
+            await custom_block.notify("test", "subject")
 
             last_req = xmock.calls.last.request
             assert last_req.headers["cookie"] == "key=secretCookieValue"
@@ -540,7 +533,7 @@ class TestCustomWebhook:
                 "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
             }
 
-    def test_subst_nested_list(self):
+    async def test_subst_nested_list(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
 
@@ -552,7 +545,7 @@ class TestCustomWebhook:
                 },
                 secrets={"token": "someSecretToken"},
             )
-            custom_block.notify("test", "subject")
+            await custom_block.notify("test", "subject")
 
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "Prefect Notifications"
@@ -564,7 +557,7 @@ class TestCustomWebhook:
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
-    def test_subst_none(self):
+    async def test_subst_none(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
 
@@ -575,7 +568,7 @@ class TestCustomWebhook:
                 secrets={"token": "someSecretToken"},
             )
             # subject=None
-            custom_block.notify("test", None)
+            await custom_block.notify("test", None)
 
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "Prefect Notifications"
@@ -588,7 +581,6 @@ class TestCustomWebhook:
             }
 
     def test_is_picklable(self):
-        reload_modules()
         block = CustomWebhookNotificationBlock(
             name="test name",
             url="https://example.com/",
@@ -635,8 +627,6 @@ class TestSendgridEmail:
 
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -666,8 +656,6 @@ class TestSendgridEmail:
 
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -676,7 +664,12 @@ class TestSendgridEmail:
                 sender_email="test@gmail.com",
                 to_emails=["test1@gmail.com", "test2@gmail.com"],
             )
-            sg_block.notify("test")
+
+            @flow
+            def test_flow():
+                sg_block.notify("test")
+
+            test_flow()
 
             # check if the Apprise().add function is called with correct url
             url = f"sendgrid://{sg_block.api_key.get_secret_value()}:{sg_block.sender_email}/"
@@ -693,7 +686,6 @@ class TestSendgridEmail:
             )
 
     def test_is_picklable(self):
-        reload_modules()
         block = SendgridEmail(
             api_key="test-api-key",
             sender_email="test@gmail.com",

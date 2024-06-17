@@ -9,7 +9,7 @@ import sys
 from copy import deepcopy
 from functools import partial
 from textwrap import dedent
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 import anyio
 from anyio import run_process
@@ -20,7 +20,6 @@ from rich.prompt import Confirm
 from rich.syntax import Syntax
 
 from prefect.cli._prompts import prompt
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
@@ -30,6 +29,9 @@ from prefect.settings import (
 )
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 boto3 = lazy_import("boto3")
 
@@ -250,7 +252,7 @@ class CredentialsBlockResource:
 
     @inject_client
     async def requires_provisioning(
-        self, client: Optional[PrefectClient] = None
+        self, client: Optional["PrefectClient"] = None
     ) -> bool:
         if self._requires_provisioning is None:
             try:
@@ -280,7 +282,7 @@ class CredentialsBlockResource:
         self,
         base_job_template: Dict[str, Any],
         advance: Callable[[], None],
-        client: Optional[PrefectClient] = None,
+        client: Optional["PrefectClient"] = None,
     ):
         """
         Provisions an AWS credentials block.
@@ -365,7 +367,7 @@ class AuthenticationResource:
         work_pool_name: str,
         user_name: str = "prefect-ecs-user",
         policy_name: str = "prefect-ecs-policy",
-        credentials_block_name: str = None,
+        credentials_block_name: Optional[str] = None,
     ):
         self._user_name = user_name
         self._credentials_block_name = (
@@ -1128,7 +1130,7 @@ class ElasticContainerServicePushProvisioner:
         work_pool_name: str,
         user_name: str = "prefect-ecs-user",
         policy_name: str = "prefect-ecs-policy",
-        credentials_block_name: str = None,
+        credentials_block_name: Optional[str] = None,
         cluster_name: str = "prefect-ecs-cluster",
         vpc_name: str = "prefect-ecs-vpc",
         ecs_security_group_name: str = "prefect-ecs-security-group",

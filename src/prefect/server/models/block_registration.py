@@ -1,9 +1,13 @@
 import json
 from pathlib import Path
+from typing import cast
 
 import sqlalchemy as sa
 
-import prefect
+from prefect.blocks.core import Block
+from prefect.blocks.system import JSON, DateTime, Secret
+from prefect.blocks.webhook import Webhook
+from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 
@@ -18,19 +22,24 @@ async def _install_protected_system_blocks(session):
     """Install block types that the system expects to be present"""
 
     for block in [
-        prefect.blocks.webhook.Webhook,
-        prefect.blocks.system.JSON,
-        prefect.blocks.system.DateTime,
-        prefect.blocks.system.Secret,
-        prefect.filesystems.LocalFileSystem,
-        prefect.infrastructure.Process,
+        Webhook,
+        JSON,
+        DateTime,
+        Secret,
+        LocalFileSystem,
     ]:
+        block = cast(Block, block)
         async with session.begin():
             block_type = block._to_block_type()
+
+            server_block_type = schemas.core.BlockType.model_validate(
+                block_type.model_dump()
+            )
             block_type.is_protected = True
+            server_block_type.is_protected = True
 
             block_type = await models.block_types.create_block_type(
-                session=session, block_type=block_type, override=True
+                session=session, block_type=server_block_type, override=True
             )
             await models.block_schemas.create_block_schema(
                 session=session,
@@ -154,20 +163,35 @@ async def _register_collection_blocks(session: sa.orm.Session):
         for collection in collections_blocks_data["collections"].values()
         for block_type in collection["block_types"].values()
     ]
-    for block_type in block_types:
-        # each block schema gets its own transaction
-        async with session.begin():
-            block_schemas = block_type.pop("block_schemas", [])
+
+    # due to schema reference dependencies, we need to register all block types first
+    # and then register all block schemas
+    block_schemas: dict[str, dict] = {}
+
+    async with session.begin():
+        for block_type in block_types:
+            block_schema = block_type.pop("block_schema", None)
+            if not block_schema:
+                raise RuntimeError(
+                    f"Block schema not found for block type {block_type.get('slug')!r}"
+                )
             block_type_id = await register_block_type(
                 session=session,
-                block_type=schemas.core.BlockType.parse_obj(block_type),
+                block_type=schemas.core.BlockType.model_validate(block_type),
             )
-            for block_schema in block_schemas:
+            block_schema["block_type_id"] = block_type_id
+            block_schemas[block_type["slug"]] = block_schema
+
+    async with session.begin():
+        for block_type_slug, block_schema in block_schemas.items():
+            try:
                 await register_block_schema(
                     session=session,
-                    block_schema=schemas.core.BlockSchema.parse_obj(
-                        {**block_schema, "block_type_id": block_type_id}
-                    ),
+                    block_schema=schemas.core.BlockSchema.model_validate(block_schema),
+                )
+            except Exception:
+                logger.exception(
+                    f"Failed to register block schema for block type {block_type_slug}"
                 )
 
 

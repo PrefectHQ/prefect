@@ -1,5 +1,5 @@
-from prefect._vendor.fastapi import Depends, Query, status
-from prefect._vendor.starlette.exceptions import HTTPException
+from fastapi import Depends, Query, status
+from starlette.exceptions import HTTPException
 
 from prefect.logging import get_logger
 from prefect.server import models, schemas

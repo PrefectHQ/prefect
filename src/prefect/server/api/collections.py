@@ -4,7 +4,7 @@ from typing import Any, Dict
 import httpx
 from anyio import Path
 from cachetools import TTLCache
-from prefect._vendor.fastapi import HTTPException, status
+from fastapi import HTTPException, status
 
 from prefect.server.utilities.server import PrefectRouter
 
@@ -54,8 +54,12 @@ async def get_collection_view(view: str):
             resp = await client.get(KNOWN_VIEWS[view])
             resp.raise_for_status()
 
-            GLOBAL_COLLECTIONS_VIEW_CACHE[view] = resp.json()
-            return resp.json()
+            data = resp.json()
+            if view == "aggregate-worker-metadata":
+                data.get("prefect", {}).pop("prefect-agent", None)
+
+            GLOBAL_COLLECTIONS_VIEW_CACHE[view] = data
+            return data
     except Exception:
         local_file = Path(__file__).parent / Path(f"collections_data/views/{view}.json")
         if await local_file.exists():

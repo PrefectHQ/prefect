@@ -10,7 +10,6 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
 )
 from prefect.utilities.context import temporary_context
 
@@ -42,11 +41,11 @@ def emit_events_to_cloud() -> bool:
 
 def should_emit_events_to_running_server() -> bool:
     api_url = PREFECT_API_URL.value()
-    return isinstance(api_url, str) and PREFECT_EXPERIMENTAL_EVENTS.value()
+    return isinstance(api_url, str)
 
 
 def should_emit_events_to_ephemeral_server() -> bool:
-    return PREFECT_API_KEY.value() is None and PREFECT_EXPERIMENTAL_EVENTS.value()
+    return PREFECT_API_KEY.value() is None
 
 
 class EventsWorker(QueueService[Event]):

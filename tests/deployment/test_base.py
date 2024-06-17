@@ -1,5 +1,4 @@
 import shutil
-import sys
 from pathlib import Path
 
 import pytest
@@ -22,14 +21,9 @@ TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects
 @pytest.fixture(autouse=True)
 def project_dir(tmp_path):
     with tmpchdir(tmp_path):
-        if sys.version_info >= (3, 8):
-            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-            (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-            yield tmp_path
-        else:
-            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-            (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-            yield tmp_path / "three-seven"
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+        (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+        yield tmp_path
 
 
 class TestRecipes:

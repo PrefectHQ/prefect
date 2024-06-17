@@ -9,9 +9,9 @@ from uuid import UUID
 import httpx
 import pendulum
 import typer
-from prefect._vendor.starlette import status
 from rich.pretty import Pretty
 from rich.table import Table
+from starlette import status
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
@@ -22,9 +22,7 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
 
-task_run_app = PrefectTyper(
-    name="task-run", help="Commands for interacting with task runs."
-)
+task_run_app = PrefectTyper(name="task-run", help="View and inspect task runs.")
 app.add_typer(task_run_app, aliases=["task-runs"])
 
 LOGS_DEFAULT_PAGE_SIZE = 200

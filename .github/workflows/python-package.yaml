@@ -24,10 +24,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python 3.8
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.9"
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
@@ -38,7 +38,7 @@ jobs:
 
       - name: Install python packages
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip wheel
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Build UI

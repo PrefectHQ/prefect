@@ -26,7 +26,7 @@ class EventLogger:
 
         async def handler(message: Message):
             now = pendulum.now("UTC")
-            event: ReceivedEvent = ReceivedEvent.parse_raw(message.data)
+            event: ReceivedEvent = ReceivedEvent.model_validate_json(message.data)
 
             console.print(
                 "Event:",

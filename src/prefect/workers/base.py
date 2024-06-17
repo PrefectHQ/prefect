@@ -7,14 +7,9 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import return_v_or_none
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
+from pydantic.json_schema import GenerateJsonSchema
+from typing_extensions import Literal
 
 import prefect
 from prefect._internal.compatibility.experimental import (
@@ -22,6 +17,7 @@ from prefect._internal.compatibility.experimental import (
     ExperimentalFeature,
     experiment_enabled,
 )
+from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (
@@ -37,7 +33,6 @@ from prefect.client.schemas.filters import (
 )
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
-from prefect.engine import propose_state
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
@@ -49,14 +44,17 @@ from prefect.exceptions import (
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_EXPERIMENTAL_WARN,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_TEST_MODE,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
+from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import (
     apply_values,
@@ -107,16 +105,27 @@ class BaseJobConfiguration(BaseModel):
     def is_using_a_runner(self):
         return self.command is not None and "prefect flow-run execute" in self.command
 
-    @validator("command")
+    @field_validator("command")
+    @classmethod
     def _coerce_command(cls, v):
         return return_v_or_none(v)
+
+    @field_validator("env", mode="before")
+    @classmethod
+    def _coerce_env(cls, v):
+        return {k: str(v) if v is not None else None for k, v in v.items()}
 
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:
         """Get default values from base config for all variables that have them."""
         defaults = dict()
         for variable_name, attrs in variables.items():
-            if "default" in attrs:
+            # We remote `None` values because we don't want to use them in templating.
+            # The currently logic depends on keys not existing to populate the correct value
+            # in some cases.
+            # Pydantic will provide default values if the keys are missing when creating
+            # a configuration class.
+            if "default" in attrs and attrs.get("default") is not None:
                 defaults[variable_name] = attrs["default"]
 
         return defaults
@@ -124,7 +133,10 @@ class BaseJobConfiguration(BaseModel):
     @classmethod
     @inject_client
     async def from_template_and_values(
-        cls, base_job_template: dict, values: dict, client: "PrefectClient" = None
+        cls,
+        base_job_template: dict,
+        values: dict,
+        client: Optional["PrefectClient"] = None,
     ):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
@@ -161,7 +173,7 @@ class BaseJobConfiguration(BaseModel):
         }
         """
         configuration = {}
-        properties = cls.schema()["properties"]
+        properties = cls.model_json_schema()["properties"]
         for k, v in properties.items():
             if v.get("template"):
                 template = v["template"]
@@ -325,6 +337,33 @@ class BaseVariables(BaseModel):
         ),
     )
 
+    @classmethod
+    def model_json_schema(
+        cls,
+        by_alias: bool = True,
+        ref_template: str = "#/definitions/{model}",
+        schema_generator: Type[GenerateJsonSchema] = GenerateJsonSchema,
+        mode: Literal["validation", "serialization"] = "validation",
+    ) -> Dict[str, Any]:
+        """TODO: stop overriding this method - use GenerateSchema in ConfigDict instead?"""
+        schema = super().model_json_schema(
+            by_alias, ref_template, schema_generator, mode
+        )
+
+        # ensure backwards compatibility by copying $defs into definitions
+        if "$defs" in schema:
+            schema["definitions"] = schema.pop("$defs")
+
+        # we aren't expecting these additional fields in the schema
+        if "additionalProperties" in schema:
+            schema.pop("additionalProperties")
+
+        for _, definition in schema.get("definitions", {}).items():
+            if "additionalProperties" in definition:
+                definition.pop("additionalProperties")
+
+        return schema
+
 
 class BaseWorkerResult(BaseModel, abc.ABC):
     identifier: str
@@ -420,7 +459,7 @@ class BaseWorker(abc.ABC):
     @classmethod
     def get_default_base_job_template(cls) -> Dict:
         if cls.job_configuration_variables is None:
-            schema = cls.job_configuration.schema()
+            schema = cls.job_configuration.model_json_schema()
             # remove "template" key from all dicts in schema['properties'] because it is not a
             # relevant field
             for key, value in schema["properties"].items():
@@ -428,7 +467,7 @@ class BaseWorker(abc.ABC):
                     schema["properties"][key].pop("template", None)
             variables_schema = schema
         else:
-            variables_schema = cls.job_configuration_variables.schema()
+            variables_schema = cls.job_configuration_variables.model_json_schema()
         variables_schema.pop("title", None)
         return {
             "job_configuration": cls.job_configuration.json_template(),
@@ -513,6 +552,10 @@ class BaseWorker(abc.ABC):
         self._limiter = (
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
         )
+
+        if not PREFECT_TEST_MODE and not PREFECT_API_URL.value():
+            raise ValueError("`PREFECT_API_URL` must be set to start a Worker.")
+
         self._client = get_client()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
@@ -963,7 +1006,7 @@ class BaseWorker(abc.ABC):
         return {
             "name": self.name,
             "work_pool": (
-                self._work_pool.dict(json_compatible=True)
+                self._work_pool.model_dump(mode="json")
                 if self._work_pool is not None
                 else None
             ),
@@ -1068,7 +1111,7 @@ class BaseWorker(abc.ABC):
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
         state_updates.setdefault("type", StateType.CANCELLED)
-        state = flow_run.state.copy(update=state_updates)
+        state = flow_run.state.model_copy(update=state_updates)
 
         await self._client.set_flow_run_state(flow_run.id, state, force=True)
 
@@ -1155,7 +1198,7 @@ class BaseWorker(abc.ABC):
         if include_self:
             worker_resource = self._event_resource()
             worker_resource["prefect.resource.role"] = "worker"
-            related.append(RelatedResource.parse_obj(worker_resource))
+            related.append(RelatedResource.model_validate(worker_resource))
 
         return related
 

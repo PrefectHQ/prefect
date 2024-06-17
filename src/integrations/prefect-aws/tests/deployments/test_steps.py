@@ -186,7 +186,6 @@ def test_push_pull_empty_folders(s3_setup, tmp_path, mock_aws_credentials):
     assert not (tmp_path / "empty2_copy").exists()
 
 
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires Python 3.8+")
 def test_s3_session_with_params():
     with patch("boto3.Session") as mock_session:
         get_s3_client(
@@ -225,7 +224,7 @@ def test_s3_session_with_params():
                 "config": {"connect_timeout": 123},
             },
         )
-        get_s3_client(credentials=creds_block.dict())
+        get_s3_client(credentials=creds_block.model_dump())
         get_s3_client(
             credentials={
                 "minio_root_user": "MY_USER",

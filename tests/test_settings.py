@@ -3,13 +3,7 @@ import os
 import textwrap
 from pathlib import Path
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
 import prefect.context
@@ -23,7 +17,6 @@ from prefect.settings import (
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLOUD_API_URL,
     PREFECT_CLOUD_UI_URL,
-    PREFECT_CLOUD_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
@@ -134,13 +127,13 @@ class TestSettingClass:
 class TestSettingsClass:
     def test_settings_copy_with_update_does_not_mark_unset_as_set(self):
         settings = get_current_settings()
-        set_keys = set(settings.dict(exclude_unset=True).keys())
+        set_keys = set(settings.model_dump(exclude_unset=True).keys())
         new_settings = settings.copy_with_update()
-        new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
+        new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
         assert new_set_keys == set_keys
 
         new_settings = settings.copy_with_update(updates={PREFECT_API_KEY: "TEST"})
-        new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
+        new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
         # Only the API key setting should be set
         assert new_set_keys - set_keys == {"PREFECT_API_KEY"}
 
@@ -236,7 +229,7 @@ class TestSettingsClass:
         for key, value in variables.items():
             monkeypatch.setenv(key, value)
         new_settings = Settings()
-        assert settings.dict() == new_settings.dict()
+        assert settings.model_dump() == new_settings.model_dump()
 
     def test_settings_to_environment_does_not_use_value_callback(self):
         settings = Settings(PREFECT_UI_API_URL=None)
@@ -289,7 +282,7 @@ class TestSettingsClass:
 
     def test_with_obfuscated_secrets(self):
         settings = get_current_settings()
-        original = settings.copy()
+        original = settings.model_copy()
         obfuscated = settings.with_obfuscated_secrets()
         assert settings == original
         assert original != obfuscated
@@ -409,28 +402,6 @@ class TestSettingAccess:
         settings = Settings(PREFECT_HOME="~/test")
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
-    def test_prefect_cloud_url_deprecated_on_set(self):
-        with temporary_settings({PREFECT_CLOUD_URL: "test"}):
-            with pytest.raises(
-                DeprecationWarning,
-                match=(
-                    "`PREFECT_CLOUD_URL` is set and will be used instead of"
-                    " `PREFECT_CLOUD_API_URL`"
-                ),
-            ):
-                PREFECT_CLOUD_API_URL.value()
-
-    def test_prefect_cloud_url_deprecated_on_access(self):
-        with pytest.raises(
-            DeprecationWarning,
-            match=(
-                "Setting 'PREFECT_CLOUD_URL' has been deprecated. "
-                "It will not be available after Jun 2023. "
-                "Use `PREFECT_CLOUD_API_URL` instead."
-            ),
-        ):
-            PREFECT_CLOUD_URL.value()
-
     @pytest.mark.parametrize(
         "api_url,ui_url",
         [
@@ -514,10 +485,10 @@ class TestTemporarySettings:
 
     def test_temporary_settings_does_not_mark_unset_as_set(self):
         settings = get_current_settings()
-        set_keys = set(settings.dict(exclude_unset=True).keys())
+        set_keys = set(settings.model_dump(exclude_unset=True).keys())
         with temporary_settings() as new_settings:
             pass
-        new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
+        new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
         assert new_set_keys == set_keys
 
     def test_temporary_settings_can_restore_to_defaults_values(self):
@@ -643,7 +614,7 @@ class TestLoadProfiles:
                 """
             )
         )
-        with pytest.raises(ValueError, match="Unknown setting.*'nested'"):
+        with pytest.raises(UserWarning, match="Setting 'nested' is not recognized "):
             load_profile("foo")
 
     def test_load_profile_with_invalid_key(self, temporary_profiles_path):
@@ -655,7 +626,7 @@ class TestLoadProfiles:
                 """
             )
         )
-        with pytest.raises(ValueError, match="Unknown setting.*'test'"):
+        with pytest.warns(UserWarning, match="Setting 'test' is not recognized"):
             load_profile("foo")
 
     @pytest.mark.parametrize("removed_flag", sorted(REMOVED_EXPERIMENTAL_FLAGS))

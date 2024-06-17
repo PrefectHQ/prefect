@@ -38,16 +38,40 @@ setup(
         ],
     },
     # Requirements
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=install_requires,
-    extras_require={"dev": dev_requires},
+    extras_require={
+        "dev": dev_requires,
+        # Infrastructure extras
+        "aws": "prefect-aws>=0.5.0rc1",
+        "azure": "prefect-azure>=0.4.0rc1",
+        "gcp": "prefect-gcp>=0.6.0rc1",
+        "docker": "prefect-docker>=0.6.0rc1",
+        "kubernetes": "prefect-kubernetes>=0.4.0rc1",
+        "shell": "prefect-shell>=0.3.0rc1",
+        # Distributed task execution extras
+        "dask": "prefect-dask>=0.3.0rc1",
+        "ray": "prefect-ray>=0.4.0rc1",
+        # Version control extras
+        "bitbucket": "prefect-bitbucket>=0.3.0rc1",
+        "github": "prefect-github>=0.3.0rc1",
+        "gitlab": "prefect-gitlab>=0.3.0rc1",
+        # Database extras
+        "databricks": "prefect-databricks>=0.3.0rc1",
+        "dbt": "prefect-dbt>=0.6.0rc1",
+        "snowflake": "prefect-snowflake>=0.28.0rc1",
+        "sqlalchemy": "prefect-sqlalchemy>=0.5.0rc1",
+        "redis": "redis>=5.0.1",
+        # Monitoring extras
+        "email": "prefect-email>=0.4.0rc1",
+        "slack": "prefect-slack>=0.3.0rc1",
+    },
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",

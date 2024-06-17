@@ -50,13 +50,16 @@ class TestUpdateWorkQueue:
         )
         assert result
 
-        updated_queue = schemas.core.WorkQueue.from_orm(
+        updated_queue = schemas.core.WorkQueue.model_validate(
             await models.work_queues.read_work_queue(
                 session=session, work_queue_id=work_queue.id
-            )
+            ),
+            from_attributes=True,
         )
         assert updated_queue.id == work_queue.id
-        assert updated_queue.filter.tags == ["updated", "tags"]
+
+        with pytest.warns(DeprecationWarning):
+            assert updated_queue.filter.tags == ["updated", "tags"]
 
 
 class TestGetRunsInWorkQueue:
@@ -106,7 +109,6 @@ class TestGetRunsInWorkQueue:
         self,
         session,
         deployment,
-        infrastructure_document_id,
         flow_run_1_id,
         flow_run_2_id,
         flow_run_3_id,
@@ -123,7 +125,6 @@ class TestGetRunsInWorkQueue:
                 flow_id=deployment.flow_id,
                 deployment_id=deployment.id,
                 flow_version="0.1",
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await models.flow_runs.set_flow_run_state(

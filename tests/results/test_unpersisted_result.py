@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from prefect import flow
 from prefect.results import MissingResult, UnpersistedResult
 
 
@@ -21,8 +22,13 @@ async def test_unpersisted_result_create_and_get(value):
 
 @pytest.mark.parametrize("value", TEST_VALUES)
 def test_unpersisted_result_create_and_get_sync(value):
-    result = UnpersistedResult.create(value)
-    assert result.get() == value
+    @flow
+    def sync():
+        result = UnpersistedResult.create(value)
+        return result.get()
+
+    output = sync()
+    assert output == value
 
 
 @pytest.mark.parametrize("value", TEST_VALUES)
@@ -35,8 +41,8 @@ async def test_unpersisted_result_create_and_get_no_cache(value):
 @pytest.mark.parametrize("value", TEST_VALUES)
 async def test_unpersisted_result_missing_after_json_roundtrip(value):
     result = await UnpersistedResult.create(value)
-    serialized = result.json()
-    deserialized = UnpersistedResult.parse_raw(serialized)
+    serialized = result.model_dump_json()
+    deserialized = UnpersistedResult.model_validate_json(serialized)
     with pytest.raises(MissingResult):
         await deserialized.get()
 

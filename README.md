@@ -20,7 +20,7 @@
 
 # Prefect
 
-Prefect is an orchestration and observability platform for building, observing, and triaging workflows. 
+Prefect is an orchestration and observability platform for building, observing, and triaging workflows.
 It's the simplest way to transform Python code into an interactive workflow application.
 
 Prefect allows you to expose your workflows through an API so teams dependent on you can programmatically access your pipelines, business logic, and more.
@@ -33,7 +33,7 @@ Every activity is tracked and can be monitored with a self-hosted [Prefect serve
 
 ## Getting started
 
-Prefect requires Python 3.8 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command:
+Prefect requires Python 3.9 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command:
 
 ```bash
 pip install prefect
@@ -71,7 +71,7 @@ Fire up the Prefect UI to see what happened:
 prefect server start
 ```
 
-![Prefect UI dashboard](/docs/img/ui/cloud-dashboard.png)
+![Prefect UI dashboard](https://github.com/PrefectHQ/prefect/blob/main/docs/images/cloud-overview1.png?raw=true)
 
 To run your workflow on a schedule, turn it into a deployment and schedule it to run every minute by changing the last line of your script to the following:
 
@@ -89,12 +89,15 @@ Prefect Cloud allows you to centrally deploy, monitor, and manage the data workf
 
 Read more about Prefect Cloud [here](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) or sign up to [try it for yourself](https://app.prefect.cloud?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
 
-![Prefect Automations](/docs/img/ui/automations.png)
+![Prefect Automations](https://github.com/PrefectHQ/prefect/blob/main/docs/images/automations-1.png?raw=true)
+![Prefect Automations](https://github.com/PrefectHQ/prefect/blob/main/docs/images/automations-2.png?raw=true)
+![Prefect Automations](https://github.com/PrefectHQ/prefect/blob/main/docs/images/automations-4.png?raw=true)
+
 
 ## prefect-client
 
-If your use case is geared towards communicating with Prefect Cloud or a remote Prefect server, check out our 
-[prefect-client](https://pypi.org/project/prefect-client/). It was designed to be a lighter-weight option for accessing 
+If your use case is geared towards communicating with Prefect Cloud or a remote Prefect server, check out our
+[prefect-client](https://pypi.org/project/prefect-client/). It was designed to be a lighter-weight option for accessing
 client-side functionality in the Prefect SDK and is ideal for use in ephemeral execution environments.
 
 ## Next steps
@@ -110,4 +113,4 @@ Prefect is made possible by the fastest growing community of thousands of friend
 
 See our [documentation on contributing to Prefect](https://docs.prefect.io/contributing/overview/).
 
-Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
+Thanks for being part of the mission to build a new kind of workflow system and, of course, <i>**happy engineering!**</i>

@@ -3,14 +3,7 @@ from typing import Dict, List, Literal, Optional
 
 # noinspection PyProtectedMember
 from googleapiclient.discovery import Resource
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.infrastructure.base import InfrastructureResult
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class JobV2(BaseModel):
@@ -21,16 +14,16 @@ class JobV2(BaseModel):
     name: str
     uid: str
     generation: str
-    labels: Dict[str, str]
-    annotations: Dict[str, str]
+    labels: Dict[str, str] = Field(default_factory=dict)
+    annotations: Dict[str, str] = Field(default_factory=dict)
     createTime: str
     updateTime: str
-    deleteTime: Optional[str]
-    expireTime: Optional[str]
-    creator: Optional[str]
-    lastModifier: Optional[str]
-    client: Optional[str]
-    clientVersion: Optional[str]
+    deleteTime: Optional[str] = Field(None)
+    expireTime: Optional[str] = Field(None)
+    creator: Optional[str] = Field(None)
+    lastModifier: Optional[str] = Field(None)
+    client: Optional[str] = Field(None)
+    clientVersion: Optional[str] = Field(None)
     launchStage: Literal[
         "ALPHA",
         "BETA",
@@ -41,16 +34,16 @@ class JobV2(BaseModel):
         "UNIMPLEMENTED",
         "LAUNCH_TAG_UNSPECIFIED",
     ]
-    binaryAuthorization: Dict
-    template: Dict
-    observedGeneration: Optional[str]
-    terminalCondition: Dict
-    conditions: List[Dict]
+    binaryAuthorization: Dict = Field(default_factory=dict)
+    template: Dict = Field(default_factory=dict)
+    observedGeneration: Optional[str] = Field(None)
+    terminalCondition: Dict = Field(default_factory=dict)
+    conditions: List[Dict] = Field(default_factory=list)
     executionCount: int
-    latestCreatedExecution: Dict
-    reconciling: bool
-    satisfiesPzs: bool
-    etag: str
+    latestCreatedExecution: Dict = Field(default_factory=dict)
+    reconciling: bool = Field(False)
+    satisfiesPzs: bool = Field(False)
+    etag: Optional[str] = Field(None)
 
     def is_ready(self) -> bool:
         """
@@ -390,5 +383,5 @@ class ExecutionV2(BaseModel):
         )
 
 
-class CloudRunJobV2Result(InfrastructureResult):
+class CloudRunJobV2Result:
     """Result from a Cloud Run Job."""

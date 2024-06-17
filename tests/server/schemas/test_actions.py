@@ -2,13 +2,7 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
-
-from prefect.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
+from pydantic import ValidationError
 
 from prefect.server.schemas.actions import (
     BlockTypeUpdate,
@@ -41,11 +35,11 @@ from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
     ],
 )
 class TestFlowRunCreate:
-    def test_dict_json_compatible_succeeds_with_parameters(
+    def test_model_dump_json_mode_succeeds_with_parameters(
         self, test_params, expected_dict
     ):
         frc = FlowRunCreate(flow_id=uuid4(), flow_version="0.1", parameters=test_params)
-        res = frc.dict(json_compatible=True)
+        res = frc.model_dump(mode="json")
         assert res["parameters"] == expected_dict
 
 

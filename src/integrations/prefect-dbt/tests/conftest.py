@@ -80,7 +80,7 @@ def dbt_cli_profile():
         printer_width=88,
         write_json=True,
         warn_error=False,
-        log_format=True,
+        log_format="json",
         debug=True,
         version_check=True,
         fail_fast=True,

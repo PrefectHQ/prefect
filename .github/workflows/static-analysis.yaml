@@ -27,15 +27,37 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
+        id: setup_python
         with:
-          python-version: 3.9
+          python-version: "3.9.18"
 
-      - name: Install pre-commit
+      - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+
+      - name: Install packages
         run: |
-          pip install pre-commit
+          python -m pip install -U uv pre-commit
+          uv pip install --upgrade --system -e .[dev]
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install mintlify-scrape
+        run: npm install -g @mintlify/scraping
 
       - name: Run pre-commit
         run: |

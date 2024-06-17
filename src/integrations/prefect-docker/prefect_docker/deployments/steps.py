@@ -1,29 +1,3 @@
-"""
-Prefect deployment steps for building and pushing Docker images.
-
-
-These steps can be used in a `prefect.yaml` file to define the default
-build steps for a group of deployments, or they can be used to define
-the build step for a specific deployment.
-
-!!! example
-    Build a Docker image before deploying a flow:
-    ```yaml
-    build:
-        - prefect_docker.deployments.steps.build_docker_image:
-            id: build-image
-            requires: prefect-docker
-            image_name: repo-name/image-name
-            tag: dev
-
-    push:
-        - prefect_docker.deployments.steps.push_docker_image:
-            requires: prefect-docker
-            image_name: "{{ build-image.image_name }}"
-            tag: "{{ build-image.tag }}"
-    ```
-"""
-
 import json
 import os
 import sys
@@ -46,17 +20,6 @@ from prefect.utilities.slugify import slugify
 
 
 class BuildDockerImageResult(TypedDict):
-    """
-    The result of a `build_docker_image` step.
-
-    Attributes:
-        image_name: The name of the built image.
-        tag: The tag of the built image.
-        image: The name and tag of the built image.
-        image_id: The ID of the built image.
-        additional_tags: The additional tags on the image, in addition to `tag`.
-    """
-
     image_name: str
     tag: str
     image: str
@@ -65,94 +28,46 @@ class BuildDockerImageResult(TypedDict):
 
 
 class PushDockerImageResult(TypedDict):
-    """
-    The result of a `push_docker_image` step.
-
-    Attributes:
-        image_name: The name of the pushed image.
-        tag: The tag of the pushed image.
-        image: The name and tag of the pushed image.
-        additional_tags: The additional tags on the image, in addition to `tag`.
-    """
-
     image_name: str
     tag: Optional[str]
     image: str
     additional_tags: Optional[List[str]]
 
 
+def _make_hashable(obj):
+    if isinstance(obj, dict):
+        return json.dumps(obj, sort_keys=True)
+    elif isinstance(obj, list):
+        return tuple(_make_hashable(v) for v in obj)
+    return obj
+
+
+def cacheable(func):
+    cache = {}
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        ignore_cache = kwargs.pop("ignore_cache", False)
+        key = (
+            tuple(_make_hashable(arg) for arg in args),
+            tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items())),
+        )
+        if ignore_cache or key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+
+    return wrapper
+
+
+@cacheable
 def build_docker_image(
     image_name: str,
     dockerfile: str = "Dockerfile",
     tag: Optional[str] = None,
     additional_tags: Optional[List[str]] = None,
+    ignore_cache: bool = False,
     **build_kwargs,
 ) -> BuildDockerImageResult:
-    """
-    Builds a Docker image for a Prefect deployment.
-
-    Can be used within a `prefect.yaml` file to build a Docker
-    image prior to creating or updating a deployment.
-
-    Args:
-        image_name: The name of the Docker image to build, including the registry and
-            repository.
-        dockerfile: The path to the Dockerfile used to build the image. If "auto" is
-            passed, a temporary Dockerfile will be created to build the image.
-        tag: The tag to apply to the built image.
-        additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
-        **build_kwargs: Additional keyword arguments to pass to Docker when building
-            the image. Available options can be found in the [`docker-py`](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
-            documentation.
-
-    Returns:
-        A dictionary containing the image name and tag of the
-            built image.
-
-    Example:
-        Build a Docker image prior to creating a deployment:
-        ```yaml
-        build:
-            - prefect_docker.deployments.steps.build_docker_image:
-                requires: prefect-docker
-                image_name: repo-name/image-name
-                tag: dev
-        ```
-
-        Build a Docker image with multiple tags:
-        ```yaml
-        build:
-            - prefect_docker.deployments.steps.build_docker_image:
-                requires: prefect-docker
-                image_name: repo-name/image-name
-                tag: dev
-                additional_tags:
-                    - v0.1.0,
-                    - dac9ccccedaa55a17916eef14f95cc7bdd3c8199
-        ```
-
-        Build a Docker image using an auto-generated Dockerfile:
-        ```yaml
-        build:
-            - prefect_docker.deployments.steps.build_docker_image:
-                requires: prefect-docker
-                image_name: repo-name/image-name
-                tag: dev
-                dockerfile: auto
-        ```
-
-
-        Build a Docker image for a different platform:
-        ```yaml
-        build:
-            - prefect_docker.deployments.steps.build_docker_image:
-                requires: prefect-docker
-                image_name: repo-name/image-name
-                tag: dev
-                dockerfile: Dockerfile
-                platform: amd64
-        ```
-    """  # noqa
     auto_build = dockerfile == "auto"
     if auto_build:
         lines = []
@@ -231,69 +146,14 @@ def build_docker_image(
     }
 
 
+@cacheable
 def push_docker_image(
     image_name: str,
     tag: Optional[str] = None,
     credentials: Optional[Dict] = None,
     additional_tags: Optional[List[str]] = None,
+    ignore_cache: bool = False,
 ) -> PushDockerImageResult:
-    """
-    Push a Docker image to a remote registry.
-
-    Args:
-        image_name: The name of the Docker image to push, including the registry and
-            repository.
-        tag: The tag of the Docker image to push.
-        credentials: A dictionary containing the username, password, and URL for the
-            registry to push the image to.
-        additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
-
-    Returns:
-        A dictionary containing the image name and tag of the
-            pushed image.
-
-    Examples:
-        Build and push a Docker image to a private repository:
-        ```yaml
-        build:
-            - prefect_docker.deployments.steps.build_docker_image:
-                id: build-image
-                requires: prefect-docker
-                image_name: repo-name/image-name
-                tag: dev
-                dockerfile: auto
-
-        push:
-            - prefect_docker.deployments.steps.push_docker_image:
-                requires: prefect-docker
-                image_name: "{{ build-image.image_name }}"
-                tag: "{{ build-image.tag }}"
-                credentials: "{{ prefect.blocks.docker-registry-credentials.dev-registry }}"
-        ```
-
-        Build and push a Docker image to a private repository with multiple tags
-        ```yaml
-        build:
-            - prefect_docker.deployments.steps.build_docker_image:
-                id: build-image
-                requires: prefect-docker
-                image_name: repo-name/image-name
-                tag: dev
-                dockerfile: auto
-                additional_tags: [
-                    v0.1.0,
-                    dac9ccccedaa55a17916eef14f95cc7bdd3c8199
-                ]
-
-        push:
-            - prefect_docker.deployments.steps.push_docker_image:
-                requires: prefect-docker
-                image_name: "{{ build-image.image_name }}"
-                tag: "{{ build-image.tag }}"
-                credentials: "{{ prefect.blocks.docker-registry-credentials.dev-registry }}"
-                additional_tags: "{{ build-image.additional_tags }}"
-        ```
-    """  # noqa
     with docker_client() as client:
         if credentials is not None:
             client.login(
@@ -330,115 +190,3 @@ def push_docker_image(
         "image": f"{image_name}:{tag}",
         "additional_tags": additional_tags,
     }
-
-
-def _make_hashable(obj):
-    if isinstance(obj, dict):
-        return json.dumps(obj, sort_keys=True)
-    elif isinstance(obj, list):
-        return tuple(_make_hashable(v) for v in obj)
-    return obj
-
-
-def cacheable(func):
-    cache = {}
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        key = (
-            tuple(_make_hashable(arg) for arg in args),
-            tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items())),
-        )
-        if key not in cache:
-            cache[key] = func(*args, **kwargs)
-        return cache[key]
-
-    return wrapper
-
-
-@cacheable
-def cached_build_docker_image(
-    image_name: str,
-    dockerfile: str,
-    tag: Optional[str] = None,
-    additional_tags: Optional[List[str]] = None,
-    **build_kwargs,
-) -> BuildDockerImageResult:
-    """Cached version of `prefect_docker.deployments.steps.build_docker_image`.
-
-    Args:
-        image_name: The name of the Docker image to build, including the registry and
-            repository.
-        dockerfile: The path to the Dockerfile used to build the image. If "auto" is
-            passed, a temporary Dockerfile will be created to build the image.
-        tag: The tag to apply to the built image.
-        additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
-        **build_kwargs: Additional keyword arguments to pass to Docker when building
-            the image. Available options can be found in the [`docker-py`](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
-            documentation.
-
-    Returns:
-        A dictionary containing the image name and tag of the built image.
-
-    Example:
-        Build a Docker image that is cached if the same image is built again in the same `prefect deploy` run:
-        ```yaml
-        build:
-            - prefect_docker.deployments.steps.cached_build_docker_image:
-                id: build-image
-                requires: prefect-docker
-                image_name: repo-name/image-name
-                tag: dev
-        ```
-    """
-    return build_docker_image(
-        image_name=image_name,
-        dockerfile=dockerfile,
-        tag=tag,
-        additional_tags=additional_tags,
-        **build_kwargs,
-    )
-
-
-@cacheable
-def cached_push_docker_image(
-    image_name: str,
-    tag: str,
-    credentials: Optional[Dict] = None,
-    additional_tags: Optional[List[str]] = None,
-    **push_kwargs,
-) -> PushDockerImageResult:
-    """Cached version of `prefect_docker.deployments.steps.push_docker_image`.
-
-    Args:
-        image_name: The name of the Docker image to push, including the registry and
-            repository.
-        tag: The tag of the Docker image to push.
-        credentials: A dictionary containing the username, password, and URL for the
-            registry to push the image to.
-        additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
-        **push_kwargs: Additional keyword arguments to pass to Docker when pushing
-            the image. Available options can be found in the [`docker-py`](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.push)
-            documentation.
-
-    Returns:
-        A dictionary containing the image name and tag of the pushed image.
-
-    Example:
-        Push a Docker image that is cached if the same image is pushed again in the same `prefect deploy` run:
-        ```yaml
-        push:
-            - prefect_docker.deployments.steps.cached_push_docker_image:
-                requires: prefect-docker
-                image_name: repo-name/image-name
-                tag: dev
-                credentials: "{{ prefect.blocks.docker-registry-credentials.dev-registry }}"
-        ```
-    """
-    return push_docker_image(
-        image_name=image_name,
-        tag=tag,
-        credentials=credentials,
-        additional_tags=additional_tags,
-        **push_kwargs,
-    )

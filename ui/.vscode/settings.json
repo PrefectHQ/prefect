@@ -18,6 +18,7 @@
   "editor.insertSpaces": true,
   "editor.tabSize": 2,
   "cSpell.words": [
+    "automations",
     "camelcase",
     "Combobox",
     "kubernetes",
