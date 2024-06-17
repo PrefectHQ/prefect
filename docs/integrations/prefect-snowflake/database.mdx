@@ -1,1 +1,0 @@
-::: prefect_snowflake.database
