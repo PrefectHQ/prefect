@@ -764,7 +764,8 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T: ...
+    ) -> T:
+        ...
 
     @overload
     def __call__(
@@ -772,7 +773,8 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]: ...
+    ) -> State[T]:
+        ...
 
     def __call__(
         self,
@@ -825,7 +827,8 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture: ...
+    ) -> PrefectFuture:
+        ...
 
     @overload
     def submit(
@@ -834,7 +837,8 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> State[T]: ...
+    ) -> State[T]:
+        ...
 
     def submit(
         self,
@@ -973,7 +977,8 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture]: ...
+    ) -> List[PrefectFuture]:
+        ...
 
     @overload
     def map(
@@ -981,7 +986,8 @@ class Task(Generic[P, R]):
         return_state: Literal[True],
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[State[T]]: ...
+    ) -> List[State[T]]:
+        ...
 
     def map(
         self,
@@ -1297,7 +1303,8 @@ class Task(Generic[P, R]):
 
 
 @overload
-def task(__fn: Callable[P, R]) -> Task[P, R]: ...
+def task(__fn: Callable[P, R]) -> Task[P, R]:
+    ...
 
 
 @overload
@@ -1333,7 +1340,8 @@ def task(
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]: ...
+) -> Callable[[Callable[P, R]], Task[P, R]]:
+    ...
 
 
 def task(
