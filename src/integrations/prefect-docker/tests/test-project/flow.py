@@ -3,7 +3,8 @@ import sys
 import numpy as np
 import pandas as pd
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
+from prefect.logging import get_run_logger
 
 
 @task

@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Type
+from typing import TYPE_CHECKING, Dict, Optional, Type
 
 import yaml
-from pydantic.v1 import Field, validator
+from pydantic import Field, field_validator
 from typing_extensions import Self
 
 from prefect._internal.compatibility.deprecated import deprecated_class
@@ -52,12 +52,15 @@ class KubernetesClusterConfig(Block):
         default=..., description="The name of the kubectl context to use."
     )
 
-    @validator("config", pre=True)
+    @field_validator("config", mode="before")
+    @classmethod
     def parse_yaml_config(cls, value):
         return validate_yaml(value)
 
     @classmethod
-    def from_file(cls: Type[Self], path: Path = None, context_name: str = None) -> Self:
+    def from_file(
+        cls: Type[Self], path: Optional[Path] = None, context_name: Optional[str] = None
+    ) -> Self:
         """
         Create a cluster config from the a Kubernetes config file.
 

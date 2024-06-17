@@ -17,15 +17,15 @@ import asyncpg
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from prefect._vendor.fastapi import APIRouter, Depends, FastAPI, Request, status
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-from prefect._vendor.fastapi.exceptions import RequestValidationError
-from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
-from prefect._vendor.fastapi.middleware.gzip import GZipMiddleware
-from prefect._vendor.fastapi.openapi.utils import get_openapi
-from prefect._vendor.fastapi.responses import JSONResponse
-from prefect._vendor.fastapi.staticfiles import StaticFiles
-from prefect._vendor.starlette.exceptions import HTTPException
+from fastapi import APIRouter, Depends, FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 
 import prefect
 import prefect.server.api as api
@@ -44,6 +44,7 @@ from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
@@ -55,6 +56,9 @@ TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
+# migrations should run only once per app start; the ephemeral API can potentially
+# create multiple apps in a single process
+LIFESPAN_RAN_FOR_APP = set()
 
 logger = get_logger("server")
 
@@ -237,13 +241,16 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
 
     Send 503 for errors clients can retry on.
     """
-    logger.error("Encountered exception in request:", exc_info=True)
-
     if is_client_retryable_exception(exc):
+        if PREFECT_API_LOG_RETRYABLE_ERRORS.value():
+            logger.error("Encountered retryable exception in request:", exc_info=True)
+
         return JSONResponse(
             content={"exception_message": "Service Unavailable"},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+    logger.error("Encountered exception in request:", exc_info=True)
 
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
@@ -292,7 +299,7 @@ def create_api_app(
         return True
 
     @api_app.get(version_check_path, tags=["Root"])
-    async def orion_info():
+    async def server_version():
         return SERVER_API_VERSION
 
     # always include version checking
@@ -551,7 +558,6 @@ def create_app(
             return
 
         service_instances = []
-
         if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
             service_instances.append(services.scheduler.Scheduler())
             service_instances.append(services.scheduler.RecentDeploymentsScheduler())
@@ -578,7 +584,7 @@ def create_app(
         if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
             service_instances.append(services.foreman.Foreman())
 
-        if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+        if prefect.settings.PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED.value():
             service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 
         if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
@@ -616,13 +622,17 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app):
-        try:
-            await run_migrations()
-            await add_block_types()
-            await start_services()
+        if app not in LIFESPAN_RAN_FOR_APP:
+            try:
+                await run_migrations()
+                await add_block_types()
+                await start_services()
+                LIFESPAN_RAN_FOR_APP.add(app)
+                yield
+            finally:
+                await stop_services()
+        else:
             yield
-        finally:
-            await stop_services()
 
     def on_service_exit(service, task):
         """

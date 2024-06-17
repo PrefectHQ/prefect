@@ -5,7 +5,7 @@
         <template v-if="!empty" #actions>
           <div class="workspace-dashboard__header-actions">
             <div class="workspace-dashboard__subflows-toggle">
-                <p-toggle v-model="filter.hideSubflows" append="Hide subflows" />
+              <p-toggle v-model="filter.hideSubflows" append="Hide subflows" />
             </div>
             <FlowRunTagsInput v-model:selected="filter.tags" empty-message="All tags" />
             <DateRangeSelect v-model="filter.range" class="workspace-dashboard__date-select" />

@@ -12,6 +12,8 @@ from .run_input import (
     RunInputMetadata,
     keyset_from_base_key,
     keyset_from_paused_state,
+    receive_input,
+    send_input,
 )
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     "keyset_from_base_key",
     "keyset_from_paused_state",
     "read_flow_run_input",
+    "receive_input",
+    "send_input",
 ]

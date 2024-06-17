@@ -18,8 +18,11 @@ from rich.text import Text
 
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
-from prefect.client.schemas.actions import BlockDocumentCreate, WorkPoolCreate
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import (
+    BlockDocumentCreate,
+    DeploymentScheduleCreate,
+    WorkPoolCreate,
+)
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -34,14 +37,13 @@ from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
-    PREFECT_UI_URL,
 )
+from prefect.utilities import urls
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-
 
 STORAGE_PROVIDER_TO_CREDS_BLOCK = {
     "s3": "aws-credentials",
@@ -202,7 +204,6 @@ def prompt_interval_schedule(console):
     Prompt the user for an interval in seconds.
     """
     default_seconds = 3600
-    # The interval value must be a timedelta object in order to pass validation as a `PositiveDuration` type in `IntervalSchedule`.
     default_duration = timedelta(seconds=default_seconds)
 
     # We show the default in the prompt message rather than enabling `show_default=True` here because `rich` displays timedeltas in hours
@@ -364,7 +365,7 @@ def prompt_schedule_type(console):
     return selection["type"]
 
 
-def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
+def prompt_schedules(console) -> List[DeploymentScheduleCreate]:
     """
     Prompt the user to configure schedules for a deployment.
     """
@@ -401,7 +402,7 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
                     {"max_active_runs": max_active_runs, "catchup": catchup}
                 )
 
-            schedules.append(MinimalDeploymentSchedule(**minimal_schedule_kwargs))
+            schedules.append(DeploymentScheduleCreate(**minimal_schedule_kwargs))
 
             add_schedule = confirm(
                 "Would you like to add another schedule?", default=False
@@ -418,7 +419,7 @@ async def prompt_select_work_pool(
 ) -> str:
     work_pools = await client.read_work_pools()
     work_pool_options = [
-        work_pool.dict()
+        work_pool.model_dump()
         for work_pool in work_pools
         if work_pool.type != "prefect-agent"
     ]
@@ -854,9 +855,9 @@ async def prompt_select_blob_storage_credentials(
                 " name"
             )
 
-    if PREFECT_UI_URL:
+    url = urls.url_for(new_block_document)
+    if url:
         console.print(
-            "\nView/Edit your new credentials block in the UI:"
-            f"\n[blue]{PREFECT_UI_URL.value()}/blocks/block/{new_block_document.id}[/]\n"
+            "\nView/Edit your new credentials block in the UI:" f"\n[blue]{url}[/]\n"
         )
     return f"{{{{ prefect.blocks.{creds_block_type_slug}.{new_block_document.name} }}}}"

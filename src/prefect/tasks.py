@@ -14,7 +14,6 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Coroutine,
     Dict,
     Generic,
     Iterable,
@@ -22,6 +21,8 @@ from typing import (
     NoReturn,
     Optional,
     Set,
+    Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -31,26 +32,28 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
-from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.context import (
     FlowRunContext,
     TagsContext,
     TaskRunContext,
+    serialize_context,
 )
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
+from prefect.records.cache_policies import DEFAULT, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import Async, Sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
+    expand_mapping_parameters,
     get_call_parameters,
     raise_for_reserved_arguments,
 )
@@ -58,9 +61,9 @@ from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+    from prefect.client.orchestration import PrefectClient
     from prefect.context import TaskRunContext
-    from prefect.task_runners import BaseTaskRunner
+    from prefect.transactions import Transaction
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -119,6 +122,57 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
     return retry_backoff_callable
 
 
+def _infer_parent_task_runs(
+    flow_run_context: Optional[FlowRunContext],
+    task_run_context: Optional[TaskRunContext],
+    parameters: Dict[str, Any],
+):
+    """
+    Attempt to infer the parent task runs for this task run based on the
+    provided flow run and task run contexts, as well as any parameters. It is
+    assumed that the task run is running within those contexts.
+    If any parameter comes from a running task run, that task run is considered
+    a parent. This is expected to happen when task inputs are yielded from
+    generator tasks.
+    """
+    parents = []
+
+    # check if this task has a parent task run based on running in another
+    # task run's existing context. A task run is only considered a parent if
+    # it is in the same flow run (because otherwise presumably the child is
+    # in a subflow, so the subflow serves as the parent) or if there is no
+    # flow run
+    if task_run_context:
+        # there is no flow run
+        if not flow_run_context:
+            parents.append(TaskRunResult(id=task_run_context.task_run.id))
+        # there is a flow run and the task run is in the same flow run
+        elif flow_run_context and task_run_context.task_run.flow_run_id == getattr(
+            flow_run_context.flow_run, "id", None
+        ):
+            parents.append(TaskRunResult(id=task_run_context.task_run.id))
+
+    # parent dependency tracking: for every provided parameter value, try to
+    # load the corresponding task run state. If the task run state is still
+    # running, we consider it a parent task run. Note this is only done if
+    # there is an active flow run context because dependencies are only
+    # tracked within the same flow run.
+    if flow_run_context:
+        for v in parameters.values():
+            if isinstance(v, State):
+                upstream_state = v
+            elif isinstance(v, PrefectFuture):
+                upstream_state = v.state
+            else:
+                upstream_state = flow_run_context.task_run_results.get(id(v))
+            if upstream_state and upstream_state.is_running():
+                parents.append(
+                    TaskRunResult(id=upstream_state.state_details.task_run_id)
+                )
+
+    return parents
+
+
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -141,6 +195,7 @@ class Task(Generic[P, R]):
             tags are combined with any tags defined by a `prefect.tags` context at
             task runtime.
         version: An optional string specifying the version of this task definition
+        cache_policy: A cache policy that determines the level of caching for this task
         cache_key_fn: An optional callable that, given the task run context and call
             parameters, generates a string key; if the key matches a previous completed
             state, that state result will be restored instead of running the task again.
@@ -200,6 +255,7 @@ class Task(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         version: Optional[str] = None,
+        cache_policy: Optional[CachePolicy] = NotSet,
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
@@ -225,8 +281,8 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_rollback: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_commit: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_rollback: Optional[List[Callable[["Transaction"], None]]] = None,
+        on_commit: Optional[List[Callable[["Transaction"], None]]] = None,
         retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
@@ -262,7 +318,18 @@ class Task(Generic[P, R]):
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
-        self.isasync = inspect.iscoroutinefunction(self.fn)
+
+        # the task is considered async if its function is async or an async
+        # generator
+        self.isasync = inspect.iscoroutinefunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
+
+        # the task is considered a generator if its function is a generator or
+        # an async generator
+        self.isgenerator = inspect.isgeneratorfunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
 
         if not name:
             if not hasattr(self.fn, "__name__"):
@@ -299,9 +366,26 @@ class Task(Generic[P, R]):
 
             self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
+        if cache_policy is not NotSet and cache_key_fn is not None:
+            logger.warning(
+                f"Both `cache_policy` and `cache_key_fn` are set on task {self}. `cache_key_fn` will be used."
+            )
+
+        if cache_key_fn:
+            cache_policy = CachePolicy.from_cache_key_fn(cache_key_fn)
+
+        # TODO: manage expiration and cache refresh
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
+
+        if cache_policy is NotSet and result_storage_key is None:
+            self.cache_policy = DEFAULT
+        elif result_storage_key:
+            # TODO: handle this situation with double storage
+            self.cache_policy = None
+        else:
+            self.cache_policy = cache_policy
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -348,33 +432,57 @@ class Task(Generic[P, R]):
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
 
+    @property
+    def ismethod(self) -> bool:
+        return hasattr(self.fn, "__prefect_self__")
+
+    def __get__(self, instance, owner):
+        """
+        Implement the descriptor protocol so that the task can be used as an instance method.
+        When an instance method is loaded, this method is called with the "self" instance as
+        an argument. We return a copy of the task with that instance bound to the task's function.
+        """
+
+        # if no instance is provided, it's being accessed on the class
+        if instance is None:
+            return self
+
+        # if the task is being accessed on an instance, bind the instance to the __prefect_self__ attribute
+        # of the task's function. This will allow it to be automatically added to the task's parameters
+        else:
+            bound_task = copy(self)
+            bound_task.fn.__prefect_self__ = instance
+            return bound_task
+
     def with_options(
         self,
         *,
-        name: str = None,
-        description: str = None,
-        tags: Iterable[str] = None,
-        cache_key_fn: Callable[
-            ["TaskRunContext", Dict[str, Any]], Optional[str]
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
+        cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+        cache_key_fn: Optional[
+            Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
         task_run_name: Optional[Union[Callable[[], str], str]] = None,
-        cache_expiration: datetime.timedelta = None,
-        retries: Optional[int] = NotSet,
+        cache_expiration: Optional[datetime.timedelta] = None,
+        retries: Union[int, Type[NotSet]] = NotSet,
         retry_delay_seconds: Union[
             float,
             int,
             List[float],
             Callable[[int], List[float]],
+            Type[NotSet],
         ] = NotSet,
-        retry_jitter_factor: Optional[float] = NotSet,
-        persist_result: Optional[bool] = NotSet,
-        result_storage: Optional[ResultStorage] = NotSet,
-        result_serializer: Optional[ResultSerializer] = NotSet,
-        result_storage_key: Optional[str] = NotSet,
+        retry_jitter_factor: Union[float, Type[NotSet]] = NotSet,
+        persist_result: Union[bool, Type[NotSet]] = NotSet,
+        result_storage: Union[ResultStorage, Type[NotSet]] = NotSet,
+        result_serializer: Union[ResultSerializer, Type[NotSet]] = NotSet,
+        result_storage_key: Union[str, Type[NotSet]] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
-        timeout_seconds: Union[int, float] = None,
-        log_prints: Optional[bool] = NotSet,
-        refresh_cache: Optional[bool] = NotSet,
+        timeout_seconds: Union[int, float, None] = None,
+        log_prints: Union[bool, Type[NotSet]] = NotSet,
+        refresh_cache: Union[bool, Type[NotSet]] = NotSet,
         on_completion: Optional[
             List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
         ] = None,
@@ -465,6 +573,9 @@ class Task(Generic[P, R]):
             name=name or self.name,
             description=description or self.description,
             tags=tags or copy(self.tags),
+            cache_policy=cache_policy
+            if cache_policy is not NotSet
+            else self.cache_policy,
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
             task_run_name=task_run_name,
@@ -526,26 +637,27 @@ class Task(Generic[P, R]):
         return fn
 
     def on_commit(
-        self, fn: Callable[["Task", TaskRun, State], None]
-    ) -> Callable[["Task", TaskRun, State], None]:
+        self, fn: Callable[["Transaction"], None]
+    ) -> Callable[["Transaction"], None]:
         self.on_commit_hooks.append(fn)
         return fn
 
     def on_rollback(
-        self, fn: Callable[["Task", TaskRun, State], None]
-    ) -> Callable[["Task", TaskRun, State], None]:
+        self, fn: Callable[["Transaction"], None]
+    ) -> Callable[["Transaction"], None]:
         self.on_rollback_hooks.append(fn)
         return fn
 
     async def create_run(
         self,
-        client: Union["PrefectClient", "SyncPrefectClient"],
+        client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
         parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
@@ -558,83 +670,84 @@ class Task(Generic[P, R]):
             parent_task_run_context = TaskRunContext.get()
         if parameters is None:
             parameters = {}
+        if client is None:
+            client = get_client()
 
-        is_autonomous_task = not flow_run_context
-
-        if is_autonomous_task:
-            dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
-            task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
-            state = Scheduled()
-        else:
-            dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
-            task_run_name = f"{self.name}-{dynamic_key}"
-            state = Pending()
-
-        # store parameters for autonomous tasks so that task servers
-        # can retrieve them at runtime
-        if is_autonomous_task and parameters:
-            parameters_id = uuid4()
-            state.state_details.task_parameters_id = parameters_id
-
-            # TODO: Improve use of result storage for parameter storage / reference
-            self.persist_result = True
-
-            factory = await ResultFactory.from_autonomous_task(self, client=client)
-            await factory.store_parameters(parameters_id, parameters)
-
-        # collect task inputs
-        task_inputs = {
-            k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
-        }
-
-        # check if this task has a parent task run based on running in another
-        # task run's existing context. A task run is only considered a parent if
-        # it is in the same flow run (because otherwise presumably the child is
-        # in a subflow, so the subflow serves as the parent) or if there is no
-        # flow run
-        if parent_task_run_context:
-            # there is no flow run
+        async with client:
             if not flow_run_context:
-                task_inputs["__parents__"] = [
-                    TaskRunResult(id=parent_task_run_context.task_run.id)
-                ]
-            # there is a flow run and the task run is in the same flow run
-            elif (
-                flow_run_context
-                and parent_task_run_context.task_run.flow_run_id
-                == getattr(flow_run_context.flow_run, "id", None)
+                dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
+                task_run_name = self.name
+            else:
+                dynamic_key = _dynamic_key_for_task_run(
+                    context=flow_run_context, task=self
+                )
+                task_run_name = f"{self.name}-{dynamic_key}"
+
+            if deferred:
+                state = Scheduled()
+                state.state_details.deferred = True
+            else:
+                state = Pending()
+
+            # store parameters for background tasks so that task worker
+            # can retrieve them at runtime
+            if deferred and (parameters or wait_for):
+                parameters_id = uuid4()
+                state.state_details.task_parameters_id = parameters_id
+
+                # TODO: Improve use of result storage for parameter storage / reference
+                self.persist_result = True
+
+                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                context = serialize_context()
+                data: Dict[str, Any] = {"context": context}
+                if parameters:
+                    data["parameters"] = parameters
+                if wait_for:
+                    data["wait_for"] = wait_for
+                await factory.store_parameters(parameters_id, data)
+
+            # collect task inputs
+            task_inputs = {
+                k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
+            }
+
+            # collect all parent dependencies
+            if task_parents := _infer_parent_task_runs(
+                flow_run_context=flow_run_context,
+                task_run_context=parent_task_run_context,
+                parameters=parameters,
             ):
-                task_inputs["__parents__"] = [
-                    TaskRunResult(id=parent_task_run_context.task_run.id)
-                ]
+                task_inputs["__parents__"] = task_parents
 
-        if wait_for:
-            task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
+            # check wait for dependencies
+            if wait_for:
+                task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
 
-        # Join extra task inputs
-        for k, extras in (extra_task_inputs or {}).items():
-            task_inputs[k] = task_inputs[k].union(extras)
+            # Join extra task inputs
+            for k, extras in (extra_task_inputs or {}).items():
+                task_inputs[k] = task_inputs[k].union(extras)
 
-        # create the task run
-        task_run = client.create_task_run(
-            task=self,
-            name=task_run_name,
-            flow_run_id=(
-                getattr(flow_run_context.flow_run, "id", None)
-                if flow_run_context and flow_run_context.flow_run
-                else None
-            ),
-            dynamic_key=str(dynamic_key),
-            id=id,
-            state=state,
-            task_inputs=task_inputs,
-            extra_tags=TagsContext.get().current_tags,
-        )
-        # the new engine uses sync clients but old engines use async clients
-        if inspect.isawaitable(task_run):
-            task_run = await task_run
+            # create the task run
+            task_run = client.create_task_run(
+                task=self,
+                name=task_run_name,
+                flow_run_id=(
+                    getattr(flow_run_context.flow_run, "id", None)
+                    if flow_run_context and flow_run_context.flow_run
+                    else None
+                ),
+                dynamic_key=str(dynamic_key),
+                id=id,
+                state=state,
+                task_inputs=task_inputs,
+                extra_tags=TagsContext.get().current_tags,
+            )
+            # the new engine uses sync clients but old engines use async clients
+            if inspect.isawaitable(task_run):
+                task_run = await task_run
 
-        return task_run
+            return task_run
 
     @overload
     def __call__(
@@ -651,8 +764,7 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload
     def __call__(
@@ -660,8 +772,7 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]:
-        ...
+    ) -> State[T]: ...
 
     def __call__(
         self,
@@ -690,7 +801,7 @@ class Task(Generic[P, R]):
                 self.isasync, self.name, parameters, self.viz_return_value
             )
 
-        from prefect.new_task_engine import run_task
+        from prefect.task_engine import run_task
 
         return run_task(
             task=self,
@@ -704,35 +815,26 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[None, Sync]:
+    ) -> PrefectFuture:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
 
     @overload
     def submit(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[PrefectFuture[T, Async]]:
-        ...
+    ) -> PrefectFuture: ...
 
     @overload
     def submit(
         self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFuture[T, Sync]:
-        ...
-
-    @overload
-    def submit(
-        self: "Task[P, T]",
-        *args: P.args,
         return_state: Literal[True],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        *args: P.args,
         **kwargs: P.kwargs,
-    ) -> State[T]:
-        ...
+    ) -> State[T]: ...
 
     def submit(
         self,
@@ -740,17 +842,13 @@ class Task(Generic[P, R]):
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    ):
         """
         Submit a run of the task to the engine.
 
-        If writing an async task, this call must be awaited.
-
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,
-        once it is submitted, the flow function will continue executing. However, note
-        that the `SequentialTaskRunner` does not implement parallel execution for sync tasks
-        and they are fully resolved on submission.
+        once it is submitted, the flow function will continue executing.
 
         Args:
             *args: Arguments to run the task with
@@ -840,7 +938,11 @@ class Task(Generic[P, R]):
         flow_run_context = FlowRunContext.get()
 
         if not flow_run_context:
-            raise ValueError("Task.submit() must be called within a flow")
+            raise RuntimeError(
+                "Unable to determine task runner to use for submission. If you are"
+                " submitting a task outside of a flow, please use `.delay`"
+                " to submit the task run for deferred execution."
+            )
 
         task_viz_tracker = get_task_viz_tracker()
         if task_viz_tracker:
@@ -861,43 +963,34 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[None, Sync]]:
+    ) -> List[PrefectFuture]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
 
     @overload
     def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[List[PrefectFuture[T, Async]]]:
-        ...
+    ) -> List[PrefectFuture]: ...
 
     @overload
     def map(
         self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[T, Sync]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, T]",
-        *args: P.args,
         return_state: Literal[True],
+        *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[State[T]]:
-        ...
+    ) -> List[State[T]]: ...
 
     def map(
         self,
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
+        deferred: bool = False,
         **kwargs: Any,
-    ) -> Any:
+    ):
         """
         Submit a mapped run of the task to a worker.
 
@@ -912,9 +1005,7 @@ class Task(Generic[P, R]):
         backing API and submit the task runs to the flow's task runner. This
         call blocks if given a future as input while the future is resolved. It
         also blocks while the tasks are being submitted, once they are
-        submitted, the flow function will continue executing. However, note
-        that the `SequentialTaskRunner` does not implement parallel execution
-        for sync tasks and they are fully resolved on submission.
+        submitted, the flow function will continue executing.
 
         Args:
             *args: Iterable and static arguments to run the tasks with
@@ -1011,7 +1102,7 @@ class Task(Generic[P, R]):
             [[11, 21], [12, 22], [13, 23]]
         """
 
-        from prefect.engine import begin_task_map
+        from prefect.task_runners import TaskRunner
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,
             get_task_viz_tracker,
@@ -1020,7 +1111,6 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict; do not apply defaults
         # since they should not be mapped over
         parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
-        return_type = "state" if return_state else "future"
         flow_run_context = FlowRunContext.get()
 
         task_viz_tracker = get_task_viz_tracker()
@@ -1029,27 +1119,22 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
-            map_call = create_call(
-                begin_task_map,
-                task=self,
-                parameters=parameters,
-                flow_run_context=None,
-                wait_for=wait_for,
-                return_type=return_type,
-                task_runner=None,
-                autonomous=True,
+        if deferred:
+            parameters_list = expand_mapping_parameters(self.fn, parameters)
+            futures = [
+                self.apply_async(kwargs=parameters, wait_for=wait_for)
+                for parameters in parameters_list
+            ]
+        elif task_runner := getattr(flow_run_context, "task_runner", None):
+            assert isinstance(task_runner, TaskRunner)
+            futures = task_runner.map(self, parameters, wait_for)
+        else:
+            raise RuntimeError(
+                "Unable to determine task runner to use for mapped task runs. If"
+                " you are mapping a task outside of a flow, please provide"
+                " `deferred=True` to submit the mapped task runs for deferred"
+                " execution."
             )
-            if self.isasync:
-                return from_async.wait_for_call_in_loop_thread(map_call)
-            else:
-                return from_sync.wait_for_call_in_loop_thread(map_call)
-
-        from prefect.new_task_runners import TaskRunner
-
-        task_runner = flow_run_context.task_runner
-        assert isinstance(task_runner, TaskRunner)
-        futures = task_runner.map(self, parameters, wait_for)
         if return_state:
             states = []
             for future in futures:
@@ -1059,38 +1144,22 @@ class Task(Generic[P, R]):
         else:
             return futures
 
-    @overload
-    def apply_async(
-        self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> TaskRun:
-        ...
-
-    @overload
-    def apply_async(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> Awaitable[TaskRun]:
-        ...
-
     def apply_async(
         self,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Union[TaskRun, Awaitable[TaskRun]]:
+        args: Optional[Tuple[Any, ...]] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDistributedFuture:
         """
-        Create a pending task run for a task server to execute.
-
-        If writing an async task, this call must be awaited.
+        Create a pending task run for a task worker to execute.
 
         Args:
-            *args: Arguments to run the task with
-            **kwargs: Keyword arguments to run the task with
+            args: Arguments to run the task with
+            kwargs: Keyword arguments to run the task with
 
         Returns:
-            A TaskRun object representing the pending task run
+            A PrefectDistributedFuture object representing the pending task run
 
         Examples:
 
@@ -1098,39 +1167,29 @@ class Task(Generic[P, R]):
 
             >>> from prefect import task
             >>> @task
-            >>> def my_task():
-            >>>     return "hello"
+            >>> def my_task(name: str = "world"):
+            >>>     return f"hello {name}"
 
             Create a pending task run for the task
 
             >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
-            >>>     my_task.apply_async()
+            >>>     my_task.apply_async(("marvin",))
 
-            TODO: Wait for a task to finish
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     my_task.apply_async().wait()  # <- This is not implemented
-
+            Wait for a task to finish
 
             >>> @flow
             >>> def my_flow():
-            >>>     print(my_task.apply_async().result())  # <- This is not implemented
+            >>>     my_task.apply_async(("marvin",)).wait()
+
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     print(my_task.apply_async(("marvin",)).result())
             >>>
             >>> my_flow()
-            hello
-
-            Create a pendingn task in an async flow
-
-            >>> @task
-            >>> async def my_async_task():
-            >>>     pass
-            >>>
-            >>> @flow
-            >>> async def my_flow():
-            >>>     await my_async_task.apply_async()
+            hello marvin
 
             TODO: Enforce ordering between tasks that do not exchange data
             >>> @task
@@ -1146,16 +1205,9 @@ class Task(Generic[P, R]):
             >>>     x = task_1.apply_async()
             >>>
             >>>     # task 2 will wait for task_1 to complete
-            >>>     y = task_2.apply_async(wait_for=[x])  # <- Not implemented, unsure if will
+            >>>     y = task_2.apply_async(wait_for=[x])
 
         """
-
-        # TODO: Consolidate these into a single function that can create a task run
-        # and store parameters with or without a flow run ID.
-        from prefect.engine import (
-            create_autonomous_task_run,
-            create_task_run,
-        )
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,
             get_task_viz_tracker,
@@ -1166,20 +1218,63 @@ class Task(Generic[P, R]):
             raise VisualizationUnsupportedError(
                 "`task.apply_async()` is not currently supported by `flow.visualize()`"
             )
+        args = args or ()
+        kwargs = kwargs or {}
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
-        flow_run_context = FlowRunContext.get()
 
-        # Create a pending task run
-        create_fn = create_task_run if flow_run_context else create_autonomous_task_run
-        create_task_run_call = create_call(create_fn, task=self, parameters=parameters)
-        if self.isasync:
-            return from_async.wait_for_call_in_loop_thread(create_task_run_call)
-        else:
-            return from_sync.wait_for_call_in_loop_thread(create_task_run_call)
+        task_run = run_coro_as_sync(
+            self.create_run(
+                parameters=parameters,
+                deferred=True,
+                wait_for=wait_for,
+                extra_task_inputs=dependencies,
+            )
+        )
+        return PrefectDistributedFuture(task_run_id=task_run.id)
 
-    def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture:
+        """
+        An alias for `apply_async` with simpler calling semantics.
+
+        Avoids having to use explicit "args" and "kwargs" arguments. Arguments
+        will pass through as-is to the task.
+
+        Examples:
+
+                Define a task
+
+                >>> from prefect import task
+                >>> @task
+                >>> def my_task(name: str = "world"):
+                >>>     return f"hello {name}"
+
+                Create a pending task run for the task
+
+                >>> from prefect import flow
+                >>> @flow
+                >>> def my_flow():
+                >>>     my_task.delay("marvin")
+
+                Wait for a task to finish
+
+                >>> @flow
+                >>> def my_flow():
+                >>>     my_task.delay("marvin").wait()
+
+                Use the result from a task in a flow
+
+                >>> @flow
+                >>> def my_flow():
+                >>>     print(my_task.delay("marvin").result())
+                >>>
+                >>> my_flow()
+                hello marvin
+        """
+        return self.apply_async(args=args, kwargs=kwargs)
+
+    def serve(self) -> "Task":
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1196,32 +1291,27 @@ class Task(Generic[P, R]):
 
             >>> my_task.serve()
         """
+        from prefect.task_worker import serve
 
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING:
-            raise ValueError(
-                "Task's `serve` method is an experimental feature and must be enabled with "
-                "`prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=True`"
-            )
-
-        from prefect.task_server import serve
-
-        serve(self, task_runner=task_runner)
+        serve(self)
 
 
 @overload
-def task(__fn: Callable[P, R]) -> Task[P, R]:
-    ...
+def task(__fn: Callable[P, R]) -> Task[P, R]: ...
 
 
 @overload
 def task(
     *,
-    name: str = None,
-    description: str = None,
-    tags: Iterable[str] = None,
-    version: str = None,
-    cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
-    cache_expiration: datetime.timedelta = None,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
+    version: Optional[str] = None,
+    cache_policy: CachePolicy = NotSet,
+    cache_key_fn: Optional[
+        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+    ] = None,
+    cache_expiration: Optional[datetime.timedelta] = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
@@ -1236,33 +1326,30 @@ def task(
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
-    timeout_seconds: Union[int, float] = None,
+    timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]:
-    ...
+) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
 def task(
     __fn=None,
     *,
-    name: str = None,
-    description: str = None,
-    tags: Iterable[str] = None,
-    version: str = None,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
+    version: Optional[str] = None,
+    cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
-    cache_expiration: datetime.timedelta = None,
+    cache_expiration: Optional[datetime.timedelta] = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = None,
+    retries: Optional[int] = None,
     retry_delay_seconds: Union[
-        float,
-        int,
-        List[float],
-        Callable[[int], List[float]],
+        float, int, List[float], Callable[[int], List[float]], None
     ] = None,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
@@ -1270,7 +1357,7 @@ def task(
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
-    timeout_seconds: Union[int, float] = None,
+    timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
@@ -1388,6 +1475,9 @@ def task(
     """
 
     if __fn:
+        if isinstance(__fn, (classmethod, staticmethod)):
+            method_decorator = type(__fn).__name__
+            raise TypeError(f"@{method_decorator} should be applied on top of @task")
         return cast(
             Task[P, R],
             Task(
@@ -1396,6 +1486,7 @@ def task(
                 description=description,
                 tags=tags,
                 version=version,
+                cache_policy=cache_policy,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 task_run_name=task_run_name,
@@ -1425,6 +1516,7 @@ def task(
                 description=description,
                 tags=tags,
                 version=version,
+                cache_policy=cache_policy,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 task_run_name=task_run_name,

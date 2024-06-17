@@ -132,7 +132,8 @@ Here's an example of a flow that uses caching and remote result storage:
 ```python
 from typing import List
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
+from prefect.logging import get_run_logger
 from prefect.filesystems import S3
 from prefect.tasks import task_input_hash
 from prefect_ray.task_runners import RayTaskRunner
@@ -168,7 +169,7 @@ if __name__ == "__main__":
 pip install prefect
 ```
 
-3. If you get an error with a message similar to "File system created with scheme 's3' could not be created", ensure the required Python modules are installed on **both local and remote machines**. The required prerequisite modules can be found in the [Prefect documentation](https://docs.prefect.io/guides/deployment/storage-guide). For example, if using S3 for the remote storage:
+3. If you get an error with a message similar to "File system created with scheme 's3' could not be created", ensure the required Python modules are installed on **both local and remote machines**. For example, if using S3 for the remote storage:
 ```bash
 pip install s3fs
 ```

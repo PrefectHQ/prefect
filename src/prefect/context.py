@@ -1,4 +1,4 @@
-r"""
+"""
 Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
@@ -17,7 +17,6 @@ from typing import (
     Any,
     Dict,
     Generator,
-    List,
     Optional,
     Set,
     Type,
@@ -25,27 +24,22 @@ from typing import (
     Union,
 )
 
-import anyio
-import anyio._backends._asyncio
-import anyio.abc
 import pendulum
-from pydantic.v1 import BaseModel, Field, PrivateAttr
-from sniffio import AsyncLibraryNotFoundError
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic_extra_types.pendulum_dt import DateTime
+from typing_extensions import Self
 
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.futures import PrefectFuture
-from prefect.new_task_runners import TaskRunner
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner
+from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 T = TypeVar("T")
@@ -57,7 +51,7 @@ if TYPE_CHECKING:
 # Define the global settings context variable
 # This will be populated downstream but must be null here to facilitate loading the
 # default settings.
-GLOBAL_SETTINGS_CONTEXT = None
+GLOBAL_SETTINGS_CONTEXT = None  # type: ignore
 
 
 def serialize_context() -> Dict[str, Any]:
@@ -89,19 +83,12 @@ def hydrated_context(
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))
             # Set up parent flow run context
-            # TODO: This task group isn't necessary in the new engine. Remove the background tasks
-            # attribute from FlowRunContext.
             client = client or get_client(sync_client=True)
             if flow_run_context := serialized_context.get("flow_run_context"):
-                try:
-                    task_group = anyio.create_task_group()
-                except AsyncLibraryNotFoundError:
-                    task_group = anyio._backends._asyncio.TaskGroup()
                 flow = flow_run_context["flow"]
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
-                    background_tasks=task_group,
                     result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
                     task_runner=flow.task_runner.duplicate(),
                     detached=True,
@@ -132,12 +119,11 @@ class ContextModel(BaseModel):
 
     # The context variable for storing data must be defined by the child class
     __var__: ContextVar
-    _token: Token = PrivateAttr(None)
-
-    class Config:
-        # allow_mutation = False
-        arbitrary_types_allowed = True
-        extra = "forbid"
+    _token: Optional[Token] = PrivateAttr(None)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        extra="forbid",
+    )
 
     def __enter__(self):
         if self._token is not None:
@@ -156,10 +142,13 @@ class ContextModel(BaseModel):
         self._token = None
 
     @classmethod
-    def get(cls: Type[T]) -> Optional[T]:
+    def get(cls: Type[Self]) -> Optional[Self]:
+        """Get the current context instance"""
         return cls.__var__.get(None)
 
-    def copy(self, **kwargs):
+    def model_copy(
+        self: Self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
+    ):
         """
         Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
@@ -173,8 +162,8 @@ class ContextModel(BaseModel):
         Returns:
             A new model instance.
         """
+        new = super().model_copy(update=update, deep=deep)
         # Remove the token on copy to avoid re-entrance errors
-        new = super().copy(**kwargs)
         new._token = None
         return new
 
@@ -182,9 +171,7 @@ class ContextModel(BaseModel):
         """
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
-        return self.dict(
-            exclude_unset=True,
-        )
+        return self.model_dump(exclude_unset=True)
 
 
 class ClientContext(ContextModel):
@@ -258,12 +245,12 @@ class RunContext(ContextModel):
         client: The Prefect client instance being used for API communication
     """
 
-    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={"start_time", "input_keyset"},
             exclude_unset=True,
         )
@@ -282,14 +269,11 @@ class EngineContext(RunContext):
         task_run_states: A list of states for task runs created within this flow run
         task_run_results: A mapping of result ids to task run states for this flow run
         flow_run_states: A list of states for flow runs created within this flow run
-        sync_portal: A blocking portal for sync task/flow runs in an async flow
-        timeout_scope: The cancellation scope for flow level timeouts
     """
 
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
-    autonomous_task_run: Optional[TaskRun] = None
-    task_runner: Union[BaseTaskRunner, TaskRunner]
+    task_runner: TaskRunner
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
@@ -306,27 +290,16 @@ class EngineContext(RunContext):
     # Counter for flow pauses
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
-    # Tracking for objects created by this flow run
-    task_run_futures: List[PrefectFuture] = Field(default_factory=list)
-    task_run_states: List[State] = Field(default_factory=list)
+    # Tracking for result from task runs in this flow run
     task_run_results: Dict[int, State] = Field(default_factory=dict)
-    flow_run_states: List[State] = Field(default_factory=list)
-
-    # The synchronous portal is only created for async flows for creating engine calls
-    # from synchronous task and subflow calls
-    sync_portal: Optional[anyio.abc.BlockingPortal] = None
-    timeout_scope: Optional[anyio.abc.CancelScope] = None
-
-    # Task group that can be used for background tasks during the flow run
-    background_tasks: anyio.abc.TaskGroup
 
     # Events worker to emit events to Prefect Cloud
     events: Optional[EventsWorker] = None
 
-    __var__ = ContextVar("flow_run")
+    __var__: ContextVar = ContextVar("flow_run")
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={
                 "flow_run",
                 "flow",
@@ -363,7 +336,7 @@ class TaskRunContext(RunContext):
     __var__ = ContextVar("task_run")
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={
                 "task_run",
                 "task",

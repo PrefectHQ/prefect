@@ -10,6 +10,7 @@ Classes:
     ContainerInstancePushProvisioner: A class for provisioning infrastructure using Azure Container Instances.
 
 """
+
 import json
 import random
 import shlex

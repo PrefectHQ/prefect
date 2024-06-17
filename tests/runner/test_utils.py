@@ -1,8 +1,8 @@
 from unittest.mock import create_autospec
 
 import pytest
-from prefect._vendor.fastapi import FastAPI
-from prefect._vendor.fastapi.routing import APIRoute
+from fastapi import FastAPI
+from fastapi.routing import APIRoute
 
 from prefect import __version__ as PREFECT_VERSION
 from prefect.runner.utils import (

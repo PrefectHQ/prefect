@@ -2,32 +2,27 @@ import abc
 import json
 import warnings
 from textwrap import dedent
-from typing import Dict, Type, Union
+from typing import Any, Dict, List, Type, Union
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, SecretBytes, SecretStr, ValidationError
-else:
-    from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import Secret as PydanticSecret
+from pydantic_core import to_json
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
-from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
-from prefect.client import PrefectClient
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION, BlockDocument
-from prefect.testing.utilities import AsyncMock
+from prefect.testing.utilities import AsyncMock, assert_blocks_equal
+from prefect.types import SecretDict
 from prefect.utilities.dispatch import lookup_type, register_type
-from prefect.utilities.names import obfuscate_string
 
 
 class CoolBlock(Block):
@@ -85,19 +80,19 @@ class TestAPICompatibility:
         }
 
     def test_create_api_block_with_secret_fields_reflected_in_schema(self):
-        class SecretBlock(Block):
+        class SecretBlockE(Block):
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        assert SecretBlock.schema()["secret_fields"] == ["w.*", "x", "y"]
+        assert SecretBlockE.model_json_schema()["secret_fields"] == ["w.*", "x", "y"]
 
-        schema = SecretBlock._to_block_schema(block_type_id=uuid4())
+        schema = SecretBlockE._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["w.*", "x", "y"]
         assert schema.fields == {
             "block_schema_references": {},
-            "block_type_slug": "secretblock",
+            "block_type_slug": "secretblocke",
             "properties": {
                 "w": {"title": "W", "type": "object"},
                 "x": {
@@ -116,7 +111,7 @@ class TestAPICompatibility:
             },
             "required": ["w", "x", "y", "z"],
             "secret_fields": ["w.*", "x", "y"],
-            "title": "SecretBlock",
+            "title": "SecretBlockE",
             "type": "object",
         }
 
@@ -131,8 +126,12 @@ class TestAPICompatibility:
             b: str
             child: Child
 
-        assert Child.schema()["secret_fields"] == ["a", "c.*"]
-        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert Child.model_json_schema()["secret_fields"] == ["a", "c.*"]
+        assert Parent.model_json_schema()["secret_fields"] == [
+            "a",
+            "child.a",
+            "child.c.*",
+        ]
         schema = Parent._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
         assert schema.fields == {
@@ -192,7 +191,11 @@ class TestAPICompatibility:
             b: str
             child: Child
 
-        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert Parent.model_json_schema()["secret_fields"] == [
+            "a",
+            "child.a",
+            "child.c.*",
+        ]
         schema = Parent._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
         assert schema.fields == {
@@ -244,7 +247,11 @@ class TestAPICompatibility:
             b: str
             child: Union[Child, str]
 
-        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert Parent.model_json_schema()["secret_fields"] == [
+            "a",
+            "child.a",
+            "child.c.*",
+        ]
         schema = Parent._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
         assert schema.fields == {
@@ -304,7 +311,7 @@ class TestAPICompatibility:
             b: str
             child: Child
 
-        assert Parent.schema()["secret_fields"] == [
+        assert Parent.model_json_schema()["secret_fields"] == [
             "a",
             "child.a",
             "child.sub_child.b.*",
@@ -374,13 +381,13 @@ class TestAPICompatibility:
         }
 
     def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
-        class SecretBlock(Block):
+        class SecretBlockA(Block):
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        block = SecretBlock(
+        block = SecretBlockA(
             w={
                 "Here's my shallow secret": "I don't like olives",
                 "deeper secrets": {"Here's my deeper secret": "I've never seen Lost"},
@@ -399,18 +406,25 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["x"], SecretStr)
         assert isinstance(blockdoc.data["y"], SecretBytes)
 
-        json_blockdoc = json.loads(blockdoc.json())
+        json_blockdoc = blockdoc.model_dump(mode="json")
         assert json_blockdoc["data"] == {
-            "w": {
-                "Here's my shallow secret": "**********",
-                "deeper secrets": "**********",
-            },
+            "w": "**********",
             "x": "**********",
             "y": "**********",
             "z": "z",
         }
 
-        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        blockdoc_with_secrets = block._to_block_document(
+            name="name",
+            block_type_id=block_type_id,
+            block_schema_id=block_schema_id,
+            include_secrets=True,
+        )
+
+        json_blockdoc_with_secrets = blockdoc_with_secrets.model_dump(
+            context={"include_secrets": True}, mode="json"
+        )
+
         assert json_blockdoc_with_secrets["data"] == {
             "w": {
                 "Here's my shallow secret": "I don't like olives",
@@ -441,7 +455,7 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["a"], SecretStr)
         assert isinstance(blockdoc.data["child"]["a"], SecretStr)
 
-        json_blockdoc = json.loads(blockdoc.json())
+        json_blockdoc = json.loads(blockdoc.model_dump_json())
         assert json_blockdoc["data"] == {
             "a": "**********",
             "b": "b",
@@ -449,12 +463,21 @@ class TestAPICompatibility:
             "child": {
                 "a": "**********",
                 "b": "b",
-                "c": {"secret": "**********"},
+                "c": "**********",
                 "block_type_slug": "child",
             },
         }
 
-        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        blockdoc_with_secrets = block._to_block_document(
+            name="name",
+            block_type_id=block_type_id,
+            block_schema_id=block_schema_id,
+            include_secrets=True,
+        )
+
+        json_blockdoc_with_secrets = blockdoc_with_secrets.model_dump(
+            mode="json", context={"include_secrets": True}
+        )
         assert json_blockdoc_with_secrets["data"] == {
             "a": "a",
             "b": "b",
@@ -675,7 +698,7 @@ class TestAPICompatibility:
         block_schema_id = uuid4()
         block_type_id = uuid4()
         api_block = BlockyMcBlock(fizz="buzz")._to_block_document(
-            name="super important config",
+            name="super-important-config",
             block_schema_id=block_schema_id,
             block_type_id=block_type_id,
         )
@@ -698,7 +721,7 @@ class TestAPICompatibility:
 
         my_block = MakesALottaAttributes(real_field="hello", authentic_field="marvin")
         api_block = my_block._to_block_document(
-            name="a corrupted api block",
+            name="a-corrupted-api-block",
             block_schema_id=uuid4(),
             block_type_id=block_type_x.id,
         )
@@ -739,7 +762,7 @@ class TestAPICompatibility:
         block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
 
         assert block_schema.checksum == test_block._calculate_schema_checksum()
-        assert block_schema.fields == test_block.schema()
+        assert block_schema.fields == test_block.model_json_schema()
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
@@ -751,7 +774,7 @@ class TestAPICompatibility:
         block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
 
         assert block_schema.checksum == test_block._calculate_schema_checksum()
-        assert block_schema.fields == test_block.schema()
+        assert block_schema.fields == test_block.model_json_schema()
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
@@ -989,19 +1012,22 @@ class TestAPICompatibility:
         await session.commit()
 
         block_instance = await E.load("outer-block-document")
+        assert isinstance(block_instance, E)
+        assert isinstance(block_instance.c, C)
+        assert isinstance(block_instance.d, D)
 
         assert block_instance._block_document_name == outer_block_document.name
         assert block_instance._block_document_id == outer_block_document.id
         assert block_instance._block_type_id == outer_block_document.block_type_id
         assert block_instance._block_schema_id == outer_block_document.block_schema_id
-        assert block_instance.c.dict() == {
+        assert block_instance.c.model_dump() == {
             "y": 2,
             "_block_document_id": middle_block_document_1.id,
             "_block_document_name": "middle-block-document-1",
             "_is_anonymous": False,
             "block_type_slug": "c",
         }
-        assert block_instance.d.dict() == {
+        assert block_instance.d.model_dump() == {
             "b": {
                 "x": 1,
                 "_block_document_id": inner_block_document.id,
@@ -1075,7 +1101,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
 
         assert isinstance(self.NewBlock._block_type_id, UUID)
         assert isinstance(self.NewBlock._block_schema_id, UUID)
@@ -1092,7 +1118,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
 
     async def test_register_existing_block_type_new_block_schema(
         self, prefect_client: PrefectClient
@@ -1118,7 +1144,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
 
     async def test_register_new_block_schema_when_version_changes(
         self, prefect_client: PrefectClient
@@ -1132,7 +1158,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
         assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
         self.NewBlock._block_schema_version = "new_version"
@@ -1143,7 +1169,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
         assert block_schema.version == "new_version"
 
         self.NewBlock._block_schema_version = None
@@ -1506,20 +1532,20 @@ class TestSaveBlock:
         await new_outer_block.save("outer-block-no-references")
 
         loaded_outer_block = await OuterBlock.load("outer-block-no-references")
-        assert loaded_outer_block == new_outer_block
+        assert_blocks_equal(loaded_outer_block, new_outer_block)
         assert isinstance(loaded_outer_block.contents, InnerBlock)
-        assert loaded_outer_block.contents == new_inner_block
+        assert_blocks_equal(loaded_outer_block.contents, new_inner_block)
         assert loaded_outer_block.contents._block_document_id is None
         assert loaded_outer_block.contents._block_document_name is None
 
     async def test_save_and_load_block_with_secrets_includes_secret_data(self, session):
-        class SecretBlock(Block):
+        class SecretBlockB(Block):
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        block = SecretBlock(w=dict(secret="value"), x="x", y=b"y", z="z")
+        block = SecretBlockB(w=dict(secret="value"), x="x", y=b"y", z="z")
         await block.save("secret-block")
 
         # read from DB without secrets
@@ -1530,9 +1556,9 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "w": {"secret": obfuscate_string("value")},
-            "x": obfuscate_string("x"),
-            "y": obfuscate_string("x"),
+            "w": {"secret": "********"},
+            "x": "********",
+            "y": "********",
             "z": "z",
         }
 
@@ -1545,7 +1571,7 @@ class TestSaveBlock:
         assert db_block.data == {"w": {"secret": "value"}, "x": "x", "y": "y", "z": "z"}
 
         # load block with secrets
-        api_block = await SecretBlock.load("secret-block")
+        api_block = await SecretBlockB.load("secret-block")
         assert api_block.w.get_secret_value() == {"secret": "value"}
         assert api_block.x.get_secret_value() == "x"
         assert api_block.y.get_secret_value() == b"y"
@@ -1575,12 +1601,12 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": obfuscate_string("a"),
+            "a": "********",
             "b": "b",
             "child": {
-                "a": obfuscate_string("a"),
+                "a": "********",
                 "b": "b",
-                "c": {"secret": obfuscate_string("value")},
+                "c": {"secret": "********"},
                 "block_type_slug": "child",
             },
         }
@@ -1634,12 +1660,12 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": obfuscate_string("a"),
+            "a": "********",
             "b": "b",
             "child": {
-                "a": obfuscate_string("a"),
+                "a": "********",
                 "b": "b",
-                "c": {"secret": obfuscate_string("value")},
+                "c": {"secret": "********"},
             },
         }
 
@@ -1778,8 +1804,8 @@ class TestToBlockType:
         block_type = test_block._to_block_type()
 
         assert block_type.name == test_block.__name__
-        assert block_type.logo_url == test_block._logo_url
-        assert block_type.documentation_url == test_block._documentation_url
+        assert str(block_type.logo_url) == str(test_block._logo_url)
+        assert str(block_type.documentation_url) == str(test_block._documentation_url)
 
     def test_to_block_type_override_block_type_name(self):
         class Pyramid(Block):
@@ -2235,13 +2261,15 @@ class BChildBlock(BaseBlock):
 
 class TestTypeDispatch:
     def test_block_type_slug_is_included_in_dict(self):
-        assert "block_type_slug" in AChildBlock().dict()
+        assert "block_type_slug" in AChildBlock().model_dump()
 
     def test_block_type_slug_respects_exclude(self):
-        assert "block_type_slug" not in AChildBlock().dict(exclude={"block_type_slug"})
+        assert "block_type_slug" not in AChildBlock().model_dump(
+            exclude={"block_type_slug"}
+        )
 
     def test_block_type_slug_respects_include(self):
-        assert "block_type_slug" not in AChildBlock().dict(include={"a"})
+        assert "block_type_slug" not in AChildBlock().model_dump(include={"a"})
 
     async def test_block_type_slug_excluded_from_document(self, prefect_client):
         await AChildBlock.register_type_and_schema(client=prefect_client)
@@ -2249,38 +2277,38 @@ class TestTypeDispatch:
         assert "block_type_slug" not in document.data
 
     def test_base_parse_works_for_base_instance(self):
-        block = BaseBlock.parse_obj(BaseBlock().dict())
+        block = BaseBlock.model_validate(BaseBlock().model_dump())
         assert type(block) == BaseBlock
 
-        block = BaseBlock.parse_obj(BaseBlock().dict())
+        block = BaseBlock.model_validate(BaseBlock().model_dump())
         assert type(block) == BaseBlock
 
     def test_base_parse_creates_child_instance_from_dict(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert type(block) == AChildBlock
 
-        block = BaseBlock.parse_obj(BChildBlock().dict())
+        block = BaseBlock.model_validate(BChildBlock().model_dump())
         assert type(block) == BChildBlock
 
     def test_base_parse_creates_child_instance_from_json(self):
-        block = BaseBlock.parse_raw(AChildBlock().json())
+        block = BaseBlock.model_validate_json(AChildBlock().model_dump_json())
         assert type(block) == AChildBlock
 
-        block = BaseBlock.parse_raw(BChildBlock().json())
+        block = BaseBlock.model_validate_json(BChildBlock().model_dump_json())
         assert type(block) == BChildBlock
 
     def test_base_parse_retains_default_attributes(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert block.base == 0
         assert block.a == 1
 
     def test_base_parse_retains_set_child_attributes(self):
-        block = BaseBlock.parse_obj(BChildBlock(b=3).dict())
+        block = BaseBlock.model_validate(BChildBlock(b=3).model_dump())
         assert block.base == 0
         assert block.b == 3
 
     def test_base_parse_retains_set_base_attributes(self):
-        block = BaseBlock.parse_obj(BChildBlock(base=1).dict())
+        block = BaseBlock.model_validate(BChildBlock(base=1).model_dump())
         assert block.base == 1
         assert block.b == 2
 
@@ -2292,78 +2320,75 @@ class TestTypeDispatch:
         assert type(model.block) == BChildBlock
 
     def test_base_field_creates_child_instance_from_dict(self):
-        model = ParentModel(block=AChildBlock().dict())
+        model = ParentModel(block=AChildBlock().model_dump())
         assert type(model.block) == AChildBlock
 
-        model = ParentModel(block=BChildBlock().dict())
+        model = ParentModel(block=BChildBlock().model_dump())
         assert type(model.block) == BChildBlock
 
     def test_created_block_has_pydantic_attributes(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
-        assert block.__fields_set__
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
+        assert block.model_fields_set
 
     def test_created_block_can_be_copied(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
-        block_copy = block.copy()
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
+        block_copy = block.model_copy()
         assert block == block_copy
 
     async def test_created_block_can_be_saved(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert await block.save("test")
 
     async def test_created_block_can_be_saved_then_loaded(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         await block.save("test")
         new_block = await block.load("test")
-        assert block == new_block
-        assert new_block.__fields_set__
+        assert_blocks_equal(block, new_block)
+        assert new_block.model_fields_set
 
     def test_created_block_fields_set(self):
         expected = {"base", "block_type_slug", "a"}
 
-        block = BaseBlock.parse_obj(AChildBlock().dict())
-        assert block.__fields_set__ == expected
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
+        assert block.model_fields_set == expected
         assert block.a == 1
 
-        block = BaseBlock.parse_obj(AChildBlock(a=2).dict())
-        assert block.__fields_set__ == expected
+        block = BaseBlock.model_validate(AChildBlock(a=2).model_dump())
+        assert block.model_fields_set == expected
         assert block.a == 2
 
-        block = block.copy()
-        assert block.__fields_set__ == expected
+        block = block.model_copy()
+        assert block.model_fields_set == expected
         assert block.a == 2
 
     def test_base_field_creates_child_instance_with_union(self):
         class UnionParentModel(BaseModel):
             block: Union[AChildBlock, BChildBlock]
 
-        model = UnionParentModel(block=AChildBlock(a=3).dict())
+        model = UnionParentModel(block=AChildBlock(a=3).model_dump())
         assert type(model.block) == AChildBlock
 
         # Assignment with a copy works still
-        model.block = model.block.copy()
+        model.block = model.block.model_copy()
         assert type(model.block) == AChildBlock
         assert model.block
 
-        model = UnionParentModel(block=BChildBlock(b=4).dict())
+        model = UnionParentModel(block=BChildBlock(b=4).model_dump())
         assert type(model.block) == BChildBlock
 
     def test_base_field_creates_child_instance_with_assignment_validation(self):
-        class AssignmentParentModel(BaseModel):
+        class AssignmentParentModel(BaseModel, validate_assignment=True):
             block: BaseBlock
 
-            class Config:
-                validate_assignment = True
-
-        model = AssignmentParentModel(block=AChildBlock(a=3).dict())
+        model = AssignmentParentModel(block=AChildBlock(a=3).model_dump())
         assert type(model.block) == AChildBlock
         assert model.block.a == 3
 
-        model.block = model.block.copy()
+        model.block = model.block.model_copy()
         assert type(model.block) == AChildBlock
         assert model.block.a == 3
 
-        model.block = BChildBlock(b=4).dict()
+        model.block = BChildBlock(b=4).model_dump()
         assert type(model.block) == BChildBlock
         assert model.block.b == 4
 
@@ -2451,7 +2476,7 @@ class TestBlockSchemaMigration:
 
         bar_new = await Bar.load("test", validate=False)
 
-        assert bar.dict() == bar_new.dict()
+        assert bar.model_dump() == bar_new.model_dump()
 
     async def test_save_new_schema_with_overwrite(self, prefect_client):
         class Baz(Block):
@@ -2546,3 +2571,238 @@ class TestDeleteBlock:
                 f"Unable to find block document named {new_block_name}"
                 in exception.value
             )
+
+
+class NestedFunModel(BaseModel):
+    loser: str = "drake"
+    nested_secret_str: SecretStr
+    nested_secret_bytes: SecretBytes
+    nested_secret_int: PydanticSecret[int]
+    all_my_enemies_secrets: List[SecretStr]
+
+
+class FunSecretModel(Block):
+    winner: str = "kendrick"
+    secret_str: SecretStr
+    secret_str_manual: PydanticSecret[str]
+    secret_bytes: SecretBytes
+    secret_bytes_manual: PydanticSecret[bytes]
+    secret_int: PydanticSecret[int]
+    nested_model: NestedFunModel
+    normal_dictionary: Dict[str, Union[str, Dict[str, Any]]]
+    secret_dict: SecretDict
+
+
+class TestDumpSecrets:
+    @pytest.fixture
+    def secret_data(self) -> bytes:
+        return to_json(
+            {
+                "winner": "kendrick",
+                "secret_str": "back to back? i like that record",
+                "secret_str_manual": "ima get back to that for the record",
+                "secret_bytes": b"dudes be byting my style",
+                "secret_bytes_manual": b"sneak dissing",
+                "secret_int": 31415,
+                "nested_model": {
+                    "loser": "drake",
+                    "nested_secret_str": "call me a bird the way im nesting",
+                    "nested_secret_bytes": b"nesting like a bird",
+                    "nested_secret_int": 54321,
+                    "all_my_enemies_secrets": [
+                        "culture vulture",
+                        "not really a secret",
+                        "but still",
+                        "you know",
+                    ],
+                },
+                "normal_dictionary": {
+                    "keys": "do not",
+                    "matter": "at all",
+                    "because": {
+                        "they": "are not",
+                        "typed": "on the model",
+                        "so": ["they", "can be", "anything"],
+                    },
+                },
+                "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
+            }
+        )
+
+    def test_dump_obscured_secrets(self, secret_data):
+        block = FunSecretModel.model_validate_json(secret_data)
+        assert block.model_dump() == {
+            "block_type_slug": "funsecretmodel",
+            "winner": "kendrick",
+            "secret_str": SecretStr("back to back? i like that record"),
+            "secret_str_manual": PydanticSecret[str](
+                "ima get back to that for the record"
+            ),
+            "secret_bytes": SecretBytes(b"dudes be byting my style"),
+            "secret_bytes_manual": PydanticSecret[bytes](b"sneak dissing"),
+            "secret_int": PydanticSecret[int](31415),
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": SecretStr("call me a bird the way im nesting"),
+                "nested_secret_bytes": SecretBytes(b"nesting like a bird"),
+                "nested_secret_int": PydanticSecret[int](54321),
+                "all_my_enemies_secrets": [
+                    SecretStr("culture vulture"),
+                    SecretStr("not really a secret"),
+                    SecretStr("but still"),
+                    SecretStr("you know"),
+                ],
+            },
+            "normal_dictionary": {
+                "keys": "do not",
+                "matter": "at all",
+                "because": {
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            },
+            "secret_dict": SecretDict({"shoooOOOooo!": "bih! bih! bih! bih!"}),
+        }
+
+    def test_dump_obscured_secrets_mode_json(self, secret_data):
+        block = FunSecretModel.model_validate_json(secret_data)
+        assert block.model_dump(mode="json") == {
+            "block_type_slug": "funsecretmodel",
+            "winner": "kendrick",
+            "secret_str": "**********",
+            "secret_str_manual": "**********",
+            "secret_bytes": "**********",
+            "secret_bytes_manual": "**********",
+            "secret_int": "**********",
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": "**********",
+                "nested_secret_bytes": "**********",
+                "nested_secret_int": "**********",
+                "all_my_enemies_secrets": [
+                    "**********",
+                    "**********",
+                    "**********",
+                    "**********",
+                ],
+            },
+            "normal_dictionary": {
+                "keys": "do not",
+                "matter": "at all",
+                "because": {
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            },
+            # historically this was: {"key": "**********", ...}
+            "secret_dict": "**********",
+        }
+
+    def test_dump_python_secrets(self, secret_data):
+        block = FunSecretModel.model_validate_json(secret_data)
+        assert block.model_dump(context={"include_secrets": True}) == {
+            "block_type_slug": "funsecretmodel",
+            "winner": "kendrick",
+            "secret_str": "back to back? i like that record",
+            "secret_str_manual": "ima get back to that for the record",
+            "secret_bytes": b"dudes be byting my style",
+            "secret_bytes_manual": b"sneak dissing",
+            "secret_int": 31415,
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": "call me a bird the way im nesting",
+                "nested_secret_bytes": b"nesting like a bird",
+                "nested_secret_int": 54321,
+                "all_my_enemies_secrets": [
+                    "culture vulture",
+                    "not really a secret",
+                    "but still",
+                    "you know",
+                ],
+            },
+            "normal_dictionary": {
+                "keys": "do not",
+                "matter": "at all",
+                "because": {
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            },
+            "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
+        }
+
+    def test_dump_jsonable_secrets(self, secret_data):
+        block = FunSecretModel.model_validate_json(secret_data)
+        assert block.model_dump(context={"include_secrets": True}, mode="json") == {
+            "block_type_slug": "funsecretmodel",
+            "winner": "kendrick",
+            "secret_str": "back to back? i like that record",
+            "secret_str_manual": "ima get back to that for the record",
+            "secret_bytes": "dudes be byting my style",
+            "secret_bytes_manual": "sneak dissing",
+            "secret_int": 31415,
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": "call me a bird the way im nesting",
+                "nested_secret_bytes": "nesting like a bird",
+                "nested_secret_int": 54321,
+                "all_my_enemies_secrets": [
+                    "culture vulture",
+                    "not really a secret",
+                    "but still",
+                    "you know",
+                ],
+            },
+            "normal_dictionary": {
+                "keys": "do not",
+                "matter": "at all",
+                "because": {
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            },
+            "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
+        }
+
+    def test_dump_json_secrets(self, secret_data):
+        block = FunSecretModel.model_validate_json(secret_data)
+        assert (
+            block.model_dump_json(context={"include_secrets": True})
+            == to_json(
+                {
+                    "winner": "kendrick",
+                    "secret_str": "back to back? i like that record",
+                    "secret_str_manual": "ima get back to that for the record",
+                    "secret_bytes": "dudes be byting my style",
+                    "secret_bytes_manual": "sneak dissing",
+                    "secret_int": 31415,
+                    "nested_model": {
+                        "loser": "drake",
+                        "nested_secret_str": "call me a bird the way im nesting",
+                        "nested_secret_bytes": "nesting like a bird",
+                        "nested_secret_int": 54321,
+                        "all_my_enemies_secrets": [
+                            "culture vulture",
+                            "not really a secret",
+                            "but still",
+                            "you know",
+                        ],
+                    },
+                    "normal_dictionary": {
+                        "keys": "do not",
+                        "matter": "at all",
+                        "because": {
+                            "they": "are not",
+                            "typed": "on the model",
+                            "so": ["they", "can be", "anything"],
+                        },
+                    },
+                    "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
+                    "block_type_slug": "funsecretmodel",
+                }
+            ).decode()
+        )

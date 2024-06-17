@@ -18,7 +18,8 @@ Sender flow:
 ```python
 import random
 from uuid import UUID
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 class NumberData(RunInput):
@@ -43,7 +44,8 @@ Receiver flow:
 ```python
 import random
 from uuid import UUID
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 class NumberData(RunInput):
@@ -77,6 +79,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import pydantic
+from pydantic import ConfigDict
 
 from prefect.input.actions import (
     create_flow_run_input,
@@ -136,13 +139,12 @@ def keyset_from_base_key(base_key: str) -> Keyset:
 
 class RunInputMetadata(pydantic.BaseModel):
     key: str
-    sender: Optional[str]
+    sender: Optional[str] = None
     receiver: UUID
 
 
 class RunInput(pydantic.BaseModel):
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     _description: Optional[str] = pydantic.PrivateAttr(default=None)
     _metadata: RunInputMetadata = pydantic.PrivateAttr()

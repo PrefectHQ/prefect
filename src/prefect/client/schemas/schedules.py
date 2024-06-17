@@ -3,23 +3,21 @@ Schedule schemas
 """
 
 import datetime
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 import dateutil
 import dateutil.rrule
 import pendulum
-from pydantic.v1 import Field, validator
+from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.validators import (
     default_anchor_date,
     default_timezone,
     validate_cron_string,
     validate_rrule_string,
-    validate_rrule_timezone,
 )
-from prefect.types import PositiveDuration
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -50,26 +48,24 @@ class IntervalSchedule(PrefectBaseModel):
 
     Args:
         interval (datetime.timedelta): an interval to schedule on
-        anchor_date (DateTimeTZ, optional): an anchor date to schedule increments against;
+        anchor_date (DateTime, optional): an anchor date to schedule increments against;
             if not provided, the current timestamp will be used
         timezone (str, optional): a valid timezone string
     """
 
-    class Config:
-        extra = "forbid"
-        exclude_none = True
+    model_config = ConfigDict(extra="forbid", exclude_none=True)
 
-    interval: PositiveDuration
-    anchor_date: Optional[DateTimeTZ] = None
+    interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
+    anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
+        default_factory=lambda: pendulum.now("UTC"),
+        examples=["2020-01-01T00:00:00Z"],
+    )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
-    @validator("anchor_date", always=True)
-    def validate_anchor_date(cls, v):
-        return default_anchor_date(v)
-
-    @validator("timezone", always=True)
-    def validate_default_timezone(cls, v, values):
-        return default_timezone(v, values=values)
+    @model_validator(mode="after")
+    def validate_timezone(self):
+        self.timezone = default_timezone(self.timezone, self.model_dump())
+        return self
 
 
 class CronSchedule(PrefectBaseModel):
@@ -97,8 +93,7 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -109,11 +104,13 @@ class CronSchedule(PrefectBaseModel):
         ),
     )
 
-    @validator("timezone")
+    @field_validator("timezone")
+    @classmethod
     def valid_timezone(cls, v):
         return default_timezone(v)
 
-    @validator("cron")
+    @field_validator("cron")
+    @classmethod
     def valid_cron_string(cls, v):
         return validate_cron_string(v)
 
@@ -141,13 +138,15 @@ class RRuleSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[str] = Field(
+        default="UTC", examples=["America/New_York"], validate_default=True
+    )
 
-    @validator("rrule")
+    @field_validator("rrule")
+    @classmethod
     def validate_rrule_str(cls, v):
         return validate_rrule_string(v)
 
@@ -254,14 +253,30 @@ class RRuleSchedule(PrefectBaseModel):
 
             return rrule
 
-    @validator("timezone", always=True)
+    @field_validator("timezone")
     def valid_timezone(cls, v):
-        return validate_rrule_timezone(v)
+        """
+        Validate that the provided timezone is a valid IANA timezone.
+
+        Unfortunately this list is slightly different from the list of valid
+        timezones in pendulum that we use for cron and interval timezone validation.
+        """
+        from prefect._internal.pytz import HAS_PYTZ
+
+        if HAS_PYTZ:
+            import pytz
+        else:
+            from prefect._internal import pytz
+
+        if v and v not in pytz.all_timezones_set:
+            raise ValueError(f'Invalid timezone: "{v}"')
+        elif v is None:
+            return "UTC"
+        return v
 
 
 class NoSchedule(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule]
@@ -303,6 +318,8 @@ def construct_schedule(
     if interval:
         if isinstance(interval, (int, float)):
             interval = datetime.timedelta(seconds=interval)
+        if not anchor_date:
+            anchor_date = DateTime.now()
         schedule = IntervalSchedule(
             interval=interval, anchor_date=anchor_date, timezone=timezone
         )

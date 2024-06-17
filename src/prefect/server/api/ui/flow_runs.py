@@ -2,15 +2,18 @@ import datetime
 from typing import List
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends
-from pydantic.v1 import Field
+import sqlalchemy as sa
+from fastapi import Body, Depends
+from pydantic import Field
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
+from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server import models
+from prefect.server.database import orm_models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("server.api.ui.flow_runs")
@@ -23,7 +26,7 @@ class SimpleFlowRun(PrefectBaseModel):
     state_type: schemas.states.StateType = Field(
         default=..., description="The state type."
     )
-    timestamp: DateTimeTZ = Field(
+    timestamp: DateTime = Field(
         default=...,
         description=(
             "The start time of the run, or the expected start time "
@@ -85,3 +88,38 @@ async def read_flow_run_history(
         )
         for r in result
     ]
+
+
+@router.post("/count-task-runs")
+async def count_task_runs_by_flow_run(
+    flow_run_ids: list[UUID] = Body(default=..., embed=True, max_items=200),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> dict[UUID, int]:
+    """
+    Get task run counts by flow run id.
+    """
+    async with db.session_context() as session:
+        query = (
+            sa.select(
+                orm_models.TaskRun.flow_run_id,
+                sa.func.count(orm_models.TaskRun.id).label("task_run_count"),
+            )
+            .where(
+                sa.and_(
+                    orm_models.TaskRun.flow_run_id.in_(flow_run_ids),
+                    sa.not_(orm_models.TaskRun.subflow_run.has()),
+                )
+            )
+            .group_by(orm_models.TaskRun.flow_run_id)
+        )
+
+        results = await session.execute(query)
+
+        task_run_counts_by_flow_run = {
+            flow_run_id: task_run_count for flow_run_id, task_run_count in results.all()
+        }
+
+        return {
+            flow_run_id: task_run_counts_by_flow_run.get(flow_run_id, 0)
+            for flow_run_id in flow_run_ids
+        }

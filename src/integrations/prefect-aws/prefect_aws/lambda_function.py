@@ -49,19 +49,14 @@ Examples:
     ```
 
 """
+
 import json
 from typing import Literal, Optional
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_aws.credentials import AwsCredentials
 
 
@@ -109,11 +104,6 @@ class LambdaFunction(Block):
         description="The AWS credentials to invoke the Lambda with.",
     )
 
-    class Config:
-        """Lambda's pydantic configuration."""
-
-        smart_union = True
-
     def _get_lambda_client(self):
         """
         Retrieve a boto3 session and Lambda client
@@ -125,7 +115,7 @@ class LambdaFunction(Block):
     @sync_compatible
     async def invoke(
         self,
-        payload: dict = None,
+        payload: Optional[dict] = None,
         invocation_type: Literal[
             "RequestResponse", "Event", "DryRun"
         ] = "RequestResponse",

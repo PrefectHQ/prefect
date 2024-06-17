@@ -9,29 +9,21 @@ GitHub query_repository* tasks and the GitHub storage block.
 
 import io
 import shlex
+import shutil
 from datetime import datetime
-from distutils.dir_util import copy_tree
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Iterable, Optional, Tuple, Union
 from urllib.parse import urlparse, urlunparse
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
+from sgqlc.operation import Operation
 
 from prefect import task
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
-from sgqlc.operation import Operation
-
 from prefect_github import GitHubCredentials
-from prefect_github.exceptions import InvalidRepositoryURLError
 from prefect_github.graphql import _execute_graphql_op, _subset_return_fields
 from prefect_github.schemas import graphql_schema
 from prefect_github.utils import initialize_return_fields_defaults, strip_kwargs
@@ -65,23 +57,6 @@ class GitHubRepository(ReadableDeploymentStorage):
         default=None,
         description="An optional GitHubCredentials block for using private GitHub repos.",  # noqa: E501
     )
-
-    @validator("credentials")
-    def _ensure_credentials_go_with_https(cls, v: str, values: dict):
-        """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs."""
-        if v is not None:
-            if urlparse(values["repository_url"]).scheme != "https":
-                raise InvalidRepositoryURLError(
-                    (
-                        "Crendentials can only be used with GitHub repositories "
-                        "using the 'HTTPS' format. You must either remove the "
-                        "credential if you wish to use the 'SSH' format and are not "
-                        "using a private repository, or you must change the repository "
-                        "url to the 'HTTPS' format. "
-                    )
-                )
-
-        return v
 
     def _create_repo_url(self) -> str:
         """Format the URL provided to the `git clone` command.
@@ -160,7 +135,9 @@ class GitHubRepository(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_path_str, sub_directory=from_path
             )
 
-            copy_tree(src=content_source, dst=content_destination)
+            shutil.copytree(
+                src=content_source, dst=content_destination, dirs_exist_ok=True
+            )
 
 
 @task
@@ -169,7 +146,7 @@ async def query_repository(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The query root of GitHub's GraphQL interface.
@@ -211,7 +188,7 @@ async def query_repository_ref(  # noqa
     qualified_name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Fetch a given ref from the repository.
@@ -263,14 +240,14 @@ async def query_repository_refs(  # noqa
     ref_prefix: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    query: str = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    query: Optional[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     direction: graphql_schema.OrderDirection = None,
     order_by: graphql_schema.RefOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Fetch a list of refs from the repository.
@@ -336,7 +313,7 @@ async def query_repository_owner(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The User owner of the repository.
@@ -387,12 +364,12 @@ async def query_repository_forks(  # noqa
         "OWNER",
         "COLLABORATOR",
     ),
-    is_locked: bool = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    is_locked: Optional[bool] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of direct forked repositories.
@@ -468,7 +445,7 @@ async def query_repository_issue(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a single issue from the current repository by number.
@@ -518,7 +495,7 @@ async def query_repository_label(  # noqa
     label_name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a single label by name.
@@ -571,11 +548,11 @@ async def query_repository_issues(  # noqa
     follow_renames: bool = True,
     order_by: graphql_schema.IssueOrder = None,
     filter_by: graphql_schema.IssueFilters = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of issues that have been opened in the repository.
@@ -643,12 +620,12 @@ async def query_repository_labels(  # noqa
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
     order_by: graphql_schema.LabelOrder = {"field": "CREATED_AT", "direction": "ASC"},
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    query: str = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    query: Optional[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of labels associated with the repository.
@@ -710,9 +687,9 @@ async def query_repository_object(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    oid: datetime = None,
-    expression: str = None,
-    return_fields: Iterable[str] = None,
+    oid: Optional[datetime] = None,
+    expression: Optional[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A Git object in the repository.
@@ -764,7 +741,7 @@ async def query_repository_project(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Find project by number.
@@ -814,7 +791,7 @@ async def query_repository_release(  # noqa
     tag_name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Lookup a single release given various criteria.
@@ -865,12 +842,12 @@ async def query_repository_projects(  # noqa
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
     order_by: graphql_schema.ProjectOrder = None,
-    search: str = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    search: Optional[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of projects under the owner.
@@ -935,18 +912,18 @@ async def query_repository_packages(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    names: Iterable[str] = None,
-    repository_id: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    names: Optional[Iterable[str]] = None,
+    repository_id: Optional[str] = None,
     package_type: graphql_schema.PackageType = None,
     order_by: graphql_schema.PackageOrder = {
         "field": "CREATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of packages under the owner.
@@ -1011,12 +988,12 @@ async def query_repository_releases(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.ReleaseOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of releases which are dependent on this repository.
@@ -1075,11 +1052,11 @@ async def query_repository_watchers(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of users watching the repository.
@@ -1136,12 +1113,12 @@ async def query_repository_languages(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.LanguageOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list containing a breakdown of the language composition of the repository.
@@ -1201,7 +1178,7 @@ async def query_repository_milestone(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a single milestone from the current repository by number.
@@ -1251,7 +1228,7 @@ async def query_repository_project_v2(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Finds and returns the Project according to the provided Project number.
@@ -1300,12 +1277,12 @@ async def query_repository_stargazers(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.StarOrder = None,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of users who have starred this starrable.
@@ -1364,11 +1341,11 @@ async def query_repository_deploy_keys(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of deploy keys that are on this repository.
@@ -1426,7 +1403,7 @@ async def query_repository_discussion(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a single discussion from the current repository by number.
@@ -1476,13 +1453,13 @@ async def query_repository_milestones(  # noqa
     states: Iterable[graphql_schema.MilestoneState],
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     order_by: graphql_schema.MilestoneOrder = None,
-    query: str = None,
-    return_fields: Iterable[str] = None,
+    query: Optional[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of milestones associated with the repository.
@@ -1545,13 +1522,13 @@ async def query_repository_projects_v2(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    query: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    query: Optional[str] = None,
     order_by: graphql_schema.ProjectV2Order = {"field": "NUMBER", "direction": "DESC"},
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of projects linked to this repository.
@@ -1612,11 +1589,11 @@ async def query_repository_submodules(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a list of all submodules in this repository parsed from the .gitmodules
@@ -1674,7 +1651,7 @@ async def query_repository_license_info(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The license associated with the repository.
@@ -1723,11 +1700,11 @@ async def query_repository_deployments(  # noqa
         "field": "CREATED_AT",
         "direction": "ASC",
     },
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Deployments associated with the repository.
@@ -1789,16 +1766,16 @@ async def query_repository_discussions(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    category_id: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    category_id: Optional[str] = None,
     order_by: graphql_schema.DiscussionOrder = {
         "field": "UPDATED_AT",
         "direction": "DESC",
     },
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of discussions that have been opened in the repository.
@@ -1862,7 +1839,7 @@ async def query_repository_environment(  # noqa
     environment_name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a single active environment from the current repository by name.
@@ -1912,7 +1889,7 @@ async def query_repository_project_next(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Finds and returns the Project (beta) according to the provided Project (beta)
@@ -1963,7 +1940,7 @@ async def query_repository_pull_request(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a single pull request from the current repository by number.
@@ -2012,7 +1989,7 @@ async def query_repository_contact_links(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a list of contact links associated to the repository.
@@ -2056,11 +2033,11 @@ async def query_repository_environments(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of environments that are in this repository.
@@ -2117,7 +2094,7 @@ async def query_repository_funding_links(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The funding links for this repository.
@@ -2161,11 +2138,11 @@ async def query_repository_pinned_issues(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of pinned issues for this repository.
@@ -2222,13 +2199,13 @@ async def query_repository_projects_next(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    query: str = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    query: Optional[str] = None,
     sort_by: graphql_schema.ProjectNextOrderField = "TITLE",
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     List of projects (beta) linked to this repository.
@@ -2291,14 +2268,14 @@ async def query_repository_pull_requests(  # noqa
     labels: Iterable[str],
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    head_ref_name: str = None,
-    base_ref_name: str = None,
+    head_ref_name: Optional[str] = None,
+    base_ref_name: Optional[str] = None,
     order_by: graphql_schema.IssueOrder = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of pull requests that have been opened in the repository.
@@ -2369,7 +2346,7 @@ async def query_repository_code_of_conduct(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns the code of conduct for this repository.
@@ -2414,12 +2391,12 @@ async def query_repository_collaborators(  # noqa
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
     affiliation: graphql_schema.CollaboratorAffiliation = None,
-    query: str = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    query: Optional[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of collaborators associated with the repository.
@@ -2481,7 +2458,7 @@ async def query_repository_latest_release(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Get the latest release for the repository if one exists.
@@ -2525,11 +2502,11 @@ async def query_repository_recent_projects(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Recent projects that this user has modified in the context of the owner.
@@ -2586,11 +2563,11 @@ async def query_repository_commit_comments(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of commit comments associated with the repository.
@@ -2647,7 +2624,7 @@ async def query_repository_issue_templates(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a list of issue templates associated to the repository.
@@ -2691,12 +2668,12 @@ async def query_repository_assignable_users(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    query: str = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    query: Optional[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of users that can be assigned to issues in this repository.
@@ -2755,7 +2732,7 @@ async def query_repository_primary_language(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The primary language of the repository's code.
@@ -2799,7 +2776,7 @@ async def query_repository_default_branch_ref(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The Ref associated with the repository's default branch.
@@ -2843,12 +2820,12 @@ async def query_repository_mentionable_users(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    query: str = None,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    query: Optional[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of Users that can be mentioned in the context of the repository.
@@ -2907,11 +2884,11 @@ async def query_repository_repository_topics(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of applied repository-topic associations for this repository.
@@ -2968,11 +2945,11 @@ async def query_repository_pinned_discussions(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of discussions that have been pinned in this repository.
@@ -3030,7 +3007,7 @@ async def query_repository_discussion_category(  # noqa
     slug: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A discussion category by slug.
@@ -3080,7 +3057,7 @@ async def query_repository_interaction_ability(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     The interaction ability settings for this repository.
@@ -3125,7 +3102,7 @@ async def query_repository_issue_or_pull_request(  # noqa
     number: int,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a single issue-like object from the current repository by number.
@@ -3178,11 +3155,11 @@ async def query_repository_vulnerability_alerts(  # noqa
     ],
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of vulnerability alerts that are on this repository.
@@ -3245,12 +3222,12 @@ async def query_repository_discussion_categories(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
     filter_by_assignable: bool = False,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of discussion categories that are available in the repository.
@@ -3311,7 +3288,7 @@ async def query_repository_pull_request_templates(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    return_fields: Iterable[str] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Returns a list of pull request templates associated to the repository.
@@ -3355,11 +3332,11 @@ async def query_repository_branch_protection_rules(  # noqa
     name: str,
     github_credentials: GitHubCredentials,
     follow_renames: bool = True,
-    after: str = None,
-    before: str = None,
-    first: int = None,
-    last: int = None,
-    return_fields: Iterable[str] = None,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    first: Optional[int] = None,
+    last: Optional[int] = None,
+    return_fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     A list of branch protection rules for this repository.

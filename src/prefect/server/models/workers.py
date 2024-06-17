@@ -57,7 +57,7 @@ async def create_work_pool(
 
     """
 
-    pool = orm_models.WorkPool(**work_pool.dict())
+    pool = orm_models.WorkPool(**work_pool.model_dump())
 
     if pool.type != "prefect-agent":
         if pool.is_paused:
@@ -205,7 +205,7 @@ async def update_work_pool(
     """
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = work_pool.dict(shallow=True, exclude_unset=True)
+    update_data = work_pool.model_dump_for_orm(exclude_unset=True)
 
     current_work_pool = await read_work_pool(session=session, work_pool_id=work_pool_id)
     if not current_work_pool:
@@ -291,8 +291,8 @@ async def get_scheduled_flow_runs(
     work_queue_ids: List[UUID] = None,
     scheduled_before: datetime.datetime = None,
     scheduled_after: datetime.datetime = None,
-    limit: int = None,
-    respect_queue_priorities: bool = None,
+    limit: Optional[int] = None,
+    respect_queue_priorities: Optional[bool] = None,
 ) -> Sequence[schemas.responses.WorkerFlowRunResponse]:
     """
     Get runs from queues in a specific work pool.
@@ -352,7 +352,7 @@ async def create_work_queue(
         orm_models.WorkQueue: the newly-created WorkQueue
 
     """
-    data = work_queue.dict(exclude={"work_pool_id"})
+    data = work_queue.model_dump(exclude={"work_pool_id"})
     if work_queue.priority is None:
         # Set the priority to be the first priority value that isn't already taken
         priorities_query = sa.select(orm_models.WorkQueue.priority).where(
@@ -568,7 +568,7 @@ async def update_work_queue(
     """
     from prefect.server.models.work_queues import is_last_polled_recent
 
-    update_values = work_queue.dict(shallow=True, exclude_unset=True)
+    update_values = work_queue.model_dump_for_orm(exclude_unset=True)
 
     if "is_paused" in update_values:
         if (wq := await session.get(orm_models.WorkQueue, work_queue_id)) is None:
@@ -674,8 +674,8 @@ async def read_workers(
     session: AsyncSession,
     work_pool_id: UUID,
     worker_filter: schemas.filters.WorkerFilter = None,
-    limit: int = None,
-    offset: int = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
 ) -> Sequence[orm_models.Worker]:
     query = (
         sa.select(orm_models.Worker)

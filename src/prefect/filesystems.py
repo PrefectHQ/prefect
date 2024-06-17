@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 import anyio
 import fsspec
-from pydantic.v1 import Field, SecretStr, validator
+from pydantic import Field, SecretStr, field_validator
 
 from prefect._internal.schemas.validators import (
     stringify_path,
@@ -15,6 +15,8 @@ from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
+
+from ._internal.compatibility.migration import getattr_migration
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -42,7 +44,7 @@ class ReadableDeploymentStorage(Block, abc.ABC):
 
     @abc.abstractmethod
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         pass
 
@@ -52,13 +54,16 @@ class WritableDeploymentStorage(Block, abc.ABC):
 
     @abc.abstractmethod
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         pass
 
     @abc.abstractmethod
     async def put_directory(
-        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> None:
         pass
 
@@ -86,7 +91,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         default=None, description="Default local path for this block to write to."
     )
 
-    @validator("basepath", pre=True)
+    @field_validator("basepath", mode="before")
     def cast_pathlib(cls, value):
         return stringify_path(value)
 
@@ -103,22 +108,22 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         if path is None:
             return basepath
 
-        path: Path = Path(path).expanduser()
+        resolved_path: Path = Path(path).expanduser()
 
-        if not path.is_absolute():
-            path = basepath / path
+        if not resolved_path.is_absolute():
+            resolved_path = basepath / resolved_path
         else:
-            path = path.resolve()
-            if basepath not in path.parents and (basepath != path):
+            resolved_path = resolved_path.resolve()
+            if basepath not in resolved_path.parents and (basepath != resolved_path):
                 raise ValueError(
-                    f"Provided path {path} is outside of the base path {basepath}."
+                    f"Provided path {resolved_path} is outside of the base path {basepath}."
                 )
 
-        return path
+        return resolved_path
 
     @sync_compatible
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
@@ -168,7 +173,10 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @sync_compatible
     async def put_directory(
-        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
@@ -267,7 +275,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     # Cache for the configured fsspec file system used for access
     _filesystem: fsspec.AbstractFileSystem = None
 
-    @validator("basepath")
+    @field_validator("basepath")
     def check_basepath(cls, value):
         return validate_basepath(value)
 
@@ -440,7 +448,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         default=None, title="SMB Password", description="Password for SMB access."
     )
     smb_host: str = Field(
-        default=..., tile="SMB server/hostname", description="SMB server/hostname."
+        default=..., title="SMB server/hostname", description="SMB server/hostname."
     )
     smb_port: Optional[int] = Field(
         default=None, title="SMB port", description="SMB port (default: 445)."
@@ -506,3 +514,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+__getattr__ = getattr_migration(__name__)

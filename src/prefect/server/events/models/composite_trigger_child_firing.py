@@ -32,7 +32,7 @@ async def upsert_child_firing(
             child_trigger_id=child_trigger_id,
             child_firing_id=firing.id,
             child_fired_at=firing.triggered,
-            child_firing=firing.dict(),
+            child_firing=firing.model_dump(),
         )
         .on_conflict_do_update(
             index_elements=[
@@ -43,7 +43,7 @@ async def upsert_child_firing(
             set_=dict(
                 child_firing_id=firing.id,
                 child_fired_at=firing.triggered,
-                child_firing=firing.dict(),
+                child_firing=firing.model_dump(),
                 updated=pendulum.now("UTC"),
             ),
         )

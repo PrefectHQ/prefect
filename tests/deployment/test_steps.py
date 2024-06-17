@@ -4,6 +4,7 @@ import sys
 import warnings
 from pathlib import Path
 from textwrap import dedent
+from typing import Optional
 from unittest.mock import ANY, call
 
 import pytest
@@ -347,7 +348,9 @@ class TestRunSteps:
 
 
 class MockCredentials:
-    def __init__(self, token: str, username: str = None, password: str = None):
+    def __init__(
+        self, token: str, username: Optional[str] = None, password: Optional[str] = None
+    ):
         self.token = token
         self.username = username
         self.password = password
@@ -792,7 +795,9 @@ class TestPipInstallRequirements:
 
 class TestPullWithBlock:
     @pytest.fixture
-    async def test_block(self):
+    async def test_block(self, monkeypatch, tmp_path):
+        monkeypatch.chdir(str(tmp_path))  # ensures never writes to active directory
+
         class FakeStorageBlock(Block):
             _block_type_slug = "fake-storage-block"
 
@@ -868,7 +873,7 @@ class TestPullWithBlock:
         """
 
         class Wrong(Block):
-            square_peg = "round_hole"
+            square_peg: str = "round_hole"
 
         block = Wrong()
         await block.save("test-block")

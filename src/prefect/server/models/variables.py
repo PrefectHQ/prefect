@@ -29,7 +29,7 @@ async def create_variable(
     Returns:
         db.Variable
     """
-    model = db.Variable(**variable.dict())
+    model = db.Variable(**variable.model_dump())
     session.add(model)
     await session.flush()
 
@@ -74,8 +74,8 @@ async def read_variables(
     session: AsyncSession,
     variable_filter: Optional[filters.VariableFilter] = None,
     sort: sorting.VariableSort = sorting.VariableSort.NAME_ASC,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
 ) -> Sequence["ORMVariable"]:
     """
     Read variables, applying filers.
@@ -126,7 +126,7 @@ async def update_variable(
     query = (
         sa.update(db.Variable)
         .where(db.Variable.id == variable_id)
-        .values(**variable.dict(shallow=True, exclude_unset=True))
+        .values(**variable.model_dump_for_orm(exclude_unset=True))
     )
 
     result = await session.execute(query)
@@ -146,7 +146,7 @@ async def update_variable_by_name(
     query = (
         sa.update(db.Variable)
         .where(db.Variable.name == name)
-        .values(**variable.dict(shallow=True, exclude_unset=True))
+        .values(**variable.model_dump_for_orm(exclude_unset=True))
     )
 
     result = await session.execute(query)

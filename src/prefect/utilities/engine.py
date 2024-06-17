@@ -44,11 +44,11 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging.loggers import (
     get_logger,
     task_run_logger,
 )
-from prefect.new_futures import PrefectFuture as NewPrefectFuture
 from prefect.results import BaseResult
 from prefect.settings import (
     PREFECT_LOGGING_LOG_PRINTS,
@@ -574,14 +574,6 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
     return context.task_run_dynamic_keys[task.task_key]
 
 
-def _observed_flow_pauses(context: FlowRunContext) -> int:
-    if "counter" not in context.observed_flow_pauses:
-        context.observed_flow_pauses["counter"] = 1
-    else:
-        context.observed_flow_pauses["counter"] += 1
-    return context.observed_flow_pauses["counter"]
-
-
 def get_state_for_result(obj: Any) -> Optional[State]:
     """
     Get the state related to a result object.
@@ -794,6 +786,17 @@ def resolve_to_final_result(expr, context):
         raise StopVisiting()
 
     if isinstance(expr, NewPrefectFuture):
+        upstream_task_run = context.get("current_task_run")
+        upstream_task = context.get("current_task")
+        if (
+            upstream_task
+            and upstream_task_run
+            and expr.task_run_id == upstream_task_run.id
+        ):
+            raise ValueError(
+                f"Discovered a task depending on itself. Raising to avoid a deadlock. Please inspect the inputs and dependencies of {upstream_task.name}."
+            )
+
         expr.wait()
         state = expr.state
     elif isinstance(expr, State):

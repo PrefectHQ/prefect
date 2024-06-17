@@ -57,8 +57,7 @@ async def create_flow_run(
     now = pendulum.now("UTC")
 
     flow_run_dict = dict(
-        **flow_run.dict(
-            shallow=True,
+        **flow_run.model_dump_for_orm(
             exclude={
                 "created",
                 "state",
@@ -141,7 +140,7 @@ async def update_flow_run(
         .where(orm_models.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
-        .values(**flow_run.dict(shallow=True, exclude_unset=True))
+        .values(**flow_run.model_dump_for_orm(exclude_unset=True))
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0
@@ -254,8 +253,8 @@ async def read_flow_runs(
     deployment_filter: schemas.filters.DeploymentFilter = None,
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
 ) -> Sequence[orm_models.FlowRun]:
     """

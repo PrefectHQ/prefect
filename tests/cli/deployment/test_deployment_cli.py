@@ -5,8 +5,8 @@ import pytest
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
-from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
-from prefect.server.schemas.schedules import IntervalSchedule
+from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterId
+from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     temporary_settings,
@@ -570,7 +570,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00+00:00'"],
+            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00Z'"],
         )
 
     @pytest.mark.parametrize(
@@ -1006,6 +1006,7 @@ class TestDeploymentRun:
         This test ensures the parameters are set on the created flow run and that
         data types are cast correctly.
         """
+
         await run_sync_in_worker_thread(
             invoke_and_assert,
             ["deployment", "run", deployment_name, "--param", f"name={given}"],

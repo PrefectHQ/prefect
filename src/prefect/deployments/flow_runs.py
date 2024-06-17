@@ -5,15 +5,12 @@ from uuid import UUID
 import anyio
 import pendulum
 
-from prefect._internal.compatibility.deprecated import (
-    deprecated_parameter,
-    handle_deprecated_infra_overrides_parameter,
-)
+from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.logging import get_logger
-from prefect.states import Scheduled
+from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
@@ -94,8 +91,6 @@ async def run_deployment(
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
 
-    jv = handle_deprecated_infra_overrides_parameter(job_variables, infra_overrides)
-
     parameters = parameters or {}
 
     deployment_id = None
@@ -116,13 +111,13 @@ async def run_deployment(
     flow_run_ctx = FlowRunContext.get()
     task_run_ctx = TaskRunContext.get()
     if as_subflow and (flow_run_ctx or task_run_ctx):
-        # This was called from a flow. Link the flow run as a subflow.
-        from prefect.engine import (
-            Pending,
+        # TODO: this logic can likely be simplified by using `Task.create_run`
+        from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
             collect_task_run_inputs,
         )
 
+        # This was called from a flow. Link the flow run as a subflow.
         task_inputs = {
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
@@ -171,7 +166,7 @@ async def run_deployment(
         idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
-        job_variables=jv,
+        job_variables=job_variables,
     )
 
     flow_run_id = flow_run.id

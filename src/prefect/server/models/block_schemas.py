@@ -5,11 +5,12 @@ Intended for internal use by the Prefect REST API.
 
 import json
 from copy import copy
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
 from prefect.server.database import orm_models
@@ -19,6 +20,11 @@ from prefect.server.models.block_types import read_block_type_by_slug
 from prefect.server.schemas.actions import BlockSchemaCreate
 from prefect.server.schemas.core import BlockSchema, BlockSchemaReference, BlockType
 
+if TYPE_CHECKING:
+    from prefect.client.schemas.actions import (
+        BlockSchemaCreate as ClientBlockSchemaCreate,
+    )
+
 
 class MissingBlockTypeException(Exception):
     """Raised when the block type corresponding to a block schema cannot be found"""
@@ -27,8 +33,8 @@ class MissingBlockTypeException(Exception):
 @db_injector
 async def create_block_schema(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
-    block_schema: schemas.actions.BlockSchemaCreate,
+    session: AsyncSession,
+    block_schema: Union[schemas.actions.BlockSchemaCreate, "ClientBlockSchemaCreate"],
     override: bool = False,
     definitions: Optional[Dict] = None,
 ):
@@ -46,8 +52,18 @@ async def create_block_schema(
     """
     from prefect.blocks.core import Block, _get_non_block_reference_definitions
 
-    insert_values = block_schema.dict(
-        shallow=True,
+    # We take a shortcut in many unit tests and in block registration to pass client
+    # models directly to this function.  We will support this by converting them to
+    # the appropriate server model.
+    if not isinstance(block_schema, schemas.actions.BlockSchemaCreate):
+        block_schema = schemas.actions.BlockSchemaCreate.model_validate(
+            block_schema.model_dump(
+                mode="json",
+                exclude={"id", "created", "updated", "checksum", "block_type"},
+            )
+        )
+
+    insert_values = block_schema.model_dump_for_orm(
         exclude_unset=False,
         exclude={"block_type", "id", "created", "updated"},
     )
@@ -87,7 +103,7 @@ async def create_block_schema(
             insert_values["fields"].pop("definitions", None)
 
     # Prevent saving block schema references in the block_schema table. They have
-    # they're own table.
+    # their own table.
     block_schema_references: Dict = insert_values["fields"].pop(
         "block_schema_references", {}
     )
@@ -133,7 +149,7 @@ async def create_block_schema(
 
 
 async def _register_nested_block_schemas(
-    session: sa.orm.Session,
+    session: AsyncSession,
     parent_block_schema_id: UUID,
     block_schema_references: Dict[str, Union[Dict[str, str], List[Dict[str, str]]]],
     base_fields: Dict,
@@ -277,7 +293,7 @@ async def delete_block_schema(session: sa.orm.Session, block_schema_id: UUID) ->
 
 
 async def read_block_schema(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_schema_id: UUID,
 ):
     """
@@ -555,7 +571,7 @@ def _construct_block_schema_fields_with_block_references(
 
 
 async def read_block_schemas(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
@@ -666,7 +682,7 @@ async def read_block_schemas(
 
 
 async def read_block_schema_by_checksum(
-    session: sa.orm.Session,
+    session: AsyncSession,
     checksum: str,
     version: Optional[str] = None,
 ) -> Optional[BlockSchema]:
@@ -747,7 +763,7 @@ async def read_block_schema_by_checksum(
 @db_injector
 async def read_available_block_capabilities(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
 ) -> List[str]:
     """
     Retrieves a list of all available block capabilities.
@@ -770,7 +786,7 @@ async def read_available_block_capabilities(
 @db_injector
 async def create_block_schema_reference(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_schema_reference: schemas.core.BlockSchemaReference,
 ):
     """
@@ -796,8 +812,8 @@ async def create_block_schema_reference(
         return existing_reference
 
     insert_stmt = db.insert(orm_models.BlockSchemaReference).values(
-        **block_schema_reference.dict(
-            shallow=True, exclude_unset=True, exclude={"created", "updated"}
+        **block_schema_reference.model_dump_for_orm(
+            exclude_unset=True, exclude={"created", "updated"}
         )
     )
     await session.execute(insert_stmt)

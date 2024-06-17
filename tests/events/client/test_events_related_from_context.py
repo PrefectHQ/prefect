@@ -60,55 +60,55 @@ async def test_gets_related_from_run_context(
         tags=["flow-run-one"],
     )
 
-    with FlowRunContext.construct(flow_run=flow_run):
+    with FlowRunContext.model_construct(flow_run=flow_run):
         related = await related_resources_from_run_context()
 
     work_pool = work_queue_1.work_pool
     db_flow = await prefect_client.read_flow(flow_run.flow_id)
 
     assert related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                 "prefect.resource.role": "flow-run",
                 "prefect.resource.name": flow_run.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow.{db_flow.id}",
                 "prefect.resource.role": "flow",
                 "prefect.resource.name": db_flow.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{worker_deployment_wq1.id}",
                 "prefect.resource.role": "deployment",
                 "prefect.resource.name": worker_deployment_wq1.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{work_queue_1.id}",
                 "prefect.resource.role": "work-queue",
                 "prefect.resource.name": work_queue_1.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                 "prefect.resource.role": "work-pool",
                 "prefect.resource.name": work_pool.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.flow-run-one",
                 "prefect.resource.role": "tag",
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.test",
                 "prefect.resource.role": "tag",
@@ -158,21 +158,21 @@ async def test_gets_related_from_task_run_context(prefect_client):
     related = await task_state.result()
 
     assert related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                 "prefect.resource.role": "flow-run",
                 "prefect.resource.name": flow_run.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.task-run.{task_run.id}",
                 "prefect.resource.role": "task-run",
                 "prefect.resource.name": task_run.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow.{db_flow.id}",
                 "prefect.resource.role": "flow",

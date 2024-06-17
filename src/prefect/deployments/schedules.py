@@ -1,23 +1,21 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union, get_args
 
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 
 if TYPE_CHECKING:
     from prefect.client.schemas.schedules import SCHEDULE_TYPES
 
-FlexibleScheduleList = Sequence[
-    Union[MinimalDeploymentSchedule, dict, "SCHEDULE_TYPES"]
-]
+FlexibleScheduleList = Sequence[Union[DeploymentScheduleCreate, dict, "SCHEDULE_TYPES"]]
 
 
-def create_minimal_deployment_schedule(
+def create_deployment_schedule_create(
     schedule: "SCHEDULE_TYPES",
     active: Optional[bool] = True,
     max_active_runs: Optional[int] = None,
     catchup: bool = False,
-) -> MinimalDeploymentSchedule:
-    """Create a MinimalDeploymentSchedule object from common schedule parameters."""
-    return MinimalDeploymentSchedule(
+) -> DeploymentScheduleCreate:
+    """Create a DeploymentScheduleCreate object from common schedule parameters."""
+    return DeploymentScheduleCreate(
         schedule=schedule,
         active=active if active is not None else True,
         max_active_runs=max_active_runs,
@@ -25,19 +23,19 @@ def create_minimal_deployment_schedule(
     )
 
 
-def normalize_to_minimal_deployment_schedules(
+def normalize_to_deployment_schedule_create(
     schedules: Optional["FlexibleScheduleList"],
-) -> List[MinimalDeploymentSchedule]:
+) -> List[DeploymentScheduleCreate]:
     from prefect.client.schemas.schedules import SCHEDULE_TYPES
 
     normalized = []
     if schedules is not None:
         for obj in schedules:
             if isinstance(obj, get_args(SCHEDULE_TYPES)):
-                normalized.append(create_minimal_deployment_schedule(obj))
+                normalized.append(create_deployment_schedule_create(obj))
             elif isinstance(obj, dict):
-                normalized.append(create_minimal_deployment_schedule(**obj))
-            elif isinstance(obj, MinimalDeploymentSchedule):
+                normalized.append(create_deployment_schedule_create(**obj))
+            elif isinstance(obj, DeploymentScheduleCreate):
                 normalized.append(obj)
             elif _is_server_schema(obj):
                 raise ValueError(
@@ -47,7 +45,7 @@ def normalize_to_minimal_deployment_schedules(
             else:
                 raise ValueError(
                     "Invalid schedule provided. Must be a schedule object, a dict,"
-                    " or a MinimalDeploymentSchedule."
+                    "or a `DeploymentScheduleCreate` object"
                 )
 
     return normalized

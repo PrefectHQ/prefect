@@ -374,7 +374,7 @@ class TestResolveBlockDocumentReferences:
     async def test_resolve_block_document_unpacks_system_blocks(self):
         await JSON(value={"key": "value"}).save(name="json-block")
         await Secret(value="N1nj4C0d3rP@ssw0rd!").save(name="secret-block")
-        await DateTime(value="2020-01-01T00:00:00").save(name="datetime-block")
+        await DateTime(value="2020-01-01T00:00:00Z").save(name="datetime-block")
         await String(value="hello").save(name="string-block")
 
         template = {
@@ -388,7 +388,7 @@ class TestResolveBlockDocumentReferences:
         assert result == {
             "json": {"key": "value"},
             "secret": "N1nj4C0d3rP@ssw0rd!",
-            "datetime": "2020-01-01T00:00:00+00:00",
+            "datetime": "2020-01-01T00:00:00Z",
             "string": "hello",
         }
 

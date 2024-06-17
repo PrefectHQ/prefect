@@ -1,20 +1,14 @@
 """Module containing models for Postgres configs"""
-import warnings
-from typing import Any, Dict, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from typing import Any, Dict
 
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic import Field
 from typing_extensions import Literal
 
 from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError
 
 try:
-    from prefect_sqlalchemy import DatabaseCredentials, SqlAlchemyConnector
+    from prefect_sqlalchemy import SqlAlchemyConnector
 except ModuleNotFoundError as e:
     raise MissingExtrasRequireError("Postgres") from e
 
@@ -32,28 +26,6 @@ class PostgresTargetConfigs(BaseTargetConfigs):
             duplicate keys between credentials and TargetConfigs,
             e.g. schema, an error will be raised.
 
-    Examples:
-        Load stored PostgresTargetConfigs:
-        ```python
-        from prefect_dbt.cli.configs import PostgresTargetConfigs
-
-        postgres_target_configs = PostgresTargetConfigs.load("BLOCK_NAME")
-        ```
-
-        Instantiate PostgresTargetConfigs with DatabaseCredentials.
-        ```python
-        from prefect_dbt.cli.configs import PostgresTargetConfigs
-        from prefect_sqlalchemy import DatabaseCredentials, SyncDriver
-
-        credentials = DatabaseCredentials(
-            driver=SyncDriver.POSTGRESQL_PSYCOPG2,
-            username="prefect",
-            password="prefect_password",
-            database="postgres",
-            host="host",
-            port=8080
-        )
-        target_configs = PostgresTargetConfigs(credentials=credentials, schema="schema")
         ```
     """
 
@@ -65,7 +37,7 @@ class PostgresTargetConfigs(BaseTargetConfigs):
     type: Literal["postgres"] = Field(
         default="postgres", description="The type of the target."
     )
-    credentials: Union[SqlAlchemyConnector, DatabaseCredentials] = Field(
+    credentials: SqlAlchemyConnector = Field(
         default=...,
         description=(
             "The credentials to use to authenticate; if there are duplicate keys "
@@ -81,12 +53,6 @@ class PostgresTargetConfigs(BaseTargetConfigs):
         Returns:
             A configs JSON.
         """
-        if isinstance(self.credentials, DatabaseCredentials):
-            warnings.warn(
-                "Using DatabaseCredentials is deprecated and will be removed "
-                "on May 7th, 2023, use SqlAlchemyConnector instead.",
-                DeprecationWarning,
-            )
         all_configs_json = super().get_configs()
 
         rename_keys = {

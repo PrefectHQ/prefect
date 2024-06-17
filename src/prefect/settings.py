@@ -42,6 +42,7 @@ dependent on the value of other settings or perform other dynamic effects.
 
 import logging
 import os
+import socket
 import string
 import warnings
 from contextlib import contextmanager
@@ -65,16 +66,18 @@ from typing import (
 )
 from urllib.parse import urlparse
 
+import pydantic
 import toml
-from pydantic.v1 import (
+from pydantic import (
     BaseModel,
-    BaseSettings,
+    ConfigDict,
     Field,
     create_model,
+    field_validator,
     fields,
-    root_validator,
-    validator,
+    model_validator,
 )
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
@@ -82,6 +85,7 @@ from prefect._internal.schemas.validators import validate_settings
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
+from prefect.utilities.slugify import slugify
 
 T = TypeVar("T")
 
@@ -235,7 +239,7 @@ class Setting(Generic[T]):
         )
 
     def __repr__(self) -> str:
-        return f"<{self.name}: {self.type.__name__}>"
+        return f"<{self.name}: {self.type!r}>"
 
     def __bool__(self) -> bool:
         """
@@ -376,21 +380,6 @@ def warn_on_database_password_value_without_usage(values):
     return values
 
 
-def check_for_deprecated_cloud_url(settings, value):
-    deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
-    if deprecated_value is not None:
-        warnings.warn(
-            (
-                "`PREFECT_CLOUD_URL` is set and will be used instead of"
-                " `PREFECT_CLOUD_API_URL` for backwards compatibility."
-                " `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL`"
-                " instead."
-            ),
-            DeprecationWarning,
-        )
-    return deprecated_value or value
-
-
 def warn_on_misconfigured_api_url(values):
     """
     Validator for settings warning if the API URL is misconfigured.
@@ -428,6 +417,18 @@ def warn_on_misconfigured_api_url(values):
             warnings.warn("\n".join(warnings_list), stacklevel=2)
 
     return values
+
+
+def default_result_storage_block_name(
+    settings: Optional["Settings"] = None, value: Optional[str] = None
+):
+    """
+    `value_callback` for `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK_NAME` that sets the default
+    value to the hostname of the machine.
+    """
+    if value is None:
+        return f"local-file-system/{slugify(socket.gethostname())}-storage"
+    return value
 
 
 def default_database_connection_url(settings, value):
@@ -600,7 +601,7 @@ This is recommended only during development, e.g. when using self-signed certifi
 """
 
 PREFECT_API_SSL_CERT_FILE = Setting(
-    str,
+    Optional[str],
     default=os.environ.get("SSL_CERT_FILE"),
 )
 """
@@ -610,7 +611,7 @@ If left unset, the setting will default to the value provided by the `SSL_CERT_F
 """
 
 PREFECT_API_URL = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
@@ -629,7 +630,7 @@ we would like to silence this warning so we will set it to `FALSE`.
 """
 
 PREFECT_API_KEY = Setting(
-    str,
+    Optional[str],
     default=None,
     is_secret=True,
 )
@@ -692,21 +693,9 @@ Defaults to `True`, ensuring CSRF protection is enabled by default.
 PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
-    value_callback=check_for_deprecated_cloud_url,
 )
 """API URL for Prefect Cloud. Used for authentication."""
 
-
-PREFECT_CLOUD_URL = Setting(
-    str,
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Dec 2022",
-    deprecated_help="Use `PREFECT_CLOUD_API_URL` instead.",
-)
-"""
-DEPRECATED: Use `PREFECT_CLOUD_API_URL` instead.
-"""
 
 PREFECT_UI_URL = Setting(
     Optional[str],
@@ -722,7 +711,7 @@ When using an ephemeral server, this will be `None`.
 
 
 PREFECT_CLOUD_UI_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_cloud_ui_url,
 )
@@ -936,7 +925,7 @@ The following options are available:
 """
 
 PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
-    int,
+    Optional[int],
     default=None,
 )
 """
@@ -944,7 +933,7 @@ Controls connection pool size when using a PostgreSQL database with the Prefect 
 """
 
 PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
-    int,
+    Optional[int],
     default=None,
 )
 """
@@ -1030,7 +1019,7 @@ registered.
 """
 
 PREFECT_API_DATABASE_PASSWORD = Setting(
-    str,
+    Optional[str],
     default=None,
     is_secret=True,
 )
@@ -1041,7 +1030,7 @@ To use this setting, you must include it in your connection URL.
 """
 
 PREFECT_API_DATABASE_CONNECTION_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_database_connection_url,
     is_secret=True,
@@ -1233,6 +1222,9 @@ PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = Setting(
 """The number of seconds before a work queue is marked as not ready if it has not been
 polled."""
 
+PREFECT_API_LOG_RETRYABLE_ERRORS = Setting(bool, default=False)
+"""If `True`, log retryable errors in the API and it's services."""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
@@ -1303,7 +1295,7 @@ PREFECT_UI_ENABLED = Setting(
 """Whether or not to serve the Prefect UI."""
 
 PREFECT_UI_API_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_ui_api_url,
 )
@@ -1511,6 +1503,11 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 The port the worker's webserver should bind to.
 """
 
+PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the task scheduling service in the server application.
+"""
+
 PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
     str,
     default="local-file-system/prefect-task-scheduling",
@@ -1547,9 +1544,9 @@ PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
     default=timedelta(seconds=30),
 )
 """
-How long before a PENDING task are made available to another task server.  In practice,
-a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
-PENDING for a while is a sign that the task server may have crashed.
+How long before a PENDING task are made available to another task worker.  In practice,
+a task worker should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task worker may have crashed.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
@@ -1577,11 +1574,6 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING = Setting(bool, default=False)
-"""
-Whether or not to enable experimental task scheduling.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 """
 Whether or not to enable experimental work queue status in-place of work queue health.
@@ -1597,18 +1589,17 @@ PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    str,
-    default=None,
+    Optional[str], default=None, value_callback=default_result_storage_block_name
 )
 """The `block-type/block-document` slug of a block to use as the default result storage."""
 
-PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
+PREFECT_DEFAULT_WORK_POOL_NAME = Setting(Optional[str], default=None)
 """
 The default work pool to deploy to.
 """
 
 PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
@@ -1628,7 +1619,7 @@ Defaults to the root path.
 """
 
 PREFECT_UI_STATIC_DIRECTORY = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
@@ -1742,10 +1733,14 @@ for __name, __setting in SETTING_VARIABLES.items():
 
 # Dynamically create a pydantic model that includes all of our settings
 
-SettingsFieldsMixin = create_model(
+
+class PrefectBaseSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
+
+SettingsFieldsMixin: Type[BaseSettings] = create_model(
     "SettingsFieldsMixin",
-    # Inheriting from `BaseSettings` provides environment variable loading
-    __base__=BaseSettings,
+    __base__=PrefectBaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
     **{
         setting.name: (setting.type, setting.field)
         for setting in SETTING_VARIABLES.values()
@@ -1787,32 +1782,33 @@ class Settings(SettingsFieldsMixin):
             value = setting.value_callback(self, value)
         return value
 
-    @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
+    @field_validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
     def check_valid_log_level(cls, value):
         if isinstance(value, str):
             value = value.upper()
         logging._checkLevel(value)
         return value
 
-    @root_validator
-    def post_root_validators(cls, values):
+    @model_validator(mode="after")
+    def emit_warnings(self):
         """
         Add root validation functions for settings here.
         """
         # TODO: We could probably register these dynamically but this is the simpler
         #       approach for now. We can explore more interesting validation features
         #       in the future.
+        values = self.model_dump()
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
         if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
             values = warn_on_misconfigured_api_url(values)
-        return values
+        return self
 
     def copy_with_update(
         self,
-        updates: Mapping[Setting, Any] = None,
-        set_defaults: Mapping[Setting, Any] = None,
-        restore_defaults: Iterable[Setting] = None,
+        updates: Optional[Mapping[Setting, Any]] = None,
+        set_defaults: Optional[Mapping[Setting, Any]] = None,
+        restore_defaults: Optional[Iterable[Setting]] = None,
     ) -> "Settings":
         """
         Create a new `Settings` object with validation.
@@ -1835,7 +1831,7 @@ class Settings(SettingsFieldsMixin):
         return self.__class__(
             **{
                 **{setting.name: value for setting, value in set_defaults.items()},
-                **self.dict(exclude_unset=True, exclude=restore_defaults_names),
+                **self.model_dump(exclude_unset=True, exclude=restore_defaults_names),
                 **{setting.name: value for setting, value in updates.items()},
             }
         )
@@ -1844,7 +1840,7 @@ class Settings(SettingsFieldsMixin):
         """
         Returns a copy of this settings object with secret setting values obfuscated.
         """
-        settings = self.copy(
+        settings = self.model_copy(
             update={
                 setting.name: obfuscate(self.value_of(setting))
                 for setting in SETTING_VARIABLES.values()
@@ -1855,7 +1851,11 @@ class Settings(SettingsFieldsMixin):
         )
         # Ensure that settings that have not been marked as "set" before are still so
         # after we have updated their value above
-        settings.__fields_set__.intersection_update(self.__fields_set__)
+        with warnings.catch_warnings():
+            warnings.simplefilter(
+                "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+            )
+            settings.__fields_set__.intersection_update(self.__fields_set__)
         return settings
 
     def hash_key(self) -> str:
@@ -1867,7 +1867,7 @@ class Settings(SettingsFieldsMixin):
         return str(hash(tuple((key, value) for key, value in env_variables.items())))
 
     def to_environment_variables(
-        self, include: Iterable[Setting] = None, exclude_unset: bool = False
+        self, include: Optional[Iterable[Setting]] = None, exclude_unset: bool = False
     ) -> Dict[str, str]:
         """
         Convert the settings object to environment variables.
@@ -1891,7 +1891,7 @@ class Settings(SettingsFieldsMixin):
             set_keys = {
                 # Collect all of the "set" keys and cast to `Setting` objects
                 SETTING_VARIABLES[key]
-                for key in self.dict(exclude_unset=True)
+                for key in self.model_dump(exclude_unset=True)
             }
             include.intersection_update(set_keys)
 
@@ -1902,23 +1902,19 @@ class Settings(SettingsFieldsMixin):
                     "Invalid type {type(key).__name__!r} for key in `include`."
                 )
 
-        env = {
-            # Use `getattr` instead of `value_of` to avoid value callback resolution
-            key: getattr(self, key)
-            for key, setting in SETTING_VARIABLES.items()
-            if setting in include
-        }
+        env: dict[str, Any] = self.model_dump(
+            mode="json", include={s.name for s in include}
+        )
 
         # Cast to strings and drop null values
         return {key: str(value) for key, value in env.items() if value is not None}
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 # Functions to instantiate `Settings` instances
 
-_DEFAULTS_CACHE: Settings = None
+_DEFAULTS_CACHE: Optional[Settings] = None
 _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 
@@ -2025,9 +2021,10 @@ class Profile(BaseModel):
 
     name: str
     settings: Dict[Setting, Any] = Field(default_factory=dict)
-    source: Optional[Path]
+    source: Optional[Path] = None
+    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
-    @validator("settings", pre=True)
+    @field_validator("settings", mode="before")
     def map_names_to_settings(cls, value):
         return validate_settings(value)
 
@@ -2063,9 +2060,6 @@ class Profile(BaseModel):
                 )
                 changed.append((setting, setting.deprecated_renamed_to))
         return changed
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 class ProfilesCollection:

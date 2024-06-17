@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -21,8 +22,8 @@ async def _insert_into_artifact_collection(
     """
     Inserts a new artifact into the artifact_collection table or updates it.
     """
-    insert_values = artifact.dict(
-        shallow=True, exclude_unset=True, exclude={"id", "updated", "created"}
+    insert_values = artifact.model_dump_for_orm(
+        exclude_unset=True, exclude={"id", "updated", "created"}
     )
     upsert_new_latest_id = (
         db.insert(orm_models.ArtifactCollection)
@@ -82,7 +83,7 @@ async def _insert_into_artifact(
     insert_stmt = db.insert(orm_models.Artifact).values(
         created=now,
         updated=now,
-        **artifact.dict(exclude={"created", "updated"}, shallow=True),
+        **artifact.model_dump_for_orm(exclude={"created", "updated"}),
     )
     await session.execute(insert_stmt)
 
@@ -242,13 +243,13 @@ async def _apply_artifact_collection_filters(
 
 async def read_artifacts(
     session: sa.orm.Session,
-    offset: int = None,
-    limit: int = None,
-    artifact_filter: filters.ArtifactFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
+    artifact_filter: Optional[filters.ArtifactFilter] = None,
+    flow_run_filter: Optional[filters.FlowRunFilter] = None,
+    task_run_filter: Optional[filters.TaskRunFilter] = None,
+    deployment_filter: Optional[filters.DeploymentFilter] = None,
+    flow_filter: Optional[filters.FlowFilter] = None,
     sort: sorting.ArtifactSort = sorting.ArtifactSort.ID_DESC,
 ):
     """
@@ -287,8 +288,8 @@ async def read_artifacts(
 
 async def read_latest_artifacts(
     session: sa.orm.Session,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
     artifact_filter: filters.ArtifactCollectionFilter = None,
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,
@@ -407,7 +408,7 @@ async def update_artifact(
     Returns:
         bool: True if the update was successful, False otherwise
     """
-    update_artifact_data = artifact.dict(shallow=True, exclude_unset=True)
+    update_artifact_data = artifact.model_dump_for_orm(exclude_unset=True)
 
     update_artifact_stmt = (
         sa.update(orm_models.Artifact)
@@ -415,17 +416,17 @@ async def update_artifact(
         .values(**update_artifact_data)
     )
 
-    await session.execute(update_artifact_stmt)
+    artifact_result = await session.execute(update_artifact_stmt)
 
-    update_artifact_collection_data = artifact.dict(shallow=True, exclude_unset=True)
+    update_artifact_collection_data = artifact.model_dump_for_orm(exclude_unset=True)
     update_artifact_collection_stmt = (
         sa.update(orm_models.ArtifactCollection)
         .where(orm_models.ArtifactCollection.latest_id == artifact_id)
         .values(**update_artifact_collection_data)
     )
-    result = await session.execute(update_artifact_collection_stmt)
+    collection_result = await session.execute(update_artifact_collection_stmt)
 
-    return result.rowcount > 0
+    return artifact_result.rowcount + collection_result.rowcount > 0
 
 
 async def delete_artifact(

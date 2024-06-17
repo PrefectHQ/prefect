@@ -4,8 +4,9 @@ Module containing the base workflow class and decorator - for most use cases, us
 
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
-
+import ast
 import datetime
+import importlib.util
 import inspect
 import json
 import os
@@ -13,6 +14,7 @@ import re
 import sys
 import tempfile
 import warnings
+from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
 from typing import (
@@ -35,10 +37,11 @@ from typing import (
 )
 from uuid import UUID
 
-import pydantic.v1 as pydantic
-from pydantic import ValidationError as V2ValidationError
+import pydantic
+from fastapi.encoders import jsonable_encoder
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
+from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
@@ -46,10 +49,11 @@ from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import Flow as FlowSchema
-from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
+from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.client.utilities import inject_client
+from prefect.client.utilities import client_injector
 from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
@@ -63,7 +67,6 @@ from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
-from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
@@ -78,11 +81,10 @@ from prefect.settings import (
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner
+from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
-    is_async_fn,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -94,7 +96,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import import_object
+from prefect.utilities.importtools import import_object, safe_load_namespace
 
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
@@ -182,9 +184,9 @@ class Flow(Generic[P, R]):
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner, None] = None,
-        description: str = None,
-        timeout_seconds: Union[int, float] = None,
+        task_runner: Union[Type[TaskRunner], TaskRunner, None] = None,
+        description: Optional[str] = None,
+        timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
@@ -280,7 +282,18 @@ class Flow(Generic[P, R]):
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
-        self.isasync = is_async_fn(self.fn)
+
+        # the flow is considered async if its function is async or an async
+        # generator
+        self.isasync = inspect.iscoroutinefunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
+
+        # the flow is considered a generator if its function is a generator or
+        # an async generator
+        self.isgenerator = inspect.isgeneratorfunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
 
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
@@ -318,7 +331,7 @@ class Flow(Generic[P, R]):
             # is not picklable in some environments
             try:
                 ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
-            except pydantic.ConfigError as exc:
+            except ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
                     "Disable validation or change the argument names."
@@ -345,23 +358,45 @@ class Flow(Generic[P, R]):
 
         self._entrypoint = f"{module}:{fn.__name__}"
 
+    @property
+    def ismethod(self) -> bool:
+        return hasattr(self.fn, "__prefect_self__")
+
+    def __get__(self, instance, owner):
+        """
+        Implement the descriptor protocol so that the flow can be used as an instance method.
+        When an instance method is loaded, this method is called with the "self" instance as
+        an argument. We return a copy of the flow with that instance bound to the flow's function.
+        """
+
+        # if no instance is provided, it's being accessed on the class
+        if instance is None:
+            return self
+
+        # if the flow is being accessed on an instance, bind the instance to the __prefect_self__ attribute
+        # of the flow's function. This will allow it to be automatically added to the flow's parameters
+        else:
+            bound_flow = copy(self)
+            bound_flow.fn.__prefect_self__ = instance
+            return bound_flow
+
     def with_options(
         self,
         *,
-        name: str = None,
-        version: str = None,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        description: str = None,
+        description: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
-        timeout_seconds: Union[int, float] = None,
-        validate_parameters: bool = None,
-        persist_result: Optional[bool] = NotSet,
-        result_storage: Optional[ResultStorage] = NotSet,
-        result_serializer: Optional[ResultSerializer] = NotSet,
-        cache_result_in_memory: bool = None,
-        log_prints: Optional[bool] = NotSet,
+        task_runner: Union[Type[TaskRunner], TaskRunner, None] = None,
+        timeout_seconds: Union[int, float, None] = None,
+        validate_parameters: Optional[bool] = None,
+        persist_result: Optional[bool] = NotSet,  # type: ignore
+        result_storage: Optional[ResultStorage] = NotSet,  # type: ignore
+        result_serializer: Optional[ResultSerializer] = NotSet,  # type: ignore
+        cache_result_in_memory: Optional[bool] = None,
+        log_prints: Optional[bool] = NotSet,  # type: ignore
         on_completion: Optional[
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
@@ -417,15 +452,14 @@ class Flow(Generic[P, R]):
             Create a new flow from an existing flow, update the task runner, and call
             it without an intermediate variable:
 
-            >>> from prefect.task_runners import SequentialTaskRunner
+            >>> from prefect.task_runners import ThreadPoolTaskRunner
             >>>
             >>> @flow
             >>> def my_flow(x, y):
             >>>     return x + y
             >>>
-            >>> state = my_flow.with_options(task_runner=SequentialTaskRunner)(1, 3)
+            >>> state = my_flow.with_options(task_runner=ThreadPoolTaskRunner)(1, 3)
             >>> assert state.result() == 4
-
         """
         new_flow = Flow(
             fn=self.fn,
@@ -488,9 +522,14 @@ class Flow(Generic[P, R]):
         """
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
-        has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
-            isinstance(o, V1BaseModel) for o in kwargs.values()
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+            )
+            has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
+                isinstance(o, V1BaseModel) for o in kwargs.values()
+            )
+
         has_v2_types = any(is_v2_type(o) for o in args) or any(
             is_v2_type(o) for o in kwargs.values()
         )
@@ -506,25 +545,29 @@ class Flow(Generic[P, R]):
             )
         else:
             validated_fn = V2ValidatedFunction(
-                self.fn, config={"arbitrary_types_allowed": True}
+                self.fn, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
             )
 
         try:
-            model = validated_fn.init_model_instance(*args, **kwargs)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+                )
+                model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
-            raise ParameterTypeError.from_validation_error(exc) from None
-        except V2ValidationError as exc:
-            # We capture the pydantic exception and raise our own because the pydantic
-            # exception is not picklable when using a cythonized pydantic installation
+            logger.error(
+                f"Parameter validation failed for flow {self.name!r}: {exc.errors()}"
+                f"\nParameters: {parameters}"
+            )
             raise ParameterTypeError.from_validation_error(exc) from None
 
         # Get the updated parameter dict with cast values from the model
         cast_parameters = {
             k: v
-            for k, v in model._iter()
-            if k in model.__fields_set__ or model.__fields__[k].default_factory
+            for k, v in dict(model).items()
+            if k in model.model_fields_set or model.model_fields[k].default_factory
         }
         return cast_parameters
 
@@ -536,10 +579,11 @@ class Flow(Generic[P, R]):
         converting everything directly to a string. This maintains basic types like
         integers during API roundtrips.
         """
-        from prefect._vendor.fastapi.encoders import jsonable_encoder
-
         serialized_parameters = {}
         for key, value in parameters.items():
+            # do not serialize the bound self object
+            if self.ismethod and value is self.fn.__prefect_self__:
+                continue
             try:
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
@@ -586,7 +630,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -748,7 +792,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         pause_on_shutdown: bool = True,
         print_starting_message: bool = True,
         limit: Optional[int] = None,
@@ -957,7 +1001,7 @@ class Flow(Generic[P, R]):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[MinimalDeploymentSchedule]] = None,
+        schedules: Optional[List[DeploymentScheduleCreate]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
@@ -965,7 +1009,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
@@ -1140,16 +1184,14 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]:
-        ...
+    ) -> Awaitable[T]: ...
 
     @overload
     def __call__(
         self: "Flow[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload
     def __call__(
@@ -1157,8 +1199,7 @@ class Flow(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]:
-        ...
+    ) -> State[T]: ...
 
     def __call__(
         self,
@@ -1226,19 +1267,14 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        from prefect.new_flow_engine import run_flow, run_flow_sync
+        from prefect.flow_engine import run_flow
 
-        run_kwargs = dict(
+        return run_flow(
             flow=self,
             parameters=parameters,
             wait_for=wait_for,
             return_type=return_type,
         )
-        if self.isasync:
-            # this returns an awaitable coroutine
-            return run_flow(**run_kwargs)
-        else:
-            return run_flow_sync(**run_kwargs)
 
     @sync_compatible
     async def visualize(self, *args, **kwargs):
@@ -1301,8 +1337,7 @@ class Flow(Generic[P, R]):
 
 
 @overload
-def flow(__fn: Callable[P, R]) -> Flow[P, R]:
-    ...
+def flow(__fn: Callable[P, R]) -> Flow[P, R]: ...
 
 
 @overload
@@ -1313,9 +1348,9 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
-    task_runner: Optional[BaseTaskRunner] = None,
-    description: str = None,
-    timeout_seconds: Union[int, float] = None,
+    task_runner: Optional[TaskRunner] = None,
+    description: Optional[str] = None,
+    timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -1333,8 +1368,7 @@ def flow(
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-) -> Callable[[Callable[P, R]], Flow[P, R]]:
-    ...
+) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
 
 def flow(
@@ -1343,11 +1377,11 @@ def flow(
     name: Optional[str] = None,
     version: Optional[str] = None,
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = None,
-    retry_delay_seconds: Union[int, float] = None,
-    task_runner: Optional[BaseTaskRunner] = None,
-    description: str = None,
-    timeout_seconds: Union[int, float] = None,
+    retries: Optional[int] = None,
+    retry_delay_seconds: Union[int, float, None] = None,
+    task_runner: Optional[TaskRunner] = None,
+    description: Optional[str] = None,
+    timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -1470,6 +1504,9 @@ def flow(
         >>>     pass
     """
     if __fn:
+        if isinstance(__fn, (classmethod, staticmethod)):
+            method_decorator = type(__fn).__name__
+            raise TypeError(f"@{method_decorator} should be applied on top of @flow")
         return cast(
             Flow[P, R],
             Flow(
@@ -1587,7 +1624,7 @@ async def serve(
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs,
-):
+) -> NoReturn:
     """
     Serve the provided list of deployments.
 
@@ -1671,13 +1708,13 @@ async def serve(
     await runner.start()
 
 
-@inject_client
+@client_injector
 async def load_flow_from_flow_run(
-    flow_run: "FlowRun",
     client: "PrefectClient",
+    flow_run: "FlowRun",
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
-) -> "Flow":
+) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
 
@@ -1731,7 +1768,9 @@ async def load_flow_from_flow_run(
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        run_logger.debug(
+            f"Running {len(deployment.pull_steps)} deployment pull step(s)"
+        )
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
@@ -1750,3 +1789,86 @@ async def load_flow_from_flow_run(
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
 
     return flow
+
+
+def load_flow_argument_from_entrypoint(
+    entrypoint: str, arg: str = "name"
+) -> Optional[str]:
+    """
+    Extract a flow argument from an entrypoint string.
+
+    Loads the source code of the entrypoint and extracts the flow argument from the
+    `flow` decorator.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
+            to a flow function
+
+    Returns:
+        The flow argument value
+    """
+    if ":" in entrypoint:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        source_code = Path(path).read_text()
+    else:
+        path, func_name = entrypoint.rsplit(".", maxsplit=1)
+        spec = importlib.util.find_spec(path)
+        if not spec or not spec.origin:
+            raise ValueError(f"Could not find module {path!r}")
+        source_code = Path(spec.origin).read_text()
+    parsed_code = ast.parse(source_code)
+    func_def = next(
+        (
+            node
+            for node in ast.walk(parsed_code)
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
+        ),
+        None,
+    )
+    if not func_def:
+        raise ValueError(f"Could not find flow {func_name!r} in {path!r}")
+    for decorator in func_def.decorator_list:
+        if (
+            isinstance(decorator, ast.Call)
+            and getattr(decorator.func, "id", "") == "flow"
+        ):
+            for keyword in decorator.keywords:
+                if keyword.arg == arg:
+                    if isinstance(keyword.value, ast.Constant):
+                        return (
+                            keyword.value.value
+                        )  # Return the string value of the argument
+
+                    # if the arg value is not a raw str (i.e. a variable or expression),
+                    # then attempt to evaluate it
+                    namespace = safe_load_namespace(source_code)
+                    literal_arg_value = ast.get_source_segment(
+                        source_code, keyword.value
+                    )
+                    try:
+                        evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
+                    except Exception as e:
+                        logger.info(
+                            "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
+                            arg,
+                            literal_arg_value,
+                            exc_info=e,
+                        )
+                        # ignore the decorator arg and fallback to default behavior
+                        break
+                    return str(evaluated_value)
+
+    if arg == "name":
+        return func_name.replace(
+            "_", "-"
+        )  # If no matching decorator or keyword argument is found
+
+    return None

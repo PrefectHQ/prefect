@@ -3,14 +3,14 @@ from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
-import pydantic.v1 as pydantic
-from prefect._vendor.starlette import status
+import pydantic
+from starlette import status
 
 import prefect.context
 import prefect.settings
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas import Workspace
-from prefect.exceptions import PrefectException
+from prefect.exceptions import ObjectNotFound, PrefectException
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_CLOUD_API_URL,
@@ -80,8 +80,8 @@ class CloudClient:
             await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Workspace]:
-        workspaces = pydantic.parse_obj_as(
-            List[Workspace], await self.get("/me/workspaces")
+        workspaces = pydantic.TypeAdapter(List[Workspace]).validate_python(
+            await self.get("/me/workspaces")
         )
         return workspaces
 
@@ -121,8 +121,10 @@ class CloudClient:
                 status.HTTP_403_FORBIDDEN,
             ):
                 raise CloudUnauthorizedError
+            elif exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise ObjectNotFound(http_exc=exc) from exc
             else:
-                raise exc
+                raise
 
         if res.status_code == status.HTTP_204_NO_CONTENT:
             return

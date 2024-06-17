@@ -38,7 +38,13 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    model_validator,
+)
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
@@ -47,17 +53,16 @@ from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
-    validate_automation_names,
 )
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
 )
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
-    create_minimal_deployment_schedule,
+    create_deployment_schedule_create,
 )
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
@@ -138,8 +143,7 @@ class RunnerDeployment(BaseModel):
             available settings.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
@@ -155,7 +159,7 @@ class RunnerDeployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedules: Optional[List[MinimalDeploymentSchedule]] = Field(
+    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
@@ -178,7 +182,7 @@ class RunnerDeployment(BaseModel):
         description="The triggers that should cause this deployment to run.",
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the Prefect API should enforce the parameter schema for"
             " this deployment."
@@ -226,16 +230,22 @@ class RunnerDeployment(BaseModel):
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
 
-    @validator("triggers", allow_reuse=True)
-    def validate_automation_names(cls, field_value, values):
+    @model_validator(mode="after")
+    def validate_automation_names(self):
         """Ensure that each trigger has a name for its automation if none is provided."""
-        return validate_automation_names(field_value, values)
+        trigger: Union[DeploymentTriggerTypes, TriggerTypes]
+        for i, trigger in enumerate(self.triggers, start=1):
+            if trigger.name is None:
+                trigger.name = f"{self.name}__automation_{i}"
+        return self
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def reconcile_paused(cls, values):
         return reconcile_paused_deployment(values)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def reconcile_schedules(cls, values):
         return reconcile_schedules_runner(values)
 
@@ -295,7 +305,9 @@ class RunnerDeployment(BaseModel):
                 entrypoint=self.entrypoint,
                 storage_document_id=None,
                 infrastructure_document_id=None,
-                parameter_openapi_schema=self._parameter_openapi_schema.dict(),
+                parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+                    exclude_unset=True
+                ),
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
@@ -352,7 +364,7 @@ class RunnerDeployment(BaseModel):
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         schedules: Optional[FlexibleScheduleList] = None,
-    ) -> Union[List[MinimalDeploymentSchedule], FlexibleScheduleList]:
+    ) -> Union[List[DeploymentScheduleCreate], FlexibleScheduleList]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -410,7 +422,7 @@ class RunnerDeployment(BaseModel):
                 value = [value]
 
             return [
-                create_minimal_deployment_schedule(
+                create_deployment_schedule_create(
                     construct_schedule(
                         **{
                             schedule_type: v,
@@ -422,7 +434,7 @@ class RunnerDeployment(BaseModel):
                 for v in value
             ]
         else:
-            return [create_minimal_deployment_schedule(schedule)]
+            return [create_deployment_schedule_create(schedule)]
 
     def _set_defaults_from_flow(self, flow: "Flow"):
         self._parameter_openapi_schema = parameter_schema(flow)
@@ -451,7 +463,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -587,7 +599,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -685,7 +697,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,

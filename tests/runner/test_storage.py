@@ -4,7 +4,9 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+import pytest
+from pydantic import SecretStr
+
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.deployments.steps.core import run_step
@@ -17,12 +19,7 @@ from prefect.runner.storage import (
     create_storage_from_url,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
-import pytest
+from prefect.utilities.filesystem import tmpchdir
 
 
 @pytest.fixture(autouse=True)
@@ -252,20 +249,23 @@ class TestGitRepository:
             cwd=Path.cwd() / "repo",
         )
 
-    async def test_git_clone_errors_obscure_access_token(self, monkeypatch, capsys):
+    async def test_git_clone_errors_obscure_access_token(
+        self, monkeypatch, capsys, tmp_path: Path
+    ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
 
-        with pytest.raises(RuntimeError) as exc:
-            # we uppercase the token because this test definition does show up in the exception traceback
-            await GitRepository(
-                url="https://github.com/prefecthq/prefect.git",
-                branch="definitely-does-not-exist-123",
-                credentials={"access_token": "super-secret-42".upper()},
-            ).pull_code()
-        assert "super-secret-42".upper() not in str(exc.getrepr())
-        console_output = capsys.readouterr()
-        assert "super-secret-42".upper() not in console_output.out
-        assert "super-secret-42".upper() not in console_output.err
+        with tmpchdir(str(tmp_path)):
+            with pytest.raises(RuntimeError) as exc:
+                # we uppercase the token because this test definition does show up in the exception traceback
+                await GitRepository(
+                    url="https://github.com/prefecthq/prefect.git",
+                    branch="definitely-does-not-exist-123",
+                    credentials={"access_token": "super-secret-42".upper()},
+                ).pull_code()
+            assert "super-secret-42".upper() not in str(exc.getrepr())
+            console_output = capsys.readouterr()
+            assert "super-secret-42".upper() not in console_output.out
+            assert "super-secret-42".upper() not in console_output.err
 
     class TestCredentialFormatting:
         async def test_credential_formatting_maintains_secrets(
@@ -750,9 +750,12 @@ class TestBlockStorageAdapter:
         assert storage1 == storage2
 
     async def test_eq_method_different_block(self, test_block: Block):
+        class FakeDeploymentStorage(ReadableDeploymentStorage):
+            def get_directory(self, *args, **kwargs):
+                pass
+
         storage1 = BlockStorageAdapter(block=test_block)
-        different_block = MagicMock(spec=ReadableDeploymentStorage)
-        storage2 = BlockStorageAdapter(block=different_block)
+        storage2 = BlockStorageAdapter(block=FakeDeploymentStorage())
         assert storage1 != storage2
 
     async def test_eq_method_different_type(self, test_block: Block):

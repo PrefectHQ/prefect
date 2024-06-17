@@ -5,7 +5,6 @@ import pytest
 from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
-    LiteralResult,
     PersistedResult,
     ResultFactory,
     UnpersistedResult,
@@ -92,10 +91,7 @@ class TestRaiseStateException:
         ):
             await raise_state_exception(state_cls(data=inner_states))
 
-    @pytest.mark.parametrize("value", ["foo", LiteralResult(value="foo")])
-    async def test_raises_wrapper_with_message_if_result_is_string(
-        self, state_cls, value
-    ):
+    async def test_raises_wrapper_with_message_if_result_is_string(self, state_cls):
         state_to_exception = {
             Failed: FailedRun,
             Crashed: CrashedRun,
@@ -103,7 +99,7 @@ class TestRaiseStateException:
         }
 
         with pytest.raises(state_to_exception[state_cls]):
-            await raise_state_exception(state_cls(data=value))
+            await raise_state_exception(state_cls(data="foo"))
 
     async def test_raises_base_exception(self, state_cls):
         with pytest.raises(BaseException):
@@ -160,6 +156,15 @@ class TestReturnValueToState:
         assert result_state is state
         assert isinstance(result_state.data, PersistedResult)
         assert await result_state.result() == 1
+
+    async def test_returns_persisted_results_unaltered(self, prefect_client):
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True
+        )
+        result = await factory.create_result(42)
+        result_state = await return_value_to_state(result, factory)
+        assert result_state.data == result
+        assert await result_state.result() == 42
 
     async def test_returns_single_state_unaltered_with_user_created_reference(
         self, factory

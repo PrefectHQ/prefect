@@ -1,6 +1,6 @@
 import pytest
+from fastapi import Body, FastAPI, status
 from httpx import ASGITransport, AsyncClient
-from prefect._vendor.fastapi import Body, FastAPI, status
 
 from prefect.server.api.dependencies import LimitBody
 

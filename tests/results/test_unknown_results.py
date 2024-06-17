@@ -39,15 +39,15 @@ def test_unknown_result_create_and_get_with_explicit_value():
 
 async def test_result_unknown_json_roundtrip():
     result = await UnknownResult.create()
-    serialized = result.json()
-    deserialized = UnknownResult.parse_raw(serialized)
+    serialized = result.model_dump_json()
+    deserialized = UnknownResult.model_validate_json(serialized)
     assert await deserialized.get() is None
 
 
 async def test_unknown_result_json_roundtrip_base_result_parser():
     result = await UnknownResult.create()
-    serialized = result.json()
-    deserialized = BaseResult.parse_raw(serialized)
+    serialized = result.model_dump_json()
+    deserialized = BaseResult.model_validate_json(serialized)
     assert await deserialized.get() is None
 
 
@@ -65,7 +65,7 @@ async def test_unknown_result_null_is_distinguishable_from_none():
     """
     result = await UnknownResult.create(None)
     assert result is not None
-    serialized = result.json()
+    serialized = result.model_dump_json()
     assert serialized is not None
     assert serialized != "null"
     assert json.loads(serialized) is not None

@@ -63,6 +63,12 @@ def get_events_subscriber(
     reconnection_attempts: int = 10,
 ) -> "PrefectEventSubscriber":
     api_url = PREFECT_API_URL.value()
+    if not api_url:
+        raise ValueError(
+            "A Prefect server or Prefect Cloud is required to start an event "
+            "subscriber.  Please check the PREFECT_API_URL setting in your profile."
+        )
+
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         return PrefectCloudEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
@@ -114,7 +120,7 @@ class AssertingEventsClient(EventsClient):
     """A Prefect Events client that records all events sent to it for inspection during
     tests."""
 
-    last: ClassVar["AssertingEventsClient | None"] = None
+    last: ClassVar["Optional[AssertingEventsClient]"] = None
     all: ClassVar[List["AssertingEventsClient"]] = []
 
     args: Tuple
@@ -168,7 +174,7 @@ class PrefectEphemeralEventsClient(EventsClient):
             )
         from prefect.server.api.server import create_app
 
-        app = create_app()
+        app = create_app(ephemeral=True)
 
         self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
@@ -194,7 +200,7 @@ class PrefectEphemeralEventsClient(EventsClient):
     async def _emit(self, event: Event) -> None:
         await self._http_client.post(
             "/events",
-            json=[event.dict(json_compatible=True)],
+            json=[event.model_dump(mode="json")],
         )
 
 
@@ -301,7 +307,7 @@ class PrefectEventsClient(EventsClient):
                     await self._reconnect()
                     assert self._websocket
 
-                await self._websocket.send(event.json())
+                await self._websocket.send(event.model_dump_json())
                 await self._checkpoint(event)
 
                 return
@@ -466,7 +472,7 @@ class PrefectEventSubscriber:
         logger.debug("  filtering events since %s...", self._filter.occurred.since)
         filter_message = {
             "type": "filter",
-            "filter": self._filter.dict(json_compatible=True),
+            "filter": self._filter.model_dump(mode="json"),
         }
         await self._websocket.send(orjson.dumps(filter_message).decode())
 
@@ -497,7 +503,7 @@ class PrefectEventSubscriber:
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
-                    event: Event = Event.parse_obj(message["event"])
+                    event: Event = Event.model_validate(message["event"])
 
                     if event.id in self._seen_events:
                         continue

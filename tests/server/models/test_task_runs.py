@@ -752,12 +752,12 @@ class TestPreventOrphanedConcurrencySlots:
     async def task_run_1(self, session, flow_run):
         model = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.actions.TaskRunCreate(
+            task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key-1",
                 dynamic_key="0",
                 tags=["red"],
-                state=Pending().dict(shallow=True),
+                state=Pending(),
             ),
         )
         await session.commit()
@@ -767,12 +767,12 @@ class TestPreventOrphanedConcurrencySlots:
     async def task_run_2(self, session, flow_run):
         model = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.actions.TaskRunCreate(
+            task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key-2",
                 dynamic_key="1",
                 tags=["red"],
-                state=Pending().dict(shallow=True),
+                state=Pending(),
             ),
         )
         await session.commit()

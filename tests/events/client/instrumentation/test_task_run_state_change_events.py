@@ -1,22 +1,10 @@
-import pytest
-
 from prefect import flow, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import State
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
-    temporary_settings,
-)
-from prefect.task_server import TaskServer
-
-
-@pytest.fixture
-def enable_task_scheduling():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True}):
-        yield
+from prefect.task_worker import TaskWorker
 
 
 async def test_task_state_change_happy_path(
@@ -151,20 +139,23 @@ async def test_background_task_state_changes(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
     prefect_client,
-    enable_task_scheduling,
+    tmp_path,
 ):
-    storage = LocalFileSystem(basepath="/tmp/prefect")
+    storage = LocalFileSystem(basepath=tmp_path)
     storage.save("test")
 
     @task(result_storage=storage)
     def foo():
         pass
 
-    task_run = foo.apply_async()
+    task_run_future = foo.apply_async()
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
 
-    await TaskServer(foo).execute_task_run(task_run)
+    await TaskWorker(foo).execute_task_run(task_run)
 
-    task_run_states = await prefect_client.read_task_run_states(task_run.id)
+    task_run_states = await prefect_client.read_task_run_states(
+        task_run_future.task_run_id
+    )
 
     await asserting_events_worker.drain()
 
@@ -179,13 +170,15 @@ async def test_background_task_state_changes(
         "prefect.task-run.Completed",
     ]
 
-    assert [
+    observed = [
         (e.payload["intended"]["from"], e.payload["intended"]["to"])
         for e in events
         if e.event.startswith("prefect.task-run.")
-    ] == [
+    ]
+    expected = [
         (None, "SCHEDULED"),
         ("SCHEDULED", "PENDING"),
         ("PENDING", "RUNNING"),
         ("RUNNING", "COMPLETED"),
     ]
+    assert observed == expected

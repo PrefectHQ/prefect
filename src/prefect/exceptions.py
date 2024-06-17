@@ -8,7 +8,7 @@ from types import ModuleType, TracebackType
 from typing import Callable, Dict, Iterable, List, Optional, Type
 
 from httpx._exceptions import HTTPStatusError
-from pydantic.v1 import ValidationError
+from pydantic import ValidationError
 from rich.traceback import Traceback
 from typing_extensions import Self
 
@@ -54,12 +54,6 @@ def exception_traceback(exc: Exception) -> str:
 class PrefectException(Exception):
     """
     Base exception type for Prefect errors.
-    """
-
-
-class RollBack(PrefectException):
-    """
-    Raised to force a transaction to roll back.
     """
 
 
@@ -406,3 +400,12 @@ class FlowPauseTimeout(PrefectException):
 
 class FlowRunWaitTimeout(PrefectException):
     """Raised when a flow run takes longer than a given timeout"""
+
+
+class PrefectImportError(ImportError):
+    """
+    An error raised when a Prefect object cannot be imported due to a move or removal.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)

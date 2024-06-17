@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 import sqlalchemy as sa
+from fastapi import FastAPI, status
 from httpx import ASGITransport
-from prefect._vendor.fastapi import FastAPI, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas

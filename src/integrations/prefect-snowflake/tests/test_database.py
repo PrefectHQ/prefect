@@ -1,36 +1,64 @@
+import inspect
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect import flow
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretBytes, SecretStr
-else:
-    from pydantic import SecretBytes, SecretStr
-
+from prefect_snowflake.credentials import SnowflakeCredentials
 from prefect_snowflake.database import (
     BEGIN_TRANSACTION_STATEMENT,
     END_TRANSACTION_STATEMENT,
     SnowflakeConnector,
     snowflake_multiquery,
+    snowflake_multiquery_async,
     snowflake_query,
-    snowflake_query_sync,
+    snowflake_query_async,
 )
+from pydantic import SecretBytes, SecretStr
 from snowflake.connector import DictCursor
 from snowflake.connector.cursor import SnowflakeCursor as OriginalSnowflakeCursorClass
+
+from prefect import flow
+
+
+@pytest.fixture
+def connector_params(credentials_params):
+    snowflake_credentials = SnowflakeCredentials(**credentials_params)
+    _connector_params = {
+        "schema": "schema_input",
+        "database": "database",
+        "warehouse": "warehouse",
+        "credentials": snowflake_credentials.model_dump(),
+    }
+    return _connector_params
+
+
+@pytest.fixture
+def private_connector_params(private_credentials_params):
+    snowflake_credentials = SnowflakeCredentials(**private_credentials_params)
+    _connector_params = {
+        "schema": "schema_input",
+        "database": "database",
+        "warehouse": "warehouse",
+        "credentials": snowflake_credentials.model_dump(),
+    }
+    return _connector_params
+
+
+async def run_sync_or_async(func, *args, **kwargs):
+    result = func(*args, **kwargs)
+    if inspect.isawaitable(result):
+        return await result
+    return result
 
 
 def test_snowflake_connector_init(connector_params):
     snowflake_connector = SnowflakeConnector(**connector_params)
-    actual_connector_params = snowflake_connector.dict()
+    actual_connector_params = snowflake_connector.model_dump()
     for param in connector_params:
         expected = connector_params[param]
         if param == "schema":
             param = "schema_"
         actual = actual_connector_params[param]
-        if isinstance(actual, SecretStr):
+        if isinstance(actual, (SecretStr, SecretBytes)):
             actual = actual.get_secret_value()
         assert actual == expected
 
@@ -95,42 +123,46 @@ def snowflake_connector(snowflake_connect_mock):
     return snowflake_connector_mock
 
 
-def test_snowflake_query(snowflake_connector):
+@pytest.mark.parametrize("query_function", [snowflake_query, snowflake_query_async])
+async def test_snowflake_query(query_function, snowflake_connector):
     @flow
-    def test_flow():
-        result = snowflake_query(
-            "query",
-            snowflake_connector,
-            params=("param",),
+    async def test_flow():
+        result = await run_sync_or_async(
+            query_function, "query", snowflake_connector, params=("param",)
         )
         return result
 
-    result = test_flow()
+    result = await run_sync_or_async(test_flow)
     assert result[0][0] == "query"
     assert result[0][1] == ("param",)
 
 
-def test_snowflake_multiquery(snowflake_connector):
+@pytest.mark.parametrize(
+    "query_function", [snowflake_multiquery, snowflake_multiquery_async]
+)
+async def test_snowflake_multiquery(query_function, snowflake_connector):
     @flow
-    def test_flow():
-        result = snowflake_multiquery(
-            ["query1", "query2"],
-            snowflake_connector,
-            params=("param",),
+    async def test_flow():
+        result = await run_sync_or_async(
+            query_function, ["query1", "query2"], snowflake_connector, params=("param",)
         )
         return result
 
-    result = test_flow()
+    result = await run_sync_or_async(test_flow)
     assert result[0][0][0] == "query1"
     assert result[0][0][1] == ("param",)
     assert result[1][0][0] == "query2"
     assert result[1][0][1] == ("param",)
 
 
-def test_snowflake_multiquery_transaction(snowflake_connector):
+@pytest.mark.parametrize(
+    "query_function", [snowflake_multiquery, snowflake_multiquery_async]
+)
+async def test_snowflake_multiquery_transaction(query_function, snowflake_connector):
     @flow
-    def test_flow():
-        result = snowflake_multiquery(
+    async def test_flow():
+        result = await run_sync_or_async(
+            query_function,
             ["query1", "query2"],
             snowflake_connector,
             params=("param",),
@@ -138,19 +170,23 @@ def test_snowflake_multiquery_transaction(snowflake_connector):
         )
         return result
 
-    result = test_flow()
+    result = await run_sync_or_async(test_flow)
     assert result[0][0][0] == "query1"
     assert result[0][0][1] == ("param",)
     assert result[1][0][0] == "query2"
     assert result[1][0][1] == ("param",)
 
 
-def test_snowflake_multiquery_transaction_with_transaction_control_results(
-    snowflake_connector,
+@pytest.mark.parametrize(
+    "query_function", [snowflake_multiquery, snowflake_multiquery_async]
+)
+async def test_snowflake_multiquery_transaction_with_transaction_control_results(
+    query_function, snowflake_connector
 ):
     @flow
-    def test_flow():
-        result = snowflake_multiquery(
+    async def test_flow():
+        result = await run_sync_or_async(
+            query_function,
             ["query1", "query2"],
             snowflake_connector,
             params=("param",),
@@ -159,7 +195,7 @@ def test_snowflake_multiquery_transaction_with_transaction_control_results(
         )
         return result
 
-    result = test_flow()
+    result = await run_sync_or_async(test_flow)
     assert result[0][0][0] == BEGIN_TRANSACTION_STATEMENT
     assert result[1][0][0] == "query1"
     assert result[1][0][1] == ("param",)
@@ -168,21 +204,9 @@ def test_snowflake_multiquery_transaction_with_transaction_control_results(
     assert result[3][0][0] == END_TRANSACTION_STATEMENT
 
 
-def test_snowflake_query_sync(snowflake_connector):
-    @flow()
-    def test_snowflake_query_sync_flow():
-        result = snowflake_query_sync("query", snowflake_connector, params=("param",))
-        return result
-
-    result = test_snowflake_query_sync_flow()
-    assert result[0][0] == "query"
-    assert result[0][1] == ("param",)
-    assert result[0][2] == "sync"
-
-
 def test_snowflake_private_connector_init(private_connector_params):
     snowflake_connector = SnowflakeConnector(**private_connector_params)
-    actual_connector_params = snowflake_connector.dict()
+    actual_connector_params = snowflake_connector.model_dump()
     for param in private_connector_params:
         expected = private_connector_params[param]
         if param == "schema":
@@ -219,11 +243,11 @@ class TestSnowflakeConnector:
         assert len(snowflake_connector._unique_cursors) == 0
         mock_cursor.close.assert_called_once()
 
-    def test_fetch_one(self, snowflake_connector: SnowflakeConnector):
-        result = snowflake_connector.fetch_one("query", parameters=("param",))
+    @pytest.mark.parametrize("fetch_function_name", ["fetch_one", "fetch_one_async"])
+    async def test_fetch_one(self, fetch_function_name, snowflake_connector):
+        fetch_function = getattr(snowflake_connector, fetch_function_name)
+        result = await run_sync_or_async(fetch_function, "SELECT 1", parameters=None)
         assert result == (0,)
-        result = snowflake_connector.fetch_one("query", parameters=("param",))
-        assert result == (1,)
 
     def test_fetch_one_cursor_set_to_dict_cursor(
         self, snowflake_connector: SnowflakeConnector
@@ -232,7 +256,6 @@ class TestSnowflakeConnector:
             "query", parameters=("param",), cursor_type=DictCursor
         )
         args, _ = snowflake_connector._connection.cursor.call_args
-
         assert args[0] == DictCursor
 
     def test_fetch_one_cursor_default(self, snowflake_connector: SnowflakeConnector):
@@ -257,23 +280,32 @@ class TestSnowflakeConnector:
 
         assert args[0] == OriginalSnowflakeCursorClass
 
-    def test_fetch_many(self, snowflake_connector: SnowflakeConnector):
-        result = snowflake_connector.fetch_many("query", parameters=("param",), size=2)
-        assert result == [(0,), (1,)]
-        result = snowflake_connector.fetch_many("query", parameters=("param",))
-        assert result == [(2,)]
+    @pytest.mark.parametrize("fetch_function_name", ["fetch_many", "fetch_many_async"])
+    async def test_fetch_many(self, fetch_function_name, snowflake_connector):
+        fetch_function = getattr(snowflake_connector, fetch_function_name)
+        result = await run_sync_or_async(
+            fetch_function, "SELECT 1", parameters=None, size=3
+        )
+        assert result == [(0,), (1,), (2,)]
 
-    def test_fetch_all(self, snowflake_connector: SnowflakeConnector):
-        result = snowflake_connector.fetch_all("query", parameters=("param",))
+    @pytest.mark.parametrize("fetch_function_name", ["fetch_all", "fetch_all_async"])
+    async def test_fetch_all(self, fetch_function_name, snowflake_connector):
+        fetch_function = getattr(snowflake_connector, fetch_function_name)
+        result = await run_sync_or_async(fetch_function, "SELECT 1", parameters=None)
         assert result == [(0,), (1,), (2,), (3,), (4,)]
 
     def test_execute(self, snowflake_connector: SnowflakeConnector):
         assert snowflake_connector.execute("query", parameters=("param",)) is None
 
-    def test_execute_Many(self, snowflake_connector: SnowflakeConnector):
-        assert (
-            snowflake_connector.execute_many("query", seq_of_parameters=[("param",)])
-            is None
+    @pytest.mark.parametrize(
+        "execute_function_name", ["execute_many", "execute_many_async"]
+    )
+    async def test_execute_many(self, execute_function_name, snowflake_connector):
+        execute_function = getattr(snowflake_connector, execute_function_name)
+        await run_sync_or_async(
+            execute_function,
+            "INSERT INTO table VALUES (%(val)s)",
+            seq_of_parameters=[{"val": 1}, {"val": 2}],
         )
 
     def test_close(self, snowflake_connector: SnowflakeConnector, caplog):
@@ -293,3 +325,39 @@ class TestSnowflakeConnector:
 
         assert snowflake_connector._connection is None
         assert snowflake_connector._unique_cursors is None
+
+    async def test_fetch_one_async(self, snowflake_connector):
+        async def fetch_one_async_wrapper():
+            return await snowflake_connector.fetch_one_async(
+                "SELECT 1", parameters=None
+            )
+
+        result = await fetch_one_async_wrapper()
+        assert result == (0,)
+
+    async def test_fetch_many_async(self, snowflake_connector):
+        async def fetch_many_async_wrapper():
+            return await snowflake_connector.fetch_many_async(
+                "SELECT 1", parameters=None, size=3
+            )
+
+        result = await fetch_many_async_wrapper()
+        assert result == [(0,), (1,), (2,)]
+
+    async def test_fetch_all_async(self, snowflake_connector):
+        async def fetch_all_async_wrapper():
+            return await snowflake_connector.fetch_all_async(
+                "SELECT 1", parameters=None
+            )
+
+        result = await fetch_all_async_wrapper()
+        assert result == [(0,), (1,), (2,), (3,), (4,)]
+
+    async def test_execute_many_async(self, snowflake_connector):
+        async def execute_many_async_wrapper():
+            await snowflake_connector.execute_many_async(
+                "INSERT INTO table VALUES (%(val)s)",
+                seq_of_parameters=[{"val": 1}, {"val": 2}],
+            )
+
+        await execute_many_async_wrapper()

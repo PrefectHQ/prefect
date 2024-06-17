@@ -10,7 +10,8 @@ from azure.core.exceptions import ResourceNotFoundError
 if TYPE_CHECKING:
     from azure.storage.blob import BlobProperties
 
-from pydantic import VERSION as PYDANTIC_VERSION
+
+from pydantic import Field
 
 from prefect import task
 from prefect.blocks.abstract import ObjectStorageBlock
@@ -18,12 +19,6 @@ from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
 from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import filter_files
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_azure.credentials import AzureBlobStorageCredentials
 
 
@@ -80,7 +75,7 @@ async def blob_storage_upload(
     data: bytes,
     container: str,
     blob_storage_credentials: "AzureBlobStorageCredentials",
-    blob: str = None,
+    blob: Optional[str] = None,
     overwrite: bool = False,
 ) -> str:
     """
@@ -138,8 +133,8 @@ async def blob_storage_upload(
 async def blob_storage_list(
     container: str,
     blob_storage_credentials: "AzureBlobStorageCredentials",
-    name_starts_with: str = None,
-    include: Union[str, List[str]] = None,
+    name_starts_with: Optional[str] = None,
+    include: Union[str, List[str], None] = None,
     **kwargs,
 ) -> List["BlobProperties"]:
     """
@@ -618,7 +613,7 @@ class AzureBlobStorageContainer(
 
     @sync_compatible
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
         Downloads the contents of a direry from the blob storage to a local path.
@@ -633,7 +628,10 @@ class AzureBlobStorageContainer(
 
     @sync_compatible
     async def put_directory(
-        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> None:
         """
         Uploads a directory to the blob storage.
