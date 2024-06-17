@@ -368,7 +368,11 @@ class Task(Generic[P, R]):
 
             self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
-        # TODO: warn of precedence of cache policies and cache key fn if both provided?
+        if cache_policy is not NotSet and cache_key_fn is not None:
+            logger.warning(
+                f"Both `cache_policy` and `cache_key_fn` are set on task {self}. `cache_key_fn` will be used."
+            )
+
         if cache_key_fn:
             cache_policy = CachePolicy.from_cache_key_fn(cache_key_fn)
 
