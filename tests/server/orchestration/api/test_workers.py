@@ -1872,10 +1872,8 @@ class TestGetScheduledRuns:
             ), "Work queue should have updated last_polled"
             assert work_queue.last_polled > now
 
-    # @mock.patch("prefect.server.api.workers.mark_deployments_ready")
     async def test_updates_statuses_on_a_full_work_pool(
         self,
-        # mock_mark_deployments_ready: mock.MagicMock,
         client,
         session,
         work_queues,

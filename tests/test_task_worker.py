@@ -131,7 +131,7 @@ async def test_task_worker_client_id_is_set():
         task_worker = TaskWorker(...)
         task_worker._client = MagicMock(api_url="http://localhost:4200")
 
-        assert task_worker._client_id == "foo-42"
+        assert task_worker.client_id == "foo-42"
 
 
 async def test_task_worker_handles_aborted_task_run_submission(
@@ -671,6 +671,36 @@ class TestTaskWorkerLimit:
     async def register_localfilesystem(self):
         """Register LocalFileSystem before running tests to avoid race conditions."""
         await LocalFileSystem.register_type_and_schema()
+
+    async def test_task_worker_limiter_gracefully_handles_same_task_run(
+        self, prefect_client
+    ):
+        @task
+        def slow_task():
+            import time
+
+            time.sleep(1)
+
+        task_worker = TaskWorker(slow_task, limit=1)
+
+        task_run_future = slow_task.apply_async()
+        task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+
+        try:
+            with anyio.move_on_after(1):
+                # run same task, one should acquire a token
+                # the other will gracefully be skipped.
+                async with task_worker:
+                    await asyncio.gather(
+                        task_worker.execute_task_run(task_run),
+                        task_worker.execute_task_run(task_run),
+                    )
+        except asyncio.exceptions.CancelledError:
+            # we expect a cancelled error here
+            pass
+
+        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        assert updated_task_run.state.is_completed()
 
     async def test_task_worker_respects_limit(self, mock_subscription, prefect_client):
         @task
