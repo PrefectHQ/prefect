@@ -11,7 +11,7 @@ They can take inputs, perform work, and return an output.
 You can turn any function into a Prefect flow by adding the `@flow` decorator.
 When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-- All runs of the flow have persistent [state](/3.0rc/develop/observe-flows/manage-states/). Transitions between states are recorded, 
+- All runs of the flow have persistent [state](/3.0rc/develop/observe-workflows/manage-states/). Transitions between states are recorded, 
 allowing you to observe and act on flow execution.
 - Input arguments can be type validated as workflow parameters.
 - Retries can be performed on failure.
@@ -119,7 +119,7 @@ Navigate to your Prefect dashboard and compare the displays for these two runs.
 
 Prefect enables you to log a variety of useful information about your flow and task runs. You can capture information 
 about your workflows for purposes such as monitoring, troubleshooting, and auditing.
-Check out [Logging](/3.0rc/develop/observe-flows/logging) for more information.
+Check out [Logging](/3.0rc/develop/observe-workflows/logging) for more information.
 </Tip>
 
 <Tip>
@@ -537,7 +537,7 @@ Flow run parameters cannot exceed `512kb` in size.
 ## Final state determination
 
 <Note>
-Read the documentation about [states](/3.0rc/develop/observe-flows/manage-states) before proceeding with this section.
+Read the documentation about [states](/3.0rc/develop/observe-workflows/manage-states) before proceeding with this section.
 </Note>
 
 The final state of the flow is determined by its return value. The following rules apply:

@@ -96,13 +96,13 @@
         "3.0rc/develop/interact-with-data",
         "3.0rc/develop/results",
         {
-          "group": "Observe flows",
+          "group": "Observe workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/observe-flows/index",
-            "3.0rc/develop/observe-flows/logging",
-            "3.0rc/develop/observe-flows/create-artifacts",
-            "3.0rc/develop/observe-flows/manage-states"
+            "3.0rc/develop/observe-workflows/index",
+            "3.0rc/develop/observe-workflows/logging",
+            "3.0rc/develop/observe-workflows/create-artifacts",
+            "3.0rc/develop/observe-workflows/manage-states"
           ]
         },
         {
