@@ -3,7 +3,8 @@ title: Quickstart
 description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
 ---
 
-Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly, turning Python scripts into resilient, recurring workflows. Take a Python script to a production-ready, remotely executable workflow in minutes.
+Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly, turning Python scripts into resilient, recurring workflows.
+Take a Python script to a production-ready, remotely executable workflow in minutes.
 
 In this quickstart, you'll schedule your code on remote infrastructure and observe the state of your workflows.
 
@@ -37,7 +38,8 @@ See the [install guide](/3.0rc/get-started/install/) for more detailed installat
 
 ## Connect to Prefect's API
 
-Much of Prefect's functionality is backed by a hosted API. The fastest and simplest solution is a Prefect-hosted API:
+Much of Prefect's functionality is backed by a hosted API.
+The fastest and simplest solution is a Prefect-hosted API:
 
 1. Head to [https://app.prefect.cloud/](https://app.prefect.cloud/) and sign in or create a forever-free Prefect Cloud account.
 1. Use the `prefect cloud login` CLI command to log in to Prefect Cloud from your development environment.
@@ -105,7 +107,8 @@ if __name__ == "__main__":
 
 The `log_prints=True` argument provided to the `@flow` decorator logs output from `print` statements within the function.
 
-The flow calls two tasks, defined by the `@task` decorator. Tasks are the smallest unit of observed and orchestrated work in Prefect.
+The flow calls two tasks, defined by the `@task` decorator.
+Tasks are the smallest unit of observed and orchestrated work in Prefect.
 
 Run the script:
 
@@ -131,21 +134,25 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 
 ## Deploy on a remote infrastructure
 
-Running a flow locally is a good start, but a remote destination is used for production. Tell Prefect where to run the workflow by creating a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/).
+Running a flow locally is a good start, but a remote destination is used for production.
+Tell Prefect where to run the workflow by creating a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/).
 
-Prefect Cloud can run the flow code using a [Prefect Managed work pool](/3.0rc/deploy/serve-flows/index). You can create a work pool in the UI or from the CLI.
+Prefect Cloud can run the flow code using a [Prefect Managed work pool](/3.0rc/deploy/serve-flows/index).
+You can create a work pool in the UI or from the CLI.
 
 ```bash
 prefect work-pool create my-managed-pool --type prefect:managed
 ```
 
-You'll see the work pool created by the CLI. You can also view your new work pool on the **Work Pools** page of the UI.
+You'll see the work pool created by the CLI.
+You can also view your new work pool on the **Work Pools** page of the UI.
 
 ## Make your code schedulable
 
 The final step is to deploy your flow so it can run remotely on a schedule. 
 
-A [deployment](/3.0rc/deploy/serve-flows/) schedules a flow function to run in your work pool. Deployments elevate flows to remotely configurable entities that have their own API.
+A [deployment](/3.0rc/deploy/serve-flows/) schedules a flow function to run in your work pool.
+Deployments elevate flows to remotely configurable entities that have their own API.
 
 This next script builds a deployment, identifying:
 
@@ -155,7 +162,8 @@ This next script builds a deployment, identifying:
 - Cron schedule (1am every day)
 
 <Info>
-This example uses Prefect's own GitHub repo. To test with your own code, push your script to your GitHub account and update the `source` argument accordingly.
+This example uses Prefect's own GitHub repo.
+To test with your own code, push your script to your GitHub account and update the `source` argument accordingly.
 </Info>
 
 ```bash create_deployment.py
@@ -173,7 +181,9 @@ if __name__ == "__main__":
 ```
 
 <Tip>
-You can store your flow code in nearly any location as long as Prefect can access it. This example uses a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage. Read [Where to store your flow code](/3.0rc/deploy/dynamic-infra/retrieve-flow-code) for details.
+You can store your flow code in nearly any location as long as Prefect can access it.
+This example uses a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage.
+Read [Where to store your flow code](/3.0rc/deploy/dynamic-infra/retrieve-flow-code) for details.
 </Tip>
 
 Run the script to create the deployment on the Prefect Cloud server.
@@ -195,7 +205,8 @@ ______________________________________________________
 ______________________________________________________
 ```
 
-The previous command creates the deployment in Prefect, without starting it. To schedule a run for the deployment, use:
+The previous command creates the deployment in Prefect, without starting it.
+To schedule a run for the deployment, use:
 
 ```bash
 prefect deployment run 'repo-info/my-first-deployment'
@@ -215,7 +226,8 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 
 ## Next steps
 
-You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect. Now considering reading: 
+You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect.
+Now considering reading: 
 
 * [Write flows](/3.0rc/develop/write-flows/index)
 * [Write tasks](/3.0rc/develop/write-tasks/index)
@@ -225,5 +237,6 @@ You've seen how to move from a Python script to a scheduled, observable, remotel
 <Tip>
 **Need help?**
 
-Get your questions answered by a Prefect Product Advocate! [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
+Get your questions answered by a Prefect Product Advocate!
+[Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
 </Tip>
