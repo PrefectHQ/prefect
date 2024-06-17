@@ -25,8 +25,6 @@ prefect block register -m prefect_sqlalchemy
 
 ## Examples
 
-### Integrate with Prefect flows
-
 ### Save credentials to a block
 
 To use the `load` method on Blocks, you must have a block [saved through code](https://docs.prefect.io/develop/connect-third-party/#saving-blocks) or saved through the UI.
@@ -72,7 +70,7 @@ connector = SqlAlchemyConnector(
 connector.save("BLOCK_NAME-PLACEHOLDER")
 ```
 
-## Work with databases
+### Work with databases in a flow
 
 To set up a table, use the `execute` and `execute_many` methods. 
 
@@ -97,7 +95,8 @@ connector = SqlAlchemyConnector(
     )
 )
 
-connector.save("BLOCK_NAME-PLACEHOLDER")
+if __name__ == "__main__":
+    connector.save("BLOCK_NAME-PLACEHOLDER")
 ```
 </Note>
 
