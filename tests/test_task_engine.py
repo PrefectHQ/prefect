@@ -1413,6 +1413,34 @@ class TestGenerators:
             pass
         assert values == [1, 2]
 
+    def test_generators_can_be_yielded_without_being_consumed(self):
+        CONSUMED = []
+
+        @task
+        def g():
+            CONSUMED.append("g")
+            yield 1
+            yield 2
+
+        @task
+        def f_return():
+            return g()
+
+        @task
+        def f_yield():
+            yield g()
+
+        # returning a generator automatically consumes it
+        # because it can't be serialized
+        f_return()
+        assert CONSUMED == ["g"]
+        CONSUMED.clear()
+
+        gen = next(f_yield())
+        assert CONSUMED == []
+        list(gen)
+        assert CONSUMED == ["g"]
+
 
 class TestAsyncGenerators:
     async def test_generator_task(self):
