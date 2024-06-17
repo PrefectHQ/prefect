@@ -144,7 +144,7 @@ class TaskWorker:
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run_id)
         except RuntimeError:
-            logger.debug(f"Failed to acquire token for task run: {task_run_id!r}")
+            logger.debug(f"Token already acquired for task run: {task_run_id!r}")
             return False
 
         return True
@@ -154,7 +154,7 @@ class TaskWorker:
             if self._limiter:
                 self._limiter.release_on_behalf_of(task_run_id)
         except RuntimeError:
-            logger.debug(f"Token for task run: {task_run_id!r} was never taken")
+            logger.debug(f"No token to release for task run: {task_run_id!r}")
             return False
 
         return True
@@ -186,7 +186,7 @@ class TaskWorker:
                 )
             else:
                 logger.info(
-                    f"Skipping task run {task_run.id!r} because limit is reached"
+                    f"TaskWorker run limit reached. Skipping task run {task_run.id!r}"
                 )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
