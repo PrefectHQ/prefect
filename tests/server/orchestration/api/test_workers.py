@@ -1864,6 +1864,43 @@ class TestGetScheduledRuns:
             assert work_queue.last_polled is not None
             assert work_queue.last_polled > now
 
+    async def test_updates_work_queue_status_on_a_full_work_pool(
+        self, client, session, work_queues, work_pools
+    ):
+        work_pool = work_pools["wp_a"]
+
+        wq_not_ready = work_queues["wq_aa"]
+        wq_not_ready.status = WorkQueueStatus.NOT_READY
+
+        wq_paused = work_queues["wq_ab"]
+        wq_paused.status = WorkQueueStatus.PAUSED
+
+        wq_ready = work_queues["wq_ac"]
+        wq_ready.status = WorkQueueStatus.READY
+
+        await session.commit()
+
+        poll_response = await client.post(
+            f"/work_pools/{work_pool.name}/get_scheduled_flow_runs",
+        )
+        assert poll_response.status_code == status.HTTP_200_OK
+
+        work_queues_response = await client.post(
+            f"/work_pools/{work_pool.name}/queues/filter"
+        )
+        assert work_queues_response.status_code == status.HTTP_200_OK
+
+        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+
+        for work_queue in work_queues:
+            if work_queue.id == wq_not_ready.id:
+                assert work_queue.status == WorkQueueStatus.READY
+            elif work_queue.id == wq_paused.id:
+                # paused work queues should stay paused
+                assert work_queue.status == WorkQueueStatus.PAUSED
+            elif work_queue.id == wq_ready.id:
+                assert work_queue.status == WorkQueueStatus.READY
+
     async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
         self, client, work_pools, deployment
     ):
