@@ -32,7 +32,7 @@
     },
     {
       "name": "Contribute",
-      "url": "3.0rc/community"
+      "url": "contribute"
     }
   ],
   "api": {
@@ -71,11 +71,11 @@
       "version": "3.0rc",
       "pages": [
         {
-          "group": "Write workflows",
+          "group": "Write flows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/write-workflows/index",
-            "3.0rc/develop/write-workflows/variables"
+            "3.0rc/develop/write-flows/index",
+            "3.0rc/develop/write-flows/variables"
           ]
         },
         {
@@ -114,7 +114,7 @@
           ]
         },
         "3.0rc/develop/connect-third-party",
-        "3.0rc/develop/test-workflows"
+        "3.0rc/develop/test-flows"
       ]
     },
     {
@@ -122,12 +122,12 @@
       "version": "3.0rc",
       "pages": [
         {
-          "group": "Serve workflows",
+          "group": "Serve flows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/serve-workflows/deploy-a-flow",
-            "3.0rc/deploy/serve-workflows/serve-a-flow",
-            "3.0rc/deploy/serve-workflows/add-schedules"
+            "3.0rc/deploy/serve-flows/deploy-a-flow",
+            "3.0rc/deploy/serve-flows/serve-a-flow",
+            "3.0rc/deploy/serve-flows/add-schedules"
           ]
         },
         {
@@ -320,7 +320,8 @@
         {
           "group": "Ray",
           "pages": [
-            "integrations/prefect-ray/index"
+            "integrations/prefect-ray/index",
+            "integrations/prefect-ray/sdk"
           ]
         },
         {
@@ -410,13 +411,13 @@
             "3.0rc/api-ref/server/flow-runs/read-flow-run-graph-v1",
             "3.0rc/api-ref/server/flow-runs/read-flow-run-graph-v2",
             "3.0rc/api-ref/server/flow-runs/resume-flow-run",
-            "3.0rc/api-ref/server/flow-runs/paginate-flow-runs",
+            "3.0rc/api-ref/server/flow-runs/read-flow-runs",
             "3.0rc/api-ref/server/flow-runs/set-flow-run-state",
             "3.0rc/api-ref/server/flow-runs/create-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/filter-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/read-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/delete-flow-run-input",
-            "3.0rc/api-ref/server/flow-runs/read-flow-runs",
+            "3.0rc/api-ref/server/flow-runs/paginate-flow-runs",
             "3.0rc/api-ref/server/flow-runs/read-flow-run-history",
             "3.0rc/api-ref/server/flow-runs/count-task-runs-by-flow-run"
           ]
@@ -676,14 +677,14 @@
       ]
     },
     {
-      "group": "Community",
+      "group": "Contribute",
       "pages": [
-        "community/index",
-        "community/install-contribute",
-        "community/styles-practices",
-        "community/develop-a-new-worker-type",
-        "community/contribute-integrations",
-        "community/code-of-conduct"
+        "contribute/index",
+        "contribute/install-contribute",
+        "contribute/styles-practices",
+        "contribute/develop-a-new-worker-type",
+        "contribute/contribute-integrations",
+        "contribute/code-of-conduct"
       ]
     }
   ]
