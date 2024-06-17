@@ -120,9 +120,11 @@ For example, you can provide a `name` value for the flow. Here we've also used t
 from prefect import flow
 from prefect.task_runners import SequentialTaskRunner
 
-@flow(name="My Flow",
-      description="My flow using SequentialTaskRunner",
-      task_runner=SequentialTaskRunner())
+@flow(
+    name="My Flow",
+    description="My flow using SequentialTaskRunner",
+    task_runner=SequentialTaskRunner())
+)
 def my_flow():
     return
 
@@ -132,8 +134,10 @@ def my_flow():
 You can also provide the description as the docstring on the flow function.
 
 ```python
-@flow(name="My Flow",
-      task_runner=SequentialTaskRunner())
+@flow(
+    name="My Flow",
+    task_runner=SequentialTaskRunner()
+)
 def my_flow():
     """My flow using SequentialTaskRunner"""
     return
