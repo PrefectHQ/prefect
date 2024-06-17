@@ -1,5 +1,5 @@
 site_name: Prefect
-docs_dir: docs
+docs_dir: docs/mkdocs
 
 theme:
     name: material
