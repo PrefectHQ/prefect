@@ -32,7 +32,7 @@
     },
     {
       "name": "Contribute",
-      "url": "3.0rc/community"
+      "url": "contribute"
     }
   ],
   "api": {
@@ -676,14 +676,14 @@
       ]
     },
     {
-      "group": "Community",
+      "group": "Contribute",
       "pages": [
-        "community/index",
-        "community/install-contribute",
-        "community/styles-practices",
-        "community/develop-a-new-worker-type",
-        "community/contribute-integrations",
-        "community/code-of-conduct"
+        "contribute/index",
+        "contribute/install-contribute",
+        "contribute/styles-practices",
+        "contribute/develop-a-new-worker-type",
+        "contribute/contribute-integrations",
+        "contribute/code-of-conduct"
       ]
     }
   ]
