@@ -15,12 +15,19 @@ from zoneinfo import available_timezones
 MAX_VARIABLE_NAME_LENGTH = 255
 MAX_VARIABLE_VALUE_LENGTH = 5000
 
-timezone_set = available_timezones()
-
 NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
-TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(sorted(timezone_set)))]
+
+TimeZone = Annotated[
+    str,
+    Field(
+        default="UTC",
+        pattern="|".join(
+            [z for z in sorted(available_timezones()) if "localtime" not in z]
+        ),
+    ),
+]
 
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
