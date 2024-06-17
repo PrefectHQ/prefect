@@ -35,6 +35,7 @@ import pendulum
 from docker.models.images import Image
 from typing_extensions import TypedDict
 
+from prefect.logging.loggers import get_logger
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     BuildError,
@@ -42,6 +43,8 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
 )
 from prefect.utilities.slugify import slugify
+
+logger = get_logger("prefect_docker.deployments.steps")
 
 
 class BuildDockerImageResult(TypedDict):
@@ -99,7 +102,10 @@ def cacheable(func):
             tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items())),
         )
         if ignore_cache or key not in cache:
+            logger.debug(f"Cache miss for {func.__name__}, running function.")
             cache[key] = func(*args, **kwargs)
+        else:
+            logger.debug(f"Cache hit for {func.__name__}, returning cached value.")
         return cache[key]
 
     return wrapper

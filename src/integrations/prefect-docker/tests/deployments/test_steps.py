@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import docker
@@ -153,7 +153,9 @@ def test_build_docker_image(
     tag = kwargs.get("tag", FAKE_DEFAULT_TAG)
     additional_tags = kwargs.get("additional_tags", None)
     path = kwargs.get("path", os.getcwd())
-    result = steps.build_docker_image(**kwargs)
+    result = steps.build_docker_image(
+        **kwargs | {"ignore_cache": True}
+    )  # ignore_cache=True to avoid caching here
 
     assert result["image"] == expected_image
     assert result["tag"] == tag
@@ -197,7 +199,9 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
     try:
         Path("Dockerfile").touch()
         with pytest.raises(ValueError, match="Dockerfile already exists"):
-            steps.build_docker_image(image_name="registry/repo", dockerfile="auto")
+            steps.build_docker_image(
+                image_name="registry/repo", dockerfile="auto", ignore_cache=True
+            )
     finally:
         Path("Dockerfile").unlink()
 
@@ -365,7 +369,10 @@ def test_push_docker_image_raises_on_event_error(mock_docker_client):
 
     with pytest.raises(OSError, match="Error"):
         steps.push_docker_image(
-            image_name=FAKE_IMAGE_NAME, tag=FAKE_TAG, credentials=FAKE_CREDENTIALS
+            image_name=FAKE_IMAGE_NAME,
+            tag=FAKE_TAG,
+            credentials=FAKE_CREDENTIALS,
+            ignore_cache=True,
         )
 
 
@@ -383,25 +390,22 @@ class TestCachedSteps:
             "additional_tags": additional_tags,
         }
 
-        with patch.object(
-            steps, "build_docker_image", return_value=expected_result
-        ) as mock_build_docker_image:
-            # Call the cached function multiple times with the same arguments
-            for _ in range(3):
-                result = steps.build_docker_image(
-                    image_name=image_name,
-                    dockerfile=dockerfile,
-                    tag=tag,
-                    additional_tags=additional_tags,
-                )
-                assert result == expected_result
-
-            mock_build_docker_image.assert_called_once_with(
+        # Call the cached function multiple times with the same arguments
+        for _ in range(3):
+            result = steps.build_docker_image(
                 image_name=image_name,
                 dockerfile=dockerfile,
                 tag=tag,
                 additional_tags=additional_tags,
             )
+            assert result == expected_result
+
+        # Assert that the Docker client methods are called only once
+        mock_docker_client.api.build.assert_called_once()
+        mock_docker_client.images.get.assert_called_once_with(FAKE_CONTAINER_ID)
+        mock_docker_client.images.get.return_value.tag.assert_called_once_with(
+            repository=image_name, tag=tag
+        )
 
     def test_uncached_build_docker_image(self, mock_docker_client):
         image_name = "registry/repo"
@@ -416,21 +420,25 @@ class TestCachedSteps:
             "additional_tags": additional_tags,
         }
 
-        with patch.object(
-            steps, "build_docker_image", return_value=expected_result
-        ) as mock_build_docker_image:
-            # Call the uncached function multiple times with the same arguments
-            for _ in range(3):
-                result = steps.build_docker_image(
-                    image_name=image_name,
-                    dockerfile=dockerfile,
-                    tag=tag,
-                    additional_tags=additional_tags,
-                    ignore_cache=True,
-                )
-                assert result == expected_result
+        # Call the uncached function multiple times with the same arguments
+        for _ in range(3):
+            result = steps.build_docker_image(
+                image_name=image_name,
+                dockerfile=dockerfile,
+                tag=tag,
+                additional_tags=additional_tags,
+                ignore_cache=True,
+            )
+            assert result == expected_result
 
-            assert mock_build_docker_image.call_count == 3
+        # Assert that the Docker client methods are called for each function call
+        assert mock_docker_client.api.build.call_count == 3
+        assert mock_docker_client.images.get.call_count == 3
+        expected_tag_calls = 1 + len(additional_tags)
+        assert (
+            mock_docker_client.images.get.return_value.tag.call_count
+            == expected_tag_calls * 3
+        )
 
     def test_cached_push_docker_image(self, mock_docker_client):
         image_name = FAKE_IMAGE_NAME
@@ -444,25 +452,19 @@ class TestCachedSteps:
             "additional_tags": additional_tags,
         }
 
-        with patch.object(
-            steps, "push_docker_image", return_value=expected_result
-        ) as mock_push_docker_image:
-            # Call the cached function multiple times with the same arguments
-            for _ in range(3):
-                result = steps.push_docker_image(
-                    image_name=image_name,
-                    tag=tag,
-                    credentials=credentials,
-                    additional_tags=additional_tags,
-                )
-                assert result == expected_result
-
-            mock_push_docker_image.assert_called_once_with(
+        # Call the cached function multiple times with the same arguments
+        for _ in range(3):
+            result = steps.push_docker_image(
                 image_name=image_name,
                 tag=tag,
                 credentials=credentials,
                 additional_tags=additional_tags,
             )
+            assert result == expected_result
+
+        # Assert that the Docker client methods are called only once
+        mock_docker_client.login.assert_called_once()
+        mock_docker_client.api.push.assert_called_once()
 
     def test_uncached_push_docker_image(self, mock_docker_client):
         image_name = FAKE_IMAGE_NAME
@@ -476,18 +478,18 @@ class TestCachedSteps:
             "additional_tags": additional_tags,
         }
 
-        with patch.object(
-            steps, "push_docker_image", return_value=expected_result
-        ) as mock_push_docker_image:
-            # Call the uncached function multiple times with the same arguments
-            for _ in range(3):
-                result = steps.push_docker_image(
-                    image_name=image_name,
-                    tag=tag,
-                    credentials=credentials,
-                    additional_tags=additional_tags,
-                    ignore_cache=True,
-                )
-                assert result == expected_result
+        # Call the uncached function multiple times with the same arguments
+        for _ in range(3):
+            result = steps.push_docker_image(
+                image_name=image_name,
+                tag=tag,
+                credentials=credentials,
+                additional_tags=additional_tags,
+                ignore_cache=True,
+            )
+            assert result == expected_result
 
-            assert mock_push_docker_image.call_count == 3
+        # Assert that the Docker client methods are called for each function call
+        assert mock_docker_client.login.call_count == 3
+        expected_push_calls = 1 + len(additional_tags)
+        assert mock_docker_client.api.push.call_count == expected_push_calls * 3
