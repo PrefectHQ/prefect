@@ -30,7 +30,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging import get_run_logger
-from prefect.records.cache_policies import DEFAULT, TASKDEF
+from prefect.records.cache_policies import DEFAULT, INPUTS, TASKDEF
 from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
@@ -1297,7 +1297,6 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert await second_state.result() == 1
 
-    @pytest.mark.skip(reason="Expiration does not currently work with cache policies")
     async def test_cache_key_hits_with_past_expiration_are_not_cached(self):
         @task(
             cache_key_fn=lambda *_: "cache-hit-5",
@@ -1471,6 +1470,38 @@ class TestTaskCaching:
         assert await s2.result() == 6
         assert await s3.result() == 6
         assert await s4.result() == 6
+
+    async def test_cache_key_fn_takes_precedence_over_cache_policy(self, caplog):
+        @task(cache_key_fn=lambda *_: "cache-hit-9", cache_policy=INPUTS)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True), foo(2, return_state=True)
+
+        first_state, second_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert await second_state.result() == await first_state.result()
+        assert "`cache_key_fn` will be used" in caplog.text
+
+    async def test_changing_result_storage_key_busts_cache(self):
+        @task(cache_key_fn=lambda *_: "cache-hit-10", result_storage_key="before")
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True), foo.with_options(
+                result_storage_key="after"
+            )(2, return_state=True)
+
+        first_state, second_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert await first_state.result() == 1
+        assert await second_state.result() == 2
 
 
 class TestCacheFunctionBuiltins:
