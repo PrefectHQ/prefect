@@ -6,6 +6,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
@@ -50,12 +51,13 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.callables import call_with_parameters
+from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     _resolve_custom_flow_run_name,
     capture_sigterm,
+    link_state_to_result,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -632,6 +634,80 @@ async def run_flow_async(
     return engine.state if return_type == "state" else engine.result()
 
 
+def run_generator_flow_sync(
+    flow: Flow[P, R],
+    flow_run: Optional[FlowRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> Generator[R, None, None]:
+    if return_type != "result":
+        raise ValueError("The return_type for a generator flow must be 'result'")
+
+    engine = FlowRunEngine[P, R](
+        flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
+    )
+
+    with engine.start():
+        while engine.is_running():
+            with engine.run_context():
+                call_args, call_kwargs = parameters_to_args_kwargs(
+                    flow.fn, engine.parameters or {}
+                )
+                gen = flow.fn(*call_args, **call_kwargs)
+                try:
+                    while True:
+                        gen_result = next(gen)
+                        # link the current state to the result for dependency tracking
+                        link_state_to_result(engine.state, gen_result)
+                        yield gen_result
+                except StopIteration as exc:
+                    engine.handle_success(exc.value)
+                except GeneratorExit as exc:
+                    engine.handle_success(None)
+                    gen.throw(exc)
+
+    return engine.result()
+
+
+async def run_generator_flow_async(
+    flow: Flow[P, R],
+    flow_run: Optional[FlowRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> AsyncGenerator[R, None]:
+    if return_type != "result":
+        raise ValueError("The return_type for a generator flow must be 'result'")
+
+    engine = FlowRunEngine[P, R](
+        flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
+    )
+
+    with engine.start():
+        while engine.is_running():
+            with engine.run_context():
+                call_args, call_kwargs = parameters_to_args_kwargs(
+                    flow.fn, engine.parameters or {}
+                )
+                gen = flow.fn(*call_args, **call_kwargs)
+                try:
+                    while True:
+                        # can't use anext in Python < 3.10
+                        gen_result = await gen.__anext__()
+                        # link the current state to the result for dependency tracking
+                        link_state_to_result(engine.state, gen_result)
+                        yield gen_result
+                except (StopAsyncIteration, GeneratorExit) as exc:
+                    engine.handle_success(None)
+                    if isinstance(exc, GeneratorExit):
+                        gen.throw(exc)
+
+    # async generators can't return, but we can raise failures here
+    if engine.state.is_failed():
+        engine.result()
+
+
 def run_flow(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
@@ -646,7 +722,11 @@ def run_flow(
         wait_for=wait_for,
         return_type=return_type,
     )
-    if flow.isasync:
+    if flow.isasync and flow.isgenerator:
+        return run_generator_flow_async(**kwargs)
+    elif flow.isgenerator:
+        return run_generator_flow_sync(**kwargs)
+    elif flow.isasync:
         return run_flow_async(**kwargs)
     else:
         return run_flow_sync(**kwargs)
