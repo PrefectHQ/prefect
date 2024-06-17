@@ -131,7 +131,7 @@ async def test_task_worker_client_id_is_set():
         task_worker = TaskWorker(...)
         task_worker._client = MagicMock(api_url="http://localhost:4200")
 
-        assert task_worker._client_id == "foo-42"
+        assert task_worker.client_id == "foo-42"
 
 
 async def test_task_worker_handles_aborted_task_run_submission(
