@@ -91,7 +91,9 @@ class TaskWorker:
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
-        self.in_flight_task_runs = {task.task_key: set() for task in self.tasks}
+        self.in_flight_task_runs = {
+            task.task_key: set() for task in self.tasks if isinstance(task, Task)
+        }
 
     @property
     def client_id(self) -> str:
