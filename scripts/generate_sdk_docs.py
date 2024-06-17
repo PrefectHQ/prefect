@@ -1,4 +1,5 @@
 # Creates integration SDK documentation files for MkDocs
+# Run from top level of Prefect repository
 # Latest versions of Prefect integration libraries must be installed
 # Run mkdocs build to generate the documentation or m
 # Upload to Netlify to publish the documentation
@@ -31,6 +32,8 @@ def main():
             if any(submodule.startswith(skipped) for skipped in SKIPPED):
                 continue
             modules.append(submodule)
+
+        print(modules)
 
         package_docs = docs_path() / "mkdocs"
 
