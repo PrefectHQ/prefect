@@ -9,36 +9,34 @@ For example, you can run flow on Vertex AI or Cloud Run, read and write data to 
 
 ### Prerequisites
 
-- [Prefect installed](https://docs.prefect.io/latest/get-started/install/) in a virtual environment.
-- An [GCP account](https://cloud.google.com/) and the necessary permissions to access desired services.
+- [Prefect 3 installed](3.0rc/get-started/install) in a virtual environment.
+- A [GCP account](https://cloud.google.com/) and the necessary permissions to access desired services.
 
 ### Install prefect-gcp
 
-<div class = "terminal">
 ```bash
 pip install -U prefect-gcp
 ```
-</div>
+
 
 If using BigQuery, Cloud Storage, Secret Manager, or Vertex AI, see [additional installation options](#additional-installation-options).
 
 To install with all additional functionality, use the following command:
 
-<div class = "terminal">
+
 ```bash
 pip install -U "prefect-gcp[all_extras]"
 ```
-</div>
+
 
 ### Register newly installed block types
 
 Register the block types in the module to make them available for use.
 
-<div class = "terminal">
 ```bash
 prefect block register -m prefect_gcp
 ```
-</div>
+
 
 ## Authenticate using a GCP Credentials block
 
@@ -247,7 +245,7 @@ Additional installation options for GCP services are shown below.
 
 #### To use Cloud Storage
 
-<div class = "terminal">
+
 ```bash
 pip install "prefect-gcp[cloud_storage]"
 ```
@@ -255,24 +253,23 @@ pip install "prefect-gcp[cloud_storage]"
 
 #### To use BigQuery
 
-<div class = "terminal">
+
 ```bash
 pip install "prefect-gcp[bigquery]"
 ```
-</div>
+
 
 #### To use Secret Manager
 
-<div class = "terminal">
+
 ```bash
 pip install "prefect-gcp[secret_manager]"
 ```
-</div>
+
 
 ### To use Vertex AI
 
-<div class = "terminal">
+
 ```bash
 pip install "prefect-gcp[aiplatform]"
 ```
-</div>
