@@ -320,7 +320,8 @@
         {
           "group": "Ray",
           "pages": [
-            "integrations/prefect-ray/index"
+            "integrations/prefect-ray/index",
+            "integrations/prefect-ray/sdk"
           ]
         },
         {
