@@ -77,15 +77,15 @@ If `service_account_file` is used, the provided file path *must be available* in
 </Warning>
 
 Alternatively, GCP can authenticate without storing credentials in a block.
-See the [Third-pary Screts Guide](https://docs.prefect.io/latest/guides/secrets/) for an analogous example that uses AWS Secrets Manager and Snowflake.
+See the [Third-pary Secrets docs](/3.0rc/resources/secrets) for an analogous example that uses AWS Secrets Manager and Snowflake.
 
 ## Run flows on Google Cloud Run or Vertex AI
 
 Run flows on [Google Cloud Run](https://cloud.google.com/run) or [Vertex AI](https://cloud.google.com/vertex-ai) to dynamically scale your infrastructure.
 
-See the [Google Cloud Run Worker Guide](/3.0rc/gcp-worker-guide/) for a walkthrough of using Google Cloud Run to run workflows with a hybrid work pool.
+See the [Google Cloud Run Worker Guide](/3.0rc/integrations/prefect-gcp/gcp-worker-guide/) for a walkthrough of using Google Cloud Run to run workflows with a hybrid work pool.
 
-If you're using Prefect Cloud, [Google Cloud Run push work pools](https://docs.prefect.io/latest/deploy/dynamic-infra/push-runs-serverless/#__tabbed_1_3) provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
+If you're using Prefect Cloud, [Google Cloud Run push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless) provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
 
 ### Use Prefect with Google BigQuery
 
@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
 Interact with Google Cloud Storage.
 
-Be sure to [install](#installation) `prefect-gcp` with the Cloud Storage extra.
+Be sure to [install](#install-prefect-gcp) `prefect-gcp` with the Cloud Storage extra.
 
 The code below uses `prefect_gcp` to upload a file to a Google Cloud Storage bucket and download the same file under a different file name.
 
@@ -249,7 +249,7 @@ Additional installation options for GCP services are shown below.
 ```bash
 pip install "prefect-gcp[cloud_storage]"
 ```
-</div>
+
 
 #### To use BigQuery
 
