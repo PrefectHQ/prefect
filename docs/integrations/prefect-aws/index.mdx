@@ -24,11 +24,9 @@ pip install -U prefect-aws
 
 Register the block types in the prefect-aws module to make them available for use.
 
-
 ```bash
 prefect block register -m prefect_aws
 ```
-
 
 ## Examples
 
@@ -36,9 +34,9 @@ prefect block register -m prefect_aws
 
 Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
 
-See the [ECS guide](/3.0rc/ecs_guide/) for a walkthrough of using ECS in a hybrid work pool.
+See the [ECS guide](/integrations/prefect-aws/ecs_guide) for a walkthrough of using ECS in a hybrid work pool.
 
-If you're using Prefect Cloud, [ECS push work pools](https://docs.prefect.io/latest/deploy/dynamic-infra/push-runs-serverless/#__tabbed_1_1) provide all the benefits of ECS with a quick setup and no worker needed.
+If you're using Prefect Cloud, [ECS push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless) provide all the benefits of ECS with a quick setup and no worker needed.
 
 In the examples below, you create blocks with Python code.
 Alternatively, each block can be created through the Prefect UI.
