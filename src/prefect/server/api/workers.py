@@ -374,7 +374,7 @@ async def get_scheduled_flow_runs(
 
     polled_work_queue_ids = [wq.id for wq in work_queues]
     ready_work_queue_ids = [
-        wq.id for wq in work_queues if wq.status != WorkQueueStatus.READY
+        wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
     ]
 
     background_tasks.add_task(
