@@ -106,11 +106,11 @@
           ]
         },
         {
-          "group": "Control flows",
+          "group": "Control workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/control-flows/index",
-            "3.0rc/develop/control-flows/global-concurrency-limits"
+            "3.0rc/develop/control-workflows/index",
+            "3.0rc/develop/control-workflows/global-concurrency-limits"
           ]
         },
         "3.0rc/develop/connect-third-party",
