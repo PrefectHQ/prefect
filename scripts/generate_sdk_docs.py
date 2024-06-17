@@ -51,7 +51,7 @@ def packages() -> Generator[tuple[str, Path], None, None]:
             path.is_dir() and path.name != "prefect-ray"
         ):  # excluding ray as it's not compatible with prefect 3 yet
             # print(path.name)
-            # all prefect-integration libraries must be installed
+            # all prefect-integration libraries must be installed (in editable form ATM)
             yield path.name, path
 
 
