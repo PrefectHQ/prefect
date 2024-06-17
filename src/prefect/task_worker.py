@@ -184,10 +184,6 @@ class TaskWorker:
                 self._runs_task_group.start_soon(
                     self._safe_submit_scheduled_task_run, task_run
                 )
-            else:
-                logger.info(
-                    f"TaskWorker run limit reached. Skipping task run {task_run.id!r}"
-                )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
         try:
@@ -312,10 +308,6 @@ class TaskWorker:
             token_acquired = await self._acquire_token(task_run.id)
             if token_acquired:
                 await self._safe_submit_scheduled_task_run(task_run)
-            else:
-                logger.info(
-                    f"Skipping task run {task_run.id!r} because limit is reached"
-                )
 
     async def __aenter__(self):
         logger.debug("Starting task worker...")
