@@ -149,6 +149,70 @@ MyClass.my_class_method()
 MyClass.my_static_method()
 ```
 
+### Generators
+
+Prefect supports synchronous and asynchronous generators as flows. The flow is considered to be `Running` as long as the generator is yielding values. When the generator is exhausted, the flow is considered `Completed`. Any values yielded by the generator can be consumed by other flows or tasks. 
+
+```python
+from prefect import flow
+
+@flow
+def generator():
+    for i in range(10):
+        yield i
+
+@flow
+def consumer(x):
+    print(x)
+
+for val in generator():
+    consumer(val)
+```
+
+<Warning>
+**Generator functions are consumed when returned from flows**
+
+The result of a completed flow must be serializable, but generators cannot be serialized. 
+Therefore, if you return a generator from a flow, the generator will be fully consumed and its yielded values will be returned as a list. 
+This can lead to unexpected behavior or blocking if the generator is infinite or very large.
+
+Here is an example of proactive generator consumption:
+
+```python
+from prefect import flow
+
+def gen():
+    yield from [1, 2, 3]
+    print('Generator consumed!')
+
+@flow
+def f():
+    return gen()
+    
+f()  # prints 'Generator consumed!'
+```
+
+If you need to return a generator without consuming it, you can `yield` it instead of using `return`. 
+Values yielded from generator flows are not considered final results and do not face the same serialization constraints:
+
+```python
+from prefect import flow
+
+def gen():
+    yield from [1, 2, 3]
+    print('Generator consumed!')
+
+@flow
+def f():
+    yield gen
+    
+generator = next(f())
+list(generator) # prints 'Generator consumed!'
+
+```
+</Warning>
+
+
 ## Parameters
 
 As with any Python function, you can pass arguments to a flow.
@@ -333,11 +397,13 @@ and a non-default task runner.
 
 ```python
 from prefect import flow
-from prefect.task_runners import SequentialTaskRunner
 
-@flow(name="My Flow",
-      description="My flow using SequentialTaskRunner",
-      task_runner=SequentialTaskRunner())
+@flow(
+    name="My Flow",
+    description="My flow with retries and linear backoff",
+    retries=3,
+    retry_delay_seconds=[10, 20, 30],
+)
 def my_flow():
     return
 ```
@@ -345,10 +411,13 @@ def my_flow():
 You can also provide the description as the docstring on the flow function.
 
 ```python
-@flow(name="My Flow",
-      task_runner=SequentialTaskRunner())
+@flow(
+    name="My Flow",
+    retries=3,
+    retry_delay_seconds=[10, 20, 30],
+)
 def my_flow():
-    """My flow using SequentialTaskRunner"""
+    """My flow with retries and linear backoff"""
     return
 ```
 
