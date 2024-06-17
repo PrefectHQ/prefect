@@ -10,7 +10,7 @@ from typing_extensions import TypeVar
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import Pending, State
 from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
@@ -85,6 +85,21 @@ class PrefectFuture(abc.ABC):
         Returns:
             The result of the task run.
         """
+
+    def __del__(self):
+        if self._final_state:
+            return
+        # make a very short attempt to check if the future has been resolved
+        self.wait(timeout=0.0)
+        if self._final_state:
+            return
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "Future was garbage collected before it resolved. Please ensure you call `.wait()` or `.result()` to wait for the future to resolve.",
+        )
 
 
 class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
