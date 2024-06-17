@@ -1,0 +1,3 @@
+# prefect.events
+
+::: prefect.events

@@ -1,11 +1,35 @@
-site_name: Prefect
-docs_dir: docs
+site_name: Prefect SDK
+site_url: https://docs-3.prefect.io/
+repo_url: https://github.com/PrefectHQ/prefect
+docs_dir: docs/mkdocs
+extra_css:
+    - stylesheets/theme.css
+    - stylesheets/admonitions.css
+    - stylesheets/api_ref.css
+    - stylesheets/rest_ref.css
+    - stylesheets/syntax_highlights.css
+    - stylesheets/extra.css
+markdown_extensions:
+    - admonition
+    - attr_list
+    - codehilite
+    - md_in_html
+    - meta
+    - pymdownx.highlight:
+          use_pygments: true
+    - pymdownx.superfences:
+          custom_fences:
+              - name: mermaid
+                class: mermaid
+                format: !!python/name:pymdownx.superfences.fence_code_format
+    - pymdownx.details
+    - pymdownx.tabbed:
+          alternate_style: true
 
 theme:
     name: material
     features:
         - announce.dismiss
-        - content.action.edit
         - content.code.copy
         - navigation.tabs.sticky
         - search.suggest
@@ -16,9 +40,7 @@ theme:
     font:
         text: Inter
         code: Source Code Pro
-    icon:
-        repo: fontawesome/brands/github
-        edit: material/pencil
+    logo: logo-word-white.svg
     palette:
         - media: "(prefers-color-scheme: light)"
           accent: "#0225AC"
@@ -42,3 +64,6 @@ plugins:
           handlers:
               python:
                   paths: [..]
+watch:
+    - mkdocs.yml
+    - src

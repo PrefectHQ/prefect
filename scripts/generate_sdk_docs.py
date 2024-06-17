@@ -27,7 +27,9 @@ def main():
                 continue
             modules.append(submodule)
 
-        package_docs = docs_path() / "sdk"
+        package_docs = docs_path() / "mkdocs"
+
+        print(modules)
 
         for module in sorted(modules):
             module_name = module.replace(".__init__", "")
@@ -38,14 +40,18 @@ def main():
                 file.write(f"# {module_name}\n\n")
                 file.write(f"::: {module_name}\n")
 
-        break
+        # break
 
 
 def packages() -> Generator[tuple[str, Path], None, None]:
     yield "prefect", Path("./src")
 
     for path in sorted(Path("./src/integrations").iterdir()):
-        if path.is_dir():
+        if (
+            path.is_dir() and path.name != "prefect-ray"
+        ):  # excluding ray as it's not compatible with prefect 3 yet
+            # print(path.name)
+            # all prefect-integration libraries must be installed (in editable form ATM)
             yield path.name, path
 
 
