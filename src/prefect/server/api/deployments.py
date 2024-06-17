@@ -410,7 +410,7 @@ async def paginate_deployments(
     offset = (page - 1) * limit
 
     async with db.session_context() as session:
-        deployments = await models.deployments.read_deployments(
+        response = await models.deployments.read_deployments(
             session=session,
             offset=offset,
             sort=sort,
@@ -437,7 +437,7 @@ async def paginate_deployments(
         schemas.responses.DeploymentResponse.model_validate(
             deployment, from_attributes=True
         )
-        for deployment in deployments
+        for deployment in response
     ]
 
     return DeploymentPaginationResponse(
