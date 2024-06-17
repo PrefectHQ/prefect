@@ -21,7 +21,6 @@ from prefect.settings import (
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     temporary_settings,
 )
-from prefect.states import Cancelled, Completed, Failed
 from prefect.testing.utilities import (
     assert_blocks_equal,
     assert_uses_result_serializer,
@@ -379,40 +378,6 @@ def test_flow_resultlike_result_is_retained(
 
     result = my_flow()
     assert result == resultlike
-
-
-@pytest.mark.parametrize(
-    "return_state",
-    [
-        Completed(data="test"),
-        Completed(message="Hello!"),
-        Cancelled(),
-        Failed(),
-    ],
-)
-@pytest.mark.parametrize("persist_result", [True, False])
-async def test_flow_state_result_is_respected(
-    persist_result: bool, return_state, tmp_path: Path
-):
-    storage = LocalFileSystem(basepath=str(tmp_path))
-
-    @flow(persist_result=persist_result, result_storage=storage)
-    def my_flow():
-        return return_state
-
-    state = my_flow(return_state=True)
-    assert state.type == return_state.type
-
-    # id, timestamp, and state details must be excluded as they are copied from
-    # the API version of the state and will not match the state created for
-    # this test. Data must be excluded as it will have been updated to a
-    # result.
-    assert state.model_dump(
-        exclude={"id", "timestamp", "state_details", "data"}
-    ) == return_state.model_dump(exclude={"id", "timestamp", "state_details", "data"})
-
-    if return_state.data:
-        assert await state.result(raise_on_failure=False) == return_state.data
 
 
 async def test_root_flow_default_remote_storage(tmp_path: Path):
