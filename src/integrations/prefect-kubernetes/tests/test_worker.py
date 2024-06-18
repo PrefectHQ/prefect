@@ -113,7 +113,7 @@ def mock_job():
 def mock_core_client(monkeypatch, mock_cluster_config):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     mock.return_value.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
-
+    mock.return_value.list_namespaced_pod.return_value.items.sort = MagicMock()
     mock.return_value.read_namespaced_pod_log.return_value.content.readline = AsyncMock(
         return_value=None
     )
@@ -132,6 +132,7 @@ def mock_core_client_lean(monkeypatch):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock)
     monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api", mock)
+    mock.return_value.list_namespaced_pod.return_value.items.sort = MagicMock()
     return mock
 
 
@@ -2343,7 +2344,6 @@ class TestKubernetesWorker:
                 ]
             )
 
-        @pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerances
         async def test_watch_timeout_is_restarted_until_job_is_complete(
             self,
             flow_run,

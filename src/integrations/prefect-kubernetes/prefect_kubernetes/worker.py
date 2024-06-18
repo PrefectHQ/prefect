@@ -616,13 +616,11 @@ class KubernetesWorker(BaseWorker):
                 ),
                 timeout_seconds=configuration.pod_watch_timeout_seconds,
             )
-            try:
-                async with events_replicator:
-                    status_code = await self._watch_job(
-                        logger, job.metadata.name, configuration, client
-                    )
-            finally:
-                await events_replicator._watch.close()
+            async with events_replicator:
+                status_code = await self._watch_job(
+                    logger, job.metadata.name, configuration, client
+                )
+
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
     async def kill_infrastructure(
