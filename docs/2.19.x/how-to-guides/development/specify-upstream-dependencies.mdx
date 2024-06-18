@@ -111,7 +111,7 @@ A run's upstream dependencies can be inferred automatically via its inputs, or s
 
 When a result from a task is used as input for another task, Prefect automatically recognizes the task that result originated from as an upstream dependency.
 
-This applies to every way you can run tasks with Prefect, whether you're calling the task function directly, calling [`.submit()`](https://docs.prefect.io/api-ref/prefect/tasks/#prefect.tasks.Task.submit), or calling [`.map()`](https://docs.prefect.io/api-ref/prefect/tasks/#prefect.tasks.Task.map). Nested flows similarly recognize tasks results as upstream dependencies.
+This applies to every way you can run tasks with Prefect, whether you're calling the task function directly, calling [`.submit()`](https://docs.prefect.io/api-ref/prefect/tasks/#prefect.tasks.Task.submit), or calling [`.map()`](https://docs.prefect.io/api-ref/prefect/tasks/#prefect.tasks.Task.map). Nested flow run similarly recognize tasks results as upstream dependencies.
 
 ```python
 from prefect import flow, task
