@@ -44,14 +44,12 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
 from prefect.deployments.runner import deploy
 from prefect.deployments.steps.core import run_steps
@@ -600,19 +598,6 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
-    @sync_compatible
-    @deprecated_parameter(
-        "schedule",
-        start_date="Mar 2024",
-        when=lambda p: p is not None,
-        help="Use `schedules` instead.",
-    )
-    @deprecated_parameter(
-        "is_schedule_active",
-        start_date="Mar 2024",
-        when=lambda p: p is not None,
-        help="Use `paused` instead.",
-    )
     async def to_deployment(
         self,
         name: str,
@@ -628,9 +613,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List["FlexibleScheduleList"]] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -653,10 +636,6 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             triggers: A list of triggers that will kick off runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
@@ -709,8 +688,6 @@ class Flow(Generic[P, R]):
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
-                schedule=schedule,
-                is_schedule_active=is_schedule_active,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -730,8 +707,6 @@ class Flow(Generic[P, R]):
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
-                schedule=schedule,
-                is_schedule_active=is_schedule_active,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -744,33 +719,27 @@ class Flow(Generic[P, R]):
                 entrypoint_type=entrypoint_type,
             )
 
-    def on_completion(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
-        self.on_completion_hooks.append(fn)
-        return fn
-
     def on_cancellation(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_cancellation_hooks.append(fn)
         return fn
 
     def on_crashed(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_crashed_hooks.append(fn)
         return fn
 
     def on_running(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_running_hooks.append(fn)
         return fn
 
     def on_failure(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_failure_hooks.append(fn)
         return fn
 
@@ -790,10 +759,8 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List["FlexibleScheduleList"]] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -821,11 +788,6 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment. Used to
-                define additional scheduling options such as `timezone`.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -889,8 +851,6 @@ class Flow(Generic[P, R]):
             rrule=rrule,
             paused=paused,
             schedules=schedules,
-            schedule=schedule,
-            is_schedule_active=is_schedule_active,
             parameters=parameters,
             description=description,
             tags=tags,
@@ -1004,16 +964,14 @@ class Flow(Generic[P, R]):
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[dict] = None,
+        job_variables: Optional[dict[str, Any]] = None,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -1058,11 +1016,6 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment. Used to
-                define additional scheduling options like `timezone`.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -1132,8 +1085,6 @@ class Flow(Generic[P, R]):
             rrule=rrule,
             schedules=schedules,
             paused=paused,
-            schedule=schedule,
-            is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
             description=description,
@@ -1385,7 +1336,7 @@ def flow(
 
 
 def flow(
-    __fn=None,
+    __fn: Optional[Callable[P, R]] = None,
     *,
     name: Optional[str] = None,
     version: Optional[str] = None,
@@ -1520,30 +1471,27 @@ def flow(
         if isinstance(__fn, (classmethod, staticmethod)):
             method_decorator = type(__fn).__name__
             raise TypeError(f"@{method_decorator} should be applied on top of @flow")
-        return cast(
-            Flow[P, R],
-            Flow(
-                fn=__fn,
-                name=name,
-                version=version,
-                flow_run_name=flow_run_name,
-                task_runner=task_runner,
-                description=description,
-                timeout_seconds=timeout_seconds,
-                validate_parameters=validate_parameters,
-                retries=retries,
-                retry_delay_seconds=retry_delay_seconds,
-                persist_result=persist_result,
-                result_storage=result_storage,
-                result_serializer=result_serializer,
-                cache_result_in_memory=cache_result_in_memory,
-                log_prints=log_prints,
-                on_completion=on_completion,
-                on_failure=on_failure,
-                on_cancellation=on_cancellation,
-                on_crashed=on_crashed,
-                on_running=on_running,
-            ),
+        return Flow(
+            fn=__fn,
+            name=name,
+            version=version,
+            flow_run_name=flow_run_name,
+            task_runner=task_runner,
+            description=description,
+            timeout_seconds=timeout_seconds,
+            validate_parameters=validate_parameters,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            persist_result=persist_result,
+            result_storage=result_storage,
+            result_serializer=result_serializer,
+            cache_result_in_memory=cache_result_in_memory,
+            log_prints=log_prints,
+            on_completion=on_completion,
+            on_failure=on_failure,
+            on_cancellation=on_cancellation,
+            on_crashed=on_crashed,
+            on_running=on_running,
         )
     else:
         return cast(
@@ -1595,10 +1543,10 @@ flow.from_source = Flow.from_source
 
 
 def select_flow(
-    flows: Iterable[Flow],
+    flows: Iterable[Flow[P, R]],
     flow_name: Optional[str] = None,
     from_message: Optional[str] = None,
-) -> Flow:
+) -> Flow[P, R]:
     """
     Select the only flow in an iterable or a flow specified by name.
 
@@ -1685,7 +1633,7 @@ async def serve(
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
     limit: Optional[int] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> NoReturn:
     """
     Serve the provided list of deployments.
