@@ -49,10 +49,10 @@ prefect cloud login
 Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
 Your CLI is now authenticated with your Prefect Cloud account through a locally-stored API key that expires in 30 days.
 
-If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/cloud/manage-users/api-keys/) to learn how to authenticate with a manually created API key.
+If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/manage/cloud/manage-users/api-keys/) to learn how to authenticate with a manually created API key.
 
 <Note>
-If you would like to run a Prefect server instance on your own infrastructure, see the [Host a Prefect server instance](/3.0rc/cloud/self-host/) docs.
+If you would like to run a Prefect server instance on your own infrastructure, see the [Host a Prefect server instance](/3.0rc/manage/self-host/) docs.
 Note that you need to both host your own server and run flows on your own infrastructure.
 </Note>
 
@@ -131,7 +131,7 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 
 ## Deploy on a remote infrastructure
 
-Running a flow locally is a good start, but a remote destination is used for production. Tell Prefect where to run the workflow by creating a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/).
+Running a flow locally is a good start, but a remote destination is used for production. Tell Prefect where to run the workflow by creating a [work pool](/3.0rc/deploy/work-pools/control-runs/).
 
 Prefect Cloud can run the flow code using a [Prefect Managed work pool](/3.0rc/deploy/serve-flows/index). You can create a work pool in the UI or from the CLI.
 
@@ -219,7 +219,7 @@ You've seen how to move from a Python script to a scheduled, observable, remotel
 
 * [Write flows](/3.0rc/develop/write-flows/index)
 * [Write tasks](/3.0rc/develop/write-tasks/index)
-* [Self-host](/3.0rc/cloud/self-host) your Prefect server
+* [Self-host](/3.0rc/manage/self-host) your Prefect server
 
 
 <Tip>

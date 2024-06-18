@@ -23,7 +23,7 @@ Attributes of a deployment include:
 - **Tags**: optional text labels for organizing deployments
 
 Some of the most common reasons to use an orchestration tool like Prefect are for 
-[scheduling](/3.0rc/deploy/serve-flows/add-schedules/) and [event-based triggering](/3.0rc/react/understand-events/automations-triggers/).
+[scheduling](/3.0rc/deploy/serve-flows/add-schedules/) and [event-based triggering](/3.0rc/react/events/automations-triggers/).
 As opposed to manually triggering and managing flow runs, deploying a flow exposes an API and 
 UI that allow you to:
 
@@ -38,7 +38,7 @@ pause scheduled runs, customize parameters, and more
 Some features in this tutorial, such as scheduling, require you to connect to a Prefect server.
 If using a self-hosted setup, run `prefect server start` to run both the webserver and UI.
 If using Prefect Cloud, make sure you have 
-[successfully authenticated your local environment](/3.0rc/cloud/connect-to-cloud).
+[successfully authenticated your local environment](/3.0rc/manage/cloud/connect-to-cloud).
 
 </Note>
 
@@ -260,7 +260,7 @@ This separation means that your flow code stays within your storage and executio
 infrastructure, and never lives on the Prefect server or database.
 
 This is key to the Prefect hybrid model: there's a boundary between your proprietary assets, 
-such as your flow code, and the Prefect backend (including [Prefect Cloud](/3.0rc/cloud/)). 
+such as your flow code, and the Prefect backend (including [Prefect Cloud](/3.0rc/manage/cloud/)). 
 </Note>
 
 ### Scheduling and parametrization
@@ -276,7 +276,7 @@ Most of the convenient interfaces for creating deployments allow users to avoid 
 For example, when [updating a deployment schedule in the UI](/3.0rc/deploy/serve-flows/add-schedules/#creating-schedules-through-the-ui) 
 basic information such as a cron string or interval is all that's required.
 - **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment.
-For more information see [Automations](/3.0rc/react/understand-events/automations-triggers/).
+For more information see [Automations](/3.0rc/react/events/automations-triggers/).
 - **`parameter_openapi_schema`**: an [OpenAPI compatible schema](https://swagger.io/specification/) that defines 
 the types and defaults for the flow's parameters.
 This is used by the UI and the backend to expose options for creating manual runs as well as type validation.
@@ -353,7 +353,7 @@ def main():
 **Using the Prefect client**
 
 For more information on using the Prefect client to interact with Prefect's
-REST API, see [Interact with the API](/3.0rc/cloud/interact-with-api/).
+REST API, see [Interact with the API](/3.0rc/manage/cloud/interact-with-api/).
 </Tip>
 
 ## Versioning and bookkeeping
@@ -380,7 +380,7 @@ anytime the flow or task runs, allowing you to audit changes.
 
 ### Workers and work pools
 
-[Workers and work pools](/3.0rc/deploy/dynamic-infra/control-runs/) are an advanced deployment pattern that 
+[Workers and work pools](/3.0rc/deploy/work-pools/control-runs/) are an advanced deployment pattern that 
 allow you to dynamically provision infrastructure for each flow run.
 The work pool job template interface allows users to create and govern opinionated interfaces 
 to their workflow infrastructure.
@@ -434,7 +434,7 @@ infrastructure with work pools under these circumstances:
 - If your internal team structure requires that deployment authors be members of a different team 
 than the team managing infrastructure.
 
-[Work pools](/3.0rc/deploy/dynamic-infra/control-runs/) allow Prefect to exercise greater control 
+[Work pools](/3.0rc/deploy/work-pools/control-runs/) allow Prefect to exercise greater control 
 of the infrastructure on which flows run.
 Options for [serverless work pools](/3.0rc/deploy/dynamic-infra/push-runs-remote/) allow you to 
 scale to zero when workflows aren't running.
