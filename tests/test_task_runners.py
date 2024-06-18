@@ -9,7 +9,7 @@ import pytest
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.context import TagsContext, tags
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
-from prefect.results import _default_task_scheduling_storages
+from prefect.results import _default_storages
 from prefect.states import Completed, Running
 from prefect.task_runners import PrefectTaskRunner, ThreadPoolTaskRunner
 from prefect.task_worker import serve
@@ -186,7 +186,7 @@ class TestThreadPoolTaskRunner:
 class TestPrefectTaskRunner:
     @pytest.fixture(autouse=True)
     def clear_cache(self):
-        _default_task_scheduling_storages.clear()
+        _default_storages.clear()
 
     @pytest.fixture
     async def task_worker(self, use_hosted_api_server):
