@@ -8,8 +8,14 @@ import pytest
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.context import TagsContext, tags
+from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
-from prefect.results import _default_task_scheduling_storages
+from prefect.results import _default_storages
+from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
+    temporary_settings,
+)
 from prefect.states import Completed, Running
 from prefect.task_runners import PrefectTaskRunner, ThreadPoolTaskRunner
 from prefect.task_worker import serve
@@ -59,6 +65,18 @@ class MockFuture(PrefectWrappedFuture):
 
 
 class TestThreadPoolTaskRunner:
+    @pytest.fixture(autouse=True)
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
+        ):
+            yield
+
     def test_duplicate(self):
         runner = ThreadPoolTaskRunner(max_workers=100)
         duplicate_runner = runner.duplicate()
@@ -186,7 +204,7 @@ class TestThreadPoolTaskRunner:
 class TestPrefectTaskRunner:
     @pytest.fixture(autouse=True)
     def clear_cache(self):
-        _default_task_scheduling_storages.clear()
+        _default_storages.clear()
 
     @pytest.fixture
     async def task_worker(self, use_hosted_api_server):

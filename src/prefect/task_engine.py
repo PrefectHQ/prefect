@@ -417,9 +417,7 @@ class TaskRunEngine(Generic[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_coro_as_sync(
-                        ResultFactory.from_autonomous_task(self.task)
-                    ),  # type: ignore
+                    result_factory=run_coro_as_sync(ResultFactory.from_task(self.task)),  # type: ignore
                     client=client,
                 )
             )

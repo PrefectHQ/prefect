@@ -29,11 +29,16 @@ async def test_task_state_change_happy_path(
 
     await asserting_events_worker.drain()
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-    assert len(task_run_states) == len(asserting_events_worker._client.events) == 3
+    events = [
+        event
+        for event in asserting_events_worker._client.events
+        if event.event.startswith("prefect.task-run.")
+    ]
+    assert len(task_run_states) == len(events) == 3
 
     last_state = None
     for i, task_run_state in enumerate(task_run_states):
-        event = asserting_events_worker._client.events[i]
+        event = events[i]
 
         assert event.id == task_run_state.id
         assert event.occurred == task_run_state.timestamp
@@ -93,11 +98,16 @@ async def test_task_state_change_task_failure(
 
     await asserting_events_worker.drain()
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-    assert len(task_run_states) == len(asserting_events_worker._client.events) == 3
+    events = [
+        event
+        for event in asserting_events_worker._client.events
+        if event.event.startswith("prefect.task-run.")
+    ]
+    assert len(task_run_states) == len(events) == 3
 
     last_state = None
     for i, task_run_state in enumerate(task_run_states):
-        event = asserting_events_worker._client.events[i]
+        event = events[i]
 
         assert event.id == task_run_state.id
         assert event.occurred == task_run_state.timestamp
@@ -160,6 +170,7 @@ async def test_background_task_state_changes(
     await asserting_events_worker.drain()
 
     events = sorted(asserting_events_worker._client.events, key=lambda e: e.occurred)
+    events = [e for e in events if e.event.startswith("prefect.task-run.")]
 
     assert len(task_run_states) == len(events) == 4
 

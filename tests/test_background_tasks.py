@@ -53,9 +53,9 @@ async def clear_scheduled_task_queues():
 
 @pytest.fixture(autouse=True)
 async def clear_cached_filesystems():
-    prefect.results._default_task_scheduling_storages.clear()
+    prefect.results._default_storages.clear()
     yield
-    prefect.results._default_task_scheduling_storages.clear()
+    prefect.results._default_storages.clear()
 
 
 @pytest.fixture

@@ -1200,8 +1200,8 @@ class TestCachePolicy:
             await first_state.result() != await second_state.result()
         ), "Cache did not expire"
 
-    async def test_none_policy_doesnt_persist(self, prefect_client):
-        @task(cache_policy=None, result_storage_key=None)
+    async def test_none_policy_with_persist_result_false(self, prefect_client):
+        @task(cache_policy=None, result_storage_key=None, persist_result=False)
         async def async_task():
             return 1800
 
@@ -1385,7 +1385,7 @@ class TestGenerators:
         Test that a generator can timeout
         """
 
-        @task(timeout_seconds=0.1)
+        @task(timeout_seconds=1)
         def g():
             yield 1
             time.sleep(2)

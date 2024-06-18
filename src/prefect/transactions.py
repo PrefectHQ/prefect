@@ -15,8 +15,11 @@ from typing_extensions import Self
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
-from prefect.results import BaseResult, ResultFactory, get_default_result_storage
-from prefect.settings import PREFECT_DEFAULT_RESULT_STORAGE_BLOCK
+from prefect.results import (
+    BaseResult,
+    ResultFactory,
+    get_or_create_default_result_storage,
+)
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 
@@ -265,12 +268,7 @@ def transaction(
                 }
             )
         else:
-            default_storage = get_default_result_storage(_sync=True)
-            if not default_storage._block_document_id:
-                default_name = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value().split("/")[
-                    -1
-                ]
-                default_storage.save(default_name, overwrite=True, _sync=True)
+            default_storage = get_or_create_default_result_storage(_sync=True)
             if existing_factory:
                 new_factory = existing_factory.model_copy(
                     update={
