@@ -66,7 +66,7 @@ _default_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
 
 async def _get_or_create_default_storage(block_document_slug: str) -> ResultStorage:
     """
-    Generate a default file system for background task parameter/result storage.
+    Generate a default file system for storage.
     """
     default_storage_name, storage_path = cache_key = (
         block_document_slug,
@@ -78,7 +78,7 @@ async def _get_or_create_default_storage(block_document_slug: str) -> ResultStor
             return await Block.load(default_storage_name)
         except ValueError as e:
             if "Unable to find" not in str(e):
-                raise e
+                raise ValueError("How did we get here?") from e
 
         block_type_slug, name = default_storage_name.split("/")
         if block_type_slug == "local-file-system":
