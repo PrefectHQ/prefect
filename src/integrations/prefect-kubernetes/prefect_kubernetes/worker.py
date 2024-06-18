@@ -130,7 +130,12 @@ from kubernetes_asyncio.client import (
     V1Pod,
 )
 from kubernetes_asyncio.client.exceptions import ApiException
-from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
+from kubernetes_asyncio.client.models import (
+    CoreV1Event,
+    CoreV1EventList,
+    V1ObjectMeta,
+    V1Secret,
+)
 from pydantic import Field, model_validator
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
@@ -1141,7 +1146,6 @@ class KubernetesWorker(BaseWorker):
         client: "ApiClient",
     ) -> Optional["V1Pod"]:
         """Get the first running pod for a job."""
-        from kubernetes_asyncio.client.models import V1Pod
 
         watch = kubernetes_asyncio.watch.Watch()
         logger.info(f"Job {job_name!r}: Starting watch for pod start...")
@@ -1164,7 +1168,6 @@ class KubernetesWorker(BaseWorker):
                     logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
 
                 if phase != "Pending":
-                    watch.stop()
                     return pod
 
                 last_phase = phase
@@ -1188,7 +1191,6 @@ class KubernetesWorker(BaseWorker):
     ) -> None:
         """Look for reasons why a Job may not have been able to schedule a Pod, or why
         a Pod may not have been able to start and log them to the provided logger."""
-        from kubernetes_asyncio.client.models import CoreV1Event, CoreV1EventList
 
         def best_event_time(event: CoreV1Event) -> datetime:
             """Choose the best timestamp from a Kubernetes event"""
