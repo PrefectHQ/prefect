@@ -13,7 +13,6 @@ except ImportError:
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
-from prefect.utilities.timeout import timeout_async
 
 from .events import (
     _emit_concurrency_acquisition_events,
@@ -58,8 +57,9 @@ async def concurrency(
     ```
     """
     names = names if isinstance(names, list) else [names]
-    with timeout_async(seconds=timeout_seconds):
-        limits = await _acquire_concurrency_slots(names, occupy)
+    limits = await _acquire_concurrency_slots(
+        names, occupy, timeout_seconds=timeout_seconds
+    )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
 
@@ -91,9 +91,10 @@ async def _acquire_concurrency_slots(
     names: List[str],
     slots: int,
     mode: Union[Literal["concurrency"], Literal["rate_limit"]] = "concurrency",
+    timeout_seconds: Optional[float] = None,
 ) -> List[MinimalConcurrencyLimitResponse]:
     service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
-    future = service.send((slots, mode))
+    future = service.send((slots, mode, timeout_seconds))
     response_or_exception = await asyncio.wrap_future(future)
 
     if isinstance(response_or_exception, Exception):
