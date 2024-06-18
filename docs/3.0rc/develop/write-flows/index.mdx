@@ -348,13 +348,13 @@ Prefect encourages "small tasks." Each one should represent a single logical ste
 This allows Prefect to better contain task failures.
 </Tip>
 
-## Subflows
+## Nested flows
 
 In addition to calling tasks within a flow, you can also call other flows.
 Child flows are called [nested flows](/3.0rc/develop/write-flows/#composing-flows) and allow you to efficiently manage, 
 track, and version common multi-task logic.
 
-Subflows are a great way to organize your workflows and offer more visibility within the UI.
+Nested flows are a great way to organize your workflows and offer more visibility within the UI.
 
 Add a `flow` decorator to the `get_open_issues` function:
 
@@ -491,16 +491,16 @@ If set to `False`, no validation is performed on flow parameters.
 A _subflow_ run is created when a flow function is called inside the execution of another flow.
 The primary flow is the "parent" flow. The flow created within the parent is the "child" flow or "nested flow."
 
-Subflow runs behave like normal flow runs.
+Nested flow runs behave like normal flow runs.
 There is a full representation of the flow run in the backend as if it had been called separately.
 When a nested flow starts, it creates a new [task runner](/3.0rc/develop/write-tasks/use-task-runners/) for tasks within the nested flow.
 When the nested flow completes, the task runner shuts down.
 
-Subflows block execution of the parent flow until completion.
+Nested flows block execution of the parent flow until completion.
 However, asynchronous nested flows can run concurrently with [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or 
 [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
-Subflows differ from normal flows in that they resolve any passed task futures into data.
+Nested flows differ from normal flows in that they resolve any passed task futures into data.
 This allows data to be passed from the parent flow to the child easily.
 
 The relationship between a child and parent flow is tracked by creating a special task run in the parent flow.
@@ -529,9 +529,9 @@ def print_hello(name):
     print(msg)
     return msg
 
-@flow(name="Subflow")
+@flow(name="Nested flow")
 def my_subflow(msg):
-    print(f"Subflow says: {msg}")
+    print(f"Nested flow says: {msg}")
 
 @flow(name="Hello Flow")
 def hello_world(name="world"):
@@ -547,9 +547,9 @@ You can also define flows or tasks in separate modules and import them for usage
 ```python
 from prefect import flow, task
 
-@flow(name="Subflow")
+@flow(name="Nested flow")
 def my_subflow(msg):
-    print(f"Subflow says: {msg}")
+    print(f"Nested flow says: {msg}")
 ```
 
 Here's a parent flow that imports and uses `my_subflow()` as a nested flow:
@@ -582,15 +582,15 @@ $ python hello.py
 15:19:21.945 | INFO    | Flow run 'daft-cougar' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
 Hello Marvin!
 15:19:22.055 | INFO    | Task run 'Print Hello-84f0fe0e-0' - Finished in state Completed()
-15:19:22.107 | INFO    | Flow run 'daft-cougar' - Created nested flow run 'ninja-duck' for flow 'Subflow'
-Subflow says: Hello Marvin!
+15:19:22.107 | INFO    | Flow run 'daft-cougar' - Created nested flow run 'ninja-duck' for flow 'Nested flow'
+Nested flow says: Hello Marvin!
 15:19:22.794 | INFO    | Flow run 'ninja-duck' - Finished in state Completed()
 15:19:23.215 | INFO    | Flow run 'daft-cougar' - Finished in state Completed('All states completed.')
 ```
 </div>
 
 <Tip> 
-**Subflows or tasks?**
+**Nested flows or tasks?**
 
 In Prefect you can call tasks _or_ nested flows to do work within your workflow, including passing results from other tasks to your nested flow.
 
@@ -602,17 +602,17 @@ analyzing or transforming a data point.
 Prefect tasks are well suited for parallel or distributed execution using distributed computation frameworks such as Dask or Ray. 
 For troubleshooting, the more granular you make your tasks, the easier it is to find and fix issues if a task fails.
 
-Subflows enable you to group related tasks within your workflow. 
+Nested flows enable you to group related tasks within your workflow. 
 Here are some scenarios where you should choose a nested flow rather than calling tasks individually:
 
-- Observability: Subflows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll 
+- Observability: Nested flows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll 
 see nested flow status in the **Flow Runs** dashboard rather than having to dig down into the tasks within a specific flow run. 
 See [Final state determination](#final-state-determination) for examples of using task state within flows.
 - Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a nested flow and 
 conditionally run the nested flow rather than each task individually.
 - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use 
 cases by simply passing different parameters to the nested flow in which they run.
-- Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, to optimize 
+- Task runners: Nested flows enable you to specify the task runner used for tasks within the flow. For example, to optimize 
 parallel execution of certain tasks with Dask, group them in a nested flow that uses the Dask task runner. You can use a different 
 task runner for each nested flow.
 </Tip>

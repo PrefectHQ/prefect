@@ -111,7 +111,7 @@ By default, `run_deployment` blocks until the scheduled flow run finishes execut
 
 If you call `run_deployment` from within a flow or task, the scheduled flow run will be linked to the calling flow run (or the calling task's flow run) as a nested flow run by default.
 
-Subflow runs have different behavior than regular flow runs. For example, a nested flow run can't be suspended independently of its parent flow. If you'd rather not link the scheduled flow run to the calling flow or task run, you can disable this behavior by passing `as_subflow=False`:
+Nested flow runs have different behavior than regular flow runs. For example, a nested flow run can't be suspended independently of its parent flow. If you'd rather not link the scheduled flow run to the calling flow or task run, you can disable this behavior by passing `as_subflow=False`:
 
 ```python
 from prefect import flow

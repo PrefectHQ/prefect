@@ -314,7 +314,7 @@ If you call `run_deployment` from within a flow or task, the scheduled flow
 run is linked to the calling flow run (or the calling task's flow run)
 as a nested flow run by default.
 
-Subflow runs have different behavior than regular flow runs. For example, you can't suspend a 
+Nested flow runs have different behavior than regular flow runs. For example, you can't suspend a 
 nested flow run independently of its parent flow. To not link the scheduled flow run to the 
 calling flow or task run, pass `as_subflow=False` to disable it:
 

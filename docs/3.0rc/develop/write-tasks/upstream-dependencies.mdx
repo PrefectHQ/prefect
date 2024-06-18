@@ -116,7 +116,7 @@ originated from as an upstream dependency.
 
 This applies to every way you can run tasks with Prefect, whether you're calling the task function directly,
  calling [`.submit()`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit), or calling 
- [`.map()`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.map). Subflows similarly recognize tasks results as upstream dependencies.
+ [`.map()`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.map). Nested flows similarly recognize tasks results as upstream dependencies.
 
 ```python
 from prefect import flow, task
