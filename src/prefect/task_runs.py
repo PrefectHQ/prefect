@@ -125,6 +125,7 @@ class TaskRunWaiter:
                             "prefect.task-run.", ""
                         )
                     )
+
                     with self._observed_completed_task_runs_lock:
                         # Cache the task run ID for a short period of time to avoid
                         # unnecessary waits
@@ -178,14 +179,21 @@ class TaskRunWaiter:
             # when the event is received
             instance._completion_events[task_run_id] = finished_event
 
-        with anyio.move_on_after(delay=timeout):
-            await from_async.wait_for_call_in_loop_thread(
-                create_call(finished_event.wait)
-            )
+        try:
+            # Now check one more time whether the task run arrived before we start to
+            # wait on it, in case it came in while we were setting up the event above.
+            with instance._observed_completed_task_runs_lock:
+                if task_run_id in instance._observed_completed_task_runs:
+                    return
 
-        with instance._completion_events_lock:
-            # Remove the event from the cache after it has been waited on
-            instance._completion_events.pop(task_run_id, None)
+            with anyio.move_on_after(delay=timeout):
+                await from_async.wait_for_call_in_loop_thread(
+                    create_call(finished_event.wait)
+                )
+        finally:
+            with instance._completion_events_lock:
+                # Remove the event from the cache after it has been waited on
+                instance._completion_events.pop(task_run_id, None)
 
     @classmethod
     def instance(cls):
