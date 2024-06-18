@@ -40,6 +40,6 @@ repos:
         files: |
             (?x)^(
                 .pre-commit-config.yaml|
-                src/prefect/server/|
+                src/prefect/server/.*|
                 scripts/generate_mintlify_openapi_docs.py
             )$
