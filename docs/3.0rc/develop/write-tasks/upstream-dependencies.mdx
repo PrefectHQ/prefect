@@ -3,7 +3,7 @@ title: Specify upstream dependencies
 description: Learn how to run tasks in a desired order.
 ---
 
-You can provide results from a task to other tasks (or subflows) as upstream dependencies. 
+You can provide results from a task to other tasks (or nested flows) as upstream dependencies. 
 Prefect uses upstream dependencies in two ways:
 
 1. To populate dependency arrows in the flow run graph
@@ -15,7 +15,7 @@ units of work that depend on each other
 **Tasks vs. other functions**
 
 Only results from tasks inform Prefect's ability to determine dependencies. Return values from functions 
-without task decorators, including subflows, do not carry the same information about their origin as task results.
+without task decorators, including nested flows, do not carry the same information about their origin as task results.
 </Note>
 
 When using non-sequential task runners such as the [`ConcurrentTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or 
@@ -107,7 +107,7 @@ upstream dependencies:
 </Tabs>
 ## Determination methods
 
-You can infer a task or subflow's upstream dependencies automatically through its inputs, or stated explicitly with the `wait_for` parameter.
+You can infer a task or nested flow's upstream dependencies automatically through its inputs, or stated explicitly with the `wait_for` parameter.
 
 ### Automatic
 
@@ -161,7 +161,7 @@ def final_task(input):
 
 You can inform tasks of their upstream dependencies that do not share data through the `wait_for` parameter. 
 Just as with automatic dependencies, this applies to direct task function calls, 
-[`.submit()`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit), [`.map()`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.map), and subflows.
+[`.submit()`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit), [`.map()`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.map), and nested flows.
 
 <Warning>
 
@@ -259,7 +259,7 @@ def downstream_task():
     print("I'm downstream!")
 ```
 
-By default, deployments started from `run_deployment` also appear as subflows for tracking purposes. 
+By default, deployments started from `run_deployment` also appear as nested flows for tracking purposes. 
 Disable this behavior by setting the `as_subflow` parameter for `run_deployment` to `False`.
 
 <figure markdown="span">

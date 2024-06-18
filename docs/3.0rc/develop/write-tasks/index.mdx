@@ -7,13 +7,13 @@ A Prefect task is a Python function decorated with @task that represents a discr
 Prefect workflow. Tasks can:
 
 - Take inputs, perform work, and return outputs
-- Encapsulate workflow logic into reusable units across flows and subflows
+- Encapsulate workflow logic into reusable units across flows and nested flows
 - Receive metadata about upstream task dependencies and their state before running
 - Use automatic [logging](/3.0rc/develop/observe-workflows/logging/) to capture runtime details, tags, 
 and final state
 - Execute concurrently and cache return values
 - Be defined in the same file as the flow or imported from modules
-- Be called from flows, subflows, or other tasks (Prefect 2.18+)
+- Be called from flows, nested flows, or other tasks (Prefect 2.18+)
 
 Flows and tasks share some common features:
 

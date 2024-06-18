@@ -2,7 +2,7 @@
 title: Specifying Upstream Dependencies
 ---
 
-Results from a task can be provided to other tasks (or subflows) as upstream dependencies. Prefect uses upstream dependencies in two ways:
+Results from a task can be provided to other tasks (or nested flows) as upstream dependencies. Prefect uses upstream dependencies in two ways:
 
 1.  To populate dependency arrows in the flow run graph
 2.  To determine execution order for [concurrently submitted](https://docs.prefect.io/concepts/task-runners) units of work that depend on each other
@@ -10,7 +10,7 @@ Results from a task can be provided to other tasks (or subflows) as upstream dep
 <Note>
 **Tasks vs. other functions**
 
-**Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including subflows, do not carry the same information about their origin as task results.
+**Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including nested flows, do not carry the same information about their origin as task results.
 </Note>
 When using non-sequential task runners such as the [`ConcurrentTaskRunner`](https://docs.prefect.io/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted tasks is not guaranteed unless their dependencies are specified.
 
@@ -105,7 +105,7 @@ Flow run 'statuesque-waxbill' - Finished in state Completed('All states complete
 Determination methods
 -----------------------------------------------------------------
 
-A task or subflow's upstream dependencies can be inferred automatically via its inputs, or stated explicitly via the `wait_for` parameter.
+A task or nested flow's upstream dependencies can be inferred automatically via its inputs, or stated explicitly via the `wait_for` parameter.
 
 ### Automatic
 
@@ -154,7 +154,7 @@ def final_task(input):
 
 ### Manual
 
-Tasks that do not share data can be informed of their upstream dependencies through the `wait_for` parameter. Just as with automatic dependencies, this applies to direct task function calls, [`.submit()`](https://docs.prefect.io/api-ref/prefect/tasks/#prefect.tasks.Task.submit), [`.map()`](https://docs.prefect.io/api-ref/prefect/tasks/#prefect.tasks.Task.map), and subflows.
+Tasks that do not share data can be informed of their upstream dependencies through the `wait_for` parameter. Just as with automatic dependencies, this applies to direct task function calls, [`.submit()`](https://docs.prefect.io/api-ref/prefect/tasks/#prefect.tasks.Task.submit), [`.map()`](https://docs.prefect.io/api-ref/prefect/tasks/#prefect.tasks.Task.map), and nested flows.
 
 <Warning>
 **Differences with `.map()`**
@@ -248,7 +248,7 @@ def downstream_task():
 ```
 
 
-By default, deployments started from `run_deployment` will also appear as subflows for tracking purposes. This behavior can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
+By default, deployments started from `run_deployment` will also appear as nested flows for tracking purposes. This behavior can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
 
 <Frame caption="Flow run graph displaying deployments as dependencies with the 'Dependency grid' layout selected">![Flow of deployments](/images/upstream3.png)</Frame>
 
