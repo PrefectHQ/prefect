@@ -56,7 +56,7 @@ class PrefectFuture(abc.ABC):
     def wait(self, timeout: Optional[float] = None) -> None:
         ...
         """
-        Wait for the task run to complete. 
+        Wait for the task run to complete.
 
         If the task run has already completed, this method will return immediately.
 
@@ -162,6 +162,10 @@ class PrefectDistributedFuture(PrefectFuture):
                 "Final state already set for %s. Returning...", self.task_run_id
             )
             return
+
+        # Ask for the instance of TaskRunWaiter _now_ so that it's already running and
+        # can catch the completion event if it happens before we start listening for it.
+        TaskRunWaiter.instance()
 
         # Read task run to see if it is still running
         async with get_client() as client:

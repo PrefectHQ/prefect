@@ -92,13 +92,18 @@ class TaskRunWaiter:
             raise RuntimeError("TaskRunWaiter must run on the global loop thread.")
 
         self._loop = loop_thread._loop
-        self._consumer_task = self._loop.create_task(self._consume_events())
+
+        consumer_started = asyncio.Event()
+        self._consumer_task = self._loop.create_task(
+            self._consume_events(consumer_started)
+        )
+        asyncio.run_coroutine_threadsafe(consumer_started.wait(), self._loop)
 
         loop_thread.add_shutdown_call(create_call(self.stop))
         atexit.register(self.stop)
         self._started = True
 
-    async def _consume_events(self):
+    async def _consume_events(self, consumer_started: asyncio.Event):
         async with get_events_subscriber(
             filter=EventFilter(
                 event=EventNameFilter(
@@ -109,6 +114,7 @@ class TaskRunWaiter:
                 )
             )
         ) as subscriber:
+            consumer_started.set()
             async for event in subscriber:
                 try:
                     self.logger.debug(
