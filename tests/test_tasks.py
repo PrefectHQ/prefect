@@ -1597,7 +1597,7 @@ class TestTaskCaching:
         def foo(x):
             return x
 
-        assert foo.cache_policy == NONE
+        assert foo.cache_policy == cache_policy
 
         assert (
             "Ignoring `cache_policy` because `persist_result` is False"

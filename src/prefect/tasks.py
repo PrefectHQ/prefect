@@ -380,7 +380,7 @@ class Task(Generic[P, R]):
         self.refresh_cache = refresh_cache
 
         if not persist_result:
-            self.cache_policy = NONE
+            self.cache_policy = None if cache_policy is None else NONE
             if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
                 logger.warning(
                     "Ignoring `cache_policy` because `persist_result` is False"
