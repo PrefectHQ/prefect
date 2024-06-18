@@ -534,23 +534,19 @@ def test_task_inherits_default_result_settings():
         return get_run_context().result_factory
 
     _, task_factory = foo()
-    assert task_factory.persist_result is False
+    assert task_factory.persist_result
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
     assert task_factory.storage_block_id is not None
 
 
 def test_task_default_result_serializer_can_be_overriden_by_setting():
-    @flow
-    def foo():
-        return get_run_context().result_factory, bar()
-
-    @task
+    @task(persist_result=False)
     def bar():
         return get_run_context().result_factory
 
     with temporary_settings({PREFECT_RESULTS_DEFAULT_SERIALIZER: "json"}):
-        _, task_factory = foo()
+        task_factory = bar()
 
     assert task_factory.serializer == JSONSerializer()
 
@@ -603,7 +599,7 @@ def test_task_custom_cache_setting(toggle):
 
     flow_factory = foo()
     assert flow_factory.cache_result_in_memory is True
-    assert task_factory.persist_result is not toggle  # Persistence toggled on
+    assert task_factory.persist_result  # Persistence on unless explicitly turned off
     assert task_factory.cache_result_in_memory is toggle
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
@@ -713,7 +709,7 @@ async def test_task_inherits_custom_storage(tmp_path):
         return get_run_context().result_factory
 
     flow_factory, task_factory = foo()
-    assert task_factory.persist_result is False
+    assert task_factory.persist_result
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert task_factory.storage_block == flow_factory.storage_block
     assert task_factory.storage_block_id == storage_id
@@ -882,7 +878,7 @@ async def test_default_storage_creation_for_task_with_persistence_features(
 
 
 async def test_default_storage_creation_for_task_without_persistence_features():
-    @task
+    @task(persist_result=False)
     def my_task():
         return get_run_context().result_factory
 
