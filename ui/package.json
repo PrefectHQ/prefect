@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@prefecthq/prefect-design": "2.11.2",
-    "@prefecthq/prefect-ui-library": "3.2.5",
+    "@prefecthq/prefect-ui-library": "3.2.6",
     "@prefecthq/vue-charts": "2.0.4",
     "@prefecthq/vue-compositions": "1.11.4",
     "@types/lodash.debounce": "4.0.9",
@@ -19,8 +19,8 @@
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
     "tailwindcss": "3.4.4",
-    "vue": "3.4.27",
-    "vue-router": "4.3.2"
+    "vue": "3.4.29",
+    "vue-router": "4.3.3"
   },
   "devDependencies": {
     "@prefecthq/eslint-config": "1.0.32",
@@ -30,7 +30,7 @@
     "eslint": "^8.57.0",
     "ts-node": "10.9.2",
     "typescript": "^5.4.5",
-    "vite": "5.2.13",
+    "vite": "5.3.1",
     "vue-tsc": "^2.0.21"
   }
 }

@@ -291,8 +291,8 @@ async def get_scheduled_flow_runs(
     work_queue_ids: List[UUID] = None,
     scheduled_before: datetime.datetime = None,
     scheduled_after: datetime.datetime = None,
-    limit: int = None,
-    respect_queue_priorities: bool = None,
+    limit: Optional[int] = None,
+    respect_queue_priorities: Optional[bool] = None,
 ) -> Sequence[schemas.responses.WorkerFlowRunResponse]:
     """
     Get runs from queues in a specific work pool.
@@ -674,8 +674,8 @@ async def read_workers(
     session: AsyncSession,
     work_pool_id: UUID,
     worker_filter: schemas.filters.WorkerFilter = None,
-    limit: int = None,
-    offset: int = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
 ) -> Sequence[orm_models.Worker]:
     query = (
         sa.select(orm_models.Worker)

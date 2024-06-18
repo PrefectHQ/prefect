@@ -299,9 +299,17 @@ class TaskRunEngine(Generic[P, R]):
         if result_factory is None:
             raise ValueError("Result factory is not set")
 
+        if self.task.cache_expiration is not None:
+            expiration = pendulum.now("utc") + self.task.cache_expiration
+        else:
+            expiration = None
+
         terminal_state = run_coro_as_sync(
             return_value_to_state(
-                result, result_factory=result_factory, key=transaction.key
+                result,
+                result_factory=result_factory,
+                key=transaction.key,
+                expiration=expiration,
             )
         )
         transaction.stage(
@@ -409,9 +417,7 @@ class TaskRunEngine(Generic[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_coro_as_sync(
-                        ResultFactory.from_autonomous_task(self.task)
-                    ),  # type: ignore
+                    result_factory=run_coro_as_sync(ResultFactory.from_task(self.task)),  # type: ignore
                     client=client,
                 )
             )
@@ -459,9 +465,6 @@ class TaskRunEngine(Generic[P, R]):
                                 extra_task_inputs=dependencies,
                             )
                         )
-                        self.logger.info(
-                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
-                        )
                     # Emit an event to capture that the task run was in the `PENDING` state.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
@@ -470,6 +473,10 @@ class TaskRunEngine(Generic[P, R]):
                     )
 
                     with self.setup_run_context():
+                        # setup_run_context might update the task run name, so log creation here
+                        self.logger.info(
+                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                        )
                         yield self
 
                 except Exception:
@@ -502,20 +509,20 @@ class TaskRunEngine(Generic[P, R]):
                         )
                         msg += dedent(
                             """
-                                      
+
                             Example:
-                            
+
                             from prefect import flow, task
-                                      
+
                             @task
                             def say_hello(name):
                                 print f"Hello, {name}!"
-                                      
+
                             @flow
                             def example_flow():
                                 say_hello.submit(name="Marvin)
                                 say_hello.wait()
-                                      
+
                             example_flow()
                                       """
                         )

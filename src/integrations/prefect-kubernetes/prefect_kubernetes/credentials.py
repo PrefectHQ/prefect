@@ -68,8 +68,8 @@ class KubernetesClusterConfig(Block):
         return value
 
     @classmethod
-    async def from_file(
-        cls: Type[Self], path: Path = None, context_name: str = None
+    def from_file(
+        cls: Type[Self], path: Optional[Path] = None, context_name: Optional[str] = None
     ) -> Self:
         """
         Create a cluster config from the a Kubernetes config file.

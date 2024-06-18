@@ -22,6 +22,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -43,7 +44,7 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.records.cache_policies import DEFAULT, CachePolicy
+from prefect.records.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -217,10 +218,8 @@ class Task(Generic[P, R]):
             cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd".
-        persist_result: An optional toggle indicating whether the result of this task
-            should be persisted to result storage. Defaults to `None`, which indicates
-            that Prefect should choose whether the result should be persisted depending on
-            the features being used.
+        persist_result: An toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `True`.
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
@@ -272,7 +271,7 @@ class Task(Generic[P, R]):
             ]
         ] = None,
         retry_jitter_factor: Optional[float] = None,
-        persist_result: Optional[bool] = None,
+        persist_result: bool = True,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
         result_storage_key: Optional[str] = None,
@@ -367,7 +366,11 @@ class Task(Generic[P, R]):
 
             self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
-        # TODO: warn of precedence of cache policies and cache key fn if both provided?
+        if cache_policy is not NotSet and cache_key_fn is not None:
+            logger.warning(
+                f"Both `cache_policy` and `cache_key_fn` are set on task {self}. `cache_key_fn` will be used."
+            )
+
         if cache_key_fn:
             cache_policy = CachePolicy.from_cache_key_fn(cache_key_fn)
 
@@ -376,7 +379,13 @@ class Task(Generic[P, R]):
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
 
-        if cache_policy is NotSet and result_storage_key is None:
+        if not persist_result:
+            self.cache_policy = None if cache_policy is None else NONE
+            if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
+                logger.warning(
+                    "Ignoring `cache_policy` because `persist_result` is False"
+                )
+        elif cache_policy is NotSet and result_storage_key is None:
             self.cache_policy = DEFAULT
         elif result_storage_key:
             # TODO: handle this situation with double storage
@@ -454,31 +463,32 @@ class Task(Generic[P, R]):
     def with_options(
         self,
         *,
-        name: str = None,
-        description: str = None,
-        tags: Iterable[str] = None,
-        cache_policy: CachePolicy = NotSet,
-        cache_key_fn: Callable[
-            ["TaskRunContext", Dict[str, Any]], Optional[str]
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
+        cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+        cache_key_fn: Optional[
+            Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
         task_run_name: Optional[Union[Callable[[], str], str]] = None,
-        cache_expiration: datetime.timedelta = None,
-        retries: Optional[int] = NotSet,
+        cache_expiration: Optional[datetime.timedelta] = None,
+        retries: Union[int, Type[NotSet]] = NotSet,
         retry_delay_seconds: Union[
             float,
             int,
             List[float],
             Callable[[int], List[float]],
+            Type[NotSet],
         ] = NotSet,
-        retry_jitter_factor: Optional[float] = NotSet,
-        persist_result: Optional[bool] = NotSet,
-        result_storage: Optional[ResultStorage] = NotSet,
-        result_serializer: Optional[ResultSerializer] = NotSet,
-        result_storage_key: Optional[str] = NotSet,
+        retry_jitter_factor: Union[float, Type[NotSet]] = NotSet,
+        persist_result: Union[bool, Type[NotSet]] = NotSet,
+        result_storage: Union[ResultStorage, Type[NotSet]] = NotSet,
+        result_serializer: Union[ResultSerializer, Type[NotSet]] = NotSet,
+        result_storage_key: Union[str, Type[NotSet]] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
-        timeout_seconds: Union[int, float] = None,
-        log_prints: Optional[bool] = NotSet,
-        refresh_cache: Optional[bool] = NotSet,
+        timeout_seconds: Union[int, float, None] = None,
+        log_prints: Union[bool, Type[NotSet]] = NotSet,
+        refresh_cache: Union[bool, Type[NotSet]] = NotSet,
         on_completion: Optional[
             List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
         ] = None,
@@ -1306,13 +1316,15 @@ def task(__fn: Callable[P, R]) -> Task[P, R]:
 @overload
 def task(
     *,
-    name: str = None,
-    description: str = None,
-    tags: Iterable[str] = None,
-    version: str = None,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
+    version: Optional[str] = None,
     cache_policy: CachePolicy = NotSet,
-    cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
-    cache_expiration: datetime.timedelta = None,
+    cache_key_fn: Optional[
+        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+    ] = None,
+    cache_expiration: Optional[datetime.timedelta] = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
@@ -1322,12 +1334,12 @@ def task(
         Callable[[int], List[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
-    persist_result: Optional[bool] = None,
+    persist_result: bool = True,
     result_storage: Optional[ResultStorage] = None,
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
-    timeout_seconds: Union[int, float] = None,
+    timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
@@ -1341,28 +1353,25 @@ def task(
 def task(
     __fn=None,
     *,
-    name: str = None,
-    description: str = None,
-    tags: Iterable[str] = None,
-    version: str = None,
-    cache_policy: CachePolicy = NotSet,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
+    version: Optional[str] = None,
+    cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
-    cache_expiration: datetime.timedelta = None,
+    cache_expiration: Optional[datetime.timedelta] = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = None,
+    retries: Optional[int] = None,
     retry_delay_seconds: Union[
-        float,
-        int,
-        List[float],
-        Callable[[int], List[float]],
+        float, int, List[float], Callable[[int], List[float]], None
     ] = None,
     retry_jitter_factor: Optional[float] = None,
-    persist_result: Optional[bool] = None,
+    persist_result: bool = True,
     result_storage: Optional[ResultStorage] = None,
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
-    timeout_seconds: Union[int, float] = None,
+    timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
@@ -1403,10 +1412,8 @@ def task(
             cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd".
-        persist_result: An optional toggle indicating whether the result of this task
-            should be persisted to result storage. Defaults to `None`, which indicates
-            that Prefect should choose whether the result should be persisted depending on
-            the features being used.
+        persist_result: An toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `True`.
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.

@@ -4,156 +4,210 @@ Title: Integrations
 description: Prefect integrations are PyPI packages you can install to help you build integrate your workflows with third parties.
 ---
 
-## Install an integration library
+<CardGroup cols={4}  className="text-center">
 
-Install an integration with `pip`.
+    <Card title="Alert">
+        <a href="https://khuyentran1401.github.io/prefect-alert/"> <img src="/images/integrations/alert.png" alt="prefect-alert"/>
+        </a>
+        Maintained by <a href="https://github.com/khuyentran1401"> Khuyen Tran </a>
+    </Card>
 
-For example, to use `prefect-aws`:
+    <Card title="AWS">
+        <a href="prefect-aws"> <img src="/images/integrations/aws.png" alt="prefect-aws"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-```bash
-pip install -U prefect-aws
-```
+    <Card title="Azure">
+        <a href="prefect-azure"> <img src="/images/integrations/azure.png" alt="prefect-azure"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-## Register blocks from an integration
+    <Card title="Bitbucket">
+        <a href="prefect-bitbucket"> <img src="/images/integrations/bitbucket.png" alt="prefect-bitbucket"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-Once the packages is installed, [register the blocks](/3.0rc/develop/connect-third-party/#registering-blocks-for-use-in-the-prefect-ui) within the integration to view them in the Prefect Cloud UI:
+    <Card title="Coiled">
+        <a href="https://docs.coiled.io/user_guide/labs/prefect.html?utm_source=prefect-docs&utm_medium=integrations"> <img src="/images/integrations/coiled.png" alt="coiled"/>
+        </a>
+        Maintained by <a href="https://www.coiled.io/"> Coiled </a>
+    </Card>
 
-For example, to register the blocks available in `prefect-aws`:
+    <Card title="CubeJS">
+        <a href="https://alessandrolollo.github.io/prefect-cubejs/"> <img src="/images/integrations/cubejs.png" alt="prefect-cubejs"/>
+        </a>
+        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
+    </Card>
 
-```bash
-prefect block register -m prefect_aws
-```
+    <Card title="Dask">
+        <a href="prefect-dask"> <img src="/images/integrations/dask.png" alt="prefect-dask"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-To use a block's `load` method, you must have a block [saved](/3.0rc/develop/connect-third-party/#saving-blocks). [Learn more about blocks](/3.0rc/develop/connect-third-party).
+    <Card title="Databricks">
+        <a href="https://prefecthq.github.io/prefect-databricks/"> <img src="/images/integrations/databricks.png" alt="prefect-databricks"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-## Using Tasks and Flows from an Integration
+    <Card title="dbt">
+        <a href="prefect-dbt"> <img src="/images/integrations/dbt.png" alt="prefect-dbt"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-Integrations also contain pre-built tasks and flows that can be imported and called within your code.
+    <Card title="Docker">
+        <a href="prefect-docker"> <img src="/images/integrations/docker.png" alt="prefect-docker"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-For example, =read a secret from AWS Secrets Manager with the `read_secret` task with the following code:
+    <Card title="Earthdata">
+        <a href="https://giorgiobasile.github.io/prefect-earthdata/"> <img src="/images/integrations/nasa.png" alt="prefect-earthdata"/>
+        </a>
+        Maintained by <a href="https://github.com/giorgiobasile"> Giorgio Basile </a>
+    </Card>
 
-```python
-from prefect import flow
-from prefect_aws import AwsCredentials
-from prefect_aws.secrets_manager import read_secret
+    <Card title="Email">
+        <a href="prefect-email"> <img src="/images/integrations/email.png" alt="prefect-email"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-@flow
-def connect_to_database():
-    aws_credentials = AwsCredentials.load("MY_BLOCK_NAME")
-    secret_value = read_secret(
-        secret_name="db_password",
-        aws_credentials=aws_credentials
-    )
+    <Card title="Fivetran">
+        <a href="https://fivetran.github.io/prefect-fivetran/"> <img src="/images/integrations/fivetran.png" alt="prefect-fivetran"/>
+        </a>
+        Maintained by <a href="https://www.fivetran.com/"> Fivetran </a>
+    </Card>
 
-    # Use secret_value to connect to a database
-```
+    <Card title="Fugue">
+        <a href="https://fugue-project.github.io/prefect-fugue/"> <img src="https://avatars.githubusercontent.com/u/65140352?s=200&v=4" alt="prefect-fugue"/>
+        </a>
+        Maintained by <a href="https://github.com/fugue-project/fugue"> The Fugue Development Team </a>
+    </Card>
 
-## Customize tasks and flows from an integration
+    <Card title="GCP">
+        <a href="prefect-gcp"> <img src="/images/integrations/gcp.png" alt="prefect-gcp"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-To customize pre-configured tasks or flows use `with_options`:
-    
-```python
-from prefect import flow
-from prefect_dbt.cloud import DbtCloudCredentials
-from prefect_dbt.cloud.jobs import trigger_dbt_cloud_job_run_and_wait_for_completion
+    <Card title="GitHub">
+        <a href="prefect-github"> <img src="/images/integrations/github.png" alt="prefect-github"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
+    <Card title="GitLab">
+        <a href="prefect-gitlab"> <img src="/images/integrations/gitlab.png" alt="prefect-gitlab"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-custom_run_dbt_cloud_job = trigger_dbt_cloud_job_run_and_wait_for_completion.with_options(
-    name="Run My DBT Cloud Job",
-    retries=2,
-    retry_delay_seconds=10
-)
+    <Card title="Google Sheets">
+        <a href="https://stefanocascavilla.github.io/prefect-google-sheets/"> <img src="/images/integrations/gsheets.png" alt="prefect-google-sheets"/>
+        </a>
+        Maintained by <a href="https://github.com/stefanocascavilla"> Stefano Cascavilla </a>
+    </Card>
 
-@flow
-def run_dbt_job_flow():
-    run_result = custom_run_dbt_cloud_job(
-        dbt_cloud_credentials=DbtCloudCredentials.load("my-dbt-cloud-credentials"),
-        job_id=1
-    )
+    <Card title="HashiCorp Vault">
+        <a href="https://github.com/pbchekin/prefect-vault"> <img src="/images/integrations/vault.png" alt="prefect-vault"/>
+        </a>
+        Maintained by <a href="https://github.com/pbchekin"> Pavel Chekin </a>
+    </Card>
 
-if __name__ == "__main__":  
-    run_dbt_job_flow()
-```
+    <Card title="Kubernetes">
+        <a href="prefect-kubernetes"> <img src="/images/integrations/kubernetes.png" alt="prefect-kubernetes"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-## Create a custom block for use in an integration
+    <Card title="KV">
+        <a href="https://github.com/zanieb/prefect-kv"> <img src="/images/integrations/prefect-kv.svg" alt="prefect-kv"/>
+        </a>
+        Maintained by <a href="https://github.com/zanieb"> Zanie Blue </a>
+    </Card>
 
-Prefect welcomes community contributions of integration libraries.
+    <Card title="MetricFlow">
+        <a href="https://alessandrolollo.github.io/prefect-metricflow/"> <img src="/images/integrations/metricflow.png" alt="prefect-metricflow"/>
+        </a>
+        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
+    </Card>
 
-Most integrations contain custom blocks to interact with third-party services.
+    <Card title="Planetary Computer">
+        <a href="https://giorgiobasile.github.io/prefect-planetary-computer/"> <img src="/images/integrations/microsoft.png" alt="prefect-planetary-computer"/>
+        </a>
+        Maintained by <a href="https://github.com/giorgiobasile"> Giorgio Basile </a>
+    </Card>
 
-Here's the process to create a custom block:
+    <Card title="Ray">
+        <a href="prefect-ray"> <img src="/images/integrations/ray.png" alt="prefect-ray"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-1. Subclass from `Block`.
-1. Add a description alongside an `Attributes` and `Example` section in the docstring.
-1. Set a `_logo_url` to point to a relevant image.
-1. Create the `pydantic.Field`s of the block with a type annotation, `default` or `default_factory`, and a short description about the field.
-1. Define the methods of the block.
+    <Card title="Shell">
+        <a href="prefect-shell"> <img src="/images/integrations/shell.png" alt="prefect-shell"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-For example, this is how the [Secret block is implemented](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/system.py#L76-L102):
+    <Card title="Sifflet">
+        <a href="https://siffletapp.github.io/prefect-sifflet/"> <img src="/images/integrations/sifflet.png" alt="prefect-sifflet"/>
+        </a>
+        Maintained by <a href="https://www.siffletdata.com/"> Sifflet and Alessandro Lollo </a>
+    </Card>
 
-```python
-from pydantic import Field, SecretStr
-from prefect.blocks.core import Block
+    <Card title="Slack">
+        <a href="prefect-slack"> <img src="/images/integrations/slack.png" alt="prefect-slack"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-class Secret(Block):
-    """
-    A block that represents a secret value. The value stored in this block will be obfuscated when
-    this block is logged or shown in the UI.
+    <Card title="Snowflake">
+        <a href="prefect-snowflake"> <img src="/images/integrations/snowflake.png" alt="prefect-snowflake"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-    Attributes:
-        value: A string value that should be kept secret.
+    <Card title="Soda Cloud">
+        <a href="https://alessandrolollo.github.io/prefect-soda-cloud/"> <img src="/images/integrations/soda.png" alt="prefect-soda-cloud"/>
+        </a>
+        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
+    </Card>
 
-    Example:
-        (wrap in tripple backticsk and *python* to render correctly in the docs)
-        from prefect.blocks.system import Secret
-        secret_block = Secret.load("BLOCK_NAME")
+    <Card title="Soda Core">
+        <a href="https://sodadata.github.io/prefect-soda-core/"> <img src="/images/integrations/soda.png" alt="prefect-soda-core"/>
+        </a>
+        Maintained by <a href="https://github.com/sodadata"> Soda and Alessandro Lollo </a>
+    </Card>
 
-        # Access the stored secret
-        secret_block.get()
-        
-    """
+    <Card title="Spark on Kubernetes">
+        <a href="https://tardunge.github.io/prefect-spark-on-k8s-operator/"> <img src="/images/integrations/spark-on-kubernetes.png" alt="prefect-spark-on-k8s-operator"/>
+        </a>
+        Maintained by <a href="https://github.com/tardunge"> Manoj Babu Katragadda </a>
+    </Card>
 
-    _logo_url = "https://example.com/logo.png"
+    <Card title="SQLAlchemy">
+        <a href="prefect-sqlalchemy"> <img src="/images/integrations/sqlalchemy.png" alt="prefect-sqlalchemy"/>
+        </a>
+        Maintained by <a href="https://prefect.io"> Prefect </a>
+    </Card>
 
-    value: SecretStr = Field(
-        default=..., description="A string value that should be kept secret."
-    )  # ... indicates it's a required field
+    <Card title="Stitch">
+        <a href="https://alessandrolollo.github.io/prefect-stitch/"> <img src="/images/integrations/stitch.png" alt="prefect-stitch"/>
+        </a>
+        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
+    </Card>
 
-    def get(self):
-        return self.value.get_secret_value()
-```
+    <Card title="Transform">
+        <a href="https://alessandrolollo.github.io/prefect-transform/"> <img src="/images/integrations/transform.png" alt="prefect-transform"/>
+        </a>
+        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
+    </Card>
 
-To view in Prefect Cloud or the Prefect server UI, [register the block](https://docs.prefect.io/develop/connect-third-party/#registering-blocks-for-use-in-the-prefect-ui).
-
-## Create a Prefect integration library
-
-### Generate a project
-
-To help you get started with your integration, we've created a template that gives the tools you need to create and publish your integration.
-
-Use the [Prefect Integration template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to get started creating an integration with a bootstrapped project!
-
-### List a project in the integrations catalog
-
-To list your integration in the Prefect integrations catalog, submit a PR to the Prefect repository adding a file to the `docs/integrations/catalog` directory with details about your integration. Please use `TEMPLATE.yaml` in that folder as a guide.
-
-## Contribute fixes or enhancements to integrations
-
-To fix an issue or add a feature to any Prefect-maintained ntegrations, please [propose changes through a pull request from a fork of the prefecthq/prefect repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
-
-1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
-2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
-3. Install the repository and its dependencies:
-
-```
-pip install -e ".[dev]"
-```
-
-4. Make desired changes
-5. Add tests
-6. Insert an entry to the Integration's CHANGELOG.md
-7. Install `pre-commit` to perform quality checks prior to commit:
-```
-pre-commit install
-```
-8. `git commit`, `git push`, and create a pull request
+</CardGroup>
