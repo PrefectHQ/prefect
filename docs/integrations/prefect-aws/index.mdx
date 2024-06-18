@@ -14,21 +14,19 @@ For example, you can retrieve secrets using AWS Secrets Manager, read and write 
 
 ### Install prefect-aws
 
-<div class = "terminal">
+
 ```bash
 pip install -U prefect-aws
 ```
-</div>
+
 
 ### Register newly installed block types
 
 Register the block types in the prefect-aws module to make them available for use.
 
-<div class = "terminal">
 ```bash
 prefect block register -m prefect_aws
 ```
-</div>
 
 ## Examples
 
@@ -36,9 +34,9 @@ prefect block register -m prefect_aws
 
 Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
 
-See the [ECS guide](/3.0rc/ecs_guide/) for a walkthrough of using ECS in a hybrid work pool.
+See the [ECS work pool docs](/integrations/prefect-aws/ecs_guide) for a walkthrough of using ECS in a hybrid work pool.
 
-If you're using Prefect Cloud, [ECS push work pools](https://docs.prefect.io/latest/deploy/dynamic-infra/push-runs-serverless/#__tabbed_1_1) provide all the benefits of ECS with a quick setup and no worker needed.
+If you're using Prefect Cloud, [ECS push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless) provide all the benefits of ECS with a quick setup and no worker needed.
 
 In the examples below, you create blocks with Python code.
 Alternatively, each block can be created through the Prefect UI.
@@ -70,7 +68,7 @@ Prefect is using the Boto3 library under the hood.
 To find credentials for authentication, any data not provided to the block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
 Prefect creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
 
-See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in [this guide](https://docs.prefect.io/latest/guides/secrets/).
+See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in the [docs](/3.0rc/resources/secrets).
 
 Here's how to load the saved credentials:
 

@@ -8,14 +8,17 @@ Execute shell commands from within Prefect flows.
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/get-started/install/).
+Requires an installation of Python 3.9+
+
+We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
+
+These tasks are designed to work with Prefect 3. 
 
 ### Install `prefect-shell`
 
 ```bash
 pip install -U prefect-shell
 ```
-
 
 ### Register newly installed block types
 
@@ -128,4 +131,4 @@ ping_op = ShellOperation.load("block-name")
 
 ## Resources
 
-Refer to the prefect-shell API documentation linked in the sidebar to explore all the capabilities of the prefect-shell library.
+Refer to the prefect-shell SDK documentation linked in the sidebar to explore all the capabilities of the prefect-shell library.
