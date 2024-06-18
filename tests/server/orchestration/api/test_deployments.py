@@ -1294,6 +1294,153 @@ class TestReadDeployments:
         assert response.json() == []
 
 
+class TestPaginateDeployments:
+    @pytest.fixture
+    async def deployment_id_1(self):
+        return uuid4()
+
+    @pytest.fixture
+    async def deployment_id_2(self):
+        return uuid4()
+
+    @pytest.fixture
+    async def deployments(
+        self,
+        session,
+        deployment_id_1,
+        deployment_id_2,
+        flow,
+        flow_function,
+    ):
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_1,
+                name="My Deployment X",
+                flow_id=flow.id,
+                is_schedule_active=True,
+            ),
+        )
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_2,
+                name="My Deployment Y",
+                flow_id=flow.id,
+                is_schedule_active=False,
+            ),
+        )
+        await session.commit()
+
+    async def test_paginate_deployments(self, deployments, client):
+        response = await client.post("/deployments/paginate")
+        assert response.status_code == status.HTTP_200_OK
+
+        assert response.json()["page"] == 1
+        assert response.json()["pages"] == 1
+        assert response.json()["count"] == 2
+        assert len(response.json()["results"]) == 2
+
+        assert response.json()["results"][0]["status"] == "NOT_READY"
+
+    async def test_paginate_deployments_applies_filter(
+        self, deployments, deployment_id_1, deployment_id_2, flow, client
+    ):
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                name=schemas.filters.DeploymentFilterName(any_=["My Deployment X"])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/deployments/paginate", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert {deployment["id"] for deployment in response.json()["results"]} == {
+            str(deployment_id_1)
+        }
+
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                name=schemas.filters.DeploymentFilterName(any_=["My Deployment 123"])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/deployments/paginate", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()["results"]) == 0
+
+        deployment_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow.name])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/deployments/paginate", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert {deployment["id"] for deployment in response.json()["results"]} == {
+            str(deployment_id_1),
+            str(deployment_id_2),
+        }
+
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                name=schemas.filters.DeploymentFilterName(any_=["My Deployment X"])
+            ).model_dump(mode="json"),
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=["not a flow name"])
+            ).model_dump(mode="json"),
+        )
+        response = await client.post("/deployments/paginate", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()["results"]) == 0
+
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                flow_or_deployment_name=schemas.filters.DeploymentOrFlowNameFilter(
+                    like_=flow.name
+                )
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/deployments/paginate", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert {deployment["id"] for deployment in response.json()["results"]} == {
+            str(deployment_id_1),
+            str(deployment_id_2),
+        }
+
+    async def test_paginate_deployments_applies_limit(self, deployments, client):
+        response = await client.post("/deployments/paginate", json=dict(limit=1))
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()["results"]) == 1
+
+    async def test_paginate_deployments_page(self, deployments, client, session):
+        response = await client.post(
+            "/deployments/paginate", json=dict(page=2, limit=1)
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()["results"]) == 1
+        # sorted by name by default
+        assert response.json()["results"][0]["name"] == "My Deployment Y"
+
+    async def test_paginate_deployments_sort(self, deployments, client):
+        response = await client.post(
+            "/deployments/paginate",
+            json=dict(sort=schemas.sorting.DeploymentSort.NAME_ASC),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["results"][0]["name"] == "My Deployment X"
+
+        response_desc = await client.post(
+            "/deployments/paginate",
+            json=dict(sort=schemas.sorting.DeploymentSort.NAME_DESC),
+        )
+        assert response_desc.status_code == status.HTTP_200_OK
+        assert response_desc.json()["results"][0]["name"] == "My Deployment Y"
+
+    async def test_paginate_deployments_returns_empty_list(self, client):
+        response = await client.post("/deployments/paginate")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["results"] == []
+
+
 class TestUpdateDeployment:
     async def test_update_deployment_enforces_parameter_schema(
         self,
