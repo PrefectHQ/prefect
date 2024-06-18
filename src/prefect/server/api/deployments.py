@@ -25,6 +25,7 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.server.schemas.responses import DeploymentPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
@@ -386,6 +387,66 @@ async def read_deployments(
             )
             for deployment in response
         ]
+
+
+@router.post("/paginate")
+async def paginate_deployments(
+    limit: int = dependencies.LimitBody(),
+    page: int = Body(1, ge=1),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_pool_queues: schemas.filters.WorkQueueFilter = None,
+    sort: schemas.sorting.DeploymentSort = Body(
+        schemas.sorting.DeploymentSort.NAME_ASC
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> DeploymentPaginationResponse:
+    """
+    Pagination query for flow runs.
+    """
+    offset = (page - 1) * limit
+
+    async with db.session_context() as session:
+        response = await models.deployments.read_deployments(
+            session=session,
+            offset=offset,
+            sort=sort,
+            limit=limit,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            work_queue_filter=work_pool_queues,
+        )
+
+        count = await models.deployments.count_deployments(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            work_queue_filter=work_pool_queues,
+        )
+
+    results = [
+        schemas.responses.DeploymentResponse.model_validate(
+            deployment, from_attributes=True
+        )
+        for deployment in response
+    ]
+
+    return DeploymentPaginationResponse(
+        results=results,
+        count=count,
+        limit=limit,
+        pages=(count + limit - 1) // limit,
+        page=page,
+    )
 
 
 @router.post("/get_scheduled_flow_runs")
