@@ -228,26 +228,17 @@ ______________________________________________________
 
 To schedule a run for the deployment:
 
-<Tabs>
-  <Tab title="Cloud">
-You can run your flow with the Prefect UI on the **Deployments** page.
-
-The deployment is configured to run on a Prefect Managed work pool, so Prefect automatically spins up the infrastructure to run the flow. 
+```bash
+prefect deployment run 'repo-info/my-first-deployment'
+```
 
 After a minute or so, you should see the flow run graph and logs on the Flow Run page in the UI.
 
-![Managed flow run graph and logs](/3.0rc/img/ui/qs-flow-run.png)
+![Flow run graph and logs](/3.0rc/img/ui/qs-flow-run.png)
 
 <Warning>
     After testing this process, click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
 </Warning>
-  </Tab>
-  <Tab title="OSS">
-```bash
-prefect deployment run 'repo-info/my-first-deployment'
-```
-  </Tab>
-</Tabs>
 
 ## Next steps
 
