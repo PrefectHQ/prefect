@@ -13,21 +13,21 @@ The prefect-bitbucket library makes it easy to interact with Bitbucket repositor
 
 ### Install prefect-bitbucket
 
-<div class = "terminal">
+
 ```bash
 pip install -U prefect-bitbucket
 ```
-</div>
+
 
 ### Register newly installed block types
 
 Register the block types in the prefect-bitbucket module to make them available for use.
 
-<div class = "terminal">
+
 ```bash
 prefect block register -m prefect_bitbucket
 ```
-</div>
+
 
 ## Examples
 
@@ -41,7 +41,7 @@ To create a deployment and run a deployment where the flow code is stored in a p
 A deployment can use flow code stored in a Bitbucket repository without using this library in either of the following cases:
 
 - The repository is public
-- The deployment uses a [Secret block](https://docs.prefect.io/latest/develop/connect-third-party/) to store the token
+- The deployment uses a [Secret block](/3.0rc/resources/secrets) to store the token
 
 Create a Bitbucket Credentials block:
 

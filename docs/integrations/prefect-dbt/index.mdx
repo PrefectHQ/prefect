@@ -9,7 +9,7 @@ Prefect provides a global view of the state of your workflows and allows you to 
 
 ### Prerequisites
 
-- [Prefect installed](https://docs.prefect.io/latest/get-started/install/).
+- [Prefect installed](3.0rc/get-started/install).
 - A [dbt Cloud account](https://cloud.getdbt.com/signup) if using dbt Cloud.
 
 ### Install prefect-dbt
@@ -39,7 +39,7 @@ Register the block types in the prefect-dbt module to make them available for us
 
 ```bash
 prefect block register -m prefect_dbt
-
+```
 
 Explore the examples below to use Prefect with dbt.
 
@@ -188,14 +188,14 @@ DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
 
 **Available `TargetConfigs` blocks**
 
-Visit the [API Reference](cli/configs/base) to see other built-in `TargetConfigs` blocks.
+Visit the SDK reference in the side navigation to see other built-in `TargetConfigs` blocks.
 
-If the desired service profile is not available, check out the [Examples Catalog](examples_catalog/#clicredentials-module) to see how you can  build one from the generic `TargetConfigs` class.
+If the desired service profile is not available, you can build one from the generic `TargetConfigs` class.
 </Info>
 
 To create dbt Core target config and profile blocks for BigQuery:
 
-1. Save and load a [`GcpCredentials` block](https://prefecthq.github.io/prefect-gcp/#saving-credentials-to-a-block).
+1. Save and load a `GcpCredentials` block.
 2. Determine the schema / dataset you want to use in BigQuery.
 3. Create a short script, replacing the placeholders.
 
@@ -287,5 +287,5 @@ According to dbt's [Databricks setup page](https://docs.getdbt.com/reference/war
 pip install dbt-databricks
 ```
 
-Check out the [desired profile setup page](https://docs.getdbt.com/reference/profiles.yml) on the sidebar for others.
+Check out the [desired profile setup page](https://docs.getdbt.com/reference/profiles.yml) for other configuration.
 </Warning> 
