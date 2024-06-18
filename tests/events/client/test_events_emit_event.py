@@ -35,7 +35,7 @@ def test_emits_complex_event(
     emit_event(
         event="vogon.poetry.read",
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
-        occurred=DateTime(2023, 3, 1, 12, 39, 28, tzinfo=timezone.utc),
+        occurred=DateTime(2023, 3, 1, 12, 39, 28),
         related=[
             {
                 "prefect.resource.id": "vogon.ship.the-business-end",
