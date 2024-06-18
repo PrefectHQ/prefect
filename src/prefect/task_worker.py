@@ -362,7 +362,7 @@ class TaskWorker:
 
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task worker...")
-        self.started_at = None
+        self._started_at = None
         await self._exit_stack.__aexit__(*exc_info)
 
 
