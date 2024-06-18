@@ -175,6 +175,12 @@ Deploy your flow to your local server using a Docker type work pool.
    prefect work-pool ls
    ```
 
+1. Start a worker in the work pool:
+
+   ```bash
+   prefect worker start --pool my-work-pool
+   ```
+
 <Tip>
 You can also choose from other [work pool types](https://docs.prefect.io/concepts/work-pools/#worker-types).
 </Tip>
