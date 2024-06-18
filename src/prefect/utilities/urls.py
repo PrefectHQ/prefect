@@ -152,7 +152,7 @@ def url_for(
     base_url = base_url or default_base_url
 
     if not base_url:
-        logger.warning(
+        logger.info(
             f"No URL found for the Prefect {'UI' if url_type == 'ui' else 'API'}, "
             f"and no default base path provided."
         )
