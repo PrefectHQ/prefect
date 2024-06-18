@@ -29,14 +29,14 @@ See [Configuring settings](#configuring-settings) for details on setting and uns
 
 ### PREFECT_API_KEY
 
-The `PREFECT_API_KEY` value specifies the [API key](/3.0rc/cloud/cloud-api-keys/#create-an-api-key) used to authenticate with Prefect Cloud.
+The `PREFECT_API_KEY` value specifies the [API key](/3.0rc/manage/cloud/cloud-api-keys/#create-an-api-key) used to authenticate with Prefect Cloud.
 
 ```bash
 PREFECT_API_KEY="[API-KEY]"
 ```
 
 To set the `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`. 
-Read more about [managing API keys](/3.0rc/cloud/manage-users/api-keys/). 
+Read more about [managing API keys](/3.0rc/manage/cloud/manage-users/api-keys/). 
 
 ### PREFECT_API_URL
 
@@ -60,8 +60,8 @@ PREFECT_API_URL="http://127.0.0.1:4200/api"
 
 **`PREFECT_API_URL` setting for workers**
 
-If you're using a [worker](/3.0rc/deploy/dynamic-infra/control-runs/) to run flows in remote environments, 
-[`PREFECT_API_URL`](/3.0rc/cloud/configure-client/) must be set for the environment where your worker is running.
+If you're using a [worker](/3.0rc/deploy/work-pools/control-runs/) to run flows in remote environments, 
+[`PREFECT_API_URL`](/3.0rc/manage/configure-client/) must be set for the environment where your worker is running.
 
 For the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or 
 Docker container, you must configure `PREFECT_API_URL` in that environment.
@@ -75,13 +75,13 @@ locally-hosted Prefect UI instance, you must also configure the Prefect server i
 The [`PREFECT_UI_API_URL`](../../api-ref/prefect/settings/#PREFECT_UI_API_URL) should be set to the external proxy URL 
 (for example, if your external URL is \<https://prefect-server.example.com/> then set 
 `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process). 
-You can also set [`PREFECT_API_URL`](/3.0rc/cloud/configure-client/#prefect.settings.PREFECT_API_URL) to the API URL. 
+You can also set [`PREFECT_API_URL`](/3.0rc/manage/configure-client/#prefect.settings.PREFECT_API_URL) to the API URL. 
 This setting is a fallback if `PREFECT_UI_API_URL` is not set.
 
 ### PREFECT_HOME
 
 The `PREFECT_HOME` value specifies the local Prefect directory for configuration files, profiles, and the location of the 
-default [Prefect SQLite database](/3.0rc/concepts/database/).
+default Prefect SQLite database.
 
 ```bash
 PREFECT_HOME='~/.prefect'
@@ -127,7 +127,7 @@ PREFECT_CLIENT_CSRF_SUPPORT_ENABLED=True
 
 ### Database settings
 
-If running a self-hosted Prefect server instance, there are several [database configuration settings](/3.0rc/cloud/self-host/) to consider.
+If running a self-hosted Prefect server instance, there are several [database configuration settings](/3.0rc/manage/self-host/) to consider.
 
 ### Logging settings
 

@@ -5,7 +5,7 @@ description: Prefect can schedule when to automatically create new flow runs bas
 
 Prefect allows you to use schedules to automatically create new flow runs for deployments.
 
-Prefect Cloud can schedule flow runs through event-driven [automations](/3.0rc/react/understand-events/automations-triggers/).
+Prefect Cloud can schedule flow runs through event-driven [automations](/3.0rc/react/events/automations-triggers/).
 
 <Tip>
 **Support for multiple schedules**
@@ -14,7 +14,7 @@ You can assign multiple schedules to deployments in the Prefect UI, or the CLI w
 the `Deployment` class, and in 
 [block-based deployment](/3.0rc/deploy/serve-flows/#block-based-deployments) YAML files.
 
-Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [worker-based deployments](/3.0rc/deploy/dynamic-infra/control-runs/) 
+Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [worker-based deployments](/3.0rc/deploy/work-pools/control-runs/) 
 with `prefect deploy` will arrive soon.
 </Tip>
 
@@ -191,7 +191,7 @@ There are several ways to create a schedule for a deployment:
 - With the `cron`, `interval`, or `rrule` parameters if building your deployment with the 
 [`serve` method](/3.0rc/develop/write-flows/#serving-a-flow) of the `Flow` object or 
 [the `serve` utility](/3.0rc/develop/write-flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
-- If using [worker-based deployments](/3.0rc/deploy/dynamic-infra/control-runs/)
+- If using [worker-based deployments](/3.0rc/deploy/work-pools/control-runs/)
   - When you define a deployment with `flow.serve` or `flow.deploy`
   - Through the interactive `prefect deploy` command
   - With the `deployments` -> `schedules` section of the `prefect.yaml` file
@@ -268,7 +268,7 @@ timezone="America/Chicago"))
 
 ### Create schedules with the interactive `prefect deploy` command
 
-If you are using [worker-based deployments](/3.0rc/deploy/dynamic-infra/control-runs/), you can create a schedule through the 
+If you are using [worker-based deployments](/3.0rc/deploy/work-pools/control-runs/), you can create a schedule through the 
 interactive `prefect deploy` command.
 
 You will be prompted to choose which type of schedule to create.
@@ -321,7 +321,7 @@ PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00'
 ```
 </div>
 
-See the [Settings docs](/3.0rc/cloud/configure-client/) for more information on altering your settings.
+See the [Settings docs](/3.0rc/manage/configure-client/) for more information on altering your settings.
 
 These settings mean that if a deployment has an hourly schedule, the default settings will create runs for the next four days 
 (or 100 hours).
