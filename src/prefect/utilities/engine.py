@@ -682,14 +682,14 @@ def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str
                 f" {type(task_run_name).__name__} but a string is required."
             )
     elif isinstance(task.task_run_name, str):
-        task_run_name = task.task_run_name.format(**parameters)
+        task_run_name = task.task_run_name
     else:
         raise TypeError(
             "Expected string or callable for 'task_run_name'; got"
             f" {type(task.task_run_name).__name__} instead."
         )
 
-    return task_run_name
+    return task_run_name.format(__fn__=getattr(task.fn, "__name__", None), **parameters)
 
 
 def _get_hook_name(hook: Callable) -> str:
