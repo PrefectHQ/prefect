@@ -7,10 +7,10 @@ Prefect Cloud is a hosted workflow application platform with all the capabilitie
 
 - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud.
 - [Workspaces](#workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
-- [Service accounts](/3.0rc/cloud/manage-users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
-- [Custom role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/) &mdash; assign users granular permissions to perform certain activities within an account or a workspace.
-- [Single Sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/) &mdash; authentication using your identity provider.
-- [Audit Logs](/3.0rc/cloud/manage-users/audit-logs/) &mdash; a record of user activities to monitor security and compliance.
+- [Service accounts](/3.0rc/manage/cloud/manage-users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
+- [Custom role-based access controls (RBAC)](/3.0rc/manage/cloud/manage-users/manage-roles/) &mdash; assign users granular permissions to perform certain activities within an account or a workspace.
+- [Single Sign-on (SSO)](/3.0rc/manage/cloud/manage-users/configure-sso/) &mdash; authentication using your identity provider.
+- [Audit Logs](/3.0rc/manage/cloud/manage-users/audit-logs/) &mdash; a record of user activities to monitor security and compliance.
 - Collaboration &mdash; invite other people to your account.
 - Error summaries  &mdash; (enabled by Marvin AI) distill the error logs of `Failed` and `Crashed` flow runs into actionable information.
 - [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/) &mdash; run flows on your serverless infrastructure without running a worker.
@@ -37,27 +37,27 @@ Upgrading from a Prefect Cloud Free tier plan to a Pro or Custom tier plan enabl
 
 Workspace Admins for Pro tier plans have the ability to set [role-based access controls (RBAC)](#roles-and-custom-permissions), view [Audit Logs](#audit-log), and configure [service accounts](#service-accounts).
 
-Custom plans have [object-level access control lists](/3.0rc/cloud/manage-users/object-access-control-lists/), [custom roles](/3.0rc/cloud/manage-users/manage-roles/), [teams](/3.0rc/cloud/manage-users/manage-teams/), and [single sign-on (SSO)](#single-sign-on-(sso) with [Directory Sync/SCIM provisioning](/3.0rc/cloud/manage-users/configure-sso/#scim-provisioning).
+Custom plans have [object-level access control lists](/3.0rc/manage/cloud/manage-users/object-access-control-lists/), [custom roles](/3.0rc/manage/cloud/manage-users/manage-roles/), [teams](/3.0rc/manage/cloud/manage-users/manage-teams/), and [single sign-on (SSO)](#single-sign-on-(sso) with [Directory Sync/SCIM provisioning](/3.0rc/manage/cloud/manage-users/configure-sso/#scim-provisioning).
 
 ## Workspaces
 
 A workspace is an isolated environment within Prefect Cloud for all Prefect activity, including:
-- [Flow runs](/3.0rc/develop/write-flows/) and task runs executed in an environment that is [syncing with the workspace](/3.0rc/cloud/workspaces/)
+- [Flow runs](/3.0rc/develop/write-flows/) and task runs executed in an environment that is [syncing with the workspace](/3.0rc/manage/cloud/workspaces/)
 - [Flows](/3.0rc/develop/write-flows/) associated with flow runs and deployments observed by the Prefect Cloud API
 - [Deployments](/3.0rc/deploy/serve-flows/)
-- [Work pools](/3.0rc/deploy/dynamic-infra/control-runs/)
+- [Work pools](/3.0rc/deploy/work-pools/control-runs/)
 - [Blocks](/3.0rc/develop/connect-third-party/)
-- [Events](/3.0rc/react/understand-events/)
-- [Automations](/3.0rc/react/understand-events/automations-triggers/)
-- [Incidents](/3.0rc/react/manage-events/)
+- [Events](/3.0rc/react/events/)
+- [Automations](/3.0rc/react/events/automations-triggers/)
+- [Incidents](/3.0rc/react/events/events/)
 
-See the [Workspaces](/3.0rc/cloud/workspaces/) page for more information about configuring and using workspaces.
+See the [Workspaces](/3.0rc/manage/cloud/workspaces/) page for more information about configuring and using workspaces.
 
 ## Incidents <span class="badge pro"></span> <span class="badge custom"></span>
 
-Prefect Cloud's [incidents](/3.0rc/react/manage-events/) help teams identify, rectify, and document issues in mission-critical workflows.
+Prefect Cloud's [incidents](/3.0rc/react/events/events/) help teams identify, rectify, and document issues in mission-critical workflows.
 Incidents are formal declarations of disruptions to a workspace.
-With [automations](/3.0rc/react/manage-events/#incident-automations)), activity in that workspace can be paused when an incident is created and resumed when it is resolved.
+With [automations](/3.0rc/react/events/events/#incident-automations)), activity in that workspace can be paused when an incident is created and resumed when it is resolved.
 
 ## Error summaries
 
@@ -68,22 +68,22 @@ To enable this feature and others powered by Marvin AI, visit the **Settings** p
 
 Service accounts enable you to create Prefect Cloud API keys that are not associated with a user account.
 Service accounts are typically used to configure API access for running workers or executing flow runs on remote infrastructure.
-See the [service accounts](/3.0rc/cloud/manage-users/service-accounts/) documentation for more information about creating and managing service accounts.
+See the [service accounts](/3.0rc/manage/cloud/manage-users/service-accounts/) documentation for more information about creating and managing service accounts.
 
 ## Roles and custom permissions <span class="badge pro"> </span><span class="badge custom"></span>
 
 Role-based access controls (RBAC) enable you to assign users a role with permissions to perform certain activities within an account or a workspace.
-See the [role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/) documentation for more information about managing user roles in a Prefect Cloud account.
+See the [role-based access controls (RBAC)](/3.0rc/manage/cloud/manage-users/manage-roles/) documentation for more information about managing user roles in a Prefect Cloud account.
 
 ## Single Sign-on (SSO) <span class="badge pro"></span> <span class="badge custom"></span>
 
-Prefect Cloud's [Pro and Custom plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/) authentication integration with your team’s identity provider.
+Prefect Cloud's [Pro and Custom plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/3.0rc/manage/cloud/manage-users/configure-sso/) authentication integration with your team’s identity provider.
 SSO integration can bet set up with identity providers that support OIDC and SAML.
 Directory Sync and SCIM provisioning is also available with Custom plans.
 
 ## Audit log <span class="badge pro"></span> <span class="badge custom"></span>
 
-Prefect Cloud's [Pro and Custom plans](https://www.prefect.io/pricing) offer [Audit Logs](/3.0rc/cloud/manage-users/audit-logs/) for compliance and security.
+Prefect Cloud's [Pro and Custom plans](https://www.prefect.io/pricing) offer [Audit Logs](/3.0rc/manage/cloud/manage-users/audit-logs/) for compliance and security.
 Audit logs provide a chronological record of activities performed by users in an account.
 
 ## Prefect Cloud REST API

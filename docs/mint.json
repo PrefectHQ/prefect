@@ -114,7 +114,7 @@
           ]
         },
         "3.0rc/develop/connect-third-party",
-        "3.0rc/develop/test-flows"
+        "3.0rc/develop/test-workflows"
       ]
     },
     {
@@ -136,7 +136,7 @@
           "pages": [
             "3.0rc/deploy/dynamic-infra/push-runs-serverless",
             "3.0rc/deploy/dynamic-infra/push-runs-remote",
-            "3.0rc/deploy/dynamic-infra/retrieve-workflow-code",
+            "3.0rc/deploy/dynamic-infra/retrieve-flow-code",
             "3.0rc/deploy/dynamic-infra/customize",
             "3.0rc/deploy/dynamic-infra/deploy-docker",
             "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
@@ -470,6 +470,7 @@
             "3.0rc/api-ref/server/deployments/update-deployment",
             "3.0rc/api-ref/server/deployments/read-deployment-by-name",
             "3.0rc/api-ref/server/deployments/read-deployments",
+            "3.0rc/api-ref/server/deployments/paginate-deployments",
             "3.0rc/api-ref/server/deployments/get-scheduled-flow-runs-for-deployments",
             "3.0rc/api-ref/server/deployments/count-deployments",
             "3.0rc/api-ref/server/deployments/schedule-deployment",
