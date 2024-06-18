@@ -9,7 +9,7 @@ Here we will focus largely on the metadata that defines a deployment and how it 
 Overview
 ---------------------------------------
 
-Every Prefect deployment references one and only one "entrypoint" flow (though that flow may itself call any number of nested flows). Different deployments may reference the same underlying flow, a useful pattern when developing or promoting workflow changes through staged environments.
+Every Prefect deployment references one and only one "entrypoint" flow (though that flow may itself call any number of tasks or flows). Different deployments may reference the same underlying flow, a useful pattern when developing or promoting workflow changes through staged environments.
 
 The complete schema that defines a deployment is as follows:
 
