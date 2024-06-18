@@ -4,7 +4,7 @@ description: Prefect work pools route deployment flow runs to workers. Prefect w
 ---
 
 Work pools and workers bridge the Prefect _orchestration environment_ with your _execution environment_. 
-When a [deployment](/3.0rc/deploy/serve-workflows/) creates a flow run, it is submitted to a specific work pool for scheduling. 
+When a [deployment](/3.0rc/deploy/serve-flows/) creates a flow run, it is submitted to a specific work pool for scheduling. 
 A worker running in the execution environment polls its respective work pool for new runs to execute; or the work pool  
 submits flow runs to serverless infrastructure directly, depending on your configuration.
 
@@ -677,7 +677,7 @@ Work pools are a bridge between the Prefect orchestration layer and infrastructu
 To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
 
 <Tip>
-    **[Choosing Between `flow.deploy()` and `flow.serve()`](/3.0rc/deploy/serve-workflows/#two-approaches-to-deployments)**
+    **[Choosing Between `flow.deploy()` and `flow.serve()`](/3.0rc/deploy/serve-flows/#two-approaches-to-deployments)**
 
     For many use cases, `serve` is sufficient for scheduling and orchestration.
     Work pools are great for complex infrastructure requirements. But they are optional.
@@ -748,7 +748,7 @@ Now that you set up your work pool, you can deploy a flow to it. Deploy your tes
 
 From the previous steps, you now have:
 
-- [A flow](/3.0rc/develop/write-workflows/)
+- [A flow](/3.0rc/develop/write-flows/)
 - A work pool
 
 Update your `repo_info.py` file to create a deployment in Prefect Cloud with these modifications:
@@ -965,7 +965,7 @@ Otherwise, you can pass `image="my-image:latest"` to `deploy`.
 ## Next steps 
 
 The `cron` argument schedules the deployment to run at 1:00 AM every day.
-See the [schedules](/3.0rc/deploy/serve-workflows/add-schedules/) guide for more information on scheduling options.
+See the [schedules](/3.0rc/deploy/serve-flows/add-schedules/) guide for more information on scheduling options.
 
 See the [Push Work Pool guide](/3.0rc/deploy/dynamic-infra/push-runs-serverless/) for more details and example commands for each 
 cloud provider.
