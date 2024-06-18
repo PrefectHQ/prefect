@@ -98,6 +98,9 @@ async def _acquire_concurrency_slots(
     response_or_exception = await asyncio.wrap_future(future)
 
     if isinstance(response_or_exception, Exception):
+        if isinstance(response_or_exception, TimeoutError):
+            raise response_or_exception
+
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}"
         ) from response_or_exception
