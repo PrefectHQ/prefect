@@ -22,7 +22,7 @@ pytest-benchmark
 pytest-env
 pytest-flakefinder
 pytest-timeout
-pytest-xdist >= 3.7
+pytest-xdist >= 3.6.1
 pytkdocs >= 0.14.2
 pyyaml
 redis>=5.0.1
