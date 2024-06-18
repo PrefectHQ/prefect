@@ -4,11 +4,6 @@ codespell>=2.2.6
 ddtrace
 ipython
 jinja2
-mkdocs
-mkdocs-gen-files
-mkdocs-material
-mkdocstrings-python
-mike
 moto >= 5
 mypy >= 1.9.0
 numpy
@@ -40,3 +35,4 @@ types-PyYAML
 mkdocs
 mkdocs-material
 mkdocstrings[python]
+mkdocs-gen-files
