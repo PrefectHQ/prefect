@@ -10,7 +10,7 @@ Results from a task can be provided to other tasks or flows as upstream dependen
 <Note>
 **Tasks vs. other functions**
 
-**Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including nested flows, do not carry the same information about their origin as task results.
+**Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including nested flow runs, do not carry the same information about their origin as task results.
 </Note>
 When using non-sequential task runners such as the [`ConcurrentTaskRunner`](https://docs.prefect.io/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted tasks is not guaranteed unless their dependencies are specified.
 
