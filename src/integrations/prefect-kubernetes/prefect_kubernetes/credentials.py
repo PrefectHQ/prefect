@@ -68,7 +68,7 @@ class KubernetesClusterConfig(Block):
         return value
 
     @classmethod
-    def from_file(
+    async def from_file(
         cls: Type[Self], path: Optional[Path] = None, context_name: Optional[str] = None
     ) -> Self:
         """
