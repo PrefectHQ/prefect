@@ -43,7 +43,7 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.records.cache_policies import DEFAULT, CachePolicy
+from prefect.records.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -216,10 +216,8 @@ class Task(Generic[P, R]):
             cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd".
-        persist_result: An optional toggle indicating whether the result of this task
-            should be persisted to result storage. Defaults to `None`, which indicates
-            that Prefect should choose whether the result should be persisted depending on
-            the features being used.
+        persist_result: An toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `True`.
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
@@ -271,7 +269,7 @@ class Task(Generic[P, R]):
             ]
         ] = None,
         retry_jitter_factor: Optional[float] = None,
-        persist_result: Optional[bool] = None,
+        persist_result: bool = True,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
         result_storage_key: Optional[str] = None,
@@ -379,7 +377,13 @@ class Task(Generic[P, R]):
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
 
-        if cache_policy is NotSet and result_storage_key is None:
+        if not persist_result:
+            self.cache_policy = None if cache_policy is None else NONE
+            if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
+                logger.warning(
+                    "Ignoring `cache_policy` because `persist_result` is False"
+                )
+        elif cache_policy is NotSet and result_storage_key is None:
             self.cache_policy = DEFAULT
         elif result_storage_key:
             # TODO: handle this situation with double storage
@@ -1328,7 +1332,7 @@ def task(
         Callable[[int], List[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
-    persist_result: Optional[bool] = None,
+    persist_result: bool = True,
     result_storage: Optional[ResultStorage] = None,
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
@@ -1360,7 +1364,7 @@ def task(
         float, int, List[float], Callable[[int], List[float]], None
     ] = None,
     retry_jitter_factor: Optional[float] = None,
-    persist_result: Optional[bool] = None,
+    persist_result: bool = True,
     result_storage: Optional[ResultStorage] = None,
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
@@ -1406,10 +1410,8 @@ def task(
             cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd".
-        persist_result: An optional toggle indicating whether the result of this task
-            should be persisted to result storage. Defaults to `None`, which indicates
-            that Prefect should choose whether the result should be persisted depending on
-            the features being used.
+        persist_result: An toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `True`.
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
