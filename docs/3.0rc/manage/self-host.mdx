@@ -8,21 +8,21 @@ To host a Prefect server instance on Kubernetes, check out the prefect-server [H
 </Note>
 
 After installing Prefect, you have a Python SDK client that can communicate with 
-either [Prefect Cloud](/3.0rc/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
+either [Prefect Cloud](/3.0rc/manage/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
 
 Prefect Cloud and a self-hosted Prefect server instance share a common set of capabilities. Prefect Cloud has these additional features:
 
-- [Workspaces](/3.0rc/cloud/workspaces/): isolated environments to organize your flows, deployments, and flow runs
-- [Automations](/3.0rc/react/understand-events/automations-triggers/): configure triggers, actions, and 
+- [Workspaces](/3.0rc/manage/cloud/workspaces/): isolated environments to organize your flows, deployments, and flow runs
+- [Automations](/3.0rc/react/events/automations-triggers/): configure triggers, actions, and 
 notifications in response to real-time monitoring events
-- [Email notifications](/3.0rc/react/understand-events/automations-triggers/): send email alerts from Prefect's 
+- [Email notifications](/3.0rc/react/events/automations-triggers/): send email alerts from Prefect's 
 servers based on automation triggers
-- [Service accounts](/3.0rc/cloud/manage-users/service-accounts/): configure API access for running workers or 
+- [Service accounts](/3.0rc/manage/cloud/manage-users/service-accounts/): configure API access for running workers or 
 executing flow runs on remote infrastructure
-- [Custom role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/): assign users granular 
+- [Custom role-based access controls (RBAC)](/3.0rc/manage/cloud/manage-users/manage-roles/): assign users granular 
 permissions to perform activities within an account or workspace
-- [Single Sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/): authentication using your identity provider
-- [Audit Logs](/3.0rc/cloud/manage-users/audit-logs/): a record of user activities to monitor security and compliance
+- [Single Sign-on (SSO)](/3.0rc/manage/cloud/manage-users/configure-sso/): authentication using your identity provider
+- [Audit Logs](/3.0rc/manage/cloud/manage-users/audit-logs/): a record of user activities to monitor security and compliance
 
 ## Prefect server installation notes
 
@@ -92,10 +92,10 @@ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 You must set the API server address, `PREFECT_API_URL`, to use Prefect within a container, such as a Docker container.
 </Info>
 
-You can save the API server address in a [Prefect profile](/3.0rc/cloud/configure-client/). Whenever that profile is 
+You can save the API server address in a [Prefect profile](/3.0rc/manage/configure-client/). Whenever that profile is 
 active, the API endpoint is at that address.
 
-See [Profiles and configuration](/3.0rc/cloud/configure-client/) for more information on profiles and configurable Prefect settings.
+See [Profiles and configuration](/3.0rc/manage/configure-client/) for more information on profiles and configurable Prefect settings.
 
 ## The Prefect database
 
@@ -258,7 +258,7 @@ See the [contributing docs](/3.0rc/contributing/overview/#adding-database-migrat
 
 ## Notifications
 
-[Prefect Cloud](/3.0rc/cloud/) gives you access to a hosted platform with Workspace and User controls, Events, and Automations. 
+[Prefect Cloud](/3.0rc/manage/cloud/) gives you access to a hosted platform with Workspace and User controls, Events, and Automations. 
 Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the 
 self-hosted Prefect server.
 
@@ -281,7 +281,7 @@ Prefect supports sending notifications through:
 <Note>
 **Notifications in Prefect Cloud**
 
-Prefect Cloud uses the robust [Automations](/3.0rc/react/understand-events/automations-triggers/) interface to 
+Prefect Cloud uses the robust [Automations](/3.0rc/react/events/automations-triggers/) interface to 
 enable notifications related to flow run state changes and work pool status.
 </Note>
 

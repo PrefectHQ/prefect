@@ -159,7 +159,7 @@ Check that your build worked by running a container from your new image.
 
     Your container needs an API URL and network access to communicate with the Prefect API. 
     
-    For this guide, assume the Prefect API is running on the same machine that you will run your container on and the Prefect API was started with `prefect server start`. If you're running a different setup, check out the [Hosting a Prefect server guide](/3.0rc/cloud/self-host/) for information on how to connect to your Prefect API instance.
+    For this guide, assume the Prefect API is running on the same machine that you will run your container on and the Prefect API was started with `prefect server start`. If you're running a different setup, check out the [Hosting a Prefect server guide](/3.0rc/manage/self-host/) for information on how to connect to your Prefect API instance.
     
     To ensure that your flow container can communicate with the Prefect API, set your `PREFECT_API_URL` to `http://host.docker.internal:4200/api`. If you're running Linux, set your `PREFECT_API_URL` to `http://localhost:4200/api` and use the `--network="host"` option instead.
 
@@ -386,10 +386,10 @@ Prefect is installed into a conda environment named `prefect`.
 If your flow relies on dependencies not found in the default `prefecthq/prefect` images, 
 you may want to build your own image. You can either
 base it off of one of the provided `prefecthq/prefect` images, or build your own image.
-See the [Work pool deployment guide](/3.0rc/guides/prefect-deploy/) 
+See the [Work pool deployment guide](/3.0rc/deploy/work-pools/prefect-deploy) 
 to build custom images with dependencies specified in a `requirements.txt` file.
 
-By default, Prefect [work pools](/3.0rc/deploy/dynamic-infra/control-runs) 
+By default, Prefect [work pools](/3.0rc/deploy/work-pools/control-runs) 
 that use containers refer to the `3-latest` image.
 You can specify another image at work pool creation.
 You can override the work pool image choice in individual deployments.
@@ -436,4 +436,4 @@ different configuration](/3.0rc/develop/write-flows#serving-multiple-flows-at-on
 - To learn more about deploying flows, check out the [Deployments](/3.0rc/deploy/serve-flows/) 
 concept doc.
 - For advanced infrastructure requirements, such as executing each flow run within its own dedicated 
-Docker container, learn more in the [Work pool deployment guide](/3.0rc/guides/prefect-deploy/).
+Docker container, learn more in the [Work pool deployment guide](/3.0rc/deploy/work-pools/prefect-deploy).
