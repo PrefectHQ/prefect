@@ -160,13 +160,12 @@ Deploy your flow to Cloud using a managed work pool.
 1. View your new work pool on the **Work Pools** page of the UI.
   </Tab>
   <Tab title="OSS">
-Deploy your flow to your local server using a Docker type work pool.
+Deploy your flow to your local server using a Process type work pool.
 
-1. Install Docker on your machine.
-1. Create a Docker type work pool:
+1. Create a Process type work pool:
 
    ```bash
-   prefect work-pool create --type docker my-work-pool
+   prefect work-pool create --type process my-work-pool
    ```
 
 1. Verify that the work pool exists:
