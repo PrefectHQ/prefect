@@ -3,7 +3,6 @@
 # Setup version and path constants
 
 from . import _version
-import importlib
 import pathlib
 
 __version_info__ = _version.get_versions()
@@ -26,18 +25,12 @@ del _version, pathlib
 
 # Import user-facing API
 from prefect.deployments import deploy
-from prefect.states import State
 from prefect.logging import get_run_logger
-from prefect.flows import flow, Flow, serve
+from prefect.flows import flow, serve
 from prefect.transactions import Transaction
-from prefect.tasks import task, Task
+from prefect.tasks import task
 from prefect.context import tags
-from prefect.manifests import Manifest
-from prefect.utilities.annotations import unmapped, allow_failure
-from prefect.results import BaseResult
-from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
-from prefect.client.orchestration import get_client, PrefectClient
-from prefect.client.cloud import get_cloud_client, CloudClient
+from prefect.client.orchestration import get_client
 import prefect.variables
 import prefect.runtime
 
@@ -71,35 +64,5 @@ prefect.logging.get_logger("profiles").debug(
     f"Using profile {prefect.context.get_settings_context().profile.name!r}"
 )
 
-# Ensure moved names are accessible at old locations
-prefect.client.get_client = get_client
-prefect.client.PrefectClient = PrefectClient
-
-
-from prefect._internal.compatibility.deprecated import (
-    inject_renamed_module_alias_finder,
-)
-
-inject_renamed_module_alias_finder()
-
-
 # Declare API for type-checkers
-__all__ = [
-    "allow_failure",
-    "flow",
-    "Flow",
-    "get_client",
-    "get_run_logger",
-    "Manifest",
-    "State",
-    "tags",
-    "task",
-    "Task",
-    "Transaction",
-    "unmapped",
-    "serve",
-    "deploy",
-    "pause_flow_run",
-    "resume_flow_run",
-    "suspend_flow_run",
-]
+__all__ = ["flow", "get_client", "get_run_logger", "tags", "task", "serve", "deploy"]
