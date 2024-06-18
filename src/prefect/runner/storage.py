@@ -586,7 +586,7 @@ class LocalStorage:
     def __init__(
         self,
         path: str,
-        pull_interval: Optional[int] = 60,
+        pull_interval: Optional[int] = None,
     ):
         self._path = Path(path).resolve()
         self._logger = get_logger("runner.storage.local-storage")
@@ -616,7 +616,7 @@ class LocalStorage:
         """
         step = {
             "prefect.deployments.steps.set_working_directory": {
-                "directory": self.destination
+                "directory": str(self.destination)
             }
         }
         return step
