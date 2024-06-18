@@ -2,7 +2,7 @@
 title: Specifying Upstream Dependencies
 ---
 
-Results from a task can be provided to other tasks (or nested flows) as upstream dependencies. Prefect uses upstream dependencies in two ways:
+Results from a task can be provided to other tasks or flows as upstream dependencies. Prefect uses upstream dependencies in two ways:
 
 1.  To populate dependency arrows in the flow run graph
 2.  To determine execution order for [concurrently submitted](https://docs.prefect.io/concepts/task-runners) units of work that depend on each other
