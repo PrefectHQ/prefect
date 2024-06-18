@@ -78,7 +78,7 @@ async def _get_or_create_default_storage(block_document_slug: str) -> ResultStor
             return await Block.load(default_storage_name)
         except ValueError as e:
             if "Unable to find" not in str(e):
-                raise ValueError("How did we get here?") from e
+                raise e
 
         block_type_slug, name = default_storage_name.split("/")
         if block_type_slug == "local-file-system":
