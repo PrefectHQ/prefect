@@ -2,7 +2,7 @@
   <p-layout-default class="workspace-dashboard">
     <template #header>
       <PageHeading :crumbs="crumbs" class="workspace-dashboard__page-heading">
-        <template v-if="!empty" #actions>
+        <template v-if="loaded && !empty" #actions>
           <div class="workspace-dashboard__header-actions">
             <div class="workspace-dashboard__subflows-toggle">
               <p-toggle v-model="filter.hideSubflows" append="Hide subflows" />
