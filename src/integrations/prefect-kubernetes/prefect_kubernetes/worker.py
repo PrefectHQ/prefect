@@ -141,7 +141,6 @@ from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 import prefect
-from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
@@ -160,6 +159,9 @@ from prefect.workers.base import (
     BaseVariables,
     BaseWorker,
     BaseWorkerResult,
+)
+from prefect_kubernetes.credentials import (
+    KubernetesClusterConfig,
 )
 from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
