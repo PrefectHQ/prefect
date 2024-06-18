@@ -86,6 +86,7 @@
   md:flex
   md:flex-row
   md:items-center
+  min-h-11
 }
 
 .workspace-dashboard__header-actions { @apply
