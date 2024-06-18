@@ -1303,7 +1303,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 'csv', 'csv_gzip',  'parquet', 'parquet_snappy', 'parquet_gzip'.
                 Defaults to `DataFrameSerializationFormat.CSV_GZIP`.
             **upload_kwargs: Additional keyword arguments to pass to the underlying
-            `upload_from_dataframe` method.
+                `upload_from_dataframe` method.
 
         Returns:
             The path that the object was uploaded to.

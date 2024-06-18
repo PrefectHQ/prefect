@@ -58,7 +58,7 @@ plugins:
           default_handler: python
           handlers:
               python:
-                  paths: [..]
+                  paths: [src]
 watch:
     - mkdocs.yml
     - src
