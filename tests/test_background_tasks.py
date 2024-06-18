@@ -235,6 +235,7 @@ async def prefect_client() -> AsyncGenerator["PrefectClient", None]:
         yield client
 
 
+@pytest.fixture
 def enabled_task_scheduling_pending_task_timeout():
     with temporary_settings({PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT: 30}):
         yield
