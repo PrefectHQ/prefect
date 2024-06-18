@@ -311,7 +311,7 @@ async def test_task_result_flow_run_formatted_storage_key(prefect_client, tmp_pa
     assert task_state.data.storage_key == "foo__bar"
 
 
-async def test_task_result_missing_with_null_return(prefect_client):
+async def test_task_result_with_null_return(prefect_client):
     @flow
     def foo():
         return bar(return_state=True)
@@ -327,8 +327,7 @@ async def test_task_result_missing_with_null_return(prefect_client):
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
-    with pytest.raises(MissingResult):
-        await api_state.result()
+    assert await api_state.result() is None
 
 
 @pytest.mark.parametrize("value", [True, False, None])

@@ -439,11 +439,13 @@ async def test_root_flow_nonexistent_default_storage_block_fails():
     with temporary_settings(
         {
             PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "fake-block-type-slug/my-result-storage",
         }
     ):
         with pytest.raises(
-            ValueError, match="Unable to find block document named my-result-storage"
+            ValueError,
+            match="The default storage block does not exist, but it is of type"
+            " 'fake-block-type-slug' which cannot be created implicitly",
         ):
             await foo()
 

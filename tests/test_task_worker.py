@@ -8,7 +8,6 @@ import anyio
 import pytest
 from pydantic import BaseModel
 
-import prefect.results
 from prefect import flow, task
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
@@ -19,13 +18,6 @@ from prefect.task_worker import TaskWorker, serve
 from prefect.tasks import task_input_hash
 
 pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
-
-
-@pytest.fixture(autouse=True)
-async def clear_cached_filesystems():
-    prefect.results._default_task_scheduling_storages.clear()
-    yield
-    prefect.results._default_task_scheduling_storages.clear()
 
 
 # model defined outside of the test function to avoid pickling issues

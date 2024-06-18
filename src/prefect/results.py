@@ -38,7 +38,6 @@ from prefect.settings import (
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
-    default_result_storage_block_name,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
@@ -62,35 +61,15 @@ logger = get_logger("results")
 P = ParamSpec("P")
 R = TypeVar("R")
 
+_default_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
 
-@sync_compatible
-async def get_default_result_storage() -> ResultStorage:
+
+async def _get_or_create_default_storage(block_document_slug: str) -> ResultStorage:
     """
-    Generate a default file system for result storage.
-    """
-    try:
-        return await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
-    except ValueError as e:
-        if "Unable to find" not in str(e):
-            raise e
-        elif (
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
-            == default_result_storage_block_name()
-        ):
-            return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
-        else:
-            raise
-
-
-_default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
-
-
-async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
-    """
-    Generate a default file system for background task parameter/result storage.
+    Generate a default file system for storage.
     """
     default_storage_name, storage_path = cache_key = (
-        PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value(),
+        block_document_slug,
         PREFECT_LOCAL_STORAGE_PATH.value(),
     )
 
@@ -105,8 +84,8 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
         if block_type_slug == "local-file-system":
             block = LocalFileSystem(basepath=storage_path)
         else:
-            raise Exception(
-                "The default task storage block does not exist, but it is of type "
+            raise ValueError(
+                "The default storage block does not exist, but it is of type "
                 f"'{block_type_slug}' which cannot be created implicitly.  Please create "
                 "the block manually."
             )
@@ -123,11 +102,30 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
         return block
 
     try:
-        return _default_task_scheduling_storages[cache_key]
+        return _default_storages[cache_key]
     except KeyError:
         storage = await get_storage()
-        _default_task_scheduling_storages[cache_key] = storage
+        _default_storages[cache_key] = storage
         return storage
+
+
+@sync_compatible
+async def get_or_create_default_result_storage() -> ResultStorage:
+    """
+    Generate a default file system for result storage.
+    """
+    return await _get_or_create_default_storage(
+        PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
+    )
+
+
+async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
+    """
+    Generate a default file system for background task parameter/result storage.
+    """
+    return await _get_or_create_default_storage(
+        PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value()
+    )
 
 
 def get_default_result_serializer() -> ResultSerializer:
@@ -210,7 +208,9 @@ class ResultFactory(BaseModel):
                 kwargs.pop(key)
 
         # Apply defaults
-        kwargs.setdefault("result_storage", await get_default_result_storage())
+        kwargs.setdefault(
+            "result_storage", await get_or_create_default_result_storage()
+        )
         kwargs.setdefault("result_serializer", get_default_result_serializer())
         kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)
@@ -280,7 +280,9 @@ class ResultFactory(BaseModel):
         """
         Create a new result factory for a task.
         """
-        return await cls._from_task(task, get_default_result_storage, client=client)
+        return await cls._from_task(
+            task, get_or_create_default_result_storage, client=client
+        )
 
     @classmethod
     @inject_client

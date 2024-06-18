@@ -57,7 +57,7 @@ def test_root_flow_default_result_factory():
     assert result_factory.cache_result_in_memory is True
     assert result_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
-    assert result_factory.storage_block_id is None
+    assert result_factory.storage_block_id is not None
 
 
 def test_root_flow_default_result_serializer_can_be_overriden_by_setting():
@@ -105,7 +105,7 @@ def test_root_flow_custom_persist_setting(toggle):
     if toggle:
         assert isinstance(result_factory.storage_block_id, uuid.UUID)
     else:
-        assert result_factory.storage_block_id is None
+        assert result_factory.storage_block_id is not None
 
 
 @pytest.mark.parametrize("options", [{"cache_result_in_memory": False}])
@@ -134,7 +134,7 @@ def test_root_flow_can_opt_out_of_persistence_when_flow_uses_feature(options):
     assert result_factory.persist_result is False
     assert result_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
-    assert result_factory.storage_block_id is None
+    assert result_factory.storage_block_id is not None
 
 
 @pytest.mark.parametrize("toggle", [True, False])
@@ -153,7 +153,7 @@ def test_root_flow_custom_cache_setting(toggle):
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
 
     if toggle:
-        assert result_factory.storage_block_id is None
+        assert result_factory.storage_block_id is not None
     else:
         assert isinstance(result_factory.storage_block_id, uuid.UUID)
 
@@ -167,7 +167,7 @@ def test_root_flow_custom_serializer_by_type_string():
     assert result_factory.persist_result is False
     assert result_factory.serializer == JSONSerializer()
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
-    assert result_factory.storage_block_id is None
+    assert result_factory.storage_block_id is not None
 
 
 def test_root_flow_custom_serializer_by_instance():
@@ -179,7 +179,7 @@ def test_root_flow_custom_serializer_by_instance():
     assert result_factory.persist_result is False
     assert result_factory.serializer == JSONSerializer(jsonlib="orjson")
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
-    assert result_factory.storage_block_id is None
+    assert result_factory.storage_block_id is not None
 
 
 async def test_root_flow_custom_storage_by_slug(tmp_path):
@@ -251,7 +251,7 @@ def test_child_flow_inherits_default_result_settings():
     assert child_factory.persist_result is False
     assert child_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(child_factory.storage_block, DEFAULT_STORAGE())
-    assert child_factory.storage_block_id is None
+    assert child_factory.storage_block_id is not None
 
 
 def test_child_flow_default_result_serializer_can_be_overriden_by_setting():
@@ -337,10 +337,7 @@ def test_child_flow_custom_cache_setting(toggle):
     assert child_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(child_factory.storage_block, DEFAULT_STORAGE())
 
-    if toggle:
-        assert child_factory.storage_block_id is None
-    else:
-        assert isinstance(child_factory.storage_block_id, uuid.UUID)
+    assert isinstance(child_factory.storage_block_id, uuid.UUID)
 
 
 @pytest.mark.parametrize("options", [{"retries": 3}])
@@ -375,7 +372,7 @@ def test_child_flow_can_opt_out_of_result_persistence_when_parent_uses_feature()
     assert child_factory.persist_result is False
     assert child_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(child_factory.storage_block, DEFAULT_STORAGE())
-    assert child_factory.storage_block_id is None
+    assert child_factory.storage_block_id is not None
 
 
 @pytest.mark.parametrize("options", [{"cache_result_in_memory": False}])
@@ -415,7 +412,7 @@ def test_child_flow_can_opt_out_of_result_persistence_when_child_uses_feature():
     assert child_factory.cache_result_in_memory is False
     assert child_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(child_factory.storage_block, DEFAULT_STORAGE())
-    assert child_factory.storage_block_id is None
+    assert child_factory.storage_block_id is not None
 
 
 def test_child_flow_inherits_custom_serializer():
@@ -431,7 +428,7 @@ def test_child_flow_inherits_custom_serializer():
     assert child_factory.persist_result is False
     assert child_factory.serializer == parent_factory.serializer
     assert_blocks_equal(child_factory.storage_block, DEFAULT_STORAGE())
-    assert child_factory.storage_block_id is None
+    assert child_factory.storage_block_id is not None
 
 
 async def test_child_flow_inherits_custom_storage(tmp_path):
@@ -467,7 +464,7 @@ def test_child_flow_custom_serializer():
     assert child_factory.persist_result is False
     assert child_factory.serializer == JSONSerializer()
     assert_blocks_equal(child_factory.storage_block, DEFAULT_STORAGE())
-    assert child_factory.storage_block_id is None
+    assert child_factory.storage_block_id is not None
 
 
 async def test_child_flow_custom_storage(tmp_path):
@@ -537,23 +534,19 @@ def test_task_inherits_default_result_settings():
         return get_run_context().result_factory
 
     _, task_factory = foo()
-    assert task_factory.persist_result is False
+    assert task_factory.persist_result
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
-    assert task_factory.storage_block_id is None
+    assert task_factory.storage_block_id is not None
 
 
 def test_task_default_result_serializer_can_be_overriden_by_setting():
-    @flow
-    def foo():
-        return get_run_context().result_factory, bar()
-
-    @task
+    @task(persist_result=False)
     def bar():
         return get_run_context().result_factory
 
     with temporary_settings({PREFECT_RESULTS_DEFAULT_SERIALIZER: "json"}):
-        _, task_factory = foo()
+        task_factory = bar()
 
     assert task_factory.serializer == JSONSerializer()
 
@@ -606,13 +599,13 @@ def test_task_custom_cache_setting(toggle):
 
     flow_factory = foo()
     assert flow_factory.cache_result_in_memory is True
-    assert task_factory.persist_result is not toggle  # Persistence toggled on
+    assert task_factory.persist_result  # Persistence on unless explicitly turned off
     assert task_factory.cache_result_in_memory is toggle
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
 
     if toggle:
-        assert task_factory.storage_block_id is None
+        assert task_factory.storage_block_id is not None
     else:
         assert isinstance(task_factory.storage_block_id, uuid.UUID)
 
@@ -669,7 +662,7 @@ def test_task_can_opt_out_of_result_persistence_when_flow_uses_feature():
     assert task_factory.persist_result is False
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
-    assert task_factory.storage_block_id is None
+    assert task_factory.storage_block_id is not None
 
 
 def test_task_can_opt_out_when_persist_result_default_is_overriden_by_setting():
@@ -700,7 +693,7 @@ def test_task_inherits_custom_serializer():
     assert task_factory.persist_result is False
     assert task_factory.serializer == flow_factory.serializer
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
-    assert task_factory.storage_block_id is None
+    assert task_factory.storage_block_id is not None
 
 
 async def test_task_inherits_custom_storage(tmp_path):
@@ -716,7 +709,7 @@ async def test_task_inherits_custom_storage(tmp_path):
         return get_run_context().result_factory
 
     flow_factory, task_factory = foo()
-    assert task_factory.persist_result is False
+    assert task_factory.persist_result
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert task_factory.storage_block == flow_factory.storage_block
     assert task_factory.storage_block_id == storage_id
@@ -736,7 +729,7 @@ def test_task_custom_serializer():
     assert task_factory.persist_result is False
     assert task_factory.serializer == JSONSerializer()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
-    assert task_factory.storage_block_id is None
+    assert task_factory.storage_block_id is not None
 
 
 async def test_task_custom_storage(tmp_path):
@@ -826,7 +819,7 @@ async def _verify_default_storage_creation_without_persistence(
     # verify storage settings are correctly set
     assert not result_factory.storage_block._is_anonymous
     assert result_factory.persist_result is False
-    assert result_factory.storage_block_id is None
+    assert result_factory.storage_block_id is not None
 
 
 @pytest.mark.parametrize(
@@ -885,7 +878,7 @@ async def test_default_storage_creation_for_task_with_persistence_features(
 
 
 async def test_default_storage_creation_for_task_without_persistence_features():
-    @task
+    @task(persist_result=False)
     def my_task():
         return get_run_context().result_factory
 
