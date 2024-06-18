@@ -114,7 +114,7 @@
           ]
         },
         "3.0rc/develop/connect-third-party",
-        "3.0rc/develop/test-flows"
+        "3.0rc/develop/test-workflows"
       ]
     },
     {
@@ -136,7 +136,7 @@
           "pages": [
             "3.0rc/deploy/dynamic-infra/push-runs-serverless",
             "3.0rc/deploy/dynamic-infra/push-runs-remote",
-            "3.0rc/deploy/dynamic-infra/retrieve-workflow-code",
+            "3.0rc/deploy/dynamic-infra/retrieve-flow-code",
             "3.0rc/deploy/dynamic-infra/customize",
             "3.0rc/deploy/dynamic-infra/deploy-docker",
             "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
@@ -320,7 +320,8 @@
         {
           "group": "Ray",
           "pages": [
-            "integrations/prefect-ray/index"
+            "integrations/prefect-ray/index",
+            "integrations/prefect-ray/sdk"
           ]
         },
         {
@@ -410,13 +411,13 @@
             "3.0rc/api-ref/server/flow-runs/read-flow-run-graph-v1",
             "3.0rc/api-ref/server/flow-runs/read-flow-run-graph-v2",
             "3.0rc/api-ref/server/flow-runs/resume-flow-run",
-            "3.0rc/api-ref/server/flow-runs/paginate-flow-runs",
+            "3.0rc/api-ref/server/flow-runs/read-flow-runs",
             "3.0rc/api-ref/server/flow-runs/set-flow-run-state",
             "3.0rc/api-ref/server/flow-runs/create-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/filter-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/read-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/delete-flow-run-input",
-            "3.0rc/api-ref/server/flow-runs/read-flow-runs",
+            "3.0rc/api-ref/server/flow-runs/paginate-flow-runs",
             "3.0rc/api-ref/server/flow-runs/read-flow-run-history",
             "3.0rc/api-ref/server/flow-runs/count-task-runs-by-flow-run"
           ]
@@ -469,6 +470,7 @@
             "3.0rc/api-ref/server/deployments/update-deployment",
             "3.0rc/api-ref/server/deployments/read-deployment-by-name",
             "3.0rc/api-ref/server/deployments/read-deployments",
+            "3.0rc/api-ref/server/deployments/paginate-deployments",
             "3.0rc/api-ref/server/deployments/get-scheduled-flow-runs-for-deployments",
             "3.0rc/api-ref/server/deployments/count-deployments",
             "3.0rc/api-ref/server/deployments/schedule-deployment",
@@ -676,14 +678,14 @@
       ]
     },
     {
-      "group": "Community",
+      "group": "Contribute",
       "pages": [
-        "community/index",
-        "community/install-contribute",
-        "community/styles-practices",
-        "community/develop-a-new-worker-type",
-        "community/contribute-integrations",
-        "community/code-of-conduct"
+        "contribute/index",
+        "contribute/install-contribute",
+        "contribute/styles-practices",
+        "contribute/develop-a-new-worker-type",
+        "contribute/contribute-integrations",
+        "contribute/code-of-conduct"
       ]
     }
   ]
