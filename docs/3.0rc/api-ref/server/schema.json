@@ -941,7 +941,7 @@
                     "Flow Runs"
                 ],
                 "summary": "Read Flow Run Graph V2",
-                "description": "Get a graph of the tasks and nested flow runs for the given flow run",
+                "description": "Get a graph of the tasks and subflow runs for the given flow run",
                 "operationId": "read_flow_run_graph_v2_flow_runs__id__graph_v2_get",
                 "parameters": [
                     {
@@ -18101,7 +18101,7 @@
                             }
                         ],
                         "title": "Parent Task Run Id",
-                        "description": "If the flow run is a nested flow, the id of the 'dummy' task in the parent flow used to track nested flow state."
+                        "description": "If the flow run is a subflow, the id of the 'dummy' task in the parent flow used to track subflow state."
                     },
                     "state_type": {
                         "anyOf": [
@@ -18547,7 +18547,7 @@
                                 "type": "null"
                             }
                         ],
-                        "description": "Filter criteria for nested flows of the given flow runs"
+                        "description": "Filter criteria for subflows of the given flow runs"
                     },
                     "parent_task_run_id": {
                         "anyOf": [
@@ -18866,7 +18866,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "FlowRunFilterParentFlowRunId",
-                "description": "Filter for nested flows of a given flow run"
+                "description": "Filter for subflows of a given flow run"
             },
             "FlowRunFilterParentTaskRunId": {
                 "properties": {
@@ -19783,7 +19783,7 @@
                             }
                         ],
                         "title": "Parent Task Run Id",
-                        "description": "If the flow run is a nested flow, the id of the 'dummy' task in the parent flow used to track nested flow state."
+                        "description": "If the flow run is a subflow, the id of the 'dummy' task in the parent flow used to track subflow state."
                     },
                     "state_type": {
                         "anyOf": [
@@ -24057,7 +24057,7 @@
                             }
                         ],
                         "title": "Exists ",
-                        "description": "If true, only include task runs that are nested flow run parents; if false, exclude parent task runs"
+                        "description": "If true, only include task runs that are subflow run parents; if false, exclude parent task runs"
                     }
                 },
                 "additionalProperties": false,
