@@ -372,20 +372,19 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    polled_work_queue_ids = [wq.id for wq in work_queues]
-    ready_work_queue_ids = [
-        wq.id for wq in work_queues if wq.status != WorkQueueStatus.READY
-    ]
-
     background_tasks.add_task(
         mark_work_queues_ready,
-        polled_work_queue_ids=polled_work_queue_ids,
-        ready_work_queue_ids=ready_work_queue_ids,
+        polled_work_queue_ids=[
+            wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
+        ],
+        ready_work_queue_ids=[
+            wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
+        ],
     )
 
     background_tasks.add_task(
         mark_deployments_ready,
-        work_queue_ids=ready_work_queue_ids,
+        work_queue_ids=[wq.id for wq in work_queues],
     )
 
     return queue_response
