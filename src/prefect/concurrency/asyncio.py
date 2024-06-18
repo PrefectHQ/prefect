@@ -25,6 +25,10 @@ class ConcurrencySlotAcquisitionError(Exception):
     """Raised when an unhandlable occurs while acquiring concurrency slots."""
 
 
+class AcquireConcurrencySlotTimeoutError(TimeoutError):
+    """Raised when acquiring a concurrency slot times out."""
+
+
 @asynccontextmanager
 async def concurrency(
     names: Union[str, List[str]],
@@ -99,7 +103,9 @@ async def _acquire_concurrency_slots(
 
     if isinstance(response_or_exception, Exception):
         if isinstance(response_or_exception, TimeoutError):
-            raise response_or_exception
+            raise AcquireConcurrencySlotTimeoutError(
+                f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
+            ) from response_or_exception
 
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}"
