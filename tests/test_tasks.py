@@ -31,7 +31,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging import get_run_logger
-from prefect.records.cache_policies import DEFAULT, INPUTS, TASKDEF
+from prefect.records.cache_policies import DEFAULT, INPUTS, NONE, TASKDEF
 from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
@@ -1566,6 +1566,43 @@ class TestTaskCaching:
         assert second_state.name == "Completed"
         assert await first_state.result() == 1
         assert await second_state.result() == 2
+
+    async def test_false_persist_results_sets_cache_policy_to_none(self, caplog):
+        @task(persist_result=False)
+        def foo(x):
+            return x
+
+        assert foo.cache_policy == NONE
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
+        )
+
+    async def test_warns_went_false_persist_result_and_cache_policy(self, caplog):
+        @task(persist_result=False, cache_policy=INPUTS)
+        def foo(x):
+            return x
+
+        assert foo.cache_policy == NONE
+
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False" in caplog.text
+        )
+
+    @pytest.mark.parametrize("cache_policy", [NONE, None])
+    async def test_does_not_warn_went_false_persist_result_and_none_cache_policy(
+        self, caplog, cache_policy
+    ):
+        @task(persist_result=False, cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        assert foo.cache_policy == cache_policy
+
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
+        )
 
 
 class TestCacheFunctionBuiltins:
@@ -3688,12 +3725,14 @@ async def test_sets_run_name_once():
 
 
 async def test_sets_run_name_once_per_call():
+    task_calls = 0
     generate_task_run_name = MagicMock(return_value="some-string")
-    mocked_task_method = MagicMock()
 
-    decorated_task_method = task(task_run_name=generate_task_run_name)(
-        mocked_task_method
-    )
+    def test_task():
+        nonlocal task_calls
+        task_calls += 1
+
+    decorated_task_method = task(task_run_name=generate_task_run_name)(test_task)
 
     @flow
     def my_flow(name):
@@ -3705,7 +3744,7 @@ async def test_sets_run_name_once_per_call():
     state = my_flow(name="some-name", return_state=True)
 
     assert state.type == StateType.COMPLETED
-    assert mocked_task_method.call_count == 2
+    assert task_calls == 2
     assert generate_task_run_name.call_count == 2
 
 
