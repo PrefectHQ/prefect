@@ -1,5 +1,4 @@
 import asyncio
-import threading
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from kubernetes_asyncio import watch
@@ -51,8 +50,6 @@ class KubernetesEventsReplicator:
         worker_resource["prefect.resource.role"] = "worker"
         worker_related_resource = RelatedResource(worker_resource)
         self._related_resources = related_resources + [worker_related_resource]
-        self._thread = threading.Thread(target=self._replicate_pod_events)
-
         self._state = "READY"
 
     async def __aenter__(self):

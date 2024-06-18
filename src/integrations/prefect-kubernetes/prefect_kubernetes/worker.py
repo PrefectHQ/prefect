@@ -120,7 +120,7 @@ from typing import (
 
 import anyio.abc
 import kubernetes_asyncio
-from kubernetes_asyncio import config
+from kubernetes_asyncio import config, watch
 from kubernetes_asyncio.client import (
     ApiClient,
     BatchV1Api,
@@ -160,9 +160,7 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-from prefect_kubernetes.credentials import (
-    KubernetesClusterConfig,
-)
+from prefect_kubernetes.credentials import KubernetesClusterConfig
 from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
     _slugify_label_key,
@@ -917,7 +915,6 @@ class KubernetesWorker(BaseWorker):
         client,
     ):
         core_client = CoreV1Api(client)
-        # watch = kubernetes_asyncio.watch.Watch()
 
         logs = await core_client.read_namespaced_pod_log(
             pod_name,
@@ -956,11 +953,11 @@ class KubernetesWorker(BaseWorker):
 
         See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
         """
-        watch = kubernetes_asyncio.watch.Watch()
+        w = watch.Watch()
         resource_version = None
         while True:
             try:
-                async for event in watch.stream(
+                async for event in w.stream(
                     func=batch_client.list_namespaced_job,
                     namespace=namespace,
                     field_selector=f"metadata.name={job_name}",
@@ -978,7 +975,7 @@ class KubernetesWorker(BaseWorker):
                 else:
                     raise
             finally:
-                await watch.close()
+                await w.close()
 
     async def _monitor_job_events(self, batch_client, job_name, logger, configuration):
         job = await batch_client.read_namespaced_job(
@@ -1147,30 +1144,29 @@ class KubernetesWorker(BaseWorker):
     ) -> Optional["V1Pod"]:
         """Get the first running pod for a job."""
 
-        watch = kubernetes_asyncio.watch.Watch()
+        w = watch.Watch()
         logger.info(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
         last_pod_name: Optional[str] = None
         core_client = CoreV1Api(client)
 
-        async with watch:
-            async for event in watch.stream(
-                func=core_client.list_namespaced_pod,
-                namespace=configuration.namespace,
-                label_selector=f"job-name={job_name}",
-                timeout_seconds=configuration.pod_watch_timeout_seconds,
-            ):
-                pod: V1Pod = event["object"]
-                last_pod_name = pod.metadata.name
-                logger.info(f"Job {job_name!r}: Pod {last_pod_name!r} has started.")
-                phase = pod.status.phase
-                if phase != last_phase:
-                    logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
+        async for event in w.stream(
+            func=core_client.list_namespaced_pod,
+            namespace=configuration.namespace,
+            label_selector=f"job-name={job_name}",
+            timeout_seconds=configuration.pod_watch_timeout_seconds,
+        ):
+            pod: V1Pod = event["object"]
+            last_pod_name = pod.metadata.name
+            logger.info(f"Job {job_name!r}: Pod {last_pod_name!r} has started.")
+            phase = pod.status.phase
+            if phase != last_phase:
+                logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
 
-                if phase != "Pending":
-                    return pod
+            if phase != "Pending":
+                return pod
 
-                last_phase = phase
+            last_phase = phase
         # If we've gotten here, we never found the Pod that was created for the flow run
         # Job, so let's inspect the situation and log what we can find.  It's possible
         # that the Job ran into scheduling constraints it couldn't satisfy, like
