@@ -43,7 +43,6 @@ import prefect.runtime
 
 # Import modules that register types
 import prefect.serializers
-import prefect.blocks.kubernetes
 import prefect.blocks.notifications
 import prefect.blocks.system
 
