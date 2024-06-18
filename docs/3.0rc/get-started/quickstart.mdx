@@ -137,36 +137,39 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 ## Create a work pool
 
 Running a flow locally is a good start, but you should use a remote destination for production flows.
-Create a [work pool](/3.0rc/deploy/work-pools/control-runs/) with Cloud or OSS.
+A [work pool](/3.0rc/deploy/work-pools/control-runs/) is the most common way to do this.
 
 <Tabs>
   <Tab title="Cloud">
-Create a [managed work pool](/3.0rc/deploy/serve-flows/index):
+Deploy your flow to Cloud using a managed work pool.
 
-```bash
-prefect work-pool create my-work-pool --type prefect:managed
-```
+1. Create a [managed work pool](/3.0rc/deploy/serve-flows/index):
 
-View your new work pool on the **Work Pools** page of the UI.
+   ```bash
+   prefect work-pool create my-work-pool --type prefect:managed
+   ```
+
+1. View your new work pool on the **Work Pools** page of the UI.
   </Tab>
   <Tab title="OSS">
-In this example, we'll create a Docker type work pool, but you can choose from other [work pool types](https://docs.prefect.io/concepts/work-pools/#worker-types).
+Deploy your flow to your local server using a Docker type work pool.
 
-<Info>
-You need to have Docker installed and running on your machine to create a Docker work pool.
-</Info>
+1. Install Docker on your machine.
+1. Create a Docker type work pool:
 
-Create a Docker type work pool:
+   ```bash
+   prefect work-pool create --type docker my-work-pool
+   ```
 
-```bash
-prefect work-pool create --type docker my-work-pool
-```
+   <Tip>
+   You can also choose from other [work pool types](https://docs.prefect.io/concepts/work-pools/#worker-types).
+   </Tip>
 
-Verify that the work pool exists:
+1. Verify that the work pool exists:
 
-```bash
-prefect work-pool ls
-```
+   ```bash
+   prefect work-pool ls
+   ```
   </Tab>
 </Tabs>
 
