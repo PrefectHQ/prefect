@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
+from typing import Any, Dict, Generic, Iterable, Optional, Type, TypeVar
 
 import orjson
 import websockets
@@ -21,7 +21,7 @@ class Subscription(Generic[S]):
         self,
         model: Type[S],
         path: str,
-        keys: List[str],
+        keys: Iterable[str],
         client_id: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
@@ -30,7 +30,7 @@ class Subscription(Generic[S]):
         base_url = base_url.replace("http", "ws", 1)
         self.subscription_url = f"{base_url}{path}"
 
-        self.keys = keys
+        self.keys = list(keys)
 
         self._connect = websockets.connect(
             self.subscription_url,

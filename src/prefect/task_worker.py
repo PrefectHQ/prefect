@@ -12,6 +12,7 @@ from uuid import UUID
 
 import anyio
 import anyio.abc
+import pendulum
 import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI
@@ -76,8 +77,9 @@ class TaskWorker:
         limit: Optional[int] = 10,
     ):
         self.tasks: List[Task] = list(tasks)
+        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
 
-        self.started: bool = False
+        self._started_at: Optional[pendulum.DateTime] = None
         self.stopping: bool = False
 
         self._client = get_client()
@@ -92,13 +94,24 @@ class TaskWorker:
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
-        self.in_flight_task_runs = {
-            task.task_key: set() for task in self.tasks if isinstance(task, Task)
+        self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
+            task_key: {} for task_key in self.task_keys
+        }
+        self.finished_task_runs: dict[str, int] = {
+            task_key: 0 for task_key in self.task_keys
         }
 
     @property
     def client_id(self) -> str:
         return f"{socket.gethostname()}-{os.getpid()}"
+
+    @property
+    def started_at(self) -> Optional[pendulum.DateTime]:
+        return self._started_at
+
+    @property
+    def started(self) -> bool:
+        return self._started_at is not None
 
     @property
     def limit(self) -> Optional[int]:
@@ -156,7 +169,7 @@ class TaskWorker:
                 " calling .start()"
             )
 
-        self.started = False
+        self._started_at = None
         self.stopping = True
 
         raise StopTaskWorker
@@ -189,13 +202,13 @@ class TaskWorker:
                 "Task workers are not compatible with the ephemeral API."
             )
         task_keys_repr = " | ".join(
-            t.task_key.split(".")[-1].split("-")[0] for t in self.tasks
+            task_key.split(".")[-1].split("-")[0] for task_key in sorted(self.task_keys)
         )
         logger.info(f"Subscribing to runs of task(s): {task_keys_repr}")
         async for task_run in Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
-            keys=[task.task_key for task in self.tasks],
+            keys=self.task_keys,
             client_id=self.client_id,
             base_url=base_url,
         ):
@@ -208,7 +221,7 @@ class TaskWorker:
                 )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
-        self.in_flight_task_runs[task_run.task_key].add(task_run.id)
+        self.in_flight_task_runs[task_run.task_key][task_run.id] = pendulum.now()
         try:
             await self._submit_scheduled_task_run(task_run)
         except BaseException as exc:
@@ -217,7 +230,8 @@ class TaskWorker:
                 exc_info=exc,
             )
         finally:
-            self.in_flight_task_runs[task_run.task_key].discard(task_run.id)
+            self.in_flight_task_runs[task_run.task_key].pop(task_run.id, None)
+            self.finished_task_runs[task_run.task_key] += 1
             self._release_token(task_run.id)
 
     async def _submit_scheduled_task_run(self, task_run: TaskRun):
@@ -343,12 +357,12 @@ class TaskWorker:
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
 
-        self.started = True
+        self._started_at = pendulum.now()
         return self
 
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task worker...")
-        self.started = False
+        self._started_at = None
         await self._exit_stack.__aexit__(*exc_info)
 
 
@@ -359,13 +373,15 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     def status():
         return {
             "client_id": task_worker.client_id,
-            "started": task_worker.started,
+            "started_at": task_worker.started_at.isoformat(),
             "stopping": task_worker.stopping,
             "limit": task_worker.limit,
             "current": task_worker.current_tasks,
             "available": task_worker.available_tasks,
-            "tasks": {
-                key: list(sorted(tasks))
+            "tasks": sorted(task_worker.task_keys),
+            "finished": task_worker.finished_task_runs,
+            "in_flight": {
+                key: {str(run): start.isoformat() for run, start in tasks.items()}
                 for key, tasks in task_worker.in_flight_task_runs.items()
             },
         }
