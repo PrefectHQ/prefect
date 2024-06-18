@@ -235,8 +235,15 @@ async def prefect_client() -> AsyncGenerator["PrefectClient", None]:
         yield client
 
 
+def enabled_task_scheduling_pending_task_timeout():
+    with temporary_settings({PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT: 30}):
+        yield
+
+
 async def test_scheduled_tasks_are_restored_at_server_startup(
-    foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
+    foo_task_with_result_storage: Task,
+    prefect_client: "PrefectClient",
+    enabled_task_scheduling_pending_task_timeout: None,
 ):
     # run one iteration of the timeouts service
     service = TaskSchedulingTimeouts()
@@ -277,7 +284,9 @@ async def test_scheduled_tasks_are_restored_at_server_startup(
 
 
 async def test_stuck_pending_tasks_are_reenqueued(
-    foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
+    foo_task_with_result_storage: Task,
+    prefect_client: "PrefectClient",
+    enabled_task_scheduling_pending_task_timeout: None,
 ):
     task_run_future = foo_task_with_result_storage.apply_async((42,))
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
@@ -299,6 +308,15 @@ async def test_stuck_pending_tasks_are_reenqueued(
             await server.execute_task_run(task_run)
 
     # now the task will be in a stuck pending state
+    task_run = await prefect_client.read_task_run(task_run.id)
+    assert task_run.state.type == StateType.PENDING
+
+    # first, run an iteration of the TaskSchedulingTimeouts loop service with the
+    # setting disabled to demonstrate that it will not re-schedule the task
+    with temporary_settings({PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT: 0}):
+        await TaskSchedulingTimeouts().start(loops=1)
+
+    # the task will still be PENDING and not re-enqueued
     task_run = await prefect_client.read_task_run(task_run.id)
     assert task_run.state.type == StateType.PENDING
 
