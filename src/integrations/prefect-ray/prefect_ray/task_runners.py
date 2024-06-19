@@ -271,11 +271,6 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         def resolve_ray_future(expr):
             """Resolves Ray future."""
             if isinstance(expr, ray.ObjectRef):
-                print()
-                print("inside resolve_ray_future")
-                print(expr)
-                print()
-
                 return ray.get(expr)
             return expr
 
