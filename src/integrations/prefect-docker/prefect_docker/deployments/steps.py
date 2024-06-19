@@ -96,7 +96,8 @@ def _make_hashable(obj):
 def cacheable(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        ignore_cache = kwargs.pop("ignore_cache", False)
+        if ignore_cache := kwargs.pop("ignore_cache", False):
+            logger.debug("Ignoring `@cacheable` decorator for build_docker_image.")
         key = (
             tuple(_make_hashable(arg) for arg in args),
             tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items())),
@@ -105,7 +106,7 @@ def cacheable(func):
             logger.debug(f"Cache miss for {func.__name__}, running function.")
             STEP_OUTPUT_CACHE[key] = func(*args, **kwargs)
         else:
-            logger.info(f"Cache hit for {func.__name__}, returning cached value.")
+            logger.debug(f"Cache hit for {func.__name__}, returning cached value.")
         return STEP_OUTPUT_CACHE[key]
 
     return wrapper
@@ -179,10 +180,6 @@ def build_docker_image(
                 platform: amd64
         ```
     """  # noqa
-
-    if ignore_cache:
-        logger.debug("Ignoring `@cacheable` decorator for build_docker_image.")
-
     auto_build = dockerfile == "auto"
     if auto_build:
         lines = []
@@ -321,9 +318,6 @@ def push_docker_image(
                 additional_tags: "{{ build-image.additional_tags }}"
         ```
     """  # noqa
-    if ignore_cache:
-        logger.debug("Ignoring `@cacheable` decorator for push_docker_image.")
-
     with docker_client() as client:
         if credentials is not None:
             client.login(
