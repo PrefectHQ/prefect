@@ -216,7 +216,8 @@ list(generator) # prints 'Generator consumed!'
 ## Parameters
 
 As with any Python function, you can pass arguments to a flow including both positional and keyword arguments.
-These arguments defined on your flow function are called [parameters](/3.0rc/develop/write-flows/#parameters) and are stored by the Prefect orchestration engine on the flow run object.
+These arguments defined on your flow function are called [parameters](/3.0rc/develop/write-flows/#parameters).
+They are stored by the Prefect orchestration engine on the flow run object.
 
 Prefect automatically performs type conversion of inputs using any provided type hints.
 Type hints provide an easy way to enforce typing on your flow parameters and can be greatly enhanced with [Pydantic](https://pydantic-docs.helpmanual.io/).
