@@ -200,7 +200,7 @@ example\_deploy\_script.py
 
 ```
 from prefect import flow
-from prefect.deployments import DeploymentImage
+from prefect.docker import DeploymentImage
 
 @flow(log_prints=True)            
 def my_flow(name: str = "world"):                          
@@ -284,7 +284,7 @@ To take advantage of this functionality, you can write your deploy scripts like 
 ```python example_deploy_script.py
 
 from prefect import flow                                                       
-from prefect.deployments import DeploymentImage                                
+from prefect.docker import DeploymentImage                                
 
 
 @flow(log_prints=True)                                                         
@@ -368,7 +368,7 @@ example\_deploy\_script.py
 
 ```
 from prefect import flow                                                       
-from prefect.deployments import DeploymentImage                                
+from prefect.docker import DeploymentImage                                
 
 
 @flow(log_prints=True)

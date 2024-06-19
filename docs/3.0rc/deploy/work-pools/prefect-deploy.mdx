@@ -203,7 +203,7 @@ If you want to use a custom Dockerfile, specify the path to the Dockerfile with 
 
 ```python custom_dockerfile.py
 from prefect import flow
-from prefect.deployments import DeploymentImage
+from prefect.docker import DeploymentImage
 
 
 @flow(log_prints=True)

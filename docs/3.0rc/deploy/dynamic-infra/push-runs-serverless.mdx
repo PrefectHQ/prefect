@@ -232,7 +232,7 @@ run this command for your particular cloud provider:
 
         ```python example_deploy_script.py
         from prefect import flow
-        from prefect.deployments import DeploymentImage
+        from prefect.docker import DeploymentImage
 
         @flow(log_prints=True)            
         def my_flow(name: str = "world"):                          
@@ -325,7 +325,7 @@ run this command for your particular cloud provider:
 
         ```python example_deploy_script.py
         from prefect import flow                                                       
-        from prefect.deployments import DeploymentImage                                
+        from prefect.docker import DeploymentImage                                
 
 
         @flow(log_prints=True)                                                         
@@ -418,7 +418,7 @@ run this command for your particular cloud provider:
 
         ```python example_deploy_script.py
         from prefect import flow                                                       
-        from prefect.deployments import DeploymentImage                                
+        from prefect.docker import DeploymentImage                                
 
 
         @flow(log_prints=True)

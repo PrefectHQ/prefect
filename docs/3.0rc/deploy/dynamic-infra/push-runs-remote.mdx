@@ -188,7 +188,7 @@ containers whenever this workflow needs to run.
     ```python repo_info.py
     import httpx
     from prefect import flow
-    from prefect.deployments import DeploymentImage
+    from prefect.docker import DeploymentImage
 
 
     @flow(log_prints=True)
