@@ -83,7 +83,6 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
-from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
@@ -1185,14 +1184,16 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]: ...
+    ) -> Awaitable[T]:
+        ...
 
     @overload
     def __call__(
         self: "Flow[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T: ...
+    ) -> T:
+        ...
 
     @overload
     def __call__(
@@ -1200,7 +1201,8 @@ class Flow(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]: ...
+    ) -> State[T]:
+        ...
 
     def __call__(
         self,
@@ -1338,7 +1340,8 @@ class Flow(Generic[P, R]):
 
 
 @overload
-def flow(__fn: Callable[P, R]) -> Flow[P, R]: ...
+def flow(__fn: Callable[P, R]) -> Flow[P, R]:
+    ...
 
 
 @overload
@@ -1369,7 +1372,8 @@ def flow(
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
+) -> Callable[[Callable[P, R]], Flow[P, R]]:
+    ...
 
 
 def flow(
