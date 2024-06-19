@@ -431,7 +431,11 @@ class ResultFactory(BaseModel):
 
     @sync_compatible
     async def create_result(
-        self, obj: R, key: Optional[str] = None, expiration: Optional[DateTime] = None
+        self,
+        obj: R,
+        key: Optional[str] = None,
+        expiration: Optional[DateTime] = None,
+        defer_persistence: bool = False,
     ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
@@ -464,6 +468,7 @@ class ResultFactory(BaseModel):
             serializer=self.serializer,
             cache_object=should_cache_object,
             expiration=expiration,
+            defer_persistence=defer_persistence,
         )
 
     @sync_compatible
@@ -682,6 +687,9 @@ class PersistedResult(BaseResult):
         await storage_block.write_path(self.storage_key, content=blob.to_bytes())
         self._persisted = True
 
+        if not self._should_cache_object:
+            self._cache = NotSet
+
     @classmethod
     @sync_compatible
     async def create(
@@ -729,7 +737,7 @@ class PersistedResult(BaseResult):
             expiration=expiration,
         )
 
-        if cache_object:
+        if cache_object and not defer_persistence:
             # Attach the object to the result so it's available without deserialization
             result._cache_object(
                 obj, storage_block=storage_block, serializer=serializer
@@ -739,6 +747,12 @@ class PersistedResult(BaseResult):
 
         if not defer_persistence:
             await result.write(obj=obj)
+        else:
+            # we must cache temporarily to allow for writing later
+            # the cache will be removed on write
+            result._cache_object(
+                obj, storage_block=storage_block, serializer=serializer
+            )
 
         return result
 
