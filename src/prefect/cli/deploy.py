@@ -461,11 +461,16 @@ async def _run_single_deploy(
     push_steps = deploy_config.get("push", actions.get("push")) or []
     pull_steps = deploy_config.get("pull", actions.get("pull")) or []
 
+    # Don't resolve references in job variables. That will happen we preparing for
+    # a flow run.
+    _job_variables = deploy_config["work_pool"].pop("job_variables", {})
     deploy_config = await resolve_block_document_references(deploy_config)
     deploy_config = await resolve_variables(deploy_config)
 
     # check for env var placeholders early so users can pass work pool names, etc.
     deploy_config = apply_values(deploy_config, os.environ, remove_notset=False)
+
+    deploy_config["work_pool"]["job_variables"] = _job_variables
 
     if not deploy_config.get("entrypoint"):
         if not is_interactive():
@@ -676,7 +681,6 @@ async def _run_single_deploy(
     deploy_config_before_templating = deepcopy(deploy_config)
     ## apply templating from build and push steps to the final deployment spec
     _parameter_schema = deploy_config.pop("parameter_openapi_schema")
-
     _schedules = deploy_config.pop("schedules")
 
     deploy_config = apply_values(deploy_config, step_outputs)
