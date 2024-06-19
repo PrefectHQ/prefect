@@ -75,7 +75,6 @@ They're the core observable, orchestrated, deployable units of work in Prefect.
 Adding `@task` decorators to the functions called by the flow converts them to tasks. 
 Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
 Prefect will record these dependencies and states as it orchestrates these tasks when they run.
-Tasks are the smallest unit of observed and orchestrated work in Prefect.
 
 ```python my_gh_workflow.py
 import httpx   # an HTTP client library and dependency of Prefect
