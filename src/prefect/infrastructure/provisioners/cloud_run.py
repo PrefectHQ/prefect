@@ -404,7 +404,7 @@ class CloudRunPushProvisioner:
                         dedent(
                             f"""\
                         from prefect import flow
-                        from prefect.deployments import DeploymentImage
+                        from prefect.docker import DeploymentImage
 
 
                         @flow(log_prints=True)
