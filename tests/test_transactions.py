@@ -82,13 +82,25 @@ class TestGetParent:
 
 
 class TestCommitMode:
-    def test_txns_auto_commit(self):
-        with Transaction() as txn:
+    def test_txns_dont_auto_commit(self):
+        with Transaction(key="outer") as outer:
+            assert not outer.is_committed()
+
+            with Transaction(key="inner") as inner:
+                pass
+
+            assert not inner.is_committed()
+
+        assert outer.is_committed()
+        assert inner.is_committed()
+
+    def test_txns_auto_commit_in_eager(self):
+        with Transaction(commit_mode=CommitMode.EAGER) as txn:
             assert txn.is_active()
             assert not txn.is_committed()
         assert txn.is_committed()
 
-        with Transaction(key="outer") as outer:
+        with Transaction(key="outer", commit_mode=CommitMode.EAGER) as outer:
             assert not outer.is_committed()
             with Transaction(key="inner") as inner:
                 pass
@@ -109,18 +121,6 @@ class TestCommitMode:
 
         assert not txn.is_committed()
         assert txn.is_rolled_back()
-
-    def test_txns_dont_auto_commit_with_lazy_parent(self):
-        with Transaction(key="outer", commit_mode=CommitMode.LAZY) as outer:
-            assert not outer.is_committed()
-
-            with Transaction(key="inner") as inner:
-                pass
-
-            assert not inner.is_committed()
-
-        assert outer.is_committed()
-        assert inner.is_committed()
 
     def test_txns_commit_with_lazy_parent_if_eager(self):
         with Transaction(key="outer", commit_mode=CommitMode.LAZY) as outer:

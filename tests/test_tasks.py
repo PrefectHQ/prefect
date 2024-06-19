@@ -44,7 +44,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import Transaction
+from prefect.transactions import CommitMode, Transaction, transaction
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
@@ -4412,7 +4412,13 @@ class TestNestedTasks:
         assert await state1.result() == 4
         assert await state2.result() == 4
 
-    async def test_nested_cache_key_fn_inner_task_cached(self):
+    async def test_nested_cache_key_fn_inner_task_cached_default(self):
+        """
+        By default, task transactions are LAZY committed and therefore
+        inner tasks do not persist data (i.e., create a cache) until
+        the outer task is complete.
+        """
+
         @task(cache_key_fn=task_input_hash)
         def inner_task(x):
             return x * 2
@@ -4432,12 +4438,54 @@ class TestNestedTasks:
         assert state.name == "Completed"
         inner_state1, inner_state2 = await state.result()
         assert inner_state1.name == "Completed"
-        assert inner_state2.name == "Cached"
+        assert inner_state2.name == "Completed"
 
         assert await inner_state1.result() == 4
         assert await inner_state2.result() == 4
 
-    async def test_nested_async_cache_key_fn_inner_task_cached(self):
+    async def test_nested_cache_key_fn_inner_task_cached_eager(self):
+        """
+        By default, task transactions are LAZY committed and therefore
+        inner tasks do not persist data (i.e., create a cache) until
+        the outer task is complete.
+
+        This behavior can be modified by using a transaction context manager.
+        """
+
+        @task(cache_key_fn=task_input_hash)
+        def inner_task(x):
+            return x * 2
+
+        @task
+        def outer_task(x):
+            with transaction(commit_mode=CommitMode.EAGER):
+                state1 = inner_task(x, return_state=True)
+                state2 = inner_task(x, return_state=True)
+                return state1, state2
+
+        @flow
+        def my_flow():
+            state = outer_task(4, return_state=True)
+            return state
+
+        state = my_flow()
+        assert state.name == "Completed"
+        inner_state1, inner_state2 = await state.result()
+        assert inner_state1.name == "Completed"
+        assert inner_state2.name == "Cached"
+
+        assert await inner_state1.result() == 8
+        assert await inner_state2.result() == 8
+
+    async def test_nested_async_cache_key_fn_inner_task_cached_default(self):
+        """
+        By default, task transactions are LAZY committed and therefore
+        inner tasks do not persist data (i.e., create a cache) until
+        the outer task is complete.
+
+        This behavior can be modified by using a transaction context manager.
+        """
+
         @task(cache_key_fn=task_input_hash)
         async def inner_task(x):
             return x * 2
@@ -4447,6 +4495,40 @@ class TestNestedTasks:
             state1 = await inner_task(x, return_state=True)
             state2 = await inner_task(x, return_state=True)
             return state1, state2
+
+        @flow
+        async def my_flow():
+            state = await outer_task(2, return_state=True)
+            return state
+
+        state = await my_flow()
+        assert state.name == "Completed"
+        inner_state1, inner_state2 = await state.result()
+        assert inner_state1.name == "Completed"
+        assert inner_state2.name == "Completed"
+
+        assert await inner_state1.result() == 4
+        assert await inner_state2.result() == 4
+
+    async def test_nested_async_cache_key_fn_inner_task_cached_eager(self):
+        """
+        By default, task transactions are LAZY committed and therefore
+        inner tasks do not persist data (i.e., create a cache) until
+        the outer task is complete.
+
+        This behavior can be modified by using a transaction context manager.
+        """
+
+        @task(cache_key_fn=task_input_hash)
+        async def inner_task(x):
+            return x * 2
+
+        @task
+        async def outer_task(x):
+            with transaction(commit_mode=CommitMode.EAGER):
+                state1 = await inner_task(x, return_state=True)
+                state2 = await inner_task(x, return_state=True)
+                return state1, state2
 
         @flow
         async def my_flow():

@@ -89,7 +89,7 @@ class Transaction(ContextModel):
             if parent:
                 self.commit_mode = parent.commit_mode
             else:
-                self.commit_mode = CommitMode.EAGER
+                self.commit_mode = CommitMode.LAZY
 
         # this needs to go before begin, which could set the state to committed
         self.state = TransactionState.ACTIVE
@@ -236,7 +236,7 @@ def get_transaction() -> Optional[Transaction]:
 def transaction(
     key: Optional[str] = None,
     store: Optional[RecordStore] = None,
-    commit_mode: CommitMode = CommitMode.LAZY,
+    commit_mode: Optional[CommitMode] = None,
     overwrite: bool = False,
 ) -> Generator[Transaction, None, None]:
     """
