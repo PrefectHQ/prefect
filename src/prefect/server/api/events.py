@@ -46,7 +46,17 @@ async def create_events(
     received_events = [event.receive() for event in events]
     if ephemeral_request:
         async with db.session_context() as session:
-            await database.write_events(session, received_events)
+            try:
+                await database.write_events(session, received_events)
+            except RuntimeError as exc:
+                # When using the ephemeral API, we may receive events after the interpreter is shutting down
+                # because the event is processed in a different thread. In that case it's ok to ignore the event.
+                if "can't create new thread at interpreter shutdown" in str(exc):
+                    logger.warning(
+                        "Received event during interpreter shutdown, ignoring"
+                    )
+                else:
+                    raise
     else:
         await messaging.publish(received_events)
 
