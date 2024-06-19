@@ -25,10 +25,9 @@ Using `.submit()` without specifying a task runner will run your tasks in a thre
 
 ### Built-in task runners and integrations
 
-Prefect uses a `ThreadPoolTaskRunner` by default: 
+Prefect uses a [`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner), which runs tasks concurrently, by default.
+Tasks are submitted to a thread pool for execution.
 
-- [`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner) 
-can run tasks concurrently. Tasks are submitted to a thread pool for execution.
 
 The following Prefect-developed task runners for parallel or distributed task 
 execution are available as [integrations](/integrations/catalog/):

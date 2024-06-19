@@ -18,7 +18,7 @@ Only results from tasks inform Prefect's ability to determine dependencies. Retu
 without task decorators, including subflows, do not carry the same information about their origin as task results.
 </Note>
 
-When using non-sequential task runners such as the [`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner) or 
+When using task runners, such as the default [`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner) or 
 [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted 
 tasks is not guaranteed unless you specify their dependencies.
 
