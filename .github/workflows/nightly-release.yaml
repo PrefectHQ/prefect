@@ -32,9 +32,8 @@ jobs:
     - name: Check for changes since latest tag
       id: check_changes
       run: |
-        git fetch --prune --unshallow
         latest_tag=${{ env.latest_tag }}
-        if git diff --exit-code $latest_tag HEAD -- '*.py' 'requirements.txt'; then
+        if git diff --exit-code $latest_tag HEAD -- '*.py' setup.py requirements.txt requirements-client.txt ui; then
           echo "SHOULD_CREATE_RELEASE=false" >> $GITHUB_ENV
           echo "No changes in .py files or dependencies since the latest tag."
         else
