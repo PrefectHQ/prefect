@@ -209,6 +209,7 @@ async def return_value_to_state(
     result_factory: ResultFactory,
     key: Optional[str] = None,
     expiration: Optional[datetime.datetime] = None,
+    defer_persistence: bool = False,
 ) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
@@ -242,7 +243,10 @@ async def return_value_to_state(
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
             state.data = await result_factory.create_result(
-                state.data, key=key, expiration=expiration
+                state.data,
+                key=key,
+                expiration=expiration,
+                defer_persistence=defer_persistence,
             )
 
         return state
@@ -284,7 +288,10 @@ async def return_value_to_state(
             type=new_state_type,
             message=message,
             data=await result_factory.create_result(
-                retval, key=key, expiration=expiration
+                retval,
+                key=key,
+                expiration=expiration,
+                defer_persistence=defer_persistence,
             ),
         )
 
@@ -300,7 +307,10 @@ async def return_value_to_state(
     else:
         return Completed(
             data=await result_factory.create_result(
-                data, key=key, expiration=expiration
+                data,
+                key=key,
+                expiration=expiration,
+                defer_persistence=defer_persistence,
             )
         )
 
