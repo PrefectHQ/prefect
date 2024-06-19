@@ -168,6 +168,20 @@ class FlowRunEngine(Generic[P, R]):
             )
             return state
 
+        # validate prior to context so that context receives validated params
+        if self.flow.should_validate_parameters:
+            try:
+                self.parameters = self.flow.validate_parameters(self.parameters or {})
+            except Exception as exc:
+                message = "Validation of flow parameters failed with error:"
+                self.logger.error("%s %s", message, exc)
+                self.handle_exception(
+                    exc,
+                    msg=message,
+                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
+                )
+                self.short_circuit = True
+
         new_state = Running()
         state = self.set_state(new_state)
         while state.is_pending():
@@ -484,24 +498,6 @@ class FlowRunEngine(Generic[P, R]):
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
                 )
-
-            # validate prior to context so that context receives validated params
-            if self.flow.should_validate_parameters:
-                try:
-                    self.parameters = self.flow.validate_parameters(
-                        self.parameters or {}
-                    )
-                except Exception as exc:
-                    message = "Validation of flow parameters failed with error:"
-                    self.logger.error("%s %s", message, exc)
-                    self.handle_exception(
-                        exc,
-                        msg=message,
-                        result_factory=run_coro_as_sync(
-                            ResultFactory.from_flow(self.flow)
-                        ),
-                    )
-                    self.short_circuit = True
             try:
                 yield self
             except Exception:

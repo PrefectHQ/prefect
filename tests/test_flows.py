@@ -1799,6 +1799,36 @@ class TestSubflowTaskInputs:
             y=[],
         )
 
+    async def test_subflow_with_upstream_task_passes_validation(self, prefect_client):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14036
+        """
+
+        @task
+        def child_task(x: int):
+            return x
+
+        @flow
+        def child_flow(x: int):
+            return x
+
+        @flow
+        def parent_flow():
+            task_state = child_task(257, return_state=True)
+            flow_state = child_flow(x=task_state, return_state=True)
+            return task_state, flow_state
+
+        task_state, flow_state = parent_flow()
+        assert flow_state.is_completed()
+
+        flow_tracking_task_run = await prefect_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
+
 
 # We flush the APILogHandler in a non-blocking manner, so we need to wait for the logs to be
 # written before we can read them to avoid flakiness.
