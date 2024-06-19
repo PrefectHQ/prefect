@@ -1331,7 +1331,7 @@ class TestContainerRepositoryResource:
         assert container_repository_resource.next_steps[1].renderable.code == dedent(
             """\
                 from prefect import flow
-                from prefect.docker.deployment_image import DeploymentImage
+                from prefect.docker.docker_image import DockerImage
 
 
                 @flow(log_prints=True)
@@ -1343,7 +1343,7 @@ class TestContainerRepositoryResource:
                     my_flow.deploy(
                         name="my-deployment",
                         work_pool_name="test-work-pool",
-                        image=DeploymentImage(
+                        image=DockerImage(
                             name="prefect-flows:latest",
                             platform="linux/amd64",
                         )

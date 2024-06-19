@@ -17,7 +17,7 @@ from prefect.utilities.dockerutils import (
 from prefect.utilities.slugify import slugify
 
 
-class DeploymentImage:
+class DockerImage:
     """
     Configuration used to build and push a Docker image for a deployment.
 

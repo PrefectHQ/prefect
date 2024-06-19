@@ -62,7 +62,7 @@ from prefect.deployments.schedules import (
     FlexibleScheduleList,
     create_deployment_schedule_create,
 )
-from prefect.docker.deployment_image import DeploymentImage
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     ObjectNotFound,
@@ -771,7 +771,7 @@ class RunnerDeployment(BaseModel):
 async def deploy(
     *deployments: RunnerDeployment,
     work_pool_name: Optional[str] = None,
-    image: Optional[Union[str, DeploymentImage]] = None,
+    image: Optional[Union[str, DockerImage]] = None,
     build: bool = True,
     push: bool = True,
     print_next_steps_message: bool = True,
@@ -793,7 +793,7 @@ async def deploy(
         work_pool_name: The name of the work pool to use for these deployments. Defaults to
             the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
         image: The name of the Docker image to build, including the registry and
-            repository. Pass a DeploymentImage instance to customize the Dockerfile used
+            repository. Pass a DockerImage instance to customize the Dockerfile used
             and build arguments.
         build: Whether or not to build a new image for the flow. If False, the provided
             image will be used as-is and pulled at runtime.
@@ -848,7 +848,7 @@ async def deploy(
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
-        image = DeploymentImage(name=image_name, tag=image_tag)
+        image = DockerImage(name=image_name, tag=image_tag)
 
     try:
         async with get_client() as client:
