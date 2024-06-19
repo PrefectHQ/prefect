@@ -117,7 +117,7 @@ def url_for(
         if obj.id.startswith("prefect."):
             name = obj.id.split(".")[1]
         else:
-            logger.warning(f"No URL known for resource with ID: {obj.id}")
+            logger.debug(f"No URL known for resource with ID: {obj.id}")
             return None
     elif isinstance(obj, str):
         name = obj
@@ -133,10 +133,10 @@ def url_for(
         raise ValueError(f"Invalid URL type: {url_type}. Use 'ui' or 'api'.")
 
     if url_type == "ui" and name not in UI_URL_FORMATS:
-        logger.error("No UI URL known for this object: %s", name)
+        logger.debug("No UI URL known for this object: %s", name)
         return None
     elif url_type == "api" and name not in API_URL_FORMATS:
-        logger.error("No API URL known for this object: %s", name)
+        logger.debug("No API URL known for this object: %s", name)
         return None
 
     if isinstance(obj, str) and not obj_id:
@@ -152,7 +152,7 @@ def url_for(
     base_url = base_url or default_base_url
 
     if not base_url:
-        logger.warning(
+        logger.debug(
             f"No URL found for the Prefect {'UI' if url_type == 'ui' else 'API'}, "
             f"and no default base path provided."
         )
@@ -174,7 +174,7 @@ def url_for(
         else:
             obj_id = getattr(obj, "id", None)
         if not obj_id:
-            logger.error(
+            logger.debug(
                 "An ID is required to build a URL, but object did not have one: %s", obj
             )
             return ""
