@@ -16,13 +16,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        persist-credentials: false
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Get latest tag
       id: get_latest_tag
       run: |
-        latest_tag=$(git tag -l | grep -E '^(3\.\d+\.\d+(?:[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*)?)$' | sort -V | tail -n 1)
+        latest_tag=$(git tag -l | grep -E '^3\.[0-9]+\.[0-9]+(rc[0-9]+)?$' | sort -V | tail -n 1)
         if [ -z "$latest_tag" ]; then
           echo "No matching tags found."
           exit 1
