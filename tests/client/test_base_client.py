@@ -538,7 +538,9 @@ async def mocked_client(
     responses: List[Response],
     **client_kwargs: Dict[str, Any],
 ) -> AsyncGenerator[Tuple[PrefectHttpxAsyncClient, mock.AsyncMock], None]:
-    with mock.patch("httpx.AsyncClient.send", autospec=True) as send:
+    with mock.patch(
+        "prefect.client.base.httpx.AsyncClient.send", autospec=True
+    ) as send:
         send.side_effect = responses
         client = PrefectHttpxAsyncClient(**client_kwargs)
         async with client:
