@@ -589,6 +589,12 @@ class PersistedResult(BaseResult):
     expiration: Optional[DateTime] = None
 
     _should_cache_object: bool = PrivateAttr(default=True)
+    _persisted: bool = PrivateAttr(default=True)
+    _storage_block: WritableFileSystem = PrivateAttr(default=None)
+
+    def _cache_object(self, obj: Any, storage_block: WritableFileSystem = None) -> None:
+        self._cache = obj
+        self._storage_block = storage_block
 
     @sync_compatible
     @inject_client
@@ -632,6 +638,32 @@ class PersistedResult(BaseResult):
         if hasattr(storage_block, "_remote_file_system"):
             return storage_block._remote_file_system._resolve_path(key)
 
+    @sync_compatible
+    @inject_client
+    async def write(self, client: "PrefectClient" = None) -> None:
+        """
+        Write the result to the storage block.
+        """
+
+        if self._persisted:
+            # don't double write or overwrite
+            return
+
+        if not self.has_cached_object():
+            raise ValueError("Cannot write a result that has no object cached.")
+
+        storage_block = self._storage_block
+        if storage_block is None:
+            block_document = await client.read_block_document(self.storage_block_id)
+            storage_block = Block._from_block_document(block_document)
+
+        serializer = Serializer(type=self.serializer_type)
+        data = serializer.dumps(await self.get())
+        blob = PersistedResultBlob(
+            serializer=serializer, data=data, expiration=self.expiration
+        )
+        await storage_block.write_path(self.storage_key, content=blob.to_bytes())
+
     @classmethod
     @sync_compatible
     async def create(
@@ -643,6 +675,7 @@ class PersistedResult(BaseResult):
         serializer: Serializer,
         cache_object: bool = True,
         expiration: Optional[DateTime] = None,
+        defer_persistence: bool = False,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
@@ -652,19 +685,13 @@ class PersistedResult(BaseResult):
         """
         assert (
             storage_block_id is not None
-        ), "Unexpected storage block ID. Was it persisted?"
-        data = serializer.dumps(obj)
-        blob = PersistedResultBlob(
-            serializer=serializer, data=data, expiration=expiration
-        )
+        ), "Unexpected storage block ID. Was it saved?"
 
         key = storage_key_fn()
         if not isinstance(key, str):
             raise TypeError(
                 f"Expected type 'str' for result storage key; got value {key!r}"
             )
-        await storage_block.write_path(key, content=blob.to_bytes())
-
         description = f"Result of type `{type(obj).__name__}`"
         uri = cls._infer_path(storage_block, key)
         if uri:
@@ -689,6 +716,9 @@ class PersistedResult(BaseResult):
             result._cache_object(obj)
 
         object.__setattr__(result, "_should_cache_object", cache_object)
+
+        if not defer_persistence:
+            await result.write()
 
         return result
 
