@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union, get_args
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.schedules import is_schedule_type
 
 if TYPE_CHECKING:
     from prefect.client.schemas.schedules import SCHEDULE_TYPES
-
-FlexibleScheduleList = Sequence[Union[DeploymentScheduleCreate, dict, "SCHEDULE_TYPES"]]
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
 
 
 def create_deployment_schedule_create(
@@ -26,12 +26,10 @@ def create_deployment_schedule_create(
 def normalize_to_deployment_schedule_create(
     schedules: Optional["FlexibleScheduleList"],
 ) -> List[DeploymentScheduleCreate]:
-    from prefect.client.schemas.schedules import SCHEDULE_TYPES
-
-    normalized = []
+    normalized: list[DeploymentScheduleCreate] = []
     if schedules is not None:
         for obj in schedules:
-            if isinstance(obj, get_args(SCHEDULE_TYPES)):
+            if is_schedule_type(obj):
                 normalized.append(create_deployment_schedule_create(obj))
             elif isinstance(obj, dict):
                 normalized.append(create_deployment_schedule_create(**obj))
