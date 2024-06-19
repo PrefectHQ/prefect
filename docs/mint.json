@@ -155,21 +155,21 @@
       ]
     },
     {
-      "group": "React",
+      "group": "Automate",
       "version": "3.0rc",
       "pages": [
         {
           "group": "Automate responses to events",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/react/events/events",
-            "3.0rc/react/events/automations-triggers",
-            "3.0rc/react/events/custom-triggers",
-            "3.0rc/react/events/webhook-triggers"
+            "3.0rc/automate/events/events",
+            "3.0rc/automate/events/automations-triggers",
+            "3.0rc/automate/events/custom-triggers",
+            "3.0rc/automate/events/webhook-triggers"
           ]
         },
-        "3.0rc/react/state-hooks",
-        "3.0rc/react/incidents"
+        "3.0rc/automate/state-hooks",
+        "3.0rc/automate/incidents"
       ]
     },
     {

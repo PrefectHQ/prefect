@@ -23,7 +23,7 @@ Attributes of a deployment include:
 - **Tags**: optional text labels for organizing deployments
 
 Some of the most common reasons to use an orchestration tool like Prefect are for 
-[scheduling](/3.0rc/deploy/serve-flows/add-schedules/) and [event-based triggering](/3.0rc/react/events/automations-triggers/).
+[scheduling](/3.0rc/deploy/serve-flows/add-schedules/) and [event-based triggering](/3.0rc/automate/events/automations-triggers/).
 As opposed to manually triggering and managing flow runs, deploying a flow exposes an API and 
 UI that allow you to:
 
@@ -276,7 +276,7 @@ Most of the convenient interfaces for creating deployments allow users to avoid 
 For example, when [updating a deployment schedule in the UI](/3.0rc/deploy/serve-flows/add-schedules/#creating-schedules-through-the-ui) 
 basic information such as a cron string or interval is all that's required.
 - **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment.
-For more information see [Automations](/3.0rc/react/events/automations-triggers/).
+For more information see [Automations](/3.0rc/automate/events/automations-triggers/).
 - **`parameter_openapi_schema`**: an [OpenAPI compatible schema](https://swagger.io/specification/) that defines 
 the types and defaults for the flow's parameters.
 This is used by the UI and the backend to expose options for creating manual runs as well as type validation.
