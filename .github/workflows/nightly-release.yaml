@@ -14,15 +14,22 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
       with:
-        persist-credentials: false
         fetch-depth: 0
+
+    - name: Print all tags for debugging
+      run: |
+        git tag -l
 
     - name: Get latest tag
       id: get_latest_tag
       run: |
         latest_tag=$(git tag -l | grep -E '^(3\.\d+\.\d+(?:[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*)?)$' | sort -V | tail -n 1)
+        echo "Fetched tags:"
+        git tag -l
+        echo "Filtered tags:"
+        git tag -l | grep -E '^(3\.\d+\.\d+(?:[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*)?)$'
         if [ -z "$latest_tag" ]; then
           echo "No matching tags found."
           exit 1
