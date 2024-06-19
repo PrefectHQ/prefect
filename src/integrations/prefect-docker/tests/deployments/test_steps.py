@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import docker
 import docker.errors
@@ -201,20 +202,26 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
         Path("Dockerfile").unlink()
 
 
-@pytest.mark.flaky(max_runs=3)
 def test_real_auto_dockerfile_build(docker_client_with_cleanup):
     os.chdir(str(Path(__file__).parent.parent / "test-project"))
+    image_name = "local/repo"
+    tag = f"test-{uuid4()}"
+    image_reference = f"{image_name}:{tag}"
     try:
         result = build_docker_image(
-            image_name="local/repo", tag="test", dockerfile="auto"
+            image_name=image_name, tag=tag, dockerfile="auto", pull=False
         )
         image: docker.models.images.Image = docker_client_with_cleanup.images.get(
             result["image"]
         )
         assert image
 
+        expected_prefect_version = prefect.__version__
+        expected_prefect_version = expected_prefect_version.replace(".dirty", "")
+        expected_prefect_version = expected_prefect_version.split("+")[0]
+
         cases = [
-            {"command": "prefect version", "expected": prefect.__version__},
+            {"command": "prefect version", "expected": expected_prefect_version},
             {"command": "ls", "expected": "requirements.txt"},
         ]
 
@@ -239,11 +246,10 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup):
         docker_client_with_cleanup.containers.prune(
             filters={"label": "prefect-docker-test"}
         )
-        image = docker_client_with_cleanup.images.get("local/repo:test")
-        if image:
-            docker_client_with_cleanup.images.remove(
-                image="local/repo:test", force=True
-            )
+        try:
+            docker_client_with_cleanup.images.remove(image=image_reference, force=True)
+        except docker.errors.ImageNotFound:
+            pass
 
 
 def test_push_docker_image_with_additional_tags(mock_docker_client, monkeypatch):

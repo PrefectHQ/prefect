@@ -1,22 +1,19 @@
 ---
-title: Big data with Prefect
+title: Process big data
 description: Guidance for using Prefect with big data.
 ---
 
-This guide explores methods to reduce the processing time or memory utilization of Prefect 
-workflows that process large amounts of data, without editing your Python code.
+This page explores methods to reduce the processing time or memory utilization of Prefect 
+workflows that process large volumes of data, without editing your Python code. There 
+are several options to optimize your Python code for speed, memory, compute, and 
+storage, including:
 
-## Optimize your Python code with Prefect for big data
-
-Prefect provides multiple options to optimize your Python code for speed, memory, compute, or 
-storage. This guide uses examples for how to:
-
-1. Remove task introspection with `quote` to save time running your code.
-1. Write task results to cloud storage such as S3 using a block to save memory.
-1. Save data to disk within a flow rather than using results.
-1. Cache task results to save time and compute.
-1. Compress results written to disk to save space.
-1. Use a [task runner](/3.0rc/develop/write-tasks/use-task-runners/) for parallelizable 
+1. Removing task introspection with `quote` to save time running your code.
+1. Writing task results to cloud storage such as S3 using a block to save memory.
+1. Saving data to disk within a flow rather than using results.
+1. Caching task results to save time and compute.
+1. Compressing results written to disk to save space.
+1. Using a [task runner](/3.0rc/develop/write-tasks/use-task-runners/) for parallelizable 
 operations to save time.
 
 ### Remove task introspection

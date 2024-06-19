@@ -4,7 +4,7 @@ The base class for all Prefect REST API loop services.
 
 import asyncio
 import signal
-from typing import List
+from typing import List, Optional
 
 import anyio
 import pendulum
@@ -26,7 +26,9 @@ class LoopService:
 
     loop_seconds = 60
 
-    def __init__(self, loop_seconds: float = None, handle_signals: bool = True):
+    def __init__(
+        self, loop_seconds: Optional[float] = None, handle_signals: bool = True
+    ):
         """
         Args:
             loop_seconds (float): if provided, overrides the loop interval

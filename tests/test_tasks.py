@@ -10,9 +10,11 @@ from unittest.mock import ANY, MagicMock, call
 from uuid import UUID, uuid4
 
 import anyio
+import pydantic
 import pytest
 import regex as re
 
+import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
@@ -29,7 +31,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging import get_run_logger
-from prefect.records.cache_policies import DEFAULT, TASKDEF
+from prefect.records.cache_policies import DEFAULT, INPUTS, NONE, TASKDEF
 from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
@@ -259,6 +261,22 @@ class TestTaskCall:
 
         assert test_flow() == (1, 2, dict(x=3, y=4, z=5))
 
+    def test_task_doesnt_modify_args(self):
+        @task
+        def identity(x):
+            return x
+
+        @task
+        def appender(x):
+            x.append(3)
+            return x
+
+        val = [1, 2]
+        assert identity(val) is val
+        assert val == [1, 2]
+        assert appender(val) is val
+        assert val == [1, 2, 3]
+
     async def test_task_failure_raises_in_flow(self):
         @task
         def foo():
@@ -323,6 +341,151 @@ class TestTaskCall:
             return foo("a", suffix="b")
 
         assert bar() == "ahellob"
+
+    class BaseFooModel(pydantic.BaseModel):
+        model_config = pydantic.ConfigDict(ignored_types=(Task,))
+        x: int
+
+    class BaseFoo:
+        def __init__(self, x):
+            self.x = x
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_instance_methods(self, T):
+        class Foo(T):
+            @task
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert Foo(x=5).instance_method() == 5
+        # ensure the instance binding is not global
+        assert f.instance_method() == 1
+
+        assert isinstance(Foo(x=10).instance_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_class_methods(self, T):
+        class Foo(T):
+            @classmethod
+            @task
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_static_methods(self, T):
+        class Foo(T):
+            @staticmethod
+            @task
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Task)
+
+    def test_instance_method_doesnt_create_copy_of_self(self):
+        class Foo(pydantic.BaseModel):
+            model_config = dict(
+                ignored_types=(prefect.Flow, prefect.Task),
+            )
+
+            @task
+            def get_x(self):
+                return self
+
+        f = Foo()
+
+        # assert that the value is equal to the original
+        assert f.get_x() == f
+        # assert that the value IS the original and was never copied
+        assert f.get_x() is f
+
+    def test_instance_method_doesnt_create_copy_of_args(self):
+        class Foo(pydantic.BaseModel):
+            model_config = dict(
+                ignored_types=(prefect.Flow, prefect.Task),
+            )
+            x: dict
+
+            @task
+            def get_x(self):
+                return self.x
+
+        val = dict(a=1)
+        f = Foo(x=val)
+
+        # this is surprising but pydantic sometimes copies values during
+        # construction/validation (it doesn't for nested basemodels, by default)
+        # Therefore this assert is to set a baseline for the test, because if
+        # you try to write the test as `assert f.get_x() is val` it will fail
+        # and it's not Prefect's fault.
+        assert f.x is not val
+
+        # assert that the value is equal to the original
+        assert f.get_x() == f.x
+        # assert that the value IS the original and was never copied
+        assert f.get_x() is f.x
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_task_supports_async_instance_methods(self, T):
+        class Foo(T):
+            @task
+            async def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert await Foo(x=5).instance_method() == 5
+        # ensure the instance binding is not global
+        assert await f.instance_method() == 1
+
+        assert isinstance(Foo(x=10).instance_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_task_supports_async_class_methods(self, T):
+        class Foo(T):
+            @classmethod
+            @task
+            async def class_method(cls):
+                return cls.__name__
+
+        assert await Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_task_supports_async_static_methods(self, T):
+        class Foo(T):
+            @staticmethod
+            @task
+            async def static_method():
+                return "static"
+
+        assert await Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Task)
+
+    def test_error_message_if_decorate_classmethod(self):
+        with pytest.raises(
+            TypeError, match="@classmethod should be applied on top of @task"
+        ):
+
+            class Foo:
+                @task
+                @classmethod
+                def bar():
+                    pass
+
+    def test_error_message_if_decorate_staticmethod(self):
+        with pytest.raises(
+            TypeError, match="@staticmethod should be applied on top of @task"
+        ):
+
+            class Foo:
+                @task
+                @staticmethod
+                def bar():
+                    pass
 
 
 class TestTaskRun:
@@ -1194,7 +1357,6 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert await second_state.result() == 1
 
-    @pytest.mark.skip(reason="Expiration does not currently work with cache policies")
     async def test_cache_key_hits_with_past_expiration_are_not_cached(self):
         @task(
             cache_key_fn=lambda *_: "cache-hit-5",
@@ -1269,6 +1431,178 @@ class TestTaskCaching:
             assert third_state.name == "Cached"
             assert await second_state.result() != await first_state.result()
             assert await third_state.result() == await second_state.result()
+
+    async def test_cache_key_fn_receives_self_if_method(self):
+        """
+        The `self` argument of a bound method is implicitly passed as a parameter to the decorated
+        function. This test ensures that it is passed to the cache key function by checking that
+        two instances of the same class do not share a cache (both instances yield COMPLETED states
+        the first time they run and CACHED states the second time).
+        """
+
+        cache_args = []
+
+        def stringed_inputs(context, args):
+            cache_args.append(args)
+            return str(args)
+
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @task(cache_key_fn=stringed_inputs)
+            def add(self, a):
+                return a + self.x
+
+        # create an instance that adds 1 and another that adds 100
+        f1 = Foo(1)
+        f2 = Foo(100)
+
+        @flow
+        def bar():
+            return (
+                f1.add(5, return_state=True),
+                f1.add(5, return_state=True),
+                f2.add(5, return_state=True),
+                f2.add(5, return_state=True),
+            )
+
+        s1, s2, s3, s4 = bar()
+        # the first two calls are completed / cached
+        assert s1.name == "Completed"
+        assert s2.name == "Cached"
+        # the second two calls are completed / cached because it's a different instance
+        assert s3.name == "Completed"
+        assert s4.name == "Cached"
+
+        # check that the cache key function received the self arg
+        assert cache_args[0] == dict(self=f1, a=5)
+        assert cache_args[1] == dict(self=f1, a=5)
+        assert cache_args[2] == dict(self=f2, a=5)
+        assert cache_args[3] == dict(self=f2, a=5)
+
+        assert await s1.result() == 6
+        assert await s2.result() == 6
+        assert await s3.result() == 105
+        assert await s4.result() == 105
+
+    async def test_instance_methods_can_share_a_cache(self):
+        """
+        Test that instance methods can share a cache by using a cache key function that
+        ignores the bound instance argument
+        """
+
+        def stringed_inputs(context, args):
+            # remove the self arg from the cache key
+            cache_args = args.copy()
+            cache_args.pop("self")
+            return str(cache_args)
+
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @task(cache_key_fn=stringed_inputs)
+            def add(self, a):
+                return a + self.x
+
+        # create an instance that adds 1 and another that adds 100
+        f1 = Foo(1)
+        f2 = Foo(100)
+
+        @flow
+        def bar():
+            return (
+                f1.add(5, return_state=True),
+                f1.add(5, return_state=True),
+                f2.add(5, return_state=True),
+                f2.add(5, return_state=True),
+            )
+
+        s1, s2, s3, s4 = bar()
+        # all subsequent calls are cached because the instance is not part of the cache key
+        assert s1.name == "Completed"
+        assert s2.name == "Cached"
+        assert s3.name == "Cached"
+        assert s4.name == "Cached"
+
+        assert await s1.result() == 6
+        assert await s2.result() == 6
+        assert await s3.result() == 6
+        assert await s4.result() == 6
+
+    async def test_cache_key_fn_takes_precedence_over_cache_policy(
+        self, caplog, tmpdir
+    ):
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        block.save("test-cache-key-fn-takes-precedence-over-cache-policy")
+
+        @task(
+            cache_key_fn=lambda *_: "cache-hit-9",
+            cache_policy=INPUTS,
+            result_storage=block,
+        )
+        def foo(x):
+            return x
+
+        first_state = foo(1, return_state=True)
+        second_state = foo(2, return_state=True)
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert await second_state.result() == await first_state.result()
+        assert "`cache_key_fn` will be used" in caplog.text
+
+    async def test_changing_result_storage_key_busts_cache(self):
+        @task(cache_key_fn=lambda *_: "cache-hit-10", result_storage_key="before")
+        def foo(x):
+            return x
+
+        first_state = foo(1, return_state=True)
+        second_state = foo.with_options(result_storage_key="after")(
+            2, return_state=True
+        )
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert await first_state.result() == 1
+        assert await second_state.result() == 2
+
+    async def test_false_persist_results_sets_cache_policy_to_none(self, caplog):
+        @task(persist_result=False)
+        def foo(x):
+            return x
+
+        assert foo.cache_policy == NONE
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
+        )
+
+    async def test_warns_went_false_persist_result_and_cache_policy(self, caplog):
+        @task(persist_result=False, cache_policy=INPUTS)
+        def foo(x):
+            return x
+
+        assert foo.cache_policy == NONE
+
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False" in caplog.text
+        )
+
+    @pytest.mark.parametrize("cache_policy", [NONE, None])
+    async def test_does_not_warn_went_false_persist_result_and_none_cache_policy(
+        self, caplog, cache_policy
+    ):
+        @task(persist_result=False, cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        assert foo.cache_policy == cache_policy
+
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
+        )
 
 
 class TestCacheFunctionBuiltins:
@@ -2739,10 +3073,12 @@ class TestTaskWithOptions:
 
 
 class TestTaskMap:
+    @staticmethod
     @task
     async def add_one(x):
         return x + 1
 
+    @staticmethod
     @task
     def add_together(x, y):
         return x + y
@@ -2839,10 +3175,12 @@ class TestTaskMap:
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
+    @staticmethod
     @task
     def echo(x):
         return x
 
+    @staticmethod
     @task
     def numbers():
         return [1, 2, 3]
@@ -3387,12 +3725,14 @@ async def test_sets_run_name_once():
 
 
 async def test_sets_run_name_once_per_call():
+    task_calls = 0
     generate_task_run_name = MagicMock(return_value="some-string")
-    mocked_task_method = MagicMock()
 
-    decorated_task_method = task(task_run_name=generate_task_run_name)(
-        mocked_task_method
-    )
+    def test_task():
+        nonlocal task_calls
+        task_calls += 1
+
+    decorated_task_method = task(task_run_name=generate_task_run_name)(test_task)
 
     @flow
     def my_flow(name):
@@ -3404,7 +3744,7 @@ async def test_sets_run_name_once_per_call():
     state = my_flow(name="some-name", return_state=True)
 
     assert state.type == StateType.COMPLETED
-    assert mocked_task_method.call_count == 2
+    assert task_calls == 2
     assert generate_task_run_name.call_count == 2
 
 

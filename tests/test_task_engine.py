@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import time
+from datetime import timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from unittest.mock import AsyncMock, MagicMock, call
 from uuid import UUID, uuid4
 
@@ -159,7 +160,7 @@ class TestTaskRunsAsync:
 
     async def test_with_params(self):
         @task
-        async def bar(x: int, y: str = None):
+        async def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
@@ -462,7 +463,7 @@ class TestTaskRunsSync:
 
     def test_with_params(self):
         @task
-        def bar(x: int, y: str = None):
+        def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
@@ -1138,8 +1139,69 @@ class TestCachePolicy:
         assert await state.result() == 1800
         assert state.data.storage_key == "foo-bar"
 
-    async def test_none_policy_doesnt_persist(self, prefect_client):
-        @task(cache_policy=None, result_storage_key=None)
+    async def test_cache_expiration_is_respected(
+        self, prefect_client, tmp_path, advance_time
+    ):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            persist_result=True,
+            result_storage_key="expiring-foo-bar",
+            cache_expiration=timedelta(seconds=1.0),
+            result_storage=fs,
+        )
+        async def async_task():
+            import random
+
+            return random.randint(0, 10000)
+
+        first_state = await async_task(return_state=True)
+        assert first_state.is_completed()
+        first_result = await first_state.result()
+
+        second_state = await async_task(return_state=True)
+        assert second_state.is_completed()
+        second_result = await second_state.result()
+
+        assert first_result == second_result, "Cache was not used"
+
+        # let cache expire...
+        advance_time(timedelta(seconds=1.1))
+
+        third_state = await async_task(return_state=True)
+        assert third_state.is_completed()
+        third_result = await third_state.result()
+
+        # cache expired, new result
+        assert third_result not in [first_result, second_result], "Cache did not expire"
+
+    async def test_cache_expiration_expires(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            persist_result=True,
+            result_storage_key="expiring-foo-bar",
+            cache_expiration=timedelta(seconds=0.0),
+            result_storage=fs,
+        )
+        async def async_task():
+            import random
+
+            return random.randint(0, 10000)
+
+        first_state = await async_task(return_state=True)
+        assert first_state.is_completed()
+        await asyncio.sleep(0.1)
+
+        second_state = await async_task(return_state=True)
+        assert second_state.is_completed()
+
+        assert (
+            await first_state.result() != await second_state.result()
+        ), "Cache did not expire"
+
+    async def test_none_policy_with_persist_result_false(self, prefect_client):
+        @task(cache_policy=None, result_storage_key=None, persist_result=False)
         async def async_task():
             return 1800
 
@@ -1323,7 +1385,7 @@ class TestGenerators:
         Test that a generator can timeout
         """
 
-        @task(timeout_seconds=0.1)
+        @task(timeout_seconds=1)
         def g():
             yield 1
             time.sleep(2)
@@ -1352,6 +1414,34 @@ class TestGenerators:
         except ValueError:
             pass
         assert values == [1, 2]
+
+    def test_generators_can_be_yielded_without_being_consumed(self):
+        CONSUMED = []
+
+        @task
+        def g():
+            CONSUMED.append("g")
+            yield 1
+            yield 2
+
+        @task
+        def f_return():
+            return g()
+
+        @task
+        def f_yield():
+            yield g()
+
+        # returning a generator automatically consumes it
+        # because it can't be serialized
+        f_return()
+        assert CONSUMED == ["g"]
+        CONSUMED.clear()
+
+        gen = next(f_yield())
+        assert CONSUMED == []
+        list(gen)
+        assert CONSUMED == ["g"]
 
 
 class TestAsyncGenerators:

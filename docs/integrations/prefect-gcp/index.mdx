@@ -9,36 +9,34 @@ For example, you can run flow on Vertex AI or Cloud Run, read and write data to 
 
 ### Prerequisites
 
-- [Prefect installed](https://docs.prefect.io/latest/get-started/install/) in a virtual environment.
-- An [GCP account](https://cloud.google.com/) and the necessary permissions to access desired services.
+- [Prefect 3 installed](3.0rc/get-started/install) in a virtual environment.
+- A [GCP account](https://cloud.google.com/) and the necessary permissions to access desired services.
 
 ### Install prefect-gcp
 
-<div class = "terminal">
 ```bash
 pip install -U prefect-gcp
 ```
-</div>
+
 
 If using BigQuery, Cloud Storage, Secret Manager, or Vertex AI, see [additional installation options](#additional-installation-options).
 
 To install with all additional functionality, use the following command:
 
-<div class = "terminal">
+
 ```bash
 pip install -U "prefect-gcp[all_extras]"
 ```
-</div>
+
 
 ### Register newly installed block types
 
 Register the block types in the module to make them available for use.
 
-<div class = "terminal">
 ```bash
 prefect block register -m prefect_gcp
 ```
-</div>
+
 
 ## Authenticate using a GCP Credentials block
 
@@ -79,15 +77,15 @@ If `service_account_file` is used, the provided file path *must be available* in
 </Warning>
 
 Alternatively, GCP can authenticate without storing credentials in a block.
-See the [Third-pary Screts Guide](https://docs.prefect.io/latest/guides/secrets/) for an analogous example that uses AWS Secrets Manager and Snowflake.
+See the [Third-pary Secrets docs](/3.0rc/resources/secrets) for an analogous example that uses AWS Secrets Manager and Snowflake.
 
 ## Run flows on Google Cloud Run or Vertex AI
 
 Run flows on [Google Cloud Run](https://cloud.google.com/run) or [Vertex AI](https://cloud.google.com/vertex-ai) to dynamically scale your infrastructure.
 
-See the [Google Cloud Run Worker Guide](/3.0rc/gcp-worker-guide/) for a walkthrough of using Google Cloud Run to run workflows with a hybrid work pool.
+See the [Google Cloud Run Worker Guide](integrations/prefect-gcp/gcp-worker-guide/) for a walkthrough of using Google Cloud Run to run workflows with a hybrid work pool.
 
-If you're using Prefect Cloud, [Google Cloud Run push work pools](https://docs.prefect.io/latest/deploy/dynamic-infra/push-runs-serverless/#__tabbed_1_3) provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
+If you're using Prefect Cloud, [Google Cloud Run push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless) provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
 
 ### Use Prefect with Google BigQuery
 
@@ -139,7 +137,7 @@ if __name__ == "__main__":
 
 Interact with Google Cloud Storage.
 
-Be sure to [install](#installation) `prefect-gcp` with the Cloud Storage extra.
+Be sure to [install](#install-prefect-gcp) `prefect-gcp` with the Cloud Storage extra.
 
 The code below uses `prefect_gcp` to upload a file to a Google Cloud Storage bucket and download the same file under a different file name.
 
@@ -175,14 +173,14 @@ if __name__ == "__main__":
 <Info> 
 **Upload and download directories**
 
-`GcsBucket` supports uploading and downloading entire directories. To view examples, check out the [Examples Catalog](examples_catalog/#cloud-storage-module)!
+`GcsBucket` supports uploading and downloading entire directories.
 </Info>
 
 ## Save secrets with Google Secret Manager
 
 Read and write secrets with Google Secret Manager.
 
-Be sure to [install](#installation) `prefect-gcp` with the Secret Manager extra.
+Be sure to [install](#instal-prefect-gcp) `prefect-gcp` with the Secret Manager extra.
 
 The code below writes a secret to the Secret Manager, reads the secret data, and deletes the secret.
 
@@ -247,32 +245,31 @@ Additional installation options for GCP services are shown below.
 
 #### To use Cloud Storage
 
-<div class = "terminal">
+
 ```bash
 pip install "prefect-gcp[cloud_storage]"
 ```
-</div>
+
 
 #### To use BigQuery
 
-<div class = "terminal">
+
 ```bash
 pip install "prefect-gcp[bigquery]"
 ```
-</div>
+
 
 #### To use Secret Manager
 
-<div class = "terminal">
+
 ```bash
 pip install "prefect-gcp[secret_manager]"
 ```
-</div>
+
 
 ### To use Vertex AI
 
-<div class = "terminal">
+
 ```bash
 pip install "prefect-gcp[aiplatform]"
 ```
-</div>

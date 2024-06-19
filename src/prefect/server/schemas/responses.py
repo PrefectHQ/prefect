@@ -587,3 +587,11 @@ class FlowRunPaginationResponse(BaseModel):
     limit: int
     pages: int
     page: int
+
+
+class DeploymentPaginationResponse(BaseModel):
+    results: list[DeploymentResponse]
+    count: int
+    limit: int
+    pages: int
+    page: int
