@@ -94,6 +94,14 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
+TERMINAL_STATES = {
+    StateType.COMPLETED,
+    StateType.CANCELLED,
+    StateType.FAILED,
+    StateType.CRASHED,
+}
+
+
 class WorkPoolStatus(AutoEnum):
     """Enumeration of work pool statuses."""
 
@@ -136,6 +144,7 @@ class StateDetails(PrefectBaseModel):
     scheduled_time: Optional[DateTime] = None
     cache_key: Optional[str] = None
     cache_expiration: Optional[DateTime] = None
+    deferred: Optional[bool] = None
     untrackable_result: bool = False
     pause_timeout: Optional[DateTime] = None
     pause_reschedule: bool = False
@@ -279,7 +288,7 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = DateTime.now("utc")
         return self
 
     def is_scheduled(self) -> bool:
@@ -307,12 +316,7 @@ class State(ObjectBaseModel, Generic[R]):
         return self.type == StateType.CANCELLING
 
     def is_final(self) -> bool:
-        return self.type in {
-            StateType.CANCELLED,
-            StateType.FAILED,
-            StateType.COMPLETED,
-            StateType.CRASHED,
-        }
+        return self.type in TERMINAL_STATES
 
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
@@ -418,8 +422,11 @@ class FlowRunPolicy(PrefectBaseModel):
     )
 
     @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
-        return set_run_policy_deprecated_fields(values)
+    @classmethod
+    def populate_deprecated_fields(cls, values: Any):
+        if isinstance(values, dict):
+            return set_run_policy_deprecated_fields(values)
+        return values
 
 
 class FlowRun(ObjectBaseModel):
@@ -549,7 +556,8 @@ class FlowRun(ObjectBaseModel):
         examples=["State(type=StateType.COMPLETED)"],
     )
     job_variables: Optional[dict] = Field(
-        default=None, description="Job variables for the flow run."
+        default=None,
+        description="Job variables for the flow run.",
     )
 
     # These are server-side optimizations and should not be present on client models
@@ -910,6 +918,7 @@ class BlockDocument(ObjectBaseModel):
     _validate_name_format = field_validator("name")(validate_block_document_name)
 
     @model_validator(mode="before")
+    @classmethod
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -1141,8 +1150,11 @@ class BlockDocumentReference(ObjectBaseModel):
     )
 
     @model_validator(mode="before")
+    @classmethod
     def validate_parent_and_ref_are_different(cls, values):
-        return validate_parent_and_ref_diff(values)
+        if isinstance(values, dict):
+            return validate_parent_and_ref_diff(values)
+        return values
 
 
 class Configuration(ObjectBaseModel):

@@ -42,7 +42,8 @@ We can start by pulling hypothetical user data from an endpoint and then perform
 Let's create a simple extract method, that pulls the data from a random user data generator endpoint.
 
 ```python
-from prefect import flow, task, get_run_logger
+from prefect import flow, task
+from prefect.logging import get_run_logger
 import requests
 import json
 

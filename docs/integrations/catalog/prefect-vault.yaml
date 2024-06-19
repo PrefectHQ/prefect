@@ -1,0 +1,6 @@
+integrationName: prefect-vault
+author: Pavel Chekin
+authorUrl: https://github.com/pbchekin
+documentation: https://github.com/pbchekin/prefect-vault
+iconUrl: /images/integrations/vault.png
+tag: HashiCorp Vault

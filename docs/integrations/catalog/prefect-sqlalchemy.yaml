@@ -1,0 +1,6 @@
+integrationName: prefect-sqlalchemy
+author: Prefect
+authorUrl: https://prefect.io
+documentation: prefect-sqlalchemy
+iconUrl: /images/integrations/sqlalchemy.png
+tag: SQLAlchemy

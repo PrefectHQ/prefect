@@ -1,12 +1,12 @@
 """
 Prefect deployment steps for code storage and retrieval in Azure Blob Storage.
 
-These steps can be used in a `prefect.yaml` file to define the default 
-push and pull steps for a group of deployments, or they can be used to 
+These steps can be used in a `prefect.yaml` file to define the default
+push and pull steps for a group of deployments, or they can be used to
 define the push and pull steps for a specific deployment.
 
 !!! example
-    Sample `prefect.yaml` file that is configured to push and pull to and 
+    Sample `prefect.yaml` file that is configured to push and pull to and
     from an Azure Blob Storage container:
 
     ```yaml
@@ -33,6 +33,7 @@ define the push and pull steps for a specific deployment.
 
 For more information about using deployment steps, check out out the Prefect [docs](https://docs.prefect.io/latest/concepts/projects/#the-prefect-yaml-file).
 """  # noqa
+
 from pathlib import Path, PurePosixPath
 from typing import Dict, Optional
 

@@ -442,7 +442,8 @@ async def test_orchestration_errors_are_reported_as_events(
     action.deployment_id = uuid4()  # this doesn't exist
 
     with pytest.raises(
-        actions.ActionFailed, match="Unexpected status from run-deployment action: 404"
+        actions.ActionFailed,
+        match="Unexpected status from 'run-deployment' action: 404",
     ):
         await action.act(snap_that_naughty_woodchuck)
 

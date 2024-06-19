@@ -2,7 +2,6 @@ ruff
 cairosvg
 codespell>=2.2.6
 ddtrace
-exceptiongroup
 ipython
 jinja2
 mkdocs
@@ -23,10 +22,10 @@ pytest-benchmark
 pytest-env
 pytest-flakefinder
 pytest-timeout
-pytest-xdist < 3.4.0 # 3.5.0 introduces some flakiness. Need to investigate and resolve.
+pytest-xdist >= 3.6.1
 pytkdocs >= 0.14.2
 pyyaml
-requests<2.32.0  # `requests` renamed `get_connection` to `_get_connection`, which is a method docker-py monkeypatches. See https://github.com/docker/docker-py/issues/3256 Should be able to un-pin when docker-py hotfix is out.
+redis>=5.0.1
 setuptools
 vermin
 virtualenv
@@ -36,3 +35,8 @@ respx
 # type stubs
 types-cachetools
 types-PyYAML
+
+# documentation
+mkdocs
+mkdocs-material
+mkdocstrings[python]

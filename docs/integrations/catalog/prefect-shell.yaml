@@ -1,0 +1,6 @@
+integrationName: prefect-shell
+author: Prefect
+authorUrl: https://prefect.io
+documentation: prefect-shell
+iconUrl: /images/integrations/shell.png
+tag: Shell

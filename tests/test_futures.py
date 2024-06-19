@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
@@ -6,15 +7,20 @@ from typing import Any, Optional
 
 import pytest
 
+from prefect import task
+from prefect.exceptions import FailedRun, MissingResult
+from prefect.filesystems import LocalFileSystem
 from prefect.futures import (
     PrefectConcurrentFuture,
-    PrefectFuture,
+    PrefectDistributedFuture,
+    PrefectWrappedFuture,
     resolve_futures_to_states,
 )
 from prefect.states import Completed, Failed
+from prefect.task_engine import run_task_async, run_task_sync
 
 
-class MockFuture(PrefectFuture):
+class MockFuture(PrefectWrappedFuture):
     def __init__(self, data: Any = 42):
         super().__init__(uuid.uuid4(), Future())
         self._final_state = Completed(data=data)
@@ -129,3 +135,136 @@ class TestResolveFuturesToStates:
             nested_list=[[future.state]],
             nested_dict={"key": [future.state]},
         )
+
+
+class TestPrefectDistributedFuture:
+    async def test_wait_with_timeout(self, task_run):
+        @task
+        async def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        asyncio.create_task(
+            run_task_async(
+                task=my_task,
+                task_run_id=future.task_run_id,
+                task_run=task_run,
+                parameters={},
+                return_type="state",
+            )
+        )
+
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+        future.wait(timeout=0.25)
+        assert future.state.is_pending()
+
+    async def test_wait_without_timeout(self):
+        @task
+        def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        future.wait()
+        assert future.state.is_completed()
+
+    async def test_result_with_final_state(self, tmp_path):
+        # TODO: The default result storage block gets deleted during the
+        # execution of this test when it's run in as a suite, so we have to load
+        # a specific block and pass it in manually as the task's result storage.
+        # But why does the result storage block get deleted in the first place?
+        storage = LocalFileSystem(basepath=tmp_path)
+
+        @task(persist_result=True, result_storage=storage)
+        def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+        assert await state.result() == 42
+
+        # When this test is run as a suite and the task uses default result
+        # storage, this line fails because the result storage block no longer
+        # exists.
+        assert future.result() == 42
+
+    async def test_final_state_without_result(self):
+        @task(persist_result=False)
+        def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        with pytest.raises(MissingResult):
+            future.result()
+
+    async def test_result_with_final_state_and_raise_on_failure(self):
+        @task(persist_result=False)
+        def my_task():
+            raise ValueError("oops")
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_failed()
+
+        with pytest.raises(FailedRun, match="oops"):
+            future.result(raise_on_failure=True)
+
+    async def test_final_state_missing_result(self):
+        @task(persist_result=False)
+        def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        with pytest.raises(MissingResult, match="State data is missing"):
+            future.result()

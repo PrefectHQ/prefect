@@ -3,6 +3,7 @@ Functions for interacting with saved search ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
+from typing import Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -99,8 +100,8 @@ async def read_saved_search_by_name(
 async def read_saved_searches(
     db: PrefectDBInterface,
     session: sa.orm.Session,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
 ):
     """
     Read SavedSearches.

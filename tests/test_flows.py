@@ -23,7 +23,7 @@ import regex as re
 
 import prefect
 import prefect.exceptions
-from prefect import flow, get_run_logger, runtime, tags, task
+from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.schedules import (
@@ -47,6 +47,7 @@ from prefect.flows import (
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
 )
+from prefect.logging import get_run_logger
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -814,6 +815,152 @@ class TestFlowCall:
         flow_state = my_flow(return_state=True)
         assert flow_state.is_cancelled()
         assert flow_state.message == "1/1 states cancelled."
+
+    class BaseFooModel(pydantic.BaseModel):
+        model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+        x: int
+
+    class BaseFoo:
+        def __init__(self, x):
+            self.x = x
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_instance_methods(self, T):
+        class Foo(T):
+            @flow
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert Foo(x=5).instance_method() == 5
+        assert f.instance_method() == 1
+        assert isinstance(Foo(x=10).instance_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_class_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @classmethod
+            @flow
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_static_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @staticmethod
+            @flow
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_instance_methods(self, T):
+        class Foo(T):
+            @flow
+            async def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert await Foo(x=5).instance_method() == 5
+        assert await f.instance_method() == 1
+        assert isinstance(Foo(x=10).instance_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_class_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @classmethod
+            @flow
+            async def class_method(cls):
+                return cls.__name__
+
+        assert await Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_static_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @staticmethod
+            @flow
+            async def static_method():
+                return "static"
+
+        assert await Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
+    def test_flow_supports_instance_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+            x: int = 5
+
+            @flow
+            def instance_method(self):
+                return self.x
+
+        assert Foo().instance_method() == 5
+        assert isinstance(Foo().instance_method, Flow)
+
+    def test_flow_supports_class_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+
+            @classmethod
+            @flow
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    def test_flow_supports_static_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+
+            @staticmethod
+            @flow
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
+    def test_error_message_if_decorate_classmethod(self):
+        with pytest.raises(
+            TypeError, match="@classmethod should be applied on top of @flow"
+        ):
+
+            class Foo:
+                @flow
+                @classmethod
+                def bar(cls):
+                    pass
+
+    def test_error_message_if_decorate_staticmethod(self):
+        with pytest.raises(
+            TypeError, match="@staticmethod should be applied on top of @flow"
+        ):
+
+            class Foo:
+                @flow
+                @staticmethod
+                def bar():
+                    pass
 
 
 class TestSubflowCalls:
@@ -1655,9 +1802,12 @@ class TestSubflowTaskInputs:
 # We flush the APILogHandler in a non-blocking manner, so we need to wait for the logs to be
 # written before we can read them to avoid flakiness.
 async def _wait_for_logs(
-    prefect_client: PrefectClient, expected_num_logs: Optional[int] = None
+    prefect_client: PrefectClient,
+    expected_num_logs: Optional[int] = None,
+    timeout: int = 10,
 ):
     logs = []
+    start_time = time.time()
     while True:
         logs = await prefect_client.read_logs()
         if logs:
@@ -1666,6 +1816,8 @@ async def _wait_for_logs(
             else:
                 if len(logs) >= expected_num_logs:
                     break
+        if time.time() - start_time > timeout:
+            raise TimeoutError("Timed out in _wait_for_logs()")
         await asyncio.sleep(1)
     return logs
 
@@ -1679,7 +1831,6 @@ class TestFlowRunLogs:
             logger.info("Hello world!")
 
         my_flow()
-
         await _wait_for_logs(prefect_client, expected_num_logs=3)
 
         logs = await prefect_client.read_logs()
@@ -2334,7 +2485,8 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
     prefect_client,
 ):
     flow_code_with_call = """
-    from prefect import flow, get_run_logger
+    from prefect import flow
+from prefect.logging import get_run_logger
 
     @flow
     def dog():
@@ -4049,7 +4201,38 @@ class TestTransactions:
 
         @task
         def task2():
-            raise prefect.exceptions.RollBack()
+            pass
+
+        @task2.on_rollback
+        def rollback2(txn):
+            data2["called"] = True
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+                raise ValueError("oopsie")
+
+        main(return_state=True)
+
+        assert data2["called"] is True
+        assert data1["called"] is True
+
+    def test_task_failure_causes_previous_to_rollback(self):
+        data1, data2 = {}, {}
+
+        @task
+        def task1():
+            pass
+
+        @task1.on_rollback
+        def rollback(txn):
+            data1["called"] = True
+
+        @task
+        def task2():
+            raise RuntimeError("oopsie")
 
         @task2.on_rollback
         def rollback2(txn):
@@ -4063,7 +4246,7 @@ class TestTransactions:
 
         main(return_state=True)
 
-        assert data2["called"] is True
+        assert "called" not in data2
         assert data1["called"] is True
 
     def test_commit_isnt_called_on_rollback(self):
@@ -4079,7 +4262,7 @@ class TestTransactions:
 
         @task
         def task2():
-            raise prefect.exceptions.RollBack()
+            raise ValueError("oopsie")
 
         @flow
         def main():
@@ -4096,9 +4279,9 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_name_from_entrypoint(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow(name="My custom name")
         def flow_function(name: str) -> str:
             return name
@@ -4116,11 +4299,100 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_name_from_entrypoint_no_name(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow
         def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function"
+
+    def test_load_flow_name_from_entrypoint_dynamic_name_fstring(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        version = "1.0"
+
+        @flow(name=f"flow-function-{version}")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function-1.0"
+
+    def test_load_flow_name_from_entrypoint_dyanmic_name_function(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        def get_name():
+            return "from-a-function"
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "from-a-function"
+
+    def test_load_flow_name_from_entrypoint_dynamic_name_depends_on_missing_import(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import get_name
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function"
+        assert "Failed to parse @flow argument: `name=get_name()`" in caplog.text
+
+    def test_load_async_flow_from_entrypoint_no_name(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+        from prefect import flow
+
+        @flow
+        async def flow_function(name: str) -> str:
             return name
         """
         )
@@ -4136,9 +4408,9 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_description_from_entrypoint(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow(description="My custom description")
         def flow_function(name: str) -> str:
             return name
@@ -4156,9 +4428,9 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_description_from_entrypoint_no_description(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow
         def flow_function(name: str) -> str:
             return name
@@ -4176,7 +4448,7 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_no_flow(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
         """
         )

@@ -20,7 +20,7 @@ from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import (
-    AutonomousTaskPolicy,
+    BackgroundTaskPolicy,
     MinimalTaskPolicy,
 )
 from prefect.server.orchestration.global_policy import GlobalTaskPolicy
@@ -247,8 +247,8 @@ async def read_task_runs(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    offset: int = None,
-    limit: int = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
     sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
 ):
     """
@@ -428,8 +428,8 @@ async def set_task_run_state(
     proposed_state_type = state.type if state else None
     intended_transition = (initial_state_type, proposed_state_type)
 
-    if run.flow_run_id is None:
-        task_policy = AutonomousTaskPolicy  # CoreTaskPolicy + prevent `Running` -> `Running` transition
+    if state.state_details.deferred:
+        task_policy = BackgroundTaskPolicy  # CoreTaskPolicy + prevent `Running` -> `Running` transition
     elif force or task_policy is None:
         task_policy = MinimalTaskPolicy
 

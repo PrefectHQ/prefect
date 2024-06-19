@@ -1,0 +1,6 @@
+integrationName: prefect-planetary-computer
+author: Giorgio Basile
+authorUrl: https://github.com/giorgiobasile
+documentation: https://giorgiobasile.github.io/prefect-planetary-computer/
+iconUrl: /images/integrations/microsoft.png
+tag: Planetary Computer

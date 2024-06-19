@@ -822,7 +822,7 @@ def validate_settings(value: dict) -> dict:
         elif isinstance(setting, Setting):
             validated[setting] = val
         else:
-            raise ValueError(f"Unknown setting {setting!r}.")
+            warnings.warn(f"Setting {setting!r} is not recognized and will be ignored.")
 
     return validated
 

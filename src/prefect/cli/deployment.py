@@ -20,7 +20,7 @@ from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import FlowFilter
@@ -36,8 +36,8 @@ from prefect.exceptions import (
     PrefectHTTPStatusError,
 )
 from prefect.flow_runs import wait_for_flow_run
-from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
+from prefect.utilities import urls
 from prefect.utilities.collections import listrepr
 
 if TYPE_CHECKING:
@@ -57,12 +57,8 @@ def str_presenter(dumper, data):
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 
-deployment_app = PrefectTyper(
-    name="deployment", help="Commands for working with deployments."
-)
-schedule_app = PrefectTyper(
-    name="schedule", help="Commands for interacting with your deployment's schedules."
-)
+deployment_app = PrefectTyper(name="deployment", help="Manage deployments.")
+schedule_app = PrefectTyper(name="schedule", help="Manage deployment schedules.")
 
 deployment_app.add_typer(schedule_app, aliases=["schedule"])
 app.add_typer(deployment_app, aliases=["deployments"])
@@ -218,7 +214,7 @@ async def _print_deployment_work_pool_instructions(
 
 
 class RichTextIO:
-    def __init__(self, console, prefix: str = None) -> None:
+    def __init__(self, console, prefix: Optional[str] = None) -> None:
         self.console = console
         self.prefix = prefix
 
@@ -853,11 +849,7 @@ async def run(
             else:
                 raise
 
-    if PREFECT_UI_URL:
-        run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
-    else:
-        run_url = "<no dashboard available>"
-
+    run_url = urls.url_for(flow_run) or "<no dashboard available>"
     datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
     scheduled_display = (
         datetime_local_tz.to_datetime_string()
@@ -920,6 +912,13 @@ async def delete(
     async with get_client() as client:
         if name is None and deployment_id is not None:
             try:
+                if is_interactive() and not typer.confirm(
+                    (
+                        f"Are you sure you want to delete deployment with id {deployment_id!r}?"
+                    ),
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment_id)
                 exit_with_success(f"Deleted deployment '{deployment_id}'.")
             except ObjectNotFound:
@@ -927,6 +926,11 @@ async def delete(
         elif name is not None:
             try:
                 deployment = await client.read_deployment_by_name(name)
+                if is_interactive() and not typer.confirm(
+                    (f"Are you sure you want to delete deployment with name {name!r}?"),
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment.id)
                 exit_with_success(f"Deleted deployment '{name}'.")
             except ObjectNotFound:

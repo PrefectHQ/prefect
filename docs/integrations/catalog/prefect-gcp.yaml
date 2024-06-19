@@ -1,0 +1,6 @@
+integrationName: prefect-gcp
+author: Prefect
+authorUrl: https://prefect.io
+documentation: prefect-gcp
+iconUrl: /images/integrations/gcp.png
+tag: GCP

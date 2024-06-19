@@ -1,0 +1,6 @@
+integrationName: prefect-dask
+author: Prefect
+authorUrl: https://prefect.io
+documentation: prefect-dask
+iconUrl: /images/integrations/dask.png
+tag: Dask

@@ -18,7 +18,8 @@ Sender flow:
 ```python
 import random
 from uuid import UUID
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 class NumberData(RunInput):
@@ -43,7 +44,8 @@ Receiver flow:
 ```python
 import random
 from uuid import UUID
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 class NumberData(RunInput):

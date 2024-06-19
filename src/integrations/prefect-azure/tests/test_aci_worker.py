@@ -4,27 +4,12 @@ from typing import Dict, List, Tuple, Union
 from unittest.mock import MagicMock, Mock
 
 import dateutil.parser
+import prefect_azure.container_instance
 import pytest
 from anyio.abc import TaskStatus
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.resource import ResourceManagementClient
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.client.schemas import FlowRun
-from prefect.exceptions import InfrastructureNotFound
-from prefect.infrastructure.container import DockerRegistry
-from prefect.server.schemas.core import Flow
-from prefect.settings import get_current_settings
-from prefect.testing.utilities import AsyncMock
-from prefect.utilities.dockerutils import get_prefect_image_name
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
-
-import prefect_azure.container_instance
 from prefect_azure import AzureContainerInstanceCredentials
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.workers.container_instance import (
@@ -35,6 +20,14 @@ from prefect_azure.workers.container_instance import (
     ContainerGroupProvisioningState,
     ContainerRunState,
 )
+from pydantic import SecretStr
+
+from prefect.client.schemas import FlowRun
+from prefect.exceptions import InfrastructureNotFound
+from prefect.server.schemas.core import Flow
+from prefect.settings import get_current_settings
+from prefect.testing.utilities import AsyncMock
+from prefect.utilities.dockerutils import get_prefect_image_name
 
 
 # Helper functions
@@ -345,7 +338,7 @@ async def test_worker_container_client_creation(
     )
 
     subscription_id = "test_subscription"
-    job_configuration.subscription_id = SecretStr(value=subscription_id)
+    job_configuration.subscription_id = SecretStr(subscription_id)
 
     async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
         # Using mock Azure clients to avoid making real calls to Azure
@@ -877,32 +870,6 @@ def test_secure_environment_variables(
     }
 
     assert api_key_entry == expected
-
-
-def test_add_docker_registry_credentials(
-    raw_job_configuration, worker_flow_run, mock_aci_client, monkeypatch
-):
-    registry = DockerRegistry(
-        username="username",
-        password="password",
-        registry_url="https://myregistry.dockerhub.com",
-    )
-
-    raw_job_configuration.image_registry = registry
-    raw_job_configuration.prepare_for_flow_run(worker_flow_run)
-
-    container_group = raw_job_configuration.arm_template["resources"][0]
-    image_registry_credentials = container_group["properties"][
-        "imageRegistryCredentials"
-    ]
-
-    assert len(image_registry_credentials) == 1
-    assert image_registry_credentials[0]["server"] == registry.registry_url
-    assert image_registry_credentials[0]["username"] == registry.username
-    assert (
-        image_registry_credentials[0]["password"]
-        == registry.password.get_secret_value()
-    )
 
 
 def test_add_acr_registry_identity(

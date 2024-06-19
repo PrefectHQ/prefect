@@ -1,0 +1,6 @@
+integrationName: prefect-bitbucket
+author: Prefect
+authorUrl: https://prefect.io
+documentation: prefect-bitbucket
+iconUrl: /images/integrations/bitbucket.png
+tag: Bitbucket

@@ -4,7 +4,6 @@ Module containing the base workflow class and decorator - for most use cases, us
 
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
-
 import ast
 import datetime
 import importlib.util
@@ -15,6 +14,7 @@ import re
 import sys
 import tempfile
 import warnings
+from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -89,7 +89,6 @@ from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
-    is_async_fn,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -102,7 +101,7 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import listrepr
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import import_object
+from prefect.utilities.importtools import import_object, safe_load_namespace
 
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
@@ -289,7 +288,18 @@ class Flow(Generic[P, R]):
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
-        self.isasync = is_async_fn(self.fn)
+
+        # the flow is considered async if its function is async or an async
+        # generator
+        self.isasync = inspect.iscoroutinefunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
+
+        # the flow is considered a generator if its function is a generator or
+        # an async generator
+        self.isgenerator = inspect.isgeneratorfunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
 
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
@@ -353,6 +363,28 @@ class Flow(Generic[P, R]):
             module = module_name if module_name != "__main__" else module
 
         self._entrypoint = f"{module}:{fn.__name__}"
+
+    @property
+    def ismethod(self) -> bool:
+        return hasattr(self.fn, "__prefect_self__")
+
+    def __get__(self, instance, owner):
+        """
+        Implement the descriptor protocol so that the flow can be used as an instance method.
+        When an instance method is loaded, this method is called with the "self" instance as
+        an argument. We return a copy of the flow with that instance bound to the flow's function.
+        """
+
+        # if no instance is provided, it's being accessed on the class
+        if instance is None:
+            return self
+
+        # if the flow is being accessed on an instance, bind the instance to the __prefect_self__ attribute
+        # of the flow's function. This will allow it to be automatically added to the flow's parameters
+        else:
+            bound_flow = copy(self)
+            bound_flow.fn.__prefect_self__ = instance
+            return bound_flow
 
     def with_options(
         self,
@@ -555,6 +587,9 @@ class Flow(Generic[P, R]):
         """
         serialized_parameters = {}
         for key, value in parameters.items():
+            # do not serialize the bound self object
+            if self.ismethod and value is self.fn.__prefect_self__:
+                continue
             try:
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
@@ -1241,19 +1276,14 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        from prefect.flow_engine import run_flow, run_flow_sync
+        from prefect.flow_engine import run_flow
 
-        run_kwargs = dict(
+        return run_flow(
             flow=self,
             parameters=parameters,
             wait_for=wait_for,
             return_type=return_type,
         )
-        if self.isasync:
-            # this returns an awaitable coroutine
-            return run_flow(**run_kwargs)
-        else:
-            return run_flow_sync(**run_kwargs)
 
     @sync_compatible
     async def visualize(self, *args, **kwargs):
@@ -1329,8 +1359,8 @@ def flow(
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
     task_runner: Optional[TaskRunner] = None,
-    description: str = None,
-    timeout_seconds: Union[int, float] = None,
+    description: Optional[str] = None,
+    timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -1358,11 +1388,11 @@ def flow(
     name: Optional[str] = None,
     version: Optional[str] = None,
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = None,
-    retry_delay_seconds: Union[int, float] = None,
+    retries: Optional[int] = None,
+    retry_delay_seconds: Union[int, float, None] = None,
     task_runner: Optional[TaskRunner] = None,
-    description: str = None,
-    timeout_seconds: Union[int, float] = None,
+    description: Optional[str] = None,
+    timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -1485,6 +1515,9 @@ def flow(
         >>>     pass
     """
     if __fn:
+        if isinstance(__fn, (classmethod, staticmethod)):
+            method_decorator = type(__fn).__name__
+            raise TypeError(f"@{method_decorator} should be applied on top of @flow")
         return cast(
             Flow[P, R],
             Flow(
@@ -1560,7 +1593,9 @@ flow.from_source = Flow.from_source
 
 
 def select_flow(
-    flows: Iterable[Flow], flow_name: str = None, from_message: str = None
+    flows: Iterable[Flow],
+    flow_name: Optional[str] = None,
+    from_message: Optional[str] = None,
 ) -> Flow:
     """
     Select the only flow in an iterable or a flow specified by name.
@@ -1574,33 +1609,33 @@ def select_flow(
         UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
     # Convert to flows by name
-    flows = {f.name: f for f in flows}
+    flows_dict = {f.name: f for f in flows}
 
     # Add a leading space if given, otherwise use an empty string
     from_message = (" " + from_message) if from_message else ""
-    if not flows:
+    if not Optional:
         raise MissingFlowError(f"No flows found{from_message}.")
 
-    elif flow_name and flow_name not in flows:
+    elif flow_name and flow_name not in flows_dict:
         raise MissingFlowError(
             f"Flow {flow_name!r} not found{from_message}. "
-            f"Found the following flows: {listrepr(flows.keys())}. "
+            f"Found the following flows: {listrepr(flows_dict.keys())}. "
             "Check to make sure that your flow function is decorated with `@flow`."
         )
 
-    elif not flow_name and len(flows) > 1:
+    elif not flow_name and len(flows_dict) > 1:
         raise UnspecifiedFlowError(
             (
-                f"Found {len(flows)} flows{from_message}:"
-                f" {listrepr(sorted(flows.keys()))}. Specify a flow name to select a"
+                f"Found {len(flows_dict)} flows{from_message}:"
+                f" {listrepr(sorted(flows_dict.keys()))}. Specify a flow name to select a"
                 " flow."
             ),
         )
 
     if flow_name:
-        return flows[flow_name]
+        return flows_dict[flow_name]
     else:
-        return list(flows.values())[0]
+        return list(flows_dict.values())[0]
 
 
 def load_flows_from_script(path: str) -> List[Flow]:
@@ -1617,7 +1652,7 @@ def load_flows_from_script(path: str) -> List[Flow]:
     return registry_from_script(path).get_instances(Flow)
 
 
-def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
+def load_flow_from_script(path: str, flow_name: Optional[str] = None) -> Flow:
     """
     Extract a flow object from a script by running all of the code in the file.
 
@@ -1661,7 +1696,7 @@ def load_flow_from_entrypoint(
         FlowScriptError: If an exception is encountered while running the script
         MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
-    with PrefectObjectRegistry(
+    with PrefectObjectRegistry(  # type: ignore
         block_code_execution=True,
         capture_failures=True,
     ):
@@ -1686,7 +1721,7 @@ def load_flow_from_entrypoint(
         return flow
 
 
-def load_flow_from_text(script_contents: AnyStr, flow_name: str):
+def load_flow_from_text(script_contents: AnyStr, flow_name: str) -> Flow:
     """
     Load a flow from a text script.
 
@@ -1717,7 +1752,7 @@ async def serve(
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs,
-):
+) -> NoReturn:
     """
     Serve the provided list of deployments.
 
@@ -1807,7 +1842,7 @@ async def load_flow_from_flow_run(
     flow_run: "FlowRun",
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
-) -> "Flow":
+) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
 
@@ -1861,7 +1896,9 @@ async def load_flow_from_flow_run(
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        run_logger.debug(
+            f"Running {len(deployment.pull_steps)} deployment pull step(s)"
+        )
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
@@ -1913,7 +1950,14 @@ def load_flow_argument_from_entrypoint(
         (
             node
             for node in ast.walk(parsed_code)
-            if isinstance(node, ast.FunctionDef) and node.name == func_name
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
         ),
         None,
     )
@@ -1926,11 +1970,33 @@ def load_flow_argument_from_entrypoint(
         ):
             for keyword in decorator.keywords:
                 if keyword.arg == arg:
-                    return (
-                        keyword.value.value
-                    )  # Return the string value of the argument
+                    if isinstance(keyword.value, ast.Constant):
+                        return (
+                            keyword.value.value
+                        )  # Return the string value of the argument
+
+                    # if the arg value is not a raw str (i.e. a variable or expression),
+                    # then attempt to evaluate it
+                    namespace = safe_load_namespace(source_code)
+                    literal_arg_value = ast.get_source_segment(
+                        source_code, keyword.value
+                    )
+                    try:
+                        evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
+                    except Exception as e:
+                        logger.info(
+                            "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
+                            arg,
+                            literal_arg_value,
+                            exc_info=e,
+                        )
+                        # ignore the decorator arg and fallback to default behavior
+                        break
+                    return str(evaluated_value)
 
     if arg == "name":
         return func_name.replace(
             "_", "-"
         )  # If no matching decorator or keyword argument is found
+
+    return None

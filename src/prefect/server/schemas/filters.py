@@ -329,11 +329,16 @@ class FlowRunFilterStateType(PrefectFilterBaseModel):
     any_: Optional[List[schemas.states.StateType]] = Field(
         default=None, description="A list of flow run state types to include"
     )
+    not_any_: Optional[List[schemas.states.StateType]] = Field(
+        default=None, description="A list of flow run state types to exclude"
+    )
 
     def _get_filter_list(self) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(orm_models.FlowRun.state_type.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(orm_models.FlowRun.state_type.not_in(self.not_any_))
         return filters
 
 
@@ -343,11 +348,16 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None, description="A list of flow run state names to include"
     )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of flow run state names to exclude"
+    )
 
     def _get_filter_list(self) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(orm_models.FlowRun.state_name.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(orm_models.FlowRun.state_name.not_in(self.not_any_))
         return filters
 
 
@@ -932,6 +942,29 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         return filters
 
 
+class DeploymentOrFlowNameFilter(PrefectFilterBaseModel):
+    """Filter by `Deployment.name` or `Flow.name` with a single input string for ilike filtering."""
+
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A case-insensitive partial match on deployment or flow names. For example, "
+            "passing 'example' might match deployments or flows with 'example' in their names."
+        ),
+    )
+
+    def _get_filter_list(self) -> List:
+        filters = []
+        if self.like_ is not None:
+            deployment_name_filter = orm_models.Deployment.name.ilike(f"%{self.like_}%")
+
+            flow_name_filter = orm_models.Deployment.flow.has(
+                orm_models.Flow.name.ilike(f"%{self.like_}%")
+            )
+            filters.append(sa.or_(deployment_name_filter, flow_name_filter))
+        return filters
+
+
 class DeploymentFilterPaused(PrefectFilterBaseModel):
     """Filter by `Deployment.paused`."""
 
@@ -1018,6 +1051,9 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     name: Optional[DeploymentFilterName] = Field(
         default=None, description="Filter criteria for `Deployment.name`"
     )
+    flow_or_deployment_name: Optional[DeploymentOrFlowNameFilter] = Field(
+        default=None, description="Filter criteria for `Deployment.name` or `Flow.name`"
+    )
     paused: Optional[DeploymentFilterPaused] = Field(
         default=None, description="Filter criteria for `Deployment.paused`"
     )
@@ -1038,6 +1074,8 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.id.as_sql_filter())
         if self.name is not None:
             filters.append(self.name.as_sql_filter())
+        if self.flow_or_deployment_name is not None:
+            filters.append(self.flow_or_deployment_name.as_sql_filter())
         if self.paused is not None:
             filters.append(self.paused.as_sql_filter())
         if self.is_schedule_active is not None:

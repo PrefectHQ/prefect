@@ -1,0 +1,6 @@
+integrationName: prefect-kv
+author: Zanie Blue
+authorUrl: https://github.com/zanieb
+documentation: https://github.com/zanieb/prefect-kv
+iconUrl: /images/integrations/prefect-kv.svg
+tag: "KV"

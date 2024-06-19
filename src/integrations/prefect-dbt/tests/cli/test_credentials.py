@@ -60,7 +60,7 @@ def test_dbt_cli_profile_get_profile():
         "class_target_configs",
     ],
 )
-def test_dbt_cli_profile_save_load_roundtrip(target_configs_request, request):
+async def test_dbt_cli_profile_save_load_roundtrip(target_configs_request, request):
     target_configs = request.getfixturevalue(target_configs_request)
     dbt_cli_profile = DbtCliProfile(
         name="my_name",
@@ -68,6 +68,6 @@ def test_dbt_cli_profile_save_load_roundtrip(target_configs_request, request):
         target_configs=target_configs,
     )
     block_name = target_configs_request.replace("_", "-")
-    dbt_cli_profile.save(block_name)
-    dbt_cli_profile_loaded = DbtCliProfile.load(block_name)
+    await dbt_cli_profile.save(block_name)
+    dbt_cli_profile_loaded = await DbtCliProfile.load(block_name)
     assert dbt_cli_profile_loaded.get_profile()

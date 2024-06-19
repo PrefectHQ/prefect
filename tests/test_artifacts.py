@@ -5,6 +5,7 @@ import pytest
 
 from prefect import flow, task
 from prefect.artifacts import (
+    create_image_artifact,
     create_link_artifact,
     create_markdown_artifact,
     create_progress_artifact,
@@ -545,6 +546,77 @@ class TestCreateArtifacts:
         assert my_progress_artifact.data == 0.0
         assert my_progress_artifact.type == "progress"
         assert my_progress_artifact.description == "my-artifact-description"
+
+    async def test_create_image_artifact_succeeds(self, client):
+        image_url = "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+        artifact_id = await create_image_artifact(
+            image_url=image_url,
+            key="google-logo",
+            description="This is the google logo",
+        )
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        result = schemas.core.Artifact.model_validate(response.json())
+        assert result.data == image_url
+
+    async def test_create_image_artifact_in_task_succeeds(self, client):
+        @task
+        def my_task():
+            task_run_id = get_run_context().task_run.id
+            artifact_id = create_image_artifact(
+                image_url="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+                key="task-link-artifact-3",
+                description="my-artifact-description",
+            )
+            return artifact_id, task_run_id
+
+        @flow
+        def my_flow():
+            flow_run_id = get_run_context().flow_run.id
+            artifact_id, task_run_id = my_task()
+
+            return artifact_id, flow_run_id, task_run_id
+
+        my_artifact_id, flow_run_id, task_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        my_image_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_image_artifact.flow_run_id == flow_run_id
+        assert my_image_artifact.task_run_id == task_run_id
+        assert (
+            my_image_artifact.data
+            == "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+        )
+        assert my_image_artifact.type == "image"
+        assert my_image_artifact.description == "my-artifact-description"
+
+    async def test_create_image_artifact_in_flow_succeeds(self, client):
+        @flow
+        def my_flow():
+            flow_run_id = get_run_context().flow_run.id
+
+            artifact_id = create_image_artifact(
+                image_url="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+                key="task-link-artifact-4",
+                description="my-artifact-description",
+            )
+
+            return artifact_id, flow_run_id
+
+        my_artifact_id, flow_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        my_image_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_image_artifact.flow_run_id == flow_run_id
+        assert my_image_artifact.task_run_id is None
+        assert (
+            my_image_artifact.data
+            == "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+        )
+        assert my_image_artifact.type == "image"
+        assert my_image_artifact.description == "my-artifact-description"
 
 
 class TestUpdateArtifacts:

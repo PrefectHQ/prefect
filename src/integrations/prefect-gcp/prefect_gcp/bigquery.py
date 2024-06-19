@@ -6,18 +6,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from anyio import to_thread
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
-from prefect import get_run_logger, task
+from prefect import task
 from prefect.blocks.abstract import DatabaseBlock
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import hash_objects
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_gcp.credentials import GcpCredentials
 
 try:
@@ -48,6 +43,7 @@ def _result_sync(func, *args, **kwargs):
 
 
 @task
+@sync_compatible
 async def bigquery_query(
     query: str,
     gcp_credentials: GcpCredentials,
@@ -175,6 +171,7 @@ async def bigquery_query(
 
 
 @task
+@sync_compatible
 async def bigquery_create_table(
     dataset: str,
     table: str,
@@ -208,6 +205,7 @@ async def bigquery_create_table(
         from prefect_gcp import GcpCredentials
         from prefect_gcp.bigquery import bigquery_create_table
         from google.cloud.bigquery import SchemaField
+
         @flow
         def example_bigquery_create_table_flow():
             gcp_credentials = GcpCredentials(project="project")
@@ -269,6 +267,7 @@ async def bigquery_create_table(
 
 
 @task
+@sync_compatible
 async def bigquery_insert_stream(
     dataset: str,
     table: str,
@@ -344,6 +343,7 @@ async def bigquery_insert_stream(
 
 
 @task
+@sync_compatible
 async def bigquery_load_cloud_storage(
     dataset: str,
     table: str,
@@ -432,6 +432,7 @@ async def bigquery_load_cloud_storage(
 
 
 @task
+@sync_compatible
 async def bigquery_load_file(
     dataset: str,
     table: str,

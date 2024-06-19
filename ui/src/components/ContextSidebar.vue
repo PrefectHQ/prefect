@@ -29,6 +29,12 @@
           </p-button>
         </p-context-nav-item>
       </a>
+
+      <p-context-nav-item @click="openJoinCommunityModal">
+        Join the Community
+        <JoinTheCommunityModal :show-modal="showJoinCommunityModal || !joinTheCommunityModalDismissed" @update:show-modal="updateShowModal" />
+      </p-context-nav-item>
+
       <p-context-nav-item title="Settings" :to="routes.settings()" />
     </template>
   </p-context-sidebar>
@@ -36,13 +42,24 @@
 
 <script lang="ts" setup>
   import { PContextSidebar, PContextNavItem } from '@prefecthq/prefect-design'
-  import { localization } from '@prefecthq/prefect-ui-library'
+  import { localization, useShowModal } from '@prefecthq/prefect-ui-library'
+  import { useStorage } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import JoinTheCommunityModal from '@/components/JoinTheCommunityModal.vue'
   import { useCan } from '@/compositions/useCan'
   import { routes } from '@/router'
 
   const can = useCan()
-  const canSeeWorkPools = computed(() => can.access.work_pools && can.read.work_pool)
+  const canSeeWorkPools = computed(() => can.read.work_pool)
+
+  const { showModal: showJoinCommunityModal, open: openJoinCommunityModal } = useShowModal()
+  const { value: joinTheCommunityModalDismissed } = useStorage('local', 'join-the-community-modal-dismissed', false)
+  function updateShowModal(updatedShowModal: boolean): void {
+    showJoinCommunityModal.value = updatedShowModal
+    if (!updatedShowModal) {
+      joinTheCommunityModalDismissed.value = true
+    }
+  }
 </script>
 
 <style>

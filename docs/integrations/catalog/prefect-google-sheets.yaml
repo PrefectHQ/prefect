@@ -1,0 +1,6 @@
+integrationName: prefect-google-sheets
+author: Stefano Cascavilla
+authorUrl: https://github.com/stefanocascavilla
+documentation: https://stefanocascavilla.github.io/prefect-google-sheets/
+iconUrl: /images/integrations/gsheets.png
+tag: Google Sheets

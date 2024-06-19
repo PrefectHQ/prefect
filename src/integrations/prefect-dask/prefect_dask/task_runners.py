@@ -78,7 +78,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Set, Union
 import distributed
 
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -87,7 +87,7 @@ from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect_dask.client import PrefectDaskClient
 
 
-class PrefectDaskFuture(PrefectFuture[distributed.Future]):
+class PrefectDaskFuture(PrefectWrappedFuture[distributed.Future]):
     """
     A Prefect future that wraps a distributed.Future. This future is used
     when the task run is submitted to a DaskTaskRunner.

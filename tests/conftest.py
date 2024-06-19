@@ -41,6 +41,7 @@ from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
     PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
@@ -327,6 +328,7 @@ def pytest_sessionstart(session):
             PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
             PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED: False,
             PREFECT_API_SERVICES_FOREMAN_ENABLED: False,
+            PREFECT_API_LOG_RETRYABLE_ERRORS: True,
             # Disable block auto-registration memoization
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
@@ -357,12 +359,15 @@ def pytest_sessionstart(session):
     setup_logging()
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_sessionfinish(session):
-    # Allow all other finish fixture to complete first
+# def pytest_sessionfinish(session, exitstatus):
+@pytest.fixture(scope="session", autouse=True)
+def cleanup(drain_log_workers, drain_events_workers):
+    # this fixture depends on other fixtures with important cleanup steps like
+    # draining workers to ensure that the home directory is not deleted before
+    # these steps are completed
     yield
 
-    # Then, delete the temporary directory
+    # delete the temporary directory
     if TEST_PREFECT_HOME is not None:
         shutil.rmtree(TEST_PREFECT_HOME)
 
@@ -602,6 +607,15 @@ def leaves_no_extraneous_files():
     yield
     after = set(Path(".").iterdir())
     new_files = after - before
+
+    ignored_file_prefixes = {".coverage"}
+
+    new_files = {
+        f
+        for f in new_files
+        if not any(f.name.startswith(prefix) for prefix in ignored_file_prefixes)
+    }
+
     if new_files:
         raise AssertionError(
             "One of the tests in this module left new files in the "

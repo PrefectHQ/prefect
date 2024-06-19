@@ -1,0 +1,6 @@
+integrationName: prefect-earthdata
+author: Giorgio Basile
+authorUrl: https://github.com/giorgiobasile
+documentation: https://giorgiobasile.github.io/prefect-earthdata/
+iconUrl: /images/integrations/nasa.png
+tag: Earthdata

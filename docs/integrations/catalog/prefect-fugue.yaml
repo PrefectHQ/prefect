@@ -1,0 +1,6 @@
+integrationName: prefect-fugue
+author: The Fugue Development Team
+authorUrl: https://github.com/fugue-project/fugue
+documentation: https://fugue-project.github.io/prefect-fugue/
+iconUrl: https://avatars.githubusercontent.com/u/65140352?s=200&v=4
+tag: Fugue
