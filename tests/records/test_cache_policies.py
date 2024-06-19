@@ -2,7 +2,7 @@ import itertools
 
 import pytest
 
-from prefect.records.cache_policies import (
+from prefect.cache_policies import (
     CachePolicy,
     CompoundCachePolicy,
     Default,
