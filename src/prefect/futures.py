@@ -86,21 +86,6 @@ class PrefectFuture(abc.ABC):
             The result of the task run.
         """
 
-    def __del__(self):
-        if self._final_state:
-            return
-        # make a very short attempt to check if the future has been resolved
-        self.wait(timeout=0.0)
-        if self._final_state:
-            return
-        try:
-            local_logger = get_run_logger()
-        except Exception:
-            local_logger = logger
-        local_logger.warning(
-            "Future was garbage collected before it resolved. Please ensure you call `.wait()` or `.result()` to wait for the future to resolve.",
-        )
-
 
 class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
     """
@@ -157,6 +142,18 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
+
+    def __del__(self):
+        if self._final_state or self._wrapped_future.done():
+            return
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "A future was garbage collected before it resolved."
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+        )
 
 
 class PrefectDistributedFuture(PrefectFuture):

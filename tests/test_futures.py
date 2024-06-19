@@ -13,16 +13,16 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
-    PrefectFuture,
+    PrefectWrappedFuture,
     resolve_futures_to_states,
 )
 from prefect.states import Completed, Failed
 from prefect.task_engine import run_task_async, run_task_sync
 
 
-class MockResolvedFuture(PrefectFuture):
+class MockFuture(PrefectWrappedFuture):
     def __init__(self, data: Any = 42):
-        super().__init__(uuid.uuid4())
+        super().__init__(uuid.uuid4(), Future())
         self._final_state = Completed(data=data)
 
     def wait(self, timeout: Optional[float] = None) -> None:
@@ -34,32 +34,6 @@ class MockResolvedFuture(PrefectFuture):
         raise_on_failure: bool = True,
     ) -> Any:
         return self._final_state.result()
-
-
-class MockUnresolvedFuture(PrefectFuture):
-    def __init__(self):
-        super().__init__(uuid.uuid4())
-
-    def wait(self, timeout: Optional[float] = None) -> None:
-        pass
-
-    def result(
-        self,
-        timeout: Optional[float] = None,
-        raise_on_failure: bool = True,
-    ) -> Any:
-        return None
-
-
-class TestPrefectFuture:
-    def test_logs_warning_when_future_not_resolved(self, caplog):
-        # Don't assign the future to a variable so it gets garbage collected
-        MockUnresolvedFuture()
-        assert "Future was garbage collected before it resolved" in caplog.text
-
-    def test_does_not_log_when_future_resolved(self, caplog):
-        MockResolvedFuture()
-        assert "Future was garbage collected before it resolved" not in caplog.text
 
 
 class TestPrefectConcurrentFuture:
@@ -106,10 +80,22 @@ class TestPrefectConcurrentFuture:
         with pytest.raises(ValueError, match="oops"):
             future.result(raise_on_failure=True)
 
+    def test_warns_if_not_resolved_when_garbage_collected(self, caplog):
+        PrefectConcurrentFuture(uuid.uuid4(), Future())
+
+        assert "A future was garbage collected before it resolved" in caplog.text
+
+    def test_does_not_warn_if_resolved_when_garbage_collected(self, caplog):
+        wrapped_future = Future()
+        wrapped_future.set_result(Completed())
+        PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+
+        assert "A future was garbage collected before it resolved" not in caplog.text
+
 
 class TestResolveFuturesToStates:
     async def test_resolve_futures_transforms_future(self):
-        future = future = MockResolvedFuture()
+        future = future = MockFuture()
         assert resolve_futures_to_states(future).is_completed()
 
     def test_resolve_futures_to_states_with_no_futures(self):
@@ -119,14 +105,14 @@ class TestResolveFuturesToStates:
 
     @pytest.mark.parametrize("_type", [list, tuple, set])
     def test_resolve_futures_transforms_future_in_listlike_type(self, _type):
-        future = MockResolvedFuture(data="foo")
+        future = MockFuture(data="foo")
         result = resolve_futures_to_states(_type(["a", future, "b"]))
         assert result == _type(["a", future.state, "b"])
 
     @pytest.mark.parametrize("_type", [dict, OrderedDict])
     def test_resolve_futures_transforms_future_in_dictlike_type(self, _type):
-        key_future = MockResolvedFuture(data="foo")
-        value_future = MockResolvedFuture(data="bar")
+        key_future = MockFuture(data="foo")
+        value_future = MockFuture(data="bar")
         result = resolve_futures_to_states(
             _type([("a", 1), (key_future, value_future), ("b", 2)])
         )
@@ -141,7 +127,7 @@ class TestResolveFuturesToStates:
             foo: str
             b: int = 2
 
-        future = MockResolvedFuture(data="bar")
+        future = MockFuture(data="bar")
         assert resolve_futures_to_states(Foo(a=1, foo=future)) == Foo(
             a=1, foo=future.state, b=2
         )
@@ -153,7 +139,7 @@ class TestResolveFuturesToStates:
             nested_list: list
             nested_dict: dict
 
-        future = MockResolvedFuture(data="bar")
+        future = MockFuture(data="bar")
         assert resolve_futures_to_states(
             Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
         ) == Foo(
