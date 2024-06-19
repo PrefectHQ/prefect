@@ -94,10 +94,6 @@ from prefect_ray.context import RemoteOptionsContext
 class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
-            print()
-            print("inside wait")
-            print(self.wrapped_future)
-            print()
             result = ray.get(self.wrapped_future, timeout=timeout)
         except GetTimeoutError:
             return
@@ -113,10 +109,6 @@ class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
     ) -> Any:
         if not self._final_state:
             try:
-                print()
-                print("inside result")
-                print(self.wrapped_future)
-                print()
                 object_ref_result = ray.get(self.wrapped_future, timeout=timeout)
             except GetTimeoutError as exc:
                 raise TimeoutError(
