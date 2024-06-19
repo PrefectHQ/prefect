@@ -104,7 +104,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         default_factory=get_prefect_image_name,
         description="The image reference of a container image to use for created jobs. "
         "If not set, the latest Prefect image will be used.",
-        example="docker.io/prefecthq/prefect:3-latest",
+        examples=["docker.io/prefecthq/prefect:3-latest"],
     )
     registry_credentials: Optional[DockerRegistryCredentials] = Field(
         default=None,
