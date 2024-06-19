@@ -200,7 +200,7 @@ example\_deploy\_script.py
 
 ```
 from prefect import flow
-from prefect.deployments import DeploymentImage
+from prefect.docker import DockerImage
 
 @flow(log_prints=True)            
 def my_flow(name: str = "world"):                          
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     my_flow.deploy(
         name="my-deployment", 
         work_pool_name="my-work-pool",
-        image=DeploymentImage(                                                 
+        image=DockerImage(                                                 
             name="my-repository:latest",
             platform="linux/amd64",
         )                                                                      
@@ -284,7 +284,7 @@ To take advantage of this functionality, you can write your deploy scripts like 
 ```python example_deploy_script.py
 
 from prefect import flow                                                       
-from prefect.deployments import DeploymentImage                                
+from prefect.docker import DockerImage                                
 
 
 @flow(log_prints=True)                                                         
@@ -296,7 +296,7 @@ if __name__ == "__main__":
     my_flow.deploy(                                                            
         name="my-deployment",
         work_pool_name="my-work-pool",                                                
-        image=DeploymentImage(                                                 
+        image=DockerImage(                                                 
             name="my-image:latest",                                            
             platform="linux/amd64",                                            
         )                                                                      
@@ -368,7 +368,7 @@ example\_deploy\_script.py
 
 ```
 from prefect import flow                                                       
-from prefect.deployments import DeploymentImage                                
+from prefect.docker import DockerImage                                
 
 
 @flow(log_prints=True)
@@ -380,7 +380,7 @@ if __name__ == "__main__":
     my_flow.deploy(                                                            
         name="my-deployment",
         work_pool_name="above-ground",
-        image=DeploymentImage(
+        image=DockerImage(
             name="my-image:latest",
             platform="linux/amd64",
         )

@@ -183,12 +183,12 @@ containers whenever this workflow needs to run.
     The generated Dockerfile copies the current directory into the Docker image and installs any dependencies listed in a 
     `requirements.txt` file.
 
-    To use a custom Dockerfile, specify the path to the Dockerfile using the `DeploymentImage` class:
+    To use a custom Dockerfile, specify the path to the Dockerfile using the `DockerImage` class:
 
     ```python repo_info.py
     import httpx
     from prefect import flow
-    from prefect.deployments import DeploymentImage
+    from prefect.docker import DockerImage
 
 
     @flow(log_prints=True)
@@ -206,7 +206,7 @@ containers whenever this workflow needs to run.
         get_repo_info.deploy(
             name="my-first-deployment", 
             work_pool_name="my-docker-pool", 
-            image=DeploymentImage(
+            image=DockerImage(
                 name="my-first-deployment-image",
                 tag="tutorial",
                 dockerfile="Dockerfile"

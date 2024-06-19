@@ -199,11 +199,11 @@ in a `requirements.txt` file.
 
 ### Automatically build a custom Docker image with a local Dockerfile
 
-If you want to use a custom Dockerfile, specify the path to the Dockerfile with the `DeploymentImage` class:
+If you want to use a custom Dockerfile, specify the path to the Dockerfile with the `DockerImage` class:
 
 ```python custom_dockerfile.py
 from prefect import flow
-from prefect.deployments import DeploymentImage
+from prefect.docker import DockerImage
 
 
 @flow(log_prints=True)
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     buy.deploy(
         name="my-custom-dockerfile-deployment", 
         work_pool_name="my-docker-pool", 
-        image=DeploymentImage(
+        image=DockerImage(
             name="my_image",
             tag="deploy-guide",
             dockerfile="Dockerfile"
@@ -225,7 +225,7 @@ if __name__ == "__main__":
 
 ```
 
-The `DeploymentImage` object enables image customization.
+The `DockerImage` object enables image customization.
 
 For example, you can install a private Python package from GCP's artifact registry like this:
 
@@ -240,11 +240,11 @@ COPY ./requirements.txt /requirements.txt
 RUN pip install --extra-index-url ${AUTHED_ARTIFACT_REG_URL} -r /requirements.txt
 ```
 
-Create your deployment with the DeploymentImage class:
+Create your deployment with the DockerImage class:
 
 ```python private-package.py
 from prefect import flow
-from prefect.deployments.runner import DeploymentImage
+from prefect.deployments.runner import DockerImage
 from prefect.blocks.system import Secret
 from my_private_package import do_something_cool
 
@@ -260,7 +260,7 @@ if __name__ == "__main__":
     my_flow.deploy(
         name="my-deployment",
         work_pool_name="k8s-demo",
-        image=DeploymentImage(
+        image=DockerImage(
             name="my-image",
             tag="test",
             dockerfile="Dockerfile",
@@ -272,7 +272,7 @@ if __name__ == "__main__":
 Note that you used a [Prefect Secret block](/3.0rc/develop/connect-third-party/) to load the URL configuration for 
 the artifact registry above.
 
-See all the optional keyword arguments for the [DeploymentImage class](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build).
+See all the optional keyword arguments for the [DockerImage class](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build).
 
 <Tip>
 **Default Docker namespace**
