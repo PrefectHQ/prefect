@@ -431,7 +431,11 @@ class ResultFactory(BaseModel):
 
     @sync_compatible
     async def create_result(
-        self, obj: R, key: Optional[str] = None, expiration: Optional[DateTime] = None
+        self,
+        obj: R,
+        key: Optional[str] = None,
+        expiration: Optional[DateTime] = None,
+        defer_persistence: bool = False,
     ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
@@ -464,6 +468,7 @@ class ResultFactory(BaseModel):
             serializer=self.serializer,
             cache_object=should_cache_object,
             expiration=expiration,
+            defer_persistence=defer_persistence,
         )
 
     @sync_compatible
