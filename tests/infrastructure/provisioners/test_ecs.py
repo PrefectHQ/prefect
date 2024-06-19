@@ -1331,7 +1331,7 @@ class TestContainerRepositoryResource:
         assert container_repository_resource.next_steps[1].renderable.code == dedent(
             """\
                 from prefect import flow
-                from prefect.deployments import DeploymentImage
+                from prefect.docker.deployment_image import DeploymentImage
 
 
                 @flow(log_prints=True)

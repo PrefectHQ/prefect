@@ -27,11 +27,11 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
-    DeploymentImage,
     EntrypointType,
     RunnerDeployment,
     deploy,
 )
+from prefect.docker.deployment_image import DeploymentImage
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
