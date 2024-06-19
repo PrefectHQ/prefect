@@ -656,7 +656,7 @@ class TestRemoteStorage:
 
 class TestLocalStorage:
     def test_init(self):
-        ls = LocalStorage("/path/to/directory")
+        ls = LocalStorage("/path/to/directory", pull_interval=60)
         assert ls._path == Path("/path/to/directory")
         assert ls.pull_interval == 60
 
@@ -675,7 +675,7 @@ class TestLocalStorage:
         pull_step = locals.to_pull_step()
         assert pull_step == {
             "prefect.deployments.steps.set_working_directory": {
-                "directory": Path("/path/to/directory")
+                "directory": "/path/to/directory"
             }
         }
 
