@@ -1541,7 +1541,7 @@ The maximum number of retries to queue for submission.
 
 PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
     timedelta,
-    default=timedelta(seconds=30),
+    default=timedelta(0),
 )
 """
 How long before a PENDING task are made available to another task worker.  In practice,
