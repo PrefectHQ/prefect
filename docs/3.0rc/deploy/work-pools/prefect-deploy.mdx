@@ -89,7 +89,7 @@ These work pool types require a worker running on your infrastructure to poll a 
     - **[Push Work Pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless)**: serverless cloud options that don't require 
     a worker because Prefect Cloud submits them to your serverless cloud infrastructure on your behalf. 
     Prefect can auto-provision your cloud infrastructure for you and set it up to use your work pool.
-    - **[Managed Execution](/3.0rc/guides/managed-execution/)**: Prefect Cloud submits and runs your 
+    - **[Managed Execution](/3.0rc/deploy/work-pools/managed-execution/)**: Prefect Cloud submits and runs your 
     deployment on serverless infrastructure. No cloud provider account required.
 </Note>
 
@@ -100,11 +100,11 @@ and allow you to limit concurrent runs at the work pool level.
 
 When creating a deployment that uses a work pool and worker, there are two important considerations:
 
-- What instructions does a [worker](/3.0rc/deploy/dynamic-infra/control-runs/) require to set up an execution environment for your flow? 
+- What instructions does a [worker](/3.0rc/deploy/work-pools/control-runs/) require to set up an execution environment for your flow? 
 For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
-[Serve workflows](/3.0rc/deploy/serve-workflows/) shows how to create a deployment with a long-running process using `.serve`, 
+[Serve flows](/3.0rc/deploy/serve-flows/) shows how to create a deployment with a long-running process using `.serve`, 
 and how to move to a [work-pool-based deployment](/3.0rc/deploy/dynamic-infra/push-runs-remote/) setup with `.deploy`.
 Learn more about when to move to [work-pool-based deployments](/3.0rc/deploy/dynamic-infra/push-runs-remote/#why-workers-and-work-pools).
 
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     )
 ```
 
-Make the [work pool](/3.0rc/deploy/dynamic-infra/control-runs/) exists in the Prefect Cloud workspace you are 
+Make the [work pool](/3.0rc/deploy/work-pools/control-runs/) exists in the Prefect Cloud workspace you are 
 authenticated to, or on your running self-hosted server instance.  
 Then run the script to create a deployment (in future examples this step is omitted for brevity):
 
@@ -441,7 +441,7 @@ if __name__ == "__main__":
 
 The `job_variables` parameter allows you to fine-tune the infrastructure settings for a deployment.
 The values passed in override default values in the specified work pool's 
-[base job template](/3.0rc/deploy/dynamic-infra/control-runs/#base-job-template).
+[base job template](/3.0rc/deploy/work-pools/control-runs/#base-job-template).
 
 You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables` 
 argument.
@@ -935,7 +935,7 @@ brackets and in `"{{ field_name }}"` format
 - **blocks**: you can reference [Prefect blocks](/3.0rc/develop/connect-third-party) with the  
 `{{ prefect.blocks.block_type.block_slug }}` syntax. It is highly recommended that you use block references for any sensitive 
 information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
-- **variables**: you can reference [Prefect variables](/3.0rc/concepts/variables) with the  
+- **variables**: you can reference [Prefect variables](/3.0rc/develop/write-flows/variables) with the  
 `{{ prefect.variables.variable_name }}` syntax. Use variables to reference non-sensitive, reusable pieces of information 
 such as a default image name or a default work pool name.
 - **environment variables**: you can also reference environment variables with the special syntax `{{ $MY_ENV_VAR }}`. 
@@ -1182,8 +1182,8 @@ These are fields you can add to each deployment declaration.
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                                  |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
-| `schedule`                                 | An optional [schedule](/3.0rc/deploy/serve-workflows/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
-| `triggers`                                  | An optional array of [triggers](/3.0rc/deploy/serve-workflows/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
+| `schedule`                                 | An optional [schedule](/3.0rc/deploy/serve-flows/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `triggers`                                  | An optional array of [triggers](/3.0rc/deploy/serve-flows/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
@@ -1202,7 +1202,7 @@ These are fields you can add to a deployment declaration's `schedule` section.
 | `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must use with `cron`. Defaults to `True`.                                                                                                     |
 | `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot used them in conjunction with `interval` or `cron`. |
 
-For more information, see the [Schedules](/3.0rc/deploy/serve-workflows/add-schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section).
+For more information, see the [Schedules](/3.0rc/deploy/serve-flows/add-schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section).
 
 #### Work pool fields
 
@@ -1212,7 +1212,7 @@ These are fields you can add to a deployment declaration's `work_pool` section.
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                                         | The name of the work pool to schedule flow runs in for the deployment.                                                                                                                                    |
 | <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool is used.                       |
-| `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/3.0rc/deploy/dynamic-infra/control-runs/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
+| `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/3.0rc/deploy/work-pools/control-runs/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
 #### Deployment mechanics
 
@@ -1242,7 +1242,7 @@ Each time a step runs, the following actions take place in order:
 
 Now that you are familiar with creating deployments, you can explore infrastructure options for running your deployments:
 
-- [Managed work pools](/3.0rc/guides/managed-execution/)
+- [Managed work pools](/3.0rc/deploy/work-pools/managed-execution/)
 - [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/)
 - [Kubernetes work pools](/3.0rc/deploy/dynamic-infra/deploy-kubernetes/)
 - [Serverless hybrid work pools](/3.0rc/deploy/dynamic-infra/push-runs-remote/)

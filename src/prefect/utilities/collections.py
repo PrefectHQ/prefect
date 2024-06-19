@@ -4,6 +4,7 @@ Utilities for extensions of and operations on Python collections.
 
 import io
 import itertools
+import types
 import warnings
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
@@ -220,25 +221,31 @@ class StopVisiting(BaseException):
 
 
 def visit_collection(
-    expr,
-    visit_fn: Union[Callable[[Any, dict], Any], Callable[[Any], Any]],
+    expr: Any,
+    visit_fn: Union[Callable[[Any, Optional[dict]], Any], Callable[[Any], Any]],
     return_data: bool = False,
     max_depth: int = -1,
     context: Optional[dict] = None,
     remove_annotations: bool = False,
-):
+    _seen: Optional[Set[int]] = None,
+) -> Any:
     """
-    This function visits every element of an arbitrary Python collection. If an element
-    is a Python collection, it will be visited recursively. If an element is not a
-    collection, `visit_fn` will be called with the element. The return value of
-    `visit_fn` can be used to alter the element if `return_data` is set.
+    Visits and potentially transforms every element of an arbitrary Python collection.
 
-    Note that when using `return_data` a copy of each collection is created to avoid
-    mutating the original object. This may have significant performance penalties and
-    should only be used if you intend to transform the collection.
+    If an element is a Python collection, it will be visited recursively. If an element
+    is not a collection, `visit_fn` will be called with the element. The return value of
+    `visit_fn` can be used to alter the element if `return_data` is set to `True`.
+
+    Note:
+    - When `return_data` is `True`, a copy of each collection is created only if
+      `visit_fn` modifies an element within that collection. This approach minimizes
+      performance penalties by avoiding unnecessary copying.
+    - When `return_data` is `False`, no copies are created, and only side effects from
+      `visit_fn` are applied. This mode is faster and should be used when no transformation
+      of the collection is required, because it never has to copy any data.
 
     Supported types:
-    - List
+    - List (including iterators)
     - Tuple
     - Set
     - Dict (note: keys are also visited recursively)
@@ -246,31 +253,40 @@ def visit_collection(
     - Pydantic model
     - Prefect annotations
 
+    Note that visit_collection will not consume generators or async generators, as it would prevent
+    the caller from iterating over them.
+
     Args:
-        expr (Any): a Python object or expression
-        visit_fn (Callable[[Any, Optional[dict]], Awaitable[Any]]): a function that
-            will be applied to every non-collection element of expr. The function can
-            accept one or two arguments. If two arguments are accepted, the second
-            argument will be the context dictionary.
-        return_data (bool): if `True`, a copy of `expr` containing data modified
-            by `visit_fn` will be returned. This is slower than `return_data=False`
-            (the default).
-        max_depth: Controls the depth of recursive visitation. If set to zero, no
-            recursion will occur. If set to a positive integer N, visitation will only
-            descend to N layers deep. If set to any negative integer, no limit will be
+        expr (Any): A Python object or expression.
+        visit_fn (Callable[[Any, Optional[dict]], Any] or Callable[[Any], Any]): A function
+            that will be applied to every non-collection element of `expr`. The function can
+            accept one or two arguments. If two arguments are accepted, the second argument
+            will be the context dictionary.
+        return_data (bool): If `True`, a copy of `expr` containing data modified by `visit_fn`
+            will be returned. This is slower than `return_data=False` (the default).
+        max_depth (int): Controls the depth of recursive visitation. If set to zero, no
+            recursion will occur. If set to a positive integer `N`, visitation will only
+            descend to `N` layers deep. If set to any negative integer, no limit will be
             enforced and recursion will continue until terminal items are reached. By
             default, recursion is unlimited.
-        context: An optional dictionary. If passed, the context will be sent to each
-            call to the `visit_fn`. The context can be mutated by each visitor and will
-            be available for later visits to expressions at the given depth. Values
+        context (Optional[dict]): An optional dictionary. If passed, the context will be sent
+            to each call to the `visit_fn`. The context can be mutated by each visitor and
+            will be available for later visits to expressions at the given depth. Values
             will not be available "up" a level from a given expression.
-
             The context will be automatically populated with an 'annotation' key when
-            visiting collections within a `BaseAnnotation` type. This requires the
-            caller to pass `context={}` and will not be activated by default.
-        remove_annotations: If set, annotations will be replaced by their contents. By
+            visiting collections within a `BaseAnnotation` type. This requires the caller to
+            pass `context={}` and will not be activated by default.
+        remove_annotations (bool): If set, annotations will be replaced by their contents. By
             default, annotations are preserved but their contents are visited.
+        _seen (Optional[Set[int]]): A set of object ids that have already been visited. This
+            prevents infinite recursion when visiting recursive data structures.
+
+    Returns:
+        Any: The modified collection if `return_data` is `True`, otherwise `None`.
     """
+
+    if _seen is None:
+        _seen = set()
 
     def visit_nested(expr):
         # Utility for a recursive call, preserving options and updating the depth.
@@ -282,6 +298,7 @@ def visit_collection(
             max_depth=max_depth - 1,
             # Copy the context on nested calls so it does not "propagate up"
             context=context.copy() if context is not None else None,
+            _seen=_seen,
         )
 
     def visit_expression(expr):
@@ -290,7 +307,7 @@ def visit_collection(
         else:
             return visit_fn(expr)
 
-    # Visit every expression
+    # --- 1. Visit every expression
     try:
         result = visit_expression(expr)
     except StopVisiting:
@@ -298,47 +315,92 @@ def visit_collection(
         result = expr
 
     if return_data:
-        # Only mutate the expression while returning data, otherwise it could be null
+        # Only mutate the root expression if the user indicated we're returning data,
+        # otherwise the function could return null and we have no collection to check
         expr = result
 
-    # Then, visit every child of the expression recursively
+    # --- 2. Visit every child of the expression recursively
 
-    # If we have reached the maximum depth, do not perform any recursion
-    if max_depth == 0:
+    # If we have reached the maximum depth or we have already visited this object,
+    # return the result if we are returning data, otherwise return None
+    if max_depth == 0 or id(expr) in _seen:
         return result if return_data else None
+    else:
+        _seen.add(id(expr))
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) and isiterable(expr) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
     # Then visit every item in the expression if it is a collection
-    if isinstance(expr, Mock):
+
+    # presume that the result is the original expression.
+    # in each of the following cases, we will update the result if we need to.
+    result = expr
+
+    # --- Generators
+
+    if isinstance(expr, (types.GeneratorType, types.AsyncGeneratorType)):
+        # Do not attempt to iterate over generators, as it will exhaust them
+        pass
+
+    # --- Mocks
+
+    elif isinstance(expr, Mock):
         # Do not attempt to recurse into mock objects
-        result = expr
+        pass
+
+    # --- Annotations (unmapped, quote, etc.)
 
     elif isinstance(expr, BaseAnnotation):
         if context is not None:
             context["annotation"] = expr
-        value = visit_nested(expr.unwrap())
+        unwrapped = expr.unwrap()
+        value = visit_nested(unwrapped)
 
-        if remove_annotations:
-            result = value if return_data else None
-        else:
-            result = expr.rewrap(value) if return_data else None
+        if return_data:
+            # if we are removing annotations, return the value
+            if remove_annotations:
+                result = value
+            # if the value was modified, rewrap it
+            elif value is not unwrapped:
+                result = expr.rewrap(value)
+            # otherwise return the expr
+
+    # --- Sequences
 
     elif typ in (list, tuple, set):
         items = [visit_nested(o) for o in expr]
-        result = typ(items) if return_data else None
+        if return_data:
+            modified = any(item is not orig for item, orig in zip(items, expr))
+            if modified:
+                result = typ(items)
+
+    # --- Dictionaries
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
         items = [(visit_nested(k), visit_nested(v)) for k, v in expr.items()]
-        result = typ(items) if return_data else None
+        if return_data:
+            modified = any(
+                k1 is not k2 or v1 is not v2
+                for (k1, v1), (k2, v2) in zip(items, expr.items())
+            )
+            if modified:
+                result = typ(items)
+
+    # --- Dataclasses
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         values = [visit_nested(getattr(expr, f.name)) for f in fields(expr)]
-        items = {field.name: value for field, value in zip(fields(expr), values)}
-        result = typ(**items) if return_data else None
+        if return_data:
+            modified = any(
+                getattr(expr, f.name) is not v for f, v in zip(fields(expr), values)
+            )
+            if modified:
+                result = typ(**{f.name: v for f, v in zip(fields(expr), values)})
+
+    # --- Pydantic models
 
     elif isinstance(expr, pydantic.BaseModel):
         typ = cast(Type[pydantic.BaseModel], typ)
@@ -355,20 +417,21 @@ def visit_collection(
             }
 
         if return_data:
-            # Use construct to avoid validation and handle immutability
-            model_instance = typ.model_construct(
-                _fields_set=expr.model_fields_set, **updated_data
+            modified = any(
+                getattr(expr, field) is not updated_data[field]
+                for field in model_fields
             )
-            for private_attr in expr.__private_attributes__:
-                setattr(model_instance, private_attr, getattr(expr, private_attr))
-            result = model_instance
-        else:
-            result = None
+            if modified:
+                # Use construct to avoid validation and handle immutability
+                model_instance = typ.model_construct(
+                    _fields_set=expr.model_fields_set, **updated_data
+                )
+                for private_attr in expr.__private_attributes__:
+                    setattr(model_instance, private_attr, getattr(expr, private_attr))
+                result = model_instance
 
-    else:
-        result = result if return_data else None
-
-    return result
+    if return_data:
+        return result
 
 
 def remove_nested_keys(keys_to_remove: List[Hashable], obj):

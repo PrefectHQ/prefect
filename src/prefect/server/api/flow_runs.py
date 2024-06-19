@@ -488,7 +488,7 @@ async def resume_flow_run(
 
 
 @router.post("/filter", response_class=ORJSONResponse)
-async def paginate_flow_runs(
+async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
@@ -706,7 +706,7 @@ async def delete_flow_run_input(
 
 
 @router.post("/paginate", response_class=ORJSONResponse)
-async def read_flow_runs(
+async def paginate_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
     page: int = Body(1, ge=1),
