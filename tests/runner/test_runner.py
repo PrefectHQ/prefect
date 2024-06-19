@@ -1438,7 +1438,7 @@ class TestDeploy:
     def mock_build_image(self, monkeypatch):
         mock = MagicMock()
 
-        monkeypatch.setattr("prefect.utilities.dockerutils.build_image", mock)
+        monkeypatch.setattr("prefect.docker.docker_image.build_image", mock)
         return mock
 
     @pytest.fixture
@@ -1446,14 +1446,14 @@ class TestDeploy:
         mock = MagicMock()
         mock.return_value.__enter__.return_value = mock
         mock.api.push.return_value = []
-        monkeypatch.setattr("prefect.utilities.dockerutils.docker_client", mock)
+        monkeypatch.setattr("prefect.docker.docker_image.docker_client", mock)
         return mock
 
     @pytest.fixture
     def mock_generate_default_dockerfile(self, monkeypatch):
         mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.utilities.dockerutils.generate_default_dockerfile", mock
+            "prefect.docker.docker_image.generate_default_dockerfile", mock
         )
         return mock
 
