@@ -57,7 +57,7 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
+from prefect.deployments.runner import DeploymentImage, deploy
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
@@ -87,6 +87,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
