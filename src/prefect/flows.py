@@ -57,8 +57,9 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments.runner import DeploymentImage, deploy
+from prefect.deployments.runner import deploy
 from prefect.deployments.steps.core import run_steps
+from prefect.docker.deployment_image import DeploymentImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     InvalidNameError,
