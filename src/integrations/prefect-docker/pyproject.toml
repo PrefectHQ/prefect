@@ -76,6 +76,7 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-env = [
-  "PREFECT_TEST_MODE=1",
+env = ["PREFECT_TEST_MODE=1"]
+filterwarnings = [
+  "ignore:Skipped unsupported reflection of expression-based index.*:sqlalchemy.exc.SAWarning",
 ]
