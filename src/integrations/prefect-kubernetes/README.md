@@ -56,27 +56,6 @@ customized_run_namespaced_job = run_namespaced_job.with_options(
 For more tips on how to use tasks and flows in a Collection, check out [Using Collections](https://docs.prefect.io/collections/usage/)!
 
 
-#### Specify and run a Kubernetes Job from a yaml file
-
-```python
-from prefect_kubernetes.credentials import KubernetesCredentials
-from prefect_kubernetes.flows import run_namespaced_job # this is a flow
-from prefect_kubernetes.jobs import KubernetesJob
-
-k8s_creds = KubernetesCredentials.load("k8s-creds")
-
-job = KubernetesJob.from_yaml_file( # or create in the UI with a dict manifest
-    credentials=k8s_creds,
-    manifest_path="path/to/job.yaml",
-)
-
-job.save("my-k8s-job", overwrite=True)
-
-if __name__ == "__main__":
-    # run the flow
-    run_namespaced_job(job)
-```
-
 #### Generate a resource-specific client from `KubernetesClusterConfig`
 
 ```python

@@ -2,12 +2,10 @@
 
 from asyncio import sleep
 from pathlib import Path
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Optional, Union
 
-import yaml
 from kubernetes.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
 from pydantic import Field
-from typing_extensions import Self
 
 from prefect import task
 from prefect.blocks.abstract import JobBlock, JobRun
@@ -544,20 +542,3 @@ class KubernetesJob(JobBlock):
         )
 
         return KubernetesJobRun(kubernetes_job=self, v1_job_model=self.v1_job)
-
-    @classmethod
-    def from_yaml_file(
-        cls: Type[Self], manifest_path: Union[Path, str], **kwargs
-    ) -> Self:
-        """Create a `KubernetesJob` from a YAML file.
-
-        Args:
-            manifest_path: The YAML file to create the `KubernetesJob` from.
-
-        Returns:
-            A KubernetesJob object.
-        """
-        with open(manifest_path, "r") as yaml_stream:
-            yaml_dict = yaml.safe_load(yaml_stream)
-
-        return cls(v1_job=yaml_dict, **kwargs)

@@ -21,7 +21,6 @@ class TestCreateDeployment:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],
@@ -29,7 +28,6 @@ class TestCreateDeployment:
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.manifest_path == "file.json"
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
 
@@ -48,7 +46,6 @@ class TestCreateDeployment:
                 name="d1",
                 work_queue_name=work_queue.name,
                 flow_id=flow.id,
-                manifest_path="",
             ),
         )
         await session.commit()
@@ -66,7 +63,7 @@ class TestCreateDeployment:
         await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+                name="d1", work_queue_name="wq-1", flow_id=flow.id
             ),
         )
         await session.commit()
@@ -158,13 +155,11 @@ class TestCreateDeployment:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                manifest_path="file.json",
                 schedule=schedule,
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.manifest_path == "file.json"
         assert deployment.schedule == schedule
 
     async def test_create_deployment_with_created_by(self, session, flow):
@@ -253,7 +248,6 @@ class TestReadDeployment:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
             ),
         )
@@ -277,7 +271,6 @@ class TestReadDeployment:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
             ),
         )
@@ -305,7 +298,6 @@ class TestReadDeployment:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow_1.id,
             ),
         )
@@ -313,7 +305,6 @@ class TestReadDeployment:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow_2.id,
             ),
         )
@@ -364,7 +355,6 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_1,
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 paused=False,
                 is_schedule_active=True,
@@ -375,7 +365,6 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_2,
                 name="Another Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 tags=["tb12"],
                 paused=False,
@@ -387,7 +376,6 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_3,
                 name="Yet Another Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 tags=["tb12", "goat"],
                 paused=True,
@@ -561,7 +549,6 @@ class TestDeleteDeployment:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
             ),
         )
@@ -652,7 +639,6 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
             ),
         )
@@ -667,7 +653,6 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 schedules=[
                     schemas.core.DeploymentSchedule(
                         schedule=schemas.schedules.IntervalSchedule(
@@ -698,7 +683,6 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 schedules=[
                     schemas.core.DeploymentSchedule(
                         schedule=schemas.schedules.IntervalSchedule(
@@ -730,7 +714,6 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 schedules=[
                     schemas.core.DeploymentSchedule(
                         schedule=schemas.schedules.IntervalSchedule(
@@ -761,7 +744,6 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 schedules=[
                     schemas.core.DeploymentSchedule(
                         schedule=schemas.schedules.IntervalSchedule(
@@ -908,7 +890,6 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My second deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1)
