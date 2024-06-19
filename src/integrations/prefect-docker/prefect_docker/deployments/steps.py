@@ -46,6 +46,8 @@ from prefect.utilities.slugify import slugify
 
 logger = get_logger("prefect_docker.deployments.steps")
 
+STEP_OUTPUT_CACHE: Dict = {}
+
 
 class BuildDockerImageResult(TypedDict):
     """
@@ -92,8 +94,6 @@ def _make_hashable(obj):
 
 
 def cacheable(func):
-    cache = {}
-
     @wraps(func)
     def wrapper(*args, **kwargs):
         ignore_cache = kwargs.pop("ignore_cache", False)
@@ -101,12 +101,12 @@ def cacheable(func):
             tuple(_make_hashable(arg) for arg in args),
             tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items())),
         )
-        if ignore_cache or key not in cache:
+        if ignore_cache or key not in STEP_OUTPUT_CACHE:
             logger.debug(f"Cache miss for {func.__name__}, running function.")
-            cache[key] = func(*args, **kwargs)
+            STEP_OUTPUT_CACHE[key] = func(*args, **kwargs)
         else:
-            logger.debug(f"Cache hit for {func.__name__}, returning cached value.")
-        return cache[key]
+            logger.info(f"Cache hit for {func.__name__}, returning cached value.")
+        return STEP_OUTPUT_CACHE[key]
 
     return wrapper
 
@@ -179,6 +179,10 @@ def build_docker_image(
                 platform: amd64
         ```
     """  # noqa
+
+    if ignore_cache:
+        logger.debug("Ignoring `@cacheable` decorator for build_docker_image.")
+
     auto_build = dockerfile == "auto"
     if auto_build:
         lines = []
@@ -317,6 +321,9 @@ def push_docker_image(
                 additional_tags: "{{ build-image.additional_tags }}"
         ```
     """  # noqa
+    if ignore_cache:
+        logger.debug("Ignoring `@cacheable` decorator for push_docker_image.")
+
     with docker_client() as client:
         if credentials is not None:
             client.login(
