@@ -5,11 +5,11 @@ from enum import Enum
 from functools import partial
 from smtplib import SMTP, SMTP_SSL
 from typing import Optional, Union
-from prefect.logging import get_run_logger
 
 from pydantic import Field, SecretStr, field_validator
 
 from prefect.blocks.core import Block
+from prefect.logging import get_run_logger
 
 
 class SMTPType(Enum):
