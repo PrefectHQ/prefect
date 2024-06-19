@@ -72,7 +72,9 @@ The easiest way to convert a Python script into a workflow is to add a `@flow` d
 [Flows](/3.0rc/develop/write-flows/) are containers for workflow logic as code. 
 They're the core observable, orchestrated, deployable units of work in Prefect.
 
-You can also add `@task` decorators to the functions called by the flow to track and orchestrate them. 
+Adding `@task` decorators to the functions called by the flow converts them to tasks. 
+Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
+Prefect will record these dependencies and states as it orchestrates these tasks when they run.
 Tasks are the smallest unit of observed and orchestrated work in Prefect.
 
 ```python my_gh_workflow.py
