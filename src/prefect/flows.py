@@ -120,7 +120,8 @@ logger = get_logger("flows")
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
+    from prefect.deployments.runner import RunnerDeployment
     from prefect.flows import FlowRun
 
 

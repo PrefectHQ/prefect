@@ -3,13 +3,14 @@ Schedule schemas
 """
 
 import datetime
-from typing import Annotated, Optional, Union
+from typing import Annotated, Any, Optional, Union
 
 import dateutil
 import dateutil.rrule
 import pendulum
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
+from typing_extensions import TypeAlias, TypeGuard
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.validators import (
@@ -279,7 +280,13 @@ class NoSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule]
+SCHEDULE_TYPES: TypeAlias = Union[
+    IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule
+]
+
+
+def is_schedule_type(obj: Any) -> TypeGuard[SCHEDULE_TYPES]:
+    return isinstance(obj, (IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule))
 
 
 def construct_schedule(
