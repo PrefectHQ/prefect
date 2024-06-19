@@ -589,12 +589,19 @@ class PersistedResult(BaseResult):
     expiration: Optional[DateTime] = None
 
     _should_cache_object: bool = PrivateAttr(default=True)
-    _persisted: bool = PrivateAttr(default=True)
+    _persisted: bool = PrivateAttr(default=False)
     _storage_block: WritableFileSystem = PrivateAttr(default=None)
+    _serializer: Serializer = PrivateAttr(default=None)
 
-    def _cache_object(self, obj: Any, storage_block: WritableFileSystem = None) -> None:
+    def _cache_object(
+        self,
+        obj: Any,
+        storage_block: WritableFileSystem = None,
+        serializer: Serializer = None,
+    ) -> None:
         self._cache = obj
         self._storage_block = storage_block
+        self._serializer = serializer
 
     @sync_compatible
     @inject_client
@@ -607,7 +614,7 @@ class PersistedResult(BaseResult):
             return self._cache
 
         blob = await self._read_blob(client=client)
-        obj = blob.serializer.loads(blob.data)
+        obj = blob.load()
         self.expiration = blob.expiration
 
         if self._should_cache_object:
@@ -640,7 +647,7 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def write(self, client: "PrefectClient" = None) -> None:
+    async def write(self, obj: R = NotSet, client: "PrefectClient" = None) -> None:
         """
         Write the result to the storage block.
         """
@@ -649,20 +656,31 @@ class PersistedResult(BaseResult):
             # don't double write or overwrite
             return
 
-        if not self.has_cached_object():
-            raise ValueError("Cannot write a result that has no object cached.")
+        # load objects from a cache
 
+        # first the object itself
+        if obj is NotSet and not self.has_cached_object():
+            raise ValueError("Cannot write a result that has no object cached.")
+        obj = obj if obj is not NotSet else self._cache
+
+        # next, the storage block
         storage_block = self._storage_block
         if storage_block is None:
             block_document = await client.read_block_document(self.storage_block_id)
             storage_block = Block._from_block_document(block_document)
 
-        serializer = Serializer(type=self.serializer_type)
-        data = serializer.dumps(await self.get())
+        # finally, the serializer
+        serializer = self._serializer
+        if serializer is None:
+            # this could error if the serializer requires kwargs
+            serializer = Serializer(type=self.serializer_type)
+
+        data = serializer.dumps(obj)
         blob = PersistedResultBlob(
             serializer=serializer, data=data, expiration=self.expiration
         )
         await storage_block.write_path(self.storage_key, content=blob.to_bytes())
+        self._persisted = True
 
     @classmethod
     @sync_compatible
@@ -713,12 +731,14 @@ class PersistedResult(BaseResult):
 
         if cache_object:
             # Attach the object to the result so it's available without deserialization
-            result._cache_object(obj)
+            result._cache_object(
+                obj, storage_block=storage_block, serializer=serializer
+            )
 
         object.__setattr__(result, "_should_cache_object", cache_object)
 
         if not defer_persistence:
-            await result.write()
+            await result.write(obj=obj)
 
         return result
 
@@ -734,6 +754,9 @@ class PersistedResultBlob(BaseModel):
     data: bytes
     prefect_version: str = Field(default=prefect.__version__)
     expiration: Optional[DateTime] = None
+
+    def load(self) -> Any:
+        return self.serializer.loads(self.data)
 
     def to_bytes(self) -> bytes:
         return self.model_dump_json(serialize_as_any=True).encode()
