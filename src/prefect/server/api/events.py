@@ -49,12 +49,11 @@ async def create_events(
             try:
                 await database.write_events(session, received_events)
             except RuntimeError as exc:
-                # When using the ephemeral API, we may receive events after the interpreter is shutting down
-                # because the event is processed in a different thread. In that case it's ok to ignore the event.
                 if "can't create new thread at interpreter shutdown" in str(exc):
-                    logger.warning(
-                        "Received event during interpreter shutdown, ignoring"
-                    )
+                    # Background events sometimes fail to write when the interpreter is shutting down.
+                    # This is a known issue in Python 3.12.2 that can be ignored and is fixed in Python 3.12.3.
+                    # see e.g. https://github.com/python/cpython/issues/113964
+                    logger.debug("Received event during interpreter shutdown, ignoring")
                 else:
                     raise
     else:
