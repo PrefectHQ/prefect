@@ -18,18 +18,18 @@ Only results from tasks inform Prefect's ability to determine dependencies. Retu
 without task decorators, including subflows, do not carry the same information about their origin as task results.
 </Note>
 
-When using non-sequential task runners such as the [`ConcurrentTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or 
+When using non-sequential task runners such as the [`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner) or 
 [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted 
 tasks is not guaranteed unless you specify their dependencies.
 
-For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave with and without 
+For example, compare how tasks submitted to the `ThreadPoolTaskRunner` behave with and without 
 upstream dependencies:
 
 <Tabs>
     <Tab title="Without dependencies">
 
     ```python
-    @flow(log_prints=True) # Default task runner is ConcurrentTaskRunner
+    @flow(log_prints=True) # Default task runner is ThreadPoolTaskRunner
     def flow_of_tasks():
         # no dependencies, execution is order not guaranteed
         first.submit()
@@ -68,7 +68,7 @@ upstream dependencies:
     <Tab title="With dependencies">
 
     ```python
-    @flow(log_prints=True) # Default task runner is ConcurrentTaskRunner
+    @flow(log_prints=True) # Default task runner is ThreadPoolTaskRunner
     def flow_of_tasks():
         # with dependencies, tasks execute in order
         first_result = first.submit()

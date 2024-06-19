@@ -26,7 +26,6 @@ When you run this flow, you see output like the following:
 ```bash
 $ python hello.py
 15:11:23.594 | INFO    | prefect.engine - Created flow run 'benevolent-donkey' for flow 'hello-world'
-15:11:23.594 | INFO    | Flow run 'benevolent-donkey' - Using task runner 'ConcurrentTaskRunner'
 Hello Marvin!
 15:11:24.447 | INFO    | Flow run 'benevolent-donkey' - Finished in state Completed()
 ```
@@ -58,7 +57,6 @@ When you run this flow, you see the following output, which illustrates how the 
 ```bash
 $ python hello.py
 15:15:58.673 | INFO    | prefect.engine - Created flow run 'loose-wolverine' for flow 'Hello Flow'
-15:15:58.674 | INFO    | Flow run 'loose-wolverine' - Using task runner 'ConcurrentTaskRunner'
 15:15:58.973 | INFO    | Flow run 'loose-wolverine' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
 Hello Marvin!
 15:15:59.037 | INFO    | Task run 'Print Hello-84f0fe0e-0' - Finished in state Completed()
