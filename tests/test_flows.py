@@ -32,7 +32,8 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, RunnerDeployment
+from prefect.deployments.runner import RunnerDeployment
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
@@ -4060,7 +4061,7 @@ class TestFlowDeploy:
     async def test_calls_deploy_with_expected_args(
         self, mock_deploy, local_flow, work_pool, capsys
     ):
-        image = DeploymentImage(
+        image = DockerImage(
             name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
         )
         await local_flow.deploy(
@@ -4110,7 +4111,7 @@ class TestFlowDeploy:
         remote_flow,
         work_pool,
     ):
-        image = DeploymentImage(
+        image = DockerImage(
             name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
         )
         await remote_flow.deploy(

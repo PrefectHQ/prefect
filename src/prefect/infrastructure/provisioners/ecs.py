@@ -950,7 +950,7 @@ class ContainerRepositoryResource:
                         dedent(
                             f"""\
                                 from prefect import flow
-                                from prefect.deployments import DeploymentImage
+                                from prefect.docker import DockerImage
 
 
                                 @flow(log_prints=True)
@@ -962,7 +962,7 @@ class ContainerRepositoryResource:
                                     my_flow.deploy(
                                         name="my-deployment",
                                         work_pool_name="{self._work_pool_name}",
-                                        image=DeploymentImage(
+                                        image=DockerImage(
                                             name="{self._repository_name}:latest",
                                             platform="linux/amd64",
                                         )

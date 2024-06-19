@@ -8,7 +8,7 @@ from prefect.deployments.base import (
 from prefect.deployments.runner import (
     RunnerDeployment,
     deploy,
-    DeploymentImage,
+    DockerImage,
     EntrypointType,
 )
 

@@ -201,7 +201,7 @@ Create and run the following script to deploy your flow. Be sure to replace `<re
 ```python
 from prefect import flow
 from prefect.logging import get_run_logger
-from prefect.deployments import DeploymentImage
+from prefect.docker import DockerImage
 
 @flow
 def my_flow():
@@ -211,7 +211,7 @@ def my_flow():
 if __name__ == "__main__":
     my_flow.deploy(
         name="aci-deployment",
-        image=DeploymentImage(
+        image=DockerImage(
             name="<registry-name>.azurecr.io/example:latest",
             platform="linux/amd64",
         ),

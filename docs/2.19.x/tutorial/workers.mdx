@@ -152,12 +152,12 @@ Prefect will build a custom Docker image containing your workflow code that the 
 
 In this example, Prefect generates a Dockerfile for you that will build an image based off of one of Prefect's published images. The generated Dockerfile will copy the current directory into the Docker image and install any dependencies listed in a `requirements.txt` file.
 
-If you want to use a custom Dockerfile, you can specify the path to the Dockerfile using the `DeploymentImage` class:
+If you want to use a custom Dockerfile, you can specify the path to the Dockerfile using the `DockerImage` class:
 
 ```python repo_info.py
 import httpx
 from prefect import flow
-from prefect.deployments import DeploymentImage
+from prefect.docker import DockerImage
 
 
 @flow(log_prints=True)
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     get_repo_info.deploy(
         name="my-first-deployment", 
         work_pool_name="my-docker-pool", 
-        image=DeploymentImage(
+        image=DockerImage(
             name="my-first-deployment-image",
             tag="tutorial",
             dockerfile="Dockerfile"

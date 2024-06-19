@@ -933,7 +933,7 @@ To use this functionality, write your deploy script like this:
 
 ```python example_deploy_script.py
 from prefect import flow                                                       
-from prefect.deployments import DeploymentImage                                
+from prefect.docker import DockerImage                                
 
 
 @flow(log_prints=True)
@@ -946,7 +946,7 @@ if __name__ == "__main__":
         name="my-deployment",
         work_pool_name="above-ground",
         cron="0 1 * * *",
-        image=DeploymentImage(
+        image=DockerImage(
             name="my-image:latest",
             platform="linux/amd64",
         )
@@ -958,7 +958,7 @@ Run the script to create the deployment on the Prefect Cloud server.
 Running this script builds a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` 
 and pushes it to your repository. Make sure you have Docker running locally before running this script.
 
-You only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're 
+You only need to include an object of the `DockerImage` class with the argument `platform="linux/amd64` if you're 
 building your image on a machine with an ARM-based processor.
 Otherwise, you can pass `image="my-image:latest"` to `deploy`.
 

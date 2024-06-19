@@ -27,11 +27,11 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
-    DeploymentImage,
     EntrypointType,
     RunnerDeployment,
     deploy,
 )
+from prefect.docker.docker_image import DockerImage
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
@@ -1437,7 +1437,8 @@ class TestDeploy:
     @pytest.fixture
     def mock_build_image(self, monkeypatch):
         mock = MagicMock()
-        monkeypatch.setattr("prefect.deployments.runner.build_image", mock)
+
+        monkeypatch.setattr("prefect.docker.docker_image.build_image", mock)
         return mock
 
     @pytest.fixture
@@ -1445,14 +1446,14 @@ class TestDeploy:
         mock = MagicMock()
         mock.return_value.__enter__.return_value = mock
         mock.api.push.return_value = []
-        monkeypatch.setattr("prefect.deployments.runner.docker_client", mock)
+        monkeypatch.setattr("prefect.docker.docker_image.docker_client", mock)
         return mock
 
     @pytest.fixture
     def mock_generate_default_dockerfile(self, monkeypatch):
         mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.deployments.runner.generate_default_dockerfile", mock
+            "prefect.docker.docker_image.generate_default_dockerfile", mock
         )
         return mock
 
@@ -1474,7 +1475,7 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1529,7 +1530,7 @@ class TestDeploy:
                         source=temp_storage, entrypoint="flows.py:test_flow"
                     )
                 ).to_deployment(__file__),
-                image=DeploymentImage(
+                image=DockerImage(
                     name="test-registry/test-image",
                     tag="test-tag",
                 ),
@@ -1590,14 +1591,14 @@ class TestDeploy:
 
     async def test_deployment_image_tag_handling(self):
         # test image tag has default
-        image = DeploymentImage(
+        image = DockerImage(
             name="test-registry/test-image",
         )
         assert image.name == "test-registry/test-image"
         assert image.tag.startswith(str(pendulum.now("utc").year))
 
         # test image tag can be inferred
-        image = DeploymentImage(
+        image = DockerImage(
             name="test-registry/test-image:test-tag",
         )
         assert image.name == "test-registry/test-image"
@@ -1605,7 +1606,7 @@ class TestDeploy:
         assert image.reference == "test-registry/test-image:test-tag"
 
         # test image tag can be provided
-        image = DeploymentImage(name="test-registry/test-image", tag="test-tag")
+        image = DockerImage(name="test-registry/test-image", tag="test-tag")
         assert image.name == "test-registry/test-image"
         assert image.tag == "test-tag"
         assert image.reference == "test-registry/test-image:test-tag"
@@ -1614,7 +1615,7 @@ class TestDeploy:
         with pytest.raises(
             ValueError, match="both 'test-tag' and 'bad-tag' were provided"
         ):
-            DeploymentImage(name="test-registry/test-image:test-tag", tag="bad-tag")
+            DockerImage(name="test-registry/test-image:test-tag", tag="bad-tag")
 
     async def test_deploy_custom_dockerfile(
         self,
@@ -1627,7 +1628,7 @@ class TestDeploy:
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
                 dockerfile="Dockerfile",
@@ -1655,7 +1656,7 @@ class TestDeploy:
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1691,7 +1692,7 @@ class TestDeploy:
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1721,7 +1722,7 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1748,7 +1749,7 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=push_work_pool.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1777,7 +1778,7 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=managed_work_pool.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -2061,21 +2062,21 @@ class TestDeploy:
             )
 
 
-class TestDeploymentImage:
+class TestDockerImage:
     def test_adds_default_registry_url(self):
         with temporary_settings(
             {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "alltheimages.com/my-org"}
         ):
-            image = DeploymentImage(name="test-image")
+            image = DockerImage(name="test-image")
             assert image.name == "alltheimages.com/my-org/test-image"
 
     def test_override_default_registry_url(self):
         with temporary_settings(
             {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "alltheimages.com/my-org"}
         ):
-            image = DeploymentImage(name="otherimages.com/my-org/test-image")
+            image = DockerImage(name="otherimages.com/my-org/test-image")
             assert image.name == "otherimages.com/my-org/test-image"
 
     def test_no_default_registry_url_by_default(self):
-        image = DeploymentImage(name="my-org/test-image")
+        image = DockerImage(name="my-org/test-image")
         assert image.name == "my-org/test-image"
