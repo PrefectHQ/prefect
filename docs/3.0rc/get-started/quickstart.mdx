@@ -4,7 +4,7 @@ description: Get started with Prefect, the easiest way to orchestrate and observ
 ---
 
 Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly.
-In this quickstart, you will use Prefect to convert the following Python script to a schedulable, observable, resilient, and deployable workflow in minutes.
+In this quickstart, you will use Prefect to convert the following Python script to a schedulable, observable, resilient, and deployable workflow in minutes:
 
 ```python
 import httpx
@@ -37,7 +37,7 @@ Connect to the Prefect API, either Prefect Cloud hosted by us, or a local Prefec
 <Tabs>
   <Tab title="Prefect Cloud">
 1. Head to [https://app.prefect.cloud/](https://app.prefect.cloud/) and sign in or create a forever-free Prefect Cloud account.
-1. Log in to Prefect Cloud from your development environment.
+1. Log in to Prefect Cloud from your development environment:
 
    ```bash
    prefect cloud login
@@ -68,11 +68,13 @@ If you have any issues with browser-based authentication, see the [Prefect Cloud
 
 ## Convert your script to a Prefect flow
 
-The easiest way to convert a Python script into a workflow is to add a `@flow` decorator.
-[Flows](/3.0rc/develop/write-flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
+The easiest way to convert a Python script into a workflow is to add a `@flow` decorator to the script's entrypoint, the Python function that runs first.
+[Flows](/3.0rc/develop/write-flows/) are containers for workflow logic as code. 
+They're the core observable, orchestrated, deployable units of work in Prefect.
 
-Convert the script into a flow with two tasks, each defined by the `@task` decorator.
-Tasks are the smallest unit of observed and orchestrated work in Prefect.
+Adding `@task` decorators to the functions called by the flow converts them to tasks. 
+Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
+Prefect will record these dependencies and states as it orchestrates these tasks when they run.
 
 ```python my_gh_workflow.py
 import httpx   # an HTTP client library and dependency of Prefect
@@ -118,7 +120,7 @@ The `log_prints=True` argument provided to the `@flow` decorator logs output fro
 
 ## Run your flow
 
-Run your Prefect flow.
+Run your Prefect flow just as you would a Python script:
 
 ```bash
 python my_gh_workflow.py
@@ -149,7 +151,7 @@ A [work pool](/3.0rc/deploy/work-pools/control-runs/) is the most common way to 
   <Tab title="Prefect Cloud">
 Deploy your flow to Cloud using a managed work pool.
 
-1. Create a [managed work pool](/3.0rc/deploy/serve-flows/index):
+1. Create a [managed work pool](/3.0rc/deploy/work-pools/control-runs):
 
    ```bash
    prefect work-pool create my-work-pool --type prefect:managed

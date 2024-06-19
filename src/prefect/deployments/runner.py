@@ -29,7 +29,6 @@ Example:
 
 """
 
-import enum
 import importlib
 import tempfile
 from datetime import datetime, timedelta
@@ -75,6 +74,7 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.collections import get_from_dict, isiterable
@@ -98,18 +98,6 @@ class DeploymentApplyError(RuntimeError):
     """
     Raised when an error occurs while applying a deployment.
     """
-
-
-class EntrypointType(enum.Enum):
-    """
-    Enum representing a entrypoint type.
-
-    File path entrypoints are in the format: `path/to/file.py:function_name`.
-    Module path entrypoints are in the format: `path.to.module.function_name`.
-    """
-
-    FILE_PATH = "file_path"
-    MODULE_PATH = "module_path"
 
 
 class RunnerDeployment(BaseModel):
