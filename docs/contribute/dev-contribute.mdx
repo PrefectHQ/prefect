@@ -1,8 +1,7 @@
 ---
-title: Contribute
+title: How to Contribute
+description: Learn how to set up Prefect for development and experimentation.
 ---
-
-Thanks for contributing to Prefect!
 
 ## Set up a development environment
 
@@ -58,7 +57,7 @@ If you intend to run a local Prefect server during development, first build the 
 See [UI development](#ui-development) for instructions.
 </Tip>
 
-## Developer tooling 
+### Developer tooling 
 
 The Prefect CLI provides several helpful commands to aid development.
 
@@ -74,9 +73,11 @@ Start a Prefect API that reloads on code changes:
 prefect dev api
 ```
 
-### UI development
+## UI development
 
-Developing the Prefect UI requires installation of [npm](https://github.com/npm/cli).
+Developing the Prefect UI requires installation of [npm](https://github.com/npm/cli). 
+We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions. 
+Once installed, run `nvm use` from the root of the Prefect repository to initialize the proper version of `npm` and `node`.
 
 Start a development UI that reloads on code changes:
 
@@ -90,7 +91,7 @@ Build the static UI (the UI served by `prefect server start`):
 prefect dev build-ui
 ```
 
-### Docs development
+## Docs development
 
 We use [Mintlify](https://mintlify.com/) to host and build the documentation.
 
@@ -98,14 +99,13 @@ The main branch of the [prefecthq/prefect](https://github.com/PrefectHQ/prefect)
 
 The 2.x docs are hosted at [docs.prefect.io](https://docs.prefect.io) and built from the 2.x branch of prefecthq/prefect.
 
-## Getting started
-
 Make sure you have a recent version of Node.js installed. We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions.
 
 1. Clone this repository.
-2. Run `nvm use node` to use the correct Node.js version.
-3. Run `npm i -g mintlify` to install Mintlify.
-4. Run `mintlify dev` to start the development server.
+2. Run `cd docs` to navigate to the docs directory.
+3. Run `nvm use node` to use the correct Node.js version.
+4. Run `npm i -g mintlify` to install Mintlify.
+5. Run `mintlify dev` to start the development server.
 
 Your docs should now be available at `http://localhost:3000`.
 
@@ -113,34 +113,7 @@ See the [Mintlify documentation](https://mintlify.com/docs/development) for more
 
 `.mdx` files are Markdown files that can contain JavaScript and React components. They are used to create interactive documentation.
 
-### Kubernetes development
-
-Generate a manifest to deploy a development API to a local kubernetes cluster:
-
-```bash
-prefect dev kubernetes-manifest
-```
-
-To access the Prefect UI running in a Kubernetes cluster, use the `kubectl port-forward` command to forward a port on your local 
-machine to an open port within the cluster. For example:
-
-```bash
-kubectl port-forward deployment/prefect-dev 4200:4200
-```
-
-This forwards port 4200 on the default internal loop IP for localhost to the Prefect server deployment.
-
-To tell the local `prefect` command how to communicate with the Prefect API running in Kubernetes, set the `PREFECT_API_URL` 
-environment variable:
-
-```bash
-export PREFECT_API_URL=http://localhost:4200/api
-```
-
-Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you can interact 
-with the Prefect API running in Kubernetes when using local Prefect CLI commands.
-
-### Add database migrations
+## Add database migrations
 
 To make changes to a table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. For example, 
 to add a new column to the `flow_run` table, add a new column to the `FlowRun` model:
