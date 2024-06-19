@@ -36,7 +36,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
-import pendulum
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -63,6 +62,7 @@ from prefect.deployments.schedules import (
     FlexibleScheduleList,
     create_deployment_schedule_create,
 )
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     ObjectNotFound,
@@ -70,7 +70,6 @@ from prefect.exceptions import (
 )
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
-    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
@@ -79,14 +78,8 @@ from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.collections import get_from_dict, isiterable
 from prefect.utilities.dockerutils import (
-    PushError,
-    build_image,
-    docker_client,
-    generate_default_dockerfile,
     parse_image_tag,
-    split_repository_path,
 )
-from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -774,74 +767,11 @@ class RunnerDeployment(BaseModel):
         return deployment
 
 
-class DeploymentImage:
-    """
-    Configuration used to build and push a Docker image for a deployment.
-
-    Attributes:
-        name: The name of the Docker image to build, including the registry and
-            repository.
-        tag: The tag to apply to the built image.
-        dockerfile: The path to the Dockerfile to use for building the image. If
-            not provided, a default Dockerfile will be generated.
-        **build_kwargs: Additional keyword arguments to pass to the Docker build request.
-            See the [`docker-py` documentation](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
-            for more information.
-
-    """
-
-    def __init__(self, name, tag=None, dockerfile="auto", **build_kwargs):
-        image_name, image_tag = parse_image_tag(name)
-        if tag and image_tag:
-            raise ValueError(
-                f"Only one tag can be provided - both {image_tag!r} and {tag!r} were"
-                " provided as tags."
-            )
-        namespace, repository = split_repository_path(image_name)
-        # if the provided image name does not include a namespace (registry URL or user/org name),
-        # use the default namespace
-        if not namespace:
-            namespace = PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE.value()
-        # join the namespace and repository to create the full image name
-        # ignore namespace if it is None
-        self.name = "/".join(filter(None, [namespace, repository]))
-        self.tag = tag or image_tag or slugify(pendulum.now("utc").isoformat())
-        self.dockerfile = dockerfile
-        self.build_kwargs = build_kwargs
-
-    @property
-    def reference(self):
-        return f"{self.name}:{self.tag}"
-
-    def build(self):
-        full_image_name = self.reference
-        build_kwargs = self.build_kwargs.copy()
-        build_kwargs["context"] = Path.cwd()
-        build_kwargs["tag"] = full_image_name
-        build_kwargs["pull"] = build_kwargs.get("pull", True)
-
-        if self.dockerfile == "auto":
-            with generate_default_dockerfile():
-                build_image(**build_kwargs)
-        else:
-            build_kwargs["dockerfile"] = self.dockerfile
-            build_image(**build_kwargs)
-
-    def push(self):
-        with docker_client() as client:
-            events = client.api.push(
-                repository=self.name, tag=self.tag, stream=True, decode=True
-            )
-            for event in events:
-                if "error" in event:
-                    raise PushError(event["error"])
-
-
 @sync_compatible
 async def deploy(
     *deployments: RunnerDeployment,
     work_pool_name: Optional[str] = None,
-    image: Optional[Union[str, DeploymentImage]] = None,
+    image: Optional[Union[str, DockerImage]] = None,
     build: bool = True,
     push: bool = True,
     print_next_steps_message: bool = True,
@@ -863,7 +793,7 @@ async def deploy(
         work_pool_name: The name of the work pool to use for these deployments. Defaults to
             the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
         image: The name of the Docker image to build, including the registry and
-            repository. Pass a DeploymentImage instance to customize the Dockerfile used
+            repository. Pass a DockerImage instance to customize the Dockerfile used
             and build arguments.
         build: Whether or not to build a new image for the flow. If False, the provided
             image will be used as-is and pulled at runtime.
@@ -918,7 +848,7 @@ async def deploy(
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
-        image = DeploymentImage(name=image_name, tag=image_tag)
+        image = DockerImage(name=image_name, tag=image_tag)
 
     try:
         async with get_client() as client:
