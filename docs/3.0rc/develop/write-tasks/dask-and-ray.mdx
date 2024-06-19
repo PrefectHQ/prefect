@@ -336,7 +336,7 @@ Configure your flow to use the `RayTaskRunner`:
 2. In your flow code, import `RayTaskRunner` from `prefect_ray.task_runners`.
 3. Assign it as the task runner when defining the flow using the `task_runner=RayTaskRunner` argument.
 
-For example, this flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`. When submitting work to an existing Ray cluster, we should specify `runtime_env` to ensure that the Ray workers have the [dependencies](https://docs.ray.io/en/latest/ray-core/handling-dependencies.html#runtime-environments) they need.
+For example, this flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`. When submitting work to an existing Ray cluster, specify `runtime_env` to ensure that the Ray workers have the [dependencies](https://docs.ray.io/en/latest/ray-core/handling-dependencies.html#runtime-environments) they need.
 
 ```python hl_lines="4"
 from prefect import flow
