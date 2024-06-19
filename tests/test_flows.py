@@ -32,7 +32,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
+from prefect.deployments.runner import DeploymentImage, RunnerDeployment
 from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
@@ -71,6 +71,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.transactions import transaction
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
