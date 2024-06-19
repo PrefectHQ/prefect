@@ -10,7 +10,7 @@ In this quickstart, you will use Prefect to convert the following Python script 
 import httpx
 
 def get_repo_info():
-    """Fetch statistics about https://github.com/PrefectHQ/prefect"""
+    """Fetch statistics about the Prefect repository"""
     url = "https://api.github.com/repos/PrefectHQ/prefect"
     response = httpx.get(url)
     repo = response.json()
@@ -32,10 +32,10 @@ pip install -U prefect==3.0.0rc3
 
 ## Connect to Prefect's API
 
-Connect to the Prefect API on Cloud or spin up a local API server:
+Connect to the Prefect API, either Prefect Cloud hosted by us, or a local Prefect server instance:
 
 <Tabs>
-  <Tab title="Cloud">
+  <Tab title="Prefect Cloud">
 1. Head to [https://app.prefect.cloud/](https://app.prefect.cloud/) and sign in or create a forever-free Prefect Cloud account.
 1. Log in to Prefect Cloud from your development environment.
 
@@ -254,5 +254,5 @@ Now considering reading:
 * [Self-host](/3.0rc/manage/self-host) your Prefect server
 
 <Tip>
-[Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.
+Need help? [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.
 </Tip>
