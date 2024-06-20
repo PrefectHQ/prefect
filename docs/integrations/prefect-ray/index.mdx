@@ -109,7 +109,7 @@ def my_flow():
 Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. 
 If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
-## Running tasks on a remote Ray cluster
+## Run tasks on a remote Ray cluster
 
 When using the `RayTaskRunner` with a remote Ray cluster, you may run into issues that are not seen when using a local Ray instance. 
 To resolve these issues, we recommend taking the following steps when working with a remote Ray cluster:
@@ -179,7 +179,7 @@ RayTaskRunner(address="ray://1.23.199.255:10001")
 ```
 </div>
 
-## Specifying remote options
+## Specify remote options
 
 The `remote_options` context can be used to control the task’s remote options. For example, we can set the number of CPUs and GPUs to use for the `process` task:
 
@@ -204,4 +204,4 @@ def my_flow():
 
 Refer to the `prefect-ray` API documentation to explore all the capabilities of the prefect-ray library.
 
-For assistance using Dask, consult the [Ray documentation](https://docs.ray.io/en/latest/index.html).
+For further assistance using Ray, consult the [Ray documentation](https://docs.ray.io/en/latest/index.html).
