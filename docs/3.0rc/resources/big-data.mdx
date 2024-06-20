@@ -13,7 +13,7 @@ storage, including:
 1. Saving data to disk within a flow rather than using results.
 1. Caching task results to save time and compute.
 1. Compressing results written to disk to save space.
-1. Using a [task runner](/3.0rc/develop/write-tasks/use-task-runners/) for parallelizable 
+1. Using a [task runner](/3.0rc/develop/write-tasks/task-runners/) for parallelizable 
 operations to save time.
 
 ### Remove task introspection
@@ -125,5 +125,5 @@ Note that compression takes time to compress and decompress the data.
 Prefect's task runners allow you to use the Dask and Ray Python libraries to run tasks in parallel, 
 distributed across multiple machines.
 This can save you time and compute when operating on large data structures.
-See the [guide to working with Dask and Ray Task Runners](/3.0rc/develop/write-tasks/use-task-runners/) 
+See the [guide to working with Dask and Ray Task Runners](/3.0rc/develop/write-tasks/task-runners/) 
 for details.
