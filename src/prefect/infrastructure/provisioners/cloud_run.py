@@ -404,7 +404,7 @@ class CloudRunPushProvisioner:
                         dedent(
                             f"""\
                         from prefect import flow
-                        from prefect.deployments import DeploymentImage
+                        from prefect.docker import DockerImage
 
 
                         @flow(log_prints=True)
@@ -416,7 +416,7 @@ class CloudRunPushProvisioner:
                             my_flow.deploy(
                                 name="my-deployment",
                                 work_pool_name="{work_pool_name}",
-                                image=DeploymentImage(
+                                image=DockerImage(
                                     name="my-image:latest",
                                     platform="linux/amd64",
                                 )

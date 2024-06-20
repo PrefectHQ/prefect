@@ -257,7 +257,7 @@ To take advantage of this functionality, you can write your deploy script like t
 ```python example_deploy_script.py
 
 from prefect import flow                                                       
-from prefect.deployments import DeploymentImage                                
+from prefect.docker import DockerImage                                
 
 
 @flow(log_prints=True)
@@ -270,7 +270,7 @@ if __name__ == "__main__":
         name="my-deployment",
         work_pool_name="above-ground",
         cron="0 1 * * *",
-        image=DeploymentImage(
+        image=DockerImage(
             name="my-image:latest",
             platform="linux/amd64",
         )
@@ -288,7 +288,7 @@ Running this script will build a Docker image with the tag `<region>-docker.pkg.
 Make sure you have Docker running locally before running this script.
 </Tip>
 
-Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor. Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
+Note that you only need to include an object of the `DockerImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor. Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
 
 Also note that the `cron` argument will schedule the deployment to run at 1am every day. See the [schedules](https://docs.prefect.io/concepts/schedules/) docs for more information on scheduling options.
 
