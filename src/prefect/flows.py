@@ -56,7 +56,7 @@ from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
-from prefect.context import PrefectObjectRegistry, registry_from_script
+from prefect.context import registry_from_script
 from prefect.deployments.runner import deploy
 from prefect.deployments.steps.core import run_steps
 from prefect.docker.docker_image import DockerImage
@@ -125,7 +125,6 @@ if TYPE_CHECKING:
     from prefect.flows import FlowRun
 
 
-@PrefectObjectRegistry.register_instances
 class Flow(Generic[P, R]):
     """
     A Prefect workflow definition.
@@ -1699,29 +1698,26 @@ def load_flow_from_entrypoint(
         FlowScriptError: If an exception is encountered while running the script
         MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
-    with PrefectObjectRegistry(  # type: ignore
-        block_code_execution=True,
-        capture_failures=True,
-    ):
-        if ":" in entrypoint:
-            # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
-            path, func_name = entrypoint.rsplit(":", maxsplit=1)
-        else:
-            path, func_name = entrypoint.rsplit(".", maxsplit=1)
-        try:
-            flow = import_object(entrypoint)
-        except AttributeError as exc:
-            raise MissingFlowError(
-                f"Flow function with name {func_name!r} not found in {path!r}. "
-            ) from exc
 
-        if not isinstance(flow, Flow):
-            raise MissingFlowError(
-                f"Function with name {func_name!r} is not a flow. Make sure that it is "
-                "decorated with '@flow'."
-            )
+    if ":" in entrypoint:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+    else:
+        path, func_name = entrypoint.rsplit(".", maxsplit=1)
+    try:
+        flow = import_object(entrypoint)
+    except AttributeError as exc:
+        raise MissingFlowError(
+            f"Flow function with name {func_name!r} not found in {path!r}. "
+        ) from exc
 
-        return flow
+    if not isinstance(flow, Flow):
+        raise MissingFlowError(
+            f"Function with name {func_name!r} is not a flow. Make sure that it is "
+            "decorated with '@flow'."
+        )
+
+    return flow
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str) -> Flow:

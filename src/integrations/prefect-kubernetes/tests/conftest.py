@@ -34,17 +34,6 @@ def disable_api_logging():
         yield
 
 
-@pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield
-
-
 @pytest.fixture
 def kube_config_dict():
     return yaml.safe_load(GOOD_CONFIG_FILE_PATH.read_text())

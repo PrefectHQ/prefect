@@ -35,17 +35,6 @@ def prefect_db():
             raise e
 
 
-@pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield
-
-
 @pytest.fixture()
 def credentials_params():
     return {

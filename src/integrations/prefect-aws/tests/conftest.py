@@ -44,14 +44,3 @@ def aws_client_parameters_empty():
 @pytest.fixture
 def aws_client_parameters_public_bucket():
     return AwsClientParameters(config=Config(signature_version=UNSIGNED))
-
-
-@pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield
