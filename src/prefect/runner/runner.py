@@ -45,7 +45,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -75,7 +75,6 @@ from prefect.deployments.runner import (
     EntrypointType,
     RunnerDeployment,
 )
-from prefect.deployments.schedules import FlexibleScheduleList
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, load_flow_from_flow_run
@@ -97,6 +96,9 @@ from prefect.utilities.asyncutils import (
 from prefect.utilities.engine import propose_state
 from prefect.utilities.processutils import _register_signal, run_process
 from prefect.utilities.services import critical_service_loop
+
+if TYPE_CHECKING:
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
 
 __all__ = ["Runner"]
 
@@ -221,7 +223,7 @@ class Runner:
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,

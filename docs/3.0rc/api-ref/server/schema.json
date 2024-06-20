@@ -22295,7 +22295,7 @@
                         "type": "string",
                         "format": "duration",
                         "title": "Prefect Task Scheduling Pending Task Timeout",
-                        "default": "PT30S"
+                        "default": "PT0S"
                     },
                     "PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS": {
                         "type": "boolean",
