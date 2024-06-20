@@ -139,7 +139,12 @@ class FlowParameters(CachePolicy):
 
 
 @dataclass
-class FlowRunId(CachePolicy):
+class RunId(CachePolicy):
+    """
+    Returns either the prevailing flow run ID, or if not found, the prevailing task
+    run ID.
+    """
+
     def compute_key(
         self,
         task_ctx: TaskRunContext,
@@ -147,7 +152,10 @@ class FlowRunId(CachePolicy):
         flow_parameters: Dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
-        return task_ctx.flow_run_id
+        run_id = task_ctx.task_run.flow_run_id
+        if run_id is None:
+            run_id = task_ctx.task_run.id
+        return str(run_id)
 
 
 @dataclass
@@ -182,5 +190,5 @@ INPUTS = Inputs()
 NONE = _None()
 TASKDEF = TaskDef()
 FLOW_PARAMETERS = FlowParameters()
-FLOW_RUN_ID = FlowRunId()
-DEFAULT = INPUTS + TASKDEF + FLOW_RUN_ID
+RUN_ID = RunId()
+DEFAULT = INPUTS + TASKDEF + RUN_ID

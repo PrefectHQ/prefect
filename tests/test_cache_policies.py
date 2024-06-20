@@ -5,9 +5,8 @@ import pytest
 from prefect.cache_policies import (
     CachePolicy,
     CompoundCachePolicy,
-    FlowParameters,
-    FlowRunId,
     Inputs,
+    RunId,
     TaskDef,
     _None,
 )
@@ -133,7 +132,7 @@ class TestCompoundPolicy:
         assert policy.policies != new_policy.policies
 
     def test_creation_via_subtraction(self):
-        one = FlowRunId()
+        one = RunId()
         policy = one - "foo"
         assert isinstance(policy, CompoundCachePolicy)
 
