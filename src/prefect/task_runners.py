@@ -1,5 +1,6 @@
 import abc
 import asyncio
+import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -205,7 +206,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
     def __init__(self, max_workers: Optional[int] = None):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
-        self._max_workers = max_workers
+        self._max_workers = sys.maxsize if max_workers is None else max_workers
 
     def duplicate(self) -> "ThreadPoolTaskRunner":
         return type(self)(max_workers=self._max_workers)

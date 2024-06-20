@@ -1,4 +1,5 @@
 import asyncio
+import time
 import uuid
 from concurrent.futures import Future
 from typing import Any, Iterable, Optional
@@ -9,6 +10,7 @@ import pytest
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.context import TagsContext, tags
 from prefect.filesystems import LocalFileSystem
+from prefect.flows import flow
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.results import _default_storages
 from prefect.settings import (
@@ -199,6 +201,30 @@ class TestThreadPoolTaskRunner:
 
             results = [future.result() for future in futures]
             assert results == [(1, 1), (2, 2), (3, 3)]
+
+    def test_handles_recursively_submitted_tasks(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14194.
+
+        This test ensures that the ThreadPoolTaskRunner doesn't place an upper limit on the
+        number of submitted tasks active at once. The highest default max workers on a
+        ThreadPoolExecutor is 32, so this test submits 33 tasks recursively, which will
+        deadlock without the ThreadPoolTaskRunner setting the max_workers to sys.maxsize.
+        """
+
+        @task
+        def recursive_task(n):
+            if n == 0:
+                return n
+            time.sleep(0.1)
+            future = recursive_task.submit(n - 1)
+            return future.result()
+
+        @flow
+        def test_flow():
+            return recursive_task.submit(33)
+
+        assert test_flow().result() == 0
 
 
 class TestPrefectTaskRunner:
