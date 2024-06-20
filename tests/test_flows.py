@@ -31,7 +31,6 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.context import PrefectObjectRegistry
 from prefect.deployments.runner import RunnerDeployment
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentEventTrigger, Posture
@@ -49,6 +48,7 @@ from prefect.flows import (
     load_flow_from_flow_run,
 )
 from prefect.logging import get_run_logger
+from prefect.results import PersistedResultBlob
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -741,16 +741,6 @@ class TestFlowCall:
 
         with pytest.raises(ValueError, match="Test 2"):
             await second.result()
-
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    async def test_call_execution_blocked_does_not_run_flow(self):
-        @flow(version="test")
-        def foo(x, y=3, z=3):
-            return x + y + z
-
-        with PrefectObjectRegistry(block_code_execution=True):
-            state = foo(1, 2)
-            assert state is None
 
     def test_flow_can_end_in_paused_state(self):
         @flow
@@ -4280,6 +4270,63 @@ class TestTransactions:
 
         assert "called" not in data2
         assert data1["called"] is True
+
+    def test_task_doesnt_persist_prior_to_commit(self, tmp_path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+
+        @task(result_storage=result_storage, result_storage_key="task1-result")
+        def task1():
+            pass
+
+        @task(result_storage=result_storage, result_storage_key="task2-result")
+        def task2():
+            raise RuntimeError("oopsie")
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        with pytest.raises(ValueError, match="does not exist"):
+            result_storage.read_path("task1-result", _sync=True)
+
+    def test_task_persists_only_at_commit(self, tmp_path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+
+        @task(result_storage=result_storage, result_storage_key="task1-result-A")
+        def task1():
+            return dict(some="data")
+
+        @task(result_storage=result_storage, result_storage_key="task2-result-B")
+        def task2():
+            pass
+
+        @flow
+        def main():
+            retval = None
+
+            with transaction():
+                task1()
+
+                try:
+                    result_storage.read_path("task1-result-A", _sync=True)
+                except ValueError as exc:
+                    retval = exc
+
+                task2()
+
+            return retval
+
+        val = main()
+
+        assert isinstance(val, ValueError)
+        assert "does not exist" in str(val)
+        content = result_storage.read_path("task1-result-A", _sync=True)
+        blob = PersistedResultBlob.model_validate_json(content)
+        assert blob.load() == {"some": "data"}
 
     def test_commit_isnt_called_on_rollback(self):
         data = {}

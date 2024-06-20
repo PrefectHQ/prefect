@@ -2,7 +2,7 @@
 title: prefect-dbt
 ---
 
-With prefect-dbt you can trigger and observe dbt Cloud jobs, execute dbt Core CLI commands, and incorporate other tools, such as Snowflake, into your dbt runs.
+With `prefect-dbt`, you can trigger and observe dbt Cloud jobs, execute dbt Core CLI commands, and incorporate other tools, such as [Snowflake](integrations/prefect-snowflake/index), into your dbt runs.
 Prefect provides a global view of the state of your workflows and allows you to take action based on state changes.
 
 ## Getting started
@@ -41,15 +41,14 @@ Register the block types in the prefect-dbt module to make them available for us
 prefect block register -m prefect_dbt
 ```
 
-Explore the examples below to use Prefect with dbt.
 
-## Integrate dbt Cloud jobs with Prefect flows
+## dbt Cloud
 
 If you have an existing dbt Cloud job, use the pre-built flow `run_dbt_cloud_job` to trigger a job run and wait until the job run is finished.
 
 If some nodes fail, `run_dbt_cloud_job` efficiently retries the unsuccessful nodes.
 
-Prior to running this flow, [save your dbt Cloud credentials to a DbtCloudCredentials block](#saving-credentials-to-a-block):
+Prior to running this flow, [save your dbt Cloud credentials to a DbtCloudCredentials block](#save-credentials-to-a-block):
 
 ```python
 from prefect import flow
@@ -68,7 +67,58 @@ def run_dbt_job_flow():
 run_dbt_job_flow()
 ```
 
-## Integrate dbt Core CLI commands with Prefect flows
+### Save dbt Cloud credentials to a block
+
+Blocks can be [created through code](/3.0rc/develop/connect-third-party/#saving-blocks) or through the UI.
+
+
+To create a dbt Cloud Credentials block:
+
+1. Go to your [dbt Cloud profile](https://cloud.getdbt.com/settings/profile).
+2. Log in to your dbt Cloud account.
+3. Scroll to **API** or click **API Access** on the sidebar.
+4. Copy the API Key.
+5. Click **Projects** on the sidebar.
+6. Copy the account ID from the URL: `https://cloud.getdbt.com/settings/accounts/<ACCOUNT_ID>`.
+7. Create and run the following script, replacing the placeholders:
+
+```python
+from prefect_dbt.cloud import DbtCloudCredentials
+
+DbtCloudCredentials(
+    api_key="API-KEY-PLACEHOLDER",
+    account_id="ACCOUNT-ID-PLACEHOLDER"
+).save("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
+```
+
+Then, create a dbt Cloud job block:
+
+1. Navigate to your [dbt home page](https://cloud.getdbt.com/).
+2. On the top nav bar, click on **Deploy** -> **Jobs**.
+3. Select a job.
+4. Copy the job ID from the URL: `https://cloud.getdbt.com/deploy/<ACCOUNT_ID>/projects/<PROJECT_ID>/jobs/<JOB_ID>`
+5. Create and run the following script, replacing the placeholders.
+
+```python
+from prefect_dbt.cloud import DbtCloudCredentials, DbtCloudJob
+
+dbt_cloud_credentials = DbtCloudCredentials.load("CREDENTIALS-BLOCK-PLACEHOLDER")
+dbt_cloud_job = DbtCloudJob(
+    dbt_cloud_credentials=dbt_cloud_credentials,
+    job_id="JOB-ID-PLACEHOLDER"
+).save("JOB-BLOCK-NAME-PLACEHOLDER")
+```
+
+Load the saved block, which can access your credentials:
+
+```python
+from prefect_dbt.cloud import DbtCloudJob
+
+DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
+```
+
+
+## dbt Core
 
 Prefect-dbt supports execution of dbt Core CLI commands.
 If you don't have a `DbtCoreOperation` block saved, create one and set the commands that you want to run.
@@ -79,7 +129,7 @@ If `DBT_PROFILES_DIR` is not set, the default directory will be used `$HOME/.dbt
 
 ### Use an existing profile
 
-If you have an existing dbt profile, specify the `profiles_dir` where `profiles.yml` is located:
+If you have an existing dbt `profiles.yml` file, specify the `profiles_dir` where the file is located:
 
 ```python
 from prefect import flow
@@ -100,11 +150,75 @@ if __name__ == "__main__":
     trigger_dbt_flow()
 ```
 
-### Set up a new profile
 
-To setup a new profile, first [save and load a DbtCliProfile block](#saving-credentials-to-block) and use it in `DbtCoreOperation`.
+If you are already using Prefect blocks such as the [Snowflake Connector block](integrations/prefect-snowflake/index#access-underlying-snowflake-connection), you can use those blocks to [create a new profiles.yml with a DbtCliProfile block](#create-a-new-profile-with-blocks). 
 
-Then, specify`profiles_dir` where `profiles.yml` will be written.
+
+#### Use environment variables with Prefect secret blocks
+
+If you use environment variables in `profiles.yml`, set a Prefect Secret block as an environment variable:
+
+```python
+import os
+from prefect.blocks.system import Secret
+
+secret_block = Secret.load("DBT_PASSWORD_PLACEHOLDER")
+
+# Access the stored secret
+DBT_PASSWORD = secret_block.get()
+os.environ["DBT_PASSWORD"] = DBT_PASSWORD
+```
+
+This example `profiles.yml` file could then access that variable.
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      # IMPORTANT: Make sure to quote the entire Jinja string here
+      user: dbt_user
+      password: "{{ env_var('DBT_PASSWORD') }}"
+```
+
+
+### Programmatic Invocation
+
+`prefect-dbt` has some pre-built tasks that use dbt's [programmatic invocation](https://docs.getdbt.com/reference/programmatic-invocations). For example:
+```python
+from prefect import flow
+from prefect_dbt.cli.tasks import from prefect import flow
+from prefect_dbt.cli.commands import trigger_dbt_cli_command, dbt_build_task
+
+@flow
+def dbt_build_flow():
+    trigger_dbt_cli_command(
+        command="dbt deps", project_dir="/Users/test/my_dbt_project_dir",
+    )
+    dbt_build_task(
+        project_dir="/Users/test/my_dbt_project_dir",
+        create_summary_artifact: bool = True,
+        summary_artifact_key: str = "dbt-build-task-summary",
+        extra_command_args=["--model", "foo_model"]
+    )
+if __name__ == "__main__":
+    dbt_build_flow()
+```
+
+See the [SDK docs](https://prefect-python-sdk-docs.netlify.app/prefect_dbt/) for other pre-built tasks.
+
+### Create a summary artifact
+
+These pre-built tasks can also create artifacts. These artifacts have extra information about dbt Core runs, such as messages and compiled code for nodes that fail or have errors.
+
+<img height="200" src="https://private-user-images.githubusercontent.com/104510333/331339770-3868b961-5aff-4115-b409-f86d3992704d.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTg3NDcyOTQsIm5iZiI6MTcxODc0Njk5NCwicGF0aCI6Ii8xMDQ1MTAzMzMvMzMxMzM5NzcwLTM4NjhiOTYxLTVhZmYtNDExNS1iNDA5LWY4NmQzOTkyNzA0ZC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjQwNjE4JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI0MDYxOFQyMTQzMTRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT00NmM2Y2FlZTRkZGVjYTAyNzU4NTc4MzRjMzVmYzdlYmEyNGUzYmUwMzEzM2U4MTVkYzk1ODE0MmQ1MTRlZmMzJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZhY3Rvcl9pZD0wJmtleV9pZD0wJnJlcG9faWQ9MCJ9.OktdY5qg1ocVoD1fCNFLnvqPIJWi7OwDbwef4KyY4cU" />  {/* image url from 2.19.1 release notes */}  
+
+
+### Create a new profile with blocks
+
+Use a DbtCliProfile block to create `profiles.yml`.
+Then, specify `profiles_dir` where `profiles.yml` will be written.
 Here's example code with placeholders:
 
 ```python
@@ -114,7 +228,7 @@ from prefect_dbt.cli import DbtCliProfile, DbtCoreOperation
 
 @flow
 def trigger_dbt_flow():
-    dbt_cli_profile = DbtCliProfile.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
+    dbt_cli_profile = DbtCliProfile.load("DBT-CORE-OPERATION-BLOCK-PLACEHOLDER")
     with DbtCoreOperation(
         commands=["dbt debug", "dbt run"],
         project_dir="PROJECT-DIRECTORY-PLACEHOLDER",
@@ -131,68 +245,18 @@ if __name__ == "__main__":
     trigger_dbt_flow()
 ```
 
-## Save credentials to a block
+<Warning> 
+**Supplying the `dbt_cli_profile` argument will overwrite existing `profiles.yml` files**
 
-Blocks can be [created through code](/3.0rc/develop/connect-third-party/#saving-blocks) or through the UI.
+If you already have a `profiles.yml` file in the specified `profiles_dir`, the file will be overwritten.  If you do not specify a profiles directory, `profiles.yml` at `~/.dbt/` would be overwritten.
+</Warning> 
 
-### dbt Cloud
-
-To create a dbt Cloud Credentials block do the following:
-
-1. Go to your [dbt Cloud profile](https://cloud.getdbt.com/settings/profile).
-2. Log in to your dbt Cloud account.
-3. Scroll to **API** or click **API Access** on the sidebar.
-4. Copy the API Key.
-5. Click **Projects** on the sidebar.
-6. Copy the account ID from the URL: `https://cloud.getdbt.com/settings/accounts/<ACCOUNT_ID>`.
-7. Create and run the following script, replacing the placeholders.
-
-```python
-from prefect_dbt.cloud import DbtCloudCredentials
-
-DbtCloudCredentials(
-    api_key="API-KEY-PLACEHOLDER",
-    account_id="ACCOUNT-ID-PLACEHOLDER"
-).save("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
-```
-
-Then, to create a dbt Cloud job block do the following:
-
-1. Navigate to your [dbt home page](https://cloud.getdbt.com/).
-2. On the top nav bar, click on **Deploy** -> **Jobs**.
-3. Select a job.
-4. Copy the job ID from the URL: `https://cloud.getdbt.com/deploy/<ACCOUNT_ID>/projects/<PROJECT_ID>/jobs/<JOB_ID>`
-5. Create and run the following script, replacing the placeholders.
-
-```python
-from prefect_dbt.cloud import DbtCloudCredentials, DbtCloudJob
-
-dbt_cloud_credentials = DbtCloudCredentials.load("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
-dbt_cloud_job = DbtCloudJob(
-    dbt_cloud_credentials=dbt_cloud_credentials,
-    job_id="JOB-ID-PLACEHOLDER"
-).save("JOB-BLOCK-NAME-PLACEHOLDER")
-```
-
-Load the saved block, which can access your credentials:
-
-```python
-from prefect_dbt.cloud import DbtCloudJob
-
-DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
-```
-
-### dbt Core CLI
-
-<Info>
-
-**Available `TargetConfigs` blocks**
 
 Visit the SDK reference in the side navigation to see other built-in `TargetConfigs` blocks.
 
 If the desired service profile is not available, you can build one from the generic `TargetConfigs` class.
-</Info>
 
+#### BigQuery profile example
 To create dbt Core target config and profile blocks for BigQuery:
 
 1. Save and load a `GcpCredentials` block.
@@ -247,7 +311,7 @@ DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 
 For assistance using dbt, consult the [dbt documentation](https://docs.getdbt.com/docs/building-a-dbt-project/documentation).
 
-Refer to the prefect-dbt API documentation linked in the sidebar to explore all the capabilities of the prefect-dbt library.
+Refer to the `prefect-dbt` API documentation linked in the sidebar to explore all the capabilities of the prefect-dbt library.
 
 ### Additional installation options
 
@@ -276,16 +340,3 @@ pip install -U "prefect-dbt[bigquery]"
 pip install -U "prefect-dbt[postgres]"
 ```
 
-
-<Warning> 
-**Some dbt Core profiles require additional installation**
-
-According to dbt's [Databricks setup page](https://docs.getdbt.com/reference/warehouse-setups/databricks-setup), users must first install the adapter:
-
-
-```bash
-pip install dbt-databricks
-```
-
-Check out the [desired profile setup page](https://docs.getdbt.com/reference/profiles.yml) for other configuration.
-</Warning> 

@@ -10,7 +10,7 @@ from typing_extensions import TypeVar
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import Pending, State
 from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
@@ -142,6 +142,18 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
+
+    def __del__(self):
+        if self._final_state or self._wrapped_future.done():
+            return
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "A future was garbage collected before it resolved."
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+        )
 
 
 class PrefectDistributedFuture(PrefectFuture):

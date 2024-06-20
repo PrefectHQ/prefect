@@ -310,6 +310,8 @@ class TaskRunEngine(Generic[P, R]):
                 result_factory=result_factory,
                 key=transaction.key,
                 expiration=expiration,
+                # defer persistence to transaction commit
+                defer_persistence=True,
             )
         )
         transaction.stage(

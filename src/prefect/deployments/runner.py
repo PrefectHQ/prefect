@@ -59,7 +59,6 @@ from prefect.client.schemas.schedules import (
     construct_schedule,
 )
 from prefect.deployments.schedules import (
-    FlexibleScheduleList,
     create_deployment_schedule_create,
 )
 from prefect.docker.docker_image import DockerImage
@@ -82,6 +81,7 @@ from prefect.utilities.dockerutils import (
 )
 
 if TYPE_CHECKING:
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.flows import Flow
 
 __all__ = ["RunnerDeployment"]
@@ -344,8 +344,8 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
-    ) -> Union[List[DeploymentScheduleCreate], FlexibleScheduleList]:
+        schedules: Optional["FlexibleScheduleList"] = None,
+    ) -> Union[List[DeploymentScheduleCreate], "FlexibleScheduleList"]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -436,7 +436,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -572,7 +572,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -670,7 +670,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
