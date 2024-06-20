@@ -555,7 +555,7 @@ my_stateful_task() # sleeps
 my_stateful_task() # does not sleep
 ```
 
-This task will run once and only once until the underlying code is altered:
+No matter how many flows call it, this task will run once and only once until its underlying code is altered:
 
 ```python
 @task(cache_policy=TASKDEF)
