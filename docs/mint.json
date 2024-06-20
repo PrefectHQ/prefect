@@ -107,7 +107,8 @@
           "pages": [
             "3.0rc/develop/control-workflows/task-run-limits",
             "3.0rc/develop/control-workflows/global-concurrency-limits",
-            "3.0rc/develop/control-workflows/pause-cancel-flows",
+            "3.0rc/develop/control-workflows/pause-resume",
+            "3.0rc/develop/control-workflows/cancel",
             "3.0rc/develop/control-workflows/inputs"
           ]
         },
