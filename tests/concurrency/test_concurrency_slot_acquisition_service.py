@@ -41,7 +41,7 @@ async def test_returns_successful_response(mocked_client):
     expected_mode = "concurrency"
 
     service = ConcurrencySlotAcquisitionService.instance(frozenset(expected_names))
-    future = service.send((expected_slots, expected_mode))
+    future = service.send((expected_slots, expected_mode, None))
     await service.drain()
     returned_response = await asyncio.wrap_future(future)
     assert returned_response == response
@@ -67,7 +67,7 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
     with mock.patch("prefect.concurrency.asyncio.asyncio.sleep") as sleep:
-        future = service.send((1, "concurrency"))
+        future = service.send((1, "concurrency", None))
         await service.drain()
         returned_response = await asyncio.wrap_future(future)
 
@@ -91,7 +91,7 @@ async def test_failed_call_status_code_not_retryable_returns_exception(mocked_cl
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    future = service.send((1, "concurrency"))
+    future = service.send((1, "concurrency", None))
     await service.drain()
     exception = await asyncio.wrap_future(future)
 
@@ -106,7 +106,7 @@ async def test_basic_exception_returns_exception(mocked_client):
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    future = service.send((1, "concurrency"))
+    future = service.send((1, "concurrency", None))
     await service.drain()
     exception = await asyncio.wrap_future(future)
 
