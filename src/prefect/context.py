@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    ContextManager,
     Dict,
     Generator,
     List,
@@ -46,7 +45,6 @@ from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")
 
@@ -594,23 +592,6 @@ def tags(*new_tags: str) -> Generator[Set[str], None, None]:
         yield new_tags
 
 
-def registry_from_script(
-    path: str,
-    block_code_execution: bool = True,
-    capture_failures: bool = True,
-) -> PrefectObjectRegistry:
-    """
-    Return a fresh registry with instances populated from execution of a script.
-    """
-    with PrefectObjectRegistry(
-        block_code_execution=block_code_execution,
-        capture_failures=capture_failures,
-    ) as registry:
-        load_script_as_module(path)
-
-    return registry
-
-
 @contextmanager
 def use_profile(
     profile: Union[Profile, str],
@@ -711,14 +692,3 @@ def root_settings_context():
 
 
 GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
-GLOBAL_OBJECT_REGISTRY: Optional[ContextManager[PrefectObjectRegistry]] = None
-
-
-def initialize_object_registry():
-    global GLOBAL_OBJECT_REGISTRY
-
-    if GLOBAL_OBJECT_REGISTRY:
-        return
-
-    GLOBAL_OBJECT_REGISTRY = PrefectObjectRegistry()
-    GLOBAL_OBJECT_REGISTRY.__enter__()
