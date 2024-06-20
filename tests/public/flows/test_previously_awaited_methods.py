@@ -39,7 +39,11 @@ async def test_awaiting_formerly_async_methods():
             len(w) == N * 2 + 4
         )  # 1 submit, 1 wait, 1 result, 1 map, N waits, N results
         assert issubclass(w[0].category, DeprecationWarning)
-        assert "please remove the `await` keyword" in str(w[0].message)
+        assert all(
+            "please remove the `await` keyword" in str(warning.message)
+            for warning in w
+            if warning.category is DeprecationWarning
+        )
 
     # Test the new way (without await)
     with warnings.catch_warnings(record=True) as w:
