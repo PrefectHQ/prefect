@@ -88,7 +88,7 @@ Prefect uses the default `ThreadPoolTaskRunner`.
 
 Each flow can only have one task runner, but sometimes you may want a subset of your tasks to run 
 using a different task runner than the one configured on the flow. 
-In this case, you can create [subflows](/3.0rc/develop/write-flows/#composing-flows) 
+In this case, you can create [nested flows](/3.0rc/develop/write-flows/#composing-flows) 
 for tasks that need to use a different task runner.
 
 For example, you can have a flow (in the example below called `multiple_runner_flow`) that runs its tasks locally 
