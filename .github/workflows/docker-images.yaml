@@ -6,7 +6,7 @@ on:
     types: [released, prereleased]
   # On each commit merged into main, push sha and branch patterns to prefect-dev
   push:
-    branches: main
+    branches: [main]
     paths:
       - "Dockerfile"
       - ".dockerignore"
@@ -30,7 +30,7 @@ jobs:
   publish-docker-images:
     name: Build and publish to DockerHub
     runs-on: ubuntu-latest
-    environment: ${{ ( github.event_name == 'release' && 'prod' ) || 'dev' }}
+    environment: ${{ github.event_name == 'release' && !github.event.release.prerelease && 'prod' || 'dev' }}
     strategy:
       matrix:
         flavor:
@@ -44,6 +44,14 @@ jobs:
           - "3.12"
 
     steps:
+      - name: Validate Prerelease Tag
+        if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
+        run: |
+          TAG_NAME=${{ github.ref }}
+          if [[ ! "$TAG_NAME" =~ ^refs/tags/[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9]+$ ]]; then
+            echo "Error: Tag $TAG_NAME does not match prerelease version pattern."
+            exit 1
+          fi
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
