@@ -118,7 +118,7 @@ Using multiple task runners
 
 Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run using a specific task runner. In this case, you can create [nested flows](https://docs.prefect.io/concepts/flows/#composing-flows) for tasks that need to use a different task runner.
 
-For example, you can have a flow (in the example below called `sequential_flow`) that runs its tasks locally using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, you could create a nested flow (such as `dask_subflow`) to run those tasks using the `DaskTaskRunner`.
+For example, you can have a flow (in the example below called `sequential_flow`) that runs its tasks locally using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, you could create a nested flow (such as `dask_nested flow`) to run those tasks using the `DaskTaskRunner`.
 
 ```python
 from prefect import flow, task
@@ -136,11 +136,11 @@ def hello_dask():
 @flow(task_runner=SequentialTaskRunner())
 def sequential_flow():
     hello_local.submit()
-    dask_subflow()
+    dask_nested flow()
     hello_local.submit()
 
 @flow(task_runner=DaskTaskRunner())
-def dask_subflow():
+def dask_nested flow():
     hello_dask.submit()
 
 if __name__ == "__main__":

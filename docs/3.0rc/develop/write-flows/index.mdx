@@ -519,8 +519,8 @@ There is a full representation of the flow run in the backend as if it had been 
 When a nested flow starts, it creates a new [task runner](/3.0rc/develop/write-tasks/use-task-runners/) for tasks within the nested flow.
 When the nested flow completes, the task runner shuts down.
 =======
-When a subflow starts, it creates a new [task runner](/3.0rc/develop/write-tasks/task-runners/) for tasks within the subflow.
-When the subflow completes, the task runner shuts down.
+When a nested flow starts, it creates a new [task runner](/3.0rc/develop/write-tasks/task-runners/) for tasks within the nested flow.
+When the nested flow completes, the task runner shuts down.
 >>>>>>> origin/main
 
 Nested flows block execution of the parent flow until completion.
