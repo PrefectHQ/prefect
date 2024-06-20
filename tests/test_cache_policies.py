@@ -1,8 +1,11 @@
 import itertools
+from dataclasses import dataclass
+from typing import Callable
 
 import pytest
 
 from prefect.cache_policies import (
+    DEFAULT,
     CachePolicy,
     CompoundCachePolicy,
     Inputs,
@@ -136,6 +139,17 @@ class TestCompoundPolicy:
         policy = one - "foo"
         assert isinstance(policy, CompoundCachePolicy)
 
+    def test_nones_are_ignored(self):
+        one, two = _None(), _None()
+        policy = CompoundCachePolicy(policies=[one, two])
+        assert isinstance(policy, CompoundCachePolicy)
+
+        fparams = dict(x=42, y="foo")
+        compound_key = policy.compute_key(
+            task_ctx=None, inputs=dict(z=[1, 2]), flow_parameters=fparams
+        )
+        assert compound_key is None
+
 
 class TestTaskSourcePolicy:
     def test_initializes(self):
@@ -169,3 +183,77 @@ class TestTaskSourcePolicy:
         )
 
         assert key != new_key
+
+
+class TestDefaultPolicy:
+    def test_changing_the_inputs_busts_the_cache(self):
+        inputs = dict(x=42)
+        key = DEFAULT.compute_key(task_ctx=None, inputs=inputs, flow_parameters=None)
+
+        inputs = dict(x=43)
+        new_key = DEFAULT.compute_key(
+            task_ctx=None, inputs=inputs, flow_parameters=None
+        )
+
+        assert key != new_key
+
+    def test_changing_the_run_id_busts_the_cache(self):
+        @dataclass
+        class Run:
+            id: str
+            flow_run_id: str = None
+
+        def my_task():
+            pass
+
+        @dataclass
+        class TaskCtx:
+            task_run: Run
+            task = my_task
+
+        task_run_a = Run(id="a", flow_run_id="a")
+        task_run_b = Run(id="b", flow_run_id="b")
+        task_run_c = Run(id="c", flow_run_id=None)
+        task_run_d = Run(id="d", flow_run_id=None)
+
+        key_a = DEFAULT.compute_key(
+            task_ctx=TaskCtx(task_run=task_run_a), inputs=None, flow_parameters=None
+        )
+        key_b = DEFAULT.compute_key(
+            task_ctx=TaskCtx(task_run=task_run_b), inputs=None, flow_parameters=None
+        )
+        key_c = DEFAULT.compute_key(
+            task_ctx=TaskCtx(task_run=task_run_c), inputs=None, flow_parameters=None
+        )
+        key_d = DEFAULT.compute_key(
+            task_ctx=TaskCtx(task_run=task_run_d), inputs=None, flow_parameters=None
+        )
+
+        assert key_a not in [key_b, key_c, key_d]
+        assert key_b not in [key_a, key_c, key_d]
+        assert key_c not in [key_a, key_b, key_d]
+        assert key_d not in [key_a, key_b, key_c]
+
+    def test_changing_the_source_busts_the_cache(self):
+        @dataclass
+        class Run:
+            id: str
+            flow_run_id: str = None
+
+        @dataclass
+        class TaskCtx:
+            task_run: Run
+            task: Callable = None
+
+        task_run = Run(id="a", flow_run_id="b")
+        ctx_one = TaskCtx(task_run=task_run, task=lambda: "foo")
+        ctx_two = TaskCtx(task_run=task_run, task=lambda: "bar")
+
+        key_one = DEFAULT.compute_key(
+            task_ctx=ctx_one, inputs=None, flow_parameters=None
+        )
+        key_two = DEFAULT.compute_key(
+            task_ctx=ctx_two, inputs=None, flow_parameters=None
+        )
+
+        assert key_one != key_two
