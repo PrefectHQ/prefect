@@ -122,7 +122,11 @@ class TaskDef(CachePolicy):
         flow_parameters: Dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
-        lines = inspect.getsource(task_ctx.task)
+        try:
+            lines = inspect.getsource(task_ctx.task)
+        except TypeError:
+            lines = inspect.getsource(task_ctx.task.fn.__class__)
+
         return hash_objects(lines)
 
 

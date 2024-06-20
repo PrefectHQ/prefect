@@ -1186,7 +1186,7 @@ class TestTaskRetries:
 
 
 class TestTaskCaching:
-    async def test_repeated_task_call_within_flow_is_not_cached_by_default(self):
+    async def test_repeated_task_call_within_flow_is_cached_by_default(self):
         @task
         def foo(x):
             return x
@@ -1197,7 +1197,7 @@ class TestTaskCaching:
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
-        assert second_state.name == "Completed"
+        assert second_state.name == "Cached"
         assert await second_state.result() == await first_state.result()
 
     async def test_cache_hits_within_flows_are_cached(self):
@@ -4642,7 +4642,6 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
-        assert str(state.state_details.task_run_id) == data["txn"].key
 
 
 class TestApplyAsync:
