@@ -8,7 +8,7 @@ Events can represent API calls, state transitions, or changes in your execution 
 Events power several features in Prefect Cloud, including flow run logs, audit logs, and automations.
 
 Events enable observability into your data stack through the [event feed in the UI](#events-in-the-cloud-ui) and the 
-configuration of Prefect's reactivity through [automations](/3.0rc/react/events/automations-triggers/).
+configuration of Prefect's reactivity through [automations](/3.0rc/automate/events/automations-triggers/).
 
 ## Event specification
 
@@ -67,14 +67,14 @@ To get data into an event for use in an automation action, specify a dictionary 
 
 ### Emit events through webhooks
 
-Prefect Cloud offers [programmable webhooks](/3.0rc/react/events/webhook-triggers/) to receive HTTP requests 
+Prefect Cloud offers [programmable webhooks](/3.0rc/automate/events/webhook-triggers/) to receive HTTP requests 
 from other systems and translate them into events within your workspace. Webhooks can emit 
-[pre-defined static events](/3.0rc/react/events/webhook-triggers/#static-webhook-events), 
-dynamic events that [use portions of the incoming HTTP request](/3.0rc/react/events/webhook-triggers/#dynamic-webhook-events), 
-or events derived from [CloudEvents](/3.0rc/react/events/webhook-triggers/#accepting-cloudevents).
+[pre-defined static events](/3.0rc/automate/events/webhook-triggers/#static-webhook-events), 
+dynamic events that [use portions of the incoming HTTP request](/3.0rc/automate/events/webhook-triggers/#dynamic-webhook-events), 
+or events derived from [CloudEvents](/3.0rc/automate/events/webhook-triggers/#accepting-cloudevents).
 
 Events emitted from any source appear in the event feed, where you can visualize activity in context and configure 
-[automations](/3.0rc/react/events/automations-triggers/) to react to the presence or absence of events in the future. 
+[automations](/3.0rc/automate/events/automations-triggers/) to react to the presence or absence of events in the future. 
 
 ## Resources
 
@@ -129,10 +129,10 @@ resource, related resources, and its payload.
 
 ## Respond to events
 
-From an event page, you can configure an [automation](/3.0rc/react/events/automations-triggers) to trigger on 
+From an event page, you can configure an [automation](/3.0rc/automate/events/automations-triggers) to trigger on 
 the observation of matching events—or a lack of matching events—by clicking the automate button in the overflow menu:
 
 ![Automation from event](/3.0rc/img/ui/automation-from-event.png)
 
 The default trigger configuration fires every time it sees an event with a matching resource identifier. Advanced 
-configuration is possible through [custom triggers](/3.0rc/react/events/automations-triggers/).
+configuration is possible through [custom triggers](/3.0rc/automate/events/automations-triggers/).
