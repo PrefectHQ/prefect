@@ -80,6 +80,18 @@ class TestPrefectConcurrentFuture:
         with pytest.raises(ValueError, match="oops"):
             future.result(raise_on_failure=True)
 
+    def test_warns_if_not_resolved_when_garbage_collected(self, caplog):
+        PrefectConcurrentFuture(uuid.uuid4(), Future())
+
+        assert "A future was garbage collected before it resolved" in caplog.text
+
+    def test_does_not_warn_if_resolved_when_garbage_collected(self, caplog):
+        wrapped_future = Future()
+        wrapped_future.set_result(Completed())
+        PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+
+        assert "A future was garbage collected before it resolved" not in caplog.text
+
 
 class TestResolveFuturesToStates:
     async def test_resolve_futures_transforms_future(self):

@@ -1,23 +1,16 @@
 ---
 title: prefect-ray
+description: Accelerate your workflows by running tasks in parallel with Ray
 ---
 
-[Ray](https://docs.ray.io/en/latest/index.html) can run the tasks in your flow in parallel by distributing them over multiple machines.
-The `prefect-ray` integration makes it easy speed up your flow runs by integrating Ray into your code.
+[Ray](https://docs.ray.io/en/latest/index.html) can run your tasks in parallel by distributing them over multiple machines.
+The `prefect-ray` integration makes it easy to accelerate your flow runs with Ray. 
 
-## Getting Started
+## Install `prefect-ray`
 
-### Prerequisites
-
-- [Prefect installed](https://docs.prefect.io/latest/get-started/install/) in a virtual environment.
-
-### Install prefect-ray
-
-<div class="terminal">
 ```bash
 pip install prefect-ray
 ```
-</div>
 
 <Warning> 
 **Ray limitations**
@@ -31,13 +24,11 @@ There are a few limitations with Ray:
 See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overview/installation.html) for further compatibility information.
 </Warning>
 
-## Running tasks on Ray
+## Run tasks on Ray
 
 The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/develop/write-tasks/use-task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution.
-
 By default, a temporary Ray instance is created for the duration of the flow run.
-
-For example, this flow counts to three in parallel.
+For example, this flow counts to three in parallel:
 
 ```python
 import time
@@ -96,9 +87,14 @@ This flow uses the `RayTaskRunner` configured to access an existing Ray instance
 from prefect import flow
 from prefect_ray.task_runners import RayTaskRunner
 
-@flow(task_runner=RayTaskRunner(address="ray://192.0.2.255:8786"))
+@flow(
+    task_runner=RayTaskRunner(
+        address="ray://192.0.2.255:8786",
+        init_kwargs={"runtime_env": {"pip": ["prefect-ray"]}},
+    )
+)
 def my_flow():
-    ... 
+    ...
 ```
 
 `RayTaskRunner` accepts the following optional parameters:
@@ -108,19 +104,13 @@ def my_flow():
 | address | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
 | init_kwargs | Additional kwargs to use when calling `ray.init`. |
 
-Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
+The Ray client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. 
+If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
-<Warning>
-**Ray environment limitations**
+## Run tasks on a remote Ray cluster
 
-Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
-
-See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overview/installation.html) for further compatibility information.
-</Warning>
-
-## Running tasks on a Ray remote cluster
-
-When using the `RayTaskRunner` with a remote Ray cluster, you may run into issues that are not seen when using a local Ray instance. To resolve these issues, we recommend taking the following steps when working with a remote Ray cluster:
+When using the `RayTaskRunner` with a remote Ray cluster, you may run into issues that are not seen when using a local Ray instance. 
+To resolve these issues, we recommend taking the following steps when working with a remote Ray cluster:
 
 1. By default, Prefect will not persist any data to the filesystem of the remote ray worker. However, if you want to take advantage of Prefect's caching ability, you will need to configure a remote result storage to persist results across task runs.
 
@@ -165,33 +155,25 @@ if __name__ == "__main__":
 
 2. If you get an error stating that the module 'prefect' cannot be found, ensure `prefect` is installed on the remote cluster, with:
 
-<div class="terminal">
 ```bash
 pip install prefect
 ```
-</div>
 
 3. If you get an error with a message similar to "File system created with scheme 's3' could not be created", ensure the required Python modules are installed on **both local and remote machines**. For example, if using S3 for storage:
 
-<div class="terminal">
 ```bash
 pip install s3fs
 ```
-</div>
 
 4. If you are seeing timeout or other connection errors, double check the address provided to the `RayTaskRunner`. The address should look similar to: `address='ray://<head_node_ip_address>:10001'`:
 
-<div class="terminal">
 ```bash
 RayTaskRunner(address="ray://1.23.199.255:10001")
 ```
-</div>
 
-## Specifying remote options
+## Specify remote options
 
-The `remote_options` context can be used to control the task’s remote options.
-
-For example, we can set the number of CPUs and GPUs to use for the `process` task:
+The `remote_options` context can be used to control the task’s remote options. For example, we can set the number of CPUs and GPUs to use for the `process` task:
 
 ```python
 from prefect import flow, task
@@ -212,6 +194,6 @@ def my_flow():
 
 ## Resources
 
-Refer to the prefect-ray API documentation linked in the sidebar to explore all the capabilities of the prefect-ray library.
+Refer to the `prefect-ray` API documentation to explore all the capabilities of the prefect-ray library.
 
-For assistance using Dask, consult the [Ray documentation](https://docs.ray.io/en/latest/index.html).
+For further assistance using Ray, consult the [Ray documentation](https://docs.ray.io/en/latest/index.html).

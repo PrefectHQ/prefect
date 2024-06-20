@@ -6,7 +6,7 @@
     "dark": "/logos/logo-word-white.svg"
   },
   "modeToggle": {
-    "default": "dark",
+    "default": "light",
     "isHidden": false
   },
   "favicon": "/logos/favicon.png",
@@ -83,10 +83,8 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-tasks/index",
-            "3.0rc/develop/write-tasks/separate-logic",
             "3.0rc/develop/write-tasks/use-task-runners",
             "3.0rc/develop/write-tasks/dask-and-ray",
-            "3.0rc/develop/write-tasks/upstream-dependencies",
             "3.0rc/develop/write-tasks/deferred-tasks"
           ]
         },
@@ -681,7 +679,7 @@
       "group": "Contribute",
       "pages": [
         "contribute/index",
-        "contribute/install-contribute",
+        "contribute/dev-contribute",
         "contribute/styles-practices",
         "contribute/develop-a-new-worker-type",
         "contribute/contribute-integrations",
