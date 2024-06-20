@@ -1,9 +1,5 @@
 name: Nightly Release Candidate
 
-permissions:
-  contents: write
-  pull-requests: read
-
 on:
   schedule:
     - cron: '0 8 * * *' # Run at midnight PST (08:00 UTC)
@@ -64,3 +60,4 @@ jobs:
         draft: false
         prerelease: true
         generate_release_notes: true
+        token: ${{ secrets.PREFECT_CONTENTS_PR_RW }}
