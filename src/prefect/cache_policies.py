@@ -100,20 +100,6 @@ class CompoundCachePolicy(CachePolicy):
 
 
 @dataclass
-class Default(CachePolicy):
-    "Execution run ID only"
-
-    def compute_key(
-        self,
-        task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
-        **kwargs,
-    ) -> Optional[str]:
-        return str(task_ctx.task_run.id)
-
-
-@dataclass
 class _None(CachePolicy):
     "ignore key policies altogether, always run - prevents persistence"
 
@@ -153,6 +139,18 @@ class FlowParameters(CachePolicy):
 
 
 @dataclass
+class FlowRunId(CachePolicy):
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
+        return task_ctx.flow_run_id
+
+
+@dataclass
 class Inputs(CachePolicy):
     """
     Exposes flag for whether to include flow parameters as well.
@@ -180,8 +178,9 @@ class Inputs(CachePolicy):
         return hash_objects(hashed_inputs)
 
 
-DEFAULT = Default()
 INPUTS = Inputs()
 NONE = _None()
 TASKDEF = TaskDef()
 FLOW_PARAMETERS = FlowParameters()
+FLOW_RUN_ID = FlowRunId()
+DEFAULT = INPUTS + TASKDEF + FLOW_RUN_ID

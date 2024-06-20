@@ -5,7 +5,8 @@ import pytest
 from prefect.cache_policies import (
     CachePolicy,
     CompoundCachePolicy,
-    Default,
+    FlowParameters,
+    FlowRunId,
     Inputs,
     TaskDef,
     _None,
@@ -38,26 +39,6 @@ class TestNonePolicy:
         policy = _None()
         other = typ()
         assert policy + other == other
-
-
-class TestDefaultPolicy:
-    def test_initializes(self):
-        policy = Default()
-        assert isinstance(policy, CachePolicy)
-
-    def test_returns_run_id(self):
-        class Run:
-            id = "foo"
-
-        class TaskCtx:
-            pass
-
-        task_ctx = TaskCtx()
-        task_ctx.task_run = Run()
-
-        policy = Default()
-        key = policy.compute_key(task_ctx=task_ctx, inputs=None, flow_parameters=None)
-        assert key == "foo"
 
 
 class TestInputsPolicy:
@@ -133,7 +114,7 @@ class TestCompoundPolicy:
         assert isinstance(policy, CachePolicy)
 
     def test_creation_via_addition(self):
-        one, two = Inputs(), Default()
+        one, two = Inputs(), TaskDef()
         policy = one + two
         assert isinstance(policy, CompoundCachePolicy)
 
@@ -152,7 +133,7 @@ class TestCompoundPolicy:
         assert policy.policies != new_policy.policies
 
     def test_creation_via_subtraction(self):
-        one = Default()
+        one = FlowRunId()
         policy = one - "foo"
         assert isinstance(policy, CompoundCachePolicy)
 
