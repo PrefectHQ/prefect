@@ -3,6 +3,8 @@ title: Quickstart
 description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
 ---
 
+import Installation from '/snippets/installation.mdx'
+
 Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly.
 In this quickstart, you will use Prefect to convert the following Python script to a schedulable, observable, resilient, and deployable workflow in minutes:
 
@@ -23,12 +25,11 @@ if __name__ == "__main__":
 
 ## Install Prefect
 
-Install the Prefect client.
-If needed, see [Install Prefect](/3.0rc/get-started/install/) for other options.
+<Installation />
 
-```bash
-pip install -U prefect==3.0.0rc3
-```
+<Tip>
+If needed, see [Install Prefect](/3.0rc/get-started/install/) for other options.
+</Tip>
 
 ## Connect to Prefect's API
 
@@ -251,8 +252,8 @@ Deployments elevate flows to remotely configurable entities that have their own 
 You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect.
 Now considering reading: 
 
-* [Write flows](/3.0rc/develop/write-flows/index)
-* [Write tasks](/3.0rc/develop/write-tasks/index)
+* [Write flows](/3.0rc/develop/write-flows)
+* [Write tasks](/3.0rc/develop/write-tasks)
 * [Self-host](/3.0rc/manage/self-host) your Prefect server
 
 <Tip>
