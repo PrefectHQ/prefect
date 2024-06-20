@@ -36,7 +36,7 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
         ) as release_spy:
             await resource_heavy()
 
-            acquire_spy.assert_called_once_with(["test"], 1)
+            acquire_spy.assert_called_once_with(["test"], 1, timeout_seconds=None)
 
             # On release we calculate how many seconds the slots were occupied
             # for, so here we really just want to make sure that the value

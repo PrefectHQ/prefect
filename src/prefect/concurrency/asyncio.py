@@ -61,7 +61,9 @@ async def concurrency(
     ```
     """
     names = names if isinstance(names, list) else [names]
-    limits = await _acquire_concurrency_slots(names, occupy)
+    limits = await _acquire_concurrency_slots(
+        names, occupy, timeout_seconds=timeout_seconds
+    )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
 
