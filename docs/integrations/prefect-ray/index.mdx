@@ -8,11 +8,9 @@ The `prefect-ray` integration makes it easy to accelerate your flow runs with Ra
 
 ## Install `prefect-ray`
 
-<div class="terminal">
 ```bash
 pip install prefect-ray
 ```
-</div>
 
 <Warning> 
 **Ray limitations**
@@ -157,27 +155,21 @@ if __name__ == "__main__":
 
 2. If you get an error stating that the module 'prefect' cannot be found, ensure `prefect` is installed on the remote cluster, with:
 
-<div class="terminal">
 ```bash
 pip install prefect
 ```
-</div>
 
 3. If you get an error with a message similar to "File system created with scheme 's3' could not be created", ensure the required Python modules are installed on **both local and remote machines**. For example, if using S3 for storage:
 
-<div class="terminal">
 ```bash
 pip install s3fs
 ```
-</div>
 
 4. If you are seeing timeout or other connection errors, double check the address provided to the `RayTaskRunner`. The address should look similar to: `address='ray://<head_node_ip_address>:10001'`:
 
-<div class="terminal">
 ```bash
 RayTaskRunner(address="ray://1.23.199.255:10001")
 ```
-</div>
 
 ## Specify remote options
 
