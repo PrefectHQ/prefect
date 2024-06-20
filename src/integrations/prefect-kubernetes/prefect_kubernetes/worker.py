@@ -110,7 +110,6 @@ import shlex
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
-    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     Dict,
@@ -151,7 +150,6 @@ from prefect.exceptions import (
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.utilities.dockerutils import get_prefect_image_name
-from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.timeout import timeout_async
@@ -168,18 +166,6 @@ from prefect_kubernetes.utilities import (
     _slugify_label_value,
     _slugify_name,
 )
-
-if TYPE_CHECKING:
-    import kubernetes_asyncio
-    from kubernetes_asyncio import config
-    from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
-    from kubernetes_asyncio.client.exceptions import ApiException
-    from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
-
-    from prefect.client.schemas import FlowRun
-
-else:
-    kubernetes_asyncio = lazy_import("kubernetes_asyncio")
 
 MAX_ATTEMPTS = 3
 RETRY_MIN_DELAY_SECONDS = 1

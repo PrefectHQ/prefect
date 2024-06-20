@@ -1,16 +1,11 @@
 import asyncio
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import Dict, List, Optional
 
+import kubernetes_asyncio
 from kubernetes_asyncio import watch
+from kubernetes_asyncio.client import ApiClient, V1Pod
 
 from prefect.events import Event, RelatedResource, emit_event
-from prefect.utilities.importtools import lazy_import
-
-if TYPE_CHECKING:
-    import kubernetes_asyncio
-    from kubernetes_asyncio.client import ApiClient, V1Pod
-else:
-    kubernetes_asyncio = lazy_import("kubernetes_asyncio")
 
 EVICTED_REASONS = {
     "OOMKilled",
