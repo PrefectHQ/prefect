@@ -51,8 +51,13 @@
       "url": "https://github.com/PrefectHQ/prefect"
     },
     {
-      "name": "Contact",
-      "icon": "envelope",
+      "name": "Community",
+      "icon": "slack",
+      "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
+    },
+    {
+      "name": "Prefect.io",
+      "icon": "link",
       "url": "https://www.prefect.io/"
     }
   ],
