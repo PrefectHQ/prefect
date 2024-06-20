@@ -4,8 +4,8 @@ description: Learn how to use Prefect task runners for concurrent, parallel or d
 ---
 
 Task runners are not required for task execution. 
-Calling a task function directly without a task runner executes the function in the main thread by default. 
-Execution of a task function blocks execution of its flow until the task completes. 
+Calling a task function directly without a task runner executes the function in the main thread by default, 
+which blocks execution of its flow until the task completes. 
 
 To enable concurrent, parallel, or distributed execution of tasks, use the `.submit()` method to submit a task to a _task runner_. 
 The default task runner in Prefect is the [`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner),
