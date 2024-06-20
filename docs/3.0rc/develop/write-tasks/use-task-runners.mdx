@@ -136,16 +136,16 @@ if __name__ == "__main__":
 ## Access results from submitted tasks
 
 When you use `.submit()` to submit a task to a task runner, the task runner creates a 
-[`PrefectConcurrentFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectConcurrentFuture) for access to the state and 
+[`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture) for access to the state and 
 result of the task.
 
-A `PrefectConcurrentFuture` is an object that provides access to a computation happening in a task runner, 
+A `PrefectFuture` is an object that provides access to a computation happening in a task runner, 
 even if that computation happens on a remote system.
 
 When you pass a future into a task, Prefect automatically waits for the "upstream" task (the one that the future references), 
 to reach a final state before starting the downstream task.
 
-This means that the downstream task won't receive the `PrefectConcurrentFuture` you passed as an argument. 
+This means that the downstream task won't receive the `PrefectFuture` you passed as an argument. 
 Instead, the downstream task receives the value that the upstream task returned.
 
 For example:
