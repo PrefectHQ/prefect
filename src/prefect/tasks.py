@@ -51,7 +51,10 @@ from prefect.settings import (
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.asyncutils import (
+    run_coro_as_sync,
+    sync_compatible,
+)
 from prefect.utilities.callables import (
     expand_mapping_parameters,
     get_call_parameters,
@@ -1284,7 +1287,8 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    def serve(self) -> "Task":
+    @sync_compatible
+    async def serve(self) -> NoReturn:
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1303,7 +1307,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        serve(self)
+        await serve(self)
 
 
 @overload
