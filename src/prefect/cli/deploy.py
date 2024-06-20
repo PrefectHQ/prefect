@@ -461,8 +461,8 @@ async def _run_single_deploy(
     push_steps = deploy_config.get("push", actions.get("push")) or []
     pull_steps = deploy_config.get("pull", actions.get("pull")) or []
 
-    # Don't resolve references in job variables. That will happen we preparing for
-    # a flow run.
+    # Don't resolve references in job variables. That will happen when 
+    # preparing for a flow run.
     _job_variables = deploy_config["work_pool"].pop("job_variables", {})
     deploy_config = await resolve_block_document_references(deploy_config)
     deploy_config = await resolve_variables(deploy_config)
