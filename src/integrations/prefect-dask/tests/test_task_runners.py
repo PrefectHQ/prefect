@@ -319,6 +319,39 @@ class TestDaskTaskRunner:
             with task_runner:
                 assert task_runner._cluster._adapt_called
 
+    def test_warns_if_future_garbage_collection_before_resolving(
+        self, caplog, task_runner
+    ):
+        @task
+        def test_task():
+            return 42
+
+        @flow(task_runner=task_runner)
+        def test_flow():
+            for _ in range(10):
+                test_task.submit()
+
+        test_flow()
+
+        assert "A future was garbage collected before it resolved" in caplog.text
+
+    def test_does_not_warn_if_future_resolved_when_garbage_collected(
+        self, task_runner, caplog
+    ):
+        @task
+        def test_task():
+            return 42
+
+        @flow(task_runner=task_runner)
+        def test_flow():
+            futures = [test_task.submit() for _ in range(10)]
+            for future in futures:
+                future.wait()
+
+        test_flow()
+
+        assert "A future was garbage collected before it resolved" not in caplog.text
+
     class TestInputArguments:
         async def test_dataclasses_can_be_passed_to_task_runners(self, task_runner):
             """
