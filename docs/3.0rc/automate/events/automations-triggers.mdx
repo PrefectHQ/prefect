@@ -7,7 +7,7 @@ Automations are a Prefect Cloud feature that enable you to configure [actions](#
 [trigger](#triggers) conditions.
 
 Potential triggers include the occurrence of events from changes in a flow run's state—or the absence of such events. 
-You can even define your own custom trigger to fire based on an [event](/3.0rc/react/events/) created from a 
+You can even define your own custom trigger to fire based on an [event](/3.0rc/automate/events/) created from a 
 webhook or a custom event defined in Python code.
 
 Actions include starting flow runs, pausing schedules, and sending custom notifications.
@@ -152,7 +152,7 @@ creating automations that are linked to specific deployments to run them based o
 
 Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, 
 specified trigger definitions create linked automations triggered by events matching your chosen 
-[grammar](/3.0rc/react/events/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) 
+[grammar](/3.0rc/automate/events/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) 
 to render the triggering `event` as the `parameters` of your  deployment's flow run.
 
 ### Define triggers in `prefect.yaml`
@@ -846,6 +846,6 @@ deployments:
 
 ## See also
 
-- To learn more about Prefect events, which can trigger automations, see the [events docs](/3.0rc/react/events/events/).
-- See the [webhooks guide](/3.0rc/react/events/webhook-triggers/) 
+- To learn more about Prefect events, which can trigger automations, see the [events docs](/3.0rc/automate/events/events/).
+- See the [webhooks guide](/3.0rc/automate/events/webhook-triggers/) 
 to learn how to create webhooks and receive external events.

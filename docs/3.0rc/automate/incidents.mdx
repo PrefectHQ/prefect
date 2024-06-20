@@ -32,7 +32,7 @@ There are several ways to create an incident:
 
 * **From a flow run, work pool, or block**, from the failed flow run, click the menu button and select "Declare an incident". This method automatically links the resource. 
 
-* **Through an [automation](/3.0rc/react/events/automations-triggers/)**, set up incident creation as an automated response to selected triggers.
+* **Through an [automation](/3.0rc/automate/events/automations-triggers/)**, set up incident creation as an automated response to selected triggers.
 
 ### Automate an incident
 
@@ -63,7 +63,7 @@ To get started with incident automations, specify two fields in your trigger:
       - `prefect-cloud.incident.resolved`
       - `prefect-cloud.incident.updated.severity`
 
-See [event triggers](/3.0rc/react/events/automations-triggers/#custom-triggers) for more information on custom triggers, and check out your event feed to see the event types emitted by your incidents and other resources (that is, the events that you can react to).
+See [event triggers](/3.0rc/automate/events/automations-triggers/#custom-triggers) for more information on custom triggers, and check out your event feed to see the event types emitted by your incidents and other resources (that is, the events that you can react to).
 
 When an incident is declared, any actions you configure such as pausing work pools or sending notifications, execute immediately.
 
