@@ -272,3 +272,22 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
     DEPRECATED_MODULE_ALIASES.append(
         AliasedModuleDefinition(old_name, new_name, callback)
     )
+
+
+class DeprecatedAwaitable:
+    """A mixin to use with classes that are return values from methods that used to be async."""
+
+    def __await__(self):
+        warnings.warn(
+            "Awaiting this object is deprecated. It is now synchronous, please remove the `await` keyword.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._return_value().__await__()
+
+    async def _return_value(self):
+        return self
+
+
+class DeprecatedAwaitableList(list, DeprecatedAwaitable):
+    pass

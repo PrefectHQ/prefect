@@ -7,6 +7,7 @@ from typing import Any, Generic, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
+from prefect._internal.compatibility.deprecated import DeprecatedAwaitable
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
@@ -22,7 +23,7 @@ F = TypeVar("F")
 logger = get_logger(__name__)
 
 
-class PrefectFuture(abc.ABC):
+class PrefectFuture(abc.ABC, DeprecatedAwaitable):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
     asynchronous execution of a task run. It provides methods to wait for the task
