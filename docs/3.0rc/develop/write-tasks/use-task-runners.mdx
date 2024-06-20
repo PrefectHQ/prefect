@@ -21,10 +21,8 @@ which runs tasks concurrently within a thread pool.
 The following Prefect-developed task runners for parallel or distributed task 
 execution are available as [integrations](/integrations/catalog/):
 
-- [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks using 
-[`dask.distributed`](http://distributed.dask.org/). 
-- [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) can run tasks using 
-[Ray](https://www.ray.io/).
+- [`DaskTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dask) can run tasks using [`dask.distributed`](http://distributed.dask.org/).
+- [`RayTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-ray) can run tasks using [Ray](https://www.ray.io/).
 
 <Note>
 **Concurrency vs. parallelism**
@@ -208,7 +206,7 @@ def my_task():
 def my_flow():
     future = my_task.submit()
     result = future.result(raise_on_failure=False)
-    if future.get_state().is_failed():
+    if future.state.is_failed():
         # `result` is an exception! handle accordingly
         ...
     else:

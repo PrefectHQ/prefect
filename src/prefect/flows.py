@@ -147,7 +147,7 @@ class Flow(Generic[P, R]):
             be provided as a string template with the flow's parameters as variables,
             or a function that returns a string.
         task_runner: An optional task runner to use for task execution within the flow;
-            if not provided, a `ConcurrentTaskRunner` will be used.
+            if not provided, a `ThreadPoolTaskRunner` will be used.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
