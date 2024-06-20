@@ -33,8 +33,7 @@ from uuid import UUID, uuid4
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.compatibility.deprecated import (
-    AwaitableList,
-    DeprecatedAwaitableList,
+    deprecated_async_method,
 )
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
@@ -851,6 +850,7 @@ class Task(Generic[P, R]):
     ) -> State[T]:
         ...
 
+    @deprecated_async_method
     def submit(
         self,
         *args: Any,
@@ -1000,6 +1000,7 @@ class Task(Generic[P, R]):
     ) -> List[State[T]]:
         ...
 
+    @deprecated_async_method
     def map(
         self,
         *args: Any,
@@ -1007,7 +1008,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         deferred: bool = False,
         **kwargs: Any,
-    ) -> DeprecatedAwaitableList:
+    ) -> Iterable[Union[PrefectFuture, State]]:
         """
         Submit a mapped run of the task to a worker.
 
@@ -1157,9 +1158,9 @@ class Task(Generic[P, R]):
             for future in futures:
                 future.wait()
                 states.append(future.state)
-            return AwaitableList(states)
+            return states
         else:
-            return AwaitableList(futures)
+            return futures
 
     def apply_async(
         self,

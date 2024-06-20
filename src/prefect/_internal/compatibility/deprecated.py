@@ -16,6 +16,7 @@ import warnings
 from typing import Any, Callable, List, Optional, Type, TypeVar
 
 import pendulum
+import wrapt
 from pydantic import BaseModel
 
 from prefect.utilities.callables import get_call_parameters
@@ -25,6 +26,7 @@ from prefect.utilities.importtools import (
     to_qualified_name,
 )
 
+A = TypeVar("A")
 T = TypeVar("T", bound=Callable)
 M = TypeVar("M", bound=BaseModel)
 
@@ -274,20 +276,38 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
     )
 
 
-class DeprecatedAwaitable:
-    """A mixin to use with classes that are return values from methods that used to be async."""
+class AsyncCompatProxy(wrapt.ObjectProxy):
+    """
+    A proxy object that allows for awaiting a method that is no longer async.
+
+    See https://wrapt.readthedocs.io/en/master/wrappers.html
+    """
+
+    def __init__(self, wrapped):
+        super().__init__(wrapped)
+        self._self_already_awaited = False
 
     def __await__(self):
-        warnings.warn(
-            "Awaiting this object is deprecated. It is now synchronous, please remove the `await` keyword.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._return_value().__await__()
+        if not self._self_already_awaited:
+            warnings.warn(
+                "This method is no longer async. Awaiting is not necessary - please remove the `await` keyword.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._self_already_awaited = True
+        yield
+        return self.__wrapped__
 
-    async def _return_value(self):
-        return self
+    def __repr__(self):
+        return repr(self.__wrapped__)
 
 
-class DeprecatedAwaitableList(list, DeprecatedAwaitable):
-    pass
+def deprecated_async_method(wrapped):
+    """Decorator that wraps a sync method to allow awaiting it even though it is no longer async."""
+
+    @wrapt.decorator
+    def wrapper(wrapped, instance, args, kwargs):
+        result = wrapped(*args, **kwargs)
+        return AsyncCompatProxy(result)
+
+    return wrapper(wrapped)
