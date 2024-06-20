@@ -106,7 +106,7 @@ def my_flow():
 | address | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
 | init_kwargs | Additional kwargs to use when calling `ray.init`. |
 
-Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. 
+The Ray client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. 
 If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
 ## Run tasks on a remote Ray cluster
