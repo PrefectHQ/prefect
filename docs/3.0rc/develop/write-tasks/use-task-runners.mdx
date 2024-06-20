@@ -43,7 +43,7 @@ such as for operations mapped across a dataset.
 To configure your flow to use a specific task runner, provide the runner to the `task_runner` keyword of
 the flow decorator.
 
-To submit work to the runner, use the `.submit()` method of your task.
+To submit work to the runner, use the task's `.submit()` method.
 This method returns a 
 [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which is a
 Prefect object that contains:
