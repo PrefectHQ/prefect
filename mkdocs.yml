@@ -322,7 +322,7 @@ nav:
                       - Deployment Steps: integrations/prefect-gcp/deployments/steps.md
                       - Workers:
                             - Cloud Run: integrations/prefect-gcp/cloud_run_worker.md
-                            - Cloud Run V2: cintegrations/prefect-gcp/loud_run_worker_v2.md
+                            - Cloud Run V2: integrations/prefect-gcp/cloud_run_worker_v2.md
                             - Vertex AI: integrations/prefect-gcp/vertex_worker.md
                 - GitHub:
                       - integrations/prefect-github/index.md
