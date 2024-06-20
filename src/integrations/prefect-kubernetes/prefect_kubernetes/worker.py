@@ -118,6 +118,7 @@ from typing import (
     Tuple,
 )
 
+import aiohttp
 import anyio.abc
 import kubernetes_asyncio
 from kubernetes_asyncio import config, watch
@@ -914,6 +915,7 @@ class KubernetesWorker(BaseWorker):
         configuration: KubernetesWorkerJobConfiguration,
         client,
     ):
+        timeout = aiohttp.ClientTimeout(total=None)
         core_client = CoreV1Api(client)
 
         logs = await core_client.read_namespaced_pod_log(
@@ -922,6 +924,7 @@ class KubernetesWorker(BaseWorker):
             follow=True,
             _preload_content=False,
             container="prefect-job",
+            _request_timeout=timeout,
         )
         try:
             async for line in logs.content:
