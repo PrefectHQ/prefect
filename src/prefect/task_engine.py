@@ -174,11 +174,18 @@ class TaskRunEngine(Generic[P, R]):
     def compute_transaction_key(self) -> str:
         key = None
         if self.task.cache_policy:
+            flow_run_context = FlowRunContext.get()
             task_run_context = TaskRunContext.get()
+
+            if flow_run_context:
+                parameters = flow_run_context.parameters
+            else:
+                parameters = None
+
             key = self.task.cache_policy.compute_key(
                 task_ctx=task_run_context,
                 inputs=self.parameters,
-                flow_parameters=None,
+                flow_parameters=parameters,
             )
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)

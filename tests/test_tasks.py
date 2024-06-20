@@ -17,6 +17,7 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
+from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
@@ -31,7 +32,6 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging import get_run_logger
-from prefect.records.cache_policies import DEFAULT, INPUTS, NONE, TASKDEF
 from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
@@ -1186,7 +1186,7 @@ class TestTaskRetries:
 
 
 class TestTaskCaching:
-    async def test_repeated_task_call_within_flow_is_not_cached_by_default(self):
+    async def test_repeated_task_call_within_flow_is_cached_by_default(self):
         @task
         def foo(x):
             return x
@@ -1197,7 +1197,7 @@ class TestTaskCaching:
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
-        assert second_state.name == "Completed"
+        assert second_state.name == "Cached"
         assert await second_state.result() == await first_state.result()
 
     async def test_cache_hits_within_flows_are_cached(self):
@@ -3728,7 +3728,7 @@ async def test_sets_run_name_once_per_call():
     task_calls = 0
     generate_task_run_name = MagicMock(return_value="some-string")
 
-    def test_task():
+    def test_task(x: str):
         nonlocal task_calls
         task_calls += 1
 
@@ -3736,8 +3736,8 @@ async def test_sets_run_name_once_per_call():
 
     @flow
     def my_flow(name):
-        decorated_task_method()
-        decorated_task_method()
+        decorated_task_method("a")
+        decorated_task_method("b")
 
         return "hi"
 
@@ -4618,11 +4618,11 @@ class TestCachePolicies:
         assert my_task.result_storage_key == "foo"
 
     def test_cache_policy_inits_as_expected(self):
-        @task(cache_policy=TASKDEF)
+        @task(cache_policy=TASK_SOURCE)
         def my_task():
             pass
 
-        assert my_task.cache_policy is TASKDEF
+        assert my_task.cache_policy is TASK_SOURCE
 
 
 class TestTransactions:
@@ -4642,7 +4642,6 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
-        assert str(state.state_details.task_run_id) == data["txn"].key
 
 
 class TestApplyAsync:

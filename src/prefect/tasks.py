@@ -32,6 +32,7 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
+from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
@@ -43,7 +44,6 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.records.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
