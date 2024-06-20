@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
+from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.utilities.collections import batched_iterable
@@ -21,6 +22,8 @@ NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.model_fields)
 
 # ...so we can only INSERT batches of a certain size at a time
 LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS
+
+logger = get_logger(__name__)
 
 
 def split_logs_into_batches(logs):
@@ -51,7 +54,7 @@ async def create_logs(
             # Background logs sometimes fail to write when the interpreter is shutting down.
             # This is a known issue in Python 3.12.2 that can be ignored and is fixed in Python 3.12.3.
             # see e.g. https://github.com/python/cpython/issues/113964
-            pass
+            logger.debug("Received event during interpreter shutdown, ignoring")
         else:
             raise
 
