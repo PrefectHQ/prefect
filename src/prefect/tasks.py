@@ -1288,7 +1288,7 @@ class Task(Generic[P, R]):
         return self.apply_async(args=args, kwargs=kwargs)
 
     @sync_compatible
-    async def serve(self):
+    async def serve(self) -> NoReturn:
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
