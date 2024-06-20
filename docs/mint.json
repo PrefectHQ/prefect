@@ -6,7 +6,7 @@
     "dark": "/logos/logo-word-white.svg"
   },
   "modeToggle": {
-    "default": "dark",
+    "default": "light",
     "isHidden": false
   },
   "favicon": "/logos/favicon.png",
@@ -681,7 +681,7 @@
       "group": "Contribute",
       "pages": [
         "contribute/index",
-        "contribute/install-contribute",
+        "contribute/dev-contribute",
         "contribute/styles-practices",
         "contribute/develop-a-new-worker-type",
         "contribute/contribute-integrations",

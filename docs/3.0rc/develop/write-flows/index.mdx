@@ -92,9 +92,9 @@ def print_message():
 print_message()
 ```
 
-### Async functions
+### Asynchronous functions
 
-Prefect also supports async functions. The resulting flows are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
+Prefect also supports asynchronous functions. The resulting flows are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
 
 ```python
 import asyncio
@@ -121,9 +121,9 @@ async def async_flow():
 asyncio.run(async_flow())
 ```
 
-### Methods
+### Class Methods
 
-Prefect supports synchronous and async methods as flows, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
+Prefect supports synchronous and asynchronous class methods as flows, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
 
 ```python
 from prefect import flow
@@ -215,62 +215,69 @@ list(generator) # prints 'Generator consumed!'
 
 ## Parameters
 
-As with any Python function, you can pass arguments to a flow.
-The positional and keyword arguments defined on your flow function are called [parameters](/3.0rc/develop/write-flows/#parameters).
-Prefect automatically performs type conversion using any provided type hints.
+As with any Python function, you can pass arguments to a flow including both positional and keyword arguments.
+These arguments defined on your flow function are called [parameters](/3.0rc/develop/write-flows/#parameters).
+They are stored by the Prefect orchestration engine on the flow run object.
 
-Make the repository a string parameter with a default value:
+Prefect automatically performs type conversion of inputs using any provided type hints.
+Type hints provide an easy way to enforce typing on your flow parameters and can be greatly enhanced with [Pydantic](https://pydantic-docs.helpmanual.io/).
+Prefect supports _any_ Pydantic model as a type hint within a flow is coerced automatically into the relevant object type:
 
-```python repo_info.py
-import httpx
+```python
 from prefect import flow
+from pydantic import BaseModel
 
+class Model(BaseModel):
+    a: int
+    b: float
+    c: str
 
 @flow
-def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-    url = f"https://api.github.com/repos/{repo_name}"
-    response = httpx.get(url)
-    response.raise_for_status()
-    repo = response.json()
-    print(f"{repo_name} repository statistics 🤓:")
-    print(f"Stars 🌠 : {repo['stargazers_count']}")
-    print(f"Forks 🍴 : {repo['forks_count']}")
+def model_validator(model: Model):
+    print(model)
+```
 
+For example, to automatically convert something to a datetime:
+
+```python
+from prefect import flow
+from datetime import datetime
+
+@flow
+def what_day_is_it(date: Optional[datetime] = None):
+    if date is None:
+        date = datetime.now(timezone.utc)
+    print(f"It was {date.strftime('%A')} on {date.isoformat()}")
 
 if __name__ == "__main__":
-    get_repo_info(repo_name="PrefectHQ/marvin")
+    what_day_is_it("2021-01-01T02:00:19.180906")
 ```
 
-Call this flow with varying values for the `repo_name` parameter (including "bad" values):
+When you run this flow, you'll see the following output:
 
+<div class="terminal">
 ```bash
-python repo_info.py
+It was Friday on 2021-01-01T02:00:19.180906
 ```
+</div>
 
+Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/serve-flows/).
+Flow run parameters sent to the API on flow calls are coerced to the appropriate types.
 
-Pass `repo_name="missing-org/missing-repo"` and you should see:
+<Warning>
+**Prefect API requires keyword arguments**
 
-```bash
-HTTPStatusError: Client error '404 Not Found' for url '<https://api.github.com/repos/missing-org/missing-repo>'
+When creating flow runs from the Prefect API, you must specify parameter names when overriding defaults. 
+They cannot be positional.
+</Warning>
 
-```
+Parameters are validated before a flow is run.
+If a flow call receives invalid parameters, a flow run is created in a `Failed` state.
+If a flow run for a deployment receives invalid parameters, it moves from a `Pending` state to `Failed` without entering a `Running` state.
 
-Navigate to your Prefect dashboard and compare the displays for these two runs.
-
-<Tip>
-**Logging**
-
-Prefect enables you to log a variety of useful information about your flow and task runs. You can capture information 
-about your workflows for purposes such as monitoring, troubleshooting, and auditing.
-Check out [Logging](/3.0rc/develop/observe-workflows/logging) for more information.
-</Tip>
-
-<Tip>
-**Retries**
-
-Unexpected errors may occur. For example the GitHub API may be temporarily unavailable or rate limited.
-Check out [Retries](/3.0rc/develop/recover-from-failure) to help make flows more resilient.
-</Tip>
+<Note>
+Flow run parameters cannot exceed `512kb` in size.
+</Note>
 
 ## Flow runs
 
@@ -287,9 +294,24 @@ You can also create a flow run by:
 
 However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
 
+<Tip>
+**Logging**
+
+Prefect enables you to log a variety of useful information about your flow and task runs. 
+You can capture information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
+Check out [Logging](/3.0rc/develop/observe-workflows/logging) for more information.
+</Tip>
+
 When you run a flow that contains tasks or additional flows, Prefect tracks the relationship of each child run to the parent flow run.
 
 ![Prefect UI](/3.0rc/img/ui/timeline-flows.png)
+
+<Tip>
+**Retries**
+
+Unexpected errors may occur. For example the GitHub API may be temporarily unavailable or rate limited.
+Check out [Retries](/3.0rc/develop/recover-from-failure) to learn how to make your flows more resilient.
+</Tip>
 
 ## Writing flows
 
@@ -616,71 +638,6 @@ cases by simply passing different parameters to the subflow in which they run.
 parallel execution of certain tasks with Dask, group them in a subflow that uses the Dask task runner. You can use a different 
 task runner for each subflow.
 </Tip>
-
-## Parameters
-
-You can call flows with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** 
-mapping name to value.
-These parameters are stored by the Prefect orchestration engine on the flow run object.
-
-<Warning>
-**Prefect API requires keyword arguments**
-
-When creating flow runs from the Prefect API, you must specify parameter names when overriding defaults. They cannot be positional.
-</Warning>
-
-Type hints provide an easy way to enforce typing on your flow parameters with [Pydantic](https://pydantic-docs.helpmanual.io/).
-This means _any_ Pydantic model used as a type hint within a flow is coerced automatically into the relevant object type:
-
-```python
-from prefect import flow
-from pydantic import BaseModel
-
-class Model(BaseModel):
-    a: int
-    b: float
-    c: str
-
-@flow
-def model_validator(model: Model):
-    print(model)
-```
-
-Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/serve-flows/).
-Flow run parameters sent to the API on flow calls are coerced to a serializable form.
-Type hints on your flow functions provide a way of automatically coercing JSON provided values to their appropriate Python representation.
-
-For example, to automatically convert something to a datetime:
-
-```python
-from prefect import flow
-from datetime import datetime
-
-@flow
-def what_day_is_it(date: Optional[datetime] = None):
-    if date is None:
-        date = datetime.now(timezone.utc)
-    print(f"It was {date.strftime('%A')} on {date.isoformat()}")
-
-if __name__ == "__main__":
-    what_day_is_it("2021-01-01T02:00:19.180906")
-```
-
-When you run this flow, you'll see the following output:
-
-<div class="terminal">
-```bash
-It was Friday on 2021-01-01T02:00:19.180906
-```
-</div>
-
-Parameters are validated before a flow is run.
-If a flow call receives invalid parameters, a flow run is created in a `Failed` state.
-If a flow run for a deployment receives invalid parameters, it moves from a `Pending` state to `Failed` without entering a `Running` state.
-
-<Note>
-Flow run parameters cannot exceed `512kb` in size.
-</Note>
 
 ## Final state determination
 
