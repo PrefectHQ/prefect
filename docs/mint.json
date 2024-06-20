@@ -378,7 +378,7 @@
           "group": "Root",
           "pages": [
             "3.0rc/api-ref/server/root/health-check",
-            "3.0rc/api-ref/server/root/orion-info",
+            "3.0rc/api-ref/server/root/server-version",
             "3.0rc/api-ref/server/root/hello",
             "3.0rc/api-ref/server/root/perform-readiness-check"
           ]
@@ -393,6 +393,7 @@
             "3.0rc/api-ref/server/flows/count-flows",
             "3.0rc/api-ref/server/flows/read-flow-by-name",
             "3.0rc/api-ref/server/flows/read-flows",
+            "3.0rc/api-ref/server/flows/paginate-flows",
             "3.0rc/api-ref/server/flows/count-deployments-by-flow",
             "3.0rc/api-ref/server/flows/next-runs-by-flow"
           ]
