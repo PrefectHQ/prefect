@@ -85,7 +85,6 @@
             "3.0rc/develop/write-tasks/index",
             "3.0rc/develop/write-tasks/use-task-runners",
             "3.0rc/develop/write-tasks/dask-and-ray",
-            "3.0rc/develop/write-tasks/upstream-dependencies",
             "3.0rc/develop/write-tasks/deferred-tasks"
           ]
         },
