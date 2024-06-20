@@ -72,8 +72,9 @@ from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
+    LocalStorage,
     RunnerStorage,
-    create_storage_from_url,
+    create_storage_from_source,
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -969,7 +970,7 @@ class Flow(Generic[P, R]):
             ```
         """
         if isinstance(source, str):
-            storage = create_storage_from_url(source)
+            storage = create_storage_from_source(source)
         elif isinstance(source, RunnerStorage):
             storage = source
         elif hasattr(source, "get_directory"):
@@ -980,6 +981,9 @@ class Flow(Generic[P, R]):
                 " URL to remote storage or a storage object."
             )
         with tempfile.TemporaryDirectory() as tmpdir:
+            if not isinstance(storage, LocalStorage):
+                storage.set_base_path(Path(tmpdir))
+                await storage.pull_code()
             storage.set_base_path(Path(tmpdir))
             await storage.pull_code()
 
