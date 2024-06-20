@@ -166,6 +166,8 @@ async def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
 async def _mock_pods_stream_that_returns_completed_pod(*args, **kwargs):
     job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
     job_pod.status.phase = "Running"
+    job_pod.metadata.name = "mock-job-pod"
+    job_pod.metadata.namespace = "mock-namespace"
     job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
     # Yield the completed job
     job.status.completion_time = True
