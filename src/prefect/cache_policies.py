@@ -142,7 +142,14 @@ class TaskDef(CachePolicy):
 
 @dataclass
 class FlowParameters(CachePolicy):
-    pass
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
+        return hash_objects(flow_parameters)
 
 
 @dataclass
@@ -177,3 +184,4 @@ DEFAULT = Default()
 INPUTS = Inputs()
 NONE = _None()
 TASKDEF = TaskDef()
+FLOW_PARAMETERS = FlowParameters()

@@ -11,6 +11,7 @@ import anyio
 import pytest
 
 from prefect import Task, flow, task
+from prefect.cache_policies import FLOW_PARAMETERS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import (
@@ -1238,6 +1239,42 @@ class TestCachePolicy:
 
         assert first_val is None
         assert second_val is None
+
+    async def test_flow_parameter_caching(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            cache_policy=FLOW_PARAMETERS,
+            result_storage=fs,
+        )
+        def my_random_task(x: int):
+            import random
+
+            return random.randint(0, x)
+
+        @flow
+        def my_param_flow(x: int, other_val: str):
+            first_val = my_random_task(x, return_state=True)
+            second_val = my_random_task(x, return_state=True)
+            return first_val, second_val
+
+        first, second = my_param_flow(4200, other_val="foo")
+        assert first.name == "Completed"
+        assert second.name == "Cached"
+
+        first_result = await first.result()
+        second_result = await second.result()
+        assert first_result == second_result
+
+        third, fourth = my_param_flow(4200, other_val="bar")
+        assert third.name == "Completed"
+        assert fourth.name == "Cached"
+
+        third_result = await third.result()
+        fourth_result = await fourth.result()
+
+        assert third_result not in [first_result, second_result]
+        assert fourth_result not in [first_result, second_result]
 
 
 class TestGenerators:
