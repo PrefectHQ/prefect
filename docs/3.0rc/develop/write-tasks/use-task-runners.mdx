@@ -50,7 +50,7 @@ Prefect object that contains:
 - a reference to the payload returned by the task;
 - and a [`State`](/3.0rc/api-ref/server/schemas/states/), which is a Prefect object indicating the state of the task run.
 
-Prefect future objects must be resolved explicitly before returning from your flow. 
+Prefect future objects must be resolved explicitly before returning from a flow. 
 This can be done by calling `.wait()` on the future.
 
 For example:
