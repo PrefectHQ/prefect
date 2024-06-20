@@ -1,7 +1,8 @@
-import asyncio
 from unittest import mock
 
 import pytest
+from httpx import HTTPStatusError, Request, Response
+from starlette import status
 
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
@@ -34,7 +35,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
         ) as release_spy:
             resource_heavy()
 
-            acquire_spy.assert_called_once_with(["test"], 1)
+            acquire_spy.assert_called_once_with(["test"], 1, timeout_seconds=None)
 
             # On release we calculate how many seconds the slots were occupied
             # for, so here we really just want to make sure that the value
@@ -168,18 +169,25 @@ async def test_concurrency_can_be_used_while_event_loop_is_running(
 
 
 @pytest.fixture
-def mock_acquire_concurrency_slots(monkeypatch):
-    async def blocks_forever(*args, **kwargs):
-        while True:
-            await asyncio.sleep(1)
+def mock_increment_concurrency_slots(monkeypatch):
+    async def mocked_increment_concurrency_slots(*args, **kwargs):
+        response = Response(
+            status_code=status.HTTP_423_LOCKED,
+            headers={"Retry-After": "0.01"},
+        )
+        raise HTTPStatusError(
+            message="Locked",
+            request=Request("GET", "http://test.com"),
+            response=response,
+        )
 
     monkeypatch.setattr(
-        "prefect.concurrency.sync._acquire_concurrency_slots",
-        blocks_forever,
+        "prefect.client.orchestration.PrefectClient.increment_concurrency_slots",
+        mocked_increment_concurrency_slots,
     )
 
 
-@pytest.mark.usefixtures("concurrency_limit", "mock_acquire_concurrency_slots")
+@pytest.mark.usefixtures("concurrency_limit", "mock_increment_concurrency_slots")
 def test_concurrency_respects_timeout():
     with pytest.raises(TimeoutError, match=".*timed out after 0.01 second(s)*."):
         with concurrency("test", occupy=1, timeout_seconds=0.01):

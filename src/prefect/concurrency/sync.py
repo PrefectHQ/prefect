@@ -12,7 +12,6 @@ except ImportError:
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
-from prefect.utilities.timeout import timeout
 
 from .asyncio import (
     _acquire_concurrency_slots,
@@ -57,10 +56,9 @@ def concurrency(
     """
     names = names if isinstance(names, list) else [names]
 
-    with timeout(seconds=timeout_seconds):
-        limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
-            _acquire_concurrency_slots, names, occupy
-        )
+    limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
+        _acquire_concurrency_slots, names, occupy, timeout_seconds=timeout_seconds
+    )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
 
