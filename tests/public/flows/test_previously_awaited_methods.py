@@ -11,7 +11,7 @@ async def test_awaiting_formerly_async_methods():
         return 42
 
     @flow
-    async def get_some_numbers():
+    async def get_some_numbers_old_await_syntax():
         future1 = await get_random_number.submit(None)
 
         await future1.wait()
@@ -34,7 +34,7 @@ async def test_awaiting_formerly_async_methods():
     # Test the old way (with await)
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        await get_some_numbers()
+        await get_some_numbers_old_await_syntax()
         assert (
             len(w) == N * 2 + 4
         )  # 1 submit, 1 wait, 1 result, 1 map, N waits, N results
