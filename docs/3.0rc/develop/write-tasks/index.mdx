@@ -493,7 +493,10 @@ By default Prefect's caching logic is based on the following attributes of a tas
 - the code definition of the task
 - the prevailing flow run ID, or if executed autonomously, the prevailing task run ID
 
-All of these are hashed to compute the task's _cache key_.
+All of these are hashed to compute the task's _cache key_. 
+This implies that, by default, calling the same task with the same inputs more than once within a flow 
+will result in cached behavior for all calls after the first.
+This behavior can be configured - see [customizing the cache](/3.0rc/develop/write-tasks/index#customizing-the-cache) below.
 
 ### Cache keys
 
@@ -531,7 +534,7 @@ Prefect comes prepackaged with a few common cache policies:
 - `DEFAULT`: this cache policy uses the task's inputs, it's code definition, as well as the prevailing flow run ID
 to compute the task's cache key.
 - `INPUTS`: this cache policy uses _only_ the task's inputs to compute the cache key.
-- `TASKDEF`: this cache policy uses _only_ the task's code definition to compute the cache key.
+- `TASK_SOURCE`: this cache policy uses _only_ the task's code definition to compute the cache key.
 - `FLOW_PARAMETERS`: this cache policy uses _only_ the parameter values provided to the parent flow run
 to compute the cache key.
 - `NONE`: this cache policy always returns `None` and therefore avoids caching and result persistence altogether
@@ -540,12 +543,12 @@ These can be set using the `cache_policy` keyword on the [task decorator](/3.0rc
 
 ```python
 from prefect import task
-from prefect.cache_policies import TASKDEF
+from prefect.cache_policies import TASK_SOURCE
 
 import time
 
 
-@task(cache_policy=TASKDEF)
+@task(cache_policy=TASK_SOURCE)
 def my_stateful_task():
     print('sleeping')
     time.sleep(10)
@@ -558,7 +561,7 @@ my_stateful_task() # does not sleep
 No matter how many flows call it, this task will run once and only once until its underlying code is altered:
 
 ```python
-@task(cache_policy=TASKDEF)
+@task(cache_policy=TASK_SOURCE)
 def my_stateful_task():
     print('sleeping')
     time.sleep(10)
@@ -595,9 +598,9 @@ For example:
 
 ```python
 from prefect import task
-from prefect.cache_policies import TASKDEF, INPUTS
+from prefect.cache_policies import TASK_SOURCE, INPUTS
 
-@task(cache_policy=TASKDEF + INPUTS)
+@task(cache_policy=TASK_SOURCE + INPUTS)
 def my_cached_task(x: int):
     return x + 42
 ```
