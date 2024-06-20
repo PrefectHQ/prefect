@@ -82,6 +82,7 @@ from ray.exceptions import GetTimeoutError
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import serialize_context
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import State, exception_to_crashed_state
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.task_runners import TaskRunner
@@ -89,6 +90,8 @@ from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
 from prefect_ray.context import RemoteOptionsContext
+
+logger = get_logger(__name__)
 
 
 class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
@@ -128,6 +131,24 @@ class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
+
+    def __del__(self):
+        if self._final_state:
+            return
+        try:
+            ray.get(self.wrapped_future, timeout=0)
+            return
+        except GetTimeoutError:
+            pass
+
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "A future was garbage collected before it resolved."
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+        )
 
 
 class RayTaskRunner(TaskRunner[PrefectRayFuture]):

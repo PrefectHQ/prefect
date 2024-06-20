@@ -79,12 +79,15 @@ import distributed
 
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect_dask.client import PrefectDaskClient
+
+logger = get_logger(__name__)
 
 
 class PrefectDaskFuture(PrefectWrappedFuture[distributed.Future]):
@@ -128,6 +131,18 @@ class PrefectDaskFuture(PrefectWrappedFuture[distributed.Future]):
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
+
+    def __del__(self):
+        if self._final_state or self._wrapped_future.done():
+            return
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "A future was garbage collected before it resolved."
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+        )
 
 
 class DaskTaskRunner(TaskRunner):
