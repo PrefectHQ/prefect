@@ -20,4 +20,3 @@ def handle_saving(*args, **kwargs):
 
 
 pytest_benchmark.session.BenchmarkSession.handle_saving = handle_saving
-
