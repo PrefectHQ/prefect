@@ -68,8 +68,8 @@ class KubernetesEventsReplicator:
         """Convert a pod to a resource dictionary"""
         return {
             "prefect.resource.id": f"prefect.kubernetes.pod.{pod.metadata.uid}",
-            "prefect.resource.name": pod.metadata.name,
-            "kubernetes.namespace": pod.metadata.namespace,
+            "prefect.resource.name":str(pod.metadata.name),
+            "kubernetes.namespace": str(pod.metadata.namespace),
         }
 
     async def _replicate_pod_events(self):
