@@ -56,9 +56,10 @@ from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
-from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
+from prefect.context import registry_from_script
+from prefect.deployments.runner import deploy
 from prefect.deployments.steps.core import run_steps
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     InvalidNameError,
@@ -87,6 +88,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
@@ -118,11 +120,11 @@ logger = get_logger("flows")
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
+    from prefect.deployments.runner import RunnerDeployment
     from prefect.flows import FlowRun
 
 
-@PrefectObjectRegistry.register_instances
 class Flow(Generic[P, R]):
     """
     A Prefect workflow definition.
@@ -998,7 +1000,7 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         work_pool_name: Optional[str] = None,
-        image: Optional[Union[str, DeploymentImage]] = None,
+        image: Optional[Union[str, DockerImage]] = None,
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
@@ -1034,7 +1036,7 @@ class Flow(Generic[P, R]):
             work_pool_name: The name of the work pool to use for this deployment. Defaults to
                 the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
             image: The name of the Docker image to build, including the registry and
-                repository. Pass a DeploymentImage instance to customize the Dockerfile used
+                repository. Pass a DockerImage instance to customize the Dockerfile used
                 and build arguments.
             build: Whether or not to build a new image for the flow. If False, the provided
                 image will be used as-is and pulled at runtime.
@@ -1696,29 +1698,26 @@ def load_flow_from_entrypoint(
         FlowScriptError: If an exception is encountered while running the script
         MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
-    with PrefectObjectRegistry(  # type: ignore
-        block_code_execution=True,
-        capture_failures=True,
-    ):
-        if ":" in entrypoint:
-            # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
-            path, func_name = entrypoint.rsplit(":", maxsplit=1)
-        else:
-            path, func_name = entrypoint.rsplit(".", maxsplit=1)
-        try:
-            flow = import_object(entrypoint)
-        except AttributeError as exc:
-            raise MissingFlowError(
-                f"Flow function with name {func_name!r} not found in {path!r}. "
-            ) from exc
 
-        if not isinstance(flow, Flow):
-            raise MissingFlowError(
-                f"Function with name {func_name!r} is not a flow. Make sure that it is "
-                "decorated with '@flow'."
-            )
+    if ":" in entrypoint:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+    else:
+        path, func_name = entrypoint.rsplit(".", maxsplit=1)
+    try:
+        flow = import_object(entrypoint)
+    except AttributeError as exc:
+        raise MissingFlowError(
+            f"Flow function with name {func_name!r} not found in {path!r}. "
+        ) from exc
 
-        return flow
+    if not isinstance(flow, Flow):
+        raise MissingFlowError(
+            f"Function with name {func_name!r} is not a flow. Make sure that it is "
+            "decorated with '@flow'."
+        )
+
+    return flow
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str) -> Flow:
