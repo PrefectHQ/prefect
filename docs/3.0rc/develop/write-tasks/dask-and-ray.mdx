@@ -242,25 +242,21 @@ Note that, because you're using `DaskTaskRunner` in a script, you must use `if _
 
 Run `dask_flow.py`. If you get a warning about accepting incoming network connections, that's okay - everything is local in this example.
 
-<div class="terminal">
 ```bash
 python dask_flow.py
 ```
-</div>
 
 `DaskTaskRunner` automatically creates a local Dask cluster, then starts executing all of the task runs in parallel.
 The results do not return in the same order as the sequential code above.
 
 Abbreviated output:
 
-<div class="terminal">
 ```bash
 goodbye marvin
 hello arthur
 goodbye ford
 hello trillian
 ```
-</div>
 
 Notice what happens if you do not use the `submit` method when calling tasks:
 
