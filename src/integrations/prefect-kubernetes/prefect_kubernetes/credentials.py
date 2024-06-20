@@ -151,7 +151,7 @@ class KubernetesCredentials(Block):
         self,
         client_type: Literal["apps", "batch", "core", "custom_objects"],
         configuration: Optional[Configuration] = None,
-    ) -> AsyncGenerator[KubernetesClient, None, None]:
+    ) -> AsyncGenerator[KubernetesClient, None]:
         """Convenience method for retrieving a Kubernetes API client for deployment resources.
 
         Args:
