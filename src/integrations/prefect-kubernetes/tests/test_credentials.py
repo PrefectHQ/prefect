@@ -66,7 +66,9 @@ class TestCredentials:
         key_file.close()
 
         # Return file names
-        return (cert_file_name, key_file_name)
+        yield (cert_file_name, key_file_name)
+        os.remove(cert_file_name)
+        os.remove(key_file_name)
 
     @pytest.fixture
     def config_context(self, create_temp_self_signed_cert):
