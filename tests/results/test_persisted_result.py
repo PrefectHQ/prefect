@@ -194,3 +194,45 @@ class TestExpirationField:
 
         assert await result.get() == 42
         assert result.expiration == timestamp
+
+
+async def test_write_is_idempotent(storage_block):
+    result = await PersistedResult.create(
+        "test-defer",
+        storage_block_id=storage_block._block_document_id,
+        storage_block=storage_block,
+        storage_key_fn=lambda: "test-defer-path",
+        serializer=JSONSerializer(),
+        defer_persistence=True,
+    )
+
+    with pytest.raises(ValueError, match="does not exist"):
+        await result._read_blob()
+
+    await result.write()
+    blob = await result._read_blob()
+    assert blob.load() == "test-defer"
+
+    await result.write(obj="new-object!")
+    blob = await result._read_blob()
+    assert blob.load() == "test-defer"
+
+
+async def test_lifecycle_of_defer_persistence(storage_block):
+    result = await PersistedResult.create(
+        "test-defer",
+        storage_block_id=storage_block._block_document_id,
+        storage_block=storage_block,
+        storage_key_fn=lambda: "test-defer-path",
+        serializer=JSONSerializer(),
+        defer_persistence=True,
+    )
+
+    assert await result.get() == "test-defer"
+
+    with pytest.raises(ValueError, match="does not exist"):
+        await result._read_blob()
+
+    await result.write()
+    blob = await result._read_blob()
+    assert blob.load() == "test-defer"

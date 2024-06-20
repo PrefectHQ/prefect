@@ -57,8 +57,9 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
+from prefect.deployments.runner import deploy
 from prefect.deployments.steps.core import run_steps
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     InvalidNameError,
@@ -87,6 +88,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
@@ -118,7 +120,8 @@ logger = get_logger("flows")
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
+    from prefect.deployments.runner import RunnerDeployment
     from prefect.flows import FlowRun
 
 
@@ -998,7 +1001,7 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         work_pool_name: Optional[str] = None,
-        image: Optional[Union[str, DeploymentImage]] = None,
+        image: Optional[Union[str, DockerImage]] = None,
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
@@ -1034,7 +1037,7 @@ class Flow(Generic[P, R]):
             work_pool_name: The name of the work pool to use for this deployment. Defaults to
                 the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
             image: The name of the Docker image to build, including the registry and
-                repository. Pass a DeploymentImage instance to customize the Dockerfile used
+                repository. Pass a DockerImage instance to customize the Dockerfile used
                 and build arguments.
             build: Whether or not to build a new image for the flow. If False, the provided
                 image will be used as-is and pulled at runtime.
