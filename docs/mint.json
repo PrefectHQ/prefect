@@ -107,7 +107,6 @@
             "3.0rc/develop/control-workflows/task-run-limits",
             "3.0rc/develop/control-workflows/global-concurrency-limits",
             "3.0rc/develop/control-workflows/pause-resume",
-            "3.0rc/develop/control-workflows/cancel",
             "3.0rc/develop/control-workflows/inputs"
           ]
         },
@@ -210,6 +209,7 @@
             "3.0rc/resources/upgrade-agents-to-workers"
           ]
         },
+        "3.0rc/resources/cancel",
         "3.0rc/resources/visualize-flow-structure",
         "3.0rc/resources/daemonize-processes",
         "3.0rc/resources/big-data",
