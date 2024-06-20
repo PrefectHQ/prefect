@@ -111,32 +111,20 @@ def mock_job():
 
 @pytest.fixture
 def mock_core_client(monkeypatch, mock_cluster_config):
-    # Create a mock for CoreV1Api with async methods
-    mock_core_v1_api = MagicMock(spec=CoreV1Api)
-    mock_core_v1_api.read_namespace = AsyncMock()
-    mock_core_v1_api.list_namespaced_pod = AsyncMock()
-    mock_core_v1_api.read_namespaced_pod_log = AsyncMock()
-
-    # Mock the return values of the async methods
-    mock_core_v1_api.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
-    mock_core_v1_api.list_namespaced_pod.return_value.items = []
-    mock_core_v1_api.read_namespaced_pod_log.return_value.content = AsyncMock()
-    mock_core_v1_api.read_namespaced_pod_log.return_value.content.readline = AsyncMock(
+    mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
+    mock.return_value.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
+    mock.return_value.list_namespaced_pod.return_value.items.sort = MagicMock()
+    mock.return_value.read_namespaced_pod_log.return_value.content.readline = AsyncMock(
         return_value=None
     )
 
-    # Mock the KubernetesWorker._get_configured_kubernetes_client method to return an ApiClient mock
-    mock_api_client = MagicMock(spec=ApiClient)
     monkeypatch.setattr(
         "prefect_kubernetes.worker.KubernetesWorker._get_configured_kubernetes_client",
-        mock_api_client,
+        MagicMock(spec=ApiClient),
     )
-
-    # Replace the CoreV1Api with our mock
-    monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock_core_v1_api)
-    monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api", mock_core_v1_api)
-
-    return mock_core_v1_api
+    monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock)
+    monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api", mock)
+    return mock
 
 
 @pytest.fixture
@@ -160,8 +148,6 @@ def mock_batch_client(monkeypatch, mock_job):
 async def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
     job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
     job_pod.status.phase = "Running"
-    job_pod.metadata.name = "mock-job-pod"
-    job_pod.metadata.namespace = "mock-namespace"
 
     job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
     job.status.completion_time = pendulum.now("utc").timestamp()
@@ -180,8 +166,6 @@ async def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
 async def _mock_pods_stream_that_returns_completed_pod(*args, **kwargs):
     job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
     job_pod.status.phase = "Running"
-    job_pod.metadata.name = "mock-job-pod"
-    job_pod.metadata.namespace = "mock-namespace"
     job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
     # Yield the completed job
     job.status.completion_time = True
