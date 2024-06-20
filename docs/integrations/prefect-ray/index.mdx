@@ -26,7 +26,7 @@ See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overv
 
 ## Run tasks on Ray
 
-The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/develop/write-tasks/use-task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution.
+The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/develop/write-tasks/task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution.
 By default, a temporary Ray instance is created for the duration of the flow run.
 For example, this flow counts to three in parallel:
 

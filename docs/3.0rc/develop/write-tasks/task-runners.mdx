@@ -1,25 +1,16 @@
 ---
-title: Task runners
-description: Learn how to use Prefect task runners for parallel or distributed task execution.
+title: Run tasks concurrently or in parallel
+description: Learn how to use task runners for concurrent, parallel or distributed execution of tasks.
 ---
 
-Task runners enable you to engage specific executors for Prefect tasks to enable concurrent, parallel, or 
-distributed execution of tasks.
+Task runners are not required for task execution. 
+Calling a task function directly without a task runner executes the function in the main thread by default, 
+which blocks execution of its flow until the task completes. 
 
-Task runners are not required for task execution. Calling a task function directly without a task runner executes the 
-function in the main thread by default. Execution of a task function blocks execution of its flow until the task completes. 
-
-You can use the `.submit()` method on a task to submit that task to a _task runner_. Using a task runner 
-enables you to run tasks concurrently, or in parallel using a distributed execution library such as Dask or Ray.
-
-### Built-in task runners and integrations
-
-The default task runner in Prefect is the 
-[`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner),
+To enable concurrent, parallel, or distributed execution of tasks, use the `.submit()` method to submit a task to a _task runner_. 
+The default task runner in Prefect is the [`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner),
 which runs tasks concurrently within a thread pool.
-
-The following Prefect-developed task runners for parallel or distributed task 
-execution are available as [integrations](/integrations/catalog/):
+For parallel or distributed task execution, you must additionally install one of the following task runners, available as integrations:
 
 - [`DaskTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dask) can run tasks using [`dask.distributed`](http://distributed.dask.org/).
 - [`RayTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-ray) can run tasks using [Ray](https://www.ray.io/).
@@ -38,13 +29,10 @@ such as for operations mapped across a dataset.
 
 ## Configure a task runner
 
-To configure your flow to use a specific task runner, provide the runner to the `task_runner` keyword of
-the flow decorator.
+To configure your flow to use a specific task runner, provide the runner to the `task_runner` keyword of the flow decorator.
 
 To submit work to the runner, use the task's `.submit()` method.
-This method returns a 
-[`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which is a
-Prefect object that contains:
+This method returns a [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which is a Prefect object that contains:
 - a reference to the payload returned by the task;
 - and a [`State`](/3.0rc/api-ref/server/schemas/states/), which is a Prefect object indicating the state of the task run.
 
@@ -84,14 +72,11 @@ Prefect uses the default `ThreadPoolTaskRunner`.
 
 ## Use multiple task runners
 
-Each flow can only have one task runner, but sometimes you may want a subset of your tasks to run 
-using a different task runner than the one configured on the flow. 
-In this case, you can create [nested flows](/3.0rc/develop/write-flows/#composing-flows) 
-for tasks that need to use a different task runner.
+Each flow can only have one task runner, but sometimes you may want a subset of your tasks to run using a different task runner than the one configured on the flow. 
+In this case, you can create [nested flows](/3.0rc/develop/write-flows/#composing-flows) for tasks that need to use a different task runner.
 
-For example, you can have a flow (in the example below called `multiple_runner_flow`) that runs its tasks locally 
-using the `ThreadPoolTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, 
-you can create a subflow (such as `dask_subflow`) to run those tasks using the `DaskTaskRunner`.
+For example, you can have a flow (in the example below called `multiple_runner_flow`) that runs its tasks locally using the `ThreadPoolTaskRunner`. 
+If you have some tasks that can run more efficiently in parallel on a Dask cluster, you can create a subflow (such as `dask_subflow`) to run those tasks using the `DaskTaskRunner`.
 
 ```python
 from prefect import flow, task
