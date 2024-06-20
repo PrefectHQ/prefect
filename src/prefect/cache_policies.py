@@ -8,6 +8,10 @@ from prefect.utilities.hashing import hash_objects
 
 @dataclass
 class CachePolicy:
+    """
+    Base class for all cache policies.
+    """
+
     @classmethod
     def from_cache_key_fn(
         cls, cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
@@ -59,6 +63,11 @@ class CachePolicy:
 
 @dataclass
 class CacheKeyFnPolicy(CachePolicy):
+    """
+    This policy accepts a custom function with signature f(task_run_context, task_parameters, flow_parameters) -> str
+    and uses it to compute a task run cache key.
+    """
+
     # making it optional for tests
     cache_key_fn: Optional[
         Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
@@ -77,6 +86,13 @@ class CacheKeyFnPolicy(CachePolicy):
 
 @dataclass
 class CompoundCachePolicy(CachePolicy):
+    """
+    This policy is constructed from two or more other cache policies and works by computing the keys
+    for each policy individually, and then hashing a sorted tuple of all computed keys.
+
+    Any keys that return `None` will be ignored.
+    """
+
     policies: Optional[list] = None
 
     def compute_key(
@@ -88,34 +104,25 @@ class CompoundCachePolicy(CachePolicy):
     ) -> Optional[str]:
         keys = []
         for policy in self.policies or []:
-            keys.append(
-                policy.compute_key(
-                    task_ctx=task_ctx,
-                    inputs=inputs,
-                    flow_parameters=flow_parameters,
-                    **kwargs,
-                )
+            policy_key = policy.compute_key(
+                task_ctx=task_ctx,
+                inputs=inputs,
+                flow_parameters=flow_parameters,
+                **kwargs,
             )
+            if policy_key is not None:
+                keys.append(policy_key)
+        if not keys:
+            return None
         return hash_objects(*keys)
 
 
 @dataclass
-class Default(CachePolicy):
-    "Execution run ID only"
-
-    def compute_key(
-        self,
-        task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
-        **kwargs,
-    ) -> Optional[str]:
-        return str(task_ctx.task_run.id)
-
-
-@dataclass
 class _None(CachePolicy):
-    "ignore key policies altogether, always run - prevents persistence"
+    """
+    Policy that always returns `None` for the computed cache key.
+    This policy prevents persistence.
+    """
 
     def compute_key(
         self,
@@ -128,7 +135,11 @@ class _None(CachePolicy):
 
 
 @dataclass
-class TaskDef(CachePolicy):
+class TaskSource(CachePolicy):
+    """
+    Policy for computing a cache key based on the source code of the task.
+    """
+
     def compute_key(
         self,
         task_ctx: TaskRunContext,
@@ -136,21 +147,60 @@ class TaskDef(CachePolicy):
         flow_parameters: Dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
-        lines = inspect.getsource(task_ctx.task)
+        if not task_ctx:
+            return None
+        try:
+            lines = inspect.getsource(task_ctx.task)
+        except TypeError:
+            lines = inspect.getsource(task_ctx.task.fn.__class__)
+
         return hash_objects(lines)
 
 
 @dataclass
 class FlowParameters(CachePolicy):
-    pass
+    """
+    Policy that computes the cache key based on a hash of the flow parameters.
+    """
+
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
+        if not flow_parameters:
+            return None
+        return hash_objects(flow_parameters)
+
+
+@dataclass
+class RunId(CachePolicy):
+    """
+    Returns either the prevailing flow run ID, or if not found, the prevailing task
+    run ID.
+    """
+
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
+        if not task_ctx:
+            return None
+        run_id = task_ctx.task_run.flow_run_id
+        if run_id is None:
+            run_id = task_ctx.task_run.id
+        return str(run_id)
 
 
 @dataclass
 class Inputs(CachePolicy):
     """
-    Exposes flag for whether to include flow parameters as well.
-
-    And exclude/include config.
+    Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
     """
 
     exclude: Optional[list] = None
@@ -166,6 +216,9 @@ class Inputs(CachePolicy):
         inputs = inputs or {}
         exclude = self.exclude or []
 
+        if not inputs:
+            return None
+
         for key, val in inputs.items():
             if key not in exclude:
                 hashed_inputs[key] = val
@@ -173,7 +226,9 @@ class Inputs(CachePolicy):
         return hash_objects(hashed_inputs)
 
 
-DEFAULT = Default()
 INPUTS = Inputs()
 NONE = _None()
-TASKDEF = TaskDef()
+TASK_SOURCE = TaskSource()
+FLOW_PARAMETERS = FlowParameters()
+RUN_ID = RunId()
+DEFAULT = INPUTS + TASK_SOURCE + RUN_ID
