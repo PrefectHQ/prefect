@@ -17,11 +17,9 @@ import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import (
     TYPE_CHECKING,
     Any,
-    AnyStr,
     Awaitable,
     Callable,
     Coroutine,
@@ -56,7 +54,6 @@ from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
-from prefect.context import registry_from_script
 from prefect.deployments.runner import deploy
 from prefect.deployments.steps.core import run_steps
 from prefect.docker.docker_image import DockerImage
@@ -1640,47 +1637,6 @@ def select_flow(
         return list(flows_dict.values())[0]
 
 
-def load_flows_from_script(path: str) -> List[Flow]:
-    """
-    Load all flow objects from the given python script. All of the code in the file
-    will be executed.
-
-    Returns:
-        A list of flows
-
-    Raises:
-        FlowScriptError: If an exception is encountered while running the script
-    """
-    return registry_from_script(path).get_instances(Flow)
-
-
-def load_flow_from_script(path: str, flow_name: Optional[str] = None) -> Flow:
-    """
-    Extract a flow object from a script by running all of the code in the file.
-
-    If the script has multiple flows in it, a flow name must be provided to specify
-    the flow to return.
-
-    Args:
-        path: A path to a Python script containing flows
-        flow_name: An optional flow name to look for in the script
-
-    Returns:
-        The flow object from the script
-
-    Raises:
-        FlowScriptError: If an exception is encountered while running the script
-        MissingFlowError: If no flows exist in the iterable
-        MissingFlowError: If a flow name is provided and that flow does not exist
-        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
-    """
-    return select_flow(
-        load_flows_from_script(path),
-        flow_name=flow_name,
-        from_message=f"in script '{path}'",
-    )
-
-
 def load_flow_from_entrypoint(
     entrypoint: str,
 ) -> Flow:
@@ -1717,30 +1673,6 @@ def load_flow_from_entrypoint(
             "decorated with '@flow'."
         )
 
-    return flow
-
-
-def load_flow_from_text(script_contents: AnyStr, flow_name: str) -> Flow:
-    """
-    Load a flow from a text script.
-
-    The script will be written to a temporary local file path so errors can refer
-    to line numbers and contextual tracebacks can be provided.
-    """
-    with NamedTemporaryFile(
-        mode="wt" if isinstance(script_contents, str) else "wb",
-        prefix=f"flow-script-{flow_name}",
-        suffix=".py",
-        delete=False,
-    ) as tmpfile:
-        tmpfile.write(script_contents)
-        tmpfile.flush()
-    try:
-        flow = load_flow_from_script(tmpfile.name, flow_name=flow_name)
-    finally:
-        # windows compat
-        tmpfile.close()
-        os.remove(tmpfile.name)
     return flow
 
 

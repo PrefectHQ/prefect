@@ -9,21 +9,16 @@ For more user-accessible information about the current run, see [`prefect.runtim
 import os
 import sys
 import warnings
-from collections import defaultdict
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar, Token
-from functools import update_wrapper
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    ContextManager,
     Dict,
     Generator,
-    List,
     Optional,
     Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -46,7 +41,6 @@ from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")
 
@@ -178,86 +172,6 @@ class ContextModel(BaseModel):
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
         return self.model_dump(exclude_unset=True)
-
-
-class PrefectObjectRegistry(ContextModel):
-    """
-    A context that acts as a registry for all Prefect objects that are
-    registered during load and execution.
-
-    Attributes:
-        start_time: The time the object registry was created.
-        block_code_execution: If set, flow calls will be ignored.
-        capture_failures: If set, failures during __init__ will be silenced and tracked.
-    """
-
-    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
-
-    _instance_registry: Dict[Type[T], List[T]] = PrivateAttr(
-        default_factory=lambda: defaultdict(list)
-    )
-
-    # Failures will be a tuple of (exception, instance, args, kwargs)
-    _instance_init_failures: Dict[
-        Type[T], List[Tuple[Exception, T, Tuple, Dict]]
-    ] = PrivateAttr(default_factory=lambda: defaultdict(list))
-
-    block_code_execution: bool = False
-    capture_failures: bool = False
-
-    __var__ = ContextVar("object_registry")
-
-    def get_instances(self, type_: Type[T]) -> List[T]:
-        instances = []
-        for registered_type, type_instances in self._instance_registry.items():
-            if type_ in registered_type.mro():
-                instances.extend(type_instances)
-        return instances
-
-    def get_instance_failures(
-        self, type_: Type[T]
-    ) -> List[Tuple[Exception, T, Tuple, Dict]]:
-        failures = []
-        for type__ in type_.mro():
-            failures.extend(self._instance_init_failures[type__])
-        return failures
-
-    def register_instance(self, object):
-        # TODO: Consider using a 'Set' to avoid duplicate entries
-        self._instance_registry[type(object)].append(object)
-
-    def register_init_failure(
-        self, exc: Exception, object: Any, init_args: Tuple, init_kwargs: Dict
-    ):
-        self._instance_init_failures[type(object)].append(
-            (exc, object, init_args, init_kwargs)
-        )
-
-    @classmethod
-    def register_instances(cls, type_: Type[T]) -> Type[T]:
-        """
-        Decorator for a class that adds registration to the `PrefectObjectRegistry`
-        on initialization of instances.
-        """
-        original_init = type_.__init__
-
-        def __register_init__(__self__: T, *args: Any, **kwargs: Any) -> None:
-            registry = cls.get()
-            try:
-                original_init(__self__, *args, **kwargs)
-            except Exception as exc:
-                if not registry or not registry.capture_failures:
-                    raise
-                else:
-                    registry.register_init_failure(exc, __self__, args, kwargs)
-            else:
-                if registry:
-                    registry.register_instance(__self__)
-
-        update_wrapper(__register_init__, original_init)
-
-        type_.__init__ = __register_init__
-        return type_
 
 
 class ClientContext(ContextModel):
@@ -594,23 +508,6 @@ def tags(*new_tags: str) -> Generator[Set[str], None, None]:
         yield new_tags
 
 
-def registry_from_script(
-    path: str,
-    block_code_execution: bool = True,
-    capture_failures: bool = True,
-) -> PrefectObjectRegistry:
-    """
-    Return a fresh registry with instances populated from execution of a script.
-    """
-    with PrefectObjectRegistry(
-        block_code_execution=block_code_execution,
-        capture_failures=capture_failures,
-    ) as registry:
-        load_script_as_module(path)
-
-    return registry
-
-
 @contextmanager
 def use_profile(
     profile: Union[Profile, str],
@@ -711,14 +608,3 @@ def root_settings_context():
 
 
 GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
-GLOBAL_OBJECT_REGISTRY: Optional[ContextManager[PrefectObjectRegistry]] = None
-
-
-def initialize_object_registry():
-    global GLOBAL_OBJECT_REGISTRY
-
-    if GLOBAL_OBJECT_REGISTRY:
-        return
-
-    GLOBAL_OBJECT_REGISTRY = PrefectObjectRegistry()
-    GLOBAL_OBJECT_REGISTRY.__enter__()
