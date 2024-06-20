@@ -7,7 +7,7 @@ from prefect.cache_policies import (
     CompoundCachePolicy,
     Inputs,
     RunId,
-    TaskDef,
+    TaskSource,
     _None,
 )
 
@@ -113,7 +113,7 @@ class TestCompoundPolicy:
         assert isinstance(policy, CachePolicy)
 
     def test_creation_via_addition(self):
-        one, two = Inputs(), TaskDef()
+        one, two = Inputs(), TaskSource()
         policy = one + two
         assert isinstance(policy, CompoundCachePolicy)
 
@@ -137,13 +137,13 @@ class TestCompoundPolicy:
         assert isinstance(policy, CompoundCachePolicy)
 
 
-class TestTaskDefPolicy:
+class TestTaskSourcePolicy:
     def test_initializes(self):
-        policy = TaskDef()
+        policy = TaskSource()
         assert isinstance(policy, CachePolicy)
 
     def test_changes_in_def_change_key(self):
-        policy = TaskDef()
+        policy = TaskSource()
 
         class TaskCtx:
             pass

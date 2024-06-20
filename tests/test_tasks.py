@@ -17,7 +17,7 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
-from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASKDEF
+from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
@@ -4618,11 +4618,11 @@ class TestCachePolicies:
         assert my_task.result_storage_key == "foo"
 
     def test_cache_policy_inits_as_expected(self):
-        @task(cache_policy=TASKDEF)
+        @task(cache_policy=TASK_SOURCE)
         def my_task():
             pass
 
-        assert my_task.cache_policy is TASKDEF
+        assert my_task.cache_policy is TASK_SOURCE
 
 
 class TestTransactions:

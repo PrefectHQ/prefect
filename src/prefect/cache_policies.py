@@ -114,7 +114,7 @@ class _None(CachePolicy):
 
 
 @dataclass
-class TaskDef(CachePolicy):
+class TaskSource(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
@@ -192,7 +192,7 @@ class Inputs(CachePolicy):
 
 INPUTS = Inputs()
 NONE = _None()
-TASKDEF = TaskDef()
+TASK_SOURCE = TaskSource()
 FLOW_PARAMETERS = FlowParameters()
 RUN_ID = RunId()
-DEFAULT = INPUTS + TASKDEF + RUN_ID
+DEFAULT = INPUTS + TASK_SOURCE + RUN_ID
