@@ -72,7 +72,7 @@ This task run is tracked in the UI as well.
 Almost any standard Python function can be turned into a Prefect task by adding the `@task` decorator. 
 
 <Tip>
-Tasks are always executed in the main thread by default, unless a specific [task runner](/3.0rc/develop/write-tasks/use-task-runners) is used to execute them on different threads, processes, or infrastructure. This facilitates native Python debugging and profiling.
+Tasks are always executed in the main thread by default, unless a specific [task runner](/3.0rc/develop/write-tasks/task-runners) is used to execute them on different threads, processes, or infrastructure. This facilitates native Python debugging and profiling.
 </Tip>
 
 ### Synchronous functions
@@ -682,23 +682,23 @@ def show_timeouts():
 ## Task results
 
 Depending on how you call tasks, they can return different types of results and optionally engage the use of 
-a [task runner](/3.0rc/develop/write-tasks/use-task-runners/).
+a [task runner](/3.0rc/develop/write-tasks/task-runners/).
 
 Any task can return:
 
 - Data , such as `int`, `str`, `dict`, `list`. This is the default behavior any time you 
 call `your_task()`.
 - [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture). This is achieved 
-by calling [`your_task.submit()`](/3.0rc/develop/write-tasks/use-task-runners/#using-a-task-runner). 
+by calling [`your_task.submit()`](/3.0rc/develop/write-tasks/task-runners/#using-a-task-runner). 
 A `PrefectFuture` contains both _data_ and _State_.
 - Prefect [`State`](/3.0rc/api-ref/server/schemas/states/). Anytime you call your task or flow with 
 the argument `return_state=True`, it directly returns a state to build custom behavior based 
 on a state change you care about, such as task or flow failing or retrying.
 
-To run your task with a [task runner](/3.0rc/develop/write-tasks/use-task-runners/), you must call the task 
+To run your task with a [task runner](/3.0rc/develop/write-tasks/task-runners/), you must call the task 
 with `.submit()`.
 
-See [state returned values](/3.0rc/develop/write-tasks/use-task-runners/#using-results-from-submitted-tasks) 
+See [state returned values](/3.0rc/develop/write-tasks/task-runners/#using-results-from-submitted-tasks) 
 for examples.
 
 <Tip>

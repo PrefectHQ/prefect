@@ -409,7 +409,7 @@ Flows allow a great deal of configuration by passing arguments to the decorator.
 | `retries`                                          | An optional number of times to retry on flow run failure.                                                                                                                                                            |
 | <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero.                                                                                       |
 | `flow_run_name`                                    | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables; you can also provide this name as a function that returns a string.       |
-| `task_runner`                                      | An optional [task runner](/3.0rc/develop/write-tasks/use-task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ThreadPoolTaskRunner` is used.         |
+| `task_runner`                                      | An optional [task runner](/3.0rc/develop/write-tasks/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ThreadPoolTaskRunner` is used.         |
 | `timeout_seconds`                                  | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it is marked as failed. Flow execution may continue until the next task is called.                   |
 | `validate_parameters`                              | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.                                                                                                                  |
 | `version`                                          | An optional version string for the flow. If not provided, we will attempt to create a version string as a hash of the file containing the wrapped function. If the file cannot be located, the version will be null. |
@@ -515,7 +515,7 @@ The primary flow is the "parent" flow. The flow created within the parent is the
 
 Subflow runs behave like normal flow runs.
 There is a full representation of the flow run in the backend as if it had been called separately.
-When a subflow starts, it creates a new [task runner](/3.0rc/develop/write-tasks/use-task-runners/) for tasks within the subflow.
+When a subflow starts, it creates a new [task runner](/3.0rc/develop/write-tasks/task-runners/) for tasks within the subflow.
 When the subflow completes, the task runner shuts down.
 
 Subflows block execution of the parent flow until completion.

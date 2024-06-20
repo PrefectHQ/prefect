@@ -123,7 +123,7 @@ Using the `DaskTaskRunner` reduced the runtime to **5.7** seconds!
 
 ## Run tasks on Dask
 
-The `DaskTaskRunner` is a [task runner](/3.0rc/develop/write-tasks/use-task-runners) that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler.
+The `DaskTaskRunner` is a [task runner](/3.0rc/develop/write-tasks/task-runners) that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler.
 By default, when the `DaskTaskRunner` is specified for a flow run, a temporary Dask cluster is created and used for the duration of the flow run.
 
 If you already have a Dask cluster running, either cloud-hosted or local, you can provide the connection URL with the `address` kwarg. 
