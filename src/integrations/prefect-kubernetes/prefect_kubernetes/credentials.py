@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Dict, Optional, Type, Union
+from typing import AsyncGenerator, Dict, Optional, Type, Union
 
 import yaml
 from kubernetes_asyncio import config
@@ -151,7 +151,7 @@ class KubernetesCredentials(Block):
         self,
         client_type: Literal["apps", "batch", "core", "custom_objects"],
         configuration: Optional[Configuration] = None,
-    ) -> KubernetesClient:
+    ) -> AsyncGenerator[KubernetesClient, None, None]:
         """Convenience method for retrieving a Kubernetes API client for deployment resources.
 
         Args:
