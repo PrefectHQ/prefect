@@ -56,7 +56,7 @@ jobs:
     - name: Generate release notes
       id: generate_release_notes
       if: env.SHOULD_CREATE_RELEASE == 'true'
-      uses: mikepenz/release-changelog-builder-action@v2
+      uses: mikepenz/release-changelog-builder-action@v4
       with:
         tag: ${{ env.next_tag }}
 
