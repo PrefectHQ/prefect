@@ -37,7 +37,6 @@ from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.context import (
     FlowRunContext,
-    PrefectObjectRegistry,
     TagsContext,
     TaskRunContext,
     serialize_context,
@@ -174,7 +173,6 @@ def _infer_parent_task_runs(
     return parents
 
 
-@PrefectObjectRegistry.register_instances
 class Task(Generic[P, R]):
     """
     A Prefect task definition.

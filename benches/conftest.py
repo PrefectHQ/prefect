@@ -20,14 +20,3 @@ def handle_saving(*args, **kwargs):
 
 
 pytest_benchmark.session.BenchmarkSession.handle_saving = handle_saving
-
-
-@pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield

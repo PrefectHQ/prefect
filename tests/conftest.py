@@ -483,17 +483,6 @@ def test_database_connection_url(generate_test_database_connection_url):
 
 
 @pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield
-
-
-@pytest.fixture(autouse=True)
 def reset_registered_blocks():
     """
     Ensures each test only has types that were registered at module initialization.

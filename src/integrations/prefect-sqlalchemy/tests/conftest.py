@@ -14,17 +14,6 @@ def prefect_db():
 
 
 @pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield
-
-
-@pytest.fixture(autouse=True)
 def fetch_state_result():
     with temporary_settings(updates={PREFECT_ASYNC_FETCH_STATE_RESULT: True}):
         yield
