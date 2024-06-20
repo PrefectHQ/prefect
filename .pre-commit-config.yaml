@@ -37,9 +37,11 @@ repos:
         name: Generating OpenAPI docs for Mintlify
         language: system
         entry: ./scripts/generate_mintlify_openapi_docs.py
+        pass_filenames: false
         files: |
             (?x)^(
                 .pre-commit-config.yaml|
-                src/prefect/server/.*|
+                src/prefect/server/api/.*|
+                src/prefect/server/schemas/.*|
                 scripts/generate_mintlify_openapi_docs.py
             )$
