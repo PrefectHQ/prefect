@@ -3728,7 +3728,7 @@ async def test_sets_run_name_once_per_call():
     task_calls = 0
     generate_task_run_name = MagicMock(return_value="some-string")
 
-    def test_task():
+    def test_task(x: str):
         nonlocal task_calls
         task_calls += 1
 
@@ -3736,8 +3736,8 @@ async def test_sets_run_name_once_per_call():
 
     @flow
     def my_flow(name):
-        decorated_task_method()
-        decorated_task_method()
+        decorated_task_method("a")
+        decorated_task_method("b")
 
         return "hi"
 
