@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from kubernetes.config import ConfigException
+from kubernetes_asyncio.config import ConfigException
 from prefect_kubernetes.utilities import (
     enable_socket_keep_alive,
 )
