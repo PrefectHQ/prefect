@@ -59,7 +59,6 @@ jobs:
       if: env.SHOULD_CREATE_RELEASE == 'true'
       uses: mikepenz/release-changelog-builder-action@v4
       with:
-        toTag: ${{ env.next_tag }}
         fromTag: ${{ env.latest_tag }}
 
     - name: Create release
@@ -69,6 +68,7 @@ jobs:
       with:
         name: ${{ env.next_tag }}
         release_name: "Nightly Release Candidate ${{ env.next_tag }}"
+        tag_name: ${{ env.next_tag }}
         draft: false
         prerelease: true
         body: ${{ steps.generate_release_notes.outputs.changelog }}
