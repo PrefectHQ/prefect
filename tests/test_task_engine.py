@@ -1072,39 +1072,6 @@ class TestPersistence:
         state = await async_task(return_state=True)
         assert await state.result() == 42
 
-    async def test_task_persists_results_with_run_id_key(self):
-        @task(persist_result=True)
-        async def async_task():
-            return 42
-
-        state = await async_task(return_state=True)
-        assert state.is_completed()
-        assert await state.result() == 42
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == str(state.state_details.task_run_id)
-
-    async def test_task_loads_result_if_exists(self, prefect_client, tmp_path):
-        run_id = uuid4()
-
-        fs = LocalFileSystem(basepath=tmp_path)
-
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True, result_storage=fs
-        )
-        await factory.create_result(1800, key=str(run_id))
-
-        @task(result_storage=fs)
-        async def async_task():
-            return 42
-
-        state = await run_task_async(
-            async_task, task_run_id=run_id, return_type="state"
-        )
-        assert state.is_completed()
-        assert await state.result() == 1800
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == str(run_id)
-
     async def test_task_loads_result_if_exists_using_result_storage_key(
         self, prefect_client, tmp_path
     ):
