@@ -1,0 +1,211 @@
+---
+title: Upgrade to Prefect 3
+description: Learn how to upgrade from Prefect 2 to Prefect 3.
+---
+
+Some patterns supported by Prefect 2 are no longer supported with Prefect 3, or are enabled differently. 
+This guide covers changes that you may need to make to ensure your flows keep flowing.
+
+## Module locations and names
+
+Some modules have been renamed, reorganized, or removed for clarity. If you use a module that has changed, it will continue to work, but it will raise deprecation warnings. You will need to update these modules before the six month deprecation period is up:
+
+| Prefect 2 | Prefect 3 | Notes                                 |
+| --------- | --------- | ------------------------------------- |
+|           |           |                                       |
+
+## Asynchronous task execution behavior
+
+Prefect 2 abstracts away certain task execution concerns, which is convenient in some cases, but comes at the expense of unexpected behavior in other cases. 
+Prefect 3 defaults to running tasks as they would run as normal Python code, and requires you to be more explicit when you would like to modify task execution behavior. 
+This results in clearer behavior with fewer surprises.
+
+In Prefect 3, all workflow code, including task functions, runs on the main thread. This means:
+
+- Python code that is not explicitly defined as asynchronous will execute synchronously, as normal Python code does.
+- Non-thread safe objects, such as database connections, can be shared globally within a workflow.
+
+To execute tasks asynchronously in separate threads, you must either write asynchronous Python functions or use the `Task.submit` method. 
+When executing tasks asynchronously in Prefect 3, you must follow conventional asynchronous Python programing principles. 
+Updating your workflows to bring them in line with these principles requires code changes. Here are some examples:
+
+**Synchronous tasks and flows cannot be called from asynchronous tasks or flows as they could in Prefect 2.**
+
+<CardGroup cols={2}>
+  <Card title="Prefect 2">
+    ```python
+    @task
+    async def my_task():
+	...
+	
+
+    # Enclosing flow can be sync
+    @flow
+    def my_flow():
+	    return my_task()
+	
+		
+    if __name__ == "__main__":
+	    my_flow()
+    ```
+  </Card>
+  <Card title="Prefect 3" icon="square-2">
+    ```python
+    @task
+    async def my_task():
+	    ...
+	
+
+    # Enclosing flow must be async as well
+    @flow
+    async def my_flow():
+	    return await my_task()
+	
+	
+    if __name__ == "__main__":
+	    asyncio.run(my_flow())
+    ``` 
+  </Card>
+</CardGroup>
+
+Because `Task.submit` is always a synchronous call, it does not need to be awaited. 
+`Task.submit` is still non-blocking and execution of the submitted task is also still non-blocking. 
+So, *you do not need to await futures from submitted tasks*:
+
+<CardGroup cols={2}>
+  <Card title="Prefect 2">
+    ```python
+    @task
+    async def my_task():
+	        ...
+	
+	
+    @flow
+    async def my_flow():
+	    #must await `.submit()`
+	    future = await my_task.submit()
+	    return future
+    ```
+  </Card>
+  <Card title="Prefect 3" icon="square-2">
+    ```python
+    @task
+    async def my_task():
+	    ...
+	
+	
+    @flow
+    async def my_flow():
+	    # No need to await `.submit()`
+	    future = my_task.submit()
+	    return future
+    ```
+  </Card>
+</CardGroup>
+
+The `PrefectFuture` methods are also always synchronous in Prefect 3. Names and return values have changed to reflect this:
+
+- `PrefectFututure.get_state()` is now `PrefectFuture.state`
+- `PrefectFuture.wait()` now returns `None` instead of a `State`
+
+So, *you must wait for the future to complete, then retrieve the state separately*:
+
+<CardGroup cols={2}>
+  <Card title="Prefect 2">
+    ```python
+    @task
+    async def my_task():
+    	...
+	
+	
+    @flow
+    async def my_flow():
+    	future = await my_task.submit()
+	    # State is returned by `wait()`
+	    state = await future.wait()
+	    return state
+    ```
+  </Card>
+  <Card title="Prefect 3" icon="square-2">
+    ```python
+    @task
+    async def my_task():
+    	...
+	
+	
+    @flow
+    async def my_flow():
+	    future = my_task.submit()
+	    # Wait for future completion  
+	    # before retrieving the state
+	    future.wait()
+	    state = future.state
+	    return state
+    ```
+  </Card>
+</CardGroup>
+
+In Prefect 3, `PrefectFutures` resulting from submitted task runs are not automatically awaited/resolved before exiting a flow, unless they’re a dependency of other flows or tasks, so *you must wait for a task’s `PrefectFuture` resolution before the end of a flow*:
+
+<CardGroup cols={2}>
+  <Card title="Prefect 2">
+    ```python
+    from prefect import flow, task
+
+    @task
+    def my_task():
+	    ...
+	
+	
+    @flow
+    def my_flow():
+	    # The flow will not exit until these 
+	    # futures are resolved
+	    [my_task.submit() for i in range(10)]
+    ```
+  </Card>
+  <Card title="Prefect 3" icon="square-2">
+    ```python
+    from prefect import flow, task
+
+    @task
+    def my_task():
+	    ...
+	
+	
+    @flow
+    def my_flow():
+	    futures = [my_task.submit() for i in range(10)]
+	    # You must wait for futures before exiting flow.
+	    for future in futures:
+		    future.wait()
+    ```
+  </Card>
+</CardGroup>
+
+If you do not wait for the futures, the tasks may fail with a 'Flow must be running to start a task' error. 
+The one exception to this case is that `PrefectFuture`s returned from a flow will resolve to states before completing the flow.
+
+## Notifications are now Automations
+
+The notifications feature in Prefect 2 has been vastly expanded to enable all kinds of “if this, then that” logic that can be defined and executed by a Prefect server instance. 
+See the [Automations documentation](https://docs-3.prefect.io/3.0rc/automate/events/automations-triggers) for more information.
+
+## Integrations must be upgraded
+
+Prefect 2 integrations cannot be used with Prefect 3 and vice versa. 
+You must update all of your integrations packages in conjunction with upgrading from Prefect 2 to Prefect 3. 
+The easiest way to keep your integrations in sync is to use the extras on the `prefect` package to ensure that you get the correct version (e.g. `pip install prefect[aws]`).
+
+## Data validation via Pydantic v2
+
+Prefect 2 uses Pydantic v1 to validate data, particularly for blocks and work pools. 
+Prefect 3 has been upgraded to Pydantic v2. This upgrade does not require changes for any built-in Prefect interfaces or supporting integrations. 
+However, if you have registered custom blocks with a self hosted Prefect Server, type enforcement for those block schemas will need to be upgraded to Pydantic v2 to work with Prefect 3. 
+See the the [Pydantic migration guide](https://www.notion.so/Prefect-2-3-Upgrade-Guide-e43313731c1d4adbb4e4175548058b51?pvs=21) for more information.
+
+## Workers have replaced Agents
+
+A deprecation warning was applied to Prefect interfaces related to agent-based deployments in Prefect’s [2.16.4 release](https://github.com/PrefectHQ/prefect/releases/tag/2.16.4), including infrastructure blocks and `prefect deployment` commands. 
+Agents will continue to be supported in Prefect 2 until September 2024, but have not been included in Prefect 3. 
+If you are using agents, see [this guide to upgrade from agents to workers](https://docs-3.prefect.io/3.0rc/resources/upgrade-agents-to-workers).
