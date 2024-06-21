@@ -1,6 +1,5 @@
 """Credential classes used to perform authenticated interactions with GitHub"""
 
-
 from typing import Optional
 
 from pydantic import Field, SecretStr

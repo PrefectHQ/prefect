@@ -1285,9 +1285,9 @@ class RunState(BaseModel):
 class RunType(str, Enum):
     """
         The type of the run.
-    * `JOB_RUN` \- Normal job run. A run created with [Run now](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow).
-    * `WORKFLOW_RUN` \- Workflow run. A run created with [dbutils.notebook.run](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-workflow).
-    * `SUBMIT_RUN` \- Submit run. A run created with [Run Submit](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit).
+    * `JOB_RUN`: Normal job run. A run created with [Run now](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow).
+    * `WORKFLOW_RUN`: Workflow run. A run created with [dbutils.notebook.run](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-workflow).
+    * `SUBMIT_RUN`: Submit run. A run created with [Run Submit](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit).
     """
 
     jobrun = "JOB_RUN"
@@ -3706,6 +3706,25 @@ class ClusterEvent(BaseModel):
     )
 
 
+class JobParameter(BaseModel):
+    """
+    See source code for the fields' description.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True)
+
+    name: str = Field(
+        None,
+        description="The name of the defined parameter. May only contain alphanumeric characters, _, -, and .",
+        examples=["table"],
+    )
+    default: str = Field(
+        None,
+        description="Default value of the parameter.",
+        examples=["users"],
+    )
+
+
 class JobSettings(BaseModel):
     """
     See source code for the fields' description.
@@ -3881,6 +3900,10 @@ class JobSettings(BaseModel):
             " begin or complete. The default behavior is to not send any system"
             " notifications."
         ),
+    )
+    parameters: Optional[List[JobParameter]] = Field(
+        None,
+        description=("Job-level parameter definitions."),
     )
 
 
@@ -4172,6 +4195,10 @@ class Run(BaseModel):
     trigger: Optional[TriggerType] = Field(
         None, description="The type of trigger that fired this run."
     )
+    job_parameters: Optional[List[RunJobParameter]] = Field(
+        None,
+        description="Job-level parameters used in the run.",
+    )
 
 
 class RunSubmitSettings(BaseModel):
@@ -4280,6 +4307,30 @@ class RunSubmitSettings(BaseModel):
             " begin or complete. The default behavior is to not send any system"
             " notifications."
         ),
+    )
+
+
+class RunJobParameter(BaseModel):
+    """
+    See source code for the fields' description.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True)
+
+    name: str = Field(
+        None,
+        description="The name of the parameter.",
+        examples=["table"],
+    )
+    default: str = Field(
+        None,
+        description="The optional default value of the parameter.",
+        examples=["users"],
+    )
+    value: str = Field(
+        None,
+        description="The value used in the run.",
+        examples=["customers"],
     )
 
 

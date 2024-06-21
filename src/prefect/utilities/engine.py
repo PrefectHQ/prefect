@@ -786,6 +786,17 @@ def resolve_to_final_result(expr, context):
         raise StopVisiting()
 
     if isinstance(expr, NewPrefectFuture):
+        upstream_task_run = context.get("current_task_run")
+        upstream_task = context.get("current_task")
+        if (
+            upstream_task
+            and upstream_task_run
+            and expr.task_run_id == upstream_task_run.id
+        ):
+            raise ValueError(
+                f"Discovered a task depending on itself. Raising to avoid a deadlock. Please inspect the inputs and dependencies of {upstream_task.name}."
+            )
+
         expr.wait()
         state = expr.state
     elif isinstance(expr, State):

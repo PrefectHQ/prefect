@@ -367,7 +367,7 @@ class AuthenticationResource:
         work_pool_name: str,
         user_name: str = "prefect-ecs-user",
         policy_name: str = "prefect-ecs-policy",
-        credentials_block_name: str = None,
+        credentials_block_name: Optional[str] = None,
     ):
         self._user_name = user_name
         self._credentials_block_name = (
@@ -950,7 +950,7 @@ class ContainerRepositoryResource:
                         dedent(
                             f"""\
                                 from prefect import flow
-                                from prefect.deployments import DeploymentImage
+                                from prefect.docker import DockerImage
 
 
                                 @flow(log_prints=True)
@@ -962,7 +962,7 @@ class ContainerRepositoryResource:
                                     my_flow.deploy(
                                         name="my-deployment",
                                         work_pool_name="{self._work_pool_name}",
-                                        image=DeploymentImage(
+                                        image=DockerImage(
                                             name="{self._repository_name}:latest",
                                             platform="linux/amd64",
                                         )
@@ -1130,7 +1130,7 @@ class ElasticContainerServicePushProvisioner:
         work_pool_name: str,
         user_name: str = "prefect-ecs-user",
         policy_name: str = "prefect-ecs-policy",
-        credentials_block_name: str = None,
+        credentials_block_name: Optional[str] = None,
         cluster_name: str = "prefect-ecs-cluster",
         vpc_name: str = "prefect-ecs-vpc",
         ecs_security_group_name: str = "prefect-ecs-security-group",

@@ -2,7 +2,7 @@
 title: prefect-github
 ---
 
-Prefect-github makes it easy to interact with GitHub repositories and credentials.
+Prefect-github makes it easy to interact with GitHub repositories and use GitHub credentials.
 
 ## Getting started
 
@@ -13,21 +13,31 @@ Prefect-github makes it easy to interact with GitHub repositories and credential
 
 ### Install prefect-github
 
-<div class = "terminal">
-```bash
-pip install prefect-github
-```
-</div>
+
+Install or update to the latest version of the prefect-github library and dependencies.
+
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-github
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-github
+    ```
+    </Tab>
+</Tabs>
+
 
 ### Register newly installed block types
 
 Register the block types in the prefect-github module to make them available for use.
 
-<div class = "terminal">
 ```bash
 prefect block register -m prefect_github
 ```
-</div>
+
 
 ## Examples
 
@@ -39,7 +49,7 @@ To create a deployment and run a deployment where the flow code is stored in a p
 A deployment can use flow code stored in a GitHub repository without using this library in either of the following cases:
 
 - The repository is public
-- The deployment uses a [Secret block](https://docs.prefect.io/latest/develop/connect-third-party/) to store the token
+- The deployment uses a [Secret block](https://docs.prefect.io/latest/develop/blocks/) to store the token
 
 Code to create a GitHub Credentials block:
 

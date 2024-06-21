@@ -10,7 +10,7 @@ from typing_extensions import TypeVar
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import Pending, State
 from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
@@ -18,11 +18,12 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 
 F = TypeVar("F")
+R = TypeVar("R")
 
 logger = get_logger(__name__)
 
 
-class PrefectFuture(abc.ABC):
+class PrefectFuture(abc.ABC, Generic[R]):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
     asynchronous execution of a task run. It provides methods to wait for the task
@@ -31,7 +32,7 @@ class PrefectFuture(abc.ABC):
 
     def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
-        self._final_state = None
+        self._final_state: Optional[State[R]] = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
@@ -56,7 +57,7 @@ class PrefectFuture(abc.ABC):
     def wait(self, timeout: Optional[float] = None) -> None:
         ...
         """
-        Wait for the task run to complete. 
+        Wait for the task run to complete.
 
         If the task run has already completed, this method will return immediately.
 
@@ -70,7 +71,7 @@ class PrefectFuture(abc.ABC):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         ...
         """
         Get the result of the task run associated with this future.
@@ -87,7 +88,7 @@ class PrefectFuture(abc.ABC):
         """
 
 
-class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
+class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
     """
     A Prefect future that wraps another future object.
     """
@@ -102,7 +103,7 @@ class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
         return self._wrapped_future
 
 
-class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
+class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]):
     """
     A Prefect future that wraps a concurrent.futures.Future. This future is used
     when the task run is submitted to a ThreadPoolExecutor.
@@ -120,7 +121,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         if not self._final_state:
             try:
                 future_result = self._wrapped_future.result(timeout=timeout)
@@ -143,8 +144,20 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
             _result = run_coro_as_sync(_result)
         return _result
 
+    def __del__(self):
+        if self._final_state or self._wrapped_future.done():
+            return
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "A future was garbage collected before it resolved."
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+        )
 
-class PrefectDistributedFuture(PrefectFuture):
+
+class PrefectDistributedFuture(PrefectFuture[R]):
     """
     Represents the result of a computation happening anywhere.
 
@@ -162,6 +175,10 @@ class PrefectDistributedFuture(PrefectFuture):
                 "Final state already set for %s. Returning...", self.task_run_id
             )
             return
+
+        # Ask for the instance of TaskRunWaiter _now_ so that it's already running and
+        # can catch the completion event if it happens before we start listening for it.
+        TaskRunWaiter.instance()
 
         # Read task run to see if it is still running
         async with get_client() as client:
@@ -189,7 +206,7 @@ class PrefectDistributedFuture(PrefectFuture):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         return run_coro_as_sync(
             self.result_async(timeout=timeout, raise_on_failure=raise_on_failure)
         )
@@ -198,7 +215,7 @@ class PrefectDistributedFuture(PrefectFuture):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ):
+    ) -> R:
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
@@ -244,6 +261,10 @@ def resolve_futures_to_states(
         return_data=False,
         context={},
     )
+
+    # if no futures were found, return the original expression
+    if not futures:
+        return expr
 
     # Get final states for each future
     states = []

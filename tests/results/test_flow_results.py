@@ -21,7 +21,6 @@ from prefect.settings import (
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     temporary_settings,
 )
-from prefect.states import Cancelled, Completed, Failed
 from prefect.testing.utilities import (
     assert_blocks_equal,
     assert_uses_result_serializer,
@@ -104,22 +103,6 @@ async def test_flow_with_uncached_but_persisted_result(prefect_client):
         await prefect_client.read_flow_run(state.state_details.flow_run_id)
     ).state
     assert await api_state.result() == 1
-
-
-async def test_flow_with_uncached_but_literal_result(prefect_client):
-    @flow(persist_result=True, cache_result_in_memory=False)
-    def foo():
-        return True
-
-    state = foo(return_state=True)
-    # Literal results are always cached
-    assert state.data.has_cached_object()
-    assert await state.result() is True
-
-    api_state = (
-        await prefect_client.read_flow_run(state.state_details.flow_run_id)
-    ).state
-    assert await api_state.result() is True
 
 
 async def test_flow_result_missing_with_null_return(prefect_client):
@@ -397,40 +380,6 @@ def test_flow_resultlike_result_is_retained(
     assert result == resultlike
 
 
-@pytest.mark.parametrize(
-    "return_state",
-    [
-        Completed(data="test"),
-        Completed(message="Hello!"),
-        Cancelled(),
-        Failed(),
-    ],
-)
-@pytest.mark.parametrize("persist_result", [True, False])
-async def test_flow_state_result_is_respected(
-    persist_result: bool, return_state, tmp_path: Path
-):
-    storage = LocalFileSystem(basepath=str(tmp_path))
-
-    @flow(persist_result=persist_result, result_storage=storage)
-    def my_flow():
-        return return_state
-
-    state = my_flow(return_state=True)
-    assert state.type == return_state.type
-
-    # id, timestamp, and state details must be excluded as they are copied from
-    # the API version of the state and will not match the state created for
-    # this test. Data must be excluded as it will have been updated to a
-    # result.
-    assert state.model_dump(
-        exclude={"id", "timestamp", "state_details", "data"}
-    ) == return_state.model_dump(exclude={"id", "timestamp", "state_details", "data"})
-
-    if return_state.data:
-        assert await state.result(raise_on_failure=False) == return_state.data
-
-
 async def test_root_flow_default_remote_storage(tmp_path: Path):
     @flow
     async def foo():
@@ -490,11 +439,13 @@ async def test_root_flow_nonexistent_default_storage_block_fails():
     with temporary_settings(
         {
             PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "fake-block-type-slug/my-result-storage",
         }
     ):
         with pytest.raises(
-            ValueError, match="Unable to find block document named my-result-storage"
+            ValueError,
+            match="The default storage block does not exist, but it is of type"
+            " 'fake-block-type-slug' which cannot be created implicitly",
         ):
             await foo()
 

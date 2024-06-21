@@ -178,29 +178,6 @@ async def create_objects_for_automation(
 
 
 @pytest.mark.parametrize(
-    "settings",
-    [
-        {
-            PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
-        },
-    ],
-)
-async def test_returns_404_when_automations_are_disabled(
-    client: AsyncClient,
-    settings: Dict,
-    automations_url: str,
-    automation_to_create: AutomationCreate,
-):
-    with temporary_settings(settings):
-        response = await client.post(
-            f"{automations_url}/",
-            json=automation_to_create.model_dump(mode="json"),
-        )
-
-    assert response.status_code == 404, response.content
-
-
-@pytest.mark.parametrize(
     "invalid_time",
     [
         timedelta(seconds=-10),

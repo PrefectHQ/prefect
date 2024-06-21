@@ -76,7 +76,6 @@ async def take_a_picture(session: AsyncSession) -> Deployment:
         session=session,
         deployment=Deployment(
             name="Take a picture on demand",
-            manifest_path="file.json",
             flow_id=snap_a_pic.id,
             is_schedule_active=True,
             paused=False,
@@ -442,7 +441,8 @@ async def test_orchestration_errors_are_reported_as_events(
     action.deployment_id = uuid4()  # this doesn't exist
 
     with pytest.raises(
-        actions.ActionFailed, match="Unexpected status from run-deployment action: 404"
+        actions.ActionFailed,
+        match="Unexpected status from 'run-deployment' action: 404",
     ):
         await action.act(snap_that_naughty_woodchuck)
 

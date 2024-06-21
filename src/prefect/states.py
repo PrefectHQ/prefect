@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import sys
 import traceback
@@ -22,11 +23,14 @@ from prefect.exceptions import (
     TerminationSignal,
     UnfinishedRun,
 )
+from prefect.logging.loggers import get_logger
 from prefect.results import BaseResult, R, ResultFactory
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
+
+logger = get_logger("states")
 
 
 def get_state_result(
@@ -61,6 +65,32 @@ def get_state_result(
         return _get_state_result(state, raise_on_failure=raise_on_failure)
 
 
+RESULT_READ_MAXIMUM_ATTEMPTS = 10
+RESULT_READ_RETRY_DELAY = 0.25
+
+
+async def _get_state_result_data_with_retries(state: State[R]) -> R:
+    # Results may be written asynchronously, possibly after their corresponding
+    # state has been written and events have been emitted, so we should give some
+    # grace here about missing results.  The exception below could come in the form
+    # of a missing file, a short read, or other types of errors depending on the
+    # result storage backend.
+    for i in range(1, RESULT_READ_MAXIMUM_ATTEMPTS + 1):
+        try:
+            return await state.data.get()
+        except Exception as e:
+            if i == RESULT_READ_MAXIMUM_ATTEMPTS:
+                raise
+            logger.debug(
+                "Exception %r while reading result, retry %s/%s in %ss...",
+                e,
+                i,
+                RESULT_READ_MAXIMUM_ATTEMPTS,
+                RESULT_READ_RETRY_DELAY,
+            )
+            await asyncio.sleep(RESULT_READ_RETRY_DELAY)
+
+
 @sync_compatible
 async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
@@ -81,7 +111,8 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
         raise await get_state_exception(state)
 
     if isinstance(state.data, BaseResult):
-        result = await state.data.get()
+        result = await _get_state_result_data_with_retries(state)
+
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():
             return await get_state_exception(state)
@@ -205,7 +236,11 @@ async def exception_to_failed_state(
 
 
 async def return_value_to_state(
-    retval: R, result_factory: ResultFactory, key: str = None
+    retval: R,
+    result_factory: ResultFactory,
+    key: Optional[str] = None,
+    expiration: Optional[datetime.datetime] = None,
+    defer_persistence: bool = False,
 ) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
@@ -238,7 +273,12 @@ async def return_value_to_state(
         # Unless the user has already constructed a result explicitly, use the factory
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
-            state.data = await result_factory.create_result(state.data, key=key)
+            state.data = await result_factory.create_result(
+                state.data,
+                key=key,
+                expiration=expiration,
+                defer_persistence=defer_persistence,
+            )
 
         return state
 
@@ -278,7 +318,12 @@ async def return_value_to_state(
         return State(
             type=new_state_type,
             message=message,
-            data=await result_factory.create_result(retval, key=key),
+            data=await result_factory.create_result(
+                retval,
+                key=key,
+                expiration=expiration,
+                defer_persistence=defer_persistence,
+            ),
         )
 
     # Generators aren't portable, implicitly convert them to a list.
@@ -291,7 +336,14 @@ async def return_value_to_state(
     if isinstance(data, BaseResult):
         return Completed(data=data)
     else:
-        return Completed(data=await result_factory.create_result(data, key=key))
+        return Completed(
+            data=await result_factory.create_result(
+                data,
+                key=key,
+                expiration=expiration,
+                defer_persistence=defer_persistence,
+            )
+        )
 
 
 @sync_compatible
@@ -331,7 +383,7 @@ async def get_state_exception(state: State) -> BaseException:
         raise ValueError(f"Expected failed or crashed state got {state!r}.")
 
     if isinstance(state.data, BaseResult):
-        result = await state.data.get()
+        result = await _get_state_result_data_with_retries(state)
     elif state.data is None:
         result = None
     else:

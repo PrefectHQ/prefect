@@ -249,6 +249,23 @@ class TestVisitCollection:
         assert result is None
         assert EVEN == expected
 
+    def test_visit_collection_does_not_consume_generators(self):
+        def f():
+            yield from [1, 2, 3]
+
+        result = visit_collection([f()], visit_fn=visit_even_numbers, return_data=False)
+        assert result is None
+        assert not EVEN
+
+    def test_visit_collection_does_not_consume_generators_when_returning_data(self):
+        def f():
+            yield from [1, 2, 3]
+
+        val = [f()]
+        result = visit_collection(val, visit_fn=visit_even_numbers, return_data=True)
+        assert result is val
+        assert not EVEN
+
     @pytest.mark.parametrize(
         "inp,expected",
         [
@@ -372,31 +389,23 @@ class TestVisitCollection:
                 result, field
             ), f"The field '{field}' should be set in the result"
 
-    @pytest.mark.skipif(True, reason="We will recurse forever in this case")
-    def test_visit_collection_does_not_recurse_forever_in_reference_cycle(self):
+    def test_visit_collection_recursive_1(self):
+        obj = dict()
+        obj["a"] = obj
+        # this would raise a RecursionError if we didn't handle it properly
+        val = visit_collection(obj, lambda x: x, return_data=True)
+        assert val is obj
+
+    def test_visit_recursive_collection_2(self):
         # Create references to each other
         foo = Foo(x=None)
         bar = Bar(y=foo)
         foo.x = bar
 
-        visit_collection([foo, bar], visit_fn=negative_even_numbers, return_data=True)
+        val = [foo, bar]
 
-    @pytest.mark.skipif(True, reason="We will recurse forever in this case")
-    @pytest.mark.xfail(reason="We do not return correct results in this case")
-    def test_visit_collection_returns_correct_result_in_reference_cycle(self):
-        # Create references to each other
-        foo = Foo(x=None)
-        bar = Bar(y=foo)
-        foo.x = bar
-
-        result = visit_collection(
-            [foo, bar], visit_fn=negative_even_numbers, return_data=True
-        )
-        expected_foo = Foo(x=None)
-        expected_bar = Bar(y=foo, z=-2)
-        expected_foo.x = expected_bar
-
-        assert result == [expected_foo, expected_bar]
+        result = visit_collection(val, lambda x: x, return_data=True)
+        assert result is val
 
     def test_visit_collection_works_with_field_alias(self):
         class TargetConfigs(pydantic.BaseModel):
@@ -491,6 +500,51 @@ class TestVisitCollection:
         )
         # Only the first two items should be visited
         assert result == [2, 3, [3, [4, 5, 6]]]
+
+    @pytest.mark.parametrize(
+        "val",
+        [
+            1,
+            [1, 2, 3],
+            SimplePydantic(x=1, y=2),
+            {"x": 1},
+        ],
+    )
+    def test_visit_collection_simple_identity(self, val):
+        """test that visit collection does not modify an object at all in the identity case"""
+        result = visit_collection(val, lambda x: x, return_data=True)
+        # same object, unmodified
+        assert result is val
+
+    def test_visit_collection_only_modify_changed_objects_1(self):
+        val = [[1, 2], [3, 5]]
+        result = visit_collection(val, negative_even_numbers, return_data=True)
+        assert result == [[1, -2], [3, 5]]
+        assert result is not val
+        assert result[0] is not val[0]
+        assert result[1] is val[1]
+
+    def test_visit_collection_only_modify_changed_objects_2(self):
+        val = [[[1], {2: 3}], [3, 5]]
+        result = visit_collection(val, negative_even_numbers, return_data=True)
+        assert result == [[[1], {-2: 3}], [3, 5]]
+        assert result[0] is not val[0]
+        assert result[0][0] is val[0][0]
+        assert result[0][1] is not val[0][1]
+        assert result[1] is val[1]
+
+    def test_visit_collection_only_modify_changed_objects_3(self):
+        class Foo(pydantic.BaseModel):
+            x: list
+            y: dict
+
+        val = Foo(x=[[1, 2], [3, 5]], y=dict(a=dict(b=1, c=2), d=dict(e=3, f=5)))
+        result: Foo = visit_collection(val, negative_even_numbers, return_data=True)
+        assert result is not val
+        assert result.x[0] is not val.x[0]
+        assert result.x[1] is val.x[1]
+        assert result.y["a"] is not val.y["a"]
+        assert result.y["d"] is val.y["d"]
 
 
 class TestRemoveKeys:

@@ -16,6 +16,8 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
 
+from ._internal.compatibility.migration import getattr_migration
+
 
 class ReadableFileSystem(Block, abc.ABC):
     _block_schema_capabilities = ["read-path"]
@@ -42,7 +44,7 @@ class ReadableDeploymentStorage(Block, abc.ABC):
 
     @abc.abstractmethod
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         pass
 
@@ -52,13 +54,16 @@ class WritableDeploymentStorage(Block, abc.ABC):
 
     @abc.abstractmethod
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         pass
 
     @abc.abstractmethod
     async def put_directory(
-        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> None:
         pass
 
@@ -103,18 +108,18 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         if path is None:
             return basepath
 
-        path: Path = Path(path).expanduser()
+        resolved_path: Path = Path(path).expanduser()
 
-        if not path.is_absolute():
-            path = basepath / path
+        if not resolved_path.is_absolute():
+            resolved_path = basepath / resolved_path
         else:
-            path = path.resolve()
-            if basepath not in path.parents and (basepath != path):
+            resolved_path = resolved_path.resolve()
+            if basepath not in resolved_path.parents and (basepath != resolved_path):
                 raise ValueError(
-                    f"Provided path {path} is outside of the base path {basepath}."
+                    f"Provided path {resolved_path} is outside of the base path {basepath}."
                 )
 
-        return path
+        return resolved_path
 
     @sync_compatible
     async def get_directory(
@@ -168,7 +173,10 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @sync_compatible
     async def put_directory(
-        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
@@ -506,3 +514,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+__getattr__ = getattr_migration(__name__)

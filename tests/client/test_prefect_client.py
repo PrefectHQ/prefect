@@ -507,7 +507,7 @@ class TestClientContextManager:
 async def test_client_runs_migrations_for_ephemeral_app_only_once(enabled, monkeypatch):
     with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
         # turn on lifespan for this test; it turns off after its run once per process
-        monkeypatch.setattr(prefect.server.api.server, "RUN_LIFESPAN", True)
+        monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
 
         app = create_app(ephemeral=True, ignore_cache=True)
         mock = AsyncMock()
@@ -522,6 +522,34 @@ async def test_client_runs_migrations_for_ephemeral_app_only_once(enabled, monke
         async with PrefectClient(app):
             if enabled:
                 mock.assert_awaited_once_with()
+
+        if not enabled:
+            mock.assert_not_awaited()
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_client_runs_migrations_for_two_different_ephemeral_apps(
+    enabled, monkeypatch
+):
+    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
+        # turn on lifespan for this test; it turns off after its run once per process
+        monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
+
+        app = create_app(ephemeral=True, ignore_cache=True)
+        app2 = create_app(ephemeral=True, ignore_cache=True)
+
+        mock = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.server.database.interface.PrefectDBInterface.create_db", mock
+        )
+        async with PrefectClient(app):
+            if enabled:
+                mock.assert_awaited_once_with()
+
+        # run a second time, and mock should be called again because it's a different app
+        async with PrefectClient(app2):
+            if enabled:
+                assert mock.await_count == 2
 
         if not enabled:
             mock.assert_not_awaited()
@@ -591,7 +619,6 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        manifest_path="path/file.json",
         schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
@@ -603,7 +630,6 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
-    assert lookup.manifest_path == "path/file.json"
     assert lookup.schedule == schedule.schedule
     assert len(lookup.schedules) == 1
     assert lookup.schedules[0].schedule == schedule.schedule
@@ -627,7 +653,6 @@ async def test_updating_deployment(prefect_client, storage_document_id):
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        manifest_path="path/file.json",
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
@@ -664,7 +689,6 @@ async def test_updating_deployment_and_removing_schedule(
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        manifest_path="path/file.json",
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
@@ -698,7 +722,6 @@ async def test_read_deployment_by_name(prefect_client):
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        manifest_path="file.json",
         schedule=schedule,
     )
 
@@ -706,7 +729,6 @@ async def test_read_deployment_by_name(prefect_client):
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
-    assert lookup.manifest_path == "file.json"
     assert lookup.schedule == schedule
 
 
@@ -721,7 +743,6 @@ async def test_create_then_delete_deployment(prefect_client):
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        manifest_path="file.json",
         schedule=schedule,
     )
 
@@ -1583,7 +1604,6 @@ class TestClientWorkQueues:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            manifest_path="file.json",
             schedule=schedule,
             parameters={"foo": "bar"},
             work_queue_name="wq",
@@ -1736,7 +1756,6 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_run.flow_id,
         name="test-deployment",
-        manifest_path="file.json",
         parameters={"foo": "bar"},
         work_queue_name="wq",
         is_schedule_active=on_create,
@@ -1771,7 +1790,6 @@ async def test_update_deployment_schedule_active_overwrites_when_provided(
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_run.flow_id,
         name="test-deployment",
-        manifest_path="file.json",
         parameters={"foo": "bar"},
         work_queue_name="wq",
         is_schedule_active=on_create,
@@ -2304,7 +2322,6 @@ class TestPrefectClientDeploymentSchedules:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            manifest_path="file.json",
             schedule=schedule,
             parameters={"foo": "bar"},
             work_queue_name="wq",

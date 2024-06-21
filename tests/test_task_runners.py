@@ -1,4 +1,5 @@
 import asyncio
+import time
 import uuid
 from concurrent.futures import Future
 from typing import Any, Iterable, Optional
@@ -8,8 +9,15 @@ import pytest
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.context import TagsContext, tags
+from prefect.filesystems import LocalFileSystem
+from prefect.flows import flow
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
-from prefect.results import _default_task_scheduling_storages
+from prefect.results import _default_storages
+from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
+    temporary_settings,
+)
 from prefect.states import Completed, Running
 from prefect.task_runners import PrefectTaskRunner, ThreadPoolTaskRunner
 from prefect.task_worker import serve
@@ -59,11 +67,24 @@ class MockFuture(PrefectWrappedFuture):
 
 
 class TestThreadPoolTaskRunner:
+    @pytest.fixture(autouse=True)
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
+        ):
+            yield
+
     def test_duplicate(self):
-        runner = ThreadPoolTaskRunner()
+        runner = ThreadPoolTaskRunner(max_workers=100)
         duplicate_runner = runner.duplicate()
         assert isinstance(duplicate_runner, ThreadPoolTaskRunner)
         assert duplicate_runner is not runner
+        assert duplicate_runner == runner
 
     def test_runner_must_be_started(self):
         runner = ThreadPoolTaskRunner()
@@ -181,11 +202,35 @@ class TestThreadPoolTaskRunner:
             results = [future.result() for future in futures]
             assert results == [(1, 1), (2, 2), (3, 3)]
 
+    def test_handles_recursively_submitted_tasks(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14194.
+
+        This test ensures that the ThreadPoolTaskRunner doesn't place an upper limit on the
+        number of submitted tasks active at once. The highest default max workers on a
+        ThreadPoolExecutor is 32, so this test submits 33 tasks recursively, which will
+        deadlock without the ThreadPoolTaskRunner setting the max_workers to sys.maxsize.
+        """
+
+        @task
+        def recursive_task(n):
+            if n == 0:
+                return n
+            time.sleep(0.1)
+            future = recursive_task.submit(n - 1)
+            return future.result()
+
+        @flow
+        def test_flow():
+            return recursive_task.submit(33)
+
+        assert test_flow().result() == 0
+
 
 class TestPrefectTaskRunner:
     @pytest.fixture(autouse=True)
     def clear_cache(self):
-        _default_task_scheduling_storages.clear()
+        _default_storages.clear()
 
     @pytest.fixture
     async def task_worker(self, use_hosted_api_server):

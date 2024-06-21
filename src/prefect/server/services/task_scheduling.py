@@ -35,6 +35,9 @@ class TaskSchedulingTimeouts(LoopService):
         """
         Periodically reschedules pending task runs that have been pending for too long.
         """
+        if not PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT:
+            return
+
         async with db.session_context(begin_transaction=True) as session:
             if self._first_run:
                 await self.restore_scheduled_tasks_if_necessary(session)
@@ -99,9 +102,8 @@ class TaskSchedulingTimeouts(LoopService):
                 if prior_scheduled_state.type == states.StateType.SCHEDULED:
                     break
             else:
-                self.logger.warning(
-                    "No prior scheduled state found for task run %s", task_run.id
-                )
+                # This wasn't originally a SCHEDULED background task, so we won't
+                # attempt to reschedule it.
                 continue
 
             rescheduled = states.Scheduled(

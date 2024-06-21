@@ -37,17 +37,6 @@ def prefect_db():
 
 
 @pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield
-
-
-@pytest.fixture(autouse=True)
 def google_auth_mock(monkeypatch):
     """
     Mocks out the google.auth module.

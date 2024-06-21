@@ -422,8 +422,11 @@ class FlowRunPolicy(PrefectBaseModel):
     )
 
     @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
-        return set_run_policy_deprecated_fields(values)
+    @classmethod
+    def populate_deprecated_fields(cls, values: Any):
+        if isinstance(values, dict):
+            return set_run_policy_deprecated_fields(values)
+        return values
 
 
 class FlowRun(ObjectBaseModel):
@@ -915,6 +918,7 @@ class BlockDocument(ObjectBaseModel):
     _validate_name_format = field_validator("name")(validate_block_document_name)
 
     @model_validator(mode="before")
+    @classmethod
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -1036,12 +1040,6 @@ class Deployment(ObjectBaseModel):
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    manifest_path: Optional[str] = Field(
-        default=None,
-        description=(
-            "The path to the flow's manifest file, relative to the chosen storage."
-        ),
-    )
     storage_document_id: Optional[UUID] = Field(
         default=None,
         description="The block document defining storage used for this flow.",
@@ -1146,8 +1144,11 @@ class BlockDocumentReference(ObjectBaseModel):
     )
 
     @model_validator(mode="before")
+    @classmethod
     def validate_parent_and_ref_are_different(cls, values):
-        return validate_parent_and_ref_diff(values)
+        if isinstance(values, dict):
+            return validate_parent_and_ref_diff(values)
+        return values
 
 
 class Configuration(ObjectBaseModel):

@@ -63,7 +63,7 @@ jobs:
 
       fail-fast: true
 
-    timeout-minutes: 45
+    timeout-minutes: 20
 
     steps:
       - name: Display current test matrix
@@ -263,7 +263,7 @@ jobs:
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
       - name: Build test image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           build-args: |
@@ -400,7 +400,7 @@ jobs:
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
       - name: Build test image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           build-args: |

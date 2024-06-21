@@ -31,8 +31,8 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
+from prefect.deployments.runner import RunnerDeployment
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
@@ -48,6 +48,7 @@ from prefect.flows import (
     load_flow_from_flow_run,
 )
 from prefect.logging import get_run_logger
+from prefect.results import PersistedResultBlob
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -71,6 +72,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.transactions import transaction
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
@@ -740,16 +742,6 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test 2"):
             await second.result()
 
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    async def test_call_execution_blocked_does_not_run_flow(self):
-        @flow(version="test")
-        def foo(x, y=3, z=3):
-            return x + y + z
-
-        with PrefectObjectRegistry(block_code_execution=True):
-            state = foo(1, 2)
-            assert state is None
-
     def test_flow_can_end_in_paused_state(self):
         @flow
         def my_flow():
@@ -815,6 +807,152 @@ class TestFlowCall:
         flow_state = my_flow(return_state=True)
         assert flow_state.is_cancelled()
         assert flow_state.message == "1/1 states cancelled."
+
+    class BaseFooModel(pydantic.BaseModel):
+        model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+        x: int
+
+    class BaseFoo:
+        def __init__(self, x):
+            self.x = x
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_instance_methods(self, T):
+        class Foo(T):
+            @flow
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert Foo(x=5).instance_method() == 5
+        assert f.instance_method() == 1
+        assert isinstance(Foo(x=10).instance_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_class_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @classmethod
+            @flow
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_static_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @staticmethod
+            @flow
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_instance_methods(self, T):
+        class Foo(T):
+            @flow
+            async def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        assert await Foo(x=5).instance_method() == 5
+        assert await f.instance_method() == 1
+        assert isinstance(Foo(x=10).instance_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_class_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @classmethod
+            @flow
+            async def class_method(cls):
+                return cls.__name__
+
+        assert await Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    async def test_flow_supports_async_static_methods(self, T):
+        class Foo(T):
+            def __init__(self, x):
+                self.x = x
+
+            @staticmethod
+            @flow
+            async def static_method():
+                return "static"
+
+        assert await Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
+    def test_flow_supports_instance_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+            x: int = 5
+
+            @flow
+            def instance_method(self):
+                return self.x
+
+        assert Foo().instance_method() == 5
+        assert isinstance(Foo().instance_method, Flow)
+
+    def test_flow_supports_class_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+
+            @classmethod
+            @flow
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method, Flow)
+
+    def test_flow_supports_static_methods_with_basemodel(self):
+        class Foo(pydantic.BaseModel):
+            model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+
+            @staticmethod
+            @flow
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method, Flow)
+
+    def test_error_message_if_decorate_classmethod(self):
+        with pytest.raises(
+            TypeError, match="@classmethod should be applied on top of @flow"
+        ):
+
+            class Foo:
+                @flow
+                @classmethod
+                def bar(cls):
+                    pass
+
+    def test_error_message_if_decorate_staticmethod(self):
+        with pytest.raises(
+            TypeError, match="@staticmethod should be applied on top of @flow"
+        ):
+
+            class Foo:
+                @flow
+                @staticmethod
+                def bar():
+                    pass
 
 
 class TestSubflowCalls:
@@ -1652,13 +1790,46 @@ class TestSubflowTaskInputs:
             y=[],
         )
 
+    async def test_subflow_with_upstream_task_passes_validation(self, prefect_client):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14036
+        """
+
+        @task
+        def child_task(x: int):
+            return x
+
+        @flow
+        def child_flow(x: int):
+            return x
+
+        @flow
+        def parent_flow():
+            task_state = child_task(257, return_state=True)
+            flow_state = child_flow(x=task_state, return_state=True)
+            return task_state, flow_state
+
+        task_state, flow_state = parent_flow()
+        assert flow_state.is_completed()
+
+        flow_tracking_task_run = await prefect_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
+
 
 # We flush the APILogHandler in a non-blocking manner, so we need to wait for the logs to be
 # written before we can read them to avoid flakiness.
 async def _wait_for_logs(
-    prefect_client: PrefectClient, expected_num_logs: Optional[int] = None
+    prefect_client: PrefectClient,
+    expected_num_logs: Optional[int] = None,
+    timeout: int = 10,
 ):
     logs = []
+    start_time = time.time()
     while True:
         logs = await prefect_client.read_logs()
         if logs:
@@ -1667,6 +1838,8 @@ async def _wait_for_logs(
             else:
                 if len(logs) >= expected_num_logs:
                     break
+        if time.time() - start_time > timeout:
+            raise TimeoutError("Timed out in _wait_for_logs()")
         await asyncio.sleep(1)
     return logs
 
@@ -1680,7 +1853,6 @@ class TestFlowRunLogs:
             logger.info("Hello world!")
 
         my_flow()
-
         await _wait_for_logs(prefect_client, expected_num_logs=3)
 
         logs = await prefect_client.read_logs()
@@ -3800,11 +3972,11 @@ class TestFlowFromSource:
         assert deployment.storage == storage
 
     async def test_load_flow_from_source_with_url(self, monkeypatch):
-        def mock_create_storage_from_url(url):
+        def mock_create_storage_from_source(url):
             return MockStorage()
 
         monkeypatch.setattr(
-            "prefect.flows.create_storage_from_url", mock_create_storage_from_url
+            "prefect.flows.create_storage_from_source", mock_create_storage_from_source
         )  # adjust the import path as per your module's name and location
 
         loaded_flow = await Flow.from_source(
@@ -3879,7 +4051,7 @@ class TestFlowDeploy:
     async def test_calls_deploy_with_expected_args(
         self, mock_deploy, local_flow, work_pool, capsys
     ):
-        image = DeploymentImage(
+        image = DockerImage(
             name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
         )
         await local_flow.deploy(
@@ -3929,7 +4101,7 @@ class TestFlowDeploy:
         remote_flow,
         work_pool,
     ):
-        image = DeploymentImage(
+        image = DockerImage(
             name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
         )
         await remote_flow.deploy(
@@ -4099,6 +4271,63 @@ class TestTransactions:
         assert "called" not in data2
         assert data1["called"] is True
 
+    def test_task_doesnt_persist_prior_to_commit(self, tmp_path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+
+        @task(result_storage=result_storage, result_storage_key="task1-result")
+        def task1():
+            pass
+
+        @task(result_storage=result_storage, result_storage_key="task2-result")
+        def task2():
+            raise RuntimeError("oopsie")
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        with pytest.raises(ValueError, match="does not exist"):
+            result_storage.read_path("task1-result", _sync=True)
+
+    def test_task_persists_only_at_commit(self, tmp_path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+
+        @task(result_storage=result_storage, result_storage_key="task1-result-A")
+        def task1():
+            return dict(some="data")
+
+        @task(result_storage=result_storage, result_storage_key="task2-result-B")
+        def task2():
+            pass
+
+        @flow
+        def main():
+            retval = None
+
+            with transaction():
+                task1()
+
+                try:
+                    result_storage.read_path("task1-result-A", _sync=True)
+                except ValueError as exc:
+                    retval = exc
+
+                task2()
+
+            return retval
+
+        val = main()
+
+        assert isinstance(val, ValueError)
+        assert "does not exist" in str(val)
+        content = result_storage.read_path("task1-result-A", _sync=True)
+        blob = PersistedResultBlob.model_validate_json(content)
+        assert blob.load() == {"some": "data"}
+
     def test_commit_isnt_called_on_rollback(self):
         data = {}
 
@@ -4165,6 +4394,76 @@ class TestLoadFlowArgumentFromEntrypoint:
         result = load_flow_argument_from_entrypoint(entrypoint, "name")
 
         assert result == "flow-function"
+
+    def test_load_flow_name_from_entrypoint_dynamic_name_fstring(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        version = "1.0"
+
+        @flow(name=f"flow-function-{version}")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function-1.0"
+
+    def test_load_flow_name_from_entrypoint_dyanmic_name_function(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        def get_name():
+            return "from-a-function"
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "from-a-function"
+
+    def test_load_flow_name_from_entrypoint_dynamic_name_depends_on_missing_import(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import get_name
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function"
+        assert "Failed to parse @flow argument: `name=get_name()`" in caplog.text
 
     def test_load_async_flow_from_entrypoint_no_name(self, tmp_path: Path):
         flow_source = dedent(
