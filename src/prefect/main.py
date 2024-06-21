@@ -32,9 +32,6 @@ prefect.client.schemas.State.model_rebuild()
 prefect.client.schemas.StateCreate.model_rebuild()
 Transaction.model_rebuild()
 
-
-prefect.plugins.load_extra_entrypoints()
-
 # Configure logging
 import prefect.logging.configuration
 
