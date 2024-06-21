@@ -122,7 +122,9 @@ class TestFlowRunsAsync:
 
         assert result == (42, "nate")
 
-    async def test_with_default_pydantic_model_dict_params(self):
+    async def test_with_default_pydantic_model_dict_params(
+        self, prefect_client: PrefectClient
+    ):
         class TheModel(pydantic.BaseModel):
             x: int
             y: str
@@ -131,8 +133,10 @@ class TestFlowRunsAsync:
         async def bar(required: str, model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
             return required, model.x, model.y
 
-        result = await run_flow(bar, parameters={"required": "hello"})
-
+        flow_run = await prefect_client.create_flow_run(
+            bar, parameters={"required": "hello"}
+        )
+        result = await run_flow(flow=bar, flow_run=flow_run)
         assert result == ("hello", 42, "nate")
 
     async def test_with_param_validation(self):
@@ -288,7 +292,9 @@ class TestFlowRunsSync:
 
         assert result == (42, "nate")
 
-    async def test_with_default_pydantic_model_dict_params(self):
+    async def test_with_default_pydantic_model_dict_params(
+        self, prefect_client: PrefectClient
+    ):
         class TheModel(pydantic.BaseModel):
             x: int
             y: str
@@ -297,8 +303,10 @@ class TestFlowRunsSync:
         def bar(required: str, model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
             return required, model.x, model.y
 
-        result = run_flow(bar, parameters={"required": "hello"})
-
+        flow_run = await prefect_client.create_flow_run(
+            bar, parameters={"required": "hello"}
+        )
+        result = run_flow(flow=bar, flow_run=flow_run)
         assert result == ("hello", 42, "nate")
 
     async def test_with_param_validation(self):

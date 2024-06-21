@@ -737,6 +737,15 @@ def run_flow(
 def _flow_parameters(
     flow: Flow[P, R], flow_run: Optional[FlowRun], parameters: Optional[Dict[str, Any]]
 ) -> Dict[str, Any]:
-    parameters = (flow_run.parameters if flow_run else parameters) or {}
-    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
-    return get_call_parameters(flow.fn, args, kwargs)
+    if parameters:
+        # This path is taken when a flow is being called directly with
+        # parameters, in that case just return the parameters as-is.
+        return parameters
+
+    # Otherwise the flow is being executed indirectly and we may need to grab
+    # the parameters from the flow run. We also need to resolve any default
+    # parameters that are defined on the flow function itself.
+
+    parameters = flow_run.parameters if flow_run else {}
+    call_args, call_kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+    return get_call_parameters(flow.fn, call_args, call_kwargs)
