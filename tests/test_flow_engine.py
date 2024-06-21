@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import anyio
+import pydantic
 import pytest
 
 from prefect import Flow, flow, task
@@ -118,6 +119,19 @@ class TestFlowRunsAsync:
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
         result = await run_flow(bar, parameters=parameters)
+
+        assert result == (42, "nate")
+
+    async def test_with_default_pydantic_model_dict_params(self):
+        class TheModel(pydantic.BaseModel):
+            x: int
+            y: str
+
+        @flow
+        async def bar(model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
+            return model.x, model.y
+
+        result = await run_flow(bar)
 
         assert result == (42, "nate")
 
@@ -271,6 +285,19 @@ class TestFlowRunsSync:
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
         result = run_flow_sync(bar, parameters=parameters)
+
+        assert result == (42, "nate")
+
+    async def test_with_default_pydantic_model_dict_params(self):
+        class TheModel(pydantic.BaseModel):
+            x: int
+            y: str
+
+        @flow
+        def bar(model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
+            return model.x, model.y
+
+        result = run_flow(bar)
 
         assert result == (42, "nate")
 
@@ -1520,6 +1547,17 @@ class TestGenerators:
             pass
         assert values == [1, 2]
 
+    async def test_with_default_pydantic_model_dict_params(self):
+        class TheModel(pydantic.BaseModel):
+            x: list[int]
+
+        @flow
+        async def g(model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+            for i in model.x:
+                yield i
+
+        assert [i async for i in run_flow(g)] == [1, 2, 3]
+
 
 class TestAsyncGenerators:
     async def test_generator_flow(self):
@@ -1667,3 +1705,14 @@ class TestAsyncGenerators:
         except ValueError:
             pass
         assert values == [1, 2]
+
+    async def test_with_default_pydantic_model_dict_params(self):
+        class TheModel(pydantic.BaseModel):
+            x: list[int]
+
+        @flow
+        def g(model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+            for i in model.x:
+                yield i
+
+        assert [i for i in run_flow(g)] == [1, 2, 3]
