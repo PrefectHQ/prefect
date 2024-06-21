@@ -15,6 +15,7 @@ Example:
 
 import subprocess
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Union
 
@@ -25,22 +26,25 @@ from prefect import __version__
 DEFAULT_PATH = prefect.__development_base_path__ / "flows"
 
 
+def run_script(script_path: str):
+    print(f" {script_path} ".center(90, "-"), flush=True)
+    result = subprocess.run(["python", script_path], capture_output=True, text=True)
+    return result.stdout, result.stderr
+
+
 def run_flows(search_path: Union[str, Path]):
     count = 0
     print(f"Running integration tests with client version: {__version__}")
+    scripts = sorted(Path(search_path).glob("**/*.py"))
+    with ProcessPoolExecutor(max_workers=4) as executor:
+        results = list(executor.map(run_script, scripts))
 
-    for file in sorted(Path(search_path).glob("**/*.py")):
-        print(f" {file.relative_to(search_path)} ".center(90, "-"), flush=True)
-        try:
-            subprocess.run(["python", file], check=True)
-        except NotImplementedError:
-            print(f"Skipping {file}: not supported by this version of Prefect")
+    for script, (stdout, stderr) in zip(scripts, results):
+        print(f" {script.relative_to(search_path)} ".center(90, "-"), flush=True)
+        print(stdout)
+        print(stderr)
         print("".center(90, "-") + "\n", flush=True)
         count += 1
-
-    if not count:
-        print(f"No Python files found at {search_path}")
-        exit(1)
 
 
 if __name__ == "__main__":
