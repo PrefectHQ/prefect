@@ -16,13 +16,25 @@ These tasks are designed to work with Prefect 3.
 
 ### Install `prefect-shell`
 
-```bash
-pip install -U prefect-shell
-```
+
+Install or update to the latest version of the prefect-shell library and dependencies.
+
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-shell
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-shell
+    ```
+    </Tab>
+</Tabs>
 
 ### Register newly installed block types
 
-Register the block types in the prefect-aws module to make them available for use.
+Register the block types in the prefect-shell module to make them available for use.
 
 
 ```bash

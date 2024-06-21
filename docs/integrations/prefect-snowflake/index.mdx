@@ -9,6 +9,29 @@ The prefect-snowflake collection makes it easy to connect to a Snowflake databas
 
 ## Getting Started
 
+### Prerequisites
+
+- [Prefect installed](/3.0rc/get-started/install/).
+
+### Install prefect-snowflake
+
+
+Install or update to the latest version of the prefect-snowflake library and dependencies.
+
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-snowflake
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-snowflake
+    ```
+    </Tab>
+</Tabs>
+
+
 ### Integrate with Prefect flows
 
 Prefect works with Snowflake by providing dataflow automation for faster, more efficient data pipeline creation, execution, and monitoring.
@@ -162,7 +185,7 @@ Register blocks in this module to make them available for use.
 
 
 ```bash
-prefect block register -m prefect_aws
+prefect block register -m prefect_snowflake
 ```
 
 
@@ -173,14 +196,14 @@ Note, to use the `load` method on a block, you must already have a block saved t
 Below is a walkthrough on saving a `SnowflakeCredentials` block through code.
 
 1. Head over to https://app.snowflake.com/.
-2. Login to your Snowflake account, e.g. nh12345.us-east-2.aws, with your username and password.
+2. Login to your Snowflake account, e.g. nh12345.us-east-2.snowflake, with your username and password.
 3. Use those credentials to fill replace the placeholders below.
 
 ```python
 from prefect_snowflake import SnowflakeCredentials
 
 credentials = SnowflakeCredentials(
-    account="ACCOUNT-PLACEHOLDER",  # resembles nh12345.us-east-2.aws
+    account="ACCOUNT-PLACEHOLDER",  # resembles nh12345.us-east-2.snowflake
     user="USER-PLACEHOLDER",
     password="PASSWORD-PLACEHOLDER"
 )
