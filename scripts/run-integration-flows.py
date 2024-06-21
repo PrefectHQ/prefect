@@ -22,12 +22,7 @@ import prefect
 from prefect import __version__
 
 # See https://github.com/PrefectHQ/prefect/pull/9136
-DEFAULT_PATH = (
-    getattr(
-        prefect, "__development_base_path__", getattr(prefect, "__root_path__", None)
-    )
-    / "flows"
-)
+DEFAULT_PATH = prefect.__development_base_path__ / "flows"
 
 
 def run_flows(search_path: Union[str, Path]):
