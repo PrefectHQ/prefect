@@ -14,6 +14,7 @@ from starlette.websockets import WebSocketDisconnect
 from prefect.server.events.filters import (
     EventFilter,
     EventOccurredFilter,
+    EventOrder,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage import database
@@ -59,8 +60,9 @@ def backfill_mock(
 
         assert page_size > 0
 
-        # storage.query_events methods are hard-wired to return in newest-first order
-        return [received_event1, old_event2, old_event1], object(), object()
+        assert filter.order == EventOrder.ASC
+
+        return [old_event1, old_event2, received_event1], 3, None
 
     monkeypatch.setattr(
         database,

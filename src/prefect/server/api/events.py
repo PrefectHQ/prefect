@@ -19,7 +19,7 @@ from prefect.server.events.counting import (
     InvalidEventCountParameters,
     TimeUnit,
 )
-from prefect.server.events.filters import EventFilter
+from prefect.server.events.filters import EventFilter, EventOrder
 from prefect.server.events.models.automations import automations_session
 from prefect.server.events.schemas.events import Event, EventCount, EventPage
 from prefect.server.events.storage import (
@@ -29,6 +29,10 @@ from prefect.server.events.storage import (
 )
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import (
+    PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL,
+    PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE,
+)
 
 logger = get_logger(__name__)
 
@@ -107,24 +111,39 @@ async def stream_workspace_events_out(
                 WS_1002_PROTOCOL_ERROR, reason=f"Invalid filter: {e}"
             )
 
+        filter.occurred.clamp(PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL.value())
+        filter.order = EventOrder.ASC
+
         # subscribe to the ongoing event stream first so we don't miss events...
         async with stream.events(filter) as event_stream:
             # ...then if the user wants, backfill up to the last 1k events...
             if wants_backfill:
-                async with automations_session() as session:
-                    backfill, _, _ = await database.query_events(
-                        session=session,
-                        filter=filter,
-                        page_size=1000,
-                    )
-
                 backfilled_ids = set()
 
-                for event in sorted(backfill, key=lambda e: e.occurred):
-                    backfilled_ids.add(event.id)
-                    await websocket.send_json(
-                        {"type": "event", "event": event.model_dump(mode="json")}
+                async with automations_session() as session:
+                    backfill, _, next_page = await database.query_events(
+                        session=session,
+                        filter=filter,
+                        page_size=PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE.value(),
                     )
+
+                    while backfill:
+                        for event in backfill:
+                            backfilled_ids.add(event.id)
+                            await websocket.send_json(
+                                {
+                                    "type": "event",
+                                    "event": event.model_dump(mode="json"),
+                                }
+                            )
+
+                        if not next_page:
+                            break
+
+                        backfill, _, next_page = await database.query_next_page(
+                            session=session,
+                            page_token=next_page,
+                        )
 
             # ...before resuming the ongoing stream of events
             async for event in event_stream:
