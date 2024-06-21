@@ -201,7 +201,6 @@ class TestCreateFlowRun:
             deployment=core.Deployment(
                 name="",
                 flow_id=flow.id,
-                manifest_path="file.json",
             ),
         )
         await session.commit()
@@ -334,7 +333,6 @@ class TestUpdateFlowRun:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],

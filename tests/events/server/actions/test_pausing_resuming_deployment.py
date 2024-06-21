@@ -47,7 +47,6 @@ async def hourly_garden_patrol(session: AsyncSession) -> Deployment:
         session=session,
         deployment=Deployment(
             name="Walk the perimeter of the garden",
-            manifest_path="file.json",
             flow_id=walk_the_perimeter.id,
             paused=False,
         ),

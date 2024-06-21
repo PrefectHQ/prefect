@@ -54,7 +54,6 @@ class TestCountDeployments:
                 session=session,
                 deployment=schemas.core.Deployment(
                     name=f"My Deployment {i}",
-                    manifest_path="file.json",
                     flow_id=flow_1.id,
                 ),
             )
@@ -63,7 +62,6 @@ class TestCountDeployments:
                 session=session,
                 deployment=schemas.core.Deployment(
                     name=f"My Deployment {i}",
-                    manifest_path="file.json",
                     flow_id=flow_2.id,
                 ),
             )

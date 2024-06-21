@@ -100,7 +100,6 @@ async def logger_test_deployment(prefect_client):
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="logger_test_deployment",
-        manifest_path="file.json",
     )
 
     return deployment_id

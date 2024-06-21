@@ -8,7 +8,6 @@ import ast
 import datetime
 import importlib.util
 import inspect
-import json
 import os
 import re
 import sys
@@ -1811,7 +1810,7 @@ async def load_flow_from_flow_run(
             )
             storage_block = Block._from_block_document(storage_document)
         else:
-            basepath = deployment.path or Path(deployment.manifest_path).parent
+            basepath = deployment.path
             if runner_storage_base_path:
                 basepath = str(basepath).replace(
                     "$STORAGE_BASE_PATH", runner_storage_base_path
@@ -1836,13 +1835,6 @@ async def load_flow_from_flow_run(
             os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
-    # for backwards compat
-    if deployment.manifest_path:
-        with open(deployment.manifest_path, "r") as f:
-            import_path = json.load(f)["import_path"]
-            import_path = (
-                Path(deployment.manifest_path).parent / import_path
-            ).absolute()
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
