@@ -737,9 +737,6 @@ def run_flow(
 def _flow_parameters(
     flow: Flow[P, R], flow_run: Optional[FlowRun], parameters: Optional[Dict[str, Any]]
 ) -> Dict[str, Any]:
-    if flow_run and flow_run.parameters:
-        return flow_run.parameters
-    elif parameters:
-        return parameters
-    else:
-        return get_call_parameters(flow.fn, (), {})
+    parameters = (flow_run.parameters if flow_run else parameters) or {}
+    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+    return get_call_parameters(flow.fn, args, kwargs)

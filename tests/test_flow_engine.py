@@ -128,12 +128,12 @@ class TestFlowRunsAsync:
             y: str
 
         @flow
-        async def bar(model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
-            return model.x, model.y
+        async def bar(required: str, model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
+            return required, model.x, model.y
 
-        result = await run_flow(bar)
+        result = await run_flow(bar, parameters={"required": "hello"})
 
-        assert result == (42, "nate")
+        assert result == ("hello", 42, "nate")
 
     async def test_with_param_validation(self):
         @flow
@@ -294,12 +294,12 @@ class TestFlowRunsSync:
             y: str
 
         @flow
-        def bar(model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
-            return model.x, model.y
+        def bar(required: str, model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
+            return required, model.x, model.y
 
-        result = run_flow(bar)
+        result = run_flow(bar, parameters={"required": "hello"})
 
-        assert result == (42, "nate")
+        assert result == ("hello", 42, "nate")
 
     async def test_with_param_validation(self):
         @flow
@@ -1552,11 +1552,11 @@ class TestGenerators:
             x: list[int]
 
         @flow
-        async def g(model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+        async def g(required: str, model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
             for i in model.x:
                 yield i
 
-        assert [i async for i in run_flow(g)] == [1, 2, 3]
+        assert [i async for i in g("hello")] == [1, 2, 3]
 
 
 class TestAsyncGenerators:
@@ -1711,8 +1711,9 @@ class TestAsyncGenerators:
             x: list[int]
 
         @flow
-        def g(model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+        def g(required: str, model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+            yield required
             for i in model.x:
                 yield i
 
-        assert [i for i in run_flow(g)] == [1, 2, 3]
+        assert [i for i in g("hello")] == ["hello", 1, 2, 3]
