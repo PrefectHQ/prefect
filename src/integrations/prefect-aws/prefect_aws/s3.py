@@ -1,27 +1,24 @@
 """Tasks for interacting with AWS S3"""
+
 import asyncio
 import io
 import os
 import uuid
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, List, Optional, Union
+from typing import Any, BinaryIO, Dict, List, Optional, Union, get_args
 
 import boto3
 from botocore.paginate import PageIterator
 from botocore.response import StreamingBody
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, field_validator
 
-from prefect import get_run_logger, task
-from prefect.blocks.abstract import ObjectStorageBlock
+from prefect import task
+from prefect.blocks.abstract import CredentialsBlock, ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from prefect.utilities.pydantic import lookup_type
 from prefect_aws import AwsCredentials, MinIOCredentials
 from prefect_aws.client_parameters import AwsClientParameters
 
@@ -394,7 +391,6 @@ async def s3_list_objects(
 
 
 class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock):
-
     """
     Block used to store data using AWS S3 or S3-compatible object storage like MinIO.
 
@@ -425,6 +421,42 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
             "for reading and writing objects."
         ),
     )
+
+    @field_validator("credentials", mode="before")
+    def validate_credentials(cls, value, field):
+        if isinstance(value, dict):
+            # There is an issue with pydantic and nested blocks with union
+            # types, in this case credentials is affected by it. What happens
+            # is that the credentials block appears to be correctly initialized
+            # but when it's attached to the parent block it's an
+            # _uninitialized_ instance without the field attributes.
+
+            # This validator is a workaround to check for the correct type
+            # or fallback to iterating over the possible credential types
+            # and trying to initialize them.
+
+            block_type_slug = value.pop("block_type_slug", None)
+            if block_type_slug:
+                credential_classes = (
+                    lookup_type(CredentialsBlock, dispatch_key=block_type_slug),
+                )
+            else:
+                credential_classes = get_args(
+                    cls.model_fields["credentials"].annotation
+                )
+
+            for credentials_cls in credential_classes:
+                try:
+                    return credentials_cls(**value)  # type: ignore
+                except ValueError:
+                    pass
+
+            valid_classes = ", ".join(c.__name__ for c in credential_classes)
+            raise ValueError(
+                f"Invalid credentials data: does not match any credential type. Valid types: {valid_classes}"
+            )
+
+        return value
 
     # Property to maintain compatibility with storage block based deployments
     @property

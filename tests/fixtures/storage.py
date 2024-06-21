@@ -1,6 +1,7 @@
 """
 Fixtures that create a small distributed storage API, including a storage block
 """
+
 import subprocess
 import sys
 from typing import Any, Optional
@@ -8,9 +9,10 @@ from typing import Any, Optional
 import anyio
 import httpx
 import pytest
-from prefect._vendor.fastapi import Body, FastAPI, status
-from prefect._vendor.fastapi.exceptions import RequestValidationError
+from fastapi import Body, FastAPI, status
+from fastapi.exceptions import RequestValidationError
 
+import prefect.results
 from prefect.filesystems import LocalFileSystem
 from prefect.server.api.server import validation_exception_handler
 
@@ -26,6 +28,13 @@ async def local_filesystem(tmp_path):
     block = LocalFileSystem(basepath=tmp_path)
     await block._save(is_anonymous=True)
     return block
+
+
+@pytest.fixture(autouse=True)
+async def clear_cached_filesystems():
+    prefect.results._default_storages.clear()
+    yield
+    prefect.results._default_storages.clear()
 
 
 # Key-value storage API ----------------------------------------------------------------

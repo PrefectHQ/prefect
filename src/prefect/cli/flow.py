@@ -11,15 +11,15 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import construct_schedule
 from prefect.client.schemas.sorting import FlowSort
 from prefect.deployments.runner import RunnerDeployment
 from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
-from prefect.settings import PREFECT_UI_URL
+from prefect.utilities import urls
 
-flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
+flow_app = PrefectTyper(name="flow", help="View and serve flows.")
 app.add_typer(flow_app, aliases=["flows"])
 
 
@@ -135,7 +135,7 @@ async def serve(
                 timezone=timezone,
                 anchor_date=interval_anchor,
             )
-            schedules = [MinimalDeploymentSchedule(schedule=schedule, active=True)]
+            schedules = [DeploymentScheduleCreate(schedule=schedule, active=True)]
 
         runner_deployment = RunnerDeployment.from_entrypoint(
             entrypoint=entrypoint,
@@ -155,10 +155,12 @@ async def serve(
         " command:\n[blue]\n\t$ prefect deployment run"
         f" '{runner_deployment.flow_name}/{name}'\n[/]"
     )
-    if PREFECT_UI_URL:
+
+    deployment_url = urls.url_for("deployment", obj_id=deployment_id)
+    if deployment_url:
         help_message += (
             "\nYou can also run your flow via the Prefect UI:"
-            f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
+            f" [blue]{deployment_url}[/]\n"
         )
 
     app.console.print(help_message, soft_wrap=True)

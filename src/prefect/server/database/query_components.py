@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
@@ -110,7 +111,7 @@ class BaseQueryComponents(ABC):
 
     @abstractmethod
     async def get_flow_run_notifications_from_queue(
-        self, session: AsyncSession, db: "PrefectDBInterface", limit: int
+        self, session: AsyncSession, limit: int
     ):
         """Database-specific implementation of reading notifications from the queue and deleting them"""
 
@@ -122,34 +123,34 @@ class BaseQueryComponents(ABC):
     ):
         """Database-specific implementation of queueing notifications for a flow run"""
         # insert a <policy, state> pair into the notification queue
-        stmt = db.insert(db.FlowRunNotificationQueue).from_select(
+        stmt = db.insert(orm_models.FlowRunNotificationQueue).from_select(
             [
-                db.FlowRunNotificationQueue.flow_run_notification_policy_id,
-                db.FlowRunNotificationQueue.flow_run_state_id,
+                orm_models.FlowRunNotificationQueue.flow_run_notification_policy_id,
+                orm_models.FlowRunNotificationQueue.flow_run_state_id,
             ],
             # ... by selecting from any notification policy that matches the criteria
             sa.select(
-                db.FlowRunNotificationPolicy.id,
+                orm_models.FlowRunNotificationPolicy.id,
                 sa.cast(sa.literal(str(flow_run.state_id)), UUIDTypeDecorator),
             )
-            .select_from(db.FlowRunNotificationPolicy)
+            .select_from(orm_models.FlowRunNotificationPolicy)
             .where(
                 sa.and_(
                     # the policy is active
-                    db.FlowRunNotificationPolicy.is_active.is_(True),
+                    orm_models.FlowRunNotificationPolicy.is_active.is_(True),
                     # the policy state names aren't set or match the current state name
                     sa.or_(
-                        db.FlowRunNotificationPolicy.state_names == [],
+                        orm_models.FlowRunNotificationPolicy.state_names == [],
                         json_has_any_key(
-                            db.FlowRunNotificationPolicy.state_names,
+                            orm_models.FlowRunNotificationPolicy.state_names,
                             [flow_run.state_name],
                         ),
                     ),
                     # the policy tags aren't set, or the tags match the flow run tags
                     sa.or_(
-                        db.FlowRunNotificationPolicy.tags == [],
+                        orm_models.FlowRunNotificationPolicy.tags == [],
                         json_has_any_key(
-                            db.FlowRunNotificationPolicy.tags, flow_run.tags
+                            orm_models.FlowRunNotificationPolicy.tags, flow_run.tags
                         ),
                     ),
                 )
@@ -162,7 +163,6 @@ class BaseQueryComponents(ABC):
 
     def get_scheduled_flow_runs_from_work_queues(
         self,
-        db: "PrefectDBInterface",
         limit_per_queue: Optional[int] = None,
         work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
@@ -170,7 +170,7 @@ class BaseQueryComponents(ABC):
         """
         Returns all scheduled runs in work queues, subject to provided parameters.
 
-        This query returns a `(db.FlowRun, db.WorkQueue.id)` pair; calling
+        This query returns a `(orm_models.FlowRun, orm_models.WorkQueue.id)` pair; calling
         `result.all()` will return both; calling `result.scalars().unique().all()`
         will return only the flow run because it grabs the first result.
         """
@@ -179,29 +179,34 @@ class BaseQueryComponents(ABC):
         # slots as their limit less the number of running flows
         concurrency_queues = (
             sa.select(
-                db.WorkQueue.id,
+                orm_models.WorkQueue.id,
                 self.greatest(
-                    0, db.WorkQueue.concurrency_limit - sa.func.count(db.FlowRun.id)
+                    0,
+                    orm_models.WorkQueue.concurrency_limit
+                    - sa.func.count(orm_models.FlowRun.id),
                 ).label("available_slots"),
             )
-            .select_from(db.WorkQueue)
+            .select_from(orm_models.WorkQueue)
             .join(
-                db.FlowRun,
+                orm_models.FlowRun,
                 sa.and_(
-                    self._flow_run_work_queue_join_clause(db.FlowRun, db.WorkQueue),
-                    db.FlowRun.state_type.in_(["RUNNING", "PENDING", "CANCELLING"]),
+                    self._flow_run_work_queue_join_clause(
+                        orm_models.FlowRun, orm_models.WorkQueue
+                    ),
+                    orm_models.FlowRun.state_type.in_(
+                        ["RUNNING", "PENDING", "CANCELLING"]
+                    ),
                 ),
                 isouter=True,
             )
-            .where(db.WorkQueue.concurrency_limit.is_not(None))
-            .group_by(db.WorkQueue.id)
+            .where(orm_models.WorkQueue.concurrency_limit.is_not(None))
+            .group_by(orm_models.WorkQueue.id)
             .cte("concurrency_queues")
         )
 
         # use the available slots information to generate a join
         # for all scheduled runs
         scheduled_flow_runs, join_criteria = self._get_scheduled_flow_runs_join(
-            db=db,
             work_queue_query=concurrency_queues,
             limit_per_queue=limit_per_queue,
             scheduled_before=scheduled_before,
@@ -213,19 +218,19 @@ class BaseQueryComponents(ABC):
         query = (
             # return a flow run and work queue id
             sa.select(
-                sa.orm.aliased(db.FlowRun, scheduled_flow_runs),
-                db.WorkQueue.id.label("wq_id"),
+                sa.orm.aliased(orm_models.FlowRun, scheduled_flow_runs),
+                orm_models.WorkQueue.id.label("wq_id"),
             )
-            .select_from(db.WorkQueue)
+            .select_from(orm_models.WorkQueue)
             .join(
                 concurrency_queues,
-                db.WorkQueue.id == concurrency_queues.c.id,
+                orm_models.WorkQueue.id == concurrency_queues.c.id,
                 isouter=True,
             )
             .join(scheduled_flow_runs, join_criteria)
             .where(
-                db.WorkQueue.is_paused.is_(False),
-                db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
+                orm_models.WorkQueue.is_paused.is_(False),
+                orm_models.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
             )
             .order_by(
                 scheduled_flow_runs.c.next_scheduled_start_time,
@@ -237,7 +242,6 @@ class BaseQueryComponents(ABC):
 
     def _get_scheduled_flow_runs_join(
         self,
-        db: "PrefectDBInterface",
         work_queue_query,
         limit_per_queue: Optional[int],
         scheduled_before: Optional[datetime.datetime],
@@ -247,7 +251,7 @@ class BaseQueryComponents(ABC):
 
         # precompute for readability
         scheduled_before_clause = (
-            db.FlowRun.next_scheduled_start_time <= scheduled_before
+            orm_models.FlowRun.next_scheduled_start_time <= scheduled_before
             if scheduled_before is not None
             else True
         )
@@ -255,15 +259,17 @@ class BaseQueryComponents(ABC):
         # get scheduled flow runs with lateral join where the limit is the
         # available slots per queue
         scheduled_flow_runs = (
-            sa.select(db.FlowRun)
+            sa.select(orm_models.FlowRun)
             .where(
-                self._flow_run_work_queue_join_clause(db.FlowRun, db.WorkQueue),
-                db.FlowRun.state_type == "SCHEDULED",
+                self._flow_run_work_queue_join_clause(
+                    orm_models.FlowRun, orm_models.WorkQueue
+                ),
+                orm_models.FlowRun.state_type == "SCHEDULED",
                 scheduled_before_clause,
             )
             .with_for_update(skip_locked=True)
             # priority given to runs with earlier next_scheduled_start_time
-            .order_by(db.FlowRun.next_scheduled_start_time)
+            .order_by(orm_models.FlowRun.next_scheduled_start_time)
             # if null, no limit will be applied
             .limit(sa.func.least(limit_per_queue, work_queue_query.c.available_slots))
             .lateral("scheduled_flow_runs")
@@ -296,7 +302,6 @@ class BaseQueryComponents(ABC):
     async def get_scheduled_flow_runs_from_work_pool(
         self,
         session,
-        db: "PrefectDBInterface",
         limit: Optional[int] = None,
         worker_limit: Optional[int] = None,
         queue_limit: Optional[int] = None,
@@ -367,11 +372,11 @@ class BaseQueryComponents(ABC):
             sa.select(
                 sa.column("run_work_pool_id"),
                 sa.column("run_work_queue_id"),
-                db.FlowRun,
+                orm_models.FlowRun,
             )
             .from_statement(query)
             # indicate that the state relationship isn't being loaded
-            .options(sa.orm.noload(db.FlowRun.state))
+            .options(sa.orm.noload(orm_models.FlowRun.state))
         )
 
         result = await session.execute(orm_query)
@@ -380,7 +385,9 @@ class BaseQueryComponents(ABC):
             schemas.responses.WorkerFlowRunResponse(
                 work_pool_id=r.run_work_pool_id,
                 work_queue_id=r.run_work_queue_id,
-                flow_run=schemas.core.FlowRun.from_orm(r.FlowRun),
+                flow_run=schemas.core.FlowRun.model_validate(
+                    r.FlowRun, from_attributes=True
+                ),
             )
             for r in result
         ]
@@ -388,7 +395,6 @@ class BaseQueryComponents(ABC):
     async def read_block_documents(
         self,
         session: sa.orm.Session,
-        db: "PrefectDBInterface",
         block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
         block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
         block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
@@ -405,23 +411,23 @@ class BaseQueryComponents(ABC):
         # --- Query for Parent Block Documents
         # begin by building a query for only those block documents that are selected
         # by the provided filters
-        filtered_block_documents_query = sa.select(db.BlockDocument.id).where(
-            block_document_filter.as_sql_filter(db)
+        filtered_block_documents_query = sa.select(orm_models.BlockDocument.id).where(
+            block_document_filter.as_sql_filter()
         )
 
         if block_type_filter is not None:
-            block_type_exists_clause = sa.select(db.BlockType).where(
-                db.BlockType.id == db.BlockDocument.block_type_id,
-                block_type_filter.as_sql_filter(db),
+            block_type_exists_clause = sa.select(orm_models.BlockType).where(
+                orm_models.BlockType.id == orm_models.BlockDocument.block_type_id,
+                block_type_filter.as_sql_filter(),
             )
             filtered_block_documents_query = filtered_block_documents_query.where(
                 block_type_exists_clause.exists()
             )
 
         if block_schema_filter is not None:
-            block_schema_exists_clause = sa.select(db.BlockSchema).where(
-                db.BlockSchema.id == db.BlockDocument.block_schema_id,
-                block_schema_filter.as_sql_filter(db),
+            block_schema_exists_clause = sa.select(orm_models.BlockSchema).where(
+                orm_models.BlockSchema.id == orm_models.BlockDocument.block_schema_id,
+                block_schema_filter.as_sql_filter(),
             )
             filtered_block_documents_query = filtered_block_documents_query.where(
                 block_schema_exists_clause.exists()
@@ -443,17 +449,19 @@ class BaseQueryComponents(ABC):
         # next build a recursive query for (potentially nested) block documents
         # that reference the filtered block documents
         block_document_references_query = (
-            sa.select(db.BlockDocumentReference)
+            sa.select(orm_models.BlockDocumentReference)
             .filter(
-                db.BlockDocumentReference.parent_block_document_id.in_(
+                orm_models.BlockDocumentReference.parent_block_document_id.in_(
                     sa.select(filtered_block_documents_query.c.id)
                 )
             )
             .cte("block_document_references", recursive=True)
         )
-        block_document_references_join = sa.select(db.BlockDocumentReference).join(
+        block_document_references_join = sa.select(
+            orm_models.BlockDocumentReference
+        ).join(
             block_document_references_query,
-            db.BlockDocumentReference.parent_block_document_id
+            orm_models.BlockDocumentReference.parent_block_document_id
             == block_document_references_query.c.reference_block_document_id,
         )
         recursive_block_document_references_cte = (
@@ -467,25 +475,27 @@ class BaseQueryComponents(ABC):
         all_block_documents_query = sa.union_all(
             # first select the parent block
             sa.select(
-                db.BlockDocument,
+                orm_models.BlockDocument,
                 sa.null().label("reference_name"),
                 sa.null().label("reference_parent_block_document_id"),
             )
-            .select_from(db.BlockDocument)
+            .select_from(orm_models.BlockDocument)
             .where(
-                db.BlockDocument.id.in_(sa.select(filtered_block_documents_query.c.id))
+                orm_models.BlockDocument.id.in_(
+                    sa.select(filtered_block_documents_query.c.id)
+                )
             ),
             #
             # then select any referenced blocks
             sa.select(
-                db.BlockDocument,
+                orm_models.BlockDocument,
                 recursive_block_document_references_cte.c.name,
                 recursive_block_document_references_cte.c.parent_block_document_id,
             )
-            .select_from(db.BlockDocument)
+            .select_from(orm_models.BlockDocument)
             .join(
                 recursive_block_document_references_cte,
-                db.BlockDocument.id
+                orm_models.BlockDocument.id
                 == recursive_block_document_references_cte.c.reference_block_document_id,
             ),
         ).cte("all_block_documents_query")
@@ -494,7 +504,7 @@ class BaseQueryComponents(ABC):
         # and also be sorted
         return (
             sa.select(
-                sa.orm.aliased(db.BlockDocument, all_block_documents_query),
+                sa.orm.aliased(orm_models.BlockDocument, all_block_documents_query),
                 all_block_documents_query.c.reference_name,
                 all_block_documents_query.c.reference_parent_block_document_id,
             )
@@ -503,7 +513,7 @@ class BaseQueryComponents(ABC):
         )
 
     async def read_configuration_value(
-        self, db: "PrefectDBInterface", session: sa.orm.Session, key: str
+        self, session: sa.orm.Session, key: str
     ) -> Optional[Dict]:
         """
         Read a configuration value by key.
@@ -517,7 +527,9 @@ class BaseQueryComponents(ABC):
         try:
             return self.CONFIGURATION_CACHE[key]
         except KeyError:
-            query = sa.select(db.Configuration).where(db.Configuration.key == key)
+            query = sa.select(orm_models.Configuration).where(
+                orm_models.Configuration.key == key
+            )
             result = await session.execute(query)
             configuration = result.scalar()
             if configuration is not None:
@@ -532,7 +544,6 @@ class BaseQueryComponents(ABC):
     @abstractmethod
     async def flow_run_graph_v2(
         self,
-        db: "PrefectDBInterface",
         session: AsyncSession,
         flow_run_id: UUID,
         since: datetime.datetime,
@@ -544,7 +555,6 @@ class BaseQueryComponents(ABC):
 
     async def _get_flow_run_graph_artifacts(
         self,
-        db: "PrefectDBInterface",
         session: AsyncSession,
         flow_run_id: UUID,
         max_artifacts: int,
@@ -559,19 +569,20 @@ class BaseQueryComponents(ABC):
 
         query = (
             sa.select(
-                db.Artifact, db.ArtifactCollection.id.label("latest_in_collection_id")
+                orm_models.Artifact,
+                orm_models.ArtifactCollection.id.label("latest_in_collection_id"),
             )
             .where(
-                db.Artifact.flow_run_id == flow_run_id,
-                db.Artifact.type != "result",
+                orm_models.Artifact.flow_run_id == flow_run_id,
+                orm_models.Artifact.type != "result",
             )
             .join(
-                db.ArtifactCollection,
-                (db.ArtifactCollection.key == db.Artifact.key)
-                & (db.ArtifactCollection.latest_id == db.Artifact.id),
+                orm_models.ArtifactCollection,
+                (orm_models.ArtifactCollection.key == orm_models.Artifact.key)
+                & (orm_models.ArtifactCollection.latest_id == orm_models.Artifact.id),
                 isouter=True,
             )
-            .order_by(db.Artifact.created.asc())
+            .order_by(orm_models.Artifact.created.asc())
             .limit(max_artifacts)
         )
 
@@ -585,6 +596,8 @@ class BaseQueryComponents(ABC):
                     created=artifact.created,
                     key=artifact.key,
                     type=artifact.type,
+                    # We're only using the data field for progress artifacts for now
+                    data=artifact.data if artifact.type == "progress" else None,
                     is_latest=artifact.key is None
                     or latest_in_collection_id is not None,
                 )
@@ -692,7 +705,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         return stmt
 
     async def get_flow_run_notifications_from_queue(
-        self, session: AsyncSession, db: "PrefectDBInterface", limit: int
+        self, session: AsyncSession, limit: int
     ) -> List:
         # including this as a subquery in the where clause of the
         # `queued_notifications` statement below, leads to errors where the limit
@@ -700,22 +713,24 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         # prevents this. see link for more details:
         # https://www.postgresql.org/message-id/16497.1553640836%40sss.pgh.pa.us
         queued_notifications_ids = (
-            sa.select(db.FlowRunNotificationQueue.id)
-            .select_from(db.FlowRunNotificationQueue)
-            .order_by(db.FlowRunNotificationQueue.updated)
+            sa.select(orm_models.FlowRunNotificationQueue.id)
+            .select_from(orm_models.FlowRunNotificationQueue)
+            .order_by(orm_models.FlowRunNotificationQueue.updated)
             .limit(limit)
             .with_for_update(skip_locked=True)
         ).cte("queued_notifications_ids")
 
         queued_notifications = (
-            sa.delete(db.FlowRunNotificationQueue)
+            sa.delete(orm_models.FlowRunNotificationQueue)
             .returning(
-                db.FlowRunNotificationQueue.id,
-                db.FlowRunNotificationQueue.flow_run_notification_policy_id,
-                db.FlowRunNotificationQueue.flow_run_state_id,
+                orm_models.FlowRunNotificationQueue.id,
+                orm_models.FlowRunNotificationQueue.flow_run_notification_policy_id,
+                orm_models.FlowRunNotificationQueue.flow_run_state_id,
             )
             .where(
-                db.FlowRunNotificationQueue.id.in_(sa.select(queued_notifications_ids))
+                orm_models.FlowRunNotificationQueue.id.in_(
+                    sa.select(queued_notifications_ids)
+                )
             )
             .cte("queued_notifications")
         )
@@ -723,40 +738,40 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         notification_details_stmt = (
             sa.select(
                 queued_notifications.c.id.label("queue_id"),
-                db.FlowRunNotificationPolicy.id.label(
+                orm_models.FlowRunNotificationPolicy.id.label(
                     "flow_run_notification_policy_id"
                 ),
-                db.FlowRunNotificationPolicy.message_template.label(
+                orm_models.FlowRunNotificationPolicy.message_template.label(
                     "flow_run_notification_policy_message_template"
                 ),
-                db.FlowRunNotificationPolicy.block_document_id,
-                db.Flow.id.label("flow_id"),
-                db.Flow.name.label("flow_name"),
-                db.FlowRun.id.label("flow_run_id"),
-                db.FlowRun.name.label("flow_run_name"),
-                db.FlowRun.parameters.label("flow_run_parameters"),
-                db.FlowRunState.type.label("flow_run_state_type"),
-                db.FlowRunState.name.label("flow_run_state_name"),
-                db.FlowRunState.timestamp.label("flow_run_state_timestamp"),
-                db.FlowRunState.message.label("flow_run_state_message"),
+                orm_models.FlowRunNotificationPolicy.block_document_id,
+                orm_models.Flow.id.label("flow_id"),
+                orm_models.Flow.name.label("flow_name"),
+                orm_models.FlowRun.id.label("flow_run_id"),
+                orm_models.FlowRun.name.label("flow_run_name"),
+                orm_models.FlowRun.parameters.label("flow_run_parameters"),
+                orm_models.FlowRunState.type.label("flow_run_state_type"),
+                orm_models.FlowRunState.name.label("flow_run_state_name"),
+                orm_models.FlowRunState.timestamp.label("flow_run_state_timestamp"),
+                orm_models.FlowRunState.message.label("flow_run_state_message"),
             )
             .select_from(queued_notifications)
             .join(
-                db.FlowRunNotificationPolicy,
+                orm_models.FlowRunNotificationPolicy,
                 queued_notifications.c.flow_run_notification_policy_id
-                == db.FlowRunNotificationPolicy.id,
+                == orm_models.FlowRunNotificationPolicy.id,
             )
             .join(
-                db.FlowRunState,
-                queued_notifications.c.flow_run_state_id == db.FlowRunState.id,
+                orm_models.FlowRunState,
+                queued_notifications.c.flow_run_state_id == orm_models.FlowRunState.id,
             )
             .join(
-                db.FlowRun,
-                db.FlowRunState.flow_run_id == db.FlowRun.id,
+                orm_models.FlowRun,
+                orm_models.FlowRunState.flow_run_id == orm_models.FlowRun.id,
             )
             .join(
-                db.Flow,
-                db.FlowRun.flow_id == db.Flow.id,
+                orm_models.Flow,
+                orm_models.FlowRun.flow_id == orm_models.Flow.id,
             )
         )
 
@@ -772,7 +787,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
     async def flow_run_graph_v2(
         self,
-        db: "PrefectDBInterface",
         session: AsyncSession,
         flow_run_id: UUID,
         since: datetime.datetime,
@@ -783,10 +797,13 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         graph (version 2)."""
         result = await session.execute(
             sa.select(
-                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time),
-                db.FlowRun.end_time,
+                sa.func.coalesce(
+                    orm_models.FlowRun.start_time,
+                    orm_models.FlowRun.expected_start_time,
+                ),
+                orm_models.FlowRun.end_time,
             ).where(
-                db.FlowRun.id == flow_run_id,
+                orm_models.FlowRun.id == flow_run_id,
             )
         )
         try:
@@ -898,7 +915,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         results = await session.execute(query)
 
         graph_artifacts = await self._get_flow_run_graph_artifacts(
-            db, session, flow_run_id, max_artifacts
+            session, flow_run_id, max_artifacts
         )
         graph_states = await self._get_flow_run_graph_states(session, flow_run_id)
 
@@ -1049,7 +1066,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         return stmt
 
     async def get_flow_run_notifications_from_queue(
-        self, session: AsyncSession, db: "PrefectDBInterface", limit: int
+        self, session: AsyncSession, limit: int
     ) -> List:
         """
         Sqlalchemy has no support for DELETE RETURNING in sqlite (as of May 2022)
@@ -1060,43 +1077,44 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
         notification_details_stmt = (
             sa.select(
-                db.FlowRunNotificationQueue.id.label("queue_id"),
-                db.FlowRunNotificationPolicy.id.label(
+                orm_models.FlowRunNotificationQueue.id.label("queue_id"),
+                orm_models.FlowRunNotificationPolicy.id.label(
                     "flow_run_notification_policy_id"
                 ),
-                db.FlowRunNotificationPolicy.message_template.label(
+                orm_models.FlowRunNotificationPolicy.message_template.label(
                     "flow_run_notification_policy_message_template"
                 ),
-                db.FlowRunNotificationPolicy.block_document_id,
-                db.Flow.id.label("flow_id"),
-                db.Flow.name.label("flow_name"),
-                db.FlowRun.id.label("flow_run_id"),
-                db.FlowRun.name.label("flow_run_name"),
-                db.FlowRun.parameters.label("flow_run_parameters"),
-                db.FlowRunState.type.label("flow_run_state_type"),
-                db.FlowRunState.name.label("flow_run_state_name"),
-                db.FlowRunState.timestamp.label("flow_run_state_timestamp"),
-                db.FlowRunState.message.label("flow_run_state_message"),
+                orm_models.FlowRunNotificationPolicy.block_document_id,
+                orm_models.Flow.id.label("flow_id"),
+                orm_models.Flow.name.label("flow_name"),
+                orm_models.FlowRun.id.label("flow_run_id"),
+                orm_models.FlowRun.name.label("flow_run_name"),
+                orm_models.FlowRun.parameters.label("flow_run_parameters"),
+                orm_models.FlowRunState.type.label("flow_run_state_type"),
+                orm_models.FlowRunState.name.label("flow_run_state_name"),
+                orm_models.FlowRunState.timestamp.label("flow_run_state_timestamp"),
+                orm_models.FlowRunState.message.label("flow_run_state_message"),
             )
-            .select_from(db.FlowRunNotificationQueue)
+            .select_from(orm_models.FlowRunNotificationQueue)
             .join(
-                db.FlowRunNotificationPolicy,
-                db.FlowRunNotificationQueue.flow_run_notification_policy_id
-                == db.FlowRunNotificationPolicy.id,
-            )
-            .join(
-                db.FlowRunState,
-                db.FlowRunNotificationQueue.flow_run_state_id == db.FlowRunState.id,
+                orm_models.FlowRunNotificationPolicy,
+                orm_models.FlowRunNotificationQueue.flow_run_notification_policy_id
+                == orm_models.FlowRunNotificationPolicy.id,
             )
             .join(
-                db.FlowRun,
-                db.FlowRunState.flow_run_id == db.FlowRun.id,
+                orm_models.FlowRunState,
+                orm_models.FlowRunNotificationQueue.flow_run_state_id
+                == orm_models.FlowRunState.id,
             )
             .join(
-                db.Flow,
-                db.FlowRun.flow_id == db.Flow.id,
+                orm_models.FlowRun,
+                orm_models.FlowRunState.flow_run_id == orm_models.FlowRun.id,
             )
-            .order_by(db.FlowRunNotificationQueue.updated)
+            .join(
+                orm_models.Flow,
+                orm_models.FlowRun.flow_id == orm_models.Flow.id,
+            )
+            .order_by(orm_models.FlowRunNotificationQueue.updated)
             .limit(limit)
         )
 
@@ -1105,9 +1123,11 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
         # delete the notifications
         delete_stmt = (
-            sa.delete(db.FlowRunNotificationQueue)
+            sa.delete(orm_models.FlowRunNotificationQueue)
             .where(
-                db.FlowRunNotificationQueue.id.in_([n.queue_id for n in notifications])
+                orm_models.FlowRunNotificationQueue.id.in_(
+                    [n.queue_id for n in notifications]
+                )
             )
             .execution_options(synchronize_session="fetch")
         )
@@ -1132,14 +1152,13 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def _get_scheduled_flow_runs_join(
         self,
-        db: "PrefectDBInterface",
         work_queue_query,
         limit_per_queue: Optional[int],
         scheduled_before: Optional[datetime.datetime],
     ):
         # precompute for readability
         scheduled_before_clause = (
-            db.FlowRun.next_scheduled_start_time <= scheduled_before
+            orm_models.FlowRun.next_scheduled_start_time <= scheduled_before
             if scheduled_before is not None
             else True
         )
@@ -1150,15 +1169,15 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 (
                     sa.func.row_number()
                     .over(
-                        partition_by=[db.FlowRun.work_queue_name],
-                        order_by=db.FlowRun.next_scheduled_start_time,
+                        partition_by=[orm_models.FlowRun.work_queue_name],
+                        order_by=orm_models.FlowRun.next_scheduled_start_time,
                     )
                     .label("rank")
                 ),
-                db.FlowRun,
+                orm_models.FlowRun,
             )
             .where(
-                db.FlowRun.state_type == "SCHEDULED",
+                orm_models.FlowRun.state_type == "SCHEDULED",
                 scheduled_before_clause,
             )
             .subquery("scheduled_flow_runs")
@@ -1171,7 +1190,9 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         # in the join, only keep flow runs whose rank is less than or equal to the
         # available slots for each queue
         join_criteria = sa.and_(
-            self._flow_run_work_queue_join_clause(scheduled_flow_runs.c, db.WorkQueue),
+            self._flow_run_work_queue_join_clause(
+                scheduled_flow_runs.c, orm_models.WorkQueue
+            ),
             scheduled_flow_runs.c.rank
             <= sa.func.min(
                 sa.func.coalesce(work_queue_query.c.available_slots, limit), limit
@@ -1192,7 +1213,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     async def flow_run_graph_v2(
         self,
-        db: "PrefectDBInterface",
         session: AsyncSession,
         flow_run_id: UUID,
         since: datetime.datetime,
@@ -1203,10 +1223,13 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         graph (version 2)."""
         result = await session.execute(
             sa.select(
-                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time),
-                db.FlowRun.end_time,
+                sa.func.coalesce(
+                    orm_models.FlowRun.start_time,
+                    orm_models.FlowRun.expected_start_time,
+                ),
+                orm_models.FlowRun.end_time,
             ).where(
-                db.FlowRun.id == flow_run_id,
+                orm_models.FlowRun.id == flow_run_id,
             )
         )
         try:
@@ -1331,7 +1354,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         results = await session.execute(query)
 
         graph_artifacts = await self._get_flow_run_graph_artifacts(
-            db, session, flow_run_id, max_artifacts
+            session, flow_run_id, max_artifacts
         )
         graph_states = await self._get_flow_run_graph_states(session, flow_run_id)
 

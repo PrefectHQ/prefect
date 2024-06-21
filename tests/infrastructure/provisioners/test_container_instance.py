@@ -3,20 +3,15 @@ from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
+from pydantic import Field
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
-from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.infrastructure.provisioners.container_instance import (
     ContainerInstancePushProvisioner,
 )
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from prefect.types import SecretDict
 
 
 @pytest.fixture

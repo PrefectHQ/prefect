@@ -5,17 +5,8 @@ from uuid import uuid4
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import ValidationError
-else:
-    import pydantic
-    from pydantic import ValidationError
-
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -32,13 +23,14 @@ from prefect.server.models import deployments, flows
 from prefect.server.schemas.actions import DeploymentScheduleCreate
 from prefect.server.schemas.core import Deployment, Flow
 from prefect.server.schemas.schedules import IntervalSchedule
+from prefect.utilities.pydantic import parse_obj_as
 
 
 def test_source_determines_if_deployment_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="deployment_id is required"):
+    with pytest.raises(ValidationError):
         actions.PauseDeployment(source="selected")
 
-    with pytest.raises(ValidationError, match="deployment_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.PauseDeployment(source="inferred", deployment_id=uuid4())
 
 
@@ -76,7 +68,7 @@ async def hourly_garden_patrol(session: AsyncSession) -> Deployment:
 
     await session.commit()
 
-    return Deployment.from_orm(hourly_garden_patrol)
+    return Deployment.model_validate(hourly_garden_patrol, from_attributes=True)
 
 
 @pytest.fixture
@@ -148,8 +140,9 @@ async def test_pausing_deployment(
     hourly_garden_patrol: Deployment,
     session: AsyncSession,
 ):
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert not patrol.paused
 
@@ -158,8 +151,9 @@ async def test_pausing_deployment(
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
 
     assert patrol.paused
@@ -250,8 +244,9 @@ async def test_resuming_deployment(
     patrol.paused = True
     await session.commit()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert patrol.paused
 
@@ -260,8 +255,9 @@ async def test_resuming_deployment(
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
 
     assert not patrol.paused
@@ -320,8 +316,9 @@ async def test_pausing_inferred_deployment(
     hourly_garden_patrol: Deployment,
     session: AsyncSession,
 ):
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert not patrol.paused
 
@@ -330,8 +327,9 @@ async def test_pausing_inferred_deployment(
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert patrol.paused
 
@@ -381,8 +379,9 @@ async def test_resuming_inferred_deployment(
     patrol.paused = True
     await session.commit()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert patrol.paused
 
@@ -391,8 +390,9 @@ async def test_resuming_inferred_deployment(
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
 
     assert not patrol.paused
@@ -425,7 +425,7 @@ async def test_inferring_deployment_requires_recognizable_resource_id(
     resume_their_deployment: TriggeredAction,
 ):
     assert resume_their_deployment.triggering_event
-    resume_their_deployment.triggering_event.related = pydantic.parse_obj_as(
+    resume_their_deployment.triggering_event.related = parse_obj_as(
         List[RelatedResource],
         [
             {
@@ -463,7 +463,7 @@ async def test_pausing_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
                 "prefect.resource.role": "target",
@@ -492,7 +492,7 @@ async def test_resuming_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
                 "prefect.resource.role": "target",

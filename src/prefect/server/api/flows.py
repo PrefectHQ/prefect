@@ -2,18 +2,19 @@
 Routes for interacting with flow objects.
 """
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Depends, HTTPException, Path, Response, status
-from prefect._vendor.fastapi.param_functions import Body
+from fastapi import Depends, HTTPException, Path, Response, status
+from fastapi.param_functions import Body
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.schemas.responses import FlowPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/flows", tags=["Flows"])
@@ -29,7 +30,7 @@ async def create_flow(
     same name already exists, the existing flow is returned.
     """
     # hydrate the input model into a full flow model
-    flow = schemas.core.Flow(**flow.dict())
+    flow = schemas.core.Flow(**flow.model_dump())
 
     now = pendulum.now("UTC")
 
@@ -160,3 +161,51 @@ async def delete_flow(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
         )
+
+
+@router.post("/paginate")
+async def paginate_flows(
+    limit: int = dependencies.LimitBody(),
+    page: int = Body(1, ge=1),
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> FlowPaginationResponse:
+    """
+    Pagination query for flows.
+    """
+    offset = (page - 1) * limit
+
+    async with db.session_context() as session:
+        results = await models.flows.read_flows(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            sort=sort,
+            offset=offset,
+            limit=limit,
+        )
+
+        count = await models.flows.count_flows(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+        )
+
+    return FlowPaginationResponse(
+        results=results,
+        count=count,
+        limit=limit,
+        pages=(count + limit - 1) // limit,
+        page=page,
+    )

@@ -67,7 +67,7 @@ def runner_settings():
         yield
 
 
-def test_submission_raises_if_extra_endpoints_not_enabled(mock_webserver):
+async def test_submission_raises_if_extra_endpoints_not_enabled(mock_webserver):
     with temporary_settings(
         {PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS: False}
     ):
@@ -78,13 +78,16 @@ def test_submission_raises_if_extra_endpoints_not_enabled(mock_webserver):
                 " running and built with extra endpoints enabled."
             ),
         ):
-            submit_to_runner(identity, {"whatever": 42})
+            await submit_to_runner(identity, {"whatever": 42})
 
 
 @pytest.mark.parametrize("prefect_callable", [identity, async_identity])
 def test_submit_to_runner_happy_path_sync_context(mock_webserver, prefect_callable):
-    flow_run = submit_to_runner(prefect_callable, {"whatever": 42})
+    @flow
+    def test_flow():
+        return submit_to_runner(prefect_callable, {"whatever": 42})
 
+    flow_run = test_flow()
     assert flow_run.state.is_running()
     assert flow_run.parameters == {"whatever": 42}
 
@@ -116,17 +119,17 @@ async def test_submission_with_optional_parameters(mock_webserver):
     assert flow_run.parameters == {}
 
 
-def test_submission_raises_if_webserver_not_running(mock_webserver_not_running):
+async def test_submission_raises_if_webserver_not_running(mock_webserver_not_running):
     with temporary_settings({PREFECT_RUNNER_SERVER_ENABLE: False}):
         with pytest.raises(
             (httpx.ConnectTimeout, RuntimeError),
             match="Ensure that the server is running",
         ):
-            submit_to_runner(identity, {"d": {"input": 9001}})
+            await submit_to_runner(identity, {"d": {"input": 9001}})
 
 
 @pytest.mark.parametrize("input_", [[{"input": 1}, {"input": 2}], {"input": 3}])
-def test_return_for_submissions_matches_input(
+async def test_return_for_submissions_matches_input(
     mock_webserver, input_: Union[List[Dict], Dict]
 ):
     def _flow_run_generator(*_, **__):
@@ -136,7 +139,7 @@ def test_return_for_submissions_matches_input(
         "prefect.runner.submit._submit_flow_to_runner",
         side_effect=_flow_run_generator,
     ):
-        results = submit_to_runner(identity, input_)
+        results = await submit_to_runner(identity, input_)
 
         if isinstance(input_, dict):
             assert isinstance(results, FlowRun)
@@ -179,8 +182,8 @@ def test_return_for_submissions_matches_input(
         [{"1": {2: {3: {4: None}}}}],
     ],
 )
-def test_types_in_submission(mock_webserver, input_: Union[List[Dict], Dict]):
-    results = submit_to_runner(super_identity, input_)
+async def test_types_in_submission(mock_webserver, input_: Union[List[Dict], Dict]):
+    results = await submit_to_runner(super_identity, input_)
 
     if isinstance(input_, List):
         assert len(results) == len(input_)

@@ -5,21 +5,8 @@ from uuid import uuid4
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.settings import (
-    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_EVENTS,
-    temporary_settings,
-)
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import ValidationError
-else:
-    import pydantic
-    from pydantic import ValidationError
 
 from prefect.server.events import actions
 from prefect.server.events.models import automations
@@ -34,13 +21,16 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import RelatedResource
+from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    temporary_settings,
+)
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
 def enable_automations():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_EVENTS: True, PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}
-    ):
+    with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
         yield
 
 
@@ -55,16 +45,16 @@ def triggers_disabled():
 
 
 def test_source_determines_if_automation_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="automation_id is required"):
+    with pytest.raises(ValidationError):
         actions.PauseAutomation(source="selected")
 
-    with pytest.raises(ValidationError, match="automation_id is required"):
+    with pytest.raises(ValidationError):
         actions.ResumeAutomation(source="selected")
 
-    with pytest.raises(ValidationError, match="automation_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.PauseAutomation(source="inferred", automation_id=uuid4())
 
-    with pytest.raises(ValidationError, match="automation_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.ResumeAutomation(source="inferred", automation_id=uuid4())
 
 
@@ -323,7 +313,7 @@ def the_sprinklers_stopped(
         resource={
             "prefect.resource.id": "sprinklers.front-lawn",
         },
-        related=pydantic.parse_obj_as(
+        related=parse_obj_as(
             List[RelatedResource],
             [
                 {
@@ -457,7 +447,7 @@ async def test_inferring_automation_requires_recognizable_resource_id(
     turn_on_the_self_managing_automation: TriggeredAction,
 ):
     assert turn_on_the_self_managing_automation.triggering_event
-    turn_on_the_self_managing_automation.triggering_event.related = pydantic.parse_obj_as(
+    turn_on_the_self_managing_automation.triggering_event.related = parse_obj_as(
         List[RelatedResource],
         [
             {

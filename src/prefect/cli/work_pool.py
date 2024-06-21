@@ -1,14 +1,15 @@
 """
 Command line interface for working with work queues.
 """
+
 import json
+import textwrap
 
 import pendulum
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._prompts import prompt_select_from_table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import (
@@ -17,6 +18,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
@@ -24,14 +26,13 @@ from prefect.infrastructure.provisioners import (
     get_infrastructure_provisioner_for_work_pool_type,
 )
 from prefect.settings import update_current_profile
+from prefect.utilities import urls
 from prefect.workers.utilities import (
     get_available_work_pool_types,
     get_default_base_job_template_for_infrastructure_type,
 )
 
-work_pool_app = PrefectTyper(
-    name="work-pool", help="Commands for working with work pools."
-)
+work_pool_app = PrefectTyper(name="work-pool", help="Manage work pools.")
 app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
@@ -212,6 +213,22 @@ async def create(
                 )
             if set_as_default:
                 set_work_pool_as_default(work_pool.name)
+
+            url = urls.url_for(work_pool)
+            pool_url = url if url else "<no dashboard available>"
+
+            app.console.print(
+                textwrap.dedent(
+                    f"""
+                └── UUID: {work_pool.id}
+                └── Type: {work_pool.type}
+                └── Description: {work_pool.description}
+                └── Status: {work_pool.status.display_name}
+                └── URL: {pool_url}
+                """
+                ).strip(),
+                soft_wrap=True,
+            )
             exit_with_success("")
         except ObjectAlreadyExists:
             exit_with_error(
@@ -473,6 +490,11 @@ async def delete(
     """
     async with get_client() as client:
         try:
+            if is_interactive() and not typer.confirm(
+                (f"Are you sure you want to delete work pool with name {name!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
             await client.delete_work_pool(work_pool_name=name)
         except ObjectNotFound as exc:
             exit_with_error(exc)

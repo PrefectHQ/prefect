@@ -5,29 +5,36 @@ Intended for internal use by the Prefect REST API.
 
 import json
 from copy import copy
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database import orm_models
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.block_types import read_block_type_by_slug
 from prefect.server.schemas.actions import BlockSchemaCreate
 from prefect.server.schemas.core import BlockSchema, BlockSchemaReference, BlockType
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.actions import (
+        BlockSchemaCreate as ClientBlockSchemaCreate,
+    )
 
 
 class MissingBlockTypeException(Exception):
     """Raised when the block type corresponding to a block schema cannot be found"""
 
 
-@inject_db
+@db_injector
 async def create_block_schema(
-    session: sa.orm.Session,
-    block_schema: schemas.actions.BlockSchemaCreate,
     db: PrefectDBInterface,
+    session: AsyncSession,
+    block_schema: Union[schemas.actions.BlockSchemaCreate, "ClientBlockSchemaCreate"],
     override: bool = False,
     definitions: Optional[Dict] = None,
 ):
@@ -45,8 +52,18 @@ async def create_block_schema(
     """
     from prefect.blocks.core import Block, _get_non_block_reference_definitions
 
-    insert_values = block_schema.dict(
-        shallow=True,
+    # We take a shortcut in many unit tests and in block registration to pass client
+    # models directly to this function.  We will support this by converting them to
+    # the appropriate server model.
+    if not isinstance(block_schema, schemas.actions.BlockSchemaCreate):
+        block_schema = schemas.actions.BlockSchemaCreate.model_validate(
+            block_schema.model_dump(
+                mode="json",
+                exclude={"id", "created", "updated", "checksum", "block_type"},
+            )
+        )
+
+    insert_values = block_schema.model_dump_for_orm(
         exclude_unset=False,
         exclude={"block_type", "id", "created", "updated"},
     )
@@ -86,12 +103,12 @@ async def create_block_schema(
             insert_values["fields"].pop("definitions", None)
 
     # Prevent saving block schema references in the block_schema table. They have
-    # they're own table.
+    # their own table.
     block_schema_references: Dict = insert_values["fields"].pop(
         "block_schema_references", {}
     )
 
-    insert_stmt = db.insert(db.BlockSchema).values(**insert_values)
+    insert_stmt = db.insert(orm_models.BlockSchema).values(**insert_values)
     if override:
         insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=db.block_schema_unique_upsert_columns,
@@ -100,17 +117,17 @@ async def create_block_schema(
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(db.BlockSchema)
+        sa.select(orm_models.BlockSchema)
         .where(
-            db.BlockSchema.checksum == insert_values["checksum"],
+            orm_models.BlockSchema.checksum == insert_values["checksum"],
         )
-        .order_by(db.BlockSchema.created.desc())
+        .order_by(orm_models.BlockSchema.created.desc())
         .limit(1)
         .execution_options(populate_existing=True)
     )
 
     if block_schema.version is not None:
-        query = query.where(db.BlockSchema.version == block_schema.version)
+        query = query.where(orm_models.BlockSchema.version == block_schema.version)
 
     result = await session.execute(query)
     created_block_schema = copy(result.scalar())
@@ -132,7 +149,7 @@ async def create_block_schema(
 
 
 async def _register_nested_block_schemas(
-    session: sa.orm.Session,
+    session: AsyncSession,
     parent_block_schema_id: UUID,
     block_schema_references: Dict[str, Union[Dict[str, str], List[Dict[str, str]]]],
     base_fields: Dict,
@@ -255,10 +272,7 @@ def _get_fields_for_child_schema(
     return sub_block_schema_fields
 
 
-@inject_db
-async def delete_block_schema(
-    session: sa.orm.Session, block_schema_id: UUID, db: PrefectDBInterface
-) -> bool:
+async def delete_block_schema(session: sa.orm.Session, block_schema_id: UUID) -> bool:
     """
     Delete a block schema by id.
 
@@ -271,16 +285,16 @@ async def delete_block_schema(
     """
 
     result = await session.execute(
-        delete(db.BlockSchema).where(db.BlockSchema.id == block_schema_id)
+        delete(orm_models.BlockSchema).where(
+            orm_models.BlockSchema.id == block_schema_id
+        )
     )
     return result.rowcount > 0
 
 
-@inject_db
 async def read_block_schema(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_schema_id: UUID,
-    db: PrefectDBInterface,
 ):
     """
     Reads a block schema by id. Will reconstruct the block schema's fields attribute
@@ -291,24 +305,24 @@ async def read_block_schema(
         block_schema_id: a block_schema id
 
     Returns:
-        db.Blockschema: the block_schema
+        orm_models..BlockSchema: the block_schema
     """
 
     # Construction of a recursive query which returns the specified block schema
     # along with and nested block schemas coupled with the ID of their parent schema
     # the key that they reside under.
     block_schema_references_query = (
-        sa.select(db.BlockSchemaReference)
-        .select_from(db.BlockSchemaReference)
+        sa.select(orm_models.BlockSchemaReference)
+        .select_from(orm_models.BlockSchemaReference)
         .filter_by(parent_block_schema_id=block_schema_id)
         .cte("block_schema_references", recursive=True)
     )
     block_schema_references_join = (
-        sa.select(db.BlockSchemaReference)
-        .select_from(db.BlockSchemaReference)
+        sa.select(orm_models.BlockSchemaReference)
+        .select_from(orm_models.BlockSchemaReference)
         .join(
             block_schema_references_query,
-            db.BlockSchemaReference.parent_block_schema_id
+            orm_models.BlockSchemaReference.parent_block_schema_id
             == block_schema_references_query.c.reference_block_schema_id,
         )
     )
@@ -317,20 +331,20 @@ async def read_block_schema(
     )
     nested_block_schemas_query = (
         sa.select(
-            db.BlockSchema,
+            orm_models.BlockSchema,
             recursive_block_schema_references_cte.c.name,
             recursive_block_schema_references_cte.c.parent_block_schema_id,
         )
-        .select_from(db.BlockSchema)
+        .select_from(orm_models.BlockSchema)
         .join(
             recursive_block_schema_references_cte,
-            db.BlockSchema.id
+            orm_models.BlockSchema.id
             == recursive_block_schema_references_cte.c.reference_block_schema_id,
             isouter=True,
         )
         .filter(
             sa.or_(
-                db.BlockSchema.id == block_schema_id,
+                orm_models.BlockSchema.id == block_schema_id,
                 recursive_block_schema_references_cte.c.parent_block_schema_id.is_not(
                     None
                 ),
@@ -556,10 +570,8 @@ def _construct_block_schema_fields_with_block_references(
     return block_schema_fields_copy
 
 
-@inject_db
 async def read_block_schemas(
-    session: sa.orm.Session,
-    db: PrefectDBInterface,
+    session: AsyncSession,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
@@ -574,17 +586,17 @@ async def read_block_schemas(
         offset (int): query offset
 
     Returns:
-        List[db.BlockSchema]: the block_schemas
+        List[orm_models.BlockSchema]: the block_schemas
     """
     # schemas are ordered by `created DESC` to get the most recently created
     # ones first (and to facilitate getting the newest one with `limit=1`).
-    filtered_block_schemas_query = select(db.BlockSchema.id).order_by(
-        db.BlockSchema.created.desc()
+    filtered_block_schemas_query = select(orm_models.BlockSchema.id).order_by(
+        orm_models.BlockSchema.created.desc()
     )
 
     if block_schema_filter:
         filtered_block_schemas_query = filtered_block_schemas_query.where(
-            block_schema_filter.as_sql_filter(db)
+            block_schema_filter.as_sql_filter()
         )
 
     if offset is not None:
@@ -597,21 +609,21 @@ async def read_block_schemas(
     )
 
     block_schema_references_query = (
-        sa.select(db.BlockSchemaReference)
-        .select_from(db.BlockSchemaReference)
+        sa.select(orm_models.BlockSchemaReference)
+        .select_from(orm_models.BlockSchemaReference)
         .filter(
-            db.BlockSchemaReference.parent_block_schema_id.in_(
+            orm_models.BlockSchemaReference.parent_block_schema_id.in_(
                 filtered_block_schemas_query
             )
         )
         .cte("block_schema_references", recursive=True)
     )
     block_schema_references_join = (
-        sa.select(db.BlockSchemaReference)
-        .select_from(db.BlockSchemaReference)
+        sa.select(orm_models.BlockSchemaReference)
+        .select_from(orm_models.BlockSchemaReference)
         .join(
             block_schema_references_query,
-            db.BlockSchemaReference.parent_block_schema_id
+            orm_models.BlockSchemaReference.parent_block_schema_id
             == block_schema_references_query.c.reference_block_schema_id,
         )
     )
@@ -621,24 +633,24 @@ async def read_block_schemas(
 
     nested_block_schemas_query = (
         sa.select(
-            db.BlockSchema,
+            orm_models.BlockSchema,
             recursive_block_schema_references_cte.c.name,
             recursive_block_schema_references_cte.c.parent_block_schema_id,
         )
-        .select_from(db.BlockSchema)
+        .select_from(orm_models.BlockSchema)
         # in order to reconstruct nested block schemas efficiently, we need to visit them
         # in the order they were created (so that we guarantee that nested/referenced schemas)
         # have already been seen. Therefore this second query sorts by created ASC
-        .order_by(db.BlockSchema.created.asc())
+        .order_by(orm_models.BlockSchema.created.asc())
         .join(
             recursive_block_schema_references_cte,
-            db.BlockSchema.id
+            orm_models.BlockSchema.id
             == recursive_block_schema_references_cte.c.reference_block_schema_id,
             isouter=True,
         )
         .filter(
             sa.or_(
-                db.BlockSchema.id.in_(filtered_block_schemas_query),
+                orm_models.BlockSchema.id.in_(filtered_block_schemas_query),
                 recursive_block_schema_references_cte.c.parent_block_schema_id.is_not(
                     None
                 ),
@@ -669,11 +681,9 @@ async def read_block_schemas(
     return list(reversed(fully_constructed_block_schemas))
 
 
-@inject_db
 async def read_block_schema_by_checksum(
-    session: sa.orm.Session,
+    session: AsyncSession,
     checksum: str,
-    db: PrefectDBInterface,
     version: Optional[str] = None,
 ) -> Optional[BlockSchema]:
     """
@@ -686,7 +696,7 @@ async def read_block_schema_by_checksum(
         version: A block_schema version
 
     Returns:
-        db.BlockSchema: the block_schema
+        orm_models.BlockSchema: the block_schema
     """
     # Construction of a recursive query which returns the specified block schema
     # along with and nested block schemas coupled with the ID of their parent schema
@@ -695,9 +705,9 @@ async def read_block_schema_by_checksum(
     # The same checksum with different versions can occur in the DB. Return only the
     # most recently created one.
     root_block_schema_query = (
-        sa.select(db.BlockSchema)
+        sa.select(orm_models.BlockSchema)
         .filter_by(checksum=checksum)
-        .order_by(db.BlockSchema.created.desc())
+        .order_by(orm_models.BlockSchema.created.desc())
         .limit(1)
     )
 
@@ -707,17 +717,17 @@ async def read_block_schema_by_checksum(
     root_block_schema_cte = root_block_schema_query.cte("root_block_schema")
 
     block_schema_references_query = (
-        sa.select(db.BlockSchemaReference)
-        .select_from(db.BlockSchemaReference)
+        sa.select(orm_models.BlockSchemaReference)
+        .select_from(orm_models.BlockSchemaReference)
         .filter_by(parent_block_schema_id=root_block_schema_cte.c.id)
         .cte("block_schema_references", recursive=True)
     )
     block_schema_references_join = (
-        sa.select(db.BlockSchemaReference)
-        .select_from(db.BlockSchemaReference)
+        sa.select(orm_models.BlockSchemaReference)
+        .select_from(orm_models.BlockSchemaReference)
         .join(
             block_schema_references_query,
-            db.BlockSchemaReference.parent_block_schema_id
+            orm_models.BlockSchemaReference.parent_block_schema_id
             == block_schema_references_query.c.reference_block_schema_id,
         )
     )
@@ -726,20 +736,20 @@ async def read_block_schema_by_checksum(
     )
     nested_block_schemas_query = (
         sa.select(
-            db.BlockSchema,
+            orm_models.BlockSchema,
             recursive_block_schema_references_cte.c.name,
             recursive_block_schema_references_cte.c.parent_block_schema_id,
         )
-        .select_from(db.BlockSchema)
+        .select_from(orm_models.BlockSchema)
         .join(
             recursive_block_schema_references_cte,
-            db.BlockSchema.id
+            orm_models.BlockSchema.id
             == recursive_block_schema_references_cte.c.reference_block_schema_id,
             isouter=True,
         )
         .filter(
             sa.or_(
-                db.BlockSchema.id == root_block_schema_cte.c.id,
+                orm_models.BlockSchema.id == root_block_schema_cte.c.id,
                 recursive_block_schema_references_cte.c.parent_block_schema_id.is_not(
                     None
                 ),
@@ -750,9 +760,10 @@ async def read_block_schema_by_checksum(
     return _construct_full_block_schema(result.all())
 
 
-@inject_db
+@db_injector
 async def read_available_block_capabilities(
-    session: sa.orm.Session, db: PrefectDBInterface
+    db: PrefectDBInterface,
+    session: AsyncSession,
 ) -> List[str]:
     """
     Retrieves a list of all available block capabilities.
@@ -764,7 +775,7 @@ async def read_available_block_capabilities(
         List[str]: List of all available block capabilities.
     """
     query = sa.select(
-        db.json_arr_agg(db.cast_to_json(db.BlockSchema.capabilities.distinct()))
+        db.json_arr_agg(db.cast_to_json(orm_models.BlockSchema.capabilities.distinct()))
     )
     capability_combinations = (await session.execute(query)).scalars().first() or list()
     if db.uses_json_strings and isinstance(capability_combinations, str):
@@ -772,11 +783,11 @@ async def read_available_block_capabilities(
     return list({c for capabilities in capability_combinations for c in capabilities})
 
 
-@inject_db
+@db_injector
 async def create_block_schema_reference(
-    session: sa.orm.Session,
-    block_schema_reference: schemas.core.BlockSchemaReference,
     db: PrefectDBInterface,
+    session: AsyncSession,
+    block_schema_reference: schemas.core.BlockSchemaReference,
 ):
     """
     Retrieves a list of all available block capabilities.
@@ -786,13 +797,13 @@ async def create_block_schema_reference(
         block_schema_reference: A block schema reference object.
 
     Returns:
-        db.BlockSchemaReference: The created BlockSchemaReference
+        orm_models.BlockSchemaReference: The created BlockSchemaReference
     """
-    query_stmt = sa.select(db.BlockSchemaReference).where(
-        db.BlockSchemaReference.name == block_schema_reference.name,
-        db.BlockSchemaReference.parent_block_schema_id
+    query_stmt = sa.select(orm_models.BlockSchemaReference).where(
+        orm_models.BlockSchemaReference.name == block_schema_reference.name,
+        orm_models.BlockSchemaReference.parent_block_schema_id
         == block_schema_reference.parent_block_schema_id,
-        db.BlockSchemaReference.reference_block_schema_id
+        orm_models.BlockSchemaReference.reference_block_schema_id
         == block_schema_reference.reference_block_schema_id,
     )
 
@@ -800,16 +811,16 @@ async def create_block_schema_reference(
     if existing_reference:
         return existing_reference
 
-    insert_stmt = db.insert(db.BlockSchemaReference).values(
-        **block_schema_reference.dict(
-            shallow=True, exclude_unset=True, exclude={"created", "updated"}
+    insert_stmt = db.insert(orm_models.BlockSchemaReference).values(
+        **block_schema_reference.model_dump_for_orm(
+            exclude_unset=True, exclude={"created", "updated"}
         )
     )
     await session.execute(insert_stmt)
 
     result = await session.execute(
-        sa.select(db.BlockSchemaReference).where(
-            db.BlockSchemaReference.id == block_schema_reference.id
+        sa.select(orm_models.BlockSchemaReference).where(
+            orm_models.BlockSchemaReference.id == block_schema_reference.id
         )
     )
     return result.scalar()

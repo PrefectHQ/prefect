@@ -7,19 +7,21 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
 from tempfile import TemporaryDirectory
-from typing import Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Union
 
 import prefect.context
 import prefect.settings
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
-from prefect.filesystems import ReadableFileSystem
 from prefect.results import PersistedResult
 from prefect.serializers import Serializer
-from prefect.server.database.dependencies import temporary_database_interface
 from prefect.states import State
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+    from prefect.filesystems import ReadableFileSystem
 
 
 def exceptions_equal(a, b):
@@ -33,10 +35,10 @@ def exceptions_equal(a, b):
     return type(a) == type(b) and getattr(a, "args", None) == getattr(b, "args", None)
 
 
-# AsyncMock has a new import path in Python 3.8+
+# AsyncMock has a new import path in Python 3.9+
 from unittest.mock import AsyncMock  # noqa
 
-# MagicMock supports async magic methods in Python 3.8+
+# MagicMock supports async magic methods in Python 3.9+
 from unittest.mock import MagicMock  # noqa
 
 
@@ -109,6 +111,8 @@ def prefect_test_harness():
         >>> with prefect_test_harness():
         >>>     assert my_flow() == 'Done!' # run against temporary db
     """
+    from prefect.server.database.dependencies import temporary_database_interface
+
     # create temp directory for the testing database
     with TemporaryDirectory() as temp_dir:
         with ExitStack() as stack:
@@ -130,7 +134,7 @@ def prefect_test_harness():
             yield
 
 
-async def get_most_recent_flow_run(client: PrefectClient = None):
+async def get_most_recent_flow_run(client: "PrefectClient" = None):
     if client is None:
         client = get_client()
 
@@ -142,7 +146,7 @@ async def get_most_recent_flow_run(client: PrefectClient = None):
 
 
 def assert_blocks_equal(
-    found, expected, exclude_private: bool = True, **kwargs
+    found: Block, expected: Block, exclude_private: bool = True, **kwargs
 ) -> bool:
     assert isinstance(
         found, type(expected)
@@ -150,11 +154,10 @@ def assert_blocks_equal(
 
     if exclude_private:
         exclude = set(kwargs.pop("exclude", set()))
-        for attr, _ in found._iter():
-            if attr.startswith("_"):
-                exclude.add(attr)
+        for field_name in found.__private_attributes__:
+            exclude.add(field_name)
 
-    assert found.dict(exclude=exclude, **kwargs) == expected.dict(
+    assert found.model_dump(exclude=exclude, **kwargs) == expected.model_dump(
         exclude=exclude, **kwargs
     )
 
@@ -178,7 +181,7 @@ async def assert_uses_result_serializer(
 
 @inject_client
 async def assert_uses_result_storage(
-    state: State, storage: Union[str, ReadableFileSystem], client: "PrefectClient"
+    state: State, storage: Union[str, "ReadableFileSystem"], client: "PrefectClient"
 ):
     assert isinstance(state.data, PersistedResult)
     assert_blocks_equal(

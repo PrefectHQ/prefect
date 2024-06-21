@@ -20,24 +20,24 @@
 
 # prefect-client
 
-The `prefect-client` package is a minimal-installation of `prefect` which is designed for interacting with Prefect Cloud 
-or remote any `prefect` server. It sheds some functionality and dependencies in exchange for a smaller installation size, 
-making it ideal for use in lightweight or ephemeral environments. These characteristics make it ideal for use in lambdas 
-or other resource-constrained environments. 
+The `prefect-client` package is a minimal-installation of `prefect` which is designed for interacting with Prefect Cloud
+or remote any `prefect` server. It sheds some functionality and dependencies in exchange for a smaller installation size,
+making it ideal for use in lightweight or ephemeral environments. These characteristics make it ideal for use in lambdas
+or other resource-constrained environments.
 
 
 ## Getting started
 
-`prefect-client` shares the same installation requirements as prefect. To install, make sure you are on Python 3.8 or 
+`prefect-client` shares the same installation requirements as prefect. To install, make sure you are on Python 3.9 or
 later and run the following command:
 
 ```bash
 pip install prefect-client
 ```
 
-Next, ensure that your `prefect-client` has access to a remote `prefect` server by exporting the `PREFECT_API_KEY` 
-(if using Prefect Cloud) and `PREFECT_API_URL` environment variables. Once those are set, use the package in your code as 
-you would normally use `prefect`! 
+Next, ensure that your `prefect-client` has access to a remote `prefect` server by exporting the `PREFECT_API_KEY`
+(if using Prefect Cloud) and `PREFECT_API_URL` environment variables. Once those are set, use the package in your code as
+you would normally use `prefect`!
 
 
 For example, to remotely trigger a run a deployment:
@@ -86,10 +86,10 @@ query_api()
 
 
 ## Known limitations
-By design, `prefect-client` omits all CLI and server components. This means that the CLI is not available for use 
-and attempts to access server objects will fail. Furthermore, some classes, methods, and objects may be available 
-for import in `prefect-client` but may not be "runnable" if they tap into server-oriented functionality. If you 
-encounter such a limitation, feel free to [open an issue](https://github.com/PrefectHQ/prefect/issues/new/choose) 
+By design, `prefect-client` omits all CLI and server components. This means that the CLI is not available for use
+and attempts to access server objects will fail. Furthermore, some classes, methods, and objects may be available
+for import in `prefect-client` but may not be "runnable" if they tap into server-oriented functionality. If you
+encounter such a limitation, feel free to [open an issue](https://github.com/PrefectHQ/prefect/issues/new/choose)
 describing the functionality you are interested in using and we will do our best to make it available.
 
 

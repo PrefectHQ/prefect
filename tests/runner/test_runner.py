@@ -17,20 +17,21 @@ from unittest.mock import MagicMock
 import anyio
 import pendulum
 import pytest
-from prefect._vendor.starlette import status
+from starlette import status
 
 import prefect.runner
 from prefect import flow, serve, task
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import MinimalDeploymentSchedule, StateType
+from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
-    DeploymentImage,
     EntrypointType,
     RunnerDeployment,
     deploy,
 )
+from prefect.docker.docker_image import DockerImage
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
@@ -45,6 +46,7 @@ from prefect.settings import (
 )
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import parse_image_tag
+from prefect.utilities.filesystem import tmpchdir
 
 
 @flow(version="test")
@@ -140,9 +142,11 @@ def temp_storage() -> Generator[MockStorage, Any, None]:
     with tempfile.TemporaryDirectory() as temp_dir:
         yield MockStorage(base_path=Path(temp_dir))
 
-    flows_path = Path.cwd() / "flows.py"
-    if flows_path.exists():
-        os.unlink(Path.cwd() / "flows.py")
+
+@pytest.fixture
+def in_temporary_runner_directory(tmp_path: Path):
+    with tmpchdir(tmp_path):
+        yield
 
 
 class TestInit:
@@ -294,7 +298,7 @@ class TestRunner:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ]
@@ -403,6 +407,7 @@ class TestRunner:
         self,
         prefect_client: PrefectClient,
         caplog: pytest.LogCaptureFixture,
+        in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
         runner = Runner(query_seconds=2)
@@ -449,7 +454,7 @@ class TestRunner:
 
             await prefect_client.set_flow_run_state(
                 flow_run_id=flow_run.id,
-                state=flow_run.state.copy(
+                state=flow_run.state.model_copy(
                     update={"name": "Cancelling", "type": StateType.CANCELLING}
                 ),
             )
@@ -471,10 +476,91 @@ class TestRunner:
         assert "This flow was cancelled!" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_warns_if_unable_to_load_cancellation_hooks(
+        self,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+        in_temporary_runner_directory: None,
+        temp_storage: MockStorage,
+    ):
+        runner = Runner(query_seconds=2)
+
+        temp_storage.code = dedent(
+            """\
+            from time import sleep
+
+            from prefect import flow
+            from prefect.logging.loggers import flow_run_logger
+
+            def on_cancellation(flow, flow_run, state):
+                logger = flow_run_logger(flow_run, flow)
+                logger.info("This flow was cancelled!")
+
+            @flow(on_cancellation=[on_cancellation], log_prints=True)
+            def cancel_flow(sleep_time: int = 100):
+                sleep(sleep_time)
+            """
+        )
+
+        deployment_id = await runner.add_flow(
+            await flow.from_source(
+                source=temp_storage, entrypoint="flows.py:cancel_flow"
+            ),
+            name=__file__,
+        )
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(runner.start)
+
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment_id
+            )
+
+            # Need to wait for polling loop to pick up flow run and
+            # start execution
+            while True:
+                await anyio.sleep(0.5)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
+                if flow_run.state.is_running():
+                    break
+
+            await prefect_client.delete_deployment(deployment_id=deployment_id)
+
+            await prefect_client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                state=flow_run.state.model_copy(
+                    update={"name": "Cancelling", "type": StateType.CANCELLING}
+                ),
+            )
+
+            # Need to wait for polling loop to pick up flow run and then
+            # finish cancellation
+            while True:
+                await anyio.sleep(0.5)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
+                if flow_run.state.is_cancelled():
+                    break
+
+            await runner.stop()
+            tg.cancel_scope.cancel()
+
+        # Cancellation hook should not have been called successfully
+        # but the flow run should still be cancelled correctly
+        assert flow_run.state.is_cancelled()
+        assert "This flow was cancelled!" not in caplog.text
+        assert (
+            "Runner cannot retrieve flow to execute cancellation hooks for flow run"
+            in caplog.text
+        )
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_crashed_hooks_for_remotely_stored_flows(
         self,
         prefect_client: PrefectClient,
         caplog: pytest.LogCaptureFixture,
+        in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
         runner = Runner()
@@ -827,7 +913,7 @@ class TestRunnerDeployment:
             dummy_flow_1,
             __file__,
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -879,7 +965,7 @@ class TestRunnerDeployment:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ],
@@ -1025,7 +1111,7 @@ class TestRunnerDeployment:
             dummy_flow_1_entrypoint,
             __file__,
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -1083,7 +1169,7 @@ class TestRunnerDeployment:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ]
@@ -1129,7 +1215,7 @@ class TestRunnerDeployment:
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
         assert deployment.path == "."
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
         assert deployment.is_schedule_active is True
 
@@ -1261,7 +1347,7 @@ class TestRunnerDeployment:
             entrypoint="flows.py:test_flow",
             name="test-deployment",
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -1351,7 +1437,8 @@ class TestDeploy:
     @pytest.fixture
     def mock_build_image(self, monkeypatch):
         mock = MagicMock()
-        monkeypatch.setattr("prefect.deployments.runner.build_image", mock)
+
+        monkeypatch.setattr("prefect.docker.docker_image.build_image", mock)
         return mock
 
     @pytest.fixture
@@ -1359,14 +1446,14 @@ class TestDeploy:
         mock = MagicMock()
         mock.return_value.__enter__.return_value = mock
         mock.api.push.return_value = []
-        monkeypatch.setattr("prefect.deployments.runner.docker_client", mock)
+        monkeypatch.setattr("prefect.docker.docker_image.docker_client", mock)
         return mock
 
     @pytest.fixture
     def mock_generate_default_dockerfile(self, monkeypatch):
         mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.deployments.runner.generate_default_dockerfile", mock
+            "prefect.docker.docker_image.generate_default_dockerfile", mock
         )
         return mock
 
@@ -1388,7 +1475,7 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1443,7 +1530,7 @@ class TestDeploy:
                         source=temp_storage, entrypoint="flows.py:test_flow"
                     )
                 ).to_deployment(__file__),
-                image=DeploymentImage(
+                image=DockerImage(
                     name="test-registry/test-image",
                     tag="test-tag",
                 ),
@@ -1504,14 +1591,14 @@ class TestDeploy:
 
     async def test_deployment_image_tag_handling(self):
         # test image tag has default
-        image = DeploymentImage(
+        image = DockerImage(
             name="test-registry/test-image",
         )
         assert image.name == "test-registry/test-image"
         assert image.tag.startswith(str(pendulum.now("utc").year))
 
         # test image tag can be inferred
-        image = DeploymentImage(
+        image = DockerImage(
             name="test-registry/test-image:test-tag",
         )
         assert image.name == "test-registry/test-image"
@@ -1519,7 +1606,7 @@ class TestDeploy:
         assert image.reference == "test-registry/test-image:test-tag"
 
         # test image tag can be provided
-        image = DeploymentImage(name="test-registry/test-image", tag="test-tag")
+        image = DockerImage(name="test-registry/test-image", tag="test-tag")
         assert image.name == "test-registry/test-image"
         assert image.tag == "test-tag"
         assert image.reference == "test-registry/test-image:test-tag"
@@ -1528,7 +1615,7 @@ class TestDeploy:
         with pytest.raises(
             ValueError, match="both 'test-tag' and 'bad-tag' were provided"
         ):
-            DeploymentImage(name="test-registry/test-image:test-tag", tag="bad-tag")
+            DockerImage(name="test-registry/test-image:test-tag", tag="bad-tag")
 
     async def test_deploy_custom_dockerfile(
         self,
@@ -1541,7 +1628,7 @@ class TestDeploy:
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
                 dockerfile="Dockerfile",
@@ -1569,7 +1656,7 @@ class TestDeploy:
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1605,7 +1692,7 @@ class TestDeploy:
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1635,7 +1722,7 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1662,7 +1749,7 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=push_work_pool.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1691,7 +1778,7 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=managed_work_pool.name,
-            image=DeploymentImage(
+            image=DockerImage(
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
@@ -1975,21 +2062,21 @@ class TestDeploy:
             )
 
 
-class TestDeploymentImage:
+class TestDockerImage:
     def test_adds_default_registry_url(self):
         with temporary_settings(
             {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "alltheimages.com/my-org"}
         ):
-            image = DeploymentImage(name="test-image")
+            image = DockerImage(name="test-image")
             assert image.name == "alltheimages.com/my-org/test-image"
 
     def test_override_default_registry_url(self):
         with temporary_settings(
             {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "alltheimages.com/my-org"}
         ):
-            image = DeploymentImage(name="otherimages.com/my-org/test-image")
+            image = DockerImage(name="otherimages.com/my-org/test-image")
             assert image.name == "otherimages.com/my-org/test-image"
 
     def test_no_default_registry_url_by_default(self):
-        image = DeploymentImage(name="my-org/test-image")
+        image = DockerImage(name="my-org/test-image")
         assert image.name == "my-org/test-image"

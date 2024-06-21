@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect import settings
+from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import core
@@ -35,14 +36,14 @@ async def create_or_update_csrf_token(
     token = secrets.token_hex(32)
 
     await session.execute(
-        db.insert(db.CsrfToken)
+        db.insert(orm_models.CsrfToken)
         .values(
             client=client,
             token=token,
             expiration=expiration,
         )
         .on_conflict_do_update(
-            index_elements=[db.CsrfToken.client],
+            index_elements=[orm_models.CsrfToken.client],
             set_={"token": token, "expiration": expiration},
         ),
     )
@@ -51,9 +52,7 @@ async def create_or_update_csrf_token(
     return await read_token_for_client(session=session, client=client)
 
 
-@db_injector
 async def read_token_for_client(
-    db: PrefectDBInterface,
     session: AsyncSession,
     client: str,
 ) -> Optional[core.CsrfToken]:
@@ -69,10 +68,10 @@ async def read_token_for_client(
     """
     token = (
         await session.execute(
-            sa.select(db.CsrfToken).where(
+            sa.select(orm_models.CsrfToken).where(
                 sa.and_(
-                    db.CsrfToken.expiration > datetime.now(timezone.utc),
-                    db.CsrfToken.client == client,
+                    orm_models.CsrfToken.expiration > datetime.now(timezone.utc),
+                    orm_models.CsrfToken.client == client,
                 )
             )
         )
@@ -81,11 +80,10 @@ async def read_token_for_client(
     if token is None:
         return None
 
-    return core.CsrfToken.from_orm(token)
+    return core.CsrfToken.model_validate(token, from_attributes=True)
 
 
-@db_injector
-async def delete_expired_tokens(db: PrefectDBInterface, session: AsyncSession) -> int:
+async def delete_expired_tokens(session: AsyncSession) -> int:
     """Delete expired CSRF tokens.
 
     Args:
@@ -96,8 +94,8 @@ async def delete_expired_tokens(db: PrefectDBInterface, session: AsyncSession) -
     """
 
     result = await session.execute(
-        sa.delete(db.CsrfToken).where(
-            db.CsrfToken.expiration < datetime.now(timezone.utc)
+        sa.delete(orm_models.CsrfToken).where(
+            orm_models.CsrfToken.expiration < datetime.now(timezone.utc)
         )
     )
     return result.rowcount

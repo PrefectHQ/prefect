@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect import settings
 from prefect.server import models
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import orm_models
 from prefect.server.schemas import core
 
 
@@ -91,11 +91,11 @@ class TestTokenForClient:
         assert token is None
 
     async def test_none_expired_token(
-        self, db: PrefectDBInterface, session: AsyncSession, csrf_token: core.CsrfToken
+        self, session: AsyncSession, csrf_token: core.CsrfToken
     ):
         await session.execute(
-            sa.update(db.CsrfToken)
-            .where(db.CsrfToken.client == csrf_token.client)
+            sa.update(orm_models.CsrfToken)
+            .where(orm_models.CsrfToken.client == csrf_token.client)
             .values(expiration=datetime.now(timezone.utc) - timedelta(days=1))
         )
 
@@ -106,9 +106,7 @@ class TestTokenForClient:
 
 
 class TestDeleteExpiredTokens:
-    async def test_can_delete_expired_tokens(
-        self, db: PrefectDBInterface, session: AsyncSession
-    ):
+    async def test_can_delete_expired_tokens(self, session: AsyncSession):
         # Create some tokens
         for i in range(5):
             await models.csrf_token.create_or_update_csrf_token(
@@ -117,14 +115,16 @@ class TestDeleteExpiredTokens:
 
         # Update some of them to be expired
         await session.execute(
-            sa.update(db.CsrfToken)
-            .where(db.CsrfToken.client.in_(["client0", "client1"]))
+            sa.update(orm_models.CsrfToken)
+            .where(orm_models.CsrfToken.client.in_(["client0", "client1"]))
             .values(expiration=datetime.now(timezone.utc) - timedelta(days=1))
         )
 
         await models.csrf_token.delete_expired_tokens(session=session)
 
-        all_tokens = (await session.execute(sa.select(db.CsrfToken))).scalars().all()
+        all_tokens = (
+            (await session.execute(sa.select(orm_models.CsrfToken))).scalars().all()
+        )
 
         assert len(all_tokens) == 3
         assert "client0" not in [t.client for t in all_tokens]

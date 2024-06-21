@@ -41,6 +41,7 @@ from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
     PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
@@ -48,13 +49,13 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_API_URL,
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
@@ -327,16 +328,17 @@ def pytest_sessionstart(session):
             PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
             PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED: False,
             PREFECT_API_SERVICES_FOREMAN_ENABLED: False,
+            PREFECT_API_LOG_RETRYABLE_ERRORS: True,
             # Disable block auto-registration memoization
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
             # Code is being executed in a unit test context
             PREFECT_UNIT_TEST_MODE: True,
-            # Events: disable the event persister, which may lock the DB during
-            # tests while writing events
-            PREFECT_EXPERIMENTAL_EVENTS: True,
+            # Events: disable the event persister and triggers service, which may
+            # lock the DB during tests while writing events
             PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
+            PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
         },
         source=__file__,
     )
@@ -357,12 +359,15 @@ def pytest_sessionstart(session):
     setup_logging()
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_sessionfinish(session):
-    # Allow all other finish fixture to complete first
+# def pytest_sessionfinish(session, exitstatus):
+@pytest.fixture(scope="session", autouse=True)
+def cleanup(drain_log_workers, drain_events_workers):
+    # this fixture depends on other fixtures with important cleanup steps like
+    # draining workers to ensure that the home directory is not deleted before
+    # these steps are completed
     yield
 
-    # Then, delete the temporary directory
+    # delete the temporary directory
     if TEST_PREFECT_HOME is not None:
         shutil.rmtree(TEST_PREFECT_HOME)
 
@@ -478,17 +483,6 @@ def test_database_connection_url(generate_test_database_connection_url):
 
 
 @pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield
-
-
-@pytest.fixture(autouse=True)
 def reset_registered_blocks():
     """
     Ensures each test only has types that were registered at module initialization.
@@ -564,12 +558,6 @@ def disable_enhanced_cancellation():
 
 
 @pytest.fixture
-def events_disabled():
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
-        yield
-
-
-@pytest.fixture
 def start_of_test() -> pendulum.DateTime:
     return pendulum.now("UTC")
 
@@ -594,3 +582,31 @@ def reset_sys_modules():
             del sys.modules[module]
 
     importlib.invalidate_caches()
+
+
+@pytest.fixture(autouse=True, scope="module")
+def leaves_no_extraneous_files():
+    """This fixture will fail a test if it seems to have left new files or directories
+    in the root of the local working tree.  For performance, it only checks for changes
+    at the test module level, but that should generally be enough to narrow down what
+    is happening.  If you're having trouble isolating the problematic test, you can
+    switch it to scope="function" temporarily.  It may also help to run the test suite
+    with one process (-n0) so that unrelated tests won't fail."""
+    before = set(Path(".").iterdir())
+    yield
+    after = set(Path(".").iterdir())
+    new_files = after - before
+
+    ignored_file_prefixes = {".coverage"}
+
+    new_files = {
+        f
+        for f in new_files
+        if not any(f.name.startswith(prefix) for prefix in ignored_file_prefixes)
+    }
+
+    if new_files:
+        raise AssertionError(
+            "One of the tests in this module left new files in the "
+            f"working directory: {new_files}"
+        )

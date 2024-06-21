@@ -43,11 +43,14 @@ from prefect.events.schemas.deployment_triggers import (
     DeploymentSequenceTrigger,
     DeploymentTriggerTypes,
 )
-from prefect.settings import (
-    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_EVENTS,
-    temporary_settings,
-)
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
+
+
+@pytest.fixture(autouse=True)
+def enable_triggers():
+    with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
+        yield
+
 
 CLIENT_TRIGGER_TYPES: List[Type[Trigger]] = list(TriggerTypes.__args__)  # type: ignore[attr-defined]
 CLOUD_ONLY_TRIGGER_TYPES: Set[Type[Trigger]] = {MetricTrigger}
@@ -127,17 +130,6 @@ EXAMPLE_TRIGGERS: List[TriggerTypes] = [
 ]
 
 
-@pytest.fixture(autouse=True)
-def enable_events():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_EVENTS: True,
-            PREFECT_API_SERVICES_TRIGGERS_ENABLED: True,
-        }
-    ):
-        yield
-
-
 def test_all_triggers_represented():
     """Ensures that we have an example for all client-side trigger types"""
     assert (
@@ -160,8 +152,8 @@ async def test_trigger_round_tripping(trigger: TriggerTypes):
         )
         automation = await client.read_automation(automation_id)
 
-    sent = trigger.dict()
-    returned = automation.trigger.dict()
+    sent = trigger.model_dump()
+    returned = automation.trigger.model_dump()
 
     assert sent == returned
 
@@ -258,7 +250,7 @@ def test_all_deployment_triggers_represented():
 def test_trigger_serialization(deployment_trigger: DeploymentTriggerTypes):
     """Tests that any of the example deployment triggers can be round-tripped to the
     equivalent client trigger type"""
-    serialized = deployment_trigger.dict()
+    serialized = deployment_trigger.model_dump()
 
     # Remove automation fields
     serialized.pop("name", None)
@@ -269,9 +261,10 @@ def test_trigger_serialization(deployment_trigger: DeploymentTriggerTypes):
     serialized.pop("parameters", None)
     serialized.pop("job_variables", None)
 
-    trigger = deployment_trigger.trigger_type.parse_obj(serialized)
+    trigger_type: Type[Trigger] = deployment_trigger.trigger_type
+    trigger = trigger_type.model_validate(serialized)
 
-    assert trigger.dict() == serialized
+    assert trigger.model_dump() == serialized
 
 
 CLIENT_ACTION_TYPES: List[Type[Action]] = list(ActionTypes.__args__)  # type: ignore[attr-defined]
@@ -328,7 +321,7 @@ async def test_action_round_tripping(action: ActionTypes):
         )
         automation = await client.read_automation(automation_id)
 
-    sent = action.dict()
-    returned = automation.actions[0].dict()
+    sent = action.model_dump()
+    returned = automation.actions[0].model_dump()
 
     assert sent == returned

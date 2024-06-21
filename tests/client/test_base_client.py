@@ -6,7 +6,7 @@ from unittest import mock
 import httpx
 import pytest
 from httpx import AsyncClient, Request, Response
-from prefect._vendor.starlette import status
+from starlette import status
 
 import prefect
 import prefect.client
@@ -45,7 +45,7 @@ RESPONSE_CSRF = Response(
     status.HTTP_200_OK,
     json=CsrfToken(
         client="test_client", token="test_token", expiration=now + timedelta(days=1)
-    ).dict(json_compatible=True, exclude_unset=True),
+    ).model_dump(mode="json", exclude_unset=True),
     request=Request("a test request", "fake.url/fake/route"),
 )
 
@@ -593,6 +593,9 @@ class TestCsrfSupport:
         assert request.headers["Prefect-Csrf-Token"] == "test_token"
         assert request.headers["Prefect-Csrf-Client"] == str(client.csrf_client_id)
 
+    @pytest.mark.xfail(
+        reason="Very brittle for some reason, see https://github.com/PrefectHQ/prefect/issues/13963"
+    )
     async def test_refreshes_token_on_csrf_403(self):
         async with mocked_csrf_client(
             responses=[

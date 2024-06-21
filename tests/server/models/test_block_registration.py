@@ -36,7 +36,6 @@ class TestRunAutoRegistration:
             "date-time",
             "secret",
             "local-file-system",
-            "process",
             "webhook",
         }
 

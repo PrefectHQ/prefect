@@ -45,7 +45,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -71,19 +71,14 @@ from prefect.client.schemas.objects import (
     StateType,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.deployments.deployments import load_flow_from_flow_run
 from prefect.deployments.runner import (
     EntrypointType,
     RunnerDeployment,
 )
-from prefect.deployments.schedules import FlexibleScheduleList
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
-from prefect.exceptions import (
-    Abort,
-)
-from prefect.flows import Flow
+from prefect.exceptions import Abort, ObjectNotFound
+from prefect.flows import Flow, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.runner.server import start_webserver
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
@@ -101,6 +96,9 @@ from prefect.utilities.asyncutils import (
 from prefect.utilities.engine import propose_state
 from prefect.utilities.processutils import _register_signal, run_process
 from prefect.utilities.services import critical_service_loop
+
+if TYPE_CHECKING:
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
 
 __all__ = ["Runner"]
 
@@ -213,7 +211,7 @@ class Runner:
     async def add_flow(
         self,
         flow: Flow,
-        name: str = None,
+        name: Optional[str] = None,
         interval: Optional[
             Union[
                 Iterable[Union[int, float, datetime.timedelta]],
@@ -225,7 +223,7 @@ class Runner:
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -233,7 +231,7 @@ class Runner:
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> UUID:
         """
@@ -366,6 +364,8 @@ class Runner:
                 runner.start()
             ```
         """
+        from prefect.runner.server import start_webserver
+
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         webserver = webserver if webserver is not None else self.webserver
@@ -1082,7 +1082,7 @@ class Runner:
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
         state_updates.setdefault("type", StateType.CANCELLED)
-        state = flow_run.state.copy(update=state_updates)
+        state = flow_run.state.model_copy(update=state_updates)
 
         await self._client.set_flow_run_state(flow_run.id, state, force=True)
 
@@ -1130,12 +1130,18 @@ class Runner:
         Run the hooks for a flow.
         """
         if state.is_cancelling():
-            flow = await load_flow_from_flow_run(
-                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
-            )
-            hooks = flow.on_cancellation or []
+            try:
+                flow = await load_flow_from_flow_run(
+                    flow_run, storage_base_path=str(self._tmp_dir)
+                )
+                hooks = flow.on_cancellation_hooks or []
 
-            await _run_hooks(hooks, flow_run, flow, state)
+                await _run_hooks(hooks, flow_run, flow, state)
+            except ObjectNotFound:
+                run_logger = self._get_flow_run_logger(flow_run)
+                run_logger.warning(
+                    f"Runner cannot retrieve flow to execute cancellation hooks for flow run {flow_run.id!r}."
+                )
 
     async def _run_on_crashed_hooks(
         self,
@@ -1147,9 +1153,9 @@ class Runner:
         """
         if state.is_crashed():
             flow = await load_flow_from_flow_run(
-                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+                flow_run, storage_base_path=str(self._tmp_dir)
             )
-            hooks = flow.on_crashed or []
+            hooks = flow.on_crashed_hooks or []
 
             await _run_hooks(hooks, flow_run, flow, state)
 

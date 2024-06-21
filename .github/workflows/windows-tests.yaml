@@ -53,4 +53,4 @@ jobs:
       - name: Run tests
         run: |
           # Parallelize tests by scope to reduce expensive service fixture duplication
-          pytest tests -vv --numprocesses auto --dist loadscope --exclude-services --durations=25
+          pytest tests -vv --numprocesses auto --dist worksteal --exclude-services --durations=25

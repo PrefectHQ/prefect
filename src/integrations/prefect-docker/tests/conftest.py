@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import Generator
 from unittest.mock import MagicMock, patch
 
+from anyio import to_thread
 from prefect_docker.worker import CONTAINER_LABELS
 
 from prefect.server.database.alembic_commands import alembic_upgrade
@@ -27,18 +28,7 @@ def prefect_db():
     Sets up test harness for temporary DB during test runs.
     """
     with prefect_test_harness():
-        alembic_upgrade()
-        yield
-
-
-@pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
+        asyncio.run(to_thread.run_sync(alembic_upgrade))
         yield
 
 

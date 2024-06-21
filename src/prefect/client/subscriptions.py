@@ -1,15 +1,15 @@
 import asyncio
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
+from typing import Any, Dict, Generic, Iterable, Optional, Type, TypeVar
 
 import orjson
 import websockets
 import websockets.exceptions
-from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
+from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY
 
 logger = get_logger(__name__)
 
@@ -21,15 +21,16 @@ class Subscription(Generic[S]):
         self,
         model: Type[S],
         path: str,
-        keys: List[str],
+        keys: Iterable[str],
         client_id: Optional[str] = None,
+        base_url: Optional[str] = None,
     ):
         self.model = model
         self.client_id = client_id
-        base_url = PREFECT_API_URL.value().replace("http", "ws", 1)
+        base_url = base_url.replace("http", "ws", 1)
         self.subscription_url = f"{base_url}{path}"
 
-        self.keys = keys
+        self.keys = list(keys)
 
         self._connect = websockets.connect(
             self.subscription_url,
@@ -48,7 +49,7 @@ class Subscription(Generic[S]):
 
                 await self._websocket.send(orjson.dumps({"type": "ack"}).decode())
 
-                return self.model.parse_raw(message)
+                return self.model.model_validate_json(message)
             except (
                 ConnectionRefusedError,
                 websockets.exceptions.ConnectionClosedError,

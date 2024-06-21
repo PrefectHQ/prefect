@@ -1,4 +1,7 @@
+import sys
+
 import pytest
+from typer import Exit
 
 import prefect.context
 import prefect.settings
@@ -22,6 +25,25 @@ from prefect.testing.cli import invoke_and_assert
 FROM_DEFAULT = "(from defaults)"
 FROM_ENV = "(from env)"
 FROM_PROFILE = "(from profile)"
+
+
+@pytest.fixture(autouse=True)
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.config.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @pytest.fixture(autouse=True)
@@ -80,7 +102,7 @@ def test_set_with_disallowed_setting(setting):
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", f"{setting}=BAR"],
-        expected_output=f"""                
+        expected_output=f"""
             Setting {setting!r} cannot be changed with this command. Use an environment variable instead.
             """,
         expected_code=1,
@@ -92,10 +114,7 @@ def test_set_with_invalid_value_type():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_API_DATABASE_TIMEOUT=HELLO"],
-        expected_output="""
-            Validation error for setting 'PREFECT_API_DATABASE_TIMEOUT': value is not a valid float
-            Invalid setting value.
-            """,
+        expected_output_contains="Input should be a valid number",
         expected_code=1,
     )
 
@@ -184,7 +203,8 @@ def test_unset_retains_other_keys():
             "unset",
             "PREFECT_API_KEY",
         ],
-        expected_output="""
+        user_input="y",
+        expected_output_contains="""
             Unset 'PREFECT_API_KEY'.
             Updated profile 'foo'.
             """,
@@ -217,7 +237,8 @@ def test_unset_warns_if_present_in_environment(monkeypatch):
             "unset",
             "PREFECT_API_KEY",
         ],
-        expected_output="""
+        user_input="y",
+        expected_output_contains="""
             Unset 'PREFECT_API_KEY'.
             'PREFECT_API_KEY' is also set by an environment variable. Use `unset PREFECT_API_KEY` to clear it.
             Updated profile 'foo'.
@@ -294,7 +315,8 @@ def test_unset_multiple_settings():
             "PREFECT_API_KEY",
             "PREFECT_TEST_SETTING",
         ],
-        expected_output="""
+        user_input="y",
+        expected_output_contains="""
             Unset 'PREFECT_API_KEY'.
             Unset 'PREFECT_TEST_SETTING'.
             Updated profile 'foo'.
@@ -326,7 +348,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
         res = invoke_and_assert(["config", "view", "--hide-sources"])
 
         # Collect just settings that are set
-        expected = ctx.settings.dict(exclude_unset=True)
+        expected = ctx.settings.model_dump(exclude_unset=True)
 
     lines = res.stdout.splitlines()
     assert lines[0] == "PREFECT_PROFILE='foo'"
@@ -361,7 +383,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
 
 def test_view_includes_unset_settings_with_show_defaults():
     expected_settings = (
-        prefect.settings.get_current_settings().with_obfuscated_secrets().dict()
+        prefect.settings.get_current_settings().with_obfuscated_secrets().model_dump()
     )
 
     res = invoke_and_assert(["config", "view", "--show-defaults", "--hide-sources"])

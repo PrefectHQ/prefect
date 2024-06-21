@@ -1,37 +1,36 @@
 """Module containing tasks and flows for interacting with dbt CLI"""
+
 import os
 from pathlib import Path, PosixPath
 from typing import Any, Dict, List, Optional, Union
-from uuid import UUID
 
 import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.results import NodeStatus, RunExecutionResult
 from prefect_shell.commands import ShellOperation
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
-from prefect import get_run_logger, task
+from prefect import task
 from prefect.artifacts import create_markdown_artifact
+from prefect.logging import get_run_logger
+from prefect.states import Failed
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import relative_path_to_current_platform
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
 from prefect_dbt.cli.credentials import DbtCliProfile
 
 
 @task
+@sync_compatible
 async def trigger_dbt_cli_command(
     command: str,
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-cli-command-summary",
-    **command_kwargs: Dict[str, Any],
+    create_summary_artifact: bool = False,
+    summary_artifact_key: Optional[str] = "dbt-cli-command-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ) -> Optional[dbtRunnerResult]:
     """
     Task for running dbt commands.
@@ -53,8 +52,17 @@ async def trigger_dbt_cli_command(
         dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
             Note! This is optional and will raise an error if profiles.yml already exists
             under profile_dir and overwrite_profiles is set to False.
-        **shell_run_command_kwargs: Additional keyword arguments to pass to
-            [shell_run_command](https://prefecthq.github.io/prefect-shell/commands/#prefect_shell.commands.shell_run_command).
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store the dbt results artifact in Prefect.
+            Defaults to 'dbt-cli-command-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt command.
+            These arguments get appended to the command that gets passed to the dbtRunner client.
+            Example: extra_command_args=["--model", "foo_model"]
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Returns:
         last_line_cli_output (str): The last line of the CLI output will be returned
@@ -108,9 +116,10 @@ async def trigger_dbt_cli_command(
                 target_configs=target_configs,
             )
             result = trigger_dbt_cli_command(
-                "dbt debug",
+                "dbt run",
                 overwrite_profiles=True,
-                dbt_cli_profile=dbt_cli_profile
+                dbt_cli_profile=dbt_cli_profile,
+                extra_command_args=["--model", "foo_model"]
             )
             return result
 
@@ -156,38 +165,54 @@ async def trigger_dbt_cli_command(
         cli_args.append("--project-dir")
         cli_args.append(project_dir)
 
-    if command_kwargs:
-        cli_args.append(command_kwargs)
+    if extra_command_args:
+        for value in extra_command_args:
+            cli_args.append(value)
+
+    # Add the dbt event log callback if enabled
+    callbacks = []
+    if stream_output:
+
+        def _stream_output(event):
+            if event.info.level != "debug":
+                logger.info(event.info.msg)
+
+        callbacks.append(_stream_output)
 
     # fix up empty shell_run_command_kwargs
-    dbt_runner_client = dbtRunner()
+    dbt_runner_client = dbtRunner(callbacks=callbacks)
     logger.info(f"Running dbt command: {cli_args}")
     result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
 
     if result.exception is not None:
-        logger.error(f"dbt build task failed with exception: {result.exception}")
+        logger.error(f"dbt task failed with exception: {result.exception}")
         raise result.exception
 
     # Creating the dbt Summary Markdown if enabled
-    if create_artifact and isinstance(result.result, RunExecutionResult):
-        markdown = create_summary_markdown(result, command)
+    if create_summary_artifact and isinstance(result.result, RunExecutionResult):
+        run_results = consolidate_run_results(result)
+        markdown = create_summary_markdown(run_results, command)
         artifact_id = await create_markdown_artifact(
             markdown=markdown,
-            key=artifact_key,
+            key=summary_artifact_key,
         )
         if not artifact_id:
-            logger.error(f"Artifact was not created for dbt {command} task")
+            logger.error(f"Summary Artifact was not created for dbt {command} task")
         else:
             logger.info(
                 f"dbt {command} task completed successfully with artifact {artifact_id}"
             )
     else:
         logger.debug(
-            f"Artifact was not created for dbt {command} this task \
+            f"Artifacts were not created for dbt {command} this task \
                      due to create_artifact=False or the dbt command did not \
                      return any RunExecutionResults. \
                      See https://docs.getdbt.com/reference/programmatic-invocations \
                      for more details on dbtRunnerResult."
+        )
+    if isinstance(result.result, RunExecutionResult) and not result.success:
+        return Failed(
+            message=f"dbt task result success: {result.success} with exception: {result.exception}"
         )
     return result
 
@@ -301,19 +326,6 @@ class DbtCoreOperation(ShellOperation):
         ),
     )
 
-    @validator("commands", always=True)
-    def _has_a_dbt_command(cls, commands):
-        """
-        Check that the commands contain a dbt command.
-        """
-        if not any("dbt " in command for command in commands):
-            raise ValueError(
-                "None of the commands are a valid dbt sub-command; see dbt --help, "
-                "or use prefect_shell.ShellOperation for non-dbt related "
-                "commands instead"
-            )
-        return commands
-
     def _find_valid_profiles_dir(self) -> PosixPath:
         """
         Ensure that there is a profiles.yml available for use.
@@ -392,9 +404,10 @@ async def run_dbt_build(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-build-task-summary",
-    **command_kwargs,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-build-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt build' command within a Prefect task,
@@ -413,12 +426,16 @@ async def run_dbt_build(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
             with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
+            Defaults to False.
+        summary_artifact_key: The key under which to store
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-build-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt build command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -428,7 +445,8 @@ async def run_dbt_build(
         @flow
         def dbt_test_flow():
             dbt_build_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -445,9 +463,10 @@ async def run_dbt_build(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
-        **command_kwargs,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
     return results
 
@@ -458,13 +477,14 @@ async def run_dbt_model(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-run-task-summary",
-    **command_kwargs,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-run-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt run' command within a Prefect task,
-    and optionally creates a Prefect artifact summarizing the dbt build results.
+    and optionally creates a Prefect artifact summarizing the dbt model results.
 
     Args:
         profiles_dir: The directory to search for the profiles.yml file. Setting this
@@ -479,12 +499,16 @@ async def run_dbt_model(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
-            the dbt run results artifact in Prefect.
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt model run results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
+            the dbt model run results artifact in Prefect.
             Defaults to 'dbt-run-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt run command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -494,7 +518,8 @@ async def run_dbt_model(
         @flow
         def dbt_test_flow():
             dbt_run_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -511,9 +536,10 @@ async def run_dbt_model(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
-        **command_kwargs,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -525,13 +551,14 @@ async def run_dbt_test(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-test-task-summary",
-    **command_kwargs,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-test-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt test' command within a Prefect task,
-    and optionally creates a Prefect artifact summarizing the dbt build results.
+    and optionally creates a Prefect artifact summarizing the dbt test results.
 
     Args:
         profiles_dir: The directory to search for the profiles.yml file. Setting this
@@ -546,12 +573,16 @@ async def run_dbt_test(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt test results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
             the dbt test results artifact in Prefect.
             Defaults to 'dbt-test-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt test command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -561,7 +592,8 @@ async def run_dbt_test(
         @flow
         def dbt_test_flow():
             dbt_test_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -578,9 +610,10 @@ async def run_dbt_test(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
-        **command_kwargs,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -592,13 +625,14 @@ async def run_dbt_snapshot(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-snapshot-task-summary",
-    **command_kwargs,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-snapshot-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt snapshot' command within a Prefect task,
-    and optionally creates a Prefect artifact summarizing the dbt build results.
+    and optionally creates a Prefect artifact summarizing the dbt snapshot results.
 
     Args:
         profiles_dir: The directory to search for the profiles.yml file. Setting this
@@ -613,12 +647,16 @@ async def run_dbt_snapshot(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
-            the dbt build results artifact in Prefect.
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt snapshot results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
+            the dbt snapshot results artifact in Prefect.
             Defaults to 'dbt-snapshot-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt snapshot command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -628,7 +666,8 @@ async def run_dbt_snapshot(
         @flow
         def dbt_test_flow():
             dbt_snapshot_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--fail-fast"]
             )
     ```
 
@@ -645,9 +684,10 @@ async def run_dbt_snapshot(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
-        **command_kwargs,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -659,13 +699,14 @@ async def run_dbt_seed(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-seed-task-summary",
-    **command_kwargs,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-seed-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt seed' command within a Prefect task,
-    and optionally creates a Prefect artifact summarizing the dbt build results.
+    and optionally creates a Prefect artifact summarizing the dbt seed results.
 
     Args:
         profiles_dir: The directory to search for the profiles.yml file. Setting this
@@ -680,12 +721,16 @@ async def run_dbt_seed(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
-            the dbt build results artifact in Prefect.
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt seed results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
+            the dbt seed results artifact in Prefect.
             Defaults to 'dbt-seed-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt seed command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -695,7 +740,8 @@ async def run_dbt_seed(
         @flow
         def dbt_test_flow():
             dbt_seed_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--fail-fast"]
             )
     ```
 
@@ -712,61 +758,153 @@ async def run_dbt_seed(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
-        **command_kwargs,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
 
 
-def create_summary_markdown(results: dbtRunnerResult, command: str) -> UUID:
+def create_summary_markdown(run_results: dict, command: str) -> str:
     """
     Creates a Prefect task artifact summarizing the results
     of the above predefined prefrect-dbt task.
     """
-    # Create Summary Markdown Artifact
-    run_statuses: Dict[str, List[str]] = {
-        "successful": [],
-        "failed": [],
-        "skipped": [],
-    }
+    markdown = f"# dbt {command} Task Summary\n"
+    markdown += _create_node_summary_table_md(run_results=run_results)
 
-    for r in results.result.results:
-        if r.status == NodeStatus.Success or r.status == NodeStatus.Pass:
-            run_statuses["successful"].append(r)
-        elif (
-            r.status == NodeStatus.Fail
-            or r.status == NodeStatus.Error
-            or r.status == NodeStatus.RuntimeErr
-        ):
-            run_statuses["failed"].append(r)
-        elif r.status == NodeStatus.Skipped:
-            run_statuses["skipped"].append(r)
+    if (
+        run_results["Error"] != []
+        or run_results["Fail"] != []
+        or run_results["Skipped"] != []
+        or run_results["Warn"] != []
+    ):
+        markdown += "\n\n ## Unsuccessful Nodes ❌\n\n"
+        markdown += _create_unsuccessful_markdown(run_results=run_results)
 
-    markdown = f"# dbt {command} Task Summary"
-
-    if run_statuses["failed"] != []:
-        failed_runs_str = ""
-        for r in run_statuses["failed"]:
-            failed_runs_str += f"**{r.node.name}**\n \
-                Node Type: {r.node.resource_type}\n \
-                Node Path: {r.node.original_file_path}"
-            if r.message:
-                message = r.message.replace("\n", ".")
-                failed_runs_str += f"\nError Message: {message}\n"
-        markdown += f"""\n## Failed Runs 🔴\n\n{failed_runs_str}\n\n"""
-
-    if run_statuses["successful"] != []:
+    if run_results["Success"] != []:
         successful_runs_str = "\n".join(
-            [f"**{r.node.name}**" for r in run_statuses["successful"]]
+            [f"* {r.node.name}" for r in run_results["Success"]]
         )
-        markdown += f"""\n## Successful Runs ✅\n\n{successful_runs_str}\n\n"""
-
-    if run_statuses["skipped"] != []:
-        skipped_runs_str = "\n".join(
-            [f"**{r.node.name}**" for r in run_statuses["skipped"]]
-        )
-        markdown += f""" ## Skipped Runs 🚫\n\n{skipped_runs_str}\n\n"""
+        markdown += f"""\n## Successful Nodes ✅\n\n{successful_runs_str}\n\n"""
 
     return markdown
+
+
+def _create_node_info_md(node_name, resource_type, message, path, compiled_code) -> str:
+    """
+    Creates template for unsuccessful node information
+    """
+    markdown = f"""
+**{node_name}**
+
+Type: {resource_type}
+
+Message: 
+
+> {message}
+
+
+Path: {path}
+
+"""
+
+    if compiled_code:
+        markdown += f"""
+Compiled code:
+
+```sql
+{compiled_code}
+```
+        """
+
+    return markdown
+
+
+def _create_node_summary_table_md(run_results: dict) -> str:
+    """
+    Creates a table for node summary
+    """
+
+    markdown = f"""
+| Successes | Errors | Failures | Skips | Warnings |
+| :-------: | :----: | :------: | :---: | :------: |
+| {len(run_results["Success"])} |  {len(run_results["Error"])} | {len(run_results["Fail"])} | {len(run_results["Skipped"])} | {len(run_results["Warn"])} |
+    """
+    return markdown
+
+
+def _create_unsuccessful_markdown(run_results: dict) -> str:
+    """
+    Creates markdown summarizing the results
+    of unsuccessful nodes, including compiled code.
+    """
+    markdown = ""
+    if len(run_results["Error"]) > 0:
+        markdown += "\n### Errored Nodes:\n"
+        for n in run_results["Error"]:
+            markdown += _create_node_info_md(
+                n.node.name,
+                n.node.resource_type,
+                n.message,
+                n.node.path,
+                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+            )
+    if len(run_results["Fail"]) > 0:
+        markdown += "\n### Failed Nodes:\n"
+        for n in run_results["Fail"]:
+            markdown += _create_node_info_md(
+                n.node.name,
+                n.node.resource_type,
+                n.message,
+                n.node.path,
+                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+            )
+    if len(run_results["Skipped"]) > 0:
+        markdown += "\n### Skipped Nodes:\n"
+        for n in run_results["Skipped"]:
+            markdown += _create_node_info_md(
+                n.node.name,
+                n.node.resource_type,
+                n.message,
+                n.node.path,
+                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+            )
+    if len(run_results["Warn"]) > 0:
+        markdown += "\n### Warned Nodes:\n"
+        for n in run_results["Warn"]:
+            markdown += _create_node_info_md(
+                n.node.name,
+                n.node.resource_type,
+                n.message,
+                n.node.path,
+                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+            )
+    return markdown
+
+
+def consolidate_run_results(results: dbtRunnerResult) -> dict:
+    run_results: Dict[str, List[str]] = {
+        "Success": [],
+        "Fail": [],
+        "Skipped": [],
+        "Error": [],
+        "Warn": [],
+    }
+
+    if results.exception is None:
+        for r in results.result.results:
+            if r.status == NodeStatus.Fail:
+                run_results["Fail"].append(r)
+            elif r.status == NodeStatus.Error or r.status == NodeStatus.RuntimeErr:
+                run_results["Error"].append(r)
+            elif r.status == NodeStatus.Skipped:
+                run_results["Skipped"].append(r)
+            elif r.status == NodeStatus.Success or r.status == NodeStatus.Pass:
+                run_results["Success"].append(r)
+            elif r.status == NodeStatus.Warn:
+                run_results["Warn"].append(r)
+
+    return run_results

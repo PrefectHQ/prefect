@@ -4,18 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pendulum
-import pydantic
 import pytest
 import sqlalchemy as sa
 from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
 
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import ResourceSpecification, actions, messaging
@@ -29,6 +21,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -378,10 +371,10 @@ async def some_workspace_automations(
     uninteresting_kwargs: Dict[str, Any] = dict(
         trigger=EventTrigger(
             expect=("things.happened",),
-            match=ResourceSpecification.parse_obj(
+            match=ResourceSpecification.model_validate(
                 {"prefect.resource.id": "some-resource"}
             ),
-            match_related=ResourceSpecification.parse_obj({}),
+            match_related=ResourceSpecification.model_validate({}),
             posture=Posture.Reactive,
             threshold=1,
             within=timedelta(seconds=10),
@@ -414,7 +407,7 @@ async def some_workspace_automations(
 
     automations_session.add_all(automations)
     await automations_session.commit()
-    return pydantic.parse_obj_as(List[Automation], automations)
+    return parse_obj_as(List[Automation], automations)
 
 
 @pytest.fixture
@@ -449,7 +442,7 @@ def create_publisher(
 def assert_message_represents_event(message: Message, event: ReceivedEvent):
     """Confirms that the message adequately represents the event"""
     assert message.data
-    assert ReceivedEvent.parse_raw(message.data) == event
+    assert ReceivedEvent.model_validate_json(message.data) == event
     assert message.attributes
     assert message.attributes["id"] == str(event.id)
     assert message.attributes["event"] == event.event

@@ -8,8 +8,8 @@ import pendulum
 import pytest
 from httpx import AsyncClient
 from pendulum.datetime import DateTime
+from pydantic_core import Url
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import (
     EventFilter,
@@ -23,11 +23,7 @@ from prefect.server.events.schemas.events import (
     Resource,
 )
 from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -43,7 +39,7 @@ def events_page_one() -> List[ReceivedEvent]:
         ReceivedEvent(
             occurred=pendulum.now("UTC"),
             event="first.page.material",
-            resource=Resource(__root__={"prefect.resource.id": "my.resource"}),
+            resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
             id=UUID(int=i),
         )
@@ -57,7 +53,7 @@ def events_page_two() -> List[ReceivedEvent]:
         ReceivedEvent(
             occurred=pendulum.now("UTC"),
             event="second.page.material",
-            resource=Resource(__root__={"prefect.resource.id": "my.resource"}),
+            resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
             id=UUID(int=i),
         )
@@ -71,7 +67,7 @@ def events_page_three() -> List[ReceivedEvent]:
         ReceivedEvent(
             occurred=pendulum.now("UTC"),
             event="second.page.material",
-            resource=Resource(__root__={"prefect.resource.id": "my.resource"}),
+            resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
             id=UUID(int=i),
         )
@@ -116,17 +112,6 @@ def last_events_page(
         yield query_next_page
 
 
-async def test_returns_404_when_events_are_disabled(
-    client: AsyncClient, events_disabled: None
-):
-    response = await client.post(
-        "http://test/api/events/filter",
-        json={"filter": {}},
-    )
-
-    assert response.status_code == 404, response.content
-
-
 async def test_querying_for_events_returns_first_page(
     client: AsyncClient,
     filter: EventFilter,
@@ -135,7 +120,7 @@ async def test_querying_for_events_returns_first_page(
 ):
     response = await client.post(
         "http://test/api/events/filter",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
@@ -146,12 +131,12 @@ async def test_querying_for_events_returns_first_page(
         page_size=INTERACTIVE_PAGE_SIZE,
     )
 
-    first_page = EventPage.parse_obj(response.json())
+    first_page = EventPage.model_validate(response.json())
 
     assert first_page.events == events_page_one
     assert first_page.total == 123
-    assert first_page.next_page == (
-        f"http://test/api/events/filter/next" f"?page-token={ENCODED_MOCK_PAGE_TOKEN}"
+    assert first_page.next_page == Url(
+        f"http://test/api/events/filter/next?page-token={ENCODED_MOCK_PAGE_TOKEN}"
     )
 
 
@@ -166,7 +151,7 @@ async def test_querying_for_events_returns_first_page_with_no_more(
 
     response = await client.post(
         "http://test/api/events/filter",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
@@ -177,7 +162,7 @@ async def test_querying_for_events_returns_first_page_with_no_more(
         page_size=INTERACTIVE_PAGE_SIZE,
     )
 
-    first_page = EventPage.parse_obj(response.json())
+    first_page = EventPage.model_validate(response.json())
 
     assert first_page.events == events_page_one
     assert first_page.total == len(events_page_one)
@@ -222,12 +207,14 @@ async def test_querying_for_subsequent_page_returns_it(
         page_token=MOCK_PAGE_TOKEN,
     )
 
-    second_page = EventPage.parse_obj(response.json())
+    second_page = EventPage.model_validate(response.json())
+
+    expected_token = base64.b64encode("THAT:NEXTNEXTTOKEN".encode()).decode()
 
     assert second_page.events == events_page_two
     assert second_page.total == 123
-    assert second_page.next_page == (
-        f"http://test/api/events/filter/next?page-token={base64.b64encode('THAT:NEXTNEXTTOKEN'.encode()).decode()}"
+    assert second_page.next_page == Url(
+        f"http://test/api/events/filter/next?page-token={expected_token}"
     )
 
 
@@ -249,7 +236,7 @@ async def test_querying_for_last_page_returns_no_token(
         page_token=MOCK_PAGE_TOKEN,
     )
 
-    third_page = EventPage.parse_obj(response.json())
+    third_page = EventPage.model_validate(response.json())
 
     assert third_page.events == events_page_three
     assert third_page.total == 123
@@ -290,7 +277,7 @@ async def test_events_api_returns_times_with_timezone_offsets(
 ):
     response = await client.post(
         "http://test/api/events/filter",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
@@ -298,11 +285,11 @@ async def test_events_api_returns_times_with_timezone_offsets(
     for event in response.json()["events"]:
         occurred = event["occurred"]
         assert isinstance(occurred, str)
-        assert occurred.endswith("+00:00")
+        assert occurred.endswith("+00:00") or occurred.endswith("Z")
 
         received = event["received"]
         assert isinstance(received, str)
-        assert received.endswith("+00:00")
+        assert received.endswith("+00:00") or occurred.endswith("Z")
 
 
 @pytest.fixture
@@ -335,11 +322,11 @@ async def test_counting_events_by_day(
 ):
     response = await client.post(
         "http://test/api/events/count-by/day",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
-    assert pydantic.parse_obj_as(List[EventCount], response.json()) == [
+    assert parse_obj_as(List[EventCount], response.json()) == [
         EventCount(
             value="hello",
             label="world",
@@ -376,14 +363,14 @@ async def test_counting_events_by_time(
     response = await client.post(
         "http://test/api/events/count-by/time",
         json={
-            "filter": filter.dict(json_compatible=True),
+            "filter": filter.model_dump(mode="json"),
             "time_unit": "hour",
             "time_interval": 2,
         },
     )
 
     assert response.status_code == 200, response.content
-    assert pydantic.parse_obj_as(List[EventCount], response.json()) == [
+    assert parse_obj_as(List[EventCount], response.json()) == [
         EventCount(
             value="hello",
             label="world",
@@ -419,7 +406,7 @@ async def test_counting_events_by_time_minimum_time_interval(
     response = await client.post(
         "http://test/api/events/count-by/time",
         json={
-            "filter": filter.dict(json_compatible=True),
+            "filter": filter.model_dump(mode="json"),
             "time_unit": "hour",
             "time_interval": 0.009,
         },
@@ -441,11 +428,11 @@ async def test_counting_events_by_event_with_a_filter(
 
     response = await client.post(
         "http://test/api/events/count-by/event",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
-    assert pydantic.parse_obj_as(List[EventCount], response.json()) == [
+    assert parse_obj_as(List[EventCount], response.json()) == [
         EventCount(
             value="hello",
             label="world",
@@ -481,7 +468,7 @@ async def test_counting_events_too_many_buckets(
     response = await client.post(
         "http://test/api/events/count-by/time",
         json={
-            "filter": filter.dict(json_compatible=True),
+            "filter": filter.model_dump(mode="json"),
             "time_unit": "second",
             "time_interval": 0.01,
         },

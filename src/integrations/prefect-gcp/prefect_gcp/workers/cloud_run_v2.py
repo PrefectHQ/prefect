@@ -11,7 +11,7 @@ from googleapiclient import discovery
 # noinspection PyProtectedMember
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, PrivateAttr, field_validator
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
@@ -24,12 +24,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, PrivateAttr, validator
-else:
-    from pydantic import Field, PrivateAttr, validator
-
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import CloudRunJobV2Result, ExecutionV2, JobV2
 from prefect_gcp.utilities import slugify_name
@@ -109,7 +103,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         ),
     )
     job_body: Dict[str, Any] = Field(
-        template=_get_default_job_body_template(),
+        json_schema_extra=dict(template=_get_default_job_body_template()),
     )
     keep_job: bool = Field(
         default=False,
@@ -256,7 +250,8 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             self.job_body["template"]["template"].pop("vpcAccess")
 
     # noinspection PyMethodParameters
-    @validator("job_body")
+    @field_validator("job_body")
+    @classmethod
     def _ensure_job_includes_all_required_components(cls, value: Dict[str, Any]):
         """
         Ensures that the job body includes all required components.
@@ -278,7 +273,8 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         return value
 
     # noinspection PyMethodParameters
-    @validator("job_body")
+    @field_validator("job_body")
+    @classmethod
     def _ensure_job_has_compatible_values(cls, value: Dict[str, Any]):
         """Ensure that the job body has compatible values."""
         patch = JsonPatch.from_diff(value, _get_base_job_body())
@@ -299,7 +295,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
 class CloudRunWorkerV2Variables(BaseVariables):
     """
-    Default variables for the Cloud Run worker V2.
+    Default variables for the v2 Cloud Run worker.
 
     The schema for this class is used to populate the `variables` section of the
     default base job template.
@@ -319,7 +315,7 @@ class CloudRunWorkerV2Variables(BaseVariables):
         description="The region in which to run the Cloud Run job",
     )
     image: Optional[str] = Field(
-        default="prefecthq/prefect:2-latest",
+        default="prefecthq/prefect:3-latest",
         title="Image Name",
         description=(
             "The image to use for the Cloud Run job. "
@@ -371,7 +367,7 @@ class CloudRunWorkerV2Variables(BaseVariables):
             "The memory to allocate to the Cloud Run job along with the units, which"
             "could be: G, Gi, M, Mi."
         ),
-        example="512Mi",
+        examples=["512Mi"],
         pattern=r"^\d+(?:G|Gi|M|Mi)$",
     )
     timeout: int = Field(
@@ -397,7 +393,7 @@ class CloudRunWorkerV2Variables(BaseVariables):
             "of Cloud Run Job. By default Cloud Run jobs run as the default "
             "Compute Engine Service Account."
         ),
-        example="service-account@example.iam.gserviceaccount.com",
+        examples=["service-account@example.iam.gserviceaccount.com"],
     )
 
 

@@ -3,15 +3,15 @@ from typing import Optional
 
 import pytest
 
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
 )
 from prefect.deployments.schedules import (
-    create_minimal_deployment_schedule,
-    normalize_to_minimal_deployment_schedules,
+    create_deployment_schedule_create,
+    normalize_to_deployment_schedule_create,
 )
 from prefect.server.schemas.schedules import CronSchedule as ServerCronSchedule
 
@@ -20,8 +20,8 @@ from prefect.server.schemas.schedules import CronSchedule as ServerCronSchedule
     "active, expected",
     [(False, False), (True, True), (None, True)],
 )
-def test_create_minimal_deployment_schedule(active: Optional[bool], expected: bool):
-    schedule = create_minimal_deployment_schedule(
+def test_create_deployment_schedule_create(active: Optional[bool], expected: bool):
+    schedule = create_deployment_schedule_create(
         schedule=CronSchedule(cron="0 0 * * *"), active=active
     )
     assert schedule.schedule.cron == "0 0 * * *"
@@ -29,11 +29,11 @@ def test_create_minimal_deployment_schedule(active: Optional[bool], expected: bo
 
 
 def test_normalize_none_returns_empty_list():
-    assert normalize_to_minimal_deployment_schedules(None) == []
+    assert normalize_to_deployment_schedule_create(None) == []
 
 
 def test_normalize_schedule_objects():
-    normalized = normalize_to_minimal_deployment_schedules(
+    normalized = normalize_to_deployment_schedule_create(
         schedules=[
             CronSchedule(cron="0 0 * * *"),
             IntervalSchedule(interval=datetime.timedelta(minutes=10)),
@@ -41,7 +41,7 @@ def test_normalize_schedule_objects():
         ]
     )
 
-    assert all(isinstance(s, MinimalDeploymentSchedule) for s in normalized)
+    assert all(isinstance(s, DeploymentScheduleCreate) for s in normalized)
     assert all(s.active is True for s in normalized)
 
     assert normalized[0].schedule.cron == "0 0 * * *"
@@ -50,7 +50,7 @@ def test_normalize_schedule_objects():
 
 
 def test_normalize_dicts():
-    normalized = normalize_to_minimal_deployment_schedules(
+    normalized = normalize_to_deployment_schedule_create(
         schedules=[
             {"schedule": {"interval": datetime.timedelta(minutes=10)}},
             {"schedule": {"cron": "0 0 * * *"}, "active": False},
@@ -58,7 +58,7 @@ def test_normalize_dicts():
         ]
     )
 
-    assert all(isinstance(s, MinimalDeploymentSchedule) for s in normalized)
+    assert all(isinstance(s, DeploymentScheduleCreate) for s in normalized)
 
     assert normalized[0].active is True
     assert normalized[0].schedule.interval == datetime.timedelta(minutes=10)
@@ -72,32 +72,32 @@ def test_normalize_dicts():
 
 def test_normalize_minimal_deployment_schedules():
     schedules = [
-        MinimalDeploymentSchedule(schedule=CronSchedule(cron="0 0 * * *")),
-        MinimalDeploymentSchedule(
+        DeploymentScheduleCreate(schedule=CronSchedule(cron="0 0 * * *")),
+        DeploymentScheduleCreate(
             schedule=IntervalSchedule(interval=datetime.timedelta(minutes=10))
         ),
-        MinimalDeploymentSchedule(
+        DeploymentScheduleCreate(
             schedule=RRuleSchedule(rrule="FREQ=DAILY"), active=False
         ),
     ]
 
-    normalized = normalize_to_minimal_deployment_schedules(schedules=schedules)
+    normalized = normalize_to_deployment_schedule_create(schedules=schedules)
 
     assert normalized == schedules
 
 
 def test_normalize_mixed():
-    normalized = normalize_to_minimal_deployment_schedules(
+    normalized = normalize_to_deployment_schedule_create(
         schedules=[
             CronSchedule(cron="0 0 * * *"),
             {"schedule": {"interval": datetime.timedelta(minutes=10)}},
-            MinimalDeploymentSchedule(
+            DeploymentScheduleCreate(
                 schedule=RRuleSchedule(rrule="FREQ=DAILY"), active=False
             ),
         ]
     )
 
-    assert all(isinstance(s, MinimalDeploymentSchedule) for s in normalized)
+    assert all(isinstance(s, DeploymentScheduleCreate) for s in normalized)
 
     assert normalized[0].active is True
     assert normalized[0].schedule.cron == "0 0 * * *"
@@ -111,11 +111,11 @@ def test_normalize_mixed():
 
 def test_normalize_server_schema():
     with pytest.raises(ValueError, match="Server schema schedules are not supported"):
-        normalize_to_minimal_deployment_schedules(
+        normalize_to_deployment_schedule_create(
             schedules=[ServerCronSchedule(cron="0 0 * * *")]
         )
 
 
 def test_normalize_incompatible():
     with pytest.raises(ValueError, match="Invalid schedule provided"):
-        normalize_to_minimal_deployment_schedules(schedules=[1, 2, 3])
+        normalize_to_deployment_schedule_create(schedules=[1, 2, 3])

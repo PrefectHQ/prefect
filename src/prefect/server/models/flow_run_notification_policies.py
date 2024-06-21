@@ -4,6 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import textwrap
+from typing import Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -42,7 +43,7 @@ async def create_flow_run_notification_policy(
         db.FlowRunNotificationPolicy: the newly-created FlowRunNotificationPolicy
 
     """
-    model = db.FlowRunNotificationPolicy(**flow_run_notification_policy.dict())
+    model = db.FlowRunNotificationPolicy(**flow_run_notification_policy.model_dump())
     session.add(model)
     await session.flush()
 
@@ -75,9 +76,11 @@ async def read_flow_run_notification_policy(
 async def read_flow_run_notification_policies(
     db: PrefectDBInterface,
     session: sa.orm.Session,
-    flow_run_notification_policy_filter: schemas.filters.FlowRunNotificationPolicyFilter = None,
-    offset: int = None,
-    limit: int = None,
+    flow_run_notification_policy_filter: Optional[
+        schemas.filters.FlowRunNotificationPolicyFilter
+    ] = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
 ):
     """
     Read notification policies.
@@ -96,7 +99,7 @@ async def read_flow_run_notification_policies(
     )
 
     if flow_run_notification_policy_filter:
-        query = query.where(flow_run_notification_policy_filter.as_sql_filter(db))
+        query = query.where(flow_run_notification_policy_filter.as_sql_filter())
 
     if offset is not None:
         query = query.offset(offset)
@@ -127,7 +130,7 @@ async def update_flow_run_notification_policy(
     """
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = flow_run_notification_policy.dict(shallow=True, exclude_unset=True)
+    update_data = flow_run_notification_policy.model_dump_for_orm(exclude_unset=True)
 
     update_stmt = (
         sa.update(db.FlowRunNotificationPolicy)

@@ -5,12 +5,12 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
+from pydantic import Field, PrivateAttr
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.sql import Select
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import orm_models
 from prefect.server.schemas.filters import (
     PrefectFilterBaseModel,
     PrefectOperatorFilterBaseModel,
@@ -20,12 +20,6 @@ from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr
-else:
-    from pydantic import Field, PrivateAttr
-
-
 if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement, ColumnExpressionArgument
 
@@ -33,15 +27,15 @@ if TYPE_CHECKING:
 class AutomationFilterCreated(PrefectFilterBaseModel):
     """Filter by `Automation.created`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include automations created before this datetime",
     )
 
-    def _get_filter_list(self, db: PrefectDBInterface) -> list:
+    def _get_filter_list(self) -> list:
         filters = []
         if self.before_ is not None:
-            filters.append(db.Automation.created <= self.before_)
+            filters.append(orm_models.Automation.created <= self.before_)
         return filters
 
 
@@ -53,10 +47,10 @@ class AutomationFilterName(PrefectFilterBaseModel):
         description="Only include automations with names that match any of these strings",
     )
 
-    def _get_filter_list(self, db: PrefectDBInterface) -> List:
+    def _get_filter_list(self) -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.Automation.name.in_(self.any_))
+            filters.append(orm_models.Automation.name.in_(self.any_))
         return filters
 
 
@@ -68,13 +62,13 @@ class AutomationFilter(PrefectOperatorFilterBaseModel):
         default=None, description="Filter criteria for `Automation.created`"
     )
 
-    def _get_filter_list(self, db: PrefectDBInterface) -> List:
+    def _get_filter_list(self) -> List:
         filters = []
 
         if self.name is not None:
-            filters.append(self.name.as_sql_filter(db))
+            filters.append(self.name.as_sql_filter())
         if self.created is not None:
-            filters.append(self.created.as_sql_filter(db))
+            filters.append(self.created.as_sql_filter())
 
         return filters
 
@@ -82,17 +76,15 @@ class AutomationFilter(PrefectOperatorFilterBaseModel):
 class EventDataFilter(PrefectBaseModel, extra="forbid"):
     """A base class for filtering event data."""
 
-    _top_level_filter: "EventFilter | None" = PrivateAttr(None)
+    _top_level_filter: Optional["EventFilter"] = PrivateAttr(None)
 
     def get_filters(self) -> List["EventDataFilter"]:
         filters: List[EventDataFilter] = [
             filter
             for filter in [
-                getattr(self, name)
-                for name, field in self.__fields__.items()
-                if issubclass(field.type_, EventDataFilter)
+                getattr(self, name) for name, field in self.model_fields.items()
             ]
-            if filter
+            if isinstance(filter, EventDataFilter)
         ]
         for filter in filters:
             filter._top_level_filter = self._top_level_filter
@@ -106,39 +98,35 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
         """Would the given filter exclude this event?"""
         return not self.includes(event)
 
-    def build_where_clauses(
-        self, db: PrefectDBInterface
-    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+    def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         """Convert the criteria to a WHERE clause."""
         clauses: List["ColumnExpressionArgument[bool]"] = []
         for filter in self.get_filters():
-            clauses.extend(filter.build_where_clauses(db))
+            clauses.extend(filter.build_where_clauses())
         return clauses
 
 
 class EventOccurredFilter(EventDataFilter):
-    since: DateTimeTZ = Field(
+    since: DateTime = Field(
         default_factory=lambda: cast(
-            DateTimeTZ,
+            DateTime,
             pendulum.now("UTC").start_of("day").subtract(days=180),
         ),
         description="Only include events after this time (inclusive)",
     )
-    until: DateTimeTZ = Field(
-        default_factory=lambda: cast(DateTimeTZ, pendulum.now("UTC")),
+    until: DateTime = Field(
+        default_factory=lambda: cast(DateTime, pendulum.now("UTC")),
         description="Only include events prior to this time (inclusive)",
     )
 
     def includes(self, event: Event) -> bool:
         return self.since <= event.occurred <= self.until
 
-    def build_where_clauses(
-        self, db: PrefectDBInterface
-    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+    def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         filters: List["ColumnExpressionArgument[bool]"] = []
 
-        filters.append(db.Event.occurred >= self.since)
-        filters.append(db.Event.occurred <= self.until)
+        filters.append(orm_models.Event.occurred >= self.since)
+        filters.append(orm_models.Event.occurred <= self.until)
 
         return filters
 
@@ -177,31 +165,34 @@ class EventNameFilter(EventDataFilter):
 
         return True
 
-    def build_where_clauses(
-        self, db: PrefectDBInterface
-    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+    def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         filters: List["ColumnExpressionArgument[bool]"] = []
 
         if self.prefix:
             filters.append(
-                sa.or_(*[db.Event.event.startswith(prefix) for prefix in self.prefix])
+                sa.or_(
+                    *[
+                        orm_models.Event.event.startswith(prefix)
+                        for prefix in self.prefix
+                    ]
+                )
             )
 
         if self.exclude_prefix:
             filters.append(
                 sa.and_(
                     *[
-                        sa.not_(db.Event.event.startswith(prefix))
+                        sa.not_(orm_models.Event.event.startswith(prefix))
                         for prefix in self.exclude_prefix
                     ]
                 )
             )
 
         if self.name:
-            filters.append(db.Event.event.in_(self.name))
+            filters.append(orm_models.Event.event.in_(self.name))
 
         if self.exclude_name:
-            filters.append(db.Event.event.not_in(self.exclude_name))
+            filters.append(orm_models.Event.event.not_in(self.exclude_name))
 
         return filters
 
@@ -266,22 +257,20 @@ class EventResourceFilter(EventDataFilter):
 
         return True
 
-    def build_where_clauses(
-        self, db: PrefectDBInterface
-    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+    def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         filters: List["ColumnExpressionArgument[bool]"] = []
 
         # If we're doing an exact or prefix search on resource_id, this is efficient
         # enough to do on the events table without going to the event_resources table
 
         if self.id:
-            filters.append(db.Event.resource_id.in_(self.id))
+            filters.append(orm_models.Event.resource_id.in_(self.id))
 
         if self.id_prefix:
             filters.append(
                 sa.or_(
                     *[
-                        db.Event.resource_id.startswith(prefix)
+                        orm_models.Event.resource_id.startswith(prefix)
                         for prefix in self.id_prefix
                     ]
                 )
@@ -292,14 +281,14 @@ class EventResourceFilter(EventDataFilter):
 
             # We are explicitly searching for the primary resource here so the
             # resource_role must be ''
-            label_filters = [db.EventResource.resource_role == ""]
+            label_filters = [orm_models.EventResource.resource_role == ""]
 
             # On the event_resources table, resource_id is unpacked
             # into a column, so we should search for it there
             if resource_ids := labels.pop("prefect.resource.id", None):
                 label_ops = LabelOperations(resource_ids)
 
-                resource_id_column = db.EventResource.resource_id
+                resource_id_column = orm_models.EventResource.resource_id
 
                 if values := label_ops.positive.simple:
                     label_filters.append(resource_id_column.in_(values))
@@ -314,7 +303,9 @@ class EventResourceFilter(EventDataFilter):
                 for _, (label, values) in enumerate(labels.items()):
                     label_ops = LabelOperations(values)
 
-                    label_column = json_extract(db.EventResource.resource, label)
+                    label_column = json_extract(
+                        orm_models.EventResource.resource, label
+                    )
 
                     # With negative labels, the resource _must_ have the label
                     if label_ops.negative.simple or label_ops.negative.prefixes:
@@ -331,8 +322,8 @@ class EventResourceFilter(EventDataFilter):
 
             assert self._top_level_filter
             filters.append(
-                db.Event.id.in_(
-                    self._top_level_filter._scoped_event_resources(db).where(
+                orm_models.Event.id.in_(
+                    self._top_level_filter._scoped_event_resources().where(
                         *label_filters
                     )
                 )
@@ -358,24 +349,22 @@ class EventRelatedFilter(EventDataFilter):
         None, description="Only include events for related resources with these labels"
     )
 
-    def build_where_clauses(
-        self, db: PrefectDBInterface
-    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+    def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         filters: List["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
-            filters.append(db.EventResource.resource_id.in_(self.id))
+            filters.append(orm_models.EventResource.resource_id.in_(self.id))
 
         if self.role:
-            filters.append(db.EventResource.resource_role.in_(self.role))
+            filters.append(orm_models.EventResource.resource_role.in_(self.role))
 
         if self.resources_in_roles:
             filters.append(
                 sa.or_(
                     *[
                         sa.and_(
-                            db.EventResource.resource_id == resource_id,
-                            db.EventResource.resource_role == role,
+                            orm_models.EventResource.resource_id == resource_id,
+                            orm_models.EventResource.resource_role == role,
                         )
                         for resource_id, role in self.resources_in_roles
                     ]
@@ -391,7 +380,7 @@ class EventRelatedFilter(EventDataFilter):
             if resource_ids := labels.pop("prefect.resource.id", None):
                 label_ops = LabelOperations(resource_ids)
 
-                resource_id_column = db.EventResource.resource_id
+                resource_id_column = orm_models.EventResource.resource_id
 
                 if values := label_ops.positive.simple:
                     label_filters.append(resource_id_column.in_(values))
@@ -403,13 +392,15 @@ class EventRelatedFilter(EventDataFilter):
                     label_filters.append(sa.not_(resource_id_column.startswith(prefix)))
 
             if roles := labels.pop("prefect.resource.role", None):
-                label_filters.append(db.EventResource.resource_role.in_(roles))
+                label_filters.append(orm_models.EventResource.resource_role.in_(roles))
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
                     label_ops = LabelOperations(values)
 
-                    label_column = json_extract(db.EventResource.resource, label)
+                    label_column = json_extract(
+                        orm_models.EventResource.resource, label
+                    )
 
                     if label_ops.negative.simple or label_ops.negative.prefixes:
                         label_filters.append(label_column.is_not(None))
@@ -431,12 +422,12 @@ class EventRelatedFilter(EventDataFilter):
             # also filter out primary resources (those with an empty role) for any of
             # these queries
             if not self.role:
-                filters.append(db.EventResource.resource_role != "")
+                filters.append(orm_models.EventResource.resource_role != "")
 
             assert self._top_level_filter
             filters = [
-                db.Event.id.in_(
-                    self._top_level_filter._scoped_event_resources(db).where(*filters)
+                orm_models.Event.id.in_(
+                    self._top_level_filter._scoped_event_resources().where(*filters)
                 )
             ]
 
@@ -478,19 +469,17 @@ class EventAnyResourceFilter(EventDataFilter):
 
         return True
 
-    def build_where_clauses(
-        self, db: PrefectDBInterface
-    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+    def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         filters: List["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
-            filters.append(db.EventResource.resource_id.in_(self.id))
+            filters.append(orm_models.EventResource.resource_id.in_(self.id))
 
         if self.id_prefix:
             filters.append(
                 sa.or_(
                     *[
-                        db.EventResource.resource_id.startswith(prefix)
+                        orm_models.EventResource.resource_id.startswith(prefix)
                         for prefix in self.id_prefix
                     ]
                 )
@@ -505,7 +494,7 @@ class EventAnyResourceFilter(EventDataFilter):
             if resource_ids := labels.pop("prefect.resource.id", None):
                 label_ops = LabelOperations(resource_ids)
 
-                resource_id_column = db.EventResource.resource_id
+                resource_id_column = orm_models.EventResource.resource_id
 
                 if values := label_ops.positive.simple:
                     label_filters.append(resource_id_column.in_(values))
@@ -517,13 +506,15 @@ class EventAnyResourceFilter(EventDataFilter):
                     label_filters.append(sa.not_(resource_id_column.startswith(prefix)))
 
             if roles := labels.pop("prefect.resource.role", None):
-                label_filters.append(db.EventResource.resource_role.in_(roles))
+                label_filters.append(orm_models.EventResource.resource_role.in_(roles))
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
                     label_ops = LabelOperations(values)
 
-                    label_column = json_extract(db.EventResource.resource, label)
+                    label_column = json_extract(
+                        orm_models.EventResource.resource, label
+                    )
 
                     if label_ops.negative.simple or label_ops.negative.prefixes:
                         label_filters.append(label_column.is_not(None))
@@ -542,8 +533,8 @@ class EventAnyResourceFilter(EventDataFilter):
         if filters:
             assert self._top_level_filter
             filters = [
-                db.Event.id.in_(
-                    self._top_level_filter._scoped_event_resources(db).where(*filters)
+                orm_models.Event.id.in_(
+                    self._top_level_filter._scoped_event_resources().where(*filters)
                 )
             ]
 
@@ -562,13 +553,11 @@ class EventIDFilter(EventDataFilter):
 
         return True
 
-    def build_where_clauses(
-        self, db: PrefectDBInterface
-    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+    def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         filters: List["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
-            filters.append(db.Event.id.in_(self.id))
+            filters.append(orm_models.Event.id.in_(self.id))
 
         return filters
 
@@ -606,17 +595,15 @@ class EventFilter(EventDataFilter):
         description="The order to return filtered events",
     )
 
-    def build_where_clauses(
-        self, db: PrefectDBInterface
-    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+    def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         self._top_level_filter = self
-        return super().build_where_clauses(db)
+        return super().build_where_clauses()
 
-    def _scoped_event_resources(self, db: PrefectDBInterface) -> Select:
+    def _scoped_event_resources(self) -> Select:
         """Returns an event_resources query that is scoped to this filter's scope by occurred."""
-        query = sa.select(db.EventResource.event_id).where(
-            db.EventResource.occurred >= self.occurred.since,
-            db.EventResource.occurred <= self.occurred.until,
+        query = sa.select(orm_models.EventResource.event_id).where(
+            orm_models.EventResource.occurred >= self.occurred.since,
+            orm_models.EventResource.occurred <= self.occurred.until,
         )
         return query
 

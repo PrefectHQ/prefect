@@ -1,6 +1,6 @@
-collectionName: prefect-azure
+integrationName: prefect-azure
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-azure
-iconUrl: /img/collections/azure.png
+iconUrl: /images/integrations/azure.png
 tag: Azure

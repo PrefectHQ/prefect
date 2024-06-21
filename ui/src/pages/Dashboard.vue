@@ -2,8 +2,11 @@
   <p-layout-default class="workspace-dashboard">
     <template #header>
       <PageHeading :crumbs="crumbs" class="workspace-dashboard__page-heading">
-        <template v-if="!empty" #actions>
+        <template v-if="loaded && !empty" #actions>
           <div class="workspace-dashboard__header-actions">
+            <div class="workspace-dashboard__subflows-toggle">
+              <p-toggle v-model="filter.hideSubflows" append="Hide subflows" />
+            </div>
             <FlowRunTagsInput v-model:selected="filter.tags" empty-message="All tags" />
             <DateRangeSelect v-model="filter.range" class="workspace-dashboard__date-select" />
           </div>
@@ -83,6 +86,7 @@
   md:flex
   md:flex-row
   md:items-center
+  min-h-11
 }
 
 .workspace-dashboard__header-actions { @apply
@@ -94,6 +98,7 @@
   md:w-auto
   md:inline-flex
   md:flex-row
+  items-center
 }
 
 .workspace-dashboard__date-select { @apply
@@ -112,5 +117,11 @@
   grid
   grid-cols-1
   gap-4
+}
+
+.workspace-dashboard__subflows-toggle { @apply
+  pr-2
+  w-full
+  md:w-auto
 }
 </style>

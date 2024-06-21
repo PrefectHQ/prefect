@@ -29,7 +29,6 @@ Example:
 
 """
 
-import enum
 import importlib
 import tempfile
 from datetime import datetime, timedelta
@@ -37,34 +36,32 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
-import pendulum
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    model_validator,
+)
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
-    validate_automation_names,
 )
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
 )
 from prefect.deployments.schedules import (
-    FlexibleScheduleList,
-    create_minimal_deployment_schedule,
+    create_deployment_schedule_create,
 )
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     ObjectNotFound,
@@ -72,24 +69,19 @@ from prefect.exceptions import (
 )
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
-    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.collections import get_from_dict, isiterable
 from prefect.utilities.dockerutils import (
-    PushError,
-    build_image,
-    docker_client,
-    generate_default_dockerfile,
     parse_image_tag,
-    split_repository_path,
 )
-from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.flows import Flow
 
 __all__ = ["RunnerDeployment"]
@@ -99,18 +91,6 @@ class DeploymentApplyError(RuntimeError):
     """
     Raised when an error occurs while applying a deployment.
     """
-
-
-class EntrypointType(enum.Enum):
-    """
-    Enum representing a entrypoint type.
-
-    File path entrypoints are in the format: `path/to/file.py:function_name`.
-    Module path entrypoints are in the format: `path.to.module.function_name`.
-    """
-
-    FILE_PATH = "file_path"
-    MODULE_PATH = "module_path"
 
 
 class RunnerDeployment(BaseModel):
@@ -144,8 +124,7 @@ class RunnerDeployment(BaseModel):
             available settings.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
@@ -161,7 +140,7 @@ class RunnerDeployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedules: Optional[List[MinimalDeploymentSchedule]] = Field(
+    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
@@ -184,7 +163,7 @@ class RunnerDeployment(BaseModel):
         description="The triggers that should cause this deployment to run.",
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the Prefect API should enforce the parameter schema for"
             " this deployment."
@@ -232,16 +211,22 @@ class RunnerDeployment(BaseModel):
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
 
-    @validator("triggers", allow_reuse=True)
-    def validate_automation_names(cls, field_value, values):
+    @model_validator(mode="after")
+    def validate_automation_names(self):
         """Ensure that each trigger has a name for its automation if none is provided."""
-        return validate_automation_names(field_value, values)
+        trigger: Union[DeploymentTriggerTypes, TriggerTypes]
+        for i, trigger in enumerate(self.triggers, start=1):
+            if trigger.name is None:
+                trigger.name = f"{self.name}__automation_{i}"
+        return self
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def reconcile_paused(cls, values):
         return reconcile_paused_deployment(values)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def reconcile_schedules(cls, values):
         return reconcile_schedules_runner(values)
 
@@ -301,7 +286,9 @@ class RunnerDeployment(BaseModel):
                 entrypoint=self.entrypoint,
                 storage_document_id=None,
                 infrastructure_document_id=None,
-                parameter_openapi_schema=self._parameter_openapi_schema.dict(),
+                parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+                    exclude_unset=True
+                ),
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
@@ -325,26 +312,25 @@ class RunnerDeployment(BaseModel):
                     f"Error while applying deployment: {str(exc)}"
                 ) from exc
 
-            if client.server_type.supports_automations():
-                try:
-                    # The triggers defined in the deployment spec are, essentially,
-                    # anonymous and attempting truly sync them with cloud is not
-                    # feasible. Instead, we remove all automations that are owned
-                    # by the deployment, meaning that they were created via this
-                    # mechanism below, and then recreate them.
-                    await client.delete_resource_owned_automations(
-                        f"prefect.deployment.{deployment_id}"
-                    )
-                except PrefectHTTPStatusError as e:
-                    if e.response.status_code == 404:
-                        # This Prefect server does not support automations, so we can safely
-                        # ignore this 404 and move on.
-                        return deployment_id
-                    raise e
+            try:
+                # The triggers defined in the deployment spec are, essentially,
+                # anonymous and attempting truly sync them with cloud is not
+                # feasible. Instead, we remove all automations that are owned
+                # by the deployment, meaning that they were created via this
+                # mechanism below, and then recreate them.
+                await client.delete_resource_owned_automations(
+                    f"prefect.deployment.{deployment_id}"
+                )
+            except PrefectHTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # This Prefect server does not support automations, so we can safely
+                    # ignore this 404 and move on.
+                    return deployment_id
+                raise e
 
-                for trigger in self.triggers:
-                    trigger.set_deployment_id(deployment_id)
-                    await client.create_automation(trigger.as_automation())
+            for trigger in self.triggers:
+                trigger.set_deployment_id(deployment_id)
+                await client.create_automation(trigger.as_automation())
 
             return deployment_id
 
@@ -358,8 +344,8 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
-    ) -> Union[List[MinimalDeploymentSchedule], FlexibleScheduleList]:
+        schedules: Optional["FlexibleScheduleList"] = None,
+    ) -> Union[List[DeploymentScheduleCreate], "FlexibleScheduleList"]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -417,7 +403,7 @@ class RunnerDeployment(BaseModel):
                 value = [value]
 
             return [
-                create_minimal_deployment_schedule(
+                create_deployment_schedule_create(
                     construct_schedule(
                         **{
                             schedule_type: v,
@@ -429,7 +415,7 @@ class RunnerDeployment(BaseModel):
                 for v in value
             ]
         else:
-            return [create_minimal_deployment_schedule(schedule)]
+            return [create_deployment_schedule_create(schedule)]
 
     def _set_defaults_from_flow(self, flow: "Flow"):
         self._parameter_openapi_schema = parameter_schema(flow)
@@ -450,7 +436,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -458,7 +444,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -586,7 +572,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -594,7 +580,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -684,7 +670,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
@@ -692,7 +678,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -781,74 +767,11 @@ class RunnerDeployment(BaseModel):
         return deployment
 
 
-class DeploymentImage:
-    """
-    Configuration used to build and push a Docker image for a deployment.
-
-    Attributes:
-        name: The name of the Docker image to build, including the registry and
-            repository.
-        tag: The tag to apply to the built image.
-        dockerfile: The path to the Dockerfile to use for building the image. If
-            not provided, a default Dockerfile will be generated.
-        **build_kwargs: Additional keyword arguments to pass to the Docker build request.
-            See the [`docker-py` documentation](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
-            for more information.
-
-    """
-
-    def __init__(self, name, tag=None, dockerfile="auto", **build_kwargs):
-        image_name, image_tag = parse_image_tag(name)
-        if tag and image_tag:
-            raise ValueError(
-                f"Only one tag can be provided - both {image_tag!r} and {tag!r} were"
-                " provided as tags."
-            )
-        namespace, repository = split_repository_path(image_name)
-        # if the provided image name does not include a namespace (registry URL or user/org name),
-        # use the default namespace
-        if not namespace:
-            namespace = PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE.value()
-        # join the namespace and repository to create the full image name
-        # ignore namespace if it is None
-        self.name = "/".join(filter(None, [namespace, repository]))
-        self.tag = tag or image_tag or slugify(pendulum.now("utc").isoformat())
-        self.dockerfile = dockerfile
-        self.build_kwargs = build_kwargs
-
-    @property
-    def reference(self):
-        return f"{self.name}:{self.tag}"
-
-    def build(self):
-        full_image_name = self.reference
-        build_kwargs = self.build_kwargs.copy()
-        build_kwargs["context"] = Path.cwd()
-        build_kwargs["tag"] = full_image_name
-        build_kwargs["pull"] = build_kwargs.get("pull", True)
-
-        if self.dockerfile == "auto":
-            with generate_default_dockerfile():
-                build_image(**build_kwargs)
-        else:
-            build_kwargs["dockerfile"] = self.dockerfile
-            build_image(**build_kwargs)
-
-    def push(self):
-        with docker_client() as client:
-            events = client.api.push(
-                repository=self.name, tag=self.tag, stream=True, decode=True
-            )
-            for event in events:
-                if "error" in event:
-                    raise PushError(event["error"])
-
-
 @sync_compatible
 async def deploy(
     *deployments: RunnerDeployment,
     work_pool_name: Optional[str] = None,
-    image: Optional[Union[str, DeploymentImage]] = None,
+    image: Optional[Union[str, DockerImage]] = None,
     build: bool = True,
     push: bool = True,
     print_next_steps_message: bool = True,
@@ -870,7 +793,7 @@ async def deploy(
         work_pool_name: The name of the work pool to use for these deployments. Defaults to
             the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
         image: The name of the Docker image to build, including the registry and
-            repository. Pass a DeploymentImage instance to customize the Dockerfile used
+            repository. Pass a DockerImage instance to customize the Dockerfile used
             and build arguments.
         build: Whether or not to build a new image for the flow. If False, the provided
             image will be used as-is and pulled at runtime.
@@ -925,7 +848,7 @@ async def deploy(
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
-        image = DeploymentImage(name=image_name, tag=image_tag)
+        image = DockerImage(name=image_name, tag=image_tag)
 
     try:
         async with get_client() as client:

@@ -224,7 +224,7 @@ def test_s3_session_with_params():
                 "config": {"connect_timeout": 123},
             },
         )
-        get_s3_client(credentials=creds_block.dict())
+        get_s3_client(credentials=creds_block.model_dump())
         get_s3_client(
             credentials={
                 "minio_root_user": "MY_USER",

@@ -34,4 +34,4 @@ if __name__ == "__main__":
     result = parent_flow()
     assert result == "hello", f"Got {result}"
     assert flow_run_count == 3, f"Got {flow_run_count}"
-    assert child_flow_run_count == 2, f"Got {child_flow_run_count}"
+    assert child_flow_run_count == 3, f"Got {child_flow_run_count}"
