@@ -76,7 +76,6 @@ async def take_a_picture(session: AsyncSession) -> Deployment:
         session=session,
         deployment=Deployment(
             name="Take a picture on demand",
-            manifest_path="file.json",
             flow_id=snap_a_pic.id,
             is_schedule_active=True,
             paused=False,

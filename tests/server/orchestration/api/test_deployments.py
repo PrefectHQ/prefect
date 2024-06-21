@@ -47,7 +47,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             version="mint",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
@@ -57,7 +56,6 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My Deployment"
         assert response.json()["version"] == "mint"
-        assert response.json()["manifest_path"] == "file.json"
         assert response.json()["storage_document_id"] == str(storage_document_id)
         deployment_id = response.json()["id"]
 
@@ -126,7 +124,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(  # type: ignore
             name="My Deployment",
             version="mint",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
@@ -171,7 +168,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(  # type: ignore
             name="My Deployment",
             version="mint",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
@@ -226,7 +222,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(  # type: ignore
             name="My Deployment",
             version="mint",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
@@ -297,7 +292,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(  # type: ignore
             name="My Deployment",
             version="mint",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
@@ -314,9 +308,9 @@ class TestCreateDeployment:
         assert data["is_schedule_active"] == (not data["paused"])
 
     async def test_default_work_queue_name_is_none(self, session, client, flow):
-        data = DeploymentCreate(
-            name="My Deployment", manifest_path="", flow_id=flow.id
-        ).model_dump(mode="json")
+        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).model_dump(
+            mode="json"
+        )
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["work_queue_name"] is None
@@ -1037,7 +1031,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(  # type: ignore
             name=deployment.name,
             flow_id=deployment.flow_id,
-            manifest_path="file.json",
             is_schedule_active=False,
         ).model_dump(mode="json")
 
@@ -1059,7 +1052,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(  # type: ignore
             name=deployment.name,
             flow_id=deployment.flow_id,
-            manifest_path="file.json",
             paused=True,
         ).model_dump(mode="json")
 
@@ -1722,7 +1714,6 @@ class TestUpdateDeployment:
         data = DeploymentCreate(  # type: ignore
             name="My Deployment",
             version="mint",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             schedules=[
@@ -1806,7 +1797,6 @@ class TestUpdateDeployment:
         data = DeploymentCreate(  # type: ignore
             name="My Deployment",
             version="mint",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
