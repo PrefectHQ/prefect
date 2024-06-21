@@ -8,12 +8,11 @@ Currently supported entrypoints:
         should be imported when Prefect is imported.
 """
 
-import sys
 from types import ModuleType
 from typing import Any, Dict, Union
 
 import prefect.settings
-from prefect.utilities.compat import EntryPoint, EntryPoints, entry_points
+from prefect.utilities.compat import EntryPoints, entry_points
 
 
 def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception, Any]]:
