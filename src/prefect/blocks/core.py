@@ -792,6 +792,7 @@ class Block(BaseModel, ABC):
 
     @classmethod
     @sync_compatible
+    @inject_client
     async def load(
         cls,
         name: str,
