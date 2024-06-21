@@ -9,14 +9,26 @@ For example, you can run flow on Vertex AI or Cloud Run, read and write data to 
 
 ### Prerequisites
 
-- [Prefect 3 installed](3.0rc/get-started/install) in a virtual environment.
+- [Prefect installed](3.0rc/get-started/install) in a virtual environment.
 - A [GCP account](https://cloud.google.com/) and the necessary permissions to access desired services.
 
 ### Install prefect-gcp
 
-```bash
-pip install -U prefect-gcp
-```
+
+Install or update to the latest version of the prefect-gcp library and dependencies.
+
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-gcp
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-gcp
+    ```
+    </Tab>
+</Tabs>
 
 
 If using BigQuery, Cloud Storage, Secret Manager, or Vertex AI, see [additional installation options](#additional-installation-options).
