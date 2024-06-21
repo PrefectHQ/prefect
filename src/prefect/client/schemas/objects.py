@@ -179,7 +179,10 @@ class State(ObjectBaseModel, Generic[R]):
         ...
 
     def result(
-        self, raise_on_failure: bool = True, fetch: Optional[bool] = None
+        self,
+        raise_on_failure: bool = True,
+        fetch: Optional[bool] = None,
+        retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
         Retrieve the result attached to this state.
@@ -191,6 +194,8 @@ class State(ObjectBaseModel, Generic[R]):
                 results into data. For synchronous users, this defaults to `True`.
                 For asynchronous users, this defaults to `False` for backwards
                 compatibility.
+            retry_result_failure: a boolean specifying whether to retry on failures to
+                load the result from result storage
 
         Raises:
             TypeError: If the state is failed but the result is not an exception.
@@ -253,7 +258,12 @@ class State(ObjectBaseModel, Generic[R]):
         """
         from prefect.states import get_state_result
 
-        return get_state_result(self, raise_on_failure=raise_on_failure, fetch=fetch)
+        return get_state_result(
+            self,
+            raise_on_failure=raise_on_failure,
+            fetch=fetch,
+            retry_result_failure=retry_result_failure,
+        )
 
     def to_state_create(self):
         """
