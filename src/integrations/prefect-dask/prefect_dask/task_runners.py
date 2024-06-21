@@ -73,9 +73,22 @@ Example:
 
 import inspect
 from contextlib import ExitStack
-from typing import Any, Callable, Dict, Iterable, Optional, Set, Union
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import distributed
+from typing_extensions import ParamSpec
 
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
@@ -89,8 +102,13 @@ from prefect_dask.client import PrefectDaskClient
 
 logger = get_logger(__name__)
 
+P = ParamSpec("P")
+T = TypeVar("T")
+F = TypeVar("F", bound=PrefectFuture)
+R = TypeVar("R")
 
-class PrefectDaskFuture(PrefectWrappedFuture[distributed.Future]):
+
+class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
     """
     A Prefect future that wraps a distributed.Future. This future is used
     when the task run is submitted to a DaskTaskRunner.
@@ -109,7 +127,7 @@ class PrefectDaskFuture(PrefectWrappedFuture[distributed.Future]):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         if not self._final_state:
             try:
                 future_result = self._wrapped_future.result(timeout=timeout)
@@ -297,6 +315,26 @@ class DaskTaskRunner(TaskRunner):
             client_kwargs=self.client_kwargs,
         )
 
+    @overload
+    def submit(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDaskFuture[R]:
+        ...
+
+    @overload
+    def submit(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDaskFuture[R]:
+        ...
+
     def submit(
         self,
         task: Task,
@@ -321,6 +359,32 @@ class DaskTaskRunner(TaskRunner):
             return_type="state",
         )
         return PrefectDaskFuture(wrapped_future=future, task_run_id=future.task_run_id)
+
+    @overload
+    def map(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> List[PrefectDaskFuture[R]]:
+        ...
+
+    @overload
+    def map(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> List[PrefectDaskFuture[R]]:
+        ...
+
+    def map(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ):
+        return super().map(task, parameters, wait_for)
 
     def _optimize_futures(self, expr):
         def visit_fn(expr):

@@ -14,6 +14,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Dict,
     Generic,
     Iterable,
@@ -827,9 +828,17 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture:
+    ) -> PrefectFuture[NoReturn]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFuture[T]:
         ...
 
     @overload
@@ -837,15 +846,23 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture:
+    ) -> PrefectFuture[T]:
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> State[T]:
         ...
 
     @overload
     def submit(
         self: "Task[P, T]",
-        return_state: Literal[True],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
+        return_state: Literal[True],
         **kwargs: P.kwargs,
     ) -> State[T]:
         ...
@@ -978,9 +995,15 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
+    ) -> List[PrefectFuture[NoReturn]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> List[PrefectFuture[T]]:
         ...
 
     @overload
@@ -988,14 +1011,23 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture]:
+    ) -> List[PrefectFuture[T]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> List[State[T]]:
         ...
 
     @overload
     def map(
         self: "Task[P, T]",
-        return_state: Literal[True],
         *args: P.args,
+        return_state: Literal[True],
         **kwargs: P.kwargs,
     ) -> List[State[T]]:
         ...
