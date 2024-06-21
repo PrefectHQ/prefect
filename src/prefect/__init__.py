@@ -5,7 +5,7 @@
 from . import _version
 import importlib
 import pathlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 __version_info__ = _version.get_versions()
 __version__ = __version_info__["version"]
@@ -44,6 +44,15 @@ if TYPE_CHECKING:
         resume_flow_run,
         suspend_flow_run,
     )
+
+_slots: dict[str, Any] = {
+    "__version_info__": __version_info__,
+    "__version__": __version__,
+    "__module_path__": __module_path__,
+    "__development_base_path__": __development_base_path__,
+    "__ui_static_subpath__": __ui_static_subpath__,
+    "__ui_static_path__": __ui_static_path__,
+}
 
 _public_api: dict[str, tuple[str, str]] = {
     "allow_failure": (__spec__.parent, ".main"),
@@ -84,10 +93,19 @@ __all__ = [
     "pause_flow_run",
     "resume_flow_run",
     "suspend_flow_run",
+    "__version_info__",
+    "__version__",
+    "__module_path__",
+    "__development_base_path__",
+    "__ui_static_subpath__",
+    "__ui_static_path__",
 ]
 
 
 def __getattr__(attr_name: str) -> object:
+    if attr_name in _slots:
+        return _slots[attr_name]
+
     dynamic_attr = _public_api.get(attr_name)
     if dynamic_attr is None:
         return importlib.import_module(f".{attr_name}", package=__name__)
