@@ -1373,12 +1373,6 @@ Whether or not to warn when experimental enhanced flow run cancellation is used.
 """
 
 
-PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
-"""
-Whether or not to enable flow run input.
-"""
-
-
 # Prefect Events feature flags
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
