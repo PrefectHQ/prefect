@@ -18,9 +18,11 @@ from typing import (
     Dict,
     List,
     Optional,
+    Protocol,
     TypeVar,
     Union,
     cast,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -41,6 +43,7 @@ from prefect.logging import get_logger
 T = TypeVar("T")
 P = ParamSpec("P")
 R = TypeVar("R")
+F = TypeVar("F", bound=Callable[..., Any])
 Async = Literal[True]
 Sync = Literal[False]
 A = TypeVar("A", Async, Sync, covariant=True)
@@ -298,7 +301,25 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
+class SyncCompatibleWrapper(Protocol):
+    aio: Callable[..., Any]
+
+
+@overload
+def sync_compatible(
+    async_fn: Callable[..., Coroutine[Any, Any, Any]], force_sync: bool = False
+) -> Callable[..., Union[Any, Coroutine[Any, Any, Any]]]:
+    ...
+
+
+@overload
+def sync_compatible(
+    async_fn: Callable[..., Any], force_sync: bool = False
+) -> Callable[..., Any]:
+    ...
+
+
+def sync_compatible(async_fn: F, force_sync: bool = False) -> F:
     """
     Converts an async function into a dual async and sync function.
 
@@ -362,17 +383,15 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
         else:
             return run_coro_as_sync(ctx_call())
 
-    # TODO: This is breaking type hints on the callable... mypy is behind the curve
-    #       on argument annotations. We can still fix this for editors though.
     if is_async_fn(async_fn):
-        wrapper = coroutine_wrapper
+        wrapper: SyncCompatibleWrapper = cast(SyncCompatibleWrapper, coroutine_wrapper)
     elif is_async_gen_fn(async_fn):
         raise ValueError("Async generators cannot yet be marked as `sync_compatible`")
     else:
         raise TypeError("The decorated function must be async.")
 
     wrapper.aio = async_fn
-    return wrapper
+    return cast(F, wrapper)
 
 
 @asynccontextmanager
