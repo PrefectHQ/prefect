@@ -75,7 +75,6 @@ async def _get_state_result_data_with_retries(state: State[R]) -> R:
     # grace here about missing results.  The exception below could come in the form
     # of a missing file, a short read, or other types of errors depending on the
     # result storage backend.
-    print("in _get_state_result_data_with_retries", repr(state))
     for i in range(1, RESULT_READ_MAXIMUM_ATTEMPTS + 1):
         try:
             return await state.data.get()
