@@ -18,7 +18,6 @@ from typing import (
     Dict,
     List,
     Optional,
-    Protocol,
     TypeVar,
     Union,
     cast,
@@ -317,7 +316,7 @@ def sync_compatible(
 
 def sync_compatible(
     async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
-) -> Callable[..., Union[R, Coroutine[Any, Any, R]]]:
+) -> Union[Callable[..., R], Callable[..., Coroutine[Any, Any, R]]]:
     """
     Converts an async function into a dual async and sync function.
 
@@ -331,9 +330,6 @@ def sync_compatible(
     - If we cannot find an event loop, we will create a new one and run the async method
         then tear down the loop.
     """
-
-    class SyncCompatibleWrapper(Protocol):
-        aio: Callable[..., Union[R, Coroutine[Any, Any, R]]]
 
     @wraps(async_fn)
     def coroutine_wrapper(
@@ -387,14 +383,14 @@ def sync_compatible(
             return run_coro_as_sync(ctx_call())
 
     if is_async_fn(async_fn):
-        wrapper: SyncCompatibleWrapper = cast(SyncCompatibleWrapper, coroutine_wrapper)
+        wrapper = coroutine_wrapper
     elif is_async_gen_fn(async_fn):
         raise ValueError("Async generators cannot yet be marked as `sync_compatible`")
     else:
         raise TypeError("The decorated function must be async.")
 
-    wrapper.aio = cast(Callable[..., Coroutine[Any, Any, R]], async_fn)
-    return cast(Callable[..., Union[R, Coroutine[Any, Any, R]]], wrapper)
+    wrapper.aio = async_fn  # type: ignore
+    return wrapper
 
 
 @asynccontextmanager
