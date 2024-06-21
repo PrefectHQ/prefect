@@ -1372,10 +1372,6 @@ PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
 Whether or not to warn when experimental enhanced flow run cancellation is used.
 """
 
-PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
-"""
-Whether or not to warn when deployment status is used.
-"""
 
 PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
 """
