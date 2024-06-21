@@ -982,18 +982,6 @@ The agent loop interval, in seconds. Agents will check for new runs this often.
 Defaults to `15`.
 """
 
-PREFECT_AGENT_PREFETCH_SECONDS = Setting(
-    int,
-    default=15,
-)
-"""
-Agents will look for scheduled runs this many seconds in
-the future and attempt to run them. This accounts for any additional
-infrastructure spin-up time or latency in preparing a flow run. Note
-flow runs will not start before their scheduled time, even if they are
-prefetched. Defaults to `15`.
-"""
-
 PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
 """
 Determines whether `State.result()` fetches results automatically or not.
