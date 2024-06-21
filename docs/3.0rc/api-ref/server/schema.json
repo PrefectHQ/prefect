@@ -15607,17 +15607,6 @@
                         ],
                         "title": "Pull Steps"
                     },
-                    "manifest_path": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Manifest Path"
-                    },
                     "work_queue_name": {
                         "anyOf": [
                             {
@@ -16401,18 +16390,6 @@
                         "title": "Entrypoint",
                         "description": "The path to the entrypoint for the workflow, relative to the `path`."
                     },
-                    "manifest_path": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Manifest Path",
-                        "description": "The path to the flow's manifest file, relative to the chosen storage."
-                    },
                     "storage_document_id": {
                         "anyOf": [
                             {
@@ -16908,17 +16885,6 @@
                             }
                         ],
                         "title": "Entrypoint"
-                    },
-                    "manifest_path": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Manifest Path"
                     },
                     "storage_document_id": {
                         "anyOf": [
