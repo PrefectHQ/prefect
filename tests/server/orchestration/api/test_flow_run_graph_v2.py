@@ -21,8 +21,6 @@ from prefect.server.schemas.states import StateType
 from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
-    PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH,
-    PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH,
     temporary_settings,
 )
 
@@ -1015,23 +1013,6 @@ async def flow_run_task_artifacts(
     return should_be_in_graph
 
 
-@pytest.fixture
-def enable_artifacts_on_flow_run_graph():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH: True}
-    ):
-        yield
-
-
-@pytest.fixture
-def disable_artifacts_on_flow_run_graph():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH: False}
-    ):
-        yield
-
-
-@pytest.mark.usefixtures("enable_artifacts_on_flow_run_graph")
 async def test_reading_graph_for_flow_run_with_artifacts(
     session: AsyncSession,
     flow_run,  # db.FlowRun
@@ -1087,23 +1068,6 @@ async def test_reading_graph_for_flow_run_with_artifacts(
     assert expected_graph_artifacts == graph_node_artifacts
 
 
-@pytest.mark.usefixtures("disable_artifacts_on_flow_run_graph")
-async def test_artifacts_on_flow_run_graph_requires_experimental_setting(
-    session: AsyncSession,
-    flow_run,  # db.FlowRun
-    flow_run_artifacts,  # List[db.Artifact],
-    flow_run_task_artifacts,  # List[db.Artifact],
-):
-    graph = await read_flow_run_graph(
-        session=session,
-        flow_run_id=flow_run.id,
-    )
-
-    assert graph.artifacts == []
-    assert all(node.artifacts == [] for _, node in graph.nodes)
-
-
-@pytest.mark.usefixtures("enable_artifacts_on_flow_run_graph")
 async def test_artifacts_on_flow_run_graph_limited_by_setting(
     session: AsyncSession,
     flow_run,  # db.FlowRun
@@ -1126,22 +1090,6 @@ async def test_artifacts_on_flow_run_graph_limited_by_setting(
     assert (
         len(graph.artifacts) + sum(len(node.artifacts) for _, node in graph.nodes)
     ) <= test_max_artifacts_setting
-
-
-@pytest.fixture
-def enable_states_on_flow_run_graph():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH: True}
-    ):
-        yield
-
-
-@pytest.fixture
-def disable_states_on_flow_run_graph():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH: False}
-    ):
-        yield
 
 
 @pytest.fixture
@@ -1181,7 +1129,6 @@ async def flow_run_states(
     return states
 
 
-@pytest.mark.usefixtures("enable_states_on_flow_run_graph")
 async def test_reading_graph_for_flow_run_includes_states(
     session: AsyncSession,
     flow_run,  # db.FlowRun,
@@ -1203,20 +1150,6 @@ async def test_reading_graph_for_flow_run_includes_states(
     )
 
     assert graph.states == expected_graph_states
-
-
-@pytest.mark.usefixtures("disable_states_on_flow_run_graph")
-async def test_states_on_flow_run_graph_requires_experimental_setting(
-    session: AsyncSession,
-    flow_run,  # db.FlowRun,
-    flow_run_states,  # List[db.FlowRunState],
-):
-    graph = await read_flow_run_graph(
-        session=session,
-        flow_run_id=flow_run.id,
-    )
-
-    assert graph.states == []
 
 
 @pytest.fixture

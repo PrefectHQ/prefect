@@ -357,8 +357,6 @@ def test_enabled_experiments_with_opt_in():
         "test",
         "workers",
         "enhanced_cancellation",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
     }
 
 
@@ -366,6 +364,4 @@ def test_enabled_experiments_without_opt_in():
     assert enabled_experiments() == {
         "workers",
         "enhanced_cancellation",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
     }
