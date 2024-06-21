@@ -1020,7 +1020,7 @@ class TestTaskFutures:
         async def my_flow():
             future = foo.submit()
             result = future.result(raise_on_failure=False)
-            assert exceptions_equal(result, ValueError("Test"))
+            assert isinstance(result, ValueError) and str(result) == "Test"
             return True  # Ignore failed tasks
 
         await my_flow()
@@ -2270,8 +2270,7 @@ class TestTaskInputs:
         @flow
         def test_flow():
             upstream_future = upstream.submit(257)
-            upstream_result = upstream_future.result()
-            downstream_state = downstream(upstream_result, return_state=True)
+            downstream_state = downstream(upstream_future, return_state=True)
             upstream_future.wait()
             upstream_state = upstream_future.state
             return upstream_state, downstream_state
@@ -3354,7 +3353,7 @@ class TestTaskMap:
             session, echo_futures[0].state_details.flow_run_id
         )
 
-        assert [a.result() for a in add_task_futures] == [[1, 2, 3], [1, 2, 4]]
+        assert [await a.result() for a in add_task_futures] == [[1, 2, 3], [1, 2, 4]]
 
         assert all(
             dependency_ids[e.state_details.task_run_id] == [] for e in echo_futures
