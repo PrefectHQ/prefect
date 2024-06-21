@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -1242,6 +1243,33 @@ class TestCachePolicy:
 
         assert third_result not in [first_result, second_result]
         assert fourth_result not in [first_result, second_result]
+
+    async def test_bad_api_result_references_cause_reruns(self, tmp_path: Path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        PAYLOAD = {"return": 42}
+
+        @task(result_storage=fs, result_storage_key="tmp-first")
+        async def first():
+            return PAYLOAD["return"], get_run_context().task_run
+
+        result, task_run = await run_task_async(first)
+
+        assert result == 42
+        assert await fs.read_path("tmp-first")
+
+        # delete record
+        path = fs._resolve_path("tmp-first")
+        os.unlink(path)
+        with pytest.raises(ValueError, match="does not exist"):
+            assert await fs.read_path("tmp-first")
+
+        # rerun with same task run ID
+        PAYLOAD["return"] = "bar"
+        result, task_run = await run_task_async(first, task_run=task_run)
+
+        assert result == "bar"
+        assert await fs.read_path("tmp-first")
 
 
 class TestGenerators:

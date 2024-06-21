@@ -249,6 +249,16 @@ class TaskRunEngine(Generic[P, R]):
         new_state = Running()
         state = self.set_state(new_state)
 
+        # TODO: this is temporary until the API stops rejecting state transitions
+        # and the client / transaction store becomes the source of truth
+        # this is a bandaid caused by the API storing a Completed state with a bad
+        # result reference that no longer exists
+        if state.is_completed():
+            try:
+                state.result(retry_result_failure=False, _sync=True)
+            except Exception:
+                state = self.set_state(new_state, force=True)
+
         BACKOFF_MAX = 10
         backoff_count = 0
 
