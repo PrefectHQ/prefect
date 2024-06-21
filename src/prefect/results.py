@@ -614,7 +614,6 @@ class PersistedResult(BaseResult):
         """
         Retrieve the data and deserialize it into the original object.
         """
-
         if self.has_cached_object():
             return self._cache
 
