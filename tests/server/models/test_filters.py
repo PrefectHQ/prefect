@@ -8,7 +8,7 @@ from pydantic_core import from_json, to_json
 from sqlalchemy.exc import InterfaceError
 
 import prefect.server
-from prefect.client import get_client
+from prefect.client.orchestration import get_client
 from prefect.server import models
 from prefect.server.schemas import actions, core, filters, schedules, states
 

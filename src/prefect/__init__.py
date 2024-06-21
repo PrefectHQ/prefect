@@ -5,6 +5,7 @@
 from . import _version
 import importlib
 import pathlib
+from typing import TYPE_CHECKING, Any
 
 __version_info__ = _version.get_versions()
 __version__ = __version_info__["version"]
@@ -23,63 +24,55 @@ __ui_static_path__ = __module_path__ / "server" / "ui"
 
 del _version, pathlib
 
+if TYPE_CHECKING:
+    from .main import (
+        allow_failure,
+        flow,
+        Flow,
+        get_client,
+        get_run_logger,
+        Manifest,
+        State,
+        tags,
+        task,
+        Task,
+        Transaction,
+        unmapped,
+        serve,
+        deploy,
+        pause_flow_run,
+        resume_flow_run,
+        suspend_flow_run,
+    )
 
-# Import user-facing API
-from prefect.deployments import deploy
-from prefect.states import State
-from prefect.logging import get_run_logger
-from prefect.flows import flow, Flow, serve
-from prefect.transactions import Transaction
-from prefect.tasks import task, Task
-from prefect.context import tags
-from prefect.manifests import Manifest
-from prefect.utilities.annotations import unmapped, allow_failure
-from prefect.results import BaseResult
-from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
-from prefect.client.orchestration import get_client, PrefectClient
-from prefect.client.cloud import get_cloud_client, CloudClient
-import prefect.variables
-import prefect.runtime
+_slots: dict[str, Any] = {
+    "__version_info__": __version_info__,
+    "__version__": __version__,
+    "__module_path__": __module_path__,
+    "__development_base_path__": __development_base_path__,
+    "__ui_static_subpath__": __ui_static_subpath__,
+    "__ui_static_path__": __ui_static_path__,
+}
 
-# Import modules that register types
-import prefect.serializers
-import prefect.blocks.notifications
-import prefect.blocks.system
-
-# Initialize the process-wide profile and registry at import time
-import prefect.context
-
-# Perform any forward-ref updates needed for Pydantic models
-import prefect.client.schemas
-
-prefect.context.FlowRunContext.model_rebuild()
-prefect.context.TaskRunContext.model_rebuild()
-prefect.client.schemas.State.model_rebuild()
-prefect.client.schemas.StateCreate.model_rebuild()
-Transaction.model_rebuild()
-
-
-prefect.plugins.load_extra_entrypoints()
-
-# Configure logging
-import prefect.logging.configuration
-
-prefect.logging.configuration.setup_logging()
-prefect.logging.get_logger("profiles").debug(
-    f"Using profile {prefect.context.get_settings_context().profile.name!r}"
-)
-
-# Ensure moved names are accessible at old locations
-prefect.client.get_client = get_client
-prefect.client.PrefectClient = PrefectClient
-
-
-from prefect._internal.compatibility.deprecated import (
-    inject_renamed_module_alias_finder,
-)
-
-inject_renamed_module_alias_finder()
-
+_public_api: dict[str, tuple[str, str]] = {
+    "allow_failure": (__spec__.parent, ".main"),
+    "flow": (__spec__.parent, ".main"),
+    "Flow": (__spec__.parent, ".main"),
+    "get_client": (__spec__.parent, ".main"),
+    "get_run_logger": (__spec__.parent, ".main"),
+    "Manifest": (__spec__.parent, ".main"),
+    "State": (__spec__.parent, ".main"),
+    "tags": (__spec__.parent, ".main"),
+    "task": (__spec__.parent, ".main"),
+    "Task": (__spec__.parent, ".main"),
+    "Transaction": (__spec__.parent, ".main"),
+    "unmapped": (__spec__.parent, ".main"),
+    "serve": (__spec__.parent, ".main"),
+    "deploy": (__spec__.parent, ".main"),
+    "pause_flow_run": (__spec__.parent, ".main"),
+    "resume_flow_run": (__spec__.parent, ".main"),
+    "suspend_flow_run": (__spec__.parent, ".main"),
+}
 
 # Declare API for type-checkers
 __all__ = [
@@ -100,4 +93,29 @@ __all__ = [
     "pause_flow_run",
     "resume_flow_run",
     "suspend_flow_run",
+    "__version_info__",
+    "__version__",
+    "__module_path__",
+    "__development_base_path__",
+    "__ui_static_subpath__",
+    "__ui_static_path__",
 ]
+
+
+def __getattr__(attr_name: str) -> object:
+    if attr_name in _slots:
+        return _slots[attr_name]
+
+    dynamic_attr = _public_api.get(attr_name)
+    if dynamic_attr is None:
+        return importlib.import_module(f".{attr_name}", package=__name__)
+
+    package, module_name = dynamic_attr
+
+    from importlib import import_module
+
+    if module_name == "__module__":
+        return import_module(f".{attr_name}", package=package)
+    else:
+        module = import_module(module_name, package=package)
+        return getattr(module, attr_name)
