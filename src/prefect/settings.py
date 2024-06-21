@@ -92,21 +92,6 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
-# When we remove the experimental settings we also want to add them to the set of REMOVED_EXPERIMENTAL_FLAGS.
-# The reason for this is removing the settings entirely causes the CLI to crash for anyone who has them in one or more of their profiles.
-# Adding them to REMOVED_EXPERIMENTAL_FLAGS will make it so that the user is warned about it and they have time to take action.
-REMOVED_EXPERIMENTAL_FLAGS = {
-    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
-    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
-    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
-    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS",
-    "PREFECT_EXPERIMENTAL_EVENTS",
-    "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
-    "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
-    "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
-    "PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS",
-}
-
 
 class Setting(Generic[T]):
     """
@@ -423,7 +408,7 @@ def default_result_storage_block_name(
     settings: Optional["Settings"] = None, value: Optional[str] = None
 ):
     """
-    `value_callback` for `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK_NAME` that sets the default
+    `value_callback` for `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` that sets the default
     value to the hostname of the machine.
     """
     if value is None:
@@ -959,41 +944,6 @@ interpreted and lead to incomplete output, e.g.
 `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
 """
 
-PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
-    float,
-    default=10.0,
-)
-"""
-Threshold time in seconds for logging a warning if task parameter introspection
-exceeds this duration. Parameter introspection can be a significant performance hit
-when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
-and each element needs to be inspected. See `prefect.utilities.annotations.quote`
-for more details.
-Defaults to `10.0`.
-Set to `0` to disable logging the warning.
-"""
-
-PREFECT_AGENT_QUERY_INTERVAL = Setting(
-    float,
-    default=15,
-)
-"""
-The agent loop interval, in seconds. Agents will check for new runs this often.
-Defaults to `15`.
-"""
-
-PREFECT_AGENT_PREFETCH_SECONDS = Setting(
-    int,
-    default=15,
-)
-"""
-Agents will look for scheduled runs this many seconds in
-the future and attempt to run them. This accounts for any additional
-infrastructure spin-up time or latency in preparing a flow run. Note
-flow runs will not start before their scheduled time, even if they are
-prefetched. Defaults to `15`.
-"""
-
 PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
 """
 Determines whether `State.result()` fetches results automatically or not.
@@ -1393,11 +1343,6 @@ PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect workers are used.
 """
 
-PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect visualize is used.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
 Whether or not to enable experimental enhanced flow run cancellation.
@@ -1406,26 +1351,6 @@ Whether or not to enable experimental enhanced flow run cancellation.
 PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
 """
 Whether or not to warn when experimental enhanced flow run cancellation is used.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_DEPLOYMENT_STATUS = Setting(bool, default=True)
-"""
-Whether or not to enable deployment status in the UI
-"""
-
-PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
-"""
-Whether or not to warn when deployment status is used.
-"""
-
-PREFECT_EXPERIMENTAL_FLOW_RUN_INPUT = Setting(bool, default=False)
-"""
-Whether or not to enable flow run input.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
-"""
-Whether or not to enable flow run input.
 """
 
 
@@ -1554,31 +1479,6 @@ PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False
 Whether or not to enable experimental worker webserver endpoints.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect artifacts.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect artifacts are used.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=True)
-"""
-Whether or not to enable the experimental workspace dashboard.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
-"""
-Whether or not to warn when the experimental workspace dashboard is enabled.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental work queue status in-place of work queue health.
-"""
-
 PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
 """
 Whether or not to disable the sync_compatible decorator utility.
@@ -1661,11 +1561,6 @@ The maximum number of related resources an Event may have.
 PREFECT_EVENTS_MAXIMUM_SIZE_BYTES = Setting(int, default=1_500_000)
 """
 The maximum size of an Event when serialized to JSON
-"""
-
-PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to start the event debug logger service in the server application.
 """
 
 PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
@@ -2215,26 +2110,6 @@ class ProfilesCollection:
         )
 
 
-def _handle_removed_flags(
-    profile_name: str, settings: Dict[str, Any]
-) -> Dict[str, Any]:
-    to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
-
-    for name in to_remove:
-        warnings.warn(
-            (
-                f"Experimental flag {name!r} has been removed, please "
-                f"update your {profile_name!r} profile."
-            ),
-            UserWarning,
-            stacklevel=3,
-        )
-
-        settings.pop(name)
-
-    return settings
-
-
 def _read_profiles_from(path: Path) -> ProfilesCollection:
     """
     Read profiles from a path into a new `ProfilesCollection`.
@@ -2253,7 +2128,6 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
 
     profiles = []
     for name, settings in raw_profiles.items():
-        settings = _handle_removed_flags(name, settings)
         profiles.append(Profile(name=name, settings=settings, source=path))
 
     return ProfilesCollection(profiles, active=active_profile)
