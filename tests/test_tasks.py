@@ -3349,12 +3349,12 @@ class TestTaskMap:
                 [[x1, x2], [x1, x2]], y=[[3], [4]]
             )
 
-        echo_futures, add_task_states = my_flow()
+        echo_futures, add_task_futures = my_flow()
         dependency_ids = await self.get_dependency_ids(
             session, echo_futures[0].state_details.flow_run_id
         )
 
-        assert [await a.result() for a in add_task_states] == [[1, 2, 3], [1, 2, 4]]
+        assert [a.result() for a in add_task_futures] == [[1, 2, 3], [1, 2, 4]]
 
         assert all(
             dependency_ids[e.state_details.task_run_id] == [] for e in echo_futures
@@ -3363,7 +3363,7 @@ class TestTaskMap:
             set(dependency_ids[a.state_details.task_run_id])
             == {e.state_details.task_run_id for e in echo_futures}
             and len(dependency_ids[a.state_details.task_run_id]) == 2
-            for a in add_task_states
+            for a in add_task_futures
         )
 
     async def test_map_can_take_flow_state_as_input(self):

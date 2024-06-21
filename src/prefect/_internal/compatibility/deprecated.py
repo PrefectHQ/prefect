@@ -26,6 +26,7 @@ from prefect.utilities.importtools import (
     to_qualified_name,
 )
 
+A = TypeVar("A")
 T = TypeVar("T", bound=Callable)
 M = TypeVar("M", bound=BaseModel)
 
@@ -279,7 +280,7 @@ class AsyncCompatProxy(wrapt.ObjectProxy):
     """
     A proxy object that allows for awaiting a method that is no longer async.
 
-    See https://wrapt.readthedocs.io/en/master/wrappers.html
+    See https://wrapt.readthedocs.io/en/master/wrappers.html#object-proxy for more
     """
 
     def __init__(self, wrapped):

@@ -29,6 +29,7 @@ import anyio.abc
 import anyio.from_thread
 import anyio.to_thread
 import sniffio
+import wrapt
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
 from prefect._internal.concurrency.api import _cast_to_call, from_sync
@@ -207,6 +208,11 @@ def run_coro_as_sync(
     Returns:
         The result of the coroutine if wait_for_result is True, otherwise None.
     """
+    if not asyncio.iscoroutine(coroutine):
+        if isinstance(coroutine, wrapt.ObjectProxy):
+            return coroutine.__wrapped__
+        else:
+            raise TypeError("`coroutine` must be a coroutine object")
 
     async def coroutine_wrapper():
         """
