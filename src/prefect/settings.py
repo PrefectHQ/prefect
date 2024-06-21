@@ -1377,11 +1377,6 @@ PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
 Whether or not to warn when deployment status is used.
 """
 
-PREFECT_EXPERIMENTAL_FLOW_RUN_INPUT = Setting(bool, default=False)
-"""
-Whether or not to enable flow run input.
-"""
-
 PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
 """
 Whether or not to enable flow run input.
