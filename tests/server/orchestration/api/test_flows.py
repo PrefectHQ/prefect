@@ -298,7 +298,6 @@ class TestReadFlows:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment X",
-                manifest_path="file.json",
                 flow_id=flow_1.id,
                 is_schedule_active=True,
                 work_queue_id=work_queue.id,
@@ -330,7 +329,6 @@ class TestReadFlows:
             session=session,
             deployment=schemas.core.Deployment(
                 name="Mr. Deployment",
-                manifest_path="file.json",
                 flow_id=deployed_flow.id,
             ),
         )
@@ -545,7 +543,6 @@ class TestPaginateFlows:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment X",
-                manifest_path="file.json",
                 flow_id=flow_1.id,
                 is_schedule_active=True,
                 work_queue_id=work_queue.id,
@@ -580,7 +577,6 @@ class TestPaginateFlows:
             session=session,
             deployment=schemas.core.Deployment(
                 name="Mr. Deployment",
-                manifest_path="file.json",
                 flow_id=deployed_flow.id,
             ),
         )

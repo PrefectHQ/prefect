@@ -26,7 +26,6 @@ async def test_valid_names(name):
     assert schemas.core.Deployment(
         name=name,
         flow_id=uuid4(),
-        manifest_path="file.json",
     )
     assert schemas.core.BlockDocument(
         name=name, block_schema_id=uuid4(), block_type_id=uuid4()
@@ -47,7 +46,6 @@ async def test_invalid_names(name):
         assert schemas.core.Deployment(
             name=name,
             flow_id=uuid4(),
-            manifest_path="file.json",
         )
     with pytest.raises(ValidationError, match="String should match pattern"):
         assert schemas.core.BlockDocument(

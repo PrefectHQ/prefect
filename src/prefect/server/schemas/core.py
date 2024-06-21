@@ -597,12 +597,6 @@ class Deployment(ORMBaseModel):
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    manifest_path: Optional[str] = Field(
-        default=None,
-        description=(
-            "The path to the flow's manifest file, relative to the chosen storage."
-        ),
-    )
     storage_document_id: Optional[UUID] = Field(
         default=None,
         description="The block document defining storage used for this flow.",

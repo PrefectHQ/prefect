@@ -103,7 +103,6 @@ async def data(flow_function, db):
                 id=d_1_1_id,
                 name="d-1-1",
                 flow_id=f_1.id,
-                manifest_path="file.json",
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
                 paused=False,
@@ -113,7 +112,6 @@ async def data(flow_function, db):
             deployment=core.Deployment(
                 id=d_1_2_id,
                 name="d-1-2",
-                manifest_path="file.json",
                 flow_id=f_1.id,
                 is_schedule_active=False,
                 paused=True,
@@ -124,7 +122,6 @@ async def data(flow_function, db):
             deployment=core.Deployment(
                 id=d_3_1_id,
                 name="d-3-1",
-                manifest_path="file.json",
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,

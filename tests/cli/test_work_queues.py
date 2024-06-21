@@ -660,7 +660,6 @@ class TestReadRuns:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            manifest_path="file.json",
             work_queue_name=queue.name,
         )
         for _ in range(count):

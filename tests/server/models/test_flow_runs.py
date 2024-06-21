@@ -169,7 +169,6 @@ class TestCreateFlowRun:
             deployment=schemas.core.Deployment(
                 name="",
                 flow_id=flow.id,
-                manifest_path="file.json",
             ),
         )
         flow_run = await models.flow_runs.create_flow_run(
@@ -795,7 +794,6 @@ class TestReadFlowRuns:
             deployment=schemas.core.Deployment(
                 name="",
                 flow_id=flow.id,
-                manifest_path="file.json",
             ),
         )
         flow_run_1 = await models.flow_runs.create_flow_run(

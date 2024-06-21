@@ -49,7 +49,6 @@ class TestDeploymentSchedules:
             flow_id=flow_id,
             name="test-deployment",
             version="git-commit-hash",
-            manifest_path="path/file.json",
             schedule=old_record,
             parameters={"foo": "bar"},
             tags=["foo", "bar"],
