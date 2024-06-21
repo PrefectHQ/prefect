@@ -1039,8 +1039,9 @@ class Task(Generic[P, R]):
         """
         Submit a mapped run of the task to a worker.
 
-        Must be called within a flow function. If writing an async task, this
-        call must be awaited.
+        Must be called within a flow run context. Will return a list of futures
+        that should be waited on before exiting the flow context to ensure all
+        mapped tasks have completed.
 
         Must be called with at least one iterable and all iterables must be
         the same length. Any arguments that are not iterable will be treated as
@@ -1078,15 +1079,14 @@ class Task(Generic[P, R]):
             >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
-            >>>     my_task.map([1, 2, 3])
+            >>>     return my_task.map([1, 2, 3])
 
             Wait for all mapped tasks to finish
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
-            >>>     for future in futures:
-            >>>         future.wait()
+            >>>     futures.wait():
             >>>     # Now all of the mapped tasks have finished
             >>>     my_task(10)
 
@@ -1095,8 +1095,8 @@ class Task(Generic[P, R]):
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
-            >>>     for future in futures:
-            >>>         print(future.result())
+            >>>     for x in futures.result():
+            >>>         print(x)
             >>> my_flow()
             2
             3
@@ -1117,6 +1117,7 @@ class Task(Generic[P, R]):
             >>>
             >>>     # task 2 will wait for task_1 to complete
             >>>     y = task_2.map([1, 2, 3], wait_for=[x])
+            >>>     return y
 
             Use a non-iterable input as a constant across mapped tasks
             >>> @task
@@ -1125,7 +1126,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> def my_flow():
-            >>>     display.map("Check it out: ", [1, 2, 3])
+            >>>     return display.map("Check it out: ", [1, 2, 3])
             >>>
             >>> my_flow()
             Check it out: 1
