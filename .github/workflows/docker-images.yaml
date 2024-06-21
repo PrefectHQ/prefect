@@ -30,7 +30,7 @@ jobs:
   publish-docker-images:
     name: Build and publish to DockerHub
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'release' && !github.event.release.prerelease && 'prod' || 'dev' }}
+    environment: ${{ github.event_name == 'release' && github.event.release.prerelease && 'pre-release' || github.event_name == 'release' && 'prod' || 'dev' }}
     strategy:
       matrix:
         flavor:

@@ -1,4 +1,3 @@
-
 name: Build and publish the prefect-client
 
 on:
@@ -12,12 +11,15 @@ jobs:
       upload-artifacts: true
       artifact-name: "prefect-client-pypi-dists"
     secrets: inherit
-          
+
   publish-prefect-client-pypi-dists:
     name: Publish to PyPI
-    environment: ${{ github.event.release.prerelease && 'dev' || 'prod' }}
+    environment: ${{ github.event.release.prerelease && 'pre-release' || 'prod' }}
     needs: [verify-prefect-client-build]
     runs-on: ubuntu-latest
+    permissions:
+      # this permission is mandatory for trusted publishing
+      id-token: write
 
     steps:
       - name: Validate Prerelease Tag
@@ -36,6 +38,3 @@ jobs:
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PREFECT_CLIENT_PYPI_API_TOKEN }}
-          name: ci
