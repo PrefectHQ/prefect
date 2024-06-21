@@ -13,7 +13,7 @@ Example:
     PREFECT_API_URL="http://localhost:4200/api" ./scripts/run-integration-flows.py
 """
 
-import runpy
+import subprocess
 import sys
 from pathlib import Path
 from typing import Union
@@ -32,7 +32,7 @@ def run_flows(search_path: Union[str, Path]):
     for file in sorted(Path(search_path).glob("**/*.py")):
         print(f" {file.relative_to(search_path)} ".center(90, "-"), flush=True)
         try:
-            runpy.run_path(file, run_name="__main__")
+            subprocess.run(["python", file], check=True)
         except NotImplementedError:
             print(f"Skipping {file}: not supported by this version of Prefect")
         print("".center(90, "-") + "\n", flush=True)
