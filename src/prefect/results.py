@@ -1,5 +1,4 @@
 import abc
-import asyncio
 import uuid
 from functools import partial
 from typing import (
@@ -63,10 +62,6 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 _default_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
-
-
-RESULT_READ_RETRIES = 10
-RESULT_READ_RETRY_DELAY = 0.25
 
 
 async def _get_or_create_default_storage(block_document_slug: str) -> ResultStorage:
@@ -619,7 +614,6 @@ class PersistedResult(BaseResult):
         """
         Retrieve the data and deserialize it into the original object.
         """
-
         if self.has_cached_object():
             return self._cache
 
@@ -639,20 +633,9 @@ class PersistedResult(BaseResult):
         ), "Unexpected storage block ID. Was it persisted?"
         block_document = await client.read_block_document(self.storage_block_id)
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
-
-        # Results may be written asynchronously, possibly after their corresponding
-        # state has been written and events have been emitted, so we should give some
-        # grace here about missing results.  The exception below could come in the form
-        # of a missing file, a short read, or other types of errors depending on the
-        # result storage backend.
-        for i in range(RESULT_READ_RETRIES):
-            try:
-                content = await storage_block.read_path(self.storage_key)
-                return PersistedResultBlob.model_validate_json(content)
-            except Exception:
-                if i == (RESULT_READ_RETRIES - 1):
-                    raise
-                await asyncio.sleep(RESULT_READ_RETRY_DELAY)
+        content = await storage_block.read_path(self.storage_key)
+        blob = PersistedResultBlob.model_validate_json(content)
+        return blob
 
     @staticmethod
     def _infer_path(storage_block, key) -> str:

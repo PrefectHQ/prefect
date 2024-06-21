@@ -1,13 +1,10 @@
 import json
-import time
 import uuid
-from unittest import mock
 
 import pendulum
 import pytest
 
-import prefect.results
-from prefect.filesystems import LocalFileSystem, WritableFileSystem
+from prefect.filesystems import LocalFileSystem
 from prefect.results import DEFAULT_STORAGE_KEY_FN, PersistedResult, PersistedResultBlob
 from prefect.serializers import JSONSerializer, PickleSerializer
 
@@ -239,96 +236,3 @@ async def test_lifecycle_of_defer_persistence(storage_block):
     await result.write()
     blob = await result._read_blob()
     assert blob.load() == "test-defer"
-
-
-@pytest.fixture
-def shorter_result_retries(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    monkeypatch.setattr(prefect.results, "RESULT_READ_RETRIES", 3)
-    monkeypatch.setattr(prefect.results, "RESULT_READ_RETRY_DELAY", 0.01)
-
-
-@pytest.fixture
-async def a_real_result(storage_block: WritableFileSystem) -> PersistedResult:
-    return await PersistedResult.create(
-        "test-graceful-retry",
-        storage_block_id=storage_block._block_document_id,
-        storage_block=storage_block,
-        storage_key_fn=lambda: "test-graceful-retry-path",
-        serializer=JSONSerializer(),
-        defer_persistence=True,
-    )
-
-
-async def test_graceful_retries_are_finite_while_retrieving_missing_results(
-    shorter_result_retries: None,
-    a_real_result: PersistedResult,
-):
-    now = time.monotonic()
-
-    # it should raise if the result has not been written
-    with pytest.raises(ValueError, match="does not exist"):
-        await a_real_result._read_blob()
-
-    # it should have taken ~3 retries for this to raise
-    expected_sleep = (
-        prefect.results.RESULT_READ_RETRIES * prefect.results.RESULT_READ_RETRY_DELAY
-    )
-    assert expected_sleep <= time.monotonic() - now <= expected_sleep * 5
-
-
-async def test_graceful_retries_reraise_last_error_while_retrieving_missing_results(
-    shorter_result_retries: None,
-    a_real_result: PersistedResult,
-):
-    # if it strikes out 3 times, we should re-raise
-    now = time.monotonic()
-    with pytest.raises(FileNotFoundError):
-        with mock.patch(
-            "prefect.filesystems.LocalFileSystem.read_path",
-            new=mock.AsyncMock(
-                side_effect=[
-                    OSError,
-                    TimeoutError,
-                    FileNotFoundError,
-                ]
-            ),
-        ) as m:
-            await a_real_result._read_blob()
-
-    # the loop should have failed three times, sleeping 0.01s per error
-    assert m.call_count == prefect.results.RESULT_READ_RETRIES
-    expected_sleep = (
-        prefect.results.RESULT_READ_RETRIES * prefect.results.RESULT_READ_RETRY_DELAY
-    )
-    assert expected_sleep <= time.monotonic() - now <= expected_sleep * 5
-
-
-async def test_graceful_retries_eventually_succeed_while(
-    shorter_result_retries: None,
-    a_real_result: PersistedResult,
-):
-    # now write the result so it's available
-    await a_real_result.write()
-    expected_blob = await a_real_result._read_blob()
-
-    # even if it misses a couple times, it will eventually return the data
-    now = time.monotonic()
-    with mock.patch(
-        "prefect.filesystems.LocalFileSystem.read_path",
-        new=mock.AsyncMock(
-            side_effect=[
-                FileNotFoundError,
-                TimeoutError,
-                expected_blob.model_dump_json().encode(),
-            ]
-        ),
-    ) as m:
-        blob = await a_real_result._read_blob()
-        assert blob.load() == "test-graceful-retry"
-
-    # the loop should have failed twice, then succeeded, sleeping 0.01s per failure
-    assert m.call_count == prefect.results.RESULT_READ_RETRIES
-    expected_sleep = 2 * prefect.results.RESULT_READ_RETRY_DELAY
-    assert expected_sleep <= time.monotonic() - now <= expected_sleep * 5
