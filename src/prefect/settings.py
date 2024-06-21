@@ -1533,11 +1533,6 @@ PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False
 Whether or not to enable experimental worker webserver endpoints.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect artifacts.
-"""
-
 PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect artifacts are used.
