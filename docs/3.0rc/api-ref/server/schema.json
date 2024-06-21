@@ -22109,21 +22109,6 @@
                         "title": "Prefect Logging Markup",
                         "default": false
                     },
-                    "PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD": {
-                        "type": "number",
-                        "title": "Prefect Task Introspection Warn Threshold",
-                        "default": 10.0
-                    },
-                    "PREFECT_AGENT_QUERY_INTERVAL": {
-                        "type": "number",
-                        "title": "Prefect Agent Query Interval",
-                        "default": 15
-                    },
-                    "PREFECT_AGENT_PREFETCH_SECONDS": {
-                        "type": "integer",
-                        "title": "Prefect Agent Prefetch Seconds",
-                        "default": 15
-                    },
                     "PREFECT_ASYNC_FETCH_STATE_RESULT": {
                         "type": "boolean",
                         "title": "Prefect Async Fetch State Result",
@@ -22395,11 +22380,6 @@
                         "title": "Prefect Experimental Warn Workers",
                         "default": false
                     },
-                    "PREFECT_EXPERIMENTAL_WARN_VISUALIZE": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Visualize",
-                        "default": false
-                    },
                     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION": {
                         "type": "boolean",
                         "title": "Prefect Experimental Enable Enhanced Cancellation",
@@ -22409,26 +22389,6 @@
                         "type": "boolean",
                         "title": "Prefect Experimental Warn Enhanced Cancellation",
                         "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_DEPLOYMENT_STATUS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Deployment Status",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Deployment Status",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_FLOW_RUN_INPUT": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Flow Run Input",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Flow Run Input",
-                        "default": true
                     },
                     "PREFECT_RUNNER_PROCESS_LIMIT": {
                         "type": "integer",
@@ -22531,31 +22491,6 @@
                         "title": "Prefect Experimental Enable Extra Runner Endpoints",
                         "default": false
                     },
-                    "PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Artifacts",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_ARTIFACTS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Artifacts",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Workspace Dashboard",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Workspace Dashboard",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Work Queue Status",
-                        "default": true
-                    },
                     "PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT": {
                         "type": "boolean",
                         "title": "Prefect Experimental Disable Sync Compat",
@@ -22639,11 +22574,6 @@
                         "type": "integer",
                         "title": "Prefect Events Maximum Size Bytes",
                         "default": 1500000
-                    },
-                    "PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED": {
-                        "type": "boolean",
-                        "title": "Prefect Api Services Event Logger Enabled",
-                        "default": true
                     },
                     "PREFECT_API_SERVICES_TRIGGERS_ENABLED": {
                         "type": "boolean",
