@@ -22,7 +22,6 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
@@ -564,9 +563,6 @@ class BaseQueryComponents(ABC):
         Does not recurse into subflows.
         Artifacts for the flow run without a task run id are grouped under None.
         """
-        if not experiment_enabled("artifacts_on_flow_run_graph"):
-            return defaultdict(list)
-
         query = (
             sa.select(
                 orm_models.Artifact,
@@ -611,9 +607,6 @@ class BaseQueryComponents(ABC):
         flow_run_id: UUID,
     ):
         """Get the flow run states for a flow run graph."""
-        if not experiment_enabled("states_on_flow_run_graph"):
-            return []
-
         flow_run_states = await models.flow_run_states.read_flow_run_states(
             session=session, flow_run_id=flow_run_id
         )
