@@ -1642,11 +1642,6 @@ PREFECT_EVENTS_MAXIMUM_SIZE_BYTES = Setting(int, default=1_500_000)
 The maximum size of an Event when serialized to JSON
 """
 
-PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to start the event debug logger service in the server application.
-"""
-
 PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
 """
 Whether or not to start the triggers service in the server application.
