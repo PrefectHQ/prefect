@@ -4,7 +4,34 @@ description: Prefect is a workflow orchestration tool that empowers developers t
 mode: wide
 ---
 
-TBD
+<a href="https://app.prefect.cloud" class="bg-primary-dark dark:bg-primary-light rounded-md px-4 mr-2 inline-flex text-sm text-white border border-primary-dark dark:border-primary-light">
+Sign up
+</a>
+
+<a href="https://prefect-python-sdk-docs.netlify.app" class="rounded-md px-4 inline-flex text-sm border border-primary-dark dark:border-primary-light">
+API reference
+</a>
+
+---
+
+```python
+from prefect import flow, task
+
+@task(log_prints=True)
+def say_hello(name: str):
+    print(f"Hello, {name}!")
+
+@flow
+def hello_universe(names: list[str]):
+    for name in names:
+        say_hello(name)
+
+if __name__ == "__main__":
+    # create your first deployment to automate your flow
+    hello_universe.serve(name="your-first-deployment")
+```
+
+---
 
 ## Get started
 
