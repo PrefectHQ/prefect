@@ -423,7 +423,7 @@ def default_result_storage_block_name(
     settings: Optional["Settings"] = None, value: Optional[str] = None
 ):
     """
-    `value_callback` for `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK_NAME` that sets the default
+    `value_callback` for `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` that sets the default
     value to the hostname of the machine.
     """
     if value is None:
