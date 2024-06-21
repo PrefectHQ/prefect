@@ -990,7 +990,7 @@ class TestPauseFlowRun:
         class FlowInput(RunInput):
             x: int
 
-        @flow
+        @flow(persist_result=False)
         async def pausing_flow():
             nonlocal flow_run_id
             context = FlowRunContext.get()
@@ -1273,7 +1273,7 @@ class TestSuspendFlowRun:
         class FlowInput(RunInput):
             x: int
 
-        @flow()
+        @flow(persist_result=False)
         async def suspending_flow():
             nonlocal flow_run_id
             context = get_run_context()

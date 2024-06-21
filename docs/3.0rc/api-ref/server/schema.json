@@ -21746,7 +21746,7 @@
                     "PREFECT_RESULTS_PERSIST_BY_DEFAULT": {
                         "type": "boolean",
                         "title": "Prefect Results Persist By Default",
-                        "default": false
+                        "default": true
                     },
                     "PREFECT_TASKS_REFRESH_CACHE": {
                         "type": "boolean",
