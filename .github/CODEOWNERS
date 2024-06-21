@@ -23,5 +23,9 @@ mkdocs.insiders.yml                  @PrefectHQ/docs
 /src/prefect/server/events            @chrisguidry
 /tests/events                         @chrisguidry
 
+# imports
+/src/prefect/__init__.py              @aaazzam @chrisguidry
+/src/prefect/main.py                  @aaazzam @chrisguidry
+
 # integrations
 /src/integrations                     @desertaxle @zzstoatzz

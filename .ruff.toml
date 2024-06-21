@@ -9,6 +9,7 @@ lint.ignore = ["E501"]
 [lint.per-file-ignores]
 # Do not enforce usage and import order rules in init files
 "__init__.py" = ["E402", "F401", "I"]
+"main.py" = ["E402", "F401", "I"]
 
 # Do not fix import in compatibility module
 "src/prefect/utilities/compat.py" = ["F401", "I"]
