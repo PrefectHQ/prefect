@@ -3584,7 +3584,7 @@ class TestTaskMap:
 
         await test_flow()
 
-    async def test_wait_for_all_mapped_tasks(self):
+    async def test_wait_mapped_tasks(self):
         @task
         def add_one(x):
             return x + 1
@@ -3592,7 +3592,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = add_one.map([1, 2, 3])
-            futures.wait_for_all()
+            futures.wait()
             for future in futures:
                 assert future.state.is_completed()
 
@@ -3606,7 +3606,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = add_one.map([1, 2, 3])
-            results = futures.results()
+            results = futures.result()
             assert results == [2, 3, 4]
 
         my_flow()
