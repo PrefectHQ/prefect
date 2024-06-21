@@ -1357,11 +1357,6 @@ PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect workers are used.
 """
 
-PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect visualize is used.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
 Whether or not to enable experimental enhanced flow run cancellation.
