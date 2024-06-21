@@ -3972,11 +3972,11 @@ class TestFlowFromSource:
         assert deployment.storage == storage
 
     async def test_load_flow_from_source_with_url(self, monkeypatch):
-        def mock_create_storage_from_url(url):
+        def mock_create_storage_from_source(url):
             return MockStorage()
 
         monkeypatch.setattr(
-            "prefect.flows.create_storage_from_url", mock_create_storage_from_url
+            "prefect.flows.create_storage_from_source", mock_create_storage_from_source
         )  # adjust the import path as per your module's name and location
 
         loaded_flow = await Flow.from_source(
