@@ -14,6 +14,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Dict,
     Generic,
     Iterable,
@@ -32,6 +33,7 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
+from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
@@ -43,7 +45,6 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.records.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -51,7 +52,10 @@ from prefect.settings import (
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.asyncutils import (
+    run_coro_as_sync,
+    sync_compatible,
+)
 from prefect.utilities.callables import (
     expand_mapping_parameters,
     get_call_parameters,
@@ -821,9 +825,17 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture:
+    ) -> PrefectFuture[NoReturn]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFuture[T]:
         ...
 
     @overload
@@ -831,15 +843,23 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture:
+    ) -> PrefectFuture[T]:
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> State[T]:
         ...
 
     @overload
     def submit(
         self: "Task[P, T]",
-        return_state: Literal[True],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
+        return_state: Literal[True],
         **kwargs: P.kwargs,
     ) -> State[T]:
         ...
@@ -971,9 +991,15 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
+    ) -> List[PrefectFuture[NoReturn]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> List[PrefectFuture[T]]:
         ...
 
     @overload
@@ -981,14 +1007,23 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture]:
+    ) -> List[PrefectFuture[T]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> List[State[T]]:
         ...
 
     @overload
     def map(
         self: "Task[P, T]",
-        return_state: Literal[True],
         *args: P.args,
+        return_state: Literal[True],
         **kwargs: P.kwargs,
     ) -> List[State[T]]:
         ...
@@ -1284,7 +1319,8 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    def serve(self) -> "Task":
+    @sync_compatible
+    async def serve(self) -> NoReturn:
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1303,7 +1339,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        serve(self)
+        await serve(self)
 
 
 @overload

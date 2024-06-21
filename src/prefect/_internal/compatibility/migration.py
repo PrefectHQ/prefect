@@ -30,8 +30,8 @@ MOVED_IN_V3 = {
 }
 
 REMOVED_IN_V3 = {
-    "prefect.deployments.deployments:Deployment": "Use 'flow.serve()' or `prefect deploy` instead.",
-    "prefect.deployments:Deployment": "Use 'flow.serve()' or `prefect deploy` instead.",
+    "prefect.deployments.deployments:Deployment": "Use 'flow.serve()', `flow.deploy()`, or `prefect deploy` instead.",
+    "prefect.deployments:Deployment": "Use 'flow.serve()', `flow.deploy()`, or `prefect deploy` instead.",
     "prefect.filesystems:GCS": "Use 'prefect_gcp' instead.",
     "prefect.filesystems:Azure": "Use 'prefect_azure' instead.",
     "prefect.filesystems:S3": "Use 'prefect_aws' instead.",

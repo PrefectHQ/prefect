@@ -29,7 +29,6 @@ from prefect.settings import (
     PREFECT_TEST_SETTING,
     PREFECT_UI_API_URL,
     PREFECT_UI_URL,
-    REMOVED_EXPERIMENTAL_FLAGS,
     SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
@@ -627,28 +626,6 @@ class TestLoadProfiles:
             )
         )
         with pytest.warns(UserWarning, match="Setting 'test' is not recognized"):
-            load_profile("foo")
-
-    @pytest.mark.parametrize("removed_flag", sorted(REMOVED_EXPERIMENTAL_FLAGS))
-    def test_removed_experimental_flags(self, temporary_profiles_path, removed_flag):
-        assert removed_flag in REMOVED_EXPERIMENTAL_FLAGS
-
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                f"""
-                [profiles.foo]
-                {removed_flag} = "False"
-                """
-            )
-        )
-
-        with pytest.warns(
-            UserWarning,
-            match=(
-                f"Experimental flag '{removed_flag}' "
-                "has been removed, please update your 'foo' profile."
-            ),
-        ):
             load_profile("foo")
 
 

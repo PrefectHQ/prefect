@@ -504,7 +504,6 @@ class TestCheckWorkQueuesForDeployment:
                 session=session,
                 deployment=schemas.core.Deployment(
                     name="My Deployment",
-                    manifest_path="file.json",
                     flow_id=flow.id,
                     tags=tags,
                 ),

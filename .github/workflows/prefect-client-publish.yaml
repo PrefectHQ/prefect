@@ -1,4 +1,3 @@
-
 name: Build and publish the prefect-client
 
 on:
@@ -15,11 +14,22 @@ jobs:
 
   publish-prefect-client-pypi-dists:
     name: Publish to PyPI
-    environment: "prod"
+    environment: ${{ github.event.release.prerelease && 'pre-release' || 'prod' }}
     needs: [verify-prefect-client-build]
     runs-on: ubuntu-latest
+    permissions:
+      # this permission is mandatory for trusted publishing
+      id-token: write
 
     steps:
+      - name: Validate Prerelease Tag
+        if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
+        run: |
+          TAG_NAME=${{ github.ref }}
+          if [[ ! "$TAG_NAME" =~ ^refs/tags/[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9]+$ ]]; then
+            echo "Error: Tag $TAG_NAME does not match prerelease version pattern."
+            exit 1
+          fi
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -28,6 +38,3 @@ jobs:
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PREFECT_CLIENT_PYPI_API_TOKEN }}
-          name: ci

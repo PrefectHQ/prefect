@@ -269,7 +269,7 @@ if __name__ == "__main__":
     )
 ```
 
-Note that you used a [Prefect Secret block](/3.0rc/develop/connect-third-party/) to load the URL configuration for 
+Note that you used a [Prefect Secret block](/3.0rc/develop/blocks/) to load the URL configuration for 
 the artifact registry above.
 
 See all the optional keyword arguments for the [DockerImage class](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build).
@@ -393,7 +393,7 @@ In the example above, your credentials are auto-discovered from your deployment 
 must be available in your runtime environment.
 
 If you need additional configuration for your cloud-based storage (for example, with a private S3 Bucket), we recommend using a 
-[storage block](/3.0rc/develop/connect-third-party/).
+[storage block](/3.0rc/develop/blocks/).
 A storage block also ensures your credentials are available in both your deployment creation environment and your execution 
 environment.
 
@@ -790,7 +790,7 @@ The bucket is populated with the provided value (which also could have been prov
 `folder` property of the `push` step is a template—the `pull_from_s3` step outputs both a `bucket` value as well as a `folder` 
 value for the template downstream steps. This helps you keep your steps consistent across edits.
 
-As discussed above, if you use [blocks](/3.0rc/develop/connect-third-party/), you can template the credentials section with 
+As discussed above, if you use [blocks](/3.0rc/develop/blocks/), you can template the credentials section with 
 a block reference for secure and dynamic credentials access:
 
 ```yaml
@@ -932,10 +932,10 @@ Values that you place within your `prefect.yaml` file can reference dynamic valu
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these 
 fields within `prefect.yaml` and `prefect deploy` will populate them with each call. References must be enclosed in double 
 brackets and in `"{{ field_name }}"` format
-- **blocks**: you can reference [Prefect blocks](/3.0rc/develop/connect-third-party) with the  
+- **blocks**: you can reference [Prefect blocks](/3.0rc/develop/blocks) with the  
 `{{ prefect.blocks.block_type.block_slug }}` syntax. It is highly recommended that you use block references for any sensitive 
 information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
-- **variables**: you can reference [Prefect variables](/3.0rc/develop/write-flows/variables) with the  
+- **variables**: you can reference [Prefect variables](/3.0rc/develop/variables) with the  
 `{{ prefect.variables.variable_name }}` syntax. Use variables to reference non-sensitive, reusable pieces of information 
 such as a default image name or a default work pool name.
 - **environment variables**: you can also reference environment variables with the special syntax `{{ $MY_ENV_VAR }}`. 
@@ -1182,7 +1182,7 @@ These are fields you can add to each deployment declaration.
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                                  |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
-| `schedule`                                 | An optional [schedule](/3.0rc/deploy/serve-flows/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `schedule`                                 | An optional [schedule](/3.0rc/automate/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
 | `triggers`                                  | An optional array of [triggers](/3.0rc/deploy/serve-flows/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |

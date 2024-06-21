@@ -13,7 +13,7 @@ storage, including:
 1. Saving data to disk within a flow rather than using results.
 1. Caching task results to save time and compute.
 1. Compressing results written to disk to save space.
-1. Using a [task runner](/3.0rc/develop/write-tasks/use-task-runners/) for parallelizable 
+1. Using a [task runner](/3.0rc/develop/task-runners/) for parallelizable 
 operations to save time.
 
 ### Remove task introspection
@@ -73,7 +73,7 @@ Save memory by writing results to disk.
 In production, it's recommended to write results to a cloud provider storage such as AWS S3.
 Prefect lets you use a storage block from a Prefect Cloud integration library such as 
 [prefect-aws](https://prefecthq.github.io/prefect-aws/) to save your configuration information.
-Learn more about [blocks](/3.0rc/develop/connect-third-party/).
+Learn more about [blocks](/3.0rc/develop/blocks/).
 
 Install the relevant library, register the block type with the server, and create your block.
 Then reference the block in your flow:
@@ -106,7 +106,7 @@ cloud provider.
 
 Caching saves you time and compute by allowing you to avoid re-running tasks unnecessarily.
 Note that caching requires task result persistence.
-Learn more about [caching](/3.0rc/develop/write-tasks/index/).
+Learn more about [caching](/3.0rc/develop/write-tasks/).
 
 ### Compress results written to disk
 
@@ -125,5 +125,5 @@ Note that compression takes time to compress and decompress the data.
 Prefect's task runners allow you to use the Dask and Ray Python libraries to run tasks in parallel, 
 distributed across multiple machines.
 This can save you time and compute when operating on large data structures.
-See the [guide to working with Dask and Ray Task Runners](/3.0rc/develop/write-tasks/use-task-runners/) 
+See the [guide to working with Dask and Ray Task Runners](/3.0rc/develop/task-runners/) 
 for details.

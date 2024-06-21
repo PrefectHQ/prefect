@@ -8,7 +8,6 @@ import ast
 import datetime
 import importlib.util
 import inspect
-import json
 import os
 import re
 import sys
@@ -72,8 +71,9 @@ from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
+    LocalStorage,
     RunnerStorage,
-    create_storage_from_url,
+    create_storage_from_source,
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -969,7 +969,7 @@ class Flow(Generic[P, R]):
             ```
         """
         if isinstance(source, str):
-            storage = create_storage_from_url(source)
+            storage = create_storage_from_source(source)
         elif isinstance(source, RunnerStorage):
             storage = source
         elif hasattr(source, "get_directory"):
@@ -980,6 +980,9 @@ class Flow(Generic[P, R]):
                 " URL to remote storage or a storage object."
             )
         with tempfile.TemporaryDirectory() as tmpdir:
+            if not isinstance(storage, LocalStorage):
+                storage.set_base_path(Path(tmpdir))
+                await storage.pull_code()
             storage.set_base_path(Path(tmpdir))
             await storage.pull_code()
 
@@ -1811,7 +1814,7 @@ async def load_flow_from_flow_run(
             )
             storage_block = Block._from_block_document(storage_document)
         else:
-            basepath = deployment.path or Path(deployment.manifest_path).parent
+            basepath = deployment.path
             if runner_storage_base_path:
                 basepath = str(basepath).replace(
                     "$STORAGE_BASE_PATH", runner_storage_base_path
@@ -1836,13 +1839,6 @@ async def load_flow_from_flow_run(
             os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
-    # for backwards compat
-    if deployment.manifest_path:
-        with open(deployment.manifest_path, "r") as f:
-            import_path = json.load(f)["import_path"]
-            import_path = (
-                Path(deployment.manifest_path).parent / import_path
-            ).absolute()
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
