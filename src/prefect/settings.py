@@ -973,15 +973,6 @@ Defaults to `10.0`.
 Set to `0` to disable logging the warning.
 """
 
-PREFECT_AGENT_QUERY_INTERVAL = Setting(
-    float,
-    default=15,
-)
-"""
-The agent loop interval, in seconds. Agents will check for new runs this often.
-Defaults to `15`.
-"""
-
 PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
 """
 Determines whether `State.result()` fetches results automatically or not.
