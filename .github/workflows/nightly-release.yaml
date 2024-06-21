@@ -1,8 +1,5 @@
 name: Nightly Release Candidate
 
-permissions:
-  contents: write
-
 on:
   schedule:
     - cron: '0 8 * * *' # Run at midnight PST (08:00 UTC)
@@ -53,22 +50,14 @@ jobs:
         echo "next_tag=$next_tag" >> $GITHUB_ENV
         echo "Next tag is $next_tag"
 
-    - name: Generate release notes
-      id: generate_release_notes
-      if: env.SHOULD_CREATE_RELEASE == 'true'
-      uses: mikepenz/release-changelog-builder-action@v2
-      with:
-        tag: ${{ env.next_tag }}
-
     - name: Create release
       id: create_release
       if: env.SHOULD_CREATE_RELEASE == 'true'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
+        name: "Nightly Release Candidate ${{ env.next_tag }}"
         tag_name: ${{ env.next_tag }}
-        release_name: "Nightly Release Candidate ${{ env.next_tag }}"
         draft: false
         prerelease: true
-        body: ${{ steps.generate_release_notes.outputs.changelog }}
+        generate_release_notes: true
+        token: ${{ secrets.PREFECT_CONTENTS_PR_RW }}

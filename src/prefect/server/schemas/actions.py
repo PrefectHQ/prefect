@@ -194,7 +194,6 @@ class DeploymentCreate(ActionBaseModel):
     )
     pull_steps: Optional[List[dict]] = Field(None)
 
-    manifest_path: Optional[str] = Field(None)
     work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
@@ -303,7 +302,6 @@ class DeploymentUpdate(ActionBaseModel):
         description="Overrides for the flow's infrastructure configuration.",
     )
     entrypoint: Optional[str] = Field(None)
-    manifest_path: Optional[str] = Field(None)
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
     enforce_parameter_schema: Optional[bool] = Field(

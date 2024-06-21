@@ -32,19 +32,18 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
+from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.context import (
     FlowRunContext,
-    PrefectObjectRegistry,
     TagsContext,
     TaskRunContext,
     serialize_context,
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.records.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -52,7 +51,10 @@ from prefect.settings import (
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.asyncutils import (
+    run_coro_as_sync,
+    sync_compatible,
+)
 from prefect.utilities.callables import (
     expand_mapping_parameters,
     get_call_parameters,
@@ -174,7 +176,6 @@ def _infer_parent_task_runs(
     return parents
 
 
-@PrefectObjectRegistry.register_instances
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -1286,7 +1287,8 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    def serve(self) -> "Task":
+    @sync_compatible
+    async def serve(self) -> NoReturn:
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1305,7 +1307,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        serve(self)
+        await serve(self)
 
 
 @overload

@@ -31,7 +31,6 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.context import PrefectObjectRegistry
 from prefect.deployments.runner import RunnerDeployment
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentEventTrigger, Posture
@@ -742,16 +741,6 @@ class TestFlowCall:
 
         with pytest.raises(ValueError, match="Test 2"):
             await second.result()
-
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    async def test_call_execution_blocked_does_not_run_flow(self):
-        @flow(version="test")
-        def foo(x, y=3, z=3):
-            return x + y + z
-
-        with PrefectObjectRegistry(block_code_execution=True):
-            state = foo(1, 2)
-            assert state is None
 
     def test_flow_can_end_in_paused_state(self):
         @flow
@@ -3983,11 +3972,11 @@ class TestFlowFromSource:
         assert deployment.storage == storage
 
     async def test_load_flow_from_source_with_url(self, monkeypatch):
-        def mock_create_storage_from_url(url):
+        def mock_create_storage_from_source(url):
             return MockStorage()
 
         monkeypatch.setattr(
-            "prefect.flows.create_storage_from_url", mock_create_storage_from_url
+            "prefect.flows.create_storage_from_source", mock_create_storage_from_source
         )  # adjust the import path as per your module's name and location
 
         loaded_flow = await Flow.from_source(

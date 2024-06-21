@@ -1601,7 +1601,6 @@ class PrefectClient:
         work_pool_name: Optional[str] = None,
         tags: Optional[List[str]] = None,
         storage_document_id: Optional[UUID] = None,
-        manifest_path: Optional[str] = None,
         path: Optional[str] = None,
         entrypoint: Optional[str] = None,
         infrastructure_document_id: Optional[UUID] = None,
@@ -1650,7 +1649,6 @@ class PrefectClient:
             storage_document_id=storage_document_id,
             path=path,
             entrypoint=entrypoint,
-            manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
             job_variables=dict(job_variables or {}),
             parameter_openapi_schema=parameter_openapi_schema,
@@ -1723,7 +1721,6 @@ class PrefectClient:
             description=deployment.description,
             work_queue_name=deployment.work_queue_name,
             tags=deployment.tags,
-            manifest_path=deployment.manifest_path,
             path=deployment.path,
             entrypoint=deployment.entrypoint,
             parameters=deployment.parameters,

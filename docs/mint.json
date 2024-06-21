@@ -51,8 +51,13 @@
       "url": "https://github.com/PrefectHQ/prefect"
     },
     {
-      "name": "Contact",
-      "icon": "envelope",
+      "name": "Community",
+      "icon": "slack",
+      "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
+    },
+    {
+      "name": "Prefect.io",
+      "icon": "link",
       "url": "https://www.prefect.io/"
     }
   ],
@@ -71,47 +76,47 @@
       "version": "3.0rc",
       "pages": [
         {
-          "group": "Write flows",
+          "group": "Write and run workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/write-flows/index",
-            "3.0rc/develop/write-flows/variables"
+            "3.0rc/develop/write-flows",
+            "3.0rc/develop/write-tasks",
+            "3.0rc/develop/deferred-tasks",
+            "3.0rc/develop/logging"
           ]
         },
         {
-          "group": "Write tasks",
+          "group": "Manage state and configuration",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/write-tasks/index",
-            "3.0rc/develop/write-tasks/use-task-runners",
-            "3.0rc/develop/write-tasks/dask-and-ray",
-            "3.0rc/develop/write-tasks/deferred-tasks"
-          ]
-        },
-        "3.0rc/develop/recover-from-failure",
-        "3.0rc/develop/interact-with-data",
-        "3.0rc/develop/results",
-        {
-          "group": "Observe workflows",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/develop/observe-workflows/index",
-            "3.0rc/develop/observe-workflows/logging",
-            "3.0rc/develop/observe-workflows/create-artifacts",
-            "3.0rc/develop/observe-workflows/manage-states"
+            "3.0rc/develop/manage-states",
+            "3.0rc/develop/results",
+            "3.0rc/develop/artifacts",
+            "3.0rc/develop/variables",
+            "3.0rc/develop/blocks",
+            "3.0rc/develop/interact-with-data"
           ]
         },
         {
-          "group": "Control workflows",
+          "group": "Configure runtime behavior",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/control-workflows/task-run-limits",
-            "3.0rc/develop/control-workflows/global-concurrency-limits",
-            "3.0rc/develop/control-workflows/pause-cancel-flows",
-            "3.0rc/develop/control-workflows/inputs"
+            "3.0rc/develop/recover-from-failure",
+            "3.0rc/develop/state-hooks",
+            "3.0rc/develop/pause-resume",
+            "3.0rc/develop/inputs",
+            "3.0rc/develop/runtime-context"
           ]
         },
-        "3.0rc/develop/connect-third-party",
+        {
+          "group": "Manage concurrency",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/develop/task-runners",
+            "3.0rc/develop/task-run-limits",
+            "3.0rc/develop/global-concurrency-limits"
+          ]
+        },
         "3.0rc/develop/test-workflows"
       ]
     },
@@ -124,8 +129,7 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/serve-flows/deploy-a-flow",
-            "3.0rc/deploy/serve-flows/serve-a-flow",
-            "3.0rc/deploy/serve-flows/add-schedules"
+            "3.0rc/deploy/serve-flows/serve-a-flow"
           ]
         },
         {
@@ -153,21 +157,15 @@
       ]
     },
     {
-      "group": "React",
+      "group": "Automate",
       "version": "3.0rc",
       "pages": [
-        {
-          "group": "Automate responses to events",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/react/events/events",
-            "3.0rc/react/events/automations-triggers",
-            "3.0rc/react/events/custom-triggers",
-            "3.0rc/react/events/webhook-triggers"
-          ]
-        },
-        "3.0rc/react/state-hooks",
-        "3.0rc/react/incidents"
+        "3.0rc/automate/add-schedules",
+        "3.0rc/automate/events/events",
+        "3.0rc/automate/events/automations-triggers",
+        "3.0rc/automate/events/custom-triggers",
+        "3.0rc/automate/events/webhook-triggers",
+        "3.0rc/automate/incidents"
       ]
     },
     {
@@ -180,6 +178,7 @@
           "pages": [
             "3.0rc/manage/cloud/index",
             "3.0rc/manage/cloud/connect-to-cloud",
+            "3.0rc/manage/cloud/workspaces",
             {
               "group": "Manage users",
               "version": "3.0rc",
@@ -215,6 +214,7 @@
             "3.0rc/resources/upgrade-agents-to-workers"
           ]
         },
+        "3.0rc/resources/cancel",
         "3.0rc/resources/visualize-flow-structure",
         "3.0rc/resources/daemonize-processes",
         "3.0rc/resources/big-data",
