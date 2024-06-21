@@ -1848,7 +1848,7 @@ class TestKubernetesWorker:
             pod = manifest["spec"]["template"]["spec"]
             env = pod["containers"][0]["env"]
             env_names = {variable["name"] for variable in env}
-            assert "PREFECT_TEST_MODE" not in env_names
+            assert "PREFECT_TEST_ENVIROMENT" not in env_names
 
     @pytest.mark.parametrize(
         "given,expected",
