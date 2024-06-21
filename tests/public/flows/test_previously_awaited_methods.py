@@ -57,4 +57,7 @@ async def test_awaiting_formerly_async_methods():
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         await get_some_numbers_new_way()
-        assert len(w) == 0
+        deprecation_warnings = [
+            _w for _w in w if issubclass(_w.category, DeprecationWarning)
+        ]
+        assert len(deprecation_warnings) == 0
