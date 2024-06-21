@@ -71,9 +71,20 @@ Example:
     ```
 """
 
-import asyncio
+import asyncio  # noqa: I001
 import inspect
-from typing import Any, Dict, Iterable, Optional, Set
+from typing import (
+    Any,
+    Coroutine,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TypeVar,
+    overload,
+)
+from typing_extensions import ParamSpec
 from uuid import UUID, uuid4
 
 import ray
@@ -93,8 +104,13 @@ from prefect_ray.context import RemoteOptionsContext
 
 logger = get_logger(__name__)
 
+P = ParamSpec("P")
+T = TypeVar("T")
+F = TypeVar("F", bound=PrefectFuture)
+R = TypeVar("R")
 
-class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
+
+class PrefectRayFuture(PrefectWrappedFuture[R, ray.ObjectRef]):
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = ray.get(self.wrapped_future, timeout=timeout)
@@ -109,7 +125,7 @@ class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         if not self._final_state:
             try:
                 object_ref_result = ray.get(self.wrapped_future, timeout=timeout)
@@ -210,13 +226,33 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         else:
             return False
 
+    @overload
+    def submit(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectRayFuture[R]:
+        ...
+
+    @overload
+    def submit(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectRayFuture[R]:
+        ...
+
     def submit(
         self,
         task: Task,
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectRayFuture:
+    ):
         if not self._started:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
@@ -248,6 +284,32 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
             )
         )
         return PrefectRayFuture(task_run_id=task_run_id, wrapped_future=object_ref)
+
+    @overload
+    def map(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> List[PrefectRayFuture[R]]:
+        ...
+
+    @overload
+    def map(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> List[PrefectRayFuture[R]]:
+        ...
+
+    def map(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ):
+        return super().map(task, parameters, wait_for)
 
     def _exchange_prefect_for_ray_futures(self, kwargs_prefect_futures):
         """Exchanges Prefect futures for Ray futures."""
