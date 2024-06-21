@@ -47,6 +47,7 @@ from prefect.logging.loggers import get_logger
 from prefect.records.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -218,8 +219,10 @@ class Task(Generic[P, R]):
             cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd".
-        persist_result: An toggle indicating whether the result of this task
-            should be persisted to result storage. Defaults to `True`.
+        persist_result: A toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `None`, which
+            indicates that the global default should be used (which is `True` by
+            default).
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
@@ -271,7 +274,7 @@ class Task(Generic[P, R]):
             ]
         ] = None,
         retry_jitter_factor: Optional[float] = None,
-        persist_result: bool = True,
+        persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
         result_storage_key: Optional[str] = None,
@@ -379,6 +382,8 @@ class Task(Generic[P, R]):
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
 
+        if persist_result is None:
+            persist_result = PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
         if not persist_result:
             self.cache_policy = None if cache_policy is None else NONE
             if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
@@ -1334,7 +1339,7 @@ def task(
         Callable[[int], List[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
-    persist_result: bool = True,
+    persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
@@ -1366,7 +1371,7 @@ def task(
         float, int, List[float], Callable[[int], List[float]], None
     ] = None,
     retry_jitter_factor: Optional[float] = None,
-    persist_result: bool = True,
+    persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
@@ -1412,8 +1417,10 @@ def task(
             cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd".
-        persist_result: An toggle indicating whether the result of this task
-            should be persisted to result storage. Defaults to `True`.
+        persist_result: A toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `None`, which
+            indicates that the global default should be used (which is `True` by
+            default).
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
