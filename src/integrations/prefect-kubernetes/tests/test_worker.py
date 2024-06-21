@@ -1835,7 +1835,7 @@ class TestKubernetesWorker:
         mock_watch.return_value.stream = _mock_pods_stream_that_returns_running_pod
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(),
-            {"env": {"PREFECT_TEST_ENVIROMENT": None}},
+            {"env": {"PREFECT_TEST_MODE": None}},
         )
         configuration.prepare_for_flow_run(flow_run)
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
@@ -1848,7 +1848,7 @@ class TestKubernetesWorker:
             pod = manifest["spec"]["template"]["spec"]
             env = pod["containers"][0]["env"]
             env_names = {variable["name"] for variable in env}
-            assert "PREFECT_TEST_ENVIROMENT" not in env_names
+            assert "PREFECT_TEST_MODE" not in env_names
 
     @pytest.mark.parametrize(
         "given,expected",
