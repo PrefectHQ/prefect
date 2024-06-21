@@ -680,7 +680,13 @@ class PersistedResult(BaseResult):
             # this could error if the serializer requires kwargs
             serializer = Serializer(type=self.serializer_type)
 
-        data = serializer.dumps(obj)
+        try:
+            data = serializer.dumps(obj)
+        except Exception as exc:
+            raise ValueError(
+                f"Failed to serialize object of type {type(obj).__name__!r} with "
+                f"serializer {serializer.type!r}."
+            ) from exc
         blob = PersistedResultBlob(
             serializer=serializer, data=data, expiration=self.expiration
         )

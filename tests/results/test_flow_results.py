@@ -18,7 +18,6 @@ from prefect.serializers import (
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_HOME,
-    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     temporary_settings,
 )
 from prefect.testing.utilities import (
@@ -42,9 +41,8 @@ class MyIntSerializer(Serializer):
         return int.from_bytes(blob, byteorder="little")
 
 
-@pytest.mark.parametrize("persist_result", [False, None])
-async def test_flow_with_unpersisted_result(prefect_client, persist_result):
-    @flow(persist_result=persist_result)
+async def test_flow_with_unpersisted_result(prefect_client):
+    @flow(persist_result=False)
     def foo():
         return 1
 
@@ -106,7 +104,7 @@ async def test_flow_with_uncached_but_persisted_result(prefect_client):
 
 
 async def test_flow_result_missing_with_null_return(prefect_client):
-    @flow
+    @flow(persist_result=False)
     def foo():
         return None
 
@@ -391,7 +389,6 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
 
     with temporary_settings(
         {
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
             PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
         }
     ):
@@ -414,7 +411,6 @@ async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
 
     with temporary_settings(
         {
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
             PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
         }
     ):
@@ -438,7 +434,6 @@ async def test_root_flow_nonexistent_default_storage_block_fails():
 
     with temporary_settings(
         {
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
             PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "fake-block-type-slug/my-result-storage",
         }
     ):
@@ -462,7 +457,6 @@ async def test_root_flow_explicit_result_storage_settings_overrides_default():
 
     with temporary_settings(
         {
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
             PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: (
                 "local-file-system/default-result-storage"
             ),
