@@ -692,7 +692,7 @@ class TestAPILogWorker:
         self, log_dict, capsys, monkeypatch, exiting, worker
     ):
         monkeypatch.setattr(
-            "prefect.client.PrefectClient.create_logs",
+            "prefect.client.orchestration.PrefectClient.create_logs",
             MagicMock(side_effect=ValueError("Test")),
         )
 
@@ -706,7 +706,7 @@ class TestAPILogWorker:
     async def test_send_logs_batches_by_size(self, log_dict, monkeypatch):
         mock_create_logs = AsyncMock()
         monkeypatch.setattr(
-            "prefect.client.PrefectClient.create_logs", mock_create_logs
+            "prefect.client.orchestration.PrefectClient.create_logs", mock_create_logs
         )
 
         log_size = APILogHandler()._get_payload_size(log_dict)

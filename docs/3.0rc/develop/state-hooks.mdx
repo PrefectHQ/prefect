@@ -166,7 +166,7 @@ Here's how to create a hook that deletes a Cloud Run job if the flow run crashes
 import os
 from prefect import flow, task
 from prefect.variables import Variable
-from prefect.client import get_client
+from prefect.client.orchestration import get_client
 import prefect.runtime
 
 async def delete_cloud_run_job(flow, flow_run, state):

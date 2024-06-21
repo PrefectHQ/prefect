@@ -254,14 +254,18 @@ class TestJSONSerializer:
         prefect_object_encoder = MagicMock()
 
         monkeypatch.setattr(
-            "prefect.fake_object_encoder", fake_object_encoder, raising=False
+            "prefect.serializers.fake_object_encoder",
+            fake_object_encoder,
+            raising=False,
         )
         monkeypatch.setattr(
             "prefect.serializers.prefect_json_object_encoder",
             prefect_object_encoder,
         )
 
-        serializer = JSONSerializer(object_encoder="prefect.fake_object_encoder")
+        serializer = JSONSerializer(
+            object_encoder="prefect.serializers.fake_object_encoder"
+        )
 
         # Encoder hooks are only called for unsupported objects
         obj = uuid.uuid4()
@@ -275,7 +279,9 @@ class TestJSONSerializer:
         prefect_object_decoder = MagicMock()
 
         monkeypatch.setattr(
-            "prefect.fake_object_decoder", fake_object_decoder, raising=False
+            "prefect.serializers.fake_object_decoder",
+            fake_object_decoder,
+            raising=False,
         )
 
         monkeypatch.setattr(
@@ -283,7 +289,9 @@ class TestJSONSerializer:
             prefect_object_decoder,
         )
 
-        serializer = JSONSerializer(object_decoder="prefect.fake_object_decoder")
+        serializer = JSONSerializer(
+            object_decoder="prefect.serializers.fake_object_decoder"
+        )
 
         # Decoder hooks are only called for dicts
         assert serializer.loads(json.dumps({"foo": "bar"}).encode()) == "test"
