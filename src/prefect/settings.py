@@ -1323,16 +1323,6 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
 The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
-"""
-Whether or not to enable artifacts on the flow run graph.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
-"""
-Whether or not to enable flow run states on the flow run graph.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect workers.

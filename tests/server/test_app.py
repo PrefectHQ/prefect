@@ -37,8 +37,6 @@ def test_app_exposes_ui_settings():
     assert flags == {
         "workers",
         "enhanced_cancellation",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
     }
     assert json == {
         "api_url": PREFECT_UI_API_URL.value(),
@@ -59,8 +57,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "test",
         "workers",
         "enhanced_cancellation",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
     }
     assert json == {
         "api_url": PREFECT_UI_API_URL.value(),
