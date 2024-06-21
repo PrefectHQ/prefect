@@ -2988,7 +2988,6 @@ class TestTaskWithOptions:
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @task(
-            persist_result=True,
             result_serializer="json",
             result_storage=LocalFileSystem(basepath=tmp_path),
             refresh_cache=True,
@@ -2998,13 +2997,11 @@ class TestTaskWithOptions:
             pass
 
         task_with_options = initial_task.with_options(
-            persist_result=None,
             result_serializer=None,
             result_storage=None,
             refresh_cache=None,
             result_storage_key=None,
         )
-        assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
         assert task_with_options.refresh_cache is None

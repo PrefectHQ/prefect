@@ -408,7 +408,6 @@ class TestFlowWithOptions:
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @flow(
-            persist_result=True,
             result_serializer="json",
             result_storage=LocalFileSystem(basepath=tmp_path),
         )
@@ -416,11 +415,9 @@ class TestFlowWithOptions:
             pass
 
         flow_with_options = initial_flow.with_options(
-            persist_result=None,
             result_serializer=None,
             result_storage=None,
         )
-        assert flow_with_options.persist_result is None
         assert flow_with_options.result_serializer is None
         assert flow_with_options.result_storage is None
 
