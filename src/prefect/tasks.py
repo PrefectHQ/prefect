@@ -47,6 +47,7 @@ from prefect.logging.loggers import get_logger
 from prefect.records.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -381,6 +382,8 @@ class Task(Generic[P, R]):
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
 
+        if persist_result is None:
+            persist_result = PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
         if not persist_result:
             self.cache_policy = None if cache_policy is None else NONE
             if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
