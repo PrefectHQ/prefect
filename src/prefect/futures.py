@@ -18,11 +18,12 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 
 F = TypeVar("F")
+R = TypeVar("R")
 
 logger = get_logger(__name__)
 
 
-class PrefectFuture(abc.ABC):
+class PrefectFuture(abc.ABC, Generic[R]):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
     asynchronous execution of a task run. It provides methods to wait for the task
@@ -31,7 +32,7 @@ class PrefectFuture(abc.ABC):
 
     def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
-        self._final_state = None
+        self._final_state: Optional[State[R]] = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
@@ -70,7 +71,7 @@ class PrefectFuture(abc.ABC):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         ...
         """
         Get the result of the task run associated with this future.
@@ -87,7 +88,7 @@ class PrefectFuture(abc.ABC):
         """
 
 
-class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
+class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
     """
     A Prefect future that wraps another future object.
     """
@@ -102,7 +103,7 @@ class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
         return self._wrapped_future
 
 
-class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
+class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]):
     """
     A Prefect future that wraps a concurrent.futures.Future. This future is used
     when the task run is submitted to a ThreadPoolExecutor.
@@ -120,7 +121,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         if not self._final_state:
             try:
                 future_result = self._wrapped_future.result(timeout=timeout)
@@ -156,7 +157,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
         )
 
 
-class PrefectDistributedFuture(PrefectFuture):
+class PrefectDistributedFuture(PrefectFuture[R]):
     """
     Represents the result of a computation happening anywhere.
 
@@ -205,7 +206,7 @@ class PrefectDistributedFuture(PrefectFuture):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         return run_coro_as_sync(
             self.result_async(timeout=timeout, raise_on_failure=raise_on_failure)
         )
@@ -214,7 +215,7 @@ class PrefectDistributedFuture(PrefectFuture):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ):
+    ) -> R:
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
