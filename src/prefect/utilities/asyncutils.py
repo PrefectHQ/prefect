@@ -301,25 +301,23 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-class SyncCompatibleWrapper(Protocol):
-    aio: Callable[..., Any]
-
-
 @overload
 def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, Any]], force_sync: bool = False
-) -> Callable[..., Union[Any, Coroutine[Any, Any, Any]]]:
+    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+) -> Callable[..., R]:
     ...
 
 
 @overload
 def sync_compatible(
-    async_fn: Callable[..., Any], force_sync: bool = False
-) -> Callable[..., Any]:
+    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+) -> Callable[..., Coroutine[Any, Any, R]]:
     ...
 
 
-def sync_compatible(async_fn: F, force_sync: bool = False) -> F:
+def sync_compatible(
+    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+) -> Callable[..., Union[R, Coroutine[Any, Any, R]]]:
     """
     Converts an async function into a dual async and sync function.
 
@@ -334,8 +332,13 @@ def sync_compatible(async_fn: F, force_sync: bool = False) -> F:
         then tear down the loop.
     """
 
+    class SyncCompatibleWrapper(Protocol):
+        aio: Callable[..., Union[R, Coroutine[Any, Any, R]]]
+
     @wraps(async_fn)
-    def coroutine_wrapper(*args, _sync: Optional[bool] = None, **kwargs):
+    def coroutine_wrapper(
+        *args: Any, _sync: Optional[bool] = None, **kwargs: Any
+    ) -> Union[R, Coroutine[Any, Any, R]]:
         from prefect.context import MissingContextError, get_run_context
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
@@ -390,8 +393,8 @@ def sync_compatible(async_fn: F, force_sync: bool = False) -> F:
     else:
         raise TypeError("The decorated function must be async.")
 
-    wrapper.aio = async_fn
-    return cast(F, wrapper)
+    wrapper.aio = cast(Callable[..., Coroutine[Any, Any, R]], async_fn)
+    return cast(Callable[..., Union[R, Coroutine[Any, Any, R]]], wrapper)
 
 
 @asynccontextmanager
