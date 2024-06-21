@@ -1,6 +1,5 @@
 ---
 title: Roles (RBAC)
-sidebarTitle: 
 ---
 
 User and Service Account Roles 
@@ -27,14 +26,11 @@ The following sections outline the abilities of the built-in, Prefect-defined ac
 The following built-in roles have permissions across an account in Prefect Cloud.
 
 
-
-* Role: Owner
-  * Abilities: • Set/change all account profile settings allowed to be set/changed by a Prefect user.  • Add and remove account members, and their account roles.  • Create and delete service accounts in the account.  • Create workspaces in the account.  • Implicit workspace owner access on all workspaces in the account.  • Bypass SSO.
-* Role: Admin
-  * Abilities: • Set/change all account profile settings allowed to be set/changed by a Prefect user.  • Add and remove account members, and their account roles.  • Create and delete service accounts in the account.  • Create workspaces in the account.  • Implicit workspace owner access on all workspaces in the account.  • Cannot bypass SSO.
-* Role: Member
-  * Abilities: • View account profile settings.  • View workspaces I have access to in the account.  • View account members and their roles.  • View service accounts in the account.
-
+| Role   | Abilities                                                                                                                                                                                                                                                                                                                           |
+|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Owner  | •Set/change all account profile settings allowed to be set/changed by a Prefect user. <br/> •Add and remove account members, and their account roles.  <br/> •Create and delete service accounts in the account. <br/> •Create workspaces in the account. <br/> •Implicit workspace owner access on all workspaces in the account. <br/> •Bypass SSO.       |
+| Admin  | •Set/change all account profile settings allowed to be set/changed by a Prefect user. <br/> •Add and remove account members, and their account roles. <br/> •Create and delete service accounts in the account. <br/> •Create workspaces in the account. <br/> •Implicit workspace owner access on all workspaces in the account. <br/> •Cannot bypass SSO. |
+| Member | •View account profile settings. <br/> •View workspaces I have access to in the account. <br/> •View account members and their roles. <br/> •View service accounts in the account.                                                                                                                                                                 |
 
 ### Workspace-level roles
 
@@ -42,17 +38,13 @@ The following built-in roles have permissions within a given workspace in Prefec
 
 
 
-* Role: Viewer
-  * Abilities: • View flow runs within a workspace.  • View deployments within a workspace.  • View all work pools within a workspace.  • View all blocks within a workspace.  • View all automations within a workspace.  • View workspace handle and description.
-* Role: Runner
-  * Abilities: All Viewer abilities, plus:  • Run deployments within a workspace.
-* Role: Developer
-  * Abilities: All Runner abilities, plus:  • Run flows within a workspace.  • Delete flow runs within a workspace.  • Create, edit, and delete deployments within a workspace.  • Create, edit, and delete work pools within a workspace.  • Create, edit, and delete all blocks and their secrets within a workspace.  • Create, edit, and delete automations within a workspace.  • View all workspace settings.
-* Role: Owner
-  * Abilities: All Developer abilities, plus:  • Add and remove account members, and set their role within a workspace.  • Set the workspace’s default workspace role for all users in the account.  • Set, view, edit workspace settings.
-* Role: Worker
-  * Abilities: The minimum scopes required for a worker to poll for and submit work.
-
+| Role      | Abilities                                                                                                                                                                                                                                                                                                                                                                                     |
+|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Viewer    | <br/> •View flow runs within a workspace. <br/> •View deployments within a workspace. <br/> •View all work pools within a workspace. <br/> •View all blocks within a workspace. <br/> •View all automations within a workspace. <br/> •View workspace handle and description.                                                                                                                                               |
+| Runner    | All Viewer abilities, plus: <br/> •Run deployments within a workspace.                                                                                                                                                                                                                                                                                                                             |
+| Developer | All Runner abilities, plus: <br/> •Run flows within a workspace. <br/> •Delete flow runs within a workspace. <br/> •Create, edit, and delete deployments within a workspace. <br/> •Create, edit, and delete work pools within a workspace. <br/> •Create, edit, and delete all blocks and their secrets within a workspace. <br/> •Create, edit, and delete automations within a workspace. <br/> •View all workspace settings. |
+| Owner     | All Developer abilities, plus: <br/> •Add and remove account members, and set their role within a workspace. <br/> •Set the workspace’s default workspace role for all users in the account. <br/> •Set, view, edit workspace settings.                                                                                                                                                                      |
+| Worker    | The minimum scopes required for a worker to poll for and submit work.                                                                                                                                                                                                                                                                                                                         |
 
 Custom workspace roles
 -------------------------------------------------------------------

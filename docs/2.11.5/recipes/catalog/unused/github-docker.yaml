@@ -1,0 +1,9 @@
+recipeName: Deployment with GitHub and Docker
+author: Prefect
+authorUrl: https://prefect.io
+description: Create a deployment with GitHub as a storage and Docker Container as an infrastructure 
+topic: GitHub
+recipeUrl: https://towardsdatascience.com/create-robust-data-pipelines-with-prefect-docker-and-github-12b231ca6ed2?sk=56087dca06789be3b018c884d6a90f02
+iconUrl: 
+  - /img/collections/github.png
+  - /img/collections/docker.png

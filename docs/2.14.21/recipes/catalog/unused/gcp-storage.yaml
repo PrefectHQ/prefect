@@ -1,0 +1,8 @@
+recipeName: GCP Flow Storage
+author: Prefect
+authorUrl: https://prefect.io
+description: Create a flow deployment that uses Google Cloud Storage (GCP) for flow files.
+topic: Deployments
+recipeUrl: https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-gcp/1251
+iconUrl: 
+  - /img/collections/gcp.png

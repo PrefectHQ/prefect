@@ -1,0 +1,196 @@
+TABS FOR 2.15.0
+      {
+        "name": "API References",
+        "url": "2.15.0/api-ref"
+      },
+      {
+        "name": "Integrations",
+        "url": "2.15.0/integrations"
+      },
+      {
+        "name": "Contribute",
+        "url": "2.15.0/community"
+      }
+    
+
+
+NAV FOR 2.15.0
+
+
+
+      {
+        "group": "Getting Started",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/getting-started/index",
+          "2.15.0/getting-started/installation",
+          "2.15.0/getting-started/quickstart"
+        ]
+      },
+      {
+        "group": "Tutorial",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/tutorial/index",
+          "2.15.0/tutorial/flows",
+          "2.15.0/tutorial/tasks",
+          "2.15.0/tutorial/deployments",
+          "2.15.0/tutorial/work-pools",
+          "2.15.0/tutorial/workers"
+        ]
+      },
+      {
+        "group": "How-to Guides",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/guides/index",
+          {
+            "group": "Development",
+            "version": "2.15.0",
+            "pages": [
+              "2.15.0/guides/host",
+              "2.15.0/guides/settings",
+              "2.15.0/guides/testing",
+              "2.15.0/guides/global-concurrency-limits",
+              "2.15.0/guides/runtime-context",
+              "2.15.0/guides/variables",
+              "2.15.0/guides/using-the-client",
+              "2.15.0/guides/creating-interactive-workflows",
+              "2.15.0/guides/automations",
+              "2.15.0/guides/webhooks",
+              "2.15.0/guides/ci-cd",
+              "2.15.0/recipes/recipes"
+            ]
+          },
+          {
+            "group": "Execution",
+            "version": "2.15.0",
+            "pages": [
+              "2.15.0/guides/docker",
+              "2.15.0/guides/state-change-hooks",
+              "2.15.0/guides/dask-ray-task-runners",
+              "2.15.0/guides/moving-data",
+              "2.15.0/guides/big-data",
+              "2.15.0/guides/logs",
+              "2.15.0/guides/troubleshooting",
+              "2.15.0/guides/managed-execution"
+            ]
+          },
+          {
+            "group": "Work Pools",
+            "version": "2.15.0",
+            "pages": [
+              "2.15.0/guides/prefect-deploy",
+              "2.15.0/guides/upgrade-guide-agents-to-workers",
+              "2.15.0/guides/deployment/storage-guide",
+              "2.15.0/guides/deployment/kubernetes",
+              "2.15.0/guides/deployment/push-work-pools",
+              "2.15.0/guides/deployment/serverless-workers",
+              "2.15.0/guides/deployment/daemonize",
+              "2.15.0/guides/deployment/developing-a-new-worker-type"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Concepts",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/concepts/index",
+          "2.15.0/concepts/flows",
+          "2.15.0/concepts/tasks",
+          "2.15.0/concepts/deployments",
+          "2.15.0/concepts/work-pools",
+          "2.15.0/concepts/schedules",
+          "2.15.0/concepts/results",
+          "2.15.0/concepts/artifacts",
+          "2.15.0/concepts/states",
+          "2.15.0/concepts/blocks",
+          "2.15.0/concepts/task-runners",
+          "2.15.0/concepts/automations",
+          {
+            "group": "Block and Agent-Based Deployments",
+            "version": "2.15.0",
+            "pages": [
+            "2.15.0/concepts/deployments-block-based",
+            "2.15.0/concepts/infrastructure",
+            "2.15.0/concepts/storage",
+            "2.15.0/concepts/agents"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Cloud",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/cloud/index",
+          "2.15.0/cloud/workspaces",
+          {
+            "group": "Users",
+            "version": "2.15.0",
+            "pages": [
+              "2.15.0/cloud/users/index",
+              "2.15.0/cloud/users/roles",
+              "2.15.0/cloud/users/api-keys",
+              "2.15.0/cloud/users/service-accounts",
+              "2.15.0/cloud/users/sso",
+              "2.15.0/cloud/users/audit-log",
+              "2.15.0/cloud/users/object-access-control-lists",
+              "2.15.0/cloud/users/teams"
+            ]
+          },
+          "2.15.0/cloud/rate-limits",
+          "2.15.0/cloud/connecting",
+          "2.15.0/cloud/events",
+          "2.15.0/cloud/incidents"
+        ]
+      },
+      {
+        "group": "Integrations",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/integrations/index",
+          "2.15.0/integrations/usage",
+          "2.15.0/integrations/contribute"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/api-ref/index"
+        ]
+      },
+
+      {
+        "group": "Python SDK",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/api-ref/python/index"
+        ]
+      },
+      {
+        "group": "REST API",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/api-ref/rest-api/index"
+        ]
+      },
+      {
+        "group": "Server API",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/api-ref/server/index"
+        ]
+      },
+      {
+        "group": "Community",
+        "version": "2.15.0",
+        "pages": [
+          "2.15.0/community/index",
+          "2.15.0/community/overview",
+          "2.15.0/community/style",
+          "2.15.0/community/versioning"
+        ]
+      }

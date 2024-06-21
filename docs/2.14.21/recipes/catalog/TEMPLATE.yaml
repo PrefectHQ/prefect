@@ -1,0 +1,11 @@
+recipeName: # Short name of recipe.
+author: # Author/maintainer name.
+authorUrl: # Link to information about the author: Company URL, GitHub user profile, etc.
+description: # Brief description of the recipe.
+topic: # topic keyword, not used yet
+recipeUrl: # Link to the recipe location: repo folder, article, Discourse topic, etc.
+iconUrl: # list of icon images for technologies used in the recipe.
+# You can provide an external URL or add the logo under docs/img/collections and provide a path
+# relative to docs/, for example: 
+# - /img/collections/azure.png
+# - /img/collections/kubernetes.png
