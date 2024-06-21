@@ -83,7 +83,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
         Args:
             timeout: The maximum number of seconds to wait for the task run to complete.
             If the task run has not completed after the timeout has elapsed, this method will return.
-            - raise_on_failure: If `True`, an exception will be raised if the task run fails.
+            raise_on_failure: If `True`, an exception will be raised if the task run fails.
 
         Returns:
             The result of the task run.
@@ -243,7 +243,7 @@ class PrefectFutureList(list, Iterator, Generic[F]):
     in the list to complete and to retrieve the results of all task runs.
     """
 
-    def wait_for_all(self, timeout: Optional[float] = None) -> None:
+    def wait(self, timeout: Optional[float] = None) -> None:
         """
         Wait for all futures in the list to complete.
 
@@ -259,7 +259,7 @@ class PrefectFutureList(list, Iterator, Generic[F]):
             logger.debug("Timed out waiting for all futures to complete.")
             return
 
-    def results(
+    def result(
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
@@ -284,6 +284,9 @@ class PrefectFutureList(list, Iterator, Generic[F]):
                     future.result(raise_on_failure=raise_on_failure) for future in self
                 ]
         except TimeoutError as exc:
+            # timeout came from inside the task
+            if "Scope timed out after {timeout} second(s)." not in str(exc):
+                raise
             raise TimeoutError(
                 f"Timed out waiting for all futures to complete within {timeout} seconds"
             ) from exc
