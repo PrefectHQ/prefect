@@ -347,7 +347,7 @@ if __name__ == "__main__":
 Composing flows
 -----------------------------------------------------
 
-A _subflow_ run is created when a flow function is called inside the execution of another flow. The primary flow is the "parent" flow. The flow created within the parent is the "child" flow or "nested flow."
+A _subflow_ run is created when a flow function is called inside the execution of another flow run. The primary flow run is the "parent". The flow run created within the parent run is the "child" flow run or "nested" flow run.
 
 Nested flow runs behave like normal flow runs. There is a full representation of the flow run in the backend as if it had been called separately. When a nested flow starts, it will create a new [task runner](https://docs.prefect.io/concepts/task-runners/) for tasks within the nested flow. When the nested flow completes, the task runner is shut down.
 
