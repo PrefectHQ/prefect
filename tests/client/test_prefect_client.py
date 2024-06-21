@@ -619,7 +619,6 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        manifest_path="path/file.json",
         schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
@@ -631,7 +630,6 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
-    assert lookup.manifest_path == "path/file.json"
     assert lookup.schedule == schedule.schedule
     assert len(lookup.schedules) == 1
     assert lookup.schedules[0].schedule == schedule.schedule
@@ -655,7 +653,6 @@ async def test_updating_deployment(prefect_client, storage_document_id):
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        manifest_path="path/file.json",
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
@@ -692,7 +689,6 @@ async def test_updating_deployment_and_removing_schedule(
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        manifest_path="path/file.json",
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
@@ -726,7 +722,6 @@ async def test_read_deployment_by_name(prefect_client):
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        manifest_path="file.json",
         schedule=schedule,
     )
 
@@ -734,7 +729,6 @@ async def test_read_deployment_by_name(prefect_client):
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
-    assert lookup.manifest_path == "file.json"
     assert lookup.schedule == schedule
 
 
@@ -749,7 +743,6 @@ async def test_create_then_delete_deployment(prefect_client):
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        manifest_path="file.json",
         schedule=schedule,
     )
 
@@ -1611,7 +1604,6 @@ class TestClientWorkQueues:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            manifest_path="file.json",
             schedule=schedule,
             parameters={"foo": "bar"},
             work_queue_name="wq",
@@ -1764,7 +1756,6 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_run.flow_id,
         name="test-deployment",
-        manifest_path="file.json",
         parameters={"foo": "bar"},
         work_queue_name="wq",
         is_schedule_active=on_create,
@@ -1799,7 +1790,6 @@ async def test_update_deployment_schedule_active_overwrites_when_provided(
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_run.flow_id,
         name="test-deployment",
-        manifest_path="file.json",
         parameters={"foo": "bar"},
         work_queue_name="wq",
         is_schedule_active=on_create,
@@ -2332,7 +2322,6 @@ class TestPrefectClientDeploymentSchedules:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            manifest_path="file.json",
             schedule=schedule,
             parameters={"foo": "bar"},
             work_queue_name="wq",
