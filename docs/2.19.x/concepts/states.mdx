@@ -136,7 +136,7 @@ def nested_flow():
 
 @flow 
 def my_flow():
-    state = nested flow(return_state=True) # return State
+    state = nested_flow(return_state=True) # return State
     result = state.result() # return int
 
 ```
