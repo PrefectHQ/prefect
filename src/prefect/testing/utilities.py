@@ -113,12 +113,14 @@ def prefect_test_harness():
     """
     from prefect.server.database.dependencies import temporary_database_interface
 
+    print("prefect_test_harness")
     # create temp directory for the testing database
     with TemporaryDirectory() as temp_dir:
         with ExitStack() as stack:
             # temporarily override any database interface components
             stack.enter_context(temporary_database_interface())
-
+            breakpoint()
+            print(temp_dir)
             DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
             stack.enter_context(
                 prefect.settings.temporary_settings(
