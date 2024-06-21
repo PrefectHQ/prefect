@@ -605,6 +605,15 @@ If provided, the URL of a hosted Prefect API. Defaults to `None`.
 When using Prefect Cloud, this will include an account and workspace.
 """
 
+PREFECT_SILENCE_API_URL_MISCONFIGURATION = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+we would like to silence this warning so we will set it to `FALSE`.
+"""
+
 PREFECT_API_KEY = Setting(
     Optional[str],
     default=None,
