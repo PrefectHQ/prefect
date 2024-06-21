@@ -3,7 +3,7 @@ import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import pytest
 
@@ -13,6 +13,8 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
+    PrefectFuture,
+    PrefectFutureList,
     PrefectWrappedFuture,
     resolve_futures_to_states,
 )
@@ -280,3 +282,65 @@ class TestPrefectDistributedFuture:
 
         with pytest.raises(MissingResult, match="State data is missing"):
             future.result()
+
+
+class TestPrefectFutureList:
+    def test_wait_for_all(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        futures = PrefectFutureList(mock_futures)
+        # should not raise a TimeoutError
+        futures.wait_for_all()
+
+        for future in futures:
+            assert future.state.is_completed()
+
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+    def test_wait_for_all_with_timeout(self):
+        mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]
+        hanging_future = Future()
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
+        futures = PrefectFutureList(mock_futures)
+        # should not raise a TimeoutError or hang
+        futures.wait_for_all(timeout=0.01)
+
+    def test_results(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        futures = PrefectFutureList(mock_futures)
+        results = futures.results()
+
+        for i, result in enumerate(results):
+            assert result == i
+
+    def test_results_with_failure(self):
+        mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]
+        failing_future = Future()
+        failing_future.set_exception(ValueError("oops"))
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), failing_future))
+        futures = PrefectFutureList(mock_futures)
+
+        with pytest.raises(ValueError, match="oops"):
+            futures.results()
+
+    def test_results_with_raise_on_failure_false(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        failing_future = MockFuture(ValueError("oops"))
+        mock_futures.append(failing_future)
+        futures = PrefectFutureList(mock_futures)
+
+        results = futures.results(raise_on_failure=False)
+
+        for i, result in enumerate(results):
+            if i == 5:
+                assert isinstance(result, ValueError)
+            else:
+                assert result == i
+
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+    def test_results_with_timeout(self):
+        mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]
+        hanging_future = Future()
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
+        futures = PrefectFutureList(mock_futures)
+
+        with pytest.raises(TimeoutError):
+            futures.results(timeout=0.01)

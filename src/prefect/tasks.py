@@ -43,7 +43,7 @@ from prefect.context import (
     TaskRunContext,
     serialize_context,
 )
-from prefect.futures import PrefectDistributedFuture, PrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
@@ -991,7 +991,7 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[NoReturn]]:
+    ) -> PrefectFutureList[PrefectFuture[NoReturn]]:
         ...
 
     @overload
@@ -999,7 +999,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[T]]:
+    ) -> PrefectFutureList[PrefectFuture[T]]:
         ...
 
     @overload
@@ -1007,7 +1007,7 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[T]]:
+    ) -> PrefectFutureList[PrefectFuture[T]]:
         ...
 
     @overload
@@ -1016,7 +1016,7 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> List[State[T]]:
+    ) -> PrefectFutureList[State[T]]:
         ...
 
     @overload
@@ -1025,7 +1025,7 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> List[State[T]]:
+    ) -> PrefectFutureList[State[T]]:
         ...
 
     def map(

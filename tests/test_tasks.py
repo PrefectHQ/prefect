@@ -3584,6 +3584,33 @@ class TestTaskMap:
 
         await test_flow()
 
+    async def test_wait_for_all_mapped_tasks(self):
+        @task
+        def add_one(x):
+            return x + 1
+
+        @flow
+        def my_flow():
+            futures = add_one.map([1, 2, 3])
+            futures.wait_for_all()
+            for future in futures:
+                assert future.state.is_completed()
+
+        my_flow()
+
+    async def test_get_results_all_mapped_tasks(self):
+        @task
+        def add_one(x):
+            return x + 1
+
+        @flow
+        def my_flow():
+            futures = add_one.map([1, 2, 3])
+            results = futures.results()
+            assert results == [2, 3, 4]
+
+        my_flow()
+
 
 class TestTaskConstructorValidation:
     async def test_task_cannot_configure_too_many_custom_retry_delays(self):
