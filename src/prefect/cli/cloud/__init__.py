@@ -576,7 +576,7 @@ async def open():
         )
 
     current_workspace = get_current_workspace(
-        await prefect.get_cloud_client().read_workspaces()
+        await prefect.client.cloud.get_cloud_client().read_workspaces()
     )
     if current_workspace is None:
         exit_with_error(

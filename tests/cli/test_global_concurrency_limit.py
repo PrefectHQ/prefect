@@ -38,7 +38,7 @@ def interactive_console(monkeypatch):
 @pytest.fixture
 def read_global_concurrency_limits() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.client.PrefectClient.read_global_concurrency_limits",
+        "prefect.client.orchestration.PrefectClient.read_global_concurrency_limits",
     ) as m:
         yield m
 
@@ -108,7 +108,7 @@ def test_listing_gcl(various_global_concurrency_limits: List[GlobalConcurrencyLi
 @pytest.fixture
 def read_global_concurrency_limit_by_name() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.client.PrefectClient.read_global_concurrency_limit_by_name",
+        "prefect.client.orchestration.PrefectClient.read_global_concurrency_limit_by_name",
     ) as m:
         yield m
 
@@ -148,7 +148,7 @@ def test_inspecting_gcl_not_found():
 @pytest.fixture
 def delete_global_concurrency_limit_by_name() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.client.PrefectClient.delete_global_concurrency_limit_by_name",
+        "prefect.client.orchestration.PrefectClient.delete_global_concurrency_limit_by_name",
     ) as m:
         yield m
 
@@ -194,7 +194,7 @@ def test_deleting_gcl_not_found():
 @pytest.fixture
 def update_global_concurrency_limit() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.client.PrefectClient.update_global_concurrency_limit",
+        "prefect.client.orchestration.PrefectClient.update_global_concurrency_limit",
     ) as m:
         yield m
 
