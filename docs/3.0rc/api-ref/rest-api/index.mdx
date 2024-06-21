@@ -36,7 +36,7 @@ This example uses `PrefectClient` with a locally hosted Prefect server:
 
 ```python
 import asyncio
-from prefect.client import get_client
+from prefect.client.orchestration import get_client
 
 async def get_flows():
     client = get_client()
