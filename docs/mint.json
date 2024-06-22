@@ -686,5 +686,12 @@
         "contribute/code-of-conduct"
       ]
     }
-  ]
+  ],
+  "footerSocials": {
+    "github": "https://github.com/PrefectHQ/prefect",
+    "twitter": "https://x.com/prefectio",
+    "slack": "https://communityinviter.com/apps/prefect-community/prefect-community",
+    "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
+    "youtube": "https://www.youtube.com/c/PrefectIO"
+  }
 }
