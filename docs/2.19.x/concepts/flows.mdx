@@ -357,7 +357,8 @@ When the nested flow run completes, the task runner is shut down.
 Nested flow runs block execution of their parent flow run until completion. 
 However, asynchronous nested flow runs can be execute concurrently by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
-Nested flows differ from normal flows in that they will resolve any passed task futures into data. This allows data to be passed from the parent flow to the child easily.
+Nested flow runs differ from normal flow runs in that they will resolve any passed task futures into data. 
+This allows data to be passed from the parent flow run to the child flow run.
 
 The relationship between a child and parent flow is tracked by creating a special task run in the parent flow. This task run will mirror the state of the child flow run.
 
