@@ -301,6 +301,13 @@ class AsyncCompatProxy(wrapt.ObjectProxy):
     def __repr__(self):
         return repr(self.__wrapped__)
 
+    def __reduce_ex__(self, protocol):
+        return (
+            type(self),
+            (self.__wrapped__,),
+            {"_self_already_awaited": self._self_already_awaited},
+        )
+
 
 def deprecated_async_method(wrapped):
     """Decorator that wraps a sync method to allow awaiting it even though it is no longer async."""
