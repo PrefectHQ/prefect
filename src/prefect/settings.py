@@ -734,7 +734,7 @@ PREFECT_RESULTS_DEFAULT_SERIALIZER = Setting(
 
 PREFECT_RESULTS_PERSIST_BY_DEFAULT = Setting(
     bool,
-    default=False,
+    default=True,
 )
 """
 The default setting for persisting results when not otherwise specified. If enabled,
@@ -1598,6 +1598,18 @@ PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
 )
 """
 How long to cache related resource data for emitting server-side vents
+"""
+
+PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL = Setting(
+    timedelta, default=timedelta(minutes=15)
+)
+"""
+The maximum range to look back for backfilling events for a websocket subscriber
+"""
+
+PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE = Setting(int, default=250, gt=0)
+"""
+The page size for the queries to backfill events for websocket subscribers
 """
 
 
