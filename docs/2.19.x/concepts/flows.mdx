@@ -354,7 +354,8 @@ They are recorded and displayed if it they been called separately.
 When a nested flow run starts, it will create a new [task runner](https://docs.prefect.io/concepts/task-runners/) for tasks within the nested flow run. 
 When the nested flow run completes, the task runner is shut down.
 
-Nested flows will block execution of the parent flow until completion. However, asynchronous nested flows can be run concurrently by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
+Nested flow runs block execution of their parent flow run until completion. 
+However, asynchronous nested flow runs can be execute concurrently by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
 Nested flows differ from normal flows in that they will resolve any passed task futures into data. This allows data to be passed from the parent flow to the child easily.
 
