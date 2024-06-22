@@ -46,7 +46,7 @@ from prefect.context import (
     TaskRunContext,
     serialize_context,
 )
-from prefect.futures import PrefectDistributedFuture, PrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
@@ -1000,7 +1000,7 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[NoReturn]]:
+    ) -> PrefectFutureList[PrefectFuture[NoReturn]]:
         ...
 
     @overload
@@ -1008,7 +1008,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[T]]:
+    ) -> PrefectFutureList[PrefectFuture[T]]:
         ...
 
     @overload
@@ -1016,7 +1016,7 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[T]]:
+    ) -> PrefectFutureList[PrefectFuture[T]]:
         ...
 
     @overload
@@ -1025,7 +1025,7 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> List[State[T]]:
+    ) -> PrefectFutureList[State[T]]:
         ...
 
     @overload
@@ -1034,7 +1034,7 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> List[State[T]]:
+    ) -> PrefectFutureList[State[T]]:
         ...
 
     @deprecated_async_method
@@ -1049,8 +1049,9 @@ class Task(Generic[P, R]):
         """
         Submit a mapped run of the task to a worker.
 
-        Must be called within a flow function. If writing an async task, this
-        call must be awaited.
+        Must be called within a flow run context. Will return a list of futures
+        that should be waited on before exiting the flow context to ensure all
+        mapped tasks have completed.
 
         Must be called with at least one iterable and all iterables must be
         the same length. Any arguments that are not iterable will be treated as
@@ -1088,15 +1089,14 @@ class Task(Generic[P, R]):
             >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
-            >>>     my_task.map([1, 2, 3])
+            >>>     return my_task.map([1, 2, 3])
 
             Wait for all mapped tasks to finish
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
-            >>>     for future in futures:
-            >>>         future.wait()
+            >>>     futures.wait():
             >>>     # Now all of the mapped tasks have finished
             >>>     my_task(10)
 
@@ -1105,8 +1105,8 @@ class Task(Generic[P, R]):
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
-            >>>     for future in futures:
-            >>>         print(future.result())
+            >>>     for x in futures.result():
+            >>>         print(x)
             >>> my_flow()
             2
             3
@@ -1127,6 +1127,7 @@ class Task(Generic[P, R]):
             >>>
             >>>     # task 2 will wait for task_1 to complete
             >>>     y = task_2.map([1, 2, 3], wait_for=[x])
+            >>>     return y
 
             Use a non-iterable input as a constant across mapped tasks
             >>> @task
@@ -1135,7 +1136,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> def my_flow():
-            >>>     display.map("Check it out: ", [1, 2, 3])
+            >>>     return display.map("Check it out: ", [1, 2, 3])
             >>>
             >>> my_flow()
             Check it out: 1
