@@ -315,7 +315,8 @@ run is linked to the calling flow run (or the calling task's flow run)
 as a nested flow run by default.
 
 Nested flow runs have different behavior than regular flow runs. For example, you can't suspend a 
-nested flow run independently of its parent flow. To not link the scheduled flow run to the 
+nested flow run independently of its parent flow run. 
+To prevent the flow run triggered by `run_deployment` from being linked to the flow run from which the method was called,
 pass `as_subflow=False` to disable it:
 
 ```python
