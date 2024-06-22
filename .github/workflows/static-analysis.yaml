@@ -1,6 +1,11 @@
 name: Static analysis
 
-on: [pull_request]
+# on PR and push to main
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 permissions:
   contents: read
