@@ -369,7 +369,7 @@ def visit_collection(
 
     # --- Sequences
 
-    elif typ in (list, tuple, set):
+    elif isinstance(expr, (list, tuple, set)):
         items = [visit_nested(o) for o in expr]
         if return_data:
             modified = any(item is not orig for item, orig in zip(items, expr))

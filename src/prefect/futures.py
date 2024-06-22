@@ -8,6 +8,7 @@ from typing import Any, Generic, List, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
+from prefect._internal.compatibility.deprecated import deprecated_async_method
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
@@ -111,6 +112,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
     when the task run is submitted to a ThreadPoolExecutor.
     """
 
+    @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
@@ -119,6 +121,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
         if isinstance(result, State):
             self._final_state = result
 
+    @deprecated_async_method
     def result(
         self,
         timeout: Optional[float] = None,
@@ -168,6 +171,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
     any task run scheduled in Prefect's API.
     """
 
+    @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
         return run_coro_as_sync(self.wait_async(timeout=timeout))
 
@@ -204,6 +208,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
                 self._final_state = task_run.state
             return
 
+    @deprecated_async_method
     def result(
         self,
         timeout: Optional[float] = None,

@@ -16,6 +16,7 @@ import warnings
 from typing import Any, Callable, List, Optional, Type, TypeVar
 
 import pendulum
+import wrapt
 from pydantic import BaseModel
 
 from prefect.utilities.callables import get_call_parameters
@@ -272,3 +273,55 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
     DEPRECATED_MODULE_ALIASES.append(
         AliasedModuleDefinition(old_name, new_name, callback)
     )
+
+
+class AsyncCompatProxy(wrapt.ObjectProxy):
+    """
+    A proxy object that allows for awaiting a method that is no longer async.
+
+    See https://wrapt.readthedocs.io/en/master/wrappers.html#object-proxy for more
+    """
+
+    def __init__(self, wrapped, class_name: str, method_name: str):
+        super().__init__(wrapped)
+        self._self_class_name = class_name
+        self._self_method_name = method_name
+        self._self_already_awaited = False
+
+    def __await__(self):
+        if not self._self_already_awaited:
+            warnings.warn(
+                (
+                    f"The {self._self_method_name!r} method on {self._self_class_name!r}"
+                    " is no longer async and awaiting it will raise an error after Dec 2024"
+                    " - please remove the `await` keyword."
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._self_already_awaited = True
+        yield
+        return self.__wrapped__
+
+    def __repr__(self):
+        return repr(self.__wrapped__)
+
+    def __reduce_ex__(self, protocol):
+        return (
+            type(self),
+            (self.__wrapped__,),
+            {"_self_already_awaited": self._self_already_awaited},
+        )
+
+
+def deprecated_async_method(wrapped):
+    """Decorator that wraps a sync method to allow awaiting it even though it is no longer async."""
+
+    @wrapt.decorator
+    def wrapper(wrapped, instance, args, kwargs):
+        result = wrapped(*args, **kwargs)
+        return AsyncCompatProxy(
+            result, class_name=instance.__class__.__name__, method_name=wrapped.__name__
+        )
+
+    return wrapper(wrapped)
