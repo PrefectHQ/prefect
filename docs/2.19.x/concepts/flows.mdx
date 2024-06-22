@@ -349,7 +349,10 @@ Composing flows
 
 A _nested_ run is created when a flow function is called inside the execution of another flow run. The primary flow run is the "parent". The flow run created within the parent run is the "child" flow run or "nested" flow run.
 
-Nested flow runs behave like normal flow runs. There is a full representation of the flow run in the backend as if it had been called separately. When a nested flow starts, it will create a new [task runner](https://docs.prefect.io/concepts/task-runners/) for tasks within the nested flow. When the nested flow completes, the task runner is shut down.
+Nested flow runs behave like normal flow runs. 
+They are recorded and displayed if it they been called separately. 
+When a nested flow run starts, it will create a new [task runner](https://docs.prefect.io/concepts/task-runners/) for tasks within the nested flow run. 
+When the nested flow run completes, the task runner is shut down.
 
 Nested flows will block execution of the parent flow until completion. However, asynchronous nested flows can be run concurrently by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
