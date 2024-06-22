@@ -312,11 +312,12 @@ executing. Pass `timeout=0` to return immediately and not block.
     
 If you call `run_deployment` from within a flow or task, the scheduled flow
 run is linked to the calling flow run (or the calling task's flow run)
-as a subflow run by default.
+as a nested flow run by default.
 
-Subflow runs have different behavior than regular flow runs. For example, you can't suspend a 
-subflow run independently of its parent flow. To not link the scheduled flow run to the 
-calling flow or task run, pass `as_subflow=False` to disable it:
+Nested flow runs have different behavior than regular flow runs. For example, you can't suspend a 
+nested flow run independently of its parent flow run. 
+To prevent the flow run triggered by `run_deployment` from being linked to the flow run from which the method was called,
+pass `as_subflow=False` to disable it:
 
 ```python
 from prefect import flow
@@ -325,7 +326,7 @@ from prefect.deployments import run_deployment
 
 @flow
 def my_flow():
-    # The scheduled flow run will not be linked to this flow as a subflow.
+    # This flow run will not be linked to `my_flow` run as a child 
     run_deployment(name="my_other_flow/my_deployment_name", as_subflow=False)
 ```
 

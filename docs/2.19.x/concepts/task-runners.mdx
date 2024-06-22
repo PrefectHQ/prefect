@@ -116,9 +116,9 @@ glass_tower()
 Using multiple task runners
 -----------------------------------------------------------------------------
 
-Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run using a specific task runner. In this case, you can create [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) for tasks that need to use a different task runner.
+Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run using a specific task runner. In this case, you can create [nested flows](https://docs.prefect.io/concepts/flows/#composing-flows) for tasks that need to use a different task runner.
 
-For example, you can have a flow (in the example below called `sequential_flow`) that runs its tasks locally using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, you could create a subflow (such as `dask_subflow`) to run those tasks using the `DaskTaskRunner`.
+For example, you can have a flow (in the example below called `sequential_flow`) that runs its tasks locally using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, you could create a nested flow (such as `dask_nested_flow`) to run those tasks using the `DaskTaskRunner`.
 
 ```python
 from prefect import flow, task
@@ -136,11 +136,11 @@ def hello_dask():
 @flow(task_runner=SequentialTaskRunner())
 def sequential_flow():
     hello_local.submit()
-    dask_subflow()
+    dask_nested_flow()
     hello_local.submit()
 
 @flow(task_runner=DaskTaskRunner())
-def dask_subflow():
+def dask_nested_flow():
     hello_dask.submit()
 
 if __name__ == "__main__":
@@ -163,7 +163,7 @@ This script outputs the following logs demonstrating the use of the Dask task ru
 20:14:29.881 | INFO    | Flow run 'ivory-caiman' - Executing 'hello_local-7633879f-0' immediately...
 Hello!
 20:14:29.904 | INFO    | Task run 'hello_local-7633879f-0' - Finished in state Completed()
-20:14:29.952 | INFO    | Flow run 'ivory-caiman' - Created subflow run 'nimble-sparrow' for flow 'dask-subflow'
+20:14:29.952 | INFO    | Flow run 'ivory-caiman' - Created subflow run 'nimble-sparrow' for flow 'dask-nested-flow'
 20:14:29.953 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
 20:14:31.862 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
 20:14:31.901 | INFO    | Flow run 'nimble-sparrow' - Created task run 'hello_dask-2b96d711-0' for task 'hello_dask'
