@@ -18,7 +18,7 @@ Network calls (such as our `GET` requests to the GitHub API) are particularly us
 <Note>
 **Tasks may be called from other tasks**
 
-As of `prefect 2.18.x`, tasks can be called from within other tasks. This removes the need to use subflows for simple task composition.
+As of `prefect 2.18.x`, tasks can be called from within other tasks. This removes the need to use nested flows for simple task composition.
 </Note>
 
 <Note>
@@ -212,12 +212,12 @@ Average open issues per user 💌 : 2.27
 ```
 
 
-Subflows
+Nested flows
 ---------------------------------------
 
-Not only can you call tasks within a flow, but you can also call other flows! Child flows are called [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
+Not only can you call tasks within a flow, but you can also call other flows! Child flows are called [nested flows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
 
-Subflows are a great way to organize your workflows and offer more visibility within the UI.
+Nested flows are a great way to organize your workflows and offer more visibility within the UI.
 
 Let's add a `flow` decorator to our `get_open_issues` function:
 
@@ -238,9 +238,9 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
 ```
 
 
-Whenever we run the parent flow, a new run will be generated for related functions within that as well. Not only is this run tracked as a subflow run of the main flow, but you can also inspect it independently in the UI!
+Whenever we run the parent flow, a new run will be generated for related functions within that as well. Not only is this run tracked as a nested flow run of the main flow, but you can also inspect it independently in the UI!
 
 [Next: Deployments](https://docs.prefect.io/tutorial/deployments/)
 ---------------------------------------------------------------------------------------------------------
 
-We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution. In the next section, we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure - [click here to learn how to create your first deployment](https://docs.prefect.io/tutorial/deployments/).
+We now have a flow with tasks, nested flows, retries, logging, caching, and concurrent execution. In the next section, we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure - [click here to learn how to create your first deployment](https://docs.prefect.io/tutorial/deployments/).

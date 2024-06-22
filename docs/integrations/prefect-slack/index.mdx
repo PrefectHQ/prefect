@@ -59,7 +59,7 @@ from prefect_slack.messages import send_chat_message
 def example_send_message_flow():
    context = get_run_context()
 
-   # Run other tasks and subflows here
+   # Run other tasks or flows here
 
    token = "xoxb-your-bot-token-here"
    send_chat_message(

@@ -55,6 +55,7 @@ The flow run retention policy represents the number of days each flow run is ava
 Note that, because Flow Run Retention Policy keys on terminal state, if two flows start at the same time, but reach a terminal state at different times, they will be removed at different times according to when they each reached their respective terminal states.
 </Tip>
 
-This retention policy applies to all [details about a flow run](https://docs.prefect.io/ui/flow-runs/#inspect-a-flow-run), including its task runs. Subflow runs follow the retention policy independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state.
+This retention policy applies to all [details about a flow run](https://docs.prefect.io/ui/flow-runs/#inspect-a-flow-run), including its task runs. 
+Nested flow runs are retained independently from their parent flow runs. Each nested flow run is deleted based on the time it reached a terminal state.
 
 If you or your organization have needs that require a tailored retention period, [contact the Prefect Sales team](https://www.prefect.io/pricing).

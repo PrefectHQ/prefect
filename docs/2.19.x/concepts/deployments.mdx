@@ -9,7 +9,7 @@ Here we will focus largely on the metadata that defines a deployment and how it 
 Overview
 ---------------------------------------
 
-Every Prefect deployment references one and only one "entrypoint" flow (though that flow may itself call any number of subflows). Different deployments may reference the same underlying flow, a useful pattern when developing or promoting workflow changes through staged environments.
+Every Prefect deployment references one and only one "entrypoint" flow (though that flow may itself call any number of tasks or flows). Different deployments may reference the same underlying flow, a useful pattern when developing or promoting workflow changes through staged environments.
 
 The complete schema that defines a deployment is as follows:
 
@@ -109,9 +109,9 @@ def main():
 By default, `run_deployment` blocks until the scheduled flow run finishes executing. Pass `timeout=0` to return immediately and not block.
 </Tip>
 
-If you call `run_deployment` from within a flow or task, the scheduled flow run will be linked to the calling flow run (or the calling task's flow run) as a subflow run by default.
+If you call `run_deployment` from within a flow or task, the scheduled flow run will be linked to the calling flow run (or the calling task's flow run) as a nested flow run by default.
 
-Subflow runs have different behavior than regular flow runs. For example, a subflow run can't be suspended independently of its parent flow. If you'd rather not link the scheduled flow run to the calling flow or task run, you can disable this behavior by passing `as_subflow=False`:
+Nested flow runs have different behavior than regular flow runs. For example, a nested flow run can't be suspended independently of its parent flow. If you'd rather not link the scheduled flow run to the calling flow or task run, you can disable this behavior by passing `as_subflow=False`:
 
 ```python
 from prefect import flow
@@ -120,7 +120,7 @@ from prefect.deployments import run_deployment
 
 @flow
 def my_flow():
-    # The scheduled flow run will not be linked to this flow as a subflow.
+    # The scheduled flow run will not be linked to this flow run
     run_deployment(name="my_other_flow/my_deployment_name", as_subflow=False)
 
 ```
