@@ -174,8 +174,7 @@ In Prefect 3, `PrefectFutures` resulting from submitted task runs are not automa
     def my_flow():
 	    futures = [my_task.submit() for i in range(10)]
 	    # You must wait for futures before exiting flow.
-	    for future in futures:
-		    future.wait()
+	    futures.wait()
     ```
   </Card>
 </CardGroup>
