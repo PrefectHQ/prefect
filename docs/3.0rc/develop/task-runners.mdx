@@ -104,7 +104,7 @@ def hello_dask():
 
 
 @flow(task_runner=DaskTaskRunner())
-def dask_nested flow():
+def dask_nested_flow():
     hello_dask.submit().wait()
 
 
