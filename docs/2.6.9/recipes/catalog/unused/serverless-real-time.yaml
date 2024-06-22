@@ -1,0 +1,9 @@
+recipeName: Real-Time Pipelines
+author: Prefect
+authorUrl: https://prefect.io
+description: Create serverless real-time data pipelines on AWS with ECS and GitHub Actions.
+topic: DataOps
+recipeUrl: https://medium.com/the-prefect-blog/serverless-real-time-data-pipelines-on-aws-with-prefect-ecs-and-github-actions-1737c80da3f5
+iconUrl: 
+  - /img/collections/aws.png
+  - /img/collections/github.png

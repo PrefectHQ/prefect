@@ -1,0 +1,6 @@
+collectionName: prefect-kubernetes
+author: Prefect
+authorUrl: https://prefect.io
+documentation: https://prefecthq.github.io/prefect-kubernetes/
+iconUrl: /img/collections/kubernetes.png
+tag: Kubernetes

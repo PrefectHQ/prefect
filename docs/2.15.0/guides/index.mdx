@@ -1,0 +1,55 @@
+---
+title: How-to Guides
+sidebarTitle: Overview
+---
+
+# How-to Guides
+
+This section of the documentation contains how-to guides for common workflows and use cases.
+
+## Development
+
+| Title                                                  | Description                                                                                        |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Hosting](/2.15.0/guides/host/) | Host your own Prefect server instance. |
+| [Profiles & Settings](/2.15.0/guides/settings/) | Configure Prefect and save your settings. |
+| [Testing](/2.15.0/guides/testing/) | Easily test your workflows. |
+| [Global Concurrency Limits](/2.15.0/guides/global-concurrency-limits/) | Limit flow runs. |
+| [Runtime Context](/2.15.0/guides/runtime-context/) | Enable a flow to access metadata about itself and its context when it runs.  |
+| [Variables](/2.15.0/guides/variables/) | Store and retrieve configuration data. |
+| [Prefect Client](/2.15.0/guides/using-the-client/) | Use `PrefectClient` to interact with the API server. |
+| [Interactive Workflows](/2.15.0/guides/creating-interactive-workflows/) | Create human-in-the-loop workflows by pausing flow runs for input. |
+| [Automations](/2.15.0/guides/automations/) | Configure actions that Prefect executes automatically based on trigger conditions. |
+| [Webhooks](/2.15.0/guides/webhooks/) | Receive, observe, and react to events from other systems. |
+| [Terraform Provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) | Use the Terraform Provider for Prefect Cloud for infrastructure as code. |
+| [CI/CD](/2.15.0/guides/ci-cd/) | Use CI/CD with Prefect. |
+| [Prefect Recipes](/2.15.0/recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
+
+## Execution
+
+| Title                                                  | Description                                                                                        |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Docker](/2.15.0/guides/docker/) | Deploy flows with Docker containers. |
+| [State Change Hooks](/2.15.0/guides/state-change-hooks/) | Execute code in response to state changes. |
+| [Dask and Ray](/2.15.0/guides/dask-ray-task-runners/) | Scale your flows with parallel computing frameworks. |
+| [Read and Write Data](/2.15.0/guides/moving-data/) | Read and write data to and from cloud provider storage. |
+| [Big Data](/2.15.0/guides/big-data/) | Handle large data with Prefect. |
+| [Logging](/2.15.0/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
+| [Troubleshooting](/2.15.0/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
+| [Managed Execution](/2.15.0/guides/managed-execution/) | Let prefect run your code. |
+
+## Work Pools
+
+| Title                                                  | Description                                                                                        |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Deploying Flows to Work Pools and Workers](/2.15.0/guides/prefect-deploy/) | Learn how to run you code with dynamic infrastructure. |
+| [Upgrade from Agents to Workers](/2.15.0/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from agents to workers. |
+| [Flow Code Storage](/2.15.0/guides/deployment/storage-guide/) | Where to store your code for deployments. |
+| [Kubernetes](/2.15.0/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
+| [Serverless Push Work Pools](/2.15.0/guides/deployment/push-work-pools/) | Run flows on serverless infrastructure without a worker. |
+| [Serverless Work Pools with Workers](/2.15.0/guides/deployment/serverless-workers/) | Run flows on serverless infrastructure with a worker. |
+| [Daemonize Processes](/2.15.0/guides/deployment/daemonize/) | Set up a systemd service to run a Prefect worker or .serve process. |
+| [Custom Workers](/2.15.0/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
+
+!!! tip "Need help?"
+    Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)

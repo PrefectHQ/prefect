@@ -1,0 +1,8 @@
+recipeName: Blocking Subflows
+author: Prefect
+authorUrl: https://prefect.io
+description: Demonstrate the default blocking behavior of subflows.
+topic: Flows
+recipeUrl: https://discourse.prefect.io/t/how-can-i-create-a-subflow-and-block-until-it-s-completed/94
+iconUrl: 
+  - /img/collections/python.png
