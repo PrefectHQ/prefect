@@ -249,7 +249,8 @@ def downstream_task():
 ```
 
 
-By default, deployments started from `run_deployment` will also appear as nested flows for tracking purposes. This behavior can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
+By default, deployments started from `run_deployment` will also appear as nested flow runs for tracking purposes. 
+This behavior can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
 
 <Frame caption="Flow run graph displaying deployments as dependencies with the 'Dependency grid' layout selected">![Flow of deployments](/images/upstream3.png)</Frame>
 
