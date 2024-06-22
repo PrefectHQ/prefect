@@ -78,7 +78,6 @@ from typing import (
     Coroutine,
     Dict,
     Iterable,
-    List,
     Optional,
     Set,
     TypeVar,
@@ -92,7 +91,7 @@ from ray.exceptions import GetTimeoutError
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import serialize_context
-from prefect.futures import PrefectFuture, PrefectWrappedFuture
+from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import State, exception_to_crashed_state
 from prefect.task_engine import run_task_async, run_task_sync
@@ -291,7 +290,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> List[PrefectRayFuture[R]]:
+    ) -> PrefectFutureList[PrefectRayFuture[R]]:
         ...
 
     @overload
@@ -300,7 +299,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         task: "Task[Any, R]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> List[PrefectRayFuture[R]]:
+    ) -> PrefectFutureList[PrefectRayFuture[R]]:
         ...
 
     def map(
