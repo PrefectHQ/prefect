@@ -38,34 +38,34 @@ Here are some examples:
     ```python
     @task
     async def my_task():
-            ...
+        ...
 	
 
     # Enclosing flow can be sync
     @flow
     def my_flow():
-	    return my_task()
+	return my_task()
 	
 		
     if __name__ == "__main__":
-	    my_flow()
+	my_flow()
     ```
   </Card>
   <Card title="Prefect 3">
     ```python
     @task
     async def my_task():
-	    ...
+	...
 	
 
     # Enclosing flow must be async as well
     @flow
     async def my_flow():
-	    return await my_task()
+	return await my_task()
 	
 	
     if __name__ == "__main__":
-	    asyncio.run(my_flow())
+	asyncio.run(my_flow())
     ``` 
   </Card>
 </CardGroup>
@@ -79,28 +79,28 @@ So, *you do not need to await futures from submitted tasks*:
     ```python
     @task
     async def my_task():
-	    ...
+	...
 	
 	
     @flow
     async def my_flow():
-	    #must await `.submit()`
-	    future = await my_task.submit()
-	    return future
+	#must await `.submit()`
+	future = await my_task.submit()
+	return future
     ```
   </Card>
   <Card title="Prefect 3">
     ```python
     @task
     async def my_task():
-	    ...
+	...
 	
 	
     @flow
     async def my_flow():
-	    # No need to await `.submit()`
-	    future = my_task.submit()
-	    return future
+	# No need to await `.submit()`
+	future = my_task.submit()
+	return future
     ```
   </Card>
 </CardGroup>
