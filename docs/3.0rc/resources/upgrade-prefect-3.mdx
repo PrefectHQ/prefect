@@ -194,7 +194,7 @@ If it hasn't, the task runs.
 This behavior can be configured through the new global `cache_policy` setting, or through the `cache_key_fn` on the task, just as in Prefect 2.
 
 Results and cache keys are not stored with your Prefect Cloud account or Prefect server instance. 
-They are persisted entirely in your local result location. 
+They are persisted entirely in your configured result location. 
 Result persistence, and the caching behavior it enables, can be disabled through the `persist_result=False` flag.
 
 See the [caching documentation](/3.0rc/develop/write-tasks#caching) for more information.
