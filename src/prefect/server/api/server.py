@@ -70,38 +70,77 @@ enforce_minimum_version = EnforceMinimumAPIVersion(
 )
 
 
-API_ROUTERS = (
-    api.flows.router,
-    api.flow_runs.router,
-    api.task_runs.router,
-    api.flow_run_states.router,
-    api.task_run_states.router,
-    api.flow_run_notification_policies.router,
-    api.deployments.router,
-    api.saved_searches.router,
-    api.logs.router,
-    api.concurrency_limits.router,
-    api.concurrency_limits_v2.router,
-    api.block_types.router,
-    api.block_documents.router,
-    api.workers.router,
-    api.work_queues.router,
-    api.artifacts.router,
-    api.block_schemas.router,
-    api.block_capabilities.router,
-    api.collections.router,
-    api.variables.router,
-    api.csrf_token.router,
-    api.events.router,
-    api.automations.router,
-    api.templates.router,
-    api.ui.flows.router,
-    api.ui.flow_runs.router,
-    api.ui.schemas.router,
-    api.ui.task_runs.router,
-    api.admin.router,
-    api.root.router,
-)
+def get_api_routers():
+    """
+    The FastAPI server requires a list of routers to include in the application.
+
+    Importing and creating all of these routers is extremely expensive (in
+    time), so we only do it if necessary - i.e., when the server is started.
+    """
+    from . import (
+        admin,
+        artifacts,
+        automations,
+        block_capabilities,
+        block_documents,
+        block_schemas,
+        block_types,
+        collections,
+        concurrency_limits,
+        concurrency_limits_v2,
+        csrf_token,
+        deployments,
+        events,
+        flow_run_notification_policies,
+        flow_run_states,
+        flow_runs,
+        flows,
+        logs,
+        root,
+        saved_searches,
+        task_run_states,
+        task_runs,
+        templates,
+        ui,
+        variables,
+        work_queues,
+        workers,
+    )
+
+    API_ROUTERS = (
+        flows.router,
+        flow_runs.router,
+        task_runs.router,
+        flow_run_states.router,
+        task_run_states.router,
+        flow_run_notification_policies.router,
+        deployments.router,
+        saved_searches.router,
+        logs.router,
+        concurrency_limits.router,
+        concurrency_limits_v2.router,
+        block_types.router,
+        block_documents.router,
+        workers.router,
+        work_queues.router,
+        artifacts.router,
+        block_schemas.router,
+        block_capabilities.router,
+        collections.router,
+        variables.router,
+        csrf_token.router,
+        events.router,
+        automations.router,
+        templates.router,
+        ui.flows.router,
+        ui.flow_runs.router,
+        ui.schemas.router,
+        ui.task_runs.router,
+        admin.router,
+        root.router,
+    )
+    return API_ROUTERS
+
 
 SQLITE_LOCKED_MSG = "database is locked"
 
@@ -308,7 +347,7 @@ def create_api_app(
     else:
         dependencies.append(Depends(enforce_minimum_version))
 
-    routers = {router.prefix: router for router in API_ROUTERS}
+    routers = {router.prefix: router for router in get_api_routers()}
 
     if router_overrides:
         for prefix, router in router_overrides.items():
