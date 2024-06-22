@@ -316,7 +316,7 @@ as a nested flow run by default.
 
 Nested flow runs have different behavior than regular flow runs. For example, you can't suspend a 
 nested flow run independently of its parent flow. To not link the scheduled flow run to the 
-calling flow or task run, pass `as_subflow=False` to disable it:
+pass `as_subflow=False` to disable it:
 
 ```python
 from prefect import flow
