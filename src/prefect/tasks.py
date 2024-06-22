@@ -1045,7 +1045,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         deferred: bool = False,
         **kwargs: Any,
-    ) -> Iterable[Union[PrefectFuture, State]]:
+    ):
         """
         Submit a mapped run of the task to a worker.
 
