@@ -362,7 +362,8 @@ This allows data to be passed from the parent flow run to the child flow run.
 
 The relationship between a child and parent flow is tracked by creating a special task run in the parent flow. This task run will mirror the state of the child flow run.
 
-A task that represents a nested flow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field. A nested flow can be identified via the presence of a `parent_task_run_id` on `state_details`.
+The nested flow run will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field. 
+A nested flow run can be identified via the presence of a `parent_task_run_id` on `state_details`.
 
 You can define multiple flows within the same file. Whether running locally or via a [deployment](https://docs.prefect.io/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
 <Warning>
