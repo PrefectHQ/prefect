@@ -26,7 +26,6 @@ from prefect.utilities.importtools import (
     to_qualified_name,
 )
 
-A = TypeVar("A")
 T = TypeVar("T", bound=Callable)
 M = TypeVar("M", bound=BaseModel)
 
