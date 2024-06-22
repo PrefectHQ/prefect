@@ -79,7 +79,6 @@ from typing import (
     Coroutine,
     Dict,
     Iterable,
-    List,
     Optional,
     Set,
     TypeVar,
@@ -91,7 +90,7 @@ import distributed
 from typing_extensions import ParamSpec
 
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.futures import PrefectFuture, PrefectWrappedFuture
+from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
@@ -366,7 +365,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> List[PrefectDaskFuture[R]]:
+    ) -> PrefectFutureList[PrefectDaskFuture[R]]:
         ...
 
     @overload
@@ -375,7 +374,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Task[Any, R]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> List[PrefectDaskFuture[R]]:
+    ) -> PrefectFutureList[PrefectDaskFuture[R]]:
         ...
 
     def map(
