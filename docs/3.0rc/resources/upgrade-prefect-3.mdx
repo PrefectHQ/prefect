@@ -109,7 +109,7 @@ The `PrefectFuture` methods are also always synchronous in Prefect 3. Names and 
 - `PrefectFututure.get_state()` is now `PrefectFuture.state`
 - `PrefectFuture.wait()` now returns `None` instead of a `State`
 
-So, *you must wait for the future to complete, then retrieve the state separately*:
+*Wait for the future to complete, then retrieve the state separately*:
 
 <CardGroup cols={2}>
   <Card title="Prefect 2">
