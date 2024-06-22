@@ -159,7 +159,7 @@ new_bucket_block.save(name="my-new-data-bucket-block")
 
 You can use the block name to load the block:
 
-```python hl_lines="6"
+```python
 from prefect import flow
 from prefect_aws.s3 import S3Bucket
 
@@ -176,7 +176,7 @@ Alternatively, load a block with the unique slug that is a combination of the bl
 
 To load the `S3Bucket` block from above, run the following:
 
-```python hl_lines="3"
+```python
 from prefect_aws.s3 import S3Bucket
 
 s3_block = Block.load("S3Bucket/my_s3_bucket_block")
@@ -220,7 +220,7 @@ class Cube(Block):
 You can include methods on a block to provide functionality. 
 Here's the same cube block with methods to calculate the volume and surface area of the cube:
 
-```python hl_lines="6-10"
+```python
 from prefect.blocks.core import Block
 
 class Cube(Block):
@@ -259,7 +259,7 @@ You can use this functionality for fields that store credentials such as passwor
 
 Here's an example of an `AWSCredentials` block that uses `SecretStr`:
 
-```python hl_lines="8"
+```python
 from typing import Optional
 
 from prefect.blocks.core import Block
@@ -377,7 +377,7 @@ class AWSCredentials(Block):
 
 You can use the `AWSCredentials` block within an `S3Bucket` block to provide authentication when interacting with an S3 bucket:
 
-```python hl_lines="5"
+```python
 import io
 
 class S3Bucket(Block):
@@ -438,7 +438,7 @@ read and write objects from (this field exists on [our implementation](https://g
 
 Add the new field to the class definition:
 
-```python hl_lines="4"
+```python
 class S3Bucket(Block):
     bucket_name: str
     credentials: AWSCredentials

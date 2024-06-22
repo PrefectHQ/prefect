@@ -167,7 +167,7 @@ You can specify a registry other than Docker Hub by providing the full registry 
 
 To avoid pushing to a registry, set `push=False` in the `.deploy` method:
 
-```python hl_lines="6"
+```python
 
 if __name__ == "__main__":
     buy.deploy(
@@ -180,7 +180,7 @@ if __name__ == "__main__":
 
 To avoid building an image, set `build=False` in the `.deploy` method:
 
-```python hl_lines="6"
+```python
 
 if __name__ == "__main__":
     buy.deploy(
@@ -531,7 +531,7 @@ In the example above, the code for both flows is baked into the same image.
 You can specify one or more flows to pull from a remote location at runtime with the `from_source` method.
 Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
 
-```python hl_lines="9-19"
+```python
 from prefect import deploy, flow
 
 
