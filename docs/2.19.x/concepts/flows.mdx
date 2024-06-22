@@ -15,7 +15,7 @@ Flows can be thought of as special types of functions. They can take inputs, per
 
 Flows also take advantage of automatic Prefect logging to capture details about [flow runs](#flow-runs) such as run time and final state.
 
-Flows can include calls to [tasks](https://docs.prefect.io/concepts/tasks/) as well as to other flows, which Prefect calls ["subflows"](#composing-flows) in this context. Flows may be defined within modules and imported for use as subflows in your flow definitions.
+Flows can include calls to [tasks](https://docs.prefect.io/concepts/tasks/) as well as to other flows, which Prefect calls ["nested flows"](#composing-flows) in this context. Flows may be defined within modules and imported for use in your flow definitions.
 
 [Deployments](https://docs.prefect.io/concepts/deployments/) elevate individual workflows from functions that you call manually to API-managed entities.
 
@@ -90,7 +90,7 @@ However, organizing your workflow code into smaller flow and task units lets you
 
 In addition, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow will fail and must be retried from the beginning. This can be avoided by breaking up the code into multiple tasks.
 
-You may call any number of other tasks, subflows, and even regular Python functions within your flow. You can pass parameters to your flow function that will be used elsewhere in the workflow, and Prefect will report on the progress and [final state](#final-state-determination) of any invocation.
+You may call any number of other tasks, flows, and even regular Python functions within your flow. You can pass parameters to your flow function that will be used elsewhere in the workflow, and Prefect will report on the progress and [final state](#final-state-determination) of any invocation.
 
 Prefect encourages "small tasks" — each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 </Tip>
@@ -347,23 +347,30 @@ if __name__ == "__main__":
 Composing flows
 -----------------------------------------------------
 
-A _subflow_ run is created when a flow function is called inside the execution of another flow. The primary flow is the "parent" flow. The flow created within the parent is the "child" flow or "subflow."
+A _nested_ run is created when a flow function is called inside the execution of another flow run. The primary flow run is the "parent". The flow run created within the parent run is the "child" flow run or "nested" flow run.
 
-Subflow runs behave like normal flow runs. There is a full representation of the flow run in the backend as if it had been called separately. When a subflow starts, it will create a new [task runner](https://docs.prefect.io/concepts/task-runners/) for tasks within the subflow. When the subflow completes, the task runner is shut down.
+Nested flow runs behave like normal flow runs. 
+They are recorded and displayed if it they been called separately. 
+When a nested flow run starts, it will create a new [task runner](https://docs.prefect.io/concepts/task-runners/) for tasks within the nested flow run. 
+When the nested flow run completes, the task runner is shut down.
 
-Subflows will block execution of the parent flow until completion. However, asynchronous subflows can be run concurrently by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
+Nested flow runs block execution of their parent flow run until completion. 
+However, asynchronous nested flow runs can be execute concurrently by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
-Subflows differ from normal flows in that they will resolve any passed task futures into data. This allows data to be passed from the parent flow to the child easily.
+Nested flow runs differ from normal flow runs in that they will resolve any passed task futures into data. 
+This allows data to be passed from the parent flow run to the child flow run.
 
 The relationship between a child and parent flow is tracked by creating a special task run in the parent flow. This task run will mirror the state of the child flow run.
 
-A task that represents a subflow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field. A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
+The nested flow run will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field. 
+A nested flow run can be identified via the presence of a `parent_task_run_id` on `state_details`.
 
 You can define multiple flows within the same file. Whether running locally or via a [deployment](https://docs.prefect.io/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
 <Warning>
-**Cancelling subflow runs**
+**Cancelling nested flow runs**
 
-Inline subflow runs, specifically those created without `run_deployment`, cannot be cancelled without cancelling their parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run\_deployment](https://docs.prefect.io/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) function.
+An inline nested flow run cannot be cancelled without cancelling its parent flow run. 
+If you need to be able to cancel a nested flow run independent of its parent flow run, deploy it separately and start it using the [run\_deployment](https://docs.prefect.io/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) function.
 </Warning>
 
 ```python
@@ -375,9 +382,9 @@ def print_hello(name):
     print(msg)
     return msg
 
-@flow(name="Subflow")
+@flow(name="Nested flow")
 def my_subflow(msg):
-    print(f"Subflow says: {msg}")
+    print(f"Nested flow says: {msg}")
 
 @flow(name="Hello Flow")
 def hello_world(name="world"):
@@ -390,23 +397,23 @@ if __name__ == "__main__":
 ```
 
 
-You can also define flows or tasks in separate modules and import them for usage. For example, here's a simple subflow module:
+You can also define flows or tasks in separate modules and import them for usage:
 
 ```python
 from prefect import flow, task
 
-@flow(name="Subflow")
+@flow(name="Nested flow")
 def my_subflow(msg):
-    print(f"Subflow says: {msg}")
+    print(f"Nested flow says: {msg}")
 
 ```
 
 
-Here's a parent flow that imports and uses `my_subflow()` as a subflow:
+Here's a parent flow that imports and uses `my_nested_flow()` as a nested flow:
 
 ```python
 from prefect import flow, task
-from subflow import my_subflow
+from nested flow import my_subflow
 
 @task(name="Print Hello")
 def print_hello(name):
@@ -433,28 +440,28 @@ $ python hello.py
 15:19:21.945 | INFO    | Flow run 'daft-cougar' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
 Hello Marvin!
 15:19:22.055 | INFO    | Task run 'Print Hello-84f0fe0e-0' - Finished in state Completed()
-15:19:22.107 | INFO    | Flow run 'daft-cougar' - Created subflow run 'ninja-duck' for flow 'Subflow'
-Subflow says: Hello Marvin!
+15:19:22.107 | INFO    | Flow run 'daft-cougar' - Created nested flow run 'ninja-duck' for flow 'Nested flow'
+Nested flow says: Hello Marvin!
 15:19:22.794 | INFO    | Flow run 'ninja-duck' - Finished in state Completed()
 15:19:23.215 | INFO    | Flow run 'daft-cougar' - Finished in state Completed('All states completed.')
 
 ```
 
 <Tip>
-**Subflows or tasks?**
+**Nested flows or tasks?**
 
-In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question is:
+In Prefect you can call tasks _or_ nested flows to do work within your workflow, including passing results from other tasks to your nested flow. So a common question is:
 
-"When should I use a subflow instead of a task?"
+"When should I use a nested flow instead of a task?"
 
 We recommend writing tasks that do a discrete, specific piece of work in your workflow: calling an API, performing a database operation, analyzing or transforming a data point. Prefect tasks are well suited to parallel or distributed execution using distributed computation frameworks such as Dask or Ray. For troubleshooting, the more granular you create your tasks, the easier it is to find and fix issues should a task fail.
 
-Subflows enable you to group related tasks within your workflow. Here are some scenarios where you might choose to use a subflow rather than calling tasks individually:
+Nested flows enable you to group related tasks within your workflow. Here are some scenarios where you might choose to use a nested flow rather than calling tasks individually:
 
-*   Observability: Subflows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll see subflow status in the **Flow Runs** dashboard rather than having to dig down into the tasks within a specific flow run. See [Final state determination](#final-state-determination) for some examples of leveraging task state within flows.
-*   Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a subflow and conditionally run the subflow rather than each task individually.
-*   Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the subflow in which they run.
-*   Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. You can use a different task runner for each subflow.
+*   Observability: Nested flows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll see nested flow status in the **Flow Runs** dashboard rather than having to dig down into the tasks within a specific flow run. See [Final state determination](#final-state-determination) for some examples of leveraging task state within flows.
+*   Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a nested flow and conditionally run the nested flow rather than each task individually.
+*   Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the nested flow in which they run.
+*   Task runners: Nested flows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a nested flow that uses the Dask task runner. You can use a different task runner for each nested flow.
 
 </Tip>
 Parameters
@@ -530,8 +537,8 @@ Read the documentation about [states](https://docs.prefect.io/concepts/states) b
 The final state of the flow is determined by its return value. The following rules apply:
 
 *   If an exception is raised directly in the flow function, the flow run is marked as failed.
-*   If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it.
-*   If _any_ task run or subflow run failed, then the final flow run state is marked as `FAILED`.
+*   If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and nested flows within it.
+*   If _any_ task run or nested flow run failed, then the final flow run state is marked as `FAILED`.
 *   If _any_ task run was cancelled, then the final flow run state is marked as `CANCELLED`.
 *   If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 *   If the flow run returns _any other object_, then it is marked as completed.
@@ -707,7 +714,7 @@ Running this flow produces the following result. It fails because one of the thr
 Traceback (most recent call last):...
 ValueError: I am bad task
 20:57:51.787 | INFO    | Task run 'always_succeeds_task-c9014725-0' - Finished in state Completed()
-20:57:51.808 | INFO    | Flow run 'impartial-gorilla' - Created subflow run 'unbiased-firefly' for flow 'always-succeeds-flow'
+20:57:51.808 | INFO    | Flow run 'impartial-gorilla' - Created nested flow run 'unbiased-firefly' for flow 'always-succeeds-flow'
 20:57:51.884 | ERROR   | Task run 'always_fails_task-58ea43a6-0' - Finished in state Failed('Task run encountered an exception.')
 20:57:52.438 | INFO    | Flow run 'unbiased-firefly' - Finished in state Completed()
 20:57:52.811 | ERROR   | Flow run 'impartial-gorilla' - Finished in state Failed('1/3 states failed.')
@@ -1110,11 +1117,11 @@ resume_flow_run(FLOW_RUN_ID)
 ```
 
 <Note>
-**Subflows can't be suspended independently of their parent run**
+**Nested flow runs can't be suspended independently of their parent flow run**
 
-You can't suspend a subflow run independently of its parent flow run.
+You can't suspend a nested flow run independently of its parent flow run.
 
-If you use a flow to schedule a flow run with `run_deployment`, the scheduled flow run will be linked to the calling flow as a subflow run by default. This means you won't be able to suspend the scheduled flow run independently of the calling flow. Call `run_deployment` with `as_subflow=False` to disable this linking if you need to be able to suspend the scheduled flow run independently of the calling flow.
+If you use a flow to schedule a flow run with `run_deployment`, the scheduled flow run will be linked to the calling flow as a nested flow run by default. This means you won't be able to suspend the scheduled flow run independently of the calling flow. Call `run_deployment` with `as_subflow=False` to disable this linking if you need to be able to suspend the scheduled flow run independently of the calling flow.
 </Note>
 
 Waiting for input when pausing or suspending a flow run
@@ -1167,7 +1174,7 @@ When cancellation is requested, the flow run is moved to a "Cancelling" state. I
 <Warning>
 **A deployment is required**
 
-Flow run cancellation requires the flow run to be associated with a [deployment](#serving-a-flow). A monitoring process must be running to enforce the cancellation. Inline subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run\_deployment](https://docs.prefect.io/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) function.
+Flow run cancellation requires the flow run to be associated with a [deployment](#serving-a-flow). A monitoring process must be running to enforce the cancellation. Inline nested flow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a nested flow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run\_deployment](https://docs.prefect.io/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) function.
 </Warning>
 Cancellation is robust to restarts of Prefect workers. To enable this, we attach metadata about the created infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts:
 

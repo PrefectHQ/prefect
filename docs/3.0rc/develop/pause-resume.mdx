@@ -155,7 +155,7 @@ resume_flow_run(FLOW_RUN_ID)
 **You can't suspend subflows independently of their parent run**
 
 If you use a flow to schedule a flow run with `run_deployment`, the
-scheduled flow run is linked to the calling flow as a subflow run by
+scheduled flow run is linked to the calling flow as a nested flow run by
 default. This means you can't suspend the scheduled flow run
 independently of the calling flow.
 
