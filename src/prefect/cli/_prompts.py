@@ -542,7 +542,7 @@ async def prompt_push_custom_docker_image(
             except ImportError:
                 console.print("Installing prefect-docker...")
                 await run_process(
-                    [get_sys_executable(), "-m", "pip", "install", "prefect-docker"],
+                    [get_sys_executable(), "-m", "pip", "install", "prefect[docker]"],
                     stream_output=True,
                 )
                 import prefect_docker

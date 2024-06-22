@@ -9,6 +9,7 @@ from typing import List, Optional, Type
 import anyio
 import typer
 
+from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.cli._prompts import confirm
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
@@ -312,7 +313,8 @@ async def _install_package(
     package: str, upgrade: bool = False
 ) -> Optional[Type[BaseWorker]]:
     app.console.print(f"Installing {package}...")
-    command = [get_sys_executable(), "-m", "pip", "install", package]
+    install_package = KNOWN_EXTRAS_FOR_PACKAGES.get(package, package)
+    command = [get_sys_executable(), "-m", "pip", "install", install_package]
     if upgrade:
         command.append("--upgrade")
     await run_process(command, stream_output=True)
