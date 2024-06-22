@@ -111,7 +111,7 @@ def dask_nested_flow():
 @flow(task_runner=ThreadPoolTaskRunner())
 def parent_flow():
     concurrent_subflow()
-    dask_nested flow()
+    dask_nested_flow()
 
 
 if __name__ == "__main__":
