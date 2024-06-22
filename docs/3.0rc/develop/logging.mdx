@@ -148,7 +148,7 @@ Prefect provides the `log_prints` option to enable the logging of `print` statem
 When `log_prints=True` for a given task or flow, the Python built-in `print` is patched to redirect to the Prefect 
 logger for the scope of that task or flow.
 
-By default, tasks and subflows inherit the `log_prints` setting from their parent flow, unless opted out with their 
+By default, task runs and nested flow runs inherit the `log_prints` setting from their parent flow run, unless opted out with their 
 own explicit `log_prints` setting.
 
 ```python
@@ -201,7 +201,7 @@ not logging print statements in this task
 ```
 </div>
 
-Configure this behavior globally for all Prefect flows, tasks, and subflows.
+Configure this behavior globally for all Prefect flow and task runs
 
 <div class='terminal'>
 ```bash

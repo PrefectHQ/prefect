@@ -18,8 +18,8 @@ If the run does not terminate after a grace period (default of 30 seconds), the 
 Flow run cancellation requires that the flow run is associated with a deployment.
 A monitoring process must be running to enforce the cancellation.
 
-Inline subflow runs (those created without `run_deployment`), cannot be cancelled without cancelling the parent flow run.
-To cancel a subflow run independent of its parent flow run, we recommend deploying it separately 
+Inline nested flow runs (those created without `run_deployment`), cannot be cancelled without cancelling the parent flow run.
+To cancel a nested flow run independent of its parent flow run, we recommend deploying it separately 
 and starting it using the [run_deployment](/3.0rc/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) 
 function.
 </Warning>
