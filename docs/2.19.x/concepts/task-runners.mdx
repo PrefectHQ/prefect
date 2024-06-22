@@ -140,7 +140,7 @@ def sequential_flow():
     hello_local.submit()
 
 @flow(task_runner=DaskTaskRunner())
-def dask_nested flow():
+def dask_nested_flow():
     hello_dask.submit()
 
 if __name__ == "__main__":
