@@ -27,7 +27,7 @@ In Prefect 3, all workflow code, including task functions, runs on the main thre
 - Non-thread safe objects, such as database connections, can be shared globally within a workflow.
 
 To execute tasks asynchronously in separate threads, you must either write asynchronous Python functions or use the `Task.submit` method. 
-When executing tasks asynchronously in Prefect 3, you must follow conventional asynchronous Python programing principles. 
+Prefect 3 encourages conventional asynchronous Python programing principles. 
 Updating your workflows to bring them in line with these principles requires code changes. Here are some examples:
 
 **Synchronous tasks and flows cannot be called from asynchronous tasks or flows as they could in Prefect 2.**
