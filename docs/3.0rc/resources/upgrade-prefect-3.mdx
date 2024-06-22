@@ -207,7 +207,7 @@ See the [Automations documentation](/3.0rc/automate/events/automations-triggers)
 
 Integrations compatible with Prefect 2 generally cannot be used with Prefect 3 and vice versa. 
 You must update all of your integrations packages in conjunction with upgrading from Prefect 2 to Prefect 3. 
-We reccomend using the extras on the `prefect` package to ensure that you install the version (e.g. `pip install prefect[aws]`) of the integration that corresponds to your Prefect version.
+We recommend specifying extras when you install the `prefect` package to ensure that you install the integration package version that corresponds to your Prefect version. For example, use `pip install prefect[aws] --pre` to install Prefect 3 and a compatible prefect-aws version.
 
 ## Data validation via Pydantic V2
 
