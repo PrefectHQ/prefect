@@ -369,7 +369,8 @@ You can define multiple flows within the same file. Whether running locally or v
 <Warning>
 **Cancelling nested flow runs**
 
-Inline nested flow runs, specifically those created without `run_deployment`, cannot be cancelled without cancelling their parent flow run. If you may need to cancel a nested flow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run\_deployment](https://docs.prefect.io/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) function.
+An inline nested flow run cannot be cancelled without cancelling its parent flow run. 
+If you need to be able to cancel a nested flow run independent of its parent flow run, deploy it separately and start it using the [run\_deployment](https://docs.prefect.io/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) function.
 </Warning>
 
 ```python
