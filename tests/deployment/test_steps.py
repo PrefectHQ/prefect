@@ -179,7 +179,7 @@ class TestRunStep:
 
         await run_step({"test_module.test_function": {"requires": package, "x": 1}})
 
-        import_module_mock.assert_called_once_with("test_package")
+        import_module_mock.assert_called_once_with(package.replace("-", "_"))
         assert (
             import_object_mock.call_count == 2
         )  # once before and once after installation
