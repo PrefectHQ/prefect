@@ -117,15 +117,15 @@ The `PrefectFuture` methods are also always synchronous in Prefect 3. Names and 
     ```python
     @task
     async def my_task():
-    	    ...
+    	...
 	
 	
     @flow
     async def my_flow():
     	future = await my_task.submit()
-	    # State is returned by `wait()`
-	    state = await future.wait()
-	    return state
+	# State is returned by `wait()`
+	state = await future.wait()
+	return state
     ```
   </Card>
   <Card title="Prefect 3">
@@ -137,12 +137,12 @@ The `PrefectFuture` methods are also always synchronous in Prefect 3. Names and 
 	
     @flow
     async def my_flow():
-	    future = my_task.submit()
-	    # Wait for future completion  
-	    # before retrieving the state
-	    future.wait()
-	    state = future.state
-	    return state
+	future = my_task.submit()
+	# Wait for future completion  
+	# before retrieving the state
+	future.wait()
+	state = future.state
+	return state
     ```
   </Card>
 </CardGroup>
@@ -154,28 +154,28 @@ In Prefect 3, `PrefectFutures` resulting from submitted task runs are not automa
     ```python
     @task
     def my_task():
-	    ...
+	...
 	
 	
     @flow
     def my_flow():
-	    # The flow will not exit until these 
-	    # futures are resolved
-	    [my_task.submit() for i in range(10)]
+	# The flow will not exit until these 
+	# futures are resolved
+	[my_task.submit() for i in range(10)]
     ```
   </Card>
   <Card title="Prefect 3">
     ```python
     @task
     def my_task():
-	    ...
+	...
 	
 	
     @flow
     def my_flow():
-	    futures = [my_task.submit() for i in range(10)]
-	    # You must wait for futures before exiting flow.
-	    futures.wait()
+	futures = [my_task.submit() for i in range(10)]
+	# You must wait for futures before exiting flow.
+	futures.wait()
     ```
   </Card>
 </CardGroup>
