@@ -11,11 +11,11 @@ from httpx import ASGITransport, AsyncClient
 
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.server.api.server import (
-    API_ROUTERS,
     SQLITE_LOCKED_MSG,
     _memoize_block_auto_registration,
     create_api_app,
     create_app,
+    get_api_routers,
     method_paths_from_routes,
 )
 from prefect.settings import (
@@ -25,6 +25,8 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+
+API_ROUTERS = get_api_routers()
 
 
 async def test_validation_error_handler_422(client):
