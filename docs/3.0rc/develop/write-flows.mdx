@@ -3,13 +3,12 @@ title: Write and run flows
 description: Learn the basics of defining and running flows.
 ---
 
-Flows are the most central Prefect object. A flow is a container for workflow logic as code and allows users to configure 
-how their workflows behave.
-Flows are defined as Python functions. Almost any Python function is eligible to be a flow.
+Flows are the most central Prefect object. 
+A flow is a container for workflow logic as code. 
 
-They can take inputs, perform work, and return an output.
-You can turn any function into a Prefect flow by adding the `@flow` decorator.
-When a function becomes a flow, its behavior changes, giving it the following advantages:
+Flows are defined as Python functions. Like Python functions, flows can take inputs, perform work, and return an output.
+You can turn any function into a Prefect flow by adding the `@flow` decorator to it.
+When a function becomes a flow, its behavior changes, giving it the following abilities:
 
 - All runs of the flow have persistent [state](/3.0rc/develop/manage-states/). Transitions between states are recorded, 
 allowing you to observe and act on flow execution.
@@ -17,7 +16,7 @@ allowing you to observe and act on flow execution.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
-- A flow can be elevated to a [deployment](/3.0rc/deploy/serve-flows/), which exposes a remote API for interacting with it.
+- A flow can be [deployed](/3.0rc/deploy/serve-flows/), which exposes an API for interacting with it remotely.
 
 ## Run your first flow
 
@@ -25,8 +24,8 @@ allowing you to observe and act on flow execution.
 **Prerequisites**
 
 This section requires that you:
-- Have installed Prefect
-- Connected to Prefect Cloud or a self-hosted server instance
+- Have [installed Prefect](/3.0rc/get-started/install)
+- Have [connected to Prefect Cloud](/3.0rc/manage/cloud/connect-to-cloud) or a [self-hosted server instance](/3.0rc/manage/self-host)
 </Tip>
 
 The simplest way to get started with Prefect is to annotate a Python function with the `@flow` decorator.
@@ -94,7 +93,8 @@ print_message()
 
 ### Asynchronous functions
 
-Prefect also supports asynchronous functions. The resulting flows are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
+Prefect also supports asynchronous functions. 
+The resulting flows are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
 
 ```python
 import asyncio
@@ -123,7 +123,8 @@ asyncio.run(async_flow())
 
 ### Class Methods
 
-Prefect supports synchronous and asynchronous class methods as flows, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
+Prefect supports synchronous and asynchronous class methods as flows, including instance methods, class methods, and static methods. 
+For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
 
 ```python
 from prefect import flow
@@ -151,7 +152,10 @@ MyClass.my_static_method()
 
 ### Generators
 
-Prefect supports synchronous and asynchronous generators as flows. The flow is considered to be `Running` as long as the generator is yielding values. When the generator is exhausted, the flow is considered `Completed`. Any values yielded by the generator can be consumed by other flows or tasks. 
+Prefect supports synchronous and asynchronous generators as flows. 
+The flow is considered to be `Running` as long as the generator is yielding values. 
+When the generator is exhausted, the flow is considered `Completed`. 
+Any values yielded by the generator can be consumed by other flows or tasks. 
 
 ```python
 from prefect import flow
@@ -237,7 +241,7 @@ def model_validator(model: Model):
     print(model)
 ```
 
-For example, to automatically convert something to a datetime:
+For example, to automatically convert an arguement to a datetime:
 
 ```python
 from prefect import flow
@@ -281,10 +285,10 @@ Flow run parameters cannot exceed `512kb` in size.
 
 ## Flow runs
 
-A _flow run_ represents a single execution of the flow.
+A _flow run_ is a record of a single execution of a flow.
 
-You can create a flow run by calling the flow manually.
-For example, by running a Python script or importing the flow into an interactive session and calling it.
+You can create a flow run by calling a flow manually.
+For example, by running a Python script or importing a flow into an interactive session and calling it.
 
 You can also create a flow run by:
 
@@ -292,7 +296,7 @@ You can also create a flow run by:
 - Creating a [deployment](/3.0rc/deploy/serve-flows/) on Prefect Cloud or a locally run Prefect server
 - Creating a flow run for the deployment through a schedule, the Prefect UI, or the Prefect API
 
-However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
+However you run the flow, Prefect monitors the flow run, capturing flow run state for observability.
 
 <Tip>
 **Logging**
@@ -304,12 +308,11 @@ Check out [Logging](/3.0rc/develop/logging) for more information.
 
 When you run a flow that contains tasks or additional flows, Prefect tracks the relationship of each child run to the parent flow run.
 
-![Prefect UI](/3.0rc/img/ui/timeline-flows.png)
-
 <Tip>
 **Retries**
 
-Unexpected errors may occur. For example the GitHub API may be temporarily unavailable or rate limited.
+Unexpected errors may occur. 
+For example the GitHub API may be temporarily unavailable or rate limited.
 Check out [Retries](/3.0rc/develop/recover-from-failure) to learn how to make your flows more resilient.
 </Tip>
 
@@ -325,9 +328,11 @@ def my_flow():
     return
 ```
 
-There are no rigid rules for what code you include within a flow definition. All valid Python is acceptable.
+There are no rigid rules for what code you include within a flow definition. 
+All valid Python is acceptable.
 
-Flows are uniquely identified by name. You can provide a `name` parameter value for the flow.
+Flows are uniquely identified by name. 
+You can provide a `name` parameter value for the flow.
 If you don't provide a name, Prefect uses the flow function name.
 
 ```python
@@ -353,30 +358,28 @@ def hello_world(name="world"):
 <Tip>
 **Flows and tasks**
 
-There's nothing stopping you from putting all of your code in a single flow function.
-
-However, organizing your workflow code into smaller flow and task units lets you take advantage of Prefect features like retries, 
+A single flow function could contain all of your workflow's code.
+However, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow fails 
+and must be retried from the beginning. 
+Organizing your workflow code into smaller flow and task units lets you take advantage of Prefect features like retries, 
 more granular visibility into runtime state, the ability to determine final state regardless of individual task state, and more.
 
-In addition, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow fails 
-and must be retried from the beginning. 
-You can avoid this by breaking up the code into multiple tasks.
-
-You may call any number of other tasks, subflows, and even regular Python functions within your flow. 
+You may call any number of tasks, other flows, and even regular Python functions within your flow. 
 You can pass parameters to your flow function to use elsewhere in the workflow, and Prefect will report on the progress 
 and [final state](#final-state-determination) of any invocation.
 
-Prefect encourages "small tasks." Each one should represent a single logical step of your workflow. 
+We reccomend "small tasks." 
+Each task should represent a single logical step of your workflow. 
 This allows Prefect to better contain task failures.
 </Tip>
 
-## Subflows
+## Nesting flows
 
 In addition to calling tasks within a flow, you can also call other flows.
 Child flows are called [subflows](/3.0rc/develop/write-flows/#composing-flows) and allow you to efficiently manage, 
 track, and version common multi-task logic.
 
-Subflows are a great way to organize your workflows and offer more visibility within the UI.
+Nesting flows is a great way to organize your workflows and offer more visibility within the UI.
 
 Add a `flow` decorator to the `get_open_issues` function:
 
