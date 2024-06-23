@@ -650,7 +650,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         operation: str,
         seq_of_parameters: List[Dict[str, Any]],
         **execution_options: Dict[str, Any],
-    ) -> None:
+    ) -> CursorResult:
         """
         Executes many operations on the database. This method is intended to be used
         for operations that do not return data, such as INSERT, UPDATE, or DELETE.
@@ -681,7 +681,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             ```
         """  # noqa
         async with self._manage_connection(begin=False) as connection:
-            await self._async_sync_execute(
+            result = await self._async_sync_execute(
                 connection,
                 text(operation),
                 seq_of_parameters,
@@ -690,6 +690,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self.logger.info(
             f"Executed {len(seq_of_parameters)} operations based off {operation!r}."
         )
+        return result
 
     async def __aenter__(self):
         """

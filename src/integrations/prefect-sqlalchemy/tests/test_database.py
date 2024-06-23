@@ -12,6 +12,7 @@ from prefect_sqlalchemy.database import (
 )
 from sqlalchemy import __version__ as SQLALCHEMY_VERSION
 from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.engine.cursor import CursorResult
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from prefect import flow, task
@@ -163,7 +164,7 @@ class TestSqlAlchemyConnector:
             "INSERT INTO customers (name, address) VALUES (:name, :address);",
             parameters={"name": "Marvin", "address": "Highway 42"},
         )
-        await credentials.execute_many(
+        many_result = await credentials.execute_many(
             "INSERT INTO customers (name, address) VALUES (:name, :address);",
             seq_of_parameters=[
                 {"name": "Ford", "address": "Highway 42"},
@@ -171,6 +172,7 @@ class TestSqlAlchemyConnector:
                 {"name": "Me", "address": "Myway 88"},
             ],
         )
+        assert isinstance(many_result, CursorResult)
         yield credentials
 
     @pytest.fixture(params=[True, False])
