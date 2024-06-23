@@ -76,7 +76,7 @@ Each flow can only have one task runner, but sometimes you may want a subset of 
 In this case, you can create [nested flows](/3.0rc/develop/write-flows/#composing-flows) for tasks that need to use a different task runner.
 
 For example, you can have a flow (in the example below called `multiple_runner_flow`) that runs its tasks locally using the `ThreadPoolTaskRunner`. 
-If you have some tasks that can run more efficiently in parallel on a Dask cluster, you can create a subflow (such as `dask_subflow`) to run those tasks using the `DaskTaskRunner`.
+If you have some tasks that can run more efficiently in parallel on a Dask cluster, you can create a nested flow (such as `dask_nested_flow`) to run those tasks using the `DaskTaskRunner`.
 
 ```python
 from prefect import flow, task
@@ -104,14 +104,14 @@ def hello_dask():
 
 
 @flow(task_runner=DaskTaskRunner())
-def dask_subflow():
+def dask_nested_flow():
     hello_dask.submit().wait()
 
 
 @flow(task_runner=ThreadPoolTaskRunner())
 def parent_flow():
     concurrent_subflow()
-    dask_subflow()
+    dask_nested_flow()
 
 
 if __name__ == "__main__":

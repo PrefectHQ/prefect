@@ -142,38 +142,6 @@ def get_default_persist_setting() -> bool:
     return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
 
 
-def flow_features_require_result_persistence(flow: "Flow") -> bool:
-    """
-    Returns `True` if the given flow uses features that require its result to be
-    persisted.
-    """
-    if not flow.cache_result_in_memory:
-        return True
-    return False
-
-
-def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
-    """
-    Returns `True` if the given flow uses features that require child flow and task
-    runs to persist their results.
-    """
-    if flow and flow.retries:
-        return True
-    return False
-
-
-def task_features_require_result_persistence(task: "Task") -> bool:
-    """
-    Returns `True` if the given task uses features that require its result to be
-    persisted.
-    """
-    if task.cache_key_fn:
-        return True
-    if not task.cache_result_in_memory:
-        return True
-    return False
-
-
 def _format_user_supplied_storage_key(key: str) -> str:
     # Note here we are pinning to task runs since flow runs do not support storage keys
     # yet; we'll need to split logic in the future or have two separate functions
@@ -235,17 +203,7 @@ class ResultFactory(BaseModel):
                 result_storage=flow.result_storage or ctx.result_factory.storage_block,
                 result_serializer=flow.result_serializer
                 or ctx.result_factory.serializer,
-                persist_result=(
-                    flow.persist_result
-                    if flow.persist_result is not None
-                    # !! Child flows persist their result by default if the it or the
-                    #    parent flow uses a feature that requires it
-                    else (
-                        flow_features_require_result_persistence(flow)
-                        or flow_features_require_child_result_persistence(ctx.flow)
-                        or get_default_persist_setting()
-                    )
-                ),
+                persist_result=flow.persist_result,
                 cache_result_in_memory=flow.cache_result_in_memory,
                 storage_key_fn=DEFAULT_STORAGE_KEY_FN,
                 client=client,
@@ -258,16 +216,7 @@ class ResultFactory(BaseModel):
                 client=client,
                 result_storage=flow.result_storage,
                 result_serializer=flow.result_serializer,
-                persist_result=(
-                    flow.persist_result
-                    if flow.persist_result is not None
-                    # !! Flows persist their result by default if uses a feature that
-                    #    requires it
-                    else (
-                        flow_features_require_result_persistence(flow)
-                        or get_default_persist_setting()
-                    )
-                ),
+                persist_result=flow.persist_result,
                 cache_result_in_memory=flow.cache_result_in_memory,
                 storage_key_fn=DEFAULT_STORAGE_KEY_FN,
             )
@@ -318,21 +267,7 @@ class ResultFactory(BaseModel):
             if ctx and ctx.result_factory
             else get_default_result_serializer()
         )
-        persist_result = (
-            task.persist_result
-            if task.persist_result is not None
-            # !! Tasks persist their result by default if their parent flow uses a
-            #    feature that requires it or the task uses a feature that requires it
-            else (
-                (
-                    flow_features_require_child_result_persistence(ctx.flow)
-                    if ctx
-                    else False
-                )
-                or task_features_require_result_persistence(task)
-                or get_default_persist_setting()
-            )
-        )
+        persist_result = task.persist_result
 
         cache_result_in_memory = task.cache_result_in_memory
 
@@ -355,11 +290,14 @@ class ResultFactory(BaseModel):
         cls: Type[Self],
         result_storage: ResultStorage,
         result_serializer: ResultSerializer,
-        persist_result: bool,
+        persist_result: Optional[bool],
         cache_result_in_memory: bool,
         storage_key_fn: Callable[[], str],
         client: "PrefectClient",
     ) -> Self:
+        if persist_result is None:
+            persist_result = get_default_persist_setting()
+
         storage_block_id, storage_block = await cls.resolve_storage_block(
             result_storage, client=client, persist_result=persist_result
         )
@@ -679,7 +617,13 @@ class PersistedResult(BaseResult):
             # this could error if the serializer requires kwargs
             serializer = Serializer(type=self.serializer_type)
 
-        data = serializer.dumps(obj)
+        try:
+            data = serializer.dumps(obj)
+        except Exception as exc:
+            raise ValueError(
+                f"Failed to serialize object of type {type(obj).__name__!r} with "
+                f"serializer {serializer.type!r}."
+            ) from exc
         blob = PersistedResultBlob(
             serializer=serializer, data=data, expiration=self.expiration
         )
