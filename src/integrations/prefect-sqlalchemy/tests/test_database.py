@@ -157,10 +157,10 @@ class TestSqlAlchemyConnector:
             ),
             fetch_size=2,
         )
-        await credentials.execute(
+        create_result = await credentials.execute(
             "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
         )
-        await credentials.execute(
+        insert_result = await credentials.execute(
             "INSERT INTO customers (name, address) VALUES (:name, :address);",
             parameters={"name": "Marvin", "address": "Highway 42"},
         )
@@ -173,6 +173,8 @@ class TestSqlAlchemyConnector:
             ],
         )
         assert isinstance(many_result, CursorResult)
+        assert isinstance(insert_result, CursorResult)
+        assert isinstance(create_result, CursorResult)
         yield credentials
 
     @pytest.fixture(params=[True, False])
