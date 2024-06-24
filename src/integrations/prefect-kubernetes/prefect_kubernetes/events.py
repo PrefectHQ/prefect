@@ -74,21 +74,24 @@ class KubernetesEventsReplicator:
 
         core_client = kubernetes_asyncio.client.CoreV1Api(api_client=self._client)
         w = watch.Watch()
-        async for event in w.stream(
-            func=core_client.list_namespaced_pod,
-            namespace=self._namespace,
-            label_selector=f"job-name={self._job_name}",
-            timeout_seconds=self._timeout_seconds,
-        ):
-            phase = event["object"].status.phase
+        try:
+            async for event in w.stream(
+                func=core_client.list_namespaced_pod,
+                namespace=self._namespace,
+                label_selector=f"job-name={self._job_name}",
+                timeout_seconds=self._timeout_seconds,
+            ):
+                phase = event["object"].status.phase
 
-            if phase not in seen_phases:
-                last_event = await self._emit_pod_event(event, last_event=last_event)
-                seen_phases.add(phase)
-                if phase in FINAL_PHASES:
-                    break
-
-        await w.close()
+                if phase not in seen_phases:
+                    last_event = await self._emit_pod_event(
+                        event, last_event=last_event
+                    )
+                    seen_phases.add(phase)
+                    if phase in FINAL_PHASES:
+                        break
+        finally:
+            await w.close()
 
     async def _emit_pod_event(
         self,
