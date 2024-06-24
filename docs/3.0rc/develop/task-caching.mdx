@@ -51,7 +51,7 @@ Cache key computation can be configured through the use of _cache policies_.
 A cache policy is a recipe for computing cache keys for a given task.
 
 Prefect comes prepackaged with a few common cache policies:
-- `DEFAULT`: this cache policy uses the task's inputs, it's code definition, as well as the prevailing flow run ID
+- `DEFAULT`: this cache policy uses the task's inputs, its code definition, as well as the prevailing flow run ID
 to compute the task's cache key.
 - `INPUTS`: this cache policy uses _only_ the task's inputs to compute the cache key.
 - `TASK_SOURCE`: this cache policy uses _only_ the task's code definition to compute the cache key.
