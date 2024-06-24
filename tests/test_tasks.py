@@ -4908,3 +4908,44 @@ class TestDelay:
         assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
+
+
+def test_rollback_errors_are_logged(caplog):
+    @task
+    def foo():
+        pass
+
+    @foo.on_rollback
+    def rollback(txn):
+        raise RuntimeError("whoops!")
+
+    @flow
+    def txn_flow():
+        with transaction():
+            foo()
+            raise ValueError("txn failed")
+
+    txn_flow(return_state=True)
+    assert "An error was encountered while running rollback hook" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "whoops!" in caplog.text
+
+
+def test_commit_errors_are_logged(caplog):
+    @task
+    def foo():
+        pass
+
+    @foo.on_commit
+    def rollback(txn):
+        raise RuntimeError("whoops!")
+
+    @flow
+    def txn_flow():
+        with transaction():
+            foo()
+
+    txn_flow(return_state=True)
+    assert "An error was encountered while running commit hook" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "whoops!" in caplog.text

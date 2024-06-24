@@ -602,6 +602,7 @@ class TaskRunEngine(Generic[P, R]):
             key=self.compute_transaction_key(),
             store=ResultFactoryStore(result_factory=result_factory),
             overwrite=overwrite,
+            logger=self.logger,
         ) as txn:
             yield txn
 
