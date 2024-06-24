@@ -17,6 +17,7 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
+from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
@@ -31,7 +32,6 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging import get_run_logger
-from prefect.records.cache_policies import DEFAULT, INPUTS, NONE, TASKDEF
 from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
@@ -44,7 +44,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import Transaction
+from prefect.transactions import CommitMode, Transaction, transaction
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
@@ -1020,7 +1020,7 @@ class TestTaskFutures:
         async def my_flow():
             future = foo.submit()
             result = future.result(raise_on_failure=False)
-            assert exceptions_equal(result, ValueError("Test"))
+            assert isinstance(result, ValueError) and str(result) == "Test"
             return True  # Ignore failed tasks
 
         await my_flow()
@@ -1186,7 +1186,7 @@ class TestTaskRetries:
 
 
 class TestTaskCaching:
-    async def test_repeated_task_call_within_flow_is_not_cached_by_default(self):
+    async def test_repeated_task_call_within_flow_is_cached_by_default(self):
         @task
         def foo(x):
             return x
@@ -1197,7 +1197,7 @@ class TestTaskCaching:
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
-        assert second_state.name == "Completed"
+        assert second_state.name == "Cached"
         assert await second_state.result() == await first_state.result()
 
     async def test_cache_hits_within_flows_are_cached(self):
@@ -2270,8 +2270,7 @@ class TestTaskInputs:
         @flow
         def test_flow():
             upstream_future = upstream.submit(257)
-            upstream_result = upstream_future.result()
-            downstream_state = downstream(upstream_result, return_state=True)
+            downstream_state = downstream(upstream_future, return_state=True)
             upstream_future.wait()
             upstream_state = upstream_future.state
             return upstream_state, downstream_state
@@ -2988,7 +2987,6 @@ class TestTaskWithOptions:
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @task(
-            persist_result=True,
             result_serializer="json",
             result_storage=LocalFileSystem(basepath=tmp_path),
             refresh_cache=True,
@@ -2998,13 +2996,11 @@ class TestTaskWithOptions:
             pass
 
         task_with_options = initial_task.with_options(
-            persist_result=None,
             result_serializer=None,
             result_storage=None,
             refresh_cache=None,
             result_storage_key=None,
         )
-        assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
         assert task_with_options.refresh_cache is None
@@ -3349,12 +3345,12 @@ class TestTaskMap:
                 [[x1, x2], [x1, x2]], y=[[3], [4]]
             )
 
-        echo_futures, add_task_states = my_flow()
+        echo_futures, add_task_futures = my_flow()
         dependency_ids = await self.get_dependency_ids(
             session, echo_futures[0].state_details.flow_run_id
         )
 
-        assert [await a.result() for a in add_task_states] == [[1, 2, 3], [1, 2, 4]]
+        assert [await a.result() for a in add_task_futures] == [[1, 2, 3], [1, 2, 4]]
 
         assert all(
             dependency_ids[e.state_details.task_run_id] == [] for e in echo_futures
@@ -3363,7 +3359,7 @@ class TestTaskMap:
             set(dependency_ids[a.state_details.task_run_id])
             == {e.state_details.task_run_id for e in echo_futures}
             and len(dependency_ids[a.state_details.task_run_id]) == 2
-            for a in add_task_states
+            for a in add_task_futures
         )
 
     async def test_map_can_take_flow_state_as_input(self):
@@ -3584,6 +3580,33 @@ class TestTaskMap:
 
         await test_flow()
 
+    async def test_wait_mapped_tasks(self):
+        @task
+        def add_one(x):
+            return x + 1
+
+        @flow
+        def my_flow():
+            futures = add_one.map([1, 2, 3])
+            futures.wait()
+            for future in futures:
+                assert future.state.is_completed()
+
+        my_flow()
+
+    async def test_get_results_all_mapped_tasks(self):
+        @task
+        def add_one(x):
+            return x + 1
+
+        @flow
+        def my_flow():
+            futures = add_one.map([1, 2, 3])
+            results = futures.result()
+            assert results == [2, 3, 4]
+
+        my_flow()
+
 
 class TestTaskConstructorValidation:
     async def test_task_cannot_configure_too_many_custom_retry_delays(self):
@@ -3728,7 +3751,7 @@ async def test_sets_run_name_once_per_call():
     task_calls = 0
     generate_task_run_name = MagicMock(return_value="some-string")
 
-    def test_task():
+    def test_task(x: str):
         nonlocal task_calls
         task_calls += 1
 
@@ -3736,8 +3759,8 @@ async def test_sets_run_name_once_per_call():
 
     @flow
     def my_flow(name):
-        decorated_task_method()
-        decorated_task_method()
+        decorated_task_method("a")
+        decorated_task_method("b")
 
         return "hi"
 
@@ -4412,7 +4435,13 @@ class TestNestedTasks:
         assert await state1.result() == 4
         assert await state2.result() == 4
 
-    async def test_nested_cache_key_fn_inner_task_cached(self):
+    async def test_nested_cache_key_fn_inner_task_cached_default(self):
+        """
+        By default, task transactions are LAZY committed and therefore
+        inner tasks do not persist data (i.e., create a cache) until
+        the outer task is complete.
+        """
+
         @task(cache_key_fn=task_input_hash)
         def inner_task(x):
             return x * 2
@@ -4432,12 +4461,54 @@ class TestNestedTasks:
         assert state.name == "Completed"
         inner_state1, inner_state2 = await state.result()
         assert inner_state1.name == "Completed"
-        assert inner_state2.name == "Cached"
+        assert inner_state2.name == "Completed"
 
         assert await inner_state1.result() == 4
         assert await inner_state2.result() == 4
 
-    async def test_nested_async_cache_key_fn_inner_task_cached(self):
+    async def test_nested_cache_key_fn_inner_task_cached_eager(self):
+        """
+        By default, task transactions are LAZY committed and therefore
+        inner tasks do not persist data (i.e., create a cache) until
+        the outer task is complete.
+
+        This behavior can be modified by using a transaction context manager.
+        """
+
+        @task(cache_key_fn=task_input_hash)
+        def inner_task(x):
+            return x * 2
+
+        @task
+        def outer_task(x):
+            with transaction(commit_mode=CommitMode.EAGER):
+                state1 = inner_task(x, return_state=True)
+                state2 = inner_task(x, return_state=True)
+                return state1, state2
+
+        @flow
+        def my_flow():
+            state = outer_task(4, return_state=True)
+            return state
+
+        state = my_flow()
+        assert state.name == "Completed"
+        inner_state1, inner_state2 = await state.result()
+        assert inner_state1.name == "Completed"
+        assert inner_state2.name == "Cached"
+
+        assert await inner_state1.result() == 8
+        assert await inner_state2.result() == 8
+
+    async def test_nested_async_cache_key_fn_inner_task_cached_default(self):
+        """
+        By default, task transactions are LAZY committed and therefore
+        inner tasks do not persist data (i.e., create a cache) until
+        the outer task is complete.
+
+        This behavior can be modified by using a transaction context manager.
+        """
+
         @task(cache_key_fn=task_input_hash)
         async def inner_task(x):
             return x * 2
@@ -4447,6 +4518,40 @@ class TestNestedTasks:
             state1 = await inner_task(x, return_state=True)
             state2 = await inner_task(x, return_state=True)
             return state1, state2
+
+        @flow
+        async def my_flow():
+            state = await outer_task(2, return_state=True)
+            return state
+
+        state = await my_flow()
+        assert state.name == "Completed"
+        inner_state1, inner_state2 = await state.result()
+        assert inner_state1.name == "Completed"
+        assert inner_state2.name == "Completed"
+
+        assert await inner_state1.result() == 4
+        assert await inner_state2.result() == 4
+
+    async def test_nested_async_cache_key_fn_inner_task_cached_eager(self):
+        """
+        By default, task transactions are LAZY committed and therefore
+        inner tasks do not persist data (i.e., create a cache) until
+        the outer task is complete.
+
+        This behavior can be modified by using a transaction context manager.
+        """
+
+        @task(cache_key_fn=task_input_hash)
+        async def inner_task(x):
+            return x * 2
+
+        @task
+        async def outer_task(x):
+            with transaction(commit_mode=CommitMode.EAGER):
+                state1 = await inner_task(x, return_state=True)
+                state2 = await inner_task(x, return_state=True)
+                return state1, state2
 
         @flow
         async def my_flow():
@@ -4536,11 +4641,11 @@ class TestCachePolicies:
         assert my_task.result_storage_key == "foo"
 
     def test_cache_policy_inits_as_expected(self):
-        @task(cache_policy=TASKDEF)
+        @task(cache_policy=TASK_SOURCE)
         def my_task():
             pass
 
-        assert my_task.cache_policy is TASKDEF
+        assert my_task.cache_policy is TASK_SOURCE
 
 
 class TestTransactions:
@@ -4560,7 +4665,6 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
-        assert str(state.state_details.task_run_id) == data["txn"].key
 
 
 class TestApplyAsync:
@@ -4804,3 +4908,44 @@ class TestDelay:
         assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
+
+
+def test_rollback_errors_are_logged(caplog):
+    @task
+    def foo():
+        pass
+
+    @foo.on_rollback
+    def rollback(txn):
+        raise RuntimeError("whoops!")
+
+    @flow
+    def txn_flow():
+        with transaction():
+            foo()
+            raise ValueError("txn failed")
+
+    txn_flow(return_state=True)
+    assert "An error was encountered while running rollback hook" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "whoops!" in caplog.text
+
+
+def test_commit_errors_are_logged(caplog):
+    @task
+    def foo():
+        pass
+
+    @foo.on_commit
+    def rollback(txn):
+        raise RuntimeError("whoops!")
+
+    @flow
+    def txn_flow():
+        with transaction():
+            foo()
+
+    txn_flow(return_state=True)
+    assert "An error was encountered while running commit hook" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "whoops!" in caplog.text

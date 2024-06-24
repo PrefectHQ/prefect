@@ -183,12 +183,12 @@ containers whenever this workflow needs to run.
     The generated Dockerfile copies the current directory into the Docker image and installs any dependencies listed in a 
     `requirements.txt` file.
 
-    To use a custom Dockerfile, specify the path to the Dockerfile using the `DeploymentImage` class:
+    To use a custom Dockerfile, specify the path to the Dockerfile using the `DockerImage` class:
 
     ```python repo_info.py
     import httpx
     from prefect import flow
-    from prefect.deployments import DeploymentImage
+    from prefect.docker import DockerImage
 
 
     @flow(log_prints=True)
@@ -206,7 +206,7 @@ containers whenever this workflow needs to run.
         get_repo_info.deploy(
             name="my-first-deployment", 
             work_pool_name="my-docker-pool", 
-            image=DeploymentImage(
+            image=DockerImage(
                 name="my-first-deployment-image",
                 tag="tutorial",
                 dockerfile="Dockerfile"
@@ -289,11 +289,10 @@ prefect deployment run 'get_repo_info/my-deployment'
 ## Learn more
 
 - Learn how to configure deployments in YAML with [`prefect.yaml`](/3.0rc/deploy/work-pools/prefect-deploy/).
-- [Guides](/3.0rc/guides/) provide step-by-step recipes for common Prefect operations including:
-  - [Deploying flows on Kubernetes](/3.0rc/deploy/dynamic-infra/deploy-kubernetes/)
-  - [Deploying flows in Docker](/3.0rc/deploy/dynamic-infra/deploy-docker/)
-  - [Deploying flows on serverless infrastructure](/3.0rc/deploy/dynamic-infra/push-runs-remote/)
-  - [Daemonizing workers](/3.0rc/deploy/dynamic-infra/push-runs-remote/)
+- [Deploy flows on Kubernetes](/3.0rc/deploy/dynamic-infra/deploy-kubernetes/)
+- [Deploy flows in Docker](/3.0rc/deploy/dynamic-infra/deploy-docker/)
+- [Deploy flows on serverless infrastructure](/3.0rc/deploy/dynamic-infra/push-runs-remote/)
+- [Daemonize workers](/3.0rc/deploy/dynamic-infra/push-runs-remote/)
 
 # Run deployments on serverless infrastructure with Prefect workers
 
@@ -326,7 +325,7 @@ This is a brief overview of the options to run workflows on serverless infrastru
 For in-depth guides, see the Prefect integration libraries:
 
 - [AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
-- [Azure Container Instances guide](/3.0rc/integrations/prefect-azure/aci_worker/)
+- [Azure Container Instances guide](/integrations/prefect-azure/aci_worker/)
 - [Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
 - For Google Vertex AI, follow the Cloud Run guide, substituting *Google Vertex AI* where *Google Cloud Run* is mentioned.
 

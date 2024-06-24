@@ -14,20 +14,40 @@ For example, you can retrieve secrets, read and write Blob Storage objects, and 
 
 ### Install prefect-azure
 
+Install or update to the latest version of the prefect-azure library and dependencies.
 
-```bash
-pip install -U prefect-azure
-```
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-azure
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-azure
+    ```
+    </Tab>
+</Tabs>
 
 
 If necessary, see [additional installation options for Blob Storage, Cosmos DB, and ML Datastore](#additional-installation-options).
 
 To install with all additional functionality, use the following command:
 
+Install or update to the latest version of the prefect-aws library and dependencies.
 
-```bash
-pip install -U "prefect-azure[all_extras]"
-```
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-azure[all_extras]
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-azure[all_extras]
+    ```
+    </Tab>
+</Tabs>
 
 
 ### Register newly installed block types
@@ -80,7 +100,7 @@ custom_blob_storage_download_flow = example_blob_storage_download_flow.with_opti
 
 Run flows on [Azure Container Instances (ACI)](https://learn.microsoft.com/en-us/azure/container-instances/) to dynamically scale your infrastructure.
 
-See the [Azure Container Instances Worker Guide](/3.0rc/integrations/prefect-azure/aci_worker/) for a walkthrough of using ACI in a hybrid work pool.
+See the [Azure Container Instances Worker Guide](/integrations/prefect-azure/aci_worker/) for a walkthrough of using ACI in a hybrid work pool.
 
 If you're using Prefect Cloud, [ACI push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/#__tabbed_1_2) provide all the benefits of ACI with a quick setup and no worker needed.
 
@@ -91,6 +111,8 @@ For assistance using Azure, consult the [Azure documentation](https://learn.micr
 Refer to the prefect-azure API documentation linked in the sidebar to explore all the capabilities of the prefect-azure library.
 
 ### Additional installation options
+
+Add the `--pre` flag to install the latest pre-release version of the library for use with Prefect 3.
 
 To use Blob Storage:
 

@@ -174,11 +174,18 @@ class TaskRunEngine(Generic[P, R]):
     def compute_transaction_key(self) -> str:
         key = None
         if self.task.cache_policy:
+            flow_run_context = FlowRunContext.get()
             task_run_context = TaskRunContext.get()
+
+            if flow_run_context:
+                parameters = flow_run_context.parameters
+            else:
+                parameters = None
+
             key = self.task.cache_policy.compute_key(
                 task_ctx=task_run_context,
                 inputs=self.parameters,
-                flow_parameters=None,
+                flow_parameters=parameters,
             )
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
@@ -241,6 +248,16 @@ class TaskRunEngine(Generic[P, R]):
 
         new_state = Running()
         state = self.set_state(new_state)
+
+        # TODO: this is temporary until the API stops rejecting state transitions
+        # and the client / transaction store becomes the source of truth
+        # this is a bandaid caused by the API storing a Completed state with a bad
+        # result reference that no longer exists
+        if state.is_completed():
+            try:
+                state.result(retry_result_failure=False, _sync=True)
+            except Exception:
+                state = self.set_state(new_state, force=True)
 
         BACKOFF_MAX = 10
         backoff_count = 0
@@ -310,6 +327,8 @@ class TaskRunEngine(Generic[P, R]):
                 result_factory=result_factory,
                 key=transaction.key,
                 expiration=expiration,
+                # defer persistence to transaction commit
+                defer_persistence=True,
             )
         )
         transaction.stage(
@@ -583,6 +602,7 @@ class TaskRunEngine(Generic[P, R]):
             key=self.compute_transaction_key(),
             store=ResultFactoryStore(result_factory=result_factory),
             overwrite=overwrite,
+            logger=self.logger,
         ) as txn:
             yield txn
 
