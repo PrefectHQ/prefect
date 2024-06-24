@@ -2008,7 +2008,7 @@ class TestFlowRetries:
     def test_flow_retry_with_error_in_flow(self):
         run_count = 0
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         def foo():
             nonlocal run_count
             run_count += 1
@@ -2023,13 +2023,13 @@ class TestFlowRetries:
         task_run_count = 0
         flow_run_count = 0
 
-        @task
+        @task(persist_result=True)
         def my_task():
             nonlocal task_run_count
             task_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         def foo():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -2183,13 +2183,13 @@ class TestFlowRetries:
         child_run_count = 0
         flow_run_count = 0
 
-        @flow
+        @flow(persist_result=True)
         def child_flow():
             nonlocal child_run_count
             child_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -4294,11 +4294,19 @@ class TestTransactions:
     def test_task_persists_only_at_commit(self, tmp_path):
         result_storage = LocalFileSystem(basepath=tmp_path)
 
-        @task(result_storage=result_storage, result_storage_key="task1-result-A")
+        @task(
+            result_storage=result_storage,
+            result_storage_key="task1-result-A",
+            persist_result=True,
+        )
         def task1():
             return dict(some="data")
 
-        @task(result_storage=result_storage, result_storage_key="task2-result-B")
+        @task(
+            result_storage=result_storage,
+            result_storage_key="task2-result-B",
+            persist_result=True,
+        )
         def task2():
             pass
 
