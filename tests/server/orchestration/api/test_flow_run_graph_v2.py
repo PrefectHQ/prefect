@@ -287,6 +287,166 @@ async def test_reading_graph_for_flow_run_with_flat_tasks(
 
 
 @pytest.fixture
+async def nested_tasks(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    base_time: pendulum.DateTime,
+) -> List:
+    # This is a flow with 3 tasks. the flow calls task0.
+    # task0 calls task1, and then passes its result to task2
+    # flow
+    #  └── task0
+    #       └── task1 -> task2
+    # NOTE: this graph is NOT connected, because task0 does not have any edges
+    # it only encapsulates task1 and task2
+
+    task_runs = []
+    task_runs.append(
+        db.TaskRun(
+            id=uuid4(),
+            flow_run_id=flow_run.id,
+            name="task-0",
+            task_key="task-0",
+            dynamic_key="task-0",
+            state_type=StateType.COMPLETED,
+            state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=1).subtract(microseconds=1),
+            start_time=base_time.add(seconds=1),
+            end_time=base_time.add(minutes=1, seconds=1),
+            task_inputs={},
+        )
+    )
+
+    task_runs.append(
+        db.TaskRun(
+            id=uuid4(),
+            flow_run_id=flow_run.id,
+            name="task-1",
+            task_key="task-1",
+            dynamic_key="task-1",
+            state_type=StateType.COMPLETED,
+            state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=2).subtract(microseconds=1),
+            start_time=base_time.add(seconds=2),
+            end_time=base_time.add(minutes=1, seconds=2),
+            task_inputs={
+                "__parents__": [
+                    {"id": task_runs[0].id, "input_type": "task_run"},
+                ],
+            },
+        )
+    )
+
+    task_runs.append(
+        db.TaskRun(
+            id=uuid4(),
+            flow_run_id=flow_run.id,
+            name="task-2",
+            task_key="task-2",
+            dynamic_key="task-2",
+            state_type=StateType.COMPLETED,
+            state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=3).subtract(microseconds=1),
+            start_time=base_time.add(seconds=3),
+            end_time=base_time.add(minutes=1, seconds=3),
+            task_inputs={
+                "x": [
+                    {"id": task_runs[1].id, "input_type": "task_run"},
+                ],
+                "__parents__": [
+                    {"id": task_runs[0].id, "input_type": "task_run"},
+                ],
+            },
+        )
+    )
+
+    session.add_all(task_runs)
+    await session.commit()
+    return task_runs
+
+
+async def test_reading_graph_for_flow_run_with_nested_tasks(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    nested_tasks: List,  # List[db.TaskRun],
+    base_time: pendulum.DateTime,
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert graph.start_time == flow_run.start_time
+    assert graph.end_time == flow_run.end_time
+    assert graph.root_node_ids == [nested_tasks[0].id, nested_tasks[1].id]
+
+    # This is a flow with 3 tasks. the flow calls task0.
+    # task0 calls task1, and then passes its result to task2
+    # flow
+    #  └── task0
+    #       └── task1 -> task2
+    # NOTE: this graph is NOT connected, because task0 does not have any edges
+    # it only encapsulates task1 and task2.
+
+    assert graph.nodes == [
+        (
+            nested_tasks[0].id,
+            Node(
+                kind="task-run",
+                id=nested_tasks[0].id,
+                label="task-0",
+                state_type=StateType.COMPLETED,
+                start_time=nested_tasks[0].start_time,
+                end_time=nested_tasks[0].end_time,
+                parents=[],
+                children=[],
+                encapsulating=[],
+                artifacts=[],
+            ),
+        ),
+        (
+            nested_tasks[1].id,
+            Node(
+                kind="task-run",
+                id=nested_tasks[1].id,
+                label="task-1",
+                state_type=StateType.COMPLETED,
+                start_time=nested_tasks[1].start_time,
+                end_time=nested_tasks[1].end_time,
+                parents=[],
+                children=[
+                    Edge(id=nested_tasks[2].id),
+                ],
+                encapsulating=[
+                    Edge(id=nested_tasks[0].id),
+                ],
+                artifacts=[],
+            ),
+        ),
+        (
+            nested_tasks[2].id,
+            Node(
+                kind="task-run",
+                id=nested_tasks[2].id,
+                label="task-2",
+                state_type=StateType.COMPLETED,
+                start_time=nested_tasks[2].start_time,
+                end_time=nested_tasks[2].end_time,
+                parents=[
+                    Edge(id=nested_tasks[1].id),
+                ],
+                children=[],
+                encapsulating=[
+                    Edge(id=nested_tasks[0].id),
+                ],
+                artifacts=[],
+            ),
+        ),
+    ]
+
+
+@pytest.fixture
 async def linked_tasks(
     db: PrefectDBInterface,
     session: AsyncSession,
