@@ -272,7 +272,6 @@ if __name__=="__main__":
 
 Running the `hello_world()` flow (in this example from the file `hello.py`) creates a flow run like this:
 
-<div class="terminal">
 ```bash
 $ python hello.py
 15:19:21.651 | INFO    | prefect.engine - Created flow run 'daft-cougar' for flow 'Hello Flow'
@@ -284,17 +283,16 @@ Subflow says: Hello Marvin!
 15:19:22.794 | INFO    | Flow run 'ninja-duck' - Finished in state Completed()
 15:19:23.215 | INFO    | Flow run 'daft-cougar' - Finished in state Completed('All states completed.')
 ```
-</div>
 
 Here are some scenarios where you should choose a nested flow rather than calling tasks individually:
 
-- Observability: Subflows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll 
-see subflow status in the **Flow Runs** dashboard rather than having to dig down into the tasks within a specific flow run. 
+- Observability: Nested flows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll 
+see nested flows' status in the **Runs** dashboard rather than having to dig down into the tasks within a specific flow run. 
 See [Final state determination](#final-state-determination) for examples of using task state within flows.
-- Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a subflow and 
-conditionally run the subflow rather than each task individually.
+- Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a nested flow and 
+conditionally run the nested flow rather than each task individually.
 - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use 
-cases by simply passing different parameters to the subflow in which they run.
+cases by simply passing different parameters to the nested flow in which they run.
 - Task runners: Nested flows enable you to specify the task runner used for tasks within the flow. For example, to optimize 
 parallel execution of certain tasks with Dask, group them in a nested flow that uses the Dask task runner. You can use a different 
 task runner for each nested flow.
