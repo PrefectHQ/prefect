@@ -180,14 +180,18 @@ The one exception to this case is that `PrefectFuture`s returned from a flow wil
 
 ## Result persistence and caching enabled by default
 
-Prefect 3 supports transactional semantics - tasks runs can be grouped into larger transactions, enabling more resilient, idempotent workflows. 
-To support this, Prefect 3 has more eager, intelligent caching defaults than Prefect 2.
+Prefect 3 supports transactional semantics - tasks runs can be grouped into larger transactions, enabling more resilient workflows.
+In keeping with the transactional model, Prefect 3 enrourages task runs to be idempotent - intended to run only once per flow run.
 
+
+To support this, Prefect 3 has more eager, intelligent task caching defaults than Prefect 2.
 Whenever a task runs, Prefect 3 first computes its cache key, then uses that cache key to evaluate whether that same task has run with the same inputs and as part of the same flow before. 
 If it has, the cached result from the previous run is used.
 If it hasn't, the task runs. 
 This means that tasks that may have re-run with the same inputs in Prefect 2 will not re-run in Prefect 3 unless the cache key is modified to be more precise.
-The cache key can be configured through the new global `cache_policy` setting, or through the `cache_key_fn` on a particular task.
+The cache key can be configured through the new global `cache_policy` setting, or through the `cache_policy` on a particular task.
+If a particular task cannot be made idempotent, you can disable this behavior by setting `cache_policy=NONE` on the task.
+
 
 Results and cache keys are not stored with your Prefect Cloud account or Prefect server instance. 
 They are persisted entirely in your configured result location. 
