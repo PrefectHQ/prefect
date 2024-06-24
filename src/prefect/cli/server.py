@@ -148,7 +148,7 @@ def prestart_check():
             prefect_api_url_setting = {"PREFECT_API_URL": api_url}
             update_current_profile(prefect_api_url_setting)
             app.console.print(
-                f"Set `PREFECT_API_URL` to `{api_url!r}` in the current profile {current_profile.name!r}",
+                f"Set `PREFECT_API_URL` to {api_url!r} in the current profile {current_profile.name!r}",
                 style="green",
             )
 
