@@ -231,7 +231,8 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectConcurrentFuture[R]: ...
+    ) -> PrefectConcurrentFuture[R]:
+        ...
 
     @overload
     def submit(
@@ -240,7 +241,8 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectConcurrentFuture[R]: ...
+    ) -> PrefectConcurrentFuture[R]:
+        ...
 
     def submit(
         self,
@@ -315,7 +317,8 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
+        ...
 
     @overload
     def map(
@@ -323,7 +326,8 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         task: "Task[Any, R]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
+        ...
 
     def map(
         self,
@@ -368,7 +372,8 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDistributedFuture[R]: ...
+    ) -> PrefectDistributedFuture[R]:
+        ...
 
     @overload
     def submit(
@@ -377,7 +382,8 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDistributedFuture[R]: ...
+    ) -> PrefectDistributedFuture[R]:
+        ...
 
     def submit(
         self,
@@ -422,7 +428,8 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectDistributedFuture[R]]: ...
+    ) -> PrefectFutureList[PrefectDistributedFuture[R]]:
+        ...
 
     @overload
     def map(
@@ -430,7 +437,8 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
         task: "Task[Any, R]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectDistributedFuture[R]]: ...
+    ) -> PrefectFutureList[PrefectDistributedFuture[R]]:
+        ...
 
     def map(
         self,
