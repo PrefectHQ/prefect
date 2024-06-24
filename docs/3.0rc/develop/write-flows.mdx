@@ -233,8 +233,8 @@ Whether running locally or through a [deployment](/3.0rc/deploy/serve-flows/), y
 **Cancelling nested flow runs**
 
 A nested flow run cannot be cancelled without cancelling its parent flow run.
-If you may need to cancel a nested flow run independent of its parent flow run, we recommend deploying it separately and starting it using 
-the [run_deployment](/3.0rc/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) function.
+If you need to be able to cancel a nested flow run independent of its parent flow run, we recommend deploying it separately and starting it with 
+the [run_deployment](/3.0rc/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) method.
 </Warning>
 
 You can also define flows or tasks in separate modules and import them for usage:
