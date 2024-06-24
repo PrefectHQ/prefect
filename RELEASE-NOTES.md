@@ -7,7 +7,7 @@
 
 ### Fixes
 - Fix `concurrency` timeout scoping - https://github.com/PrefectHQ/prefect/pull/14183
-- Fix deployment & work queue statuses - https://github.com/PrefectHQ/prefect/pull/14097
+- Fix deployment and work queue statuses - https://github.com/PrefectHQ/prefect/pull/14097
 * Fix resolution of block documents in `job_variables` in a `prefect.yaml` before saving server-side - https://github.com/PrefectHQ/prefect/pull/14156
 
 ### Documentation
