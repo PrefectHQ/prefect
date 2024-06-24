@@ -115,7 +115,7 @@ def get_run_logger(
             addition to the run metadata
 
     Raises:
-        RuntimeError: If no context can be found
+        MissingContextError: If no context can be found
     """
     # Check for existing contexts
     task_run_context = prefect.context.TaskRunContext.get()
