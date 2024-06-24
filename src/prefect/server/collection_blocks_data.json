@@ -4246,6 +4246,43 @@
     },
     "prefect-kubernetes": {
       "block_types": {
+        "kubernetes-cluster-config": {
+          "name": "Kubernetes Cluster Config",
+          "slug": "kubernetes-cluster-config",
+          "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png",
+          "documentation_url": "https://docs.prefect.io/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig",
+          "description": "Stores configuration for interaction with Kubernetes clusters.\n\nSee `from_file` for creation.",
+          "code_example": "Load a saved Kubernetes cluster config:\n```python\nfrom prefect.blocks.kubernetes import KubernetesClusterConfig\n\ncluster_config_block = KubernetesClusterConfig.load(\"BLOCK_NAME\")\n```",
+          "block_schema": {
+            "checksum": "sha256:90d421e948bfbe4cdc98b124995f0edd0f84b0837549ad1390423bad8e31cf3b",
+            "fields": {
+              "title": "KubernetesClusterConfig",
+              "description": "Stores configuration for interaction with Kubernetes clusters.\n\nSee `from_file` for creation.",
+              "type": "object",
+              "properties": {
+                "config": {
+                  "title": "Config",
+                  "description": "The entire contents of a kubectl config file.",
+                  "type": "object"
+                },
+                "context_name": {
+                  "title": "Context Name",
+                  "description": "The name of the kubectl context to use.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "config",
+                "context_name"
+              ],
+              "block_type_slug": "kubernetes-cluster-config",
+              "secret_fields": [],
+              "block_schema_references": {}
+            },
+            "capabilities": [],
+            "version": "0.4.0"
+          }
+        },
         "kubernetes-credentials": {
           "name": "Kubernetes Credentials",
           "slug": "kubernetes-credentials",
