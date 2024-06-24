@@ -4,7 +4,7 @@
       <PageHeadingNotifications />
     </template>
     <p-message info>
-      Notifications are deprecated and will be migrated in the future. please use Automations.
+      Notifications are deprecated and will be migrated in the future. Please use Automations.
     </p-message>
     <template v-if="loaded">
       <template v-if="empty">
