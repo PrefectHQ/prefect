@@ -1,8 +1,10 @@
 import asyncio
 import logging
+import os
 import time
+from datetime import timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from unittest.mock import AsyncMock, MagicMock, call
 from uuid import UUID, uuid4
 
@@ -10,6 +12,7 @@ import anyio
 import pytest
 
 from prefect import Task, flow, task
+from prefect.cache_policies import FLOW_PARAMETERS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import (
@@ -159,7 +162,7 @@ class TestTaskRunsAsync:
 
     async def test_with_params(self):
         @task
-        async def bar(x: int, y: str = None):
+        async def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
@@ -462,7 +465,7 @@ class TestTaskRunsSync:
 
     def test_with_params(self):
         @task
-        def bar(x: int, y: str = None):
+        def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
@@ -1070,39 +1073,6 @@ class TestPersistence:
         state = await async_task(return_state=True)
         assert await state.result() == 42
 
-    async def test_task_persists_results_with_run_id_key(self):
-        @task(persist_result=True)
-        async def async_task():
-            return 42
-
-        state = await async_task(return_state=True)
-        assert state.is_completed()
-        assert await state.result() == 42
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == str(state.state_details.task_run_id)
-
-    async def test_task_loads_result_if_exists(self, prefect_client, tmp_path):
-        run_id = uuid4()
-
-        fs = LocalFileSystem(basepath=tmp_path)
-
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True, result_storage=fs
-        )
-        await factory.create_result(1800, key=str(run_id))
-
-        @task(result_storage=fs)
-        async def async_task():
-            return 42
-
-        state = await run_task_async(
-            async_task, task_run_id=run_id, return_type="state"
-        )
-        assert state.is_completed()
-        assert await state.result() == 1800
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == str(run_id)
-
     async def test_task_loads_result_if_exists_using_result_storage_key(
         self, prefect_client, tmp_path
     ):
@@ -1138,8 +1108,69 @@ class TestCachePolicy:
         assert await state.result() == 1800
         assert state.data.storage_key == "foo-bar"
 
-    async def test_none_policy_doesnt_persist(self, prefect_client):
-        @task(cache_policy=None, result_storage_key=None)
+    async def test_cache_expiration_is_respected(
+        self, prefect_client, tmp_path, advance_time
+    ):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            persist_result=True,
+            result_storage_key="expiring-foo-bar",
+            cache_expiration=timedelta(seconds=1.0),
+            result_storage=fs,
+        )
+        async def async_task():
+            import random
+
+            return random.randint(0, 10000)
+
+        first_state = await async_task(return_state=True)
+        assert first_state.is_completed()
+        first_result = await first_state.result()
+
+        second_state = await async_task(return_state=True)
+        assert second_state.is_completed()
+        second_result = await second_state.result()
+
+        assert first_result == second_result, "Cache was not used"
+
+        # let cache expire...
+        advance_time(timedelta(seconds=1.1))
+
+        third_state = await async_task(return_state=True)
+        assert third_state.is_completed()
+        third_result = await third_state.result()
+
+        # cache expired, new result
+        assert third_result not in [first_result, second_result], "Cache did not expire"
+
+    async def test_cache_expiration_expires(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            persist_result=True,
+            result_storage_key="expiring-foo-bar",
+            cache_expiration=timedelta(seconds=0.0),
+            result_storage=fs,
+        )
+        async def async_task():
+            import random
+
+            return random.randint(0, 10000)
+
+        first_state = await async_task(return_state=True)
+        assert first_state.is_completed()
+        await asyncio.sleep(0.1)
+
+        second_state = await async_task(return_state=True)
+        assert second_state.is_completed()
+
+        assert (
+            await first_state.result() != await second_state.result()
+        ), "Cache did not expire"
+
+    async def test_none_policy_with_persist_result_false(self, prefect_client):
+        @task(cache_policy=None, result_storage_key=None, persist_result=False)
         async def async_task():
             return 1800
 
@@ -1176,6 +1207,69 @@ class TestCachePolicy:
 
         assert first_val is None
         assert second_val is None
+
+    async def test_flow_parameter_caching(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            cache_policy=FLOW_PARAMETERS,
+            result_storage=fs,
+        )
+        def my_random_task(x: int):
+            import random
+
+            return random.randint(0, x)
+
+        @flow
+        def my_param_flow(x: int, other_val: str):
+            first_val = my_random_task(x, return_state=True)
+            second_val = my_random_task(x, return_state=True)
+            return first_val, second_val
+
+        first, second = my_param_flow(4200, other_val="foo")
+        assert first.name == "Completed"
+        assert second.name == "Cached"
+
+        first_result = await first.result()
+        second_result = await second.result()
+        assert first_result == second_result
+
+        third, fourth = my_param_flow(4200, other_val="bar")
+        assert third.name == "Completed"
+        assert fourth.name == "Cached"
+
+        third_result = await third.result()
+        fourth_result = await fourth.result()
+
+        assert third_result not in [first_result, second_result]
+        assert fourth_result not in [first_result, second_result]
+
+    async def test_bad_api_result_references_cause_reruns(self, tmp_path: Path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        PAYLOAD = {"return": 42}
+
+        @task(result_storage=fs, result_storage_key="tmp-first")
+        async def first():
+            return PAYLOAD["return"], get_run_context().task_run
+
+        result, task_run = await run_task_async(first)
+
+        assert result == 42
+        assert await fs.read_path("tmp-first")
+
+        # delete record
+        path = fs._resolve_path("tmp-first")
+        os.unlink(path)
+        with pytest.raises(ValueError, match="does not exist"):
+            assert await fs.read_path("tmp-first")
+
+        # rerun with same task run ID
+        PAYLOAD["return"] = "bar"
+        result, task_run = await run_task_async(first, task_run=task_run)
+
+        assert result == "bar"
+        assert await fs.read_path("tmp-first")
 
 
 class TestGenerators:
@@ -1323,7 +1417,7 @@ class TestGenerators:
         Test that a generator can timeout
         """
 
-        @task(timeout_seconds=0.1)
+        @task(timeout_seconds=1)
         def g():
             yield 1
             time.sleep(2)
@@ -1352,6 +1446,34 @@ class TestGenerators:
         except ValueError:
             pass
         assert values == [1, 2]
+
+    def test_generators_can_be_yielded_without_being_consumed(self):
+        CONSUMED = []
+
+        @task
+        def g():
+            CONSUMED.append("g")
+            yield 1
+            yield 2
+
+        @task
+        def f_return():
+            return g()
+
+        @task
+        def f_yield():
+            yield g()
+
+        # returning a generator automatically consumes it
+        # because it can't be serialized
+        f_return()
+        assert CONSUMED == ["g"]
+        CONSUMED.clear()
+
+        gen = next(f_yield())
+        assert CONSUMED == []
+        list(gen)
+        assert CONSUMED == ["g"]
 
 
 class TestAsyncGenerators:

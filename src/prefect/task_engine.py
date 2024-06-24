@@ -174,11 +174,18 @@ class TaskRunEngine(Generic[P, R]):
     def compute_transaction_key(self) -> str:
         key = None
         if self.task.cache_policy:
+            flow_run_context = FlowRunContext.get()
             task_run_context = TaskRunContext.get()
+
+            if flow_run_context:
+                parameters = flow_run_context.parameters
+            else:
+                parameters = None
+
             key = self.task.cache_policy.compute_key(
                 task_ctx=task_run_context,
                 inputs=self.parameters,
-                flow_parameters=None,
+                flow_parameters=parameters,
             )
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
@@ -242,6 +249,16 @@ class TaskRunEngine(Generic[P, R]):
         new_state = Running()
         state = self.set_state(new_state)
 
+        # TODO: this is temporary until the API stops rejecting state transitions
+        # and the client / transaction store becomes the source of truth
+        # this is a bandaid caused by the API storing a Completed state with a bad
+        # result reference that no longer exists
+        if state.is_completed():
+            try:
+                state.result(retry_result_failure=False, _sync=True)
+            except Exception:
+                state = self.set_state(new_state, force=True)
+
         BACKOFF_MAX = 10
         backoff_count = 0
 
@@ -299,9 +316,19 @@ class TaskRunEngine(Generic[P, R]):
         if result_factory is None:
             raise ValueError("Result factory is not set")
 
+        if self.task.cache_expiration is not None:
+            expiration = pendulum.now("utc") + self.task.cache_expiration
+        else:
+            expiration = None
+
         terminal_state = run_coro_as_sync(
             return_value_to_state(
-                result, result_factory=result_factory, key=transaction.key
+                result,
+                result_factory=result_factory,
+                key=transaction.key,
+                expiration=expiration,
+                # defer persistence to transaction commit
+                defer_persistence=True,
             )
         )
         transaction.stage(
@@ -409,9 +436,7 @@ class TaskRunEngine(Generic[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_coro_as_sync(
-                        ResultFactory.from_autonomous_task(self.task)
-                    ),  # type: ignore
+                    result_factory=run_coro_as_sync(ResultFactory.from_task(self.task)),  # type: ignore
                     client=client,
                 )
             )
@@ -459,9 +484,6 @@ class TaskRunEngine(Generic[P, R]):
                                 extra_task_inputs=dependencies,
                             )
                         )
-                        self.logger.info(
-                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
-                        )
                     # Emit an event to capture that the task run was in the `PENDING` state.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
@@ -470,6 +492,10 @@ class TaskRunEngine(Generic[P, R]):
                     )
 
                     with self.setup_run_context():
+                        # setup_run_context might update the task run name, so log creation here
+                        self.logger.info(
+                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                        )
                         yield self
 
                 except Exception:
@@ -502,20 +528,20 @@ class TaskRunEngine(Generic[P, R]):
                         )
                         msg += dedent(
                             """
-                                      
+
                             Example:
-                            
+
                             from prefect import flow, task
-                                      
+
                             @task
                             def say_hello(name):
                                 print f"Hello, {name}!"
-                                      
+
                             @flow
                             def example_flow():
                                 say_hello.submit(name="Marvin)
                                 say_hello.wait()
-                                      
+
                             example_flow()
                                       """
                         )

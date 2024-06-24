@@ -1077,9 +1077,9 @@
                 "tags": [
                     "Flow Runs"
                 ],
-                "summary": "Paginate Flow Runs",
+                "summary": "Read Flow Runs",
                 "description": "Query for flow runs.",
-                "operationId": "paginate_flow_runs_flow_runs_filter_post",
+                "operationId": "read_flow_runs_flow_runs_filter_post",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -1097,7 +1097,7 @@
                             "schema": {
                                 "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Body_paginate_flow_runs_flow_runs_filter_post"
+                                        "$ref": "#/components/schemas/Body_read_flow_runs_flow_runs_filter_post"
                                     }
                                 ],
                                 "title": "Body"
@@ -1115,7 +1115,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/FlowRunResponse"
                                     },
-                                    "title": "Response Paginate Flow Runs Flow Runs Filter Post"
+                                    "title": "Response Read Flow Runs Flow Runs Filter Post"
                                 }
                             }
                         }
@@ -1456,9 +1456,9 @@
                 "tags": [
                     "Flow Runs"
                 ],
-                "summary": "Read Flow Runs",
+                "summary": "Paginate Flow Runs",
                 "description": "Pagination query for flow runs.",
-                "operationId": "read_flow_runs_flow_runs_paginate_post",
+                "operationId": "paginate_flow_runs_flow_runs_paginate_post",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -1476,7 +1476,7 @@
                             "schema": {
                                 "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Body_read_flow_runs_flow_runs_paginate_post"
+                                        "$ref": "#/components/schemas/Body_paginate_flow_runs_flow_runs_paginate_post"
                                     }
                                 ],
                                 "title": "Body"
@@ -2772,6 +2772,63 @@
                                         "$ref": "#/components/schemas/DeploymentResponse"
                                     },
                                     "title": "Response Read Deployments Deployments Filter Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/deployments/paginate": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Paginate Deployments",
+                "description": "Pagination query for flow runs.",
+                "operationId": "paginate_deployments_deployments_paginate_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_paginate_deployments_deployments_paginate_post"
+                                    }
+                                ],
+                                "title": "Body"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentPaginationResponse"
                                 }
                             }
                         }
@@ -10677,13 +10734,13 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__EventTrigger"
                             },
                             {
-                                "$ref": "#/components/schemas/CompoundTrigger-Output"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__CompoundTrigger-Output"
                             },
                             {
-                                "$ref": "#/components/schemas/SequenceTrigger-Output"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__SequenceTrigger-Output"
                             }
                         ],
                         "title": "Trigger",
@@ -10911,13 +10968,13 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__EventTrigger"
                             },
                             {
-                                "$ref": "#/components/schemas/CompoundTrigger-Input"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__CompoundTrigger-Input"
                             },
                             {
-                                "$ref": "#/components/schemas/SequenceTrigger-Input"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__SequenceTrigger-Input"
                             }
                         ],
                         "title": "Trigger",
@@ -11235,13 +11292,13 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EventTrigger"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__EventTrigger"
                             },
                             {
-                                "$ref": "#/components/schemas/CompoundTrigger-Input"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__CompoundTrigger-Input"
                             },
                             {
-                                "$ref": "#/components/schemas/SequenceTrigger-Input"
+                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__SequenceTrigger-Input"
                             }
                         ],
                         "title": "Trigger",
@@ -13153,7 +13210,74 @@
                 ],
                 "title": "Body_next_runs_by_flow_ui_flows_next_runs_post"
             },
-            "Body_paginate_flow_runs_flow_runs_filter_post": {
+            "Body_paginate_deployments_deployments_paginate_post": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
+                    },
+                    "flows": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
+                    },
+                    "flow_runs": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
+                    },
+                    "task_runs": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
+                    },
+                    "deployments": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
+                    },
+                    "work_pools": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
+                    },
+                    "work_pool_queues": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
+                    },
+                    "sort": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentSort"
+                            }
+                        ],
+                        "default": "NAME_ASC"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_paginate_deployments_deployments_paginate_post"
+            },
+            "Body_paginate_flow_runs_flow_runs_paginate_post": {
                 "properties": {
                     "sort": {
                         "allOf": [
@@ -13163,11 +13287,11 @@
                         ],
                         "default": "ID_DESC"
                     },
-                    "offset": {
+                    "page": {
                         "type": "integer",
-                        "minimum": 0.0,
-                        "title": "Offset",
-                        "default": 0
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
                     },
                     "flows": {
                         "anyOf": [
@@ -13236,7 +13360,7 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_flow_runs_flow_runs_filter_post"
+                "title": "Body_paginate_flow_runs_flow_runs_paginate_post"
             },
             "Body_paginate_flows_flows_paginate_post": {
                 "properties": {
@@ -13809,7 +13933,7 @@
                 "type": "object",
                 "title": "Body_read_flow_run_notification_policies_flow_run_notification_policies_filter_post"
             },
-            "Body_read_flow_runs_flow_runs_paginate_post": {
+            "Body_read_flow_runs_flow_runs_filter_post": {
                 "properties": {
                     "sort": {
                         "allOf": [
@@ -13819,11 +13943,11 @@
                         ],
                         "default": "ID_DESC"
                     },
-                    "page": {
+                    "offset": {
                         "type": "integer",
-                        "minimum": 1.0,
-                        "title": "Page",
-                        "default": 1
+                        "minimum": 0.0,
+                        "title": "Offset",
+                        "default": 0
                     },
                     "flows": {
                         "anyOf": [
@@ -13892,7 +14016,7 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_flow_runs_flow_runs_paginate_post"
+                "title": "Body_read_flow_runs_flow_runs_filter_post"
             },
             "Body_read_flows_flows_filter_post": {
                 "properties": {
@@ -14644,146 +14768,6 @@
                 "title": "ChangeFlowRunState",
                 "description": "Changes the state of a flow run associated with the trigger"
             },
-            "CompoundTrigger-Input": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "compound"
-                        ],
-                        "const": "compound",
-                        "title": "Type",
-                        "default": "compound"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CompoundTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/SequenceTrigger-Input"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within"
-                    },
-                    "require": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "any",
-                                    "all"
-                                ]
-                            }
-                        ],
-                        "title": "Require"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "within",
-                    "require"
-                ],
-                "title": "CompoundTrigger",
-                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
-            },
-            "CompoundTrigger-Output": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "compound"
-                        ],
-                        "const": "compound",
-                        "title": "Type",
-                        "default": "compound"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CompoundTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/SequenceTrigger-Output"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within"
-                    },
-                    "require": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "any",
-                                    "all"
-                                ]
-                            }
-                        ],
-                        "title": "Require"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "within",
-                    "require"
-                ],
-                "title": "CompoundTrigger",
-                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
-            },
             "ConcurrencyLimit": {
                 "properties": {
                     "id": {
@@ -15483,17 +15467,6 @@
                         ],
                         "title": "Pull Steps"
                     },
-                    "manifest_path": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Manifest Path"
-                    },
                     "work_queue_name": {
                         "anyOf": [
                             {
@@ -16037,6 +16010,42 @@
                 "title": "DeploymentOrFlowNameFilter",
                 "description": "Filter by `Deployment.name` or `Flow.name` with a single input string for ilike filtering."
             },
+            "DeploymentPaginationResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DeploymentResponse"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "title": "Count"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit"
+                    },
+                    "pages": {
+                        "type": "integer",
+                        "title": "Pages"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "results",
+                    "count",
+                    "limit",
+                    "pages",
+                    "page"
+                ],
+                "title": "DeploymentPaginationResponse"
+            },
             "DeploymentResponse": {
                 "properties": {
                     "id": {
@@ -16240,18 +16249,6 @@
                         ],
                         "title": "Entrypoint",
                         "description": "The path to the entrypoint for the workflow, relative to the `path`."
-                    },
-                    "manifest_path": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Manifest Path",
-                        "description": "The path to the flow's manifest file, relative to the chosen storage."
                     },
                     "storage_document_id": {
                         "anyOf": [
@@ -16748,17 +16745,6 @@
                             }
                         ],
                         "title": "Entrypoint"
-                    },
-                    "manifest_path": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Manifest Path"
                     },
                     "storage_document_id": {
                         "anyOf": [
@@ -17343,95 +17329,6 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "EventResourceFilter"
-            },
-            "EventTrigger": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "event"
-                        ],
-                        "const": "event",
-                        "title": "Type",
-                        "default": "event"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "match": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for resources which this trigger will match."
-                    },
-                    "match_related": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for related resources which this trigger will match."
-                    },
-                    "after": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "After",
-                        "description": "The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`"
-                    },
-                    "expect": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "Expect",
-                        "description": "The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`"
-                    },
-                    "for_each": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "For Each",
-                        "description": "Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `\"for_each\": [\"related:flow:prefect.resource.id\"]` would evaluate the trigger for each flow."
-                    },
-                    "posture": {
-                        "type": "string",
-                        "enum": [
-                            "Reactive",
-                            "Proactive"
-                        ],
-                        "title": "Posture",
-                        "description": "The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events."
-                    },
-                    "threshold": {
-                        "type": "integer",
-                        "title": "Threshold",
-                        "description": "The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)",
-                        "default": 1
-                    },
-                    "within": {
-                        "type": "number",
-                        "title": "Within",
-                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
-                        "default": 0.0
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "posture"
-                ],
-                "title": "EventTrigger",
-                "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
             },
             "Flow": {
                 "properties": {
@@ -20621,6 +20518,167 @@
                 "title": "LogSort",
                 "description": "Defines log sorting options."
             },
+            "MetricTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "metric"
+                        ],
+                        "const": "metric",
+                        "title": "Type",
+                        "default": "metric"
+                    },
+                    "match": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for resources which this trigger will match."
+                    },
+                    "match_related": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for related resources which this trigger will match."
+                    },
+                    "posture": {
+                        "type": "string",
+                        "enum": [
+                            "Metric"
+                        ],
+                        "const": "Metric",
+                        "title": "Posture",
+                        "description": "Periodically evaluate the configured metric query.",
+                        "default": "Metric"
+                    },
+                    "metric": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MetricTriggerQuery"
+                            }
+                        ],
+                        "description": "The metric query to evaluate for this trigger. "
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "metric"
+                ],
+                "title": "MetricTrigger",
+                "description": "A trigger that fires based on the results of a metric query."
+            },
+            "MetricTrigger-Output": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "metric"
+                        ],
+                        "const": "metric",
+                        "title": "Type",
+                        "default": "metric"
+                    },
+                    "match": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for resources which this trigger will match."
+                    },
+                    "match_related": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for related resources which this trigger will match."
+                    },
+                    "posture": {
+                        "type": "string",
+                        "enum": [
+                            "Metric"
+                        ],
+                        "const": "Metric",
+                        "title": "Posture",
+                        "description": "Periodically evaluate the configured metric query.",
+                        "default": "Metric"
+                    },
+                    "metric": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MetricTriggerQuery"
+                            }
+                        ],
+                        "description": "The metric query to evaluate for this trigger. "
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "metric"
+                ],
+                "title": "MetricTrigger",
+                "description": "A trigger that fires based on the results of a metric query."
+            },
+            "MetricTriggerOperator": {
+                "type": "string",
+                "enum": [
+                    "<",
+                    "<=",
+                    ">",
+                    ">="
+                ],
+                "title": "MetricTriggerOperator"
+            },
+            "MetricTriggerQuery": {
+                "properties": {
+                    "name": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PrefectMetric"
+                            }
+                        ],
+                        "description": "The name of the metric to query."
+                    },
+                    "threshold": {
+                        "type": "number",
+                        "title": "Threshold",
+                        "description": "The threshold value against which we'll compare the query result."
+                    },
+                    "operator": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MetricTriggerOperator"
+                            }
+                        ],
+                        "description": "The comparative operator (LT / LTE / GT / GTE) used to compare the query result against the threshold value."
+                    },
+                    "range": {
+                        "type": "number",
+                        "title": "Range",
+                        "description": "The lookback duration (seconds) for a metric query. This duration is used to determine the time range over which the query will be executed. The minimum value is 300 seconds (5 minutes).",
+                        "default": 300.0
+                    },
+                    "firing_for": {
+                        "type": "number",
+                        "title": "Firing For",
+                        "description": "The duration (seconds) for which the metric query must breach or resolve continuously before the state is updated and the automation is triggered. The minimum value is 300 seconds (5 minutes).",
+                        "default": 300.0
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "threshold",
+                    "operator"
+                ],
+                "title": "MetricTriggerQuery",
+                "description": "Defines a subset of the Trigger subclass, which is specific\nto Metric automations, that specify the query configurations\nand breaching conditions for the Automation"
+            },
             "MinimalConcurrencyLimitResponse": {
                 "properties": {
                     "id": {
@@ -20950,6 +21008,15 @@
                 "title": "PauseWorkQueue",
                 "description": "Pauses a Work Queue"
             },
+            "PrefectMetric": {
+                "type": "string",
+                "enum": [
+                    "lateness",
+                    "duration",
+                    "successes"
+                ],
+                "title": "PrefectMetric"
+            },
             "QueueFilter": {
                 "properties": {
                     "tags": {
@@ -20998,7 +21065,7 @@
                         "anyOf": [
                             {
                                 "type": "string",
-                                "pattern": "Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu|localtime",
+                                "pattern": "Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
                                 "default": "UTC"
                             },
                             {
@@ -21492,114 +21559,6 @@
                 "title": "SendNotification",
                 "description": "Send a notification when an Automation is triggered"
             },
-            "SequenceTrigger-Input": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "sequence"
-                        ],
-                        "const": "sequence",
-                        "title": "Type",
-                        "default": "sequence"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CompoundTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/SequenceTrigger-Input"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "within"
-                ],
-                "title": "SequenceTrigger",
-                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
-            },
-            "SequenceTrigger-Output": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "sequence"
-                        ],
-                        "const": "sequence",
-                        "title": "Type",
-                        "default": "sequence"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CompoundTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/SequenceTrigger-Output"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "within"
-                ],
-                "title": "SequenceTrigger",
-                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
-            },
             "SetStateStatus": {
                 "type": "string",
                 "enum": [
@@ -21787,7 +21746,7 @@
                     "PREFECT_RESULTS_PERSIST_BY_DEFAULT": {
                         "type": "boolean",
                         "title": "Prefect Results Persist By Default",
-                        "default": false
+                        "default": true
                     },
                     "PREFECT_TASKS_REFRESH_CACHE": {
                         "type": "boolean",
@@ -21948,21 +21907,6 @@
                         "type": "boolean",
                         "title": "Prefect Logging Markup",
                         "default": false
-                    },
-                    "PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD": {
-                        "type": "number",
-                        "title": "Prefect Task Introspection Warn Threshold",
-                        "default": 10.0
-                    },
-                    "PREFECT_AGENT_QUERY_INTERVAL": {
-                        "type": "number",
-                        "title": "Prefect Agent Query Interval",
-                        "default": 15
-                    },
-                    "PREFECT_AGENT_PREFETCH_SECONDS": {
-                        "type": "integer",
-                        "title": "Prefect Agent Prefetch Seconds",
-                        "default": 15
                     },
                     "PREFECT_ASYNC_FETCH_STATE_RESULT": {
                         "type": "boolean",
@@ -22215,16 +22159,6 @@
                         "title": "Prefect Api Max Flow Run Graph Artifacts",
                         "default": 10000
                     },
-                    "PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Artifacts On Flow Run Graph",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable States On Flow Run Graph",
-                        "default": true
-                    },
                     "PREFECT_EXPERIMENTAL_ENABLE_WORKERS": {
                         "type": "boolean",
                         "title": "Prefect Experimental Enable Workers",
@@ -22233,11 +22167,6 @@
                     "PREFECT_EXPERIMENTAL_WARN_WORKERS": {
                         "type": "boolean",
                         "title": "Prefect Experimental Warn Workers",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_VISUALIZE": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Visualize",
                         "default": false
                     },
                     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION": {
@@ -22249,26 +22178,6 @@
                         "type": "boolean",
                         "title": "Prefect Experimental Warn Enhanced Cancellation",
                         "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_DEPLOYMENT_STATUS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Deployment Status",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Deployment Status",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_FLOW_RUN_INPUT": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Flow Run Input",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Flow Run Input",
-                        "default": true
                     },
                     "PREFECT_RUNNER_PROCESS_LIMIT": {
                         "type": "integer",
@@ -22364,37 +22273,12 @@
                         "type": "string",
                         "format": "duration",
                         "title": "Prefect Task Scheduling Pending Task Timeout",
-                        "default": "PT30S"
+                        "default": "PT0S"
                     },
                     "PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS": {
                         "type": "boolean",
                         "title": "Prefect Experimental Enable Extra Runner Endpoints",
                         "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Artifacts",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_ARTIFACTS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Artifacts",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Workspace Dashboard",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Workspace Dashboard",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Work Queue Status",
-                        "default": true
                     },
                     "PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT": {
                         "type": "boolean",
@@ -22480,11 +22364,6 @@
                         "title": "Prefect Events Maximum Size Bytes",
                         "default": 1500000
                     },
-                    "PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED": {
-                        "type": "boolean",
-                        "title": "Prefect Api Services Event Logger Enabled",
-                        "default": true
-                    },
                     "PREFECT_API_SERVICES_TRIGGERS_ENABLED": {
                         "type": "boolean",
                         "title": "Prefect Api Services Triggers Enabled",
@@ -22535,6 +22414,18 @@
                         "format": "duration",
                         "title": "Prefect Api Events Related Resource Cache Ttl",
                         "default": "PT5M"
+                    },
+                    "PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL": {
+                        "type": "string",
+                        "format": "duration",
+                        "title": "Prefect Events Maximum Websocket Backfill",
+                        "default": "PT15M"
+                    },
+                    "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Prefect Events Websocket Backfill Page Size",
+                        "default": 250
                     }
                 },
                 "type": "object",
@@ -25760,6 +25651,672 @@
                 ],
                 "title": "WorkerStatus",
                 "description": "Enumeration of worker statuses."
+            },
+            "prefect__events__schemas__automations__CompoundTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "compound"
+                        ],
+                        "const": "compound",
+                        "title": "Type",
+                        "default": "compound"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/MetricTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Input"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
+                    },
+                    "require": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "any",
+                                    "all"
+                                ]
+                            }
+                        ],
+                        "title": "Require"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "require"
+                ],
+                "title": "CompoundTrigger",
+                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
+            },
+            "prefect__events__schemas__automations__CompoundTrigger-Output": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "compound"
+                        ],
+                        "const": "compound",
+                        "title": "Type",
+                        "default": "compound"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/MetricTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Output"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
+                    },
+                    "require": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "any",
+                                    "all"
+                                ]
+                            }
+                        ],
+                        "title": "Require"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "require"
+                ],
+                "title": "CompoundTrigger",
+                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
+            },
+            "prefect__events__schemas__automations__EventTrigger": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "event"
+                        ],
+                        "const": "event",
+                        "title": "Type",
+                        "default": "event"
+                    },
+                    "match": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for resources which this trigger will match."
+                    },
+                    "match_related": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for related resources which this trigger will match."
+                    },
+                    "after": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "After",
+                        "description": "The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "expect": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "Expect",
+                        "description": "The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "for_each": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "For Each",
+                        "description": "Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `\"for_each\": [\"related:flow:prefect.resource.id\"]` would evaluate the trigger for each flow."
+                    },
+                    "posture": {
+                        "type": "string",
+                        "enum": [
+                            "Reactive",
+                            "Proactive"
+                        ],
+                        "title": "Posture",
+                        "description": "The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events.",
+                        "default": "Reactive"
+                    },
+                    "threshold": {
+                        "type": "integer",
+                        "title": "Threshold",
+                        "description": "The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)",
+                        "default": 1
+                    },
+                    "within": {
+                        "type": "number",
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
+                        "default": 0.0
+                    }
+                },
+                "type": "object",
+                "title": "EventTrigger",
+                "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
+            },
+            "prefect__events__schemas__automations__SequenceTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "sequence"
+                        ],
+                        "const": "sequence",
+                        "title": "Type",
+                        "default": "sequence"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/MetricTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Input"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers"
+                ],
+                "title": "SequenceTrigger",
+                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
+            },
+            "prefect__events__schemas__automations__SequenceTrigger-Output": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "sequence"
+                        ],
+                        "const": "sequence",
+                        "title": "Type",
+                        "default": "sequence"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/MetricTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Output"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers"
+                ],
+                "title": "SequenceTrigger",
+                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
+            },
+            "prefect__server__events__schemas__automations__CompoundTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "compound"
+                        ],
+                        "const": "compound",
+                        "title": "Type",
+                        "default": "compound"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/MetricTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Input"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    },
+                    "require": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "any",
+                                    "all"
+                                ]
+                            }
+                        ],
+                        "title": "Require"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "within",
+                    "require"
+                ],
+                "title": "CompoundTrigger",
+                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
+            },
+            "prefect__server__events__schemas__automations__CompoundTrigger-Output": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "compound"
+                        ],
+                        "const": "compound",
+                        "title": "Type",
+                        "default": "compound"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/MetricTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Output"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    },
+                    "require": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "any",
+                                    "all"
+                                ]
+                            }
+                        ],
+                        "title": "Require"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "within",
+                    "require"
+                ],
+                "title": "CompoundTrigger",
+                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
+            },
+            "prefect__server__events__schemas__automations__EventTrigger": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "event"
+                        ],
+                        "const": "event",
+                        "title": "Type",
+                        "default": "event"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "match": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for resources which this trigger will match."
+                    },
+                    "match_related": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for related resources which this trigger will match."
+                    },
+                    "after": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "After",
+                        "description": "The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "expect": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "Expect",
+                        "description": "The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "for_each": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "For Each",
+                        "description": "Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `\"for_each\": [\"related:flow:prefect.resource.id\"]` would evaluate the trigger for each flow."
+                    },
+                    "posture": {
+                        "type": "string",
+                        "enum": [
+                            "Reactive",
+                            "Proactive"
+                        ],
+                        "title": "Posture",
+                        "description": "The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events."
+                    },
+                    "threshold": {
+                        "type": "integer",
+                        "title": "Threshold",
+                        "description": "The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)",
+                        "default": 1
+                    },
+                    "within": {
+                        "type": "number",
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
+                        "default": 0.0
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "posture"
+                ],
+                "title": "EventTrigger",
+                "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
+            },
+            "prefect__server__events__schemas__automations__SequenceTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "sequence"
+                        ],
+                        "const": "sequence",
+                        "title": "Type",
+                        "default": "sequence"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/MetricTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Input"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "within"
+                ],
+                "title": "SequenceTrigger",
+                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
+            },
+            "prefect__server__events__schemas__automations__SequenceTrigger-Output": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "sequence"
+                        ],
+                        "const": "sequence",
+                        "title": "Type",
+                        "default": "sequence"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/MetricTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Output"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "within"
+                ],
+                "title": "SequenceTrigger",
+                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
             }
         }
     }

@@ -10,7 +10,7 @@ from typing_extensions import Literal
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingFlowError, ScriptError
-from prefect.flows import Flow, load_flow_from_entrypoint, load_flows_from_script
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.logging import get_logger
 from prefect.runner.utils import (
     inject_schemas_into_openapi,
@@ -24,6 +24,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_PORT,
 )
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.importtools import load_script_as_module
 
 if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
@@ -42,7 +43,7 @@ class RunnerGenericFlowRunRequest(BaseModel):
     parent_task_run_id: Optional[uuid.UUID] = None
 
 
-def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
+def perform_health_check(runner, delay_threshold: Optional[int] = None) -> JSONResponse:
     if delay_threshold is None:
         delay_threshold = (
             PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE.value()
@@ -155,7 +156,10 @@ async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
                 continue
 
             script = deployment.entrypoint.split(":")[0]
-            subflows = load_flows_from_script(script)
+            module = load_script_as_module(script)
+            subflows = [
+                obj for obj in module.__dict__.values() if isinstance(obj, Flow)
+            ]
             for flow in subflows:
                 schemas[flow.name] = flow.parameters.model_dump()
 

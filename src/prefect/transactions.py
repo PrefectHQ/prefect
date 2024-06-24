@@ -15,8 +15,11 @@ from typing_extensions import Self
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
-from prefect.results import ResultFactory, get_default_result_storage
-from prefect.settings import PREFECT_DEFAULT_RESULT_STORAGE_BLOCK
+from prefect.results import (
+    BaseResult,
+    ResultFactory,
+    get_or_create_default_result_storage,
+)
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 
@@ -86,7 +89,7 @@ class Transaction(ContextModel):
             if parent:
                 self.commit_mode = parent.commit_mode
             else:
-                self.commit_mode = CommitMode.EAGER
+                self.commit_mode = CommitMode.LAZY
 
         # this needs to go before begin, which could set the state to committed
         self.state = TransactionState.ACTIVE
@@ -134,11 +137,11 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> dict:
+    def read(self) -> BaseResult:
         if self.store and self.key:
             return self.store.read(key=self.key)
         else:
-            return {}
+            return {}  # TODO: Determine what this should be
 
     def reset(self) -> None:
         parent = self.get_parent()
@@ -187,7 +190,7 @@ class Transaction(ContextModel):
 
     def stage(
         self,
-        value: dict,
+        value: BaseResult,
         on_rollback_hooks: Optional[List] = None,
         on_commit_hooks: Optional[List] = None,
     ) -> None:
@@ -233,7 +236,7 @@ def get_transaction() -> Optional[Transaction]:
 def transaction(
     key: Optional[str] = None,
     store: Optional[RecordStore] = None,
-    commit_mode: CommitMode = CommitMode.LAZY,
+    commit_mode: Optional[CommitMode] = None,
     overwrite: bool = False,
 ) -> Generator[Transaction, None, None]:
     """
@@ -265,12 +268,7 @@ def transaction(
                 }
             )
         else:
-            default_storage = get_default_result_storage(_sync=True)
-            if not default_storage._block_document_id:
-                default_name = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value().split("/")[
-                    -1
-                ]
-                default_storage.save(default_name, overwrite=True, _sync=True)
+            default_storage = get_or_create_default_result_storage(_sync=True)
             if existing_factory:
                 new_factory = existing_factory.model_copy(
                     update={

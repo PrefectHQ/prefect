@@ -12,7 +12,7 @@ from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
-from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
 from prefect.utilities.pydantic import parse_obj_as
 
 RESERVED_POOL_NAMES = [
@@ -1845,24 +1845,94 @@ class TestGetScheduledRuns:
                 assert work_queue.last_polled is None
 
     async def test_updates_last_polled_on_a_full_work_pool(
-        self, client, work_queues, work_pools
+        self, client, session, work_queues, work_pools
     ):
+        work_pool = work_pools["wp_a"]
+        work_queues["wq_aa"].status = WorkQueueStatus.NOT_READY
+        work_queues["wq_ab"].status = WorkQueueStatus.PAUSED
+        work_queues["wq_ac"].status = WorkQueueStatus.READY
+        await session.commit()
+
         now = pendulum.now("UTC")
         poll_response = await client.post(
-            f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/work_pools/{work_pool.name}/get_scheduled_flow_runs",
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
         work_queues_response = await client.post(
-            f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
+            f"/work_pools/{work_pool.name}/queues/filter"
         )
         assert work_queues_response.status_code == status.HTTP_200_OK
 
         work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
         for work_queue in work_queues:
-            assert work_queue.last_polled is not None
+            assert (
+                work_queue.last_polled is not None
+            ), "Work queue should have updated last_polled"
             assert work_queue.last_polled > now
+
+    async def test_updates_statuses_on_a_full_work_pool(
+        self,
+        client,
+        session,
+        work_queues,
+        work_pools,
+        flow,
+    ):
+        async def create_deployment_for_work_queue(work_queue_id):
+            return await models.deployments.create_deployment(
+                session=session,
+                deployment=schemas.core.Deployment(
+                    name="My Deployment",
+                    tags=["test"],
+                    flow_id=flow.id,
+                    work_queue_id=work_queue_id,
+                ),
+            )
+
+        work_pool = work_pools["wp_a"]
+
+        wq_not_ready = work_queues["wq_aa"]
+        wq_not_ready.status = WorkQueueStatus.NOT_READY
+
+        wq_paused = work_queues["wq_ab"]
+        wq_paused.status = WorkQueueStatus.PAUSED
+
+        wq_ready = work_queues["wq_ac"]
+        wq_ready.status = WorkQueueStatus.READY
+
+        deployments = [
+            await create_deployment_for_work_queue(wq.id)
+            for wq in (wq_not_ready, wq_paused, wq_ready)
+        ]
+
+        await session.commit()
+
+        poll_response = await client.post(
+            f"/work_pools/{work_pool.name}/get_scheduled_flow_runs",
+        )
+        assert poll_response.status_code == status.HTTP_200_OK
+
+        work_queues_response = await client.post(
+            f"/work_pools/{work_pool.name}/queues/filter"
+        )
+        assert work_queues_response.status_code == status.HTTP_200_OK
+
+        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+
+        for work_queue in work_queues:
+            if work_queue.id == wq_not_ready.id:
+                assert work_queue.status == WorkQueueStatus.READY
+            elif work_queue.id == wq_paused.id:
+                # paused work queues should stay paused
+                assert work_queue.status == WorkQueueStatus.PAUSED
+            elif work_queue.id == wq_ready.id:
+                assert work_queue.status == WorkQueueStatus.READY
+
+        for deployment in deployments:
+            await session.refresh(deployment)
+            assert deployment.status == DeploymentStatus.READY
 
     async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
         self, client, work_pools, deployment

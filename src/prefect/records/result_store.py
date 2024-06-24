@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
+import pendulum
+
 from prefect.results import BaseResult, PersistedResult, ResultFactory
 from prefect.utilities.asyncutils import run_coro_as_sync
 
@@ -16,8 +18,14 @@ class ResultFactoryStore(RecordStore):
         try:
             result = self.read(key)
             result.get(_sync=True)
+            if result.expiration:
+                # if the result has an expiration,
+                # check if it is still in the future
+                exists = result.expiration > pendulum.now("utc")
+            else:
+                exists = True
             self.cache = result
-            return True
+            return exists
         except Exception:
             return False
 
@@ -36,6 +44,10 @@ class ResultFactoryStore(RecordStore):
             raise ValueError("Result could not be read")
 
     def write(self, key: str, value: Any) -> BaseResult:
-        if isinstance(value, BaseResult):
+        if isinstance(value, PersistedResult):
+            # if the value is already a persisted result, write it
+            value.write(_sync=True)
+            return value
+        elif isinstance(value, BaseResult):
             return value
         return run_coro_as_sync(self.result_factory.create_result(obj=value, key=key))

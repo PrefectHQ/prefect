@@ -14,15 +14,27 @@ Requires an installation of Python 3.9+
 
 We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
 
-These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
+These tasks are designed to work with Prefect 3. 
 
 ### Installation
 
 Install `prefect-slack`
 
-```bash
-pip install prefect-slack
-```
+
+Install or update to the latest version of the prefect-slack library and dependencies.
+
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-slack
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-slack
+    ```
+    </Tab>
+</Tabs>
 
 ### Slack setup
 
@@ -47,7 +59,7 @@ from prefect_slack.messages import send_chat_message
 def example_send_message_flow():
    context = get_run_context()
 
-   # Run other tasks and subflows here
+   # Run other tasks or flows here
 
    token = "xoxb-your-bot-token-here"
    send_chat_message(

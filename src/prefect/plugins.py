@@ -8,12 +8,11 @@ Currently supported entrypoints:
         should be imported when Prefect is imported.
 """
 
-import sys
 from types import ModuleType
 from typing import Any, Dict, Union
 
 import prefect.settings
-from prefect.utilities.compat import EntryPoint, EntryPoints, entry_points
+from prefect.utilities.compat import EntryPoints, entry_points
 
 
 def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception, Any]]:
@@ -35,68 +34,6 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception
             result = exc
 
         results[entrypoint.name or entrypoint.value] = result
-
-    return results
-
-
-def load_extra_entrypoints() -> Dict[str, Union[Exception, Any]]:
-    # Note: Return values are only exposed for testing.
-    results = {}
-
-    if not prefect.settings.PREFECT_EXTRA_ENTRYPOINTS.value():
-        return results
-
-    values = {
-        value.strip()
-        for value in prefect.settings.PREFECT_EXTRA_ENTRYPOINTS.value().split(",")
-    }
-
-    entrypoints = []
-    for value in values:
-        try:
-            entrypoint = EntryPoint(name=None, value=value, group="prefect-extra")
-        except Exception as exc:
-            print(
-                (
-                    f"Warning! Failed to parse extra entrypoint {value!r}:"
-                    f" {type(exc).__name__}: {exc}"
-                ),
-                file=sys.stderr,
-            )
-            results[value] = exc
-        else:
-            entrypoints.append(entrypoint)
-
-    for value, result in zip(
-        values, safe_load_entrypoints(EntryPoints(entrypoints)).values()
-    ):
-        results[value] = result
-
-        if isinstance(result, Exception):
-            print(
-                (
-                    f"Warning! Failed to load extra entrypoint {value!r}:"
-                    f" {type(result).__name__}: {result}"
-                ),
-                file=sys.stderr,
-            )
-        elif callable(result):
-            try:
-                results[value] = result()
-            except Exception as exc:
-                print(
-                    (
-                        f"Warning! Failed to run callable entrypoint {value!r}:"
-                        f" {type(exc).__name__}: {exc}"
-                    ),
-                    file=sys.stderr,
-                )
-                results[value] = exc
-        else:
-            if prefect.settings.PREFECT_DEBUG_MODE:
-                print(
-                    "Loaded extra entrypoint {value!r} successfully.", file=sys.stderr
-                )
 
     return results
 

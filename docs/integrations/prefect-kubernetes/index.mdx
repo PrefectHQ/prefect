@@ -4,21 +4,22 @@ title: prefect-kubernetes
 
 `prefect-kubernetes` contains Prefect tasks, flows, and blocks enabling orchestration, observation and management of Kubernetes resources.
 
-This library is most commonly used to installation with a Kubernetes worker. See the [Kubernetes guide](https://docs.prefect.io/latest/deploy/dynamic-infra/deploy-kubernetes/) to learn how to create and run deployments in Kubernetes.
-As noted in that guide, Prefect also provides a Helm chart for deploying a worker, a self-hosted server instance, and other resources to a Kubernetes cluster. See the [Prefect Helm chart](https://github.com/PrefectHQ/prefect-helm) for more information.
+This library is most commonly used for installation with a Kubernetes worker. See the [Prefect docs on deploying with Kubernetes](3.0rc/deploy/dynamic-infra/deploy-kubernetes) to learn how to create and run deployments in Kubernetes.
+
+Prefect provides a Helm chart for deploying a worker, a self-hosted server instance, and other resources to a Kubernetes cluster. See the [Prefect Helm chart](https://github.com/PrefectHQ/prefect-helm) for more information.
 
 ## Getting started
 
 ### Prerequisites
 
-- [Prefect installed](https://docs.prefect.io/latest/get-started/install/) in a virtual environment.
+- [Prefect installed](3.0rc/get-started/install) in a virtual environment.
 - [Kubernetes installed](https://kubernetes.io/).
 
 ### Install `prefect-kubernetes`
 
 <div class="terminal">
 ```bash
- pip install prefect-kubernetes
+ pip install -U prefect-kubernetes
  ```
  </div>
 
@@ -71,8 +72,7 @@ if __name__ == "__main__":
 
 ```python
 # with minikube / docker desktop & a valid ~/.kube/config this should ~just work~
-from prefect.blocks.kubernetes import KubernetesClusterConfig
-from prefect_kubernetes.credentials import KubernetesCredentials
+from prefect_kubernetes.credentials import KubernetesCredentials, KubernetesClusterConfig
 
 k8s_config = KubernetesClusterConfig.from_file('~/.kube/config')
 
