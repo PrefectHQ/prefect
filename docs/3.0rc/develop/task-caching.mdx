@@ -23,7 +23,7 @@ This behavior can be configured - see [customizing the cache](/3.0rc/develop/wri
 To determine whether a task run should retrieve a cached state, Prefect uses the concept of a "cache key". 
 A cache key is a computed string value that determines where the task's return value will be persisted within
 its configured result storage.
-When a task run begins, Prefect first computes its cache key and uses this to lookup a record in the task's result
+When a task run begins, Prefect first computes its cache key and uses this key to lookup a record in the task's result
 storage. 
 If an unexpired record is found, this result is returned and the task does not run but instead enters a 
 `Cached` state with the corresponding result value.
