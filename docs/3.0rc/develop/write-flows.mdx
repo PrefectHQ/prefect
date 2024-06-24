@@ -203,7 +203,7 @@ Prefect tasks are well suited for parallel or distributed execution using distri
 ### Nesting flows
 
 In addition to calling tasks within a flow, you can also call other flows.
-A _nested_ flow run is created when a flow function is called inside the execution of another flow.
+A _nested_ flow run is created when a flow function is called by another flow.
 When one flow calls another, the calling flow run is the "parent" run, the called flow run is the "child" run.
 
 Nesting flows is a great way to organize your workflows and offer more visibility within the UI.
