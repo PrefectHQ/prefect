@@ -28,6 +28,7 @@ from pydantic import (
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self
 
+from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import (
@@ -1604,3 +1605,6 @@ class CsrfToken(ObjectBaseModel):
     expiration: datetime.datetime = Field(
         default=..., description="The expiration time of the CSRF token"
     )
+
+
+__getattr__ = getattr_migration(__name__)
