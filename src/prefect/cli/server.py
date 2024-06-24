@@ -158,7 +158,6 @@ def prestart_check():
             )
 
 
-
 @server_app.command()
 async def start(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
