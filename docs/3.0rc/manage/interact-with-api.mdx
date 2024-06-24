@@ -3,8 +3,8 @@ title: Manipulate run metadata in Python
 description: Learn how to use the `PrefectClient` to interact with the API.
 ---
 
-The [API reference for the `PrefectClient`](/3.0rc/api-ref/prefect/client/orchestration/) 
-contains many client methods that make it simpler to perform actions, such as:
+The [`PrefectClient`](https://prefect-python-sdk-docs.netlify.app/prefect/client/) 
+contains many methods that make it simpler to perform actions, such as:
 
 - reschedule late flow runs
 - get the last `N` completed flow runs from a workspace
@@ -13,6 +13,7 @@ The `PrefectClient` is an async context manager. Here's an example usage:
 
 ```python
 from prefect import get_client
+
 
 async with get_client() as client:
     response = await client.hello()
@@ -35,6 +36,7 @@ It also deletes any remaining late flow runs of that deployment.
 import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
 
 from prefect import get_client
 from prefect.client.schemas.filters import (
@@ -87,6 +89,7 @@ async def reschedule_late_flow_runs(
             
         return rescheduled_flow_runs
 
+
 if __name__ == "__main__":
     rescheduled_flow_runs = asyncio.run(
         reschedule_late_flow_runs(
@@ -122,6 +125,7 @@ from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.sorting import FlowRunSort
 
+
 async def get_most_recent_flow_runs(
     n: int = 3,
     states: Optional[list[str]] = None
@@ -137,6 +141,7 @@ async def get_most_recent_flow_runs(
             sort=FlowRunSort.END_TIME_DESC,
             limit=n,
         )
+
 
 if __name__ == "__main__":
     last_3_flow_runs: list[FlowRun] = asyncio.run(
@@ -162,6 +167,7 @@ The code below cancels all flow runs that are in `Pending`, `Running`, `Schedule
 
 ```python
 import anyio
+
 
 from prefect import get_client
 from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterState, FlowRunFilterStateName

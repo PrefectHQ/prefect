@@ -12,8 +12,8 @@ When a flow run is suspended, code execution is stopped and so is the process.
 ### Pause a flow run
 
 Prefect enables pausing an in-progress flow run for manual approval.
-Prefect exposes this functionality with the [`pause_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.pause_flow_run) 
-and [`resume_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions.
+Prefect exposes this functionality with the [`pause_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.pause_flow_run) 
+and [`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions.
 
 <Note>
 **Timeouts**
@@ -107,8 +107,8 @@ This means you can suspend flow runs to save costs instead of paying for long-ru
 However, when the flow run resumes, the flow code will execute again from the beginning of the flow. 
 We recommend using [tasks](/3.0rc/develop/write-tasks/) and [task caching](/3.0rc/develop/write-tasks/#caching) to avoid recomputing expensive operations.
 
-Prefect exposes this functionality through the [`suspend_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and 
-[`resume_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
+Prefect exposes this functionality through the [`suspend_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.suspend_flow_run) and 
+[`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
 When called inside of a flow, `suspend_flow_run` immediately suspends execution of the flow run.
 The flow run is marked as `Suspended` and will not resume until `resume_flow_run` is called.
@@ -211,4 +211,4 @@ After successful validation, the flow run resumes, and the return value of the `
 is an instance of the `UserNameInput` model containing the provided data.
 
 For more information on receiving input from users when pausing and suspending flow runs, 
-see [Create interactive workflows](/3.0rc/develop/control-workflows/).
+see [Create interactive workflows](/3.0rc/develop/inputs/).
