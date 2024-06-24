@@ -1,5 +1,6 @@
 import sys
 from dataclasses import dataclass, field
+from datetime import timedelta
 from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple, cast
 from uuid import UUID
 
@@ -118,6 +119,11 @@ class EventOccurredFilter(EventDataFilter):
         default_factory=lambda: cast(DateTime, pendulum.now("UTC")),
         description="Only include events prior to this time (inclusive)",
     )
+
+    def clamp(self, max_duration: timedelta):
+        """Limit how far the query can look back based on the given duration"""
+        earliest = pendulum.now("UTC") - max_duration
+        self.since = max(earliest, cast(pendulum.DateTime, self.since))
 
     def includes(self, event: Event) -> bool:
         return self.since <= event.occurred <= self.until

@@ -74,7 +74,7 @@ Returning [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.Pref
 
 By default, running a task returns data:
 
-```python hl_lines="3-5"
+```python
 from prefect import flow, task 
 
 @task 
@@ -86,23 +86,23 @@ def my_flow():
     result = add_one(1) # return int
 ```
 
-The same rule applies for a subflow:
+The same rule applies for a nested flow:
 
-```python hl_lines="1-3"
+```python
 @flow 
-def subflow():
+def nested_flow():
     return 42 
 
 @flow 
 def my_flow():
-    result = subflow() # return data
+    result = nested_flow() # return data
 ```
 
 ### Return Prefect State
 
 To return a `State` instead, add `return_state=True` as a parameter of your task call:
 
-```python hl_lines="3-4"
+```python
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -110,23 +110,23 @@ def my_flow():
 
 To get data from a `State`, call `.result()`.
 
-```python hl_lines="4-5"
+```python
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
     result = state.result() # return int
 ```
 
-The same rule applies for a subflow:
+The same rule applies for a nested flow:
 
-```python hl_lines="7-8"
+```python
 @flow 
-def subflow():
+def nested_flow():
     return 42 
 
 @flow 
 def my_flow():
-    state = subflow(return_state=True) # return State
+    state = nested_flow(return_state=True) # return State
     result = state.result() # return int
 ```
 
@@ -134,7 +134,7 @@ def my_flow():
 
 To get a `PrefectFuture`, add `.submit()` to your task call.
 
-```python hl_lines="3-5"
+```python
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -142,7 +142,7 @@ def my_flow():
 
 To get data from a `PrefectFuture`, call `.result()`.
 
-```python hl_lines="4-5"
+```python
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -151,7 +151,7 @@ def my_flow():
 
 To get a `State` from a `PrefectFuture`, call `.wait()`.
 
-```python hl_lines="4-5"
+```python
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -163,9 +163,9 @@ def my_flow():
 The final state of a flow is determined by its return value.  The following rules apply:
 
 - If an exception is raised directly in the flow function, the flow run is marked as `FAILED`.
-- If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it.
-  - If _any_ task run or subflow run failed and none were cancelled, then the final flow run state is marked as `FAILED`.
-  - If _any_ task run or subflow run was cancelled, then the final flow run state is marked as `CANCELLED`.
+- If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and nested flows within it.
+  - If _any_ task run or nested flow run failed and none were cancelled, then the final flow run state is marked as `FAILED`.
+  - If _any_ task run or nested flow run was cancelled, then the final flow run state is marked as `CANCELLED`.
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 - If the flow run returns _any other object_, then it is marked as successfully completed.
 
