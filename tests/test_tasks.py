@@ -37,6 +37,7 @@ from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     temporary_settings,
@@ -1186,6 +1187,12 @@ class TestTaskRetries:
 
 
 class TestTaskCaching:
+    @pytest.fixture(autouse=True)
+    def enable_result_persistence(self):
+        """Needs result persistence to work correctly"""
+        with temporary_settings({PREFECT_RESULTS_PERSIST_BY_DEFAULT: True}):
+            yield
+
     async def test_repeated_task_call_within_flow_is_cached_by_default(self):
         @task
         def foo(x):
@@ -1606,6 +1613,12 @@ class TestTaskCaching:
 
 
 class TestCacheFunctionBuiltins:
+    @pytest.fixture(autouse=True)
+    def enable_result_persistence(self):
+        """Needs result persistence to work correctly"""
+        with temporary_settings({PREFECT_RESULTS_PERSIST_BY_DEFAULT: True}):
+            yield
+
     async def test_task_input_hash_within_flows(self):
         @task(cache_key_fn=task_input_hash)
         def foo(x):
