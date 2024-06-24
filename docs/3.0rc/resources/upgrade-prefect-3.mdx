@@ -211,8 +211,18 @@ Prefect 3 has been upgraded to Pydantic V2. This upgrade does not require change
 However, if you have registered custom blocks with a self-hosted Prefect Server, type enforcement for those block schemas must be upgraded to Pydantic V2 to work with Prefect 3. 
 See the the [Pydantic migration guide](https://docs.pydantic.dev/latest/migration/) for more information.
 
-## Workers have replaced Agents
+## Workers have replaced agents
 
 A deprecation warning was applied to Prefect interfaces related to agent-based deployments in Prefect’s [2.16.4 release](https://github.com/PrefectHQ/prefect/releases/tag/2.16.4), including infrastructure blocks and `prefect deployment` commands. 
 Agents will continue to be supported in Prefect 2 until September 2024, but have not been included in Prefect 3. 
 If you are using agents, see [this guide to upgrade from agents to workers](https://docs-3.prefect.io/3.0rc/resources/upgrade-agents-to-workers).
+
+## Variables have replaced certain blocks
+
+In Prefect 2, variables are strings. 
+To store and retrive typed values in Prefect 2, you have to use certain single-value blocks, icluding JSON, Date Time, and String blocks.
+In Prefect 3, variables can be any JSON compatible type, such that varaibles can now store all of these data types and more.
+Any single-value blocks created in Prefect 2 will still be accessible as such in Prefect 3, but you cannot create new single-value blocks.
+See the [set and get variables](/3.0rc/develop/variables) page for more information.
+
+
