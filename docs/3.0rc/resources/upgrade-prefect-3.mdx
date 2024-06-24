@@ -181,7 +181,7 @@ The one exception to this case is that `PrefectFuture`s returned from a flow wil
 ## Task caching and result persistence
 
 Prefect 3 supports transactional semantics - tasks runs can be grouped into larger transactions, enabling more resilient workflows.
-In keeping with the transactional model, Prefect 3 enrourages task runs to be idempotent - intended to run only once per flow run.
+In keeping with the transactional model, Prefect 3 encourages task runs to be idempotent - intended to run only once per flow run.
 
 To support this, Prefect 3 has more eager, intelligent task caching defaults than Prefect 2.
 Whenever a task runs, Prefect 3 first computes its cache key, then uses that cache key to evaluate whether that same task has run with the same inputs and as part of the same flow before. 
