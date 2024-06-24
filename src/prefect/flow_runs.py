@@ -340,7 +340,7 @@ async def suspend_flow_run(
     already started will run until completion. When resumed, the flow run will
     be rescheduled to finish execution. In order suspend a flow run in this
     way, the flow needs to have an associated deployment and results need to be
-    configured with the `persist_results` option.
+    configured with the `persist_result` option.
 
     Args:
         flow_run_id: a flow run id. If supplied, this function will attempt to

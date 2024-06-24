@@ -1,4 +1,5 @@
 import abc
+import inspect
 import uuid
 from functools import partial
 from typing import (
@@ -620,9 +621,42 @@ class PersistedResult(BaseResult):
         try:
             data = serializer.dumps(obj)
         except Exception as exc:
+            extra_info = (
+                'You can try a different serializer (e.g. result_serializer="json") '
+                "or disabling persistence (persist_result=False) for this flow or task."
+            )
+            # check if this is a known issue with cloudpickle and pydantic
+            # and add extra information to help the user recover
+
+            if (
+                isinstance(exc, TypeError)
+                and isinstance(obj, BaseModel)
+                and str(exc).startswith("cannot pickle")
+            ):
+                try:
+                    from IPython import get_ipython
+
+                    if get_ipython() is not None:
+                        extra_info = inspect.cleandoc(
+                            """
+                            This is a known issue in Pydantic that prevents
+                            locally-defined (non-imported) models from being
+                            serialized by cloudpickle in IPython/Jupyter
+                            environments. Please see
+                            https://github.com/pydantic/pydantic/issues/8232 for
+                            more information. To fix the issue, either: (1) move
+                            your Pydantic class definition to an importable
+                            location, (2) use the JSON serializer for your flow
+                            or task (`result_serializer="json"`), or (3)
+                            disable result persistence for your flow or task
+                            (`persist_result=False`).
+                            """
+                        ).replace("\n", " ")
+                except ImportError:
+                    pass
             raise ValueError(
                 f"Failed to serialize object of type {type(obj).__name__!r} with "
-                f"serializer {serializer.type!r}."
+                f"serializer {serializer.type!r}. {extra_info}"
             ) from exc
         blob = PersistedResultBlob(
             serializer=serializer, data=data, expiration=self.expiration
