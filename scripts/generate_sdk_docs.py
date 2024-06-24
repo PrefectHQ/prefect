@@ -1,3 +1,9 @@
+# Creates integration SDK documentation files for MkDocs
+# Run from top level of Prefect repository
+# Latest versions of Prefect integration libraries must be installed
+# Run mkdocs build to generate the documentation or m
+# Upload to Netlify to publish the documentation
+
 from pathlib import Path
 from typing import Generator
 
@@ -27,9 +33,9 @@ def main():
                 continue
             modules.append(submodule)
 
-        package_docs = docs_path() / "mkdocs"
-
         print(modules)
+
+        package_docs = docs_path() / "mkdocs"
 
         for module in sorted(modules):
             module_name = module.replace(".__init__", "")
@@ -40,18 +46,12 @@ def main():
                 file.write(f"# {module_name}\n\n")
                 file.write(f"::: {module_name}\n")
 
-        # break
-
 
 def packages() -> Generator[tuple[str, Path], None, None]:
     yield "prefect", Path("./src")
 
     for path in sorted(Path("./src/integrations").iterdir()):
-        if (
-            path.is_dir() and path.name != "prefect-ray"
-        ):  # excluding ray as it's not compatible with prefect 3 yet
-            # print(path.name)
-            # all prefect-integration libraries must be installed (in editable form ATM)
+        if path.is_dir():
             yield path.name, path
 
 
