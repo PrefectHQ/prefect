@@ -27,6 +27,7 @@ MOVED_IN_V3 = {
     "prefect.engine:resume_flow_run": "prefect.flow_runs:resume_flow_run",
     "prefect.engine:suspend_flow_run": "prefect.flow_runs:suspend_flow_run",
     "prefect.engine:_in_process_pause": "prefect.flow_runs:_in_process_pause",
+    "prefect.client:get_client": "prefect.client.orchestration:get_client",
 }
 
 REMOVED_IN_V3 = {
