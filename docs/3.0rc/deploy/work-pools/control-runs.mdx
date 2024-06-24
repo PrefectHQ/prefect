@@ -8,14 +8,6 @@ When a [deployment](/3.0rc/deploy/serve-flows/) creates a flow run, it is submit
 A worker running in the execution environment polls its respective work pool for new runs to execute; or the work pool  
 submits flow runs to serverless infrastructure directly, depending on your configuration.
 
-<Note>
-**Work pool-based deployments**
-
-This guide focuses on work pools and workers. For guidance on work pool-based deployments, see 
-[Deploy flows to work pools and workers
-](deploy/work-pools/prefect-deploy#work-pool-based-deployments).
-</Note>
-
 ## Work pool overview
 
 Work pools organize work for execution. Work pools have types corresponding to the infrastructure to execute the flow code, 
@@ -530,7 +522,7 @@ Below is a list of available worker types. Most worker types require installatio
 
 | Worker Type | Description | Required Package |
 | --- | --- | --- |
-| [`process`](/3.0rc/api-ref/prefect/workers/process/) | Executes flow runs in subprocesses | |
+| [`process`](https://prefect-python-sdk-docs.netlify.app/prefect/workers/process/) | Executes flow runs in subprocesses | |
 | [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs as Kubernetes jobs | `prefect-kubernetes` |
 | [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers | `prefect-docker` |
 | [`ecs`](https://prefecthq.github.io/prefect-aws/ecs_worker/) | Executes flow runs as ECS tasks | `prefect-aws` |

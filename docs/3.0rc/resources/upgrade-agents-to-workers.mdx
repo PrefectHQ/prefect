@@ -17,12 +17,12 @@ by simplifying the specification of each flow's infrastructure and runtime envir
 <Note>
 This guide is for users who are on `prefect<3.0` who are upgrading from agents to workers.
 If you are new to Prefect, we recommend starting with the 
-[Prefect Cloud Quickstart](/3.0rc/get-started/quickstart/) guide.
+[Prefect Quickstart](/3.0rc/get-started/quickstart/).
 </Note>
 
 ## About workers and agents
 A [worker](/3.0rc/deploy/work-pools/control-runs/#worker-overview) is the fusion of an 
-[agent](https://docs.prefect.io/2.19.3/concepts/agents/) with an [infrastructure block](https://docs.prefect.io/2.19.3/concepts/infrastructure/). 
+agent with an infrastructure block. 
 Like agents, workers poll a work pool for flow runs that are scheduled to start. 
 Like infrastructure blocks, workers are typed. They work with only one kind of infrastructure, 
 and they specify the default configuration for jobs submitted to that infrastructure.
@@ -69,7 +69,7 @@ to enable [dryer deployment definitions](/3.0rc/deploy/serve-flows/#reusing-conf
     Prefect now automatically detects flows in your repo and provides a [wizard](/3.0rc/#step-5-deploy-the-flow)  
     to guide you through setting required attributes for your deployments.
 
-    `Deployment.build_from_flow` --> [`flow.deploy`](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.deploy)
+    `Deployment.build_from_flow` --> [`flow.deploy`](https://prefect-python-sdk-docs.netlify.app/prefect/flows/#prefect.flows.Flow.deploy)
 
 2. **Configuring remote flow code storage:**
 
@@ -93,7 +93,7 @@ to enable [dryer deployment definitions](/3.0rc/deploy/serve-flows/#reusing-conf
 
     Create and/or update many deployments at once through a 
     [`prefect.yaml`](/3.0rc/deploy/serve-flows/#working-with-multiple-deployments) 
-    file or use the [`deploy`](/3.0rc/api-ref/prefect/deployments/runner/#prefect.deployments.runner.deploy) 
+    file or use the [`deploy`](/3.0rc/deploy/dynamic-infra/push-runs-remote) 
     function.
 
 ## What's similar
@@ -144,7 +144,7 @@ KubernetesJob.load("my-k8s-job").publish_as_work_pool()
 <Tip>
 **Serving flows**
 If you are using a `Process` infrastructure block and a `LocalFilesystem` storage block 
-(or aren't using an infrastructure and storage block at all), you can use [`flow.serve`](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.deploy) 
+(or aren't using an infrastructure and storage block at all), you can use [`flow.serve`](/3.0rc/deploy/serve-flows/deploy-a-flow) 
 to create a deployment without specifying a work pool name or start a worker.
 
 This is a quick way to create a deployment for a flow and manage your 
@@ -187,7 +187,7 @@ but here are some possible changes you may need:
   - If you've used the `.publish_as_work_pool` method on your infrastructure block, use the 
   name of the created work pool.
 - Replace `infra_overrides` with `job_variables`.
-- Replace `storage` with a call to [`flow.from_source`](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.deploy).
+- Replace `storage` with a call to [`flow.from_source`](/3.0rc/deploy/serve-flows/deploy-a-flow).
   - `flow.from_source` loads your flow from a remote storage location and makes it deployable. 
   You can pass your existing storage block to the `source` argument of `flow.from_source`.
 

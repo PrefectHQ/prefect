@@ -30,7 +30,7 @@ UI that allow you to:
 - trigger new runs, [cancel active runs](/3.0rc/develop/write-flows/#cancel-a-flow-run), 
 pause scheduled runs, customize parameters, and more
 - remotely configure schedules and automation rules for your deployments
-- dynamically provision infrastructure using [workers](/3.0rc/tutorials/workers/)
+- dynamically provision infrastructure using [workers](/3.0rc/deploy/dynamic-infra/push-runs-remote)
 
 <Note>
 **Connect to Prefect Cloud or a self-hosted Prefect server instance**
@@ -293,7 +293,7 @@ Pausing a schedule, updating your deployment, and other actions reset your auto-
 
 #### Run a deployed flow from within Python flow code
 
-Prefect provides a [`run_deployment` function](/3.0rc/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) 
+Prefect provides a [`run_deployment` function](https://prefect-python-sdk-docs.netlify.app/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) 
 to schedule the run of an existing deployment when your Python code executes.
 
 ```python
@@ -330,7 +330,7 @@ def my_flow():
     run_deployment(name="my_other_flow/my_deployment_name", as_subflow=False)
 ```
 
-The return value of `run_deployment` is a [FlowRun](/3.0rc/api-ref/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) 
+The return value of `run_deployment` is a [FlowRun](https://prefect-python-sdk-docs.netlify.app/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) 
 object containing metadata about the scheduled run. Use this object to retrieve information 
 about the run after calling
 `run_deployment`:

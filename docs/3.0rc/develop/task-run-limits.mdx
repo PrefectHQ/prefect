@@ -78,7 +78,7 @@ prefect concurrency-limit inspect small_instance
 #### Python client
 
 To update your tag concurrency limits programmatically, use 
-[`PrefectClient.orchestration.create_concurrency_limit`](../../api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.create_concurrency_limit).
+[`PrefectClient.orchestration.create_concurrency_limit`](https://prefect-python-sdk-docs.netlify.app//prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.create_concurrency_limit).
 
 `create_concurrency_limit` takes two arguments:
 
@@ -98,7 +98,7 @@ async with get_client() as client:
         )
 ```
 
-To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](/3.0rc/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.delete_concurrency_limit_by_tag/), passing the tag:
+To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.delete_concurrency_limit_by_tag/), passing the tag:
 
 ```python
 async with get_client() as client:
@@ -106,9 +106,9 @@ async with get_client() as client:
     await client.delete_concurrency_limit_by_tag(tag="small_instance")
 ```
 
-If you wish to query for the current limit on a tag, use [`PrefectClient.read_concurrency_limit_by_tag`](/3.0rc/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limit_by_tag), passing the tag:
+If you wish to query for the current limit on a tag, use [`PrefectClient.read_concurrency_limit_by_tag`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limit_by_tag), passing the tag:
 
-To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](/3.0rc/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limits).
+To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limits).
 
 ```python
 async with get_client() as client:
