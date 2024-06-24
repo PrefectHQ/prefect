@@ -1,0 +1,284 @@
+/*********************************************************
+* Tokens
+*/
+.namespace {
+    opacity: 0.7;
+}
+
+.token.doctype .token.doctype-tag {
+    /* No direct equivalent, using similar color */
+    color: #79c0ff;
+}
+
+.token.doctype .token.name {
+    /* No direct equivalent, using similar color */
+    color: #d2a8ff;
+}
+
+.token.comment,
+.token.prolog {
+    color: #8b949e;
+}
+
+.token.punctuation,
+.language-html .language-css .token.punctuation,
+.language-html .language-javascript .token.punctuation {
+    color: #c9d1d9;
+    /* From .hljs-subst */
+
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.inserted,
+.token.unit {
+    color: #79c0ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.deleted {
+    color: #79c0ff;
+    /* From .hljs-string, .hljs-regexp */
+}
+
+.token.plain-text {
+    color: #fafafa;
+    /* No direct equivalent, using a light color */
+}
+
+.language-css .token.string.url {
+    text-decoration: underline;
+}
+
+.token.operator,
+.token.entity {
+    color: #79c0ff;
+}
+
+.token.operator.arrow {
+    /* No direct equivalent, using similar color */
+    color: #ff7b72;
+}
+
+.token.atrule {
+    color: #79c0ff;
+}
+
+.token.atrule .token.rule {
+    /* No direct equivalent, using similar color */
+    color: #d2a8ff;
+}
+
+.token.atrule .token.url {
+    color: #79c0ff;
+}
+
+.token.atrule .token.url .token.function {
+    /* No direct equivalent, using similar color */
+    color: #79c0ff;
+}
+
+.token.atrule .token.url .token.punctuation {
+    /* No direct equivalent, using similar color */
+    color: #d4d4d4;
+}
+
+.token.keyword {
+    color: #ff7b72;
+}
+
+.token.keyword.module,
+.token.keyword.control-flow {
+    /* No direct equivalent, using similar color */
+    color: #c586c0;
+}
+
+.token.function,
+.token.function .token.maybe-class-name {
+    color: #d2a8ff;
+}
+
+.token.regex {
+    color: #a5d6ff;
+}
+
+.token.important {
+    color: #ff7b72;
+}
+
+.token.italic {
+    font-style: italic;
+    color: #c9d1d9;
+    /* Using .hljs-emphasis color */
+}
+
+.token.constant {
+    color: #79c0ff;
+}
+
+.token.class-name,
+.token.maybe-class-name {
+    color: #d2a8ff;
+}
+
+.token.console {
+    /* No direct equivalent, using similar color */
+    color: #9cdcfe;
+}
+
+.token.parameter {
+    color: #79c0ff;
+}
+
+.token.interpolation {
+    /* No direct equivalent, using similar color */
+    color: #79c0ff;
+}
+
+.token.punctuation.interpolation-punctuation {
+    /* No direct equivalent, using similar color */
+    color: #569cd6;
+}
+
+.token.boolean {
+    color: #ff7b72;
+}
+
+.token.property,
+.token.variable,
+.token.imports .token.maybe-class-name,
+.token.exports .token.maybe-class-name {
+    color: #79c0ff;
+}
+
+.token.selector {
+    color: #7ee787;
+}
+
+.token.escape {
+    color: #7ee787;
+    /* Same as .hljs-selector-tag */
+}
+
+.token.tag {
+    color: #7ee787;
+}
+
+.token.tag .token.punctuation {
+    color: #808080;
+}
+
+.token.cdata {
+    color: #808080;
+}
+
+.token.attr-name {
+    color: #79c0ff;
+}
+
+.token.attr-value,
+.token.attr-value .token.punctuation {
+    color: #a5d6ff;
+    /* Same as .hljs-string */
+}
+
+.token.attr-value .token.punctuation.attr-equals {
+    color: #d4d4d4;
+}
+
+.token.entity {
+    color: #79c0ff;
+}
+
+.token.namespace {
+    color: #7ee787;
+}
+
+/* No direct mapping in provided theme for .token.operator */
+.token.operator {
+    color: #94a3b8;
+}
+
+/*********************************************************
+* Language Specific
+*/
+
+pre[class*='language-javascript'],
+code[class*='language-javascript'],
+pre[class*='language-jsx'],
+code[class*='language-jsx'],
+pre[class*='language-typescript'],
+code[class*='language-typescript'],
+pre[class*='language-tsx'],
+code[class*='language-tsx'] {
+    color: #79c0ff;
+    /* Same as .hljs-attr */
+}
+
+pre[class*='language-css'],
+code[class*='language-css'] {
+    color: #a5d6ff;
+    /* Same as .hljs-string */
+}
+
+pre[class*='language-html'],
+code[class*='language-html'] {
+    color: #c9d1d9;
+    /* Using .hljs-subst color */
+}
+
+.language-regex .token.anchor {
+    /* No direct equivalent, using similar color */
+    color: #dcdcaa;
+}
+
+.language-html .token.punctuation {
+    color: #808080;
+}
+
+/* Used for API response */
+span.language-json .token.punctuation {
+    color: #4b5563;
+}
+
+:is(.dark span.language-json .token.punctuation) {
+    color: #d1d5db;
+}
+
+span.language-json .token.property {
+    color: #0284c7;
+}
+
+:is(.dark span.language-json .token.property) {
+    color: 9cdcfe;
+}
+
+span.language-json .token.string {
+    color: #d97706;
+}
+
+:is(.dark span.language-json .token.string) {
+    color: #ce9178;
+}
+
+span.language-json .token.number {
+    color: #16a34a;
+}
+
+:is(.dark span.language-json .token.number) {
+    color: #b5cea8;
+}
+
+.line-highlight.line-highlight {
+    background: #f7ebc6;
+    box-shadow: inset 5px 0 0 #f7d87c;
+    z-index: 0;
+}
