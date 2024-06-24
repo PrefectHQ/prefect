@@ -195,7 +195,7 @@ You may call any number of tasks, other flows, and even regular Python functions
 You can pass parameters to your flow function to use elsewhere in the workflow, and Prefect will report on the progress 
 and [final state](#final-state-determination) of any invocation.
 
-We recommend small tasks.
+We recommend writing atomic tasks.
 Each task should be a single, discrete piece of work in your workflow, such as calling an API, performing a database operation, or transforming a data point.
 The more granular you make your tasks, the better your workflows can recover from failures and the easier you can find and fix issues.
 Prefect tasks are well suited for parallel or distributed execution using distributed computation frameworks such as Dask or Ray. 
