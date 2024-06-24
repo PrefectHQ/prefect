@@ -22,7 +22,7 @@ See the [migration script](https://github.com/PrefectHQ/prefect/blob/f767724ab28
 
 ## Asynchronous task execution behavior
 
-Prefect 2 abstracts away certain task execution concerns, which is convenient in some cases, but comes at the expense of unexpected behavior in other cases. 
+Prefect 2 abstracts away certain task execution concerns, which is often convenient, but sometimes causes unexpected behavior. 
 Prefect 3 defaults to running tasks as they would run as normal Python code, and requires you to be more explicit when you would like to modify task execution behavior. 
 This results in clearer behavior with fewer surprises.
 
