@@ -51,7 +51,11 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
+from prefect.utilities.callables import (
+    call_with_parameters,
+    get_call_parameters,
+    parameters_to_args_kwargs,
+)
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
@@ -595,10 +599,11 @@ def run_flow_sync(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
-    parameters = flow_run.parameters if flow_run else parameters
-
     engine = FlowRunEngine[P, R](
-        flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
+        flow=flow,
+        parameters=parameters,
+        flow_run=flow_run,
+        wait_for=wait_for,
     )
 
     with engine.start():
@@ -616,8 +621,6 @@ async def run_flow_async(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
-    parameters = flow_run.parameters if flow_run else parameters
-
     engine = FlowRunEngine[P, R](
         flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
     )
@@ -714,10 +717,13 @@ def run_flow(
     kwargs = dict(
         flow=flow,
         flow_run=flow_run,
-        parameters=parameters,
+        parameters=_flow_parameters(
+            flow=flow, flow_run=flow_run, parameters=parameters
+        ),
         wait_for=wait_for,
         return_type=return_type,
     )
+
     if flow.isasync and flow.isgenerator:
         return run_generator_flow_async(**kwargs)
     elif flow.isgenerator:
@@ -726,3 +732,20 @@ def run_flow(
         return run_flow_async(**kwargs)
     else:
         return run_flow_sync(**kwargs)
+
+
+def _flow_parameters(
+    flow: Flow[P, R], flow_run: Optional[FlowRun], parameters: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    if parameters:
+        # This path is taken when a flow is being called directly with
+        # parameters, in that case just return the parameters as-is.
+        return parameters
+
+    # Otherwise the flow is being executed indirectly and we may need to grab
+    # the parameters from the flow run. We also need to resolve any default
+    # parameters that are defined on the flow function itself.
+
+    parameters = flow_run.parameters if flow_run else {}
+    call_args, call_kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+    return get_call_parameters(flow.fn, call_args, call_kwargs)
