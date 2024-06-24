@@ -734,7 +734,7 @@ PREFECT_RESULTS_DEFAULT_SERIALIZER = Setting(
 
 PREFECT_RESULTS_PERSIST_BY_DEFAULT = Setting(
     bool,
-    default=False,
+    default=True,
 )
 """
 The default setting for persisting results when not otherwise specified. If enabled,

@@ -408,7 +408,6 @@ class TestFlowWithOptions:
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @flow(
-            persist_result=True,
             result_serializer="json",
             result_storage=LocalFileSystem(basepath=tmp_path),
         )
@@ -416,11 +415,9 @@ class TestFlowWithOptions:
             pass
 
         flow_with_options = initial_flow.with_options(
-            persist_result=None,
             result_serializer=None,
             result_storage=None,
         )
-        assert flow_with_options.persist_result is None
         assert flow_with_options.result_serializer is None
         assert flow_with_options.result_storage is None
 
@@ -3976,8 +3973,9 @@ class TestFlowFromSource:
             return MockStorage()
 
         monkeypatch.setattr(
-            "prefect.flows.create_storage_from_source", mock_create_storage_from_source
-        )  # adjust the import path as per your module's name and location
+            "prefect.runner.storage.create_storage_from_source",
+            mock_create_storage_from_source,
+        )
 
         loaded_flow = await Flow.from_source(
             source="https://github.com/org/repo.git", entrypoint="flows.py:test_flow"
@@ -4030,7 +4028,7 @@ class TestFlowDeploy:
     @pytest.fixture
     def mock_deploy(self, monkeypatch):
         mock = AsyncMock()
-        monkeypatch.setattr("prefect.flows.deploy", mock)
+        monkeypatch.setattr("prefect.deployments.runner.deploy", mock)
         return mock
 
     @pytest.fixture
