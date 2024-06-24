@@ -144,7 +144,7 @@ def prestart_check():
             save_profiles(profiles)
 
             app.console.print(
-                f"Create and switched to new profile {profile_name!r}", style="green"
+                f"Switched to new profile {profile_name!r}", style="green"
             )
         elif choice == "set":
             api_url = prompt(
