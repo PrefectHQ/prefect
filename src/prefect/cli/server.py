@@ -176,7 +176,6 @@ async def start(
         pass
 
     server_env = os.environ.copy()
-
     server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
     server_env["PREFECT_SERVER_ANALYTICS_ENABLED"] = str(analytics)
     server_env["PREFECT_API_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
