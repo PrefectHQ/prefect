@@ -25,7 +25,7 @@ A cache key is a computed string value that determines where the task's return v
 its configured result storage.
 When a task run begins, Prefect first computes its cache key and uses this key to lookup a record in the task's result
 storage. 
-If an unexpired record is found, this result is returned and the task does not run but instead enters a 
+If an unexpired record is found, this result is returned and the task does not run, but instead, enters a 
 `Cached` state with the corresponding result value.
 
 Cache keys can be shared by the same task across different flows, and even among different tasks, 
