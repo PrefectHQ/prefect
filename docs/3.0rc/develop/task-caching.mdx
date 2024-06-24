@@ -13,7 +13,7 @@ By default Prefect's caching logic is based on the following attributes of a tas
 - the code definition of the task
 - the prevailing flow run ID, or if executed autonomously, the prevailing task run ID
 
-All of these are hashed to compute the task's _cache key_. 
+These values are hashed to compute the task's _cache key_. 
 This implies that, by default, calling the same task with the same inputs more than once within a flow 
 will result in cached behavior for all calls after the first.
 This behavior can be configured - see [customizing the cache](/3.0rc/develop/write-tasks#customizing-the-cache) below.
