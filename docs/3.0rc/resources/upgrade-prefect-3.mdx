@@ -30,9 +30,8 @@ Here are some examples:
 
 **Synchronous tasks and flows cannot be called from asynchronous tasks or flows as they could in Prefect 2.**
 
-<CardGroup cols={2}>
-  <Card title="Prefect 2">
-    ```python
+<CodeGroup>
+    ```python Prefect 2
     @task
     async def my_task():
         ...
@@ -47,9 +46,8 @@ Here are some examples:
     if __name__ == "__main__":
 	my_flow()
     ```
-  </Card>
-  <Card title="Prefect 3">
-    ```python
+
+    ```python Prefect 3
     @task
     async def my_task():
 	...
@@ -64,8 +62,7 @@ Here are some examples:
     if __name__ == "__main__":
 	asyncio.run(my_flow())
     ``` 
-  </Card>
-</CardGroup>
+</CodeGroup>
 
 Because `Task.submit` is always a synchronous call, it does not need to be awaited. 
 `Task.submit` is still non-blocking and execution of the submitted task is also still non-blocking. 
