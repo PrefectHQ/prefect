@@ -223,7 +223,6 @@ However, if the input argument value changes, `hello_task()` runs using the new 
 from datetime import timedelta
 from prefect import flow, task
 from prefect.cache_policies import INPUTS
-
 @task(cache_policy=INPUTS, cache_expiration=timedelta(days=1))
 def hello_task(name_input):
     # Doing some work
