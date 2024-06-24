@@ -16,7 +16,7 @@ All previous and future Prefect 2 releases will continue to work with Prefect Cl
 
 Some modules have been renamed, reorganized, or removed for clarity. 
 Objects imported from changed modules will continue to work until their six month deprecation period ends, but will raise deprecation warnings. 
-See the [migartion script](https://github.com/PrefectHQ/prefect/blob/f767724ab28278446456b024b5c1c73f76ebcbb5/src/prefect/_internal/compatibility/migration.py#L22) for the full list of modules that have been moved and removed.
+See the [migration script](https://github.com/PrefectHQ/prefect/blob/f767724ab28278446456b024b5c1c73f76ebcbb5/src/prefect/_internal/compatibility/migration.py#L22) for the full list of modules that have been moved and removed.
 
 ## Asynchronous task execution behavior
 
@@ -46,11 +46,11 @@ Here are some examples:
     # Enclosing flow can be sync
     @flow
     def my_flow():
-	return my_task()
+	    return my_task()
 	
 		
     if __name__ == "__main__":
-	my_flow()
+	    my_flow()
     ```
 
     ```python Prefect 3
@@ -62,11 +62,11 @@ Here are some examples:
     # Enclosing flow must be async as well
     @flow
     async def my_flow():
-	return await my_task()
+	    return await my_task()
 	
 	
     if __name__ == "__main__":
-	asyncio.run(my_flow())
+	    asyncio.run(my_flow())
     ``` 
 </CodeGroup>
 
@@ -83,9 +83,9 @@ So, *you do not need to await use the `await` keyword in front of your `.submit`
 	
     @flow
     async def my_flow():
-	#must await `.submit()`
-	future = await my_task.submit()
-	return future
+	    #must await `.submit()`
+	    future = await my_task.submit()
+	    return future
     ```
 
     ```python Prefect 3
@@ -96,9 +96,9 @@ So, *you do not need to await use the `await` keyword in front of your `.submit`
 	
     @flow
     async def my_flow():
-	# No need to await `.submit()`
-	future = my_task.submit()
-	return future
+	    # No need to await `.submit()`
+	    future = my_task.submit()
+	    return future
     ```
 </CodeGroup>
 
@@ -119,25 +119,25 @@ The `PrefectFuture` methods are also always synchronous in Prefect 3. Names and 
     @flow
     async def my_flow():
     	future = await my_task.submit()
-	# State is returned by `wait()`
-	state = await future.wait()
-	return state
+	    # State is returned by `wait()`
+	    state = await future.wait()
+	    return state
     ```
 
     ```python Prefect 3
     @task
     async def my_task():
-    	    ...
+    	...
 	
 	
     @flow
     async def my_flow():
-	future = my_task.submit()
-	# Wait for future completion  
-	# before retrieving the state
-	future.wait()
-	state = future.state
-	return state
+	    future = my_task.submit()
+	    # Wait for future completion  
+	    # before retrieving the state
+	    future.wait()
+	    state = future.state
+	    return state
     ```
 </CodeGroup>
 
@@ -149,27 +149,27 @@ In Prefect 3, `PrefectFutures` resulting from submitted task runs are not automa
     ```python Prefect 2
     @task
     def my_task():
-	...
+	    ...
 	
 	
     @flow
     def my_flow():
-	# The flow will not exit until 
-	# these futures are resolved
-	futures = my_task.map([1, 2, 3, 4])
+	    # The flow will not exit until 
+	    # these futures are resolved
+	    futures = my_task.map([1, 2, 3, 4])
     ```
 
     ```python Prefect 3
     @task
     def my_task():
-	...
+	    ...
 	
 	
     @flow
     def my_flow():
-	futures = my_task.map([1, 2, 3, 4])
-	# You must wait for futures before exiting flow.
-	futures.wait()
+	    futures = my_task.map([1, 2, 3, 4])
+	    # You must wait for futures before exiting flow.
+	    futures.wait()
     ```
 </CodeGroup>
 
