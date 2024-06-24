@@ -1,3 +1,4 @@
+import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import (
@@ -7,12 +8,15 @@ from typing import (
     List,
     Optional,
     Type,
+    Union,
 )
 
 from pydantic import Field
 from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
+from prefect.exceptions import MissingContextError
+from prefect.logging.loggers import PrefectLogAdapter, get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import (
@@ -22,6 +26,7 @@ from prefect.results import (
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.engine import _get_hook_name
 
 
 class IsolationLevel(AutoEnum):
@@ -58,6 +63,7 @@ class Transaction(ContextModel):
         default_factory=list
     )
     overwrite: bool = False
+    logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
 
@@ -174,10 +180,13 @@ class Transaction(ContextModel):
             return False
 
         try:
+            hook_name = None
+
             for child in self.children:
                 child.commit()
 
             for hook in self.on_commit_hooks:
+                hook_name = _get_hook_name(hook)
                 hook(self)
 
             if self.store and self.key:
@@ -185,6 +194,19 @@ class Transaction(ContextModel):
             self.state = TransactionState.COMMITTED
             return True
         except Exception:
+            if self.logger:
+                if hook_name:
+                    msg = (
+                        f"An error was encountered while running commit hook {hook_name!r}",
+                    )
+                else:
+                    msg = (
+                        f"An error was encountered while committing transaction {self.key!r}",
+                    )
+                self.logger.exception(
+                    msg,
+                    exc_info=True,
+                )
             self.rollback()
             return False
 
@@ -212,6 +234,7 @@ class Transaction(ContextModel):
 
         try:
             for hook in reversed(self.on_rollback_hooks):
+                hook_name = _get_hook_name(hook)
                 hook(self)
 
             self.state = TransactionState.ROLLED_BACK
@@ -221,6 +244,11 @@ class Transaction(ContextModel):
 
             return True
         except Exception:
+            if self.logger:
+                self.logger.exception(
+                    f"An error was encountered while running rollback hook {hook_name!r}",
+                    exc_info=True,
+                )
             return False
 
     @classmethod
@@ -238,6 +266,7 @@ def transaction(
     store: Optional[RecordStore] = None,
     commit_mode: Optional[CommitMode] = None,
     overwrite: bool = False,
+    logger: Optional[PrefectLogAdapter] = None,
 ) -> Generator[Transaction, None, None]:
     """
     A context manager for opening and managing a transaction.
@@ -288,7 +317,16 @@ def transaction(
             result_factory=new_factory,
         )
 
+    try:
+        logger = logger or get_run_logger()
+    except MissingContextError:
+        logger = get_logger("transactions")
+
     with Transaction(
-        key=key, store=store, commit_mode=commit_mode, overwrite=overwrite
+        key=key,
+        store=store,
+        commit_mode=commit_mode,
+        overwrite=overwrite,
+        logger=logger,
     ) as txn:
         yield txn
