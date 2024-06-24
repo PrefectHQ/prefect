@@ -2,7 +2,7 @@
 
 from asyncio import sleep
 from pathlib import Path
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Callable, Dict, Optional, Type, Union
 
 import yaml
 from kubernetes.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
@@ -379,7 +379,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
         self.logger.info(f"Job {job_name} deleted " f"with {deleted_v1_job.status!r}.")
 
     @sync_compatible
-    async def wait_for_completion(self):
+    async def wait_for_completion(self, print_func: Optional[Callable] = None):
         """Waits for the job to complete.
 
         If the job has `delete_after_completion` set to `True`,
@@ -435,6 +435,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
                     pod_name=pod_name,
                     container=v1_job_status.spec.template.spec.containers[0].name,
                     namespace=self._kubernetes_job.namespace,
+                    print_func=print_func,
                     **self._kubernetes_job.api_kwargs,
                 )
 

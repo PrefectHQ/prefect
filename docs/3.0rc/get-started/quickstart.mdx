@@ -5,7 +5,7 @@ description: Get started with Prefect, the easiest way to orchestrate and observ
 
 import Installation from '/snippets/installation.mdx'
 
-Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly.
+Prefect is an orchestration and observability platform that empowers developers to build and scale workflows quickly.
 In this quickstart, you will use Prefect to convert the following Python script to a schedulable, observable, resilient, and deployable workflow in minutes:
 
 ```python
@@ -48,7 +48,7 @@ Connect to the Prefect API, either Prefect Cloud hosted by us, or a local Prefec
 
 Your CLI is now authenticated with your Prefect Cloud account through a locally-stored API key that expires in 30 days.
 
-If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/manage/cloud/manage-users/api-keys/) to learn how to authenticate with a manually created API key.
+If you have any issues with browser-based authentication, you can [authenticate with a manually created API key](/3.0rc/manage/cloud/manage-users/api-keys/) instead.
   </Tab>
   <Tab title="Local server">
 1. Ensure your current profile isn't authenticated to Prefect Cloud:
@@ -67,7 +67,7 @@ If you have any issues with browser-based authentication, see the [Prefect Cloud
   </Tab>
 </Tabs>
 
-## Convert your script to a Prefect flow
+## Convert your script to a Prefect workflow
 
 The easiest way to convert a Python script into a workflow is to add a `@flow` decorator to the script's entrypoint, the Python function that runs first.
 [Flows](/3.0rc/develop/write-flows/) are containers for workflow logic as code. 

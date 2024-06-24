@@ -30,7 +30,7 @@ UI that allow you to:
 - trigger new runs, [cancel active runs](/3.0rc/develop/write-flows/#cancel-a-flow-run), 
 pause scheduled runs, customize parameters, and more
 - remotely configure schedules and automation rules for your deployments
-- dynamically provision infrastructure using [workers](/3.0rc/tutorials/workers/)
+- dynamically provision infrastructure using [workers](/3.0rc/deploy/dynamic-infra/push-runs-remote)
 
 <Note>
 **Connect to Prefect Cloud or a self-hosted Prefect server instance**
@@ -293,7 +293,7 @@ Pausing a schedule, updating your deployment, and other actions reset your auto-
 
 #### Run a deployed flow from within Python flow code
 
-Prefect provides a [`run_deployment` function](/3.0rc/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) 
+Prefect provides a [`run_deployment` function](https://prefect-python-sdk-docs.netlify.app/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) 
 to schedule the run of an existing deployment when your Python code executes.
 
 ```python
@@ -312,11 +312,12 @@ executing. Pass `timeout=0` to return immediately and not block.
     
 If you call `run_deployment` from within a flow or task, the scheduled flow
 run is linked to the calling flow run (or the calling task's flow run)
-as a subflow run by default.
+as a nested flow run by default.
 
-Subflow runs have different behavior than regular flow runs. For example, you can't suspend a 
-subflow run independently of its parent flow. To not link the scheduled flow run to the 
-calling flow or task run, pass `as_subflow=False` to disable it:
+Nested flow runs have different behavior than regular flow runs. For example, you can't suspend a 
+nested flow run independently of its parent flow run. 
+To prevent the flow run triggered by `run_deployment` from being linked to the flow run from which the method was called,
+pass `as_subflow=False` to disable it:
 
 ```python
 from prefect import flow
@@ -325,11 +326,11 @@ from prefect.deployments import run_deployment
 
 @flow
 def my_flow():
-    # The scheduled flow run will not be linked to this flow as a subflow.
+    # This flow run will not be linked to `my_flow` run as a child 
     run_deployment(name="my_other_flow/my_deployment_name", as_subflow=False)
 ```
 
-The return value of `run_deployment` is a [FlowRun](/3.0rc/api-ref/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) 
+The return value of `run_deployment` is a [FlowRun](https://prefect-python-sdk-docs.netlify.app/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) 
 object containing metadata about the scheduled run. Use this object to retrieve information 
 about the run after calling
 `run_deployment`:
