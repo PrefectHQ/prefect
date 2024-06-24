@@ -27,7 +27,7 @@ fi
 cd "$(dirname "$0")/.."
 
 # Create a temporary virtual environment using uv
-uv venv "$temp_dir/.venv" --python 3.11 # ray[default] does not support Python 3.12 yet
+uv venv "$temp_dir/.venv" --python 3.11 
 source "$temp_dir/.venv/bin/activate"
 
 # Install all integration libraries from src/integrations and core dev dependencies as editable
@@ -35,4 +35,5 @@ integration_packages=$(find src/integrations -name "pyproject.toml" -exec dirnam
 uv pip install $integration_packages -e ".[dev]"
 
 # Build and serve the docs
+mkdocs build
 mkdocs serve -a localhost:8000
