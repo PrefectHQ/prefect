@@ -437,11 +437,11 @@ class TestTaskRunsAsync:
         assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         async def first():
             return 42
 
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         async def second():
             return 500
 
@@ -637,11 +637,11 @@ class TestTaskRunsSync:
         assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         def first():
             return 42
 
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         def second():
             return 500
 
@@ -1083,7 +1083,7 @@ class TestPersistence:
         )
         await factory.create_result(-92, key="foo-bar")
 
-        @task(result_storage=fs, result_storage_key="foo-bar")
+        @task(result_storage=fs, result_storage_key="foo-bar", persist_result=True)
         async def async_task():
             return 42
 
@@ -1214,6 +1214,7 @@ class TestCachePolicy:
         @task(
             cache_policy=FLOW_PARAMETERS,
             result_storage=fs,
+            persist_result=True,
         )
         def my_random_task(x: int):
             import random
@@ -1249,7 +1250,7 @@ class TestCachePolicy:
 
         PAYLOAD = {"return": 42}
 
-        @task(result_storage=fs, result_storage_key="tmp-first")
+        @task(result_storage=fs, result_storage_key="tmp-first", persist_result=True)
         async def first():
             return PAYLOAD["return"], get_run_context().task_run
 

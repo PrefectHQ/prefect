@@ -447,13 +447,13 @@ class TestFlowRetries:
         task_run_count = 0
         flow_run_count = 0
 
-        @task
+        @task(persist_result=True)
         async def my_task():
             nonlocal task_run_count
             task_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         async def foo():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -607,13 +607,13 @@ class TestFlowRetries:
         child_run_count = 0
         flow_run_count = 0
 
-        @flow
+        @flow(persist_result=True)
         async def child_flow():
             nonlocal child_run_count
             child_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         async def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1

@@ -379,7 +379,7 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
 async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
     await LocalFileSystem(basepath=tmp_path).save("my-result-storage")
 
-    @task(result_storage_key="my-result.pkl")
+    @task(result_storage_key="my-result.pkl", persist_result=True)
     async def bar():
         return {"foo": "bar"}
 

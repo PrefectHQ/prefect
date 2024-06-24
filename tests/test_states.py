@@ -152,7 +152,10 @@ class TestReturnValueToState:
         assert isinstance(result_state.data, UnpersistedResult)
         assert await result_state.result() is None
 
-    async def test_returns_single_state_with_data_to_persist(self, factory):
+    async def test_returns_single_state_with_data_to_persist(self, prefect_client):
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True
+        )
         state = Completed(data=1)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state

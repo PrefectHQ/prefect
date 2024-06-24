@@ -22,7 +22,7 @@ async def test_async_result_warnings_are_not_raised_by_engine():
 
     task_run_count = flow_run_count = subflow_run_count = 0
 
-    @task(retries=3)
+    @task(persist_result=True, retries=3)
     async def my_task():
         nonlocal task_run_count
         task_run_count += 1
@@ -30,23 +30,23 @@ async def test_async_result_warnings_are_not_raised_by_engine():
             raise ValueError()
         return 1
 
-    @task(cache_key_fn=lambda *_: "test")
+    @task(persist_result=True, cache_key_fn=lambda *_: "test")
     def foo():
         return 1
 
-    @task(cache_key_fn=lambda *_: "test")
+    @task(persist_result=True, cache_key_fn=lambda *_: "test")
     def bar():
         return 2
 
-    @flow
+    @flow(persist_result=True)
     def subflow():
         return 1
 
-    @flow
+    @flow(persist_result=True)
     async def async_subflow():
         return 1
 
-    @flow(retries=3)
+    @flow(retries=3, persist_result=True)
     async def retry_subflow():
         nonlocal subflow_run_count
         subflow_run_count += 1
@@ -54,7 +54,7 @@ async def test_async_result_warnings_are_not_raised_by_engine():
             raise ValueError()
         return 1
 
-    @flow(retries=3)
+    @flow(retries=3, persist_result=True)
     async def my_flow():
         a = await my_task()
 

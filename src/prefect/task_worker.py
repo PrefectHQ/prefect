@@ -7,7 +7,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import AsyncExitStack
 from contextvars import copy_context
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 import anyio
@@ -20,6 +20,7 @@ from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
+from prefect.cache_policies import DEFAULT, NONE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
@@ -32,6 +33,7 @@ from prefect.settings import (
 )
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
@@ -76,7 +78,16 @@ class TaskWorker:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks: List[Task] = list(tasks)
+        self.tasks = []
+        for t in tasks:
+            if isinstance(t, Task):
+                if t.cache_policy in [None, NONE, NotSet]:
+                    self.tasks.append(
+                        t.with_options(persist_result=True, cache_policy=DEFAULT)
+                    )
+                else:
+                    self.tasks.append(t.with_options(persist_result=True))
+
         self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
 
         self._started_at: Optional[pendulum.DateTime] = None
