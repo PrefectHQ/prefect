@@ -112,7 +112,7 @@ This expiration is then applied to _all_ other tasks that may share this cache k
 Cache policies can be composed and altered using basic Python syntax to form more complex policies.
 For example, all task policies except for `NONE` can be _added_ together to form new policies that combine
 the individual policies' logic into a larger cache key computation.
-Combining policies in this way therefore results in caches that are _easier_ to bust.
+Combining policies in this way results in caches that are _easier_ to invalidate.
 
 For example:
 
