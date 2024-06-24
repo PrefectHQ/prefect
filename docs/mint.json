@@ -125,6 +125,7 @@
       "group": "Deploy",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/deploy/store-flow-code",
         {
           "group": "Serve flows",
           "version": "3.0rc",
@@ -139,7 +140,6 @@
           "pages": [
             "3.0rc/deploy/dynamic-infra/push-runs-serverless",
             "3.0rc/deploy/dynamic-infra/push-runs-remote",
-            "3.0rc/deploy/dynamic-infra/retrieve-flow-code",
             "3.0rc/deploy/dynamic-infra/customize",
             "3.0rc/deploy/dynamic-infra/deploy-docker",
             "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
