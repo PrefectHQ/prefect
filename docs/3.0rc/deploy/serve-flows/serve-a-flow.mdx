@@ -4,7 +4,7 @@ description: Create a deployment for a flow by calling the `serve` method.
 ---
 
 The simplest way to create a [deployment](/3.0rc/deploy/serve-flows/) for your 
-flow is by calling its [`serve` method](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.serve).
+flow is by calling its `serve` method.
 This method creates a deployment for the flow and starts a long-running process 
 that monitors for work from the Prefect server.
 When work is found, it is executed within its own isolated subprocess.
@@ -23,7 +23,7 @@ def hello_world(name: str = "world", goodbye: bool = False):
 
 if __name__ == "__main__":
     # creates a deployment and stays running to monitor for work instructions 
-    generated on the server
+    # generated on the server
 
     hello_world.serve(name="my-first-deployment",
                       tags=["onboarding"],
@@ -49,21 +49,19 @@ When running this in environments where restarts are expected use the
 
 `pause_on_shutdown=False` flag to prevent this behavior:
 
-    ```python
-    if __name__ == "__main__":
-        hello_world.serve(name="my-first-deployment",
-                          tags=["onboarding"],
-                          parameters={"goodbye": True},
-                          pause_on_shutdown=False,
-                          interval=60)
-    ```
+```python
+if __name__ == "__main__":
+    hello_world.serve(name="my-first-deployment",
+                        tags=["onboarding"],
+                        parameters={"goodbye": True},
+                        pause_on_shutdown=False,
+                        interval=60)
+```
 </Tip>
 
 ### Serve multiple flows at once
 
-Serve multiple flows with the same process using 
-the [`serve`](/3.0rc/api-ref/prefect/runner/#prefect.runner.serve) utility along 
-with the `to_deployment` method of flows:
+Serve multiple flows with the same process using the `serve` utility along with the `to_deployment` method of flows:
 
 ```python
 import time
@@ -92,9 +90,7 @@ The behavior and interfaces are identical to the single flow case.
 
 ## Retrieve a flow from remote storage
 
-You can retrieve flows from remote storage with the 
-[`flow.from_source`](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.from_source) 
-method.
+You can retrieve flows from remote storage with the `flow.from_source` method.
 
 `flow.from_source` accepts a git repository URL and an entrypoint pointing to the 
 flow to load from the repository:
@@ -125,13 +121,13 @@ A flow entrypoint is the path to the file where the flow is located, and the nam
 flow function separated by a colon.
 
 For additional configuration, such as specifying a private repository, 
-provide a [`GitRepository`](/3.0rc/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) 
-instead of URL:
+provide a `GitRepository` object instead of URL:
 
 ```python title="load_from_storage.py"
 from prefect import flow
 from prefect.runner.storage import GitRepository
 from prefect.blocks.system import Secret
+
 
 my_flow = flow.from_source(
     source=GitRepository(
@@ -144,6 +140,7 @@ my_flow = flow.from_source(
     entrypoint="flows.py:my_flow"
 )
 
+
 if __name__ == "__main__":
     my_flow()
 ```
@@ -151,18 +148,18 @@ if __name__ == "__main__":
 <Tip>
 **You can serve loaded flows**
 
-    You can serve flows loaded from remote storage with the same 
-    [`serve`](#serving-a-flow) method as local flows:
+You can serve a flow loaded from remote storage with the same [`serve`](#serving-a-flow) method as a local flow:
 
-    ```python title="serve_loaded_flow.py"
-    from prefect import flow
+```python title="serve_loaded_flow.py"
+from prefect import flow
 
-    if __name__ == "__main__":
-        flow.from_source(
-            source="https://github.com/org/repo.git",
-            entrypoint="flows.py:my_flow"
-        ).serve(name="my-deployment")
-    ```
+
+if __name__ == "__main__":
+    flow.from_source(
+        source="https://github.com/org/repo.git",
+        entrypoint="flows.py:my_flow"
+    ).serve(name="my-deployment")
+```
 </Tip>
 
 When you serve a flow loaded from remote storage, the serving process 

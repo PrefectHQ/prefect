@@ -250,10 +250,10 @@ if __name__ == "__main__":
 ```
 
 Now you're fetching the data you need, but the requests happen sequentially.
-Tasks expose a [`submit`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method that changes 
+Tasks expose a [`submit`](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.Task.submit) method that changes 
 the execution from sequential to concurrent.
 In this example, you also need to use the 
-[`result`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) 
+[`result`](https://prefect-python-sdk-docs.netlify.app/prefect/futures/#prefect.futures.PrefectFuture.result) 
 method to unpack a list of return values:
 
 ```python 
@@ -352,7 +352,7 @@ Avoid this by splitting the code into multiple dependent tasks.
 
 ## Task configuration
 
-Tasks allow for customization through optional arguments that can be provided to the [task decorator](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task).
+Tasks allow for customization through optional arguments that can be provided to the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
 
 | Argument              | Description                                                                                                                                                                                                             |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -365,7 +365,7 @@ Tasks allow for customization through optional arguments that can be provided to
 | `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero.                                                                                          |
 | `log_prints`|An optional boolean indicating whether to log print statements. |
 
-See all possible options in the [Python SDK API docs](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task).
+See all possible options in the [Python SDK API docs](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
 
 For example, you can provide a `name` value for the task. Here's an example of the optional `description` argument 
 as well:
@@ -455,7 +455,7 @@ Tags are useful to:
 - Filter task runs by tag in the UI and through the [Prefect REST API](/3.0rc/api-ref/rest-api/#filtering).
 - Set [concurrency limits](#task-run-concurrency-limits) on task runs by tag.
 
-You may specify tags as a keyword argument on the [task decorator](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task).
+You may specify tags as a keyword argument on the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
 
 ```python 
 @task(name="hello-task", tags=["test"])
@@ -464,7 +464,7 @@ def my_task():
 ```
 
 You can also provide tags as an argument with a 
-[`tags` context manager](/3.0rc/api-ref/prefect/context/#prefect.context.tags), 
+[`tags` context manager](https://prefect-python-sdk-docs.netlify.app/prefect/context/#prefect.context.tags), 
 specifying tags when the task is called rather than in its definition.
 
 ```python 
@@ -539,7 +539,7 @@ to compute the task's cache key.
 to compute the cache key.
 - `NONE`: this cache policy always returns `None` and therefore avoids caching and result persistence altogether
 
-These can be set using the `cache_policy` keyword on the [task decorator](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task):
+These can be set using the `cache_policy` keyword on the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task):
 
 ```python
 from prefect import task
@@ -579,7 +579,7 @@ Prefect allows users to configure task caching behavior in numerous ways.
 #### Cache expiration
 
 All cache keys can optionally be given an _expiration_ through the `cache_expiration` keyword on 
-the [task decorator](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task):
+the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task):
 This keyword accepts a `datetime.timedelta` specifying a duration for which the cached value should be
 considered valid.
 
@@ -638,7 +638,7 @@ custom logic.
 if your task has the signature `fn(x, y, z)` then the dictionary will have keys "x", "y", and "z" with corresponding values that can be used to compute your cache key.
 
 This function can then be specified using the `cache_key_fn` argument on 
-the [task decorator](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task).
+the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
 
 For example:
 
@@ -766,10 +766,10 @@ Any task can return:
 
 - Data , such as `int`, `str`, `dict`, `list`. This is the default behavior any time you 
 call `your_task()`.
-- [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture). This is achieved 
+- [`PrefectFuture`](https://prefect-python-sdk-docs.netlify.app/prefect/futures/#prefect.futures.PrefectFuture). This is achieved 
 by calling [`your_task.submit()`](/3.0rc/develop/task-runners/#using-a-task-runner). 
 A `PrefectFuture` contains both _data_ and _State_.
-- Prefect [`State`](/3.0rc/api-ref/server/schemas/states/). Anytime you call your task or flow with 
+- Prefect [`State`](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/states/). Anytime you call your task or flow with 
 the argument `return_state=True`, it directly returns a state to build custom behavior based 
 on a state change you care about, such as task or flow failing or retrying.
 

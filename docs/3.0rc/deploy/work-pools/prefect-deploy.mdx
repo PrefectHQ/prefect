@@ -342,7 +342,7 @@ The exception is if there is something the server needs to know about changes, s
 Rerunning the Python script with `.deploy` updates your deployment on the server with the new flow code.
 
 If you need to provide additional configuration, such as specifying a private repository, you can provide a 
-[`GitRepository`](/3.0rc/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL:
+[`GitRepository`](https://prefect-python-sdk-docs.netlify.app/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL:
 
 ```python private_git_storage.py
 from prefect import flow
@@ -1202,7 +1202,6 @@ These are fields you can add to a deployment declaration's `schedule` section.
 | `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must use with `cron`. Defaults to `True`.                                                                                                     |
 | `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot used them in conjunction with `interval` or `cron`. |
 
-For more information, see the [Schedules](/3.0rc/deploy/serve-flows/add-schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section).
 
 #### Work pool fields
 

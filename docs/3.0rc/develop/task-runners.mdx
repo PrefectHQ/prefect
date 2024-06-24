@@ -8,7 +8,7 @@ Calling a task function directly without a task runner executes the function in 
 which blocks execution of its flow until the task completes. 
 
 To enable concurrent, parallel, or distributed execution of tasks, use the `.submit()` method to submit a task to a _task runner_. 
-The default task runner in Prefect is the [`ThreadPoolTaskRunner`](/3.0rc/api-ref/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner),
+The default task runner in Prefect is the [`ThreadPoolTaskRunner`](https://prefect-python-sdk-docs.netlify.app/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner),
 which runs tasks concurrently within a thread pool.
 For parallel or distributed task execution, you must additionally install one of the following task runners, available as integrations:
 
@@ -32,9 +32,9 @@ such as for operations mapped across a dataset.
 To configure your flow to use a specific task runner, provide the runner to the `task_runner` keyword of the flow decorator.
 
 To submit work to the runner, use the task's `.submit()` method.
-This method returns a [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which is a Prefect object that contains:
+This method returns a [`PrefectFuture`](https://prefect-python-sdk-docs.netlify.app/prefect/futures/#prefect.futures.PrefectFuture), which is a Prefect object that contains:
 - a reference to the payload returned by the task;
-- and a [`State`](/3.0rc/api-ref/server/schemas/states/), which is a Prefect object indicating the state of the task run.
+- and a [`State`](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/states/), which is a Prefect object indicating the state of the task run.
 
 Prefect future objects must be resolved explicitly before returning from a flow. 
 This can be done by calling `.wait()` on the future.
@@ -121,7 +121,7 @@ if __name__ == "__main__":
 ## Access results from submitted tasks
 
 When you use `.submit()` to submit a task to a task runner, the task runner creates a 
-[`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture) for access to the state and 
+[`PrefectFuture`](https://prefect-python-sdk-docs.netlify.app/prefect/futures/#prefect.futures.PrefectFuture) for access to the state and 
 result of the task.
 
 A `PrefectFuture` is an object that provides access to a computation happening in a task runner, 
@@ -200,7 +200,7 @@ def my_flow():
 ```
 
 
-You may also use the [`wait_for=[]`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit) parameter 
+You may also use the [`wait_for=[]`](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.Task.submit) parameter 
 when calling a task by specifying upstream task dependencies. This enables you to control task execution 
 order for tasks that do not share data dependencies.
 
