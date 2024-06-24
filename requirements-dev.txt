@@ -4,11 +4,6 @@ codespell>=2.2.6
 ddtrace
 ipython
 jinja2
-mkdocs
-mkdocs-gen-files
-mkdocs-material
-mkdocstrings-python
-mike
 moto >= 5
 mypy >= 1.9.0
 numpy
@@ -23,7 +18,6 @@ pytest-env
 pytest-flakefinder
 pytest-timeout
 pytest-xdist >= 3.6.1
-pytkdocs >= 0.14.2
 pyyaml
 redis>=5.0.1
 setuptools
@@ -40,3 +34,4 @@ types-PyYAML
 mkdocs
 mkdocs-material
 mkdocstrings[python]
+mkdocs-gen-files
