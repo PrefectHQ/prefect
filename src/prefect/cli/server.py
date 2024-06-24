@@ -125,13 +125,19 @@ def prestart_check():
         profiles = load_profiles()
 
         if choice == "create":
-            profile_name = prompt("Enter a new profile name")
-            if profile_name in profiles:
-                exit_with_error(f"Profile {profile_name!r} already exists")
-
-            api_url = prompt(
-                "Enter the `PREFECT_API_URL` value", default="http://127.0.0.1:4200/api"
-            )
+            while True:
+                profile_name = prompt("Enter a new profile name")
+                if profile_name in profiles:
+                    app.console.print(
+                        f"Profile {profile_name!r} already exists. Please choose a different name.",
+                        style="red",
+                    )
+                else:
+                    api_url = prompt(
+                        "Enter the `PREFECT_API_URL` value",
+                        default="http://127.0.0.1:4200/api",
+                    )
+                    break
             profiles.add_profile(
                 Profile(name=profile_name, settings={"PREFECT_API_URL": api_url})
             )
