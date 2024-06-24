@@ -215,7 +215,7 @@ Read more about [transactions](/3.0rc/develop/transactions).
 
 ## Caching example
 
-In this example, until the `cache_expiration` time ends, as long as the input to `hello_task()` remains 
+In this example, until the `cache_expiration` time is reached, as long as the input to `hello_task()` remains 
 the same when it is called, the cached return value is returned. In this situation the task is not rerun. 
 However, if the input argument value changes, `hello_task()` runs using the new input.
 
