@@ -15,7 +15,7 @@ from prefect.cli._prompts import prompt
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import prompt_select_from_list
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
@@ -100,7 +100,6 @@ def prestart_check():
     """
     Check if `PREFECT_API_URL` is set in the current profile. If not, prompt the user to set it.
     """
-
     current_profile = load_current_profile()
     if PREFECT_API_URL not in current_profile.settings:
         app.console.print(
@@ -176,10 +175,11 @@ async def start(
 ):
     """Start a Prefect server instance"""
 
-    try:
-        prestart_check()
-    except Exception:
-        pass
+    if is_interactive:
+        try:
+            prestart_check()
+        except Exception:
+            pass
 
     server_env = os.environ.copy()
     server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
