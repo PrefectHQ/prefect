@@ -174,7 +174,7 @@ def my_cached_task(x: int):
 
 ## Multi-task caching
 
-There are many situations in which multiple tasks need to always run together as an atomic unit.
+There are many situations in which multiple tasks need to always run together or not at all.
 This can be achieved in Prefect by configuring these tasks to always write to their caches within 
 a single [_transaction_](/3.0rc/develop/transactions).
 
