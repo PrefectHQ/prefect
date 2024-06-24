@@ -621,7 +621,10 @@ class PersistedResult(BaseResult):
         try:
             data = serializer.dumps(obj)
         except Exception as exc:
-            extra_info = ""
+            extra_info = (
+                'You can try a different serializer (e.g. result_serializer="json") '
+                "or disabling persistence (persist_result=False) for this flow or task."
+            )
             # check if this is a known issue with cloudpickle and pydantic
             # and add extra information to help the user recover
 
