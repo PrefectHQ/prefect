@@ -639,15 +639,18 @@ class PersistedResult(BaseResult):
                     if get_ipython() is not None:
                         extra_info = inspect.cleandoc(
                             """
-                        This is a known issue in Pydantic that prevents models
-                        from being serialized by cloudpickle in IPython/Jupyter
-                        environments. Please see
-                        https://github.com/pydantic/pydantic/issues/8232 for
-                        more information. To fix the issue, either use the JSON
-                        serializer (`result_serializer="json"`) or disable
-                        result persistence (`persist_result=False`) when
-                        creating this flow or task.
-                        """
+                            This is a known issue in Pydantic that prevents
+                            locally-defined (non-imported) models from being
+                            serialized by cloudpickle in IPython/Jupyter
+                            environments. Please see
+                            https://github.com/pydantic/pydantic/issues/8232 for
+                            more information. To fix the issue, either: (1) move
+                            your Pydantic class definition to an importable
+                            location, (2) use the JSON serializer for your flow
+                            or task (`result_serializer="json"`), or (3)
+                            disable result persistence for your flow or task
+                            (`persist_result=False`).
+                            """
                         ).replace("\n", " ")
                 except ImportError:
                     pass
