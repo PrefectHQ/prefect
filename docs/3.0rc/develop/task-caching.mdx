@@ -5,7 +5,7 @@ description: Learn how to use caching to gain efficiency and pipeline idempotenc
 
 Caching refers to the ability of a task run to enter a `Completed` state and return a predetermined 
 value without actually running the code that defines the task. 
-This allows you to efficiently reuse results of tasks that may be expensive to compute
+Caching allows you to efficiently reuse results of tasks that may be expensive to compute
 and ensure that your pipelines are idempotent when retrying them due to unexpected failure. 
 
 By default Prefect's caching logic is based on the following attributes of a task invocation:
