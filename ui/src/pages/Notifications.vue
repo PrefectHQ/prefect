@@ -3,11 +3,13 @@
     <template #header>
       <PageHeadingNotifications />
     </template>
+    <p-message info>
+      Notifications are deprecated and will be migrated in the future. please use Automations.
+    </p-message>
     <template v-if="loaded">
       <template v-if="empty">
         <NotificationsPageEmptyState />
       </template>
-
       <template v-else>
         <NotificationsTable :notifications="notifications" @delete="notificationsSubscription.refresh()" @update="notificationsSubscription.refresh()" />
       </template>
