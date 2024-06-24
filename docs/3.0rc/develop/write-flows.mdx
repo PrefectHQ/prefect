@@ -195,7 +195,7 @@ You may call any number of tasks, other flows, and even regular Python functions
 You can pass parameters to your flow function to use elsewhere in the workflow, and Prefect will report on the progress 
 and [final state](#final-state-determination) of any invocation.
 
-We reccomend "small tasks." 
+We recommend small tasks.
 Each task should be a single discrete piece of work in your workflow. 
 For example, calling an API, performing a database operation, analyzing or transforming a data point. 
 The more granular you make your tasks, your workflows can better recover from failures and you can more easily find and fix issues.
