@@ -1,3 +1,4 @@
+import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import (
@@ -7,6 +8,7 @@ from typing import (
     List,
     Optional,
     Type,
+    Union,
 )
 
 from pydantic import Field
@@ -61,7 +63,7 @@ class Transaction(ContextModel):
         default_factory=list
     )
     overwrite: bool = False
-    logger: Optional[PrefectLogAdapter] = None
+    logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
 
