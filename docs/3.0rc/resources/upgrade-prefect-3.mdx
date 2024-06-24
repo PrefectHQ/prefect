@@ -20,6 +20,12 @@ Some modules have been renamed, reorganized, or removed for clarity.
 Objects imported from changed modules will continue to work until their six month deprecation period ends, but will raise deprecation warnings. 
 See the [migration script](https://github.com/PrefectHQ/prefect/blob/f767724ab28278446456b024b5c1c73f76ebcbb5/src/prefect/_internal/compatibility/migration.py#L22) for the full list of modules that have been moved and removed.
 
+## Integrations must be upgraded
+
+Integration packages compatible with Prefect 2 generally cannot be used with Prefect 3 and vice versa. 
+You must update all of your integrations packages in conjunction with upgrading from Prefect 2 to Prefect 3. 
+We recommend specifying extras when you install the `prefect` package to ensure that you install the integration package version that corresponds to your Prefect version. For example, use `pip install prefect[aws] --pre` to install Prefect 3 and a compatible prefect-aws version.
+
 ## Asynchronous task execution behavior
 
 Prefect 2 abstracts away certain task execution concerns, which is often convenient, but sometimes causes unexpected behavior. 
@@ -208,12 +214,6 @@ They are persisted entirely in your configured result location.
 This caching behavior will only take effect when result persistence is enabled.
 The simplest way to enable result persistence is through the Prefect setting `PREFECT_RESULTS_PERSIST_BY_DEFAULT=true`.
 See the [caching documentation](/3.0rc/develop/write-tasks#caching) for more information.
-
-## Integrations must be upgraded
-
-Integration packages compatible with Prefect 2 generally cannot be used with Prefect 3 and vice versa. 
-You must update all of your integrations packages in conjunction with upgrading from Prefect 2 to Prefect 3. 
-We recommend specifying extras when you install the `prefect` package to ensure that you install the integration package version that corresponds to your Prefect version. For example, use `pip install prefect[aws] --pre` to install Prefect 3 and a compatible prefect-aws version.
 
 ## Data validation via Pydantic V2
 
