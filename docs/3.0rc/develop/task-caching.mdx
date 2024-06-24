@@ -57,7 +57,7 @@ to compute the task's cache key.
 - `TASK_SOURCE`: this cache policy uses _only_ the task's code definition to compute the cache key.
 - `FLOW_PARAMETERS`: this cache policy uses _only_ the parameter values provided to the parent flow run
 to compute the cache key.
-- `NONE`: this cache policy always returns `None` and therefore avoids caching and result persistence altogether
+- `NONE`: this cache policy always returns `None` and therefore avoids caching and result persistence altogether.
 
 These can be set using the `cache_policy` keyword on the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task):
 
