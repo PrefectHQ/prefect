@@ -119,7 +119,6 @@ For example:
 ```python
 from prefect import task
 from prefect.cache_policies import TASK_SOURCE, INPUTS
-
 @task(cache_policy=TASK_SOURCE + INPUTS)
 def my_cached_task(x: int):
     return x + 42
