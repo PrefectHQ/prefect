@@ -159,9 +159,9 @@ In Prefect 3, `PrefectFutures` resulting from submitted task runs are not automa
 	
     @flow
     def my_flow():
-	# The flow will not exit until these 
-	# futures are resolved
-	[my_task.submit() for i in range(10)]
+	# The flow will not exit until 
+	# these futures are resolved
+	futures = my_task.map([1, 2, 3, 4])
     ```
   </Card>
   <Card title="Prefect 3">
