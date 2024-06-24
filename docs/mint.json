@@ -134,28 +134,22 @@
           ]
         },
         {
-          "group": "Dynamic infrastructure",
+          "group": "Deploy to dynamic infrastructure",
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/dynamic-infra/index",
+            "3.0rc/deploy/dynamic-infra/work-pools",
             "3.0rc/deploy/dynamic-infra/push-runs-serverless",
-            "3.0rc/deploy/dynamic-infra/push-runs-remote",
+            "3.0rc/deploy/dynamic-infra/managed-execution",
+            "3.0rc/deploy/dynamic-infra/workers",
             "3.0rc/deploy/dynamic-infra/customize",
             "3.0rc/deploy/dynamic-infra/deploy-docker",
             "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
-            "3.0rc/deploy/dynamic-infra/deploy-ci-cd"
+            "3.0rc/deploy/dynamic-infra/push-runs-remote",
+            "3.0rc/deploy/dynamic-infra/prefect-deploy"
           ]
         },
-        {
-          "group": "Control runs",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/deploy/control-runs/work-pools",
-            "3.0rc/deploy/control-runs/workers",
-            "3.0rc/deploy/control-runs/prefect-deploy",
-            "3.0rc/deploy/control-runs/managed-execution"
-          ]
-        }
+        "3.0rc/deploy/deploy-ci-cd"
       ]
     },
     {

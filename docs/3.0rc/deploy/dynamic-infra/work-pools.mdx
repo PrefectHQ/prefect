@@ -7,7 +7,7 @@ Work pools organize work for execution. Work pools have types corresponding to t
 as well as the delivery method of work to that environment. Pull work pools require workers to poll the work 
 pool for flow runs to execute. [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless) submit runs directly to your 
 serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
-[Managed work pools](/3.0rc/deploy/control-runs/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
+[Managed work pools](/3.0rc/deploy/dynamic-infra/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
 
 <Tip>
 **Work pools are like pub/sub topics**
@@ -482,9 +482,9 @@ Other advantages of work pools:
 
 - Configure default infrastructure configurations on your work pools that all jobs inherit and can override.
 - Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
-- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/control-runs/work-pools/#work-queues).
+- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/dynamic-infra/work-pools/#work-queues).
 
-Prefect provides several [types of work pools](/3.0rc/deploy/control-runs/work-pools/#work-pool-types).
+Prefect provides several [types of work pools](/3.0rc/deploy/dynamic-infra/work-pools/#work-pool-types).
 Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
@@ -626,7 +626,7 @@ prefect deployment run 'get_repo_info/my-deployment'
 ```
 
 Prefect Managed work pools are a great way to get started with Prefect.  
-See the [Managed Execution guide](/3.0rc/deploy/control-runs/managed-execution) for more details.
+See the [Managed Execution guide](/3.0rc/deploy/dynamic-infra/managed-execution) for more details.
 
 For more control over the infrastructure that your flows run on, we recommend Prefect Cloud's push work pools.
 
