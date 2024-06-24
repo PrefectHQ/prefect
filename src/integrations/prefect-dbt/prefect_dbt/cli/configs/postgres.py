@@ -25,8 +25,6 @@ class PostgresTargetConfigs(BaseTargetConfigs):
         credentials: The credentials to use to authenticate; if there are
             duplicate keys between credentials and TargetConfigs,
             e.g. schema, an error will be raised.
-
-        ```
     """
 
     _block_type_name = "dbt CLI Postgres Target Configs"
