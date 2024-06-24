@@ -72,7 +72,7 @@ Docker container, you must configure `PREFECT_API_URL` in that environment.
 
 When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a 
 locally-hosted Prefect UI instance, you must also configure the Prefect server instance to connect to the API. 
-The [`PREFECT_UI_API_URL`](../../api-ref/prefect/settings/#PREFECT_UI_API_URL) should be set to the external proxy URL 
+The [`PREFECT_UI_API_URL`](https://prefect-python-sdk-docs.netlify.app/prefect/settings/) should be set to the external proxy URL 
 (for example, if your external URL is \<https://prefect-server.example.com/> then set 
 `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process). 
 You can also set [`PREFECT_API_URL`](/3.0rc/manage/configure-client/#prefect.settings.PREFECT_API_URL) to the API URL. 
