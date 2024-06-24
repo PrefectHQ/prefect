@@ -220,9 +220,6 @@ Nested flow runs block execution of the parent flow run until completion.
 However, asynchronous nested flows can run concurrently with [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or 
 [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
-The relationship between a child and parent flow run is tracked by creating a special task run in the parent flow run.
-This task run mirrors the state of the child flow run.
-
 A task that represents a nested flow run is annotated in its `state_details` with the presence of a `child_flow_run_id` field.
 A nested flow run is identified with the presence of a `parent_task_run_id` on `state_details`.
 
