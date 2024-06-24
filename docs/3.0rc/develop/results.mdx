@@ -41,7 +41,7 @@ state = my_flow(return_state=True)
 assert state.result() == 2
 ```
 
-When submitting tasks to a runner, the retrieve result with the `Future.result()` method:
+When submitting tasks to a runner, retrieve the result with the `Future.result()` method:
 
 ```python
 from prefect import flow, task
