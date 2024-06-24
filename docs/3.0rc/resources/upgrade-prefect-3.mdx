@@ -71,7 +71,7 @@ Here are some examples:
 
 Because `Task.submit` is always a synchronous call, it does not need to be awaited. 
 `Task.submit` is still non-blocking and execution of the submitted task is also still non-blocking. 
-So, *you do not need to await futures from submitted tasks*:
+So, *you do not need to await use the `await` keyword in front of your `.submit` call*:
 
 <CardGroup cols={2}>
   <Card title="Prefect 2">
