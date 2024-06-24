@@ -14,7 +14,7 @@ from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
 from prefect.exceptions import MissingContextError
-from prefect.logging.loggers import PrefectLogAdapter, get_run_logger
+from prefect.logging.loggers import PrefectLogAdapter, get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import (
@@ -178,6 +178,8 @@ class Transaction(ContextModel):
             return False
 
         try:
+            hook_name = None
+
             for child in self.children:
                 child.commit()
 
@@ -191,8 +193,16 @@ class Transaction(ContextModel):
             return True
         except Exception:
             if self.logger:
+                if hook_name:
+                    msg = (
+                        f"An error was encountered while running commit hook {hook_name!r}",
+                    )
+                else:
+                    msg = (
+                        f"An error was encountered while committing transaction {self.key!r}",
+                    )
                 self.logger.exception(
-                    f"An error was encountered while running commit hook {hook_name!r}",
+                    msg,
                     exc_info=True,
                 )
             self.rollback()
@@ -308,7 +318,7 @@ def transaction(
     try:
         logger = logger or get_run_logger()
     except MissingContextError:
-        logger = None
+        logger = get_logger("transactions")
 
     with Transaction(
         key=key,
