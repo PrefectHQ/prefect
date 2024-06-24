@@ -63,7 +63,7 @@ def test_root_flow_default_result_factory():
         return get_run_context().result_factory
 
     result_factory = foo()
-    assert result_factory.persist_result is True
+    assert result_factory.persist_result is False
     assert result_factory.cache_result_in_memory is True
     assert result_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
@@ -118,9 +118,8 @@ def test_root_flow_custom_persist_setting(toggle):
         assert result_factory.storage_block_id is not None
 
 
-@pytest.mark.parametrize("options", [{"cache_result_in_memory": False}])
-def test_root_flow_persists_results_when_flow_uses_feature(options):
-    @flow(**options)
+def test_root_flow_persists_results_when_flow_uses_feature():
+    @flow(cache_result_in_memory=False, persist_result=True)
     def foo():
         return get_run_context().result_factory
 
@@ -131,11 +130,10 @@ def test_root_flow_persists_results_when_flow_uses_feature(options):
     assert isinstance(result_factory.storage_block_id, uuid.UUID)
 
 
-@pytest.mark.parametrize("options", [{"cache_result_in_memory": False}])
-def test_root_flow_can_opt_out_of_persistence_when_flow_uses_feature(options):
+def test_root_flow_can_opt_out_of_persistence_when_flow_uses_feature():
     result_factory = None
 
-    @flow(**options, persist_result=False)
+    @flow(cache_result_in_memory=False, persist_result=False)
     def foo():
         nonlocal result_factory
         result_factory = get_run_context().result_factory
@@ -228,7 +226,7 @@ async def test_root_flow_custom_storage_by_instance_unsaved(prefect_client, tmp_
     storage = LocalFileSystem(basepath=tmp_path / "test")
 
     @flow(
-        result_storage=storage, cache_result_in_memory=False
+        result_storage=storage, cache_result_in_memory=False, persist_result=True
     )  # use a feature that requires persistence
     def foo():
         return get_run_context().result_factory
@@ -446,12 +444,14 @@ async def test_child_flow_custom_storage(tmp_path, default_persistence_off):
 async def test_child_flow_custom_storage_by_instance_unsaved(prefect_client, tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test")
 
-    @flow(cache_result_in_memory=False)  # use a feature that requires persistence
+    @flow(
+        cache_result_in_memory=False, persist_result=True
+    )  # use a feature that requires persistence
     def foo():
         print(f"In parent, persist={get_run_context().result_factory.persist_result}")
         return get_run_context().result_factory, bar()
 
-    @flow(result_storage=storage, cache_result_in_memory=False)
+    @flow(result_storage=storage, cache_result_in_memory=False, persist_result=True)
     def bar():
         print(f"In child, persist={get_run_context().result_factory.persist_result}")
         return get_run_context().result_factory
@@ -490,7 +490,7 @@ def test_task_inherits_default_result_settings():
         return get_run_context().result_factory
 
     _, task_factory = foo()
-    assert task_factory.persist_result
+    assert task_factory.persist_result is False
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
     assert task_factory.storage_block_id is not None
@@ -508,22 +508,23 @@ def test_task_default_result_serializer_can_be_overriden_by_setting():
 
 
 def test_task_default_persist_result_can_be_overriden_by_setting():
-    @flow
-    def foo():
-        return get_run_context().result_factory, bar()
-
-    @task
-    def bar():
-        return get_run_context().result_factory
-
     with temporary_settings({PREFECT_RESULTS_PERSIST_BY_DEFAULT: True}):
+
+        @flow
+        def foo():
+            return get_run_context().result_factory, bar()
+
+        @task
+        def bar():
+            return get_run_context().result_factory
+
         _, task_factory = foo()
 
     assert task_factory.persist_result is True
 
 
-def test_task_custom_persist_setting():
-    @flow
+def test_nested_flow_custom_persist_setting():
+    @flow(persist_result=True)
     def foo():
         return get_run_context().result_factory, bar()
 
@@ -555,7 +556,6 @@ def test_task_custom_cache_setting(toggle):
 
     flow_factory = foo()
     assert flow_factory.cache_result_in_memory is True
-    assert task_factory.persist_result  # Persistence on unless explicitly turned off
     assert task_factory.cache_result_in_memory is toggle
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
@@ -620,11 +620,11 @@ async def test_task_inherits_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test")
     storage_id = await storage.save("test")
 
-    @flow(result_storage="local-file-system/test")
+    @flow(result_storage="local-file-system/test", persist_result=True)
     def foo():
         return get_run_context().result_factory, bar()
 
-    @task
+    @task(persist_result=True)
     def bar():
         return get_run_context().result_factory
 
@@ -652,15 +652,15 @@ def test_task_custom_serializer(default_persistence_off):
     assert task_factory.storage_block_id is not None
 
 
-async def test_task_custom_storage(tmp_path):
+async def test_nested_flow_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test")
     storage_id = await storage.save("test")
 
-    @flow()
+    @flow(persist_result=True)
     def foo():
         return get_run_context().result_factory, bar()
 
-    @flow(result_storage="local-file-system/test")
+    @flow(result_storage="local-file-system/test", persist_result=True)
     def bar():
         return get_run_context().result_factory
 
@@ -675,11 +675,11 @@ async def test_task_custom_storage(tmp_path):
 async def test_task_custom_storage_by_instance_unsaved(prefect_client, tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test")
 
-    @flow(cache_result_in_memory=False)
+    @flow(cache_result_in_memory=False, persist_result=True)
     def foo():
         return get_run_context().result_factory, bar()
 
-    @flow(result_storage=storage, cache_result_in_memory=False)
+    @flow(result_storage=storage, cache_result_in_memory=False, persist_result=True)
     def bar():
         return get_run_context().result_factory
 
@@ -742,13 +742,10 @@ async def _verify_default_storage_creation_without_persistence(
     assert result_factory.storage_block_id is not None
 
 
-@pytest.mark.parametrize(
-    "options", [{"persist_result": True}, {"cache_result_in_memory": False}]
-)
 async def test_default_storage_creation_for_flow_with_persistence_features(
-    prefect_client, options
+    prefect_client,
 ):
-    @flow(**options)
+    @flow(persist_result=True)
     def foo():
         return get_run_context().result_factory
 
@@ -770,11 +767,11 @@ async def test_default_storage_creation_for_flow_without_persistence_features():
 async def test_default_storage_creation_for_task_with_persistence_features(
     prefect_client,
 ):
-    @task
+    @task(persist_result=True)
     def my_task_1():
         return get_run_context().result_factory
 
-    @flow(retries=2)
+    @flow(retries=2, persist_result=True)
     def my_flow_1():
         return my_task_1()
 
@@ -783,11 +780,11 @@ async def test_default_storage_creation_for_task_with_persistence_features(
         prefect_client, result_factory
     )
 
-    @task(cache_key_fn=lambda *_: "always")
+    @task(cache_key_fn=lambda *_: "always", persist_result=True)
     def my_task_2():
         return get_run_context().result_factory
 
-    @flow
+    @flow(persist_result=True)
     def my_flow_2():
         return my_task_2()
 
