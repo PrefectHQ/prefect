@@ -145,7 +145,7 @@ async def my_flow():
 
 If you do not first wait for the future to complete, the run may raise an 'AttributeError: coroutine object has no attribute get' exception. 
 
-In Prefect 3, `PrefectFutures` resulting from submitted task runs are not automatically awaited/resolved before exiting a flow, unless they’re a dependency of other flows or tasks, so *you must wait for a task’s `PrefectFuture` resolution before the end of a flow*:
+In Prefect 3, `PrefectFuture`s resulting from submitted task runs are not automatically awaited/resolved before exiting a flow, unless they’re a dependency of other flows or tasks, so *you must wait for a task’s `PrefectFuture` resolution before the end of a flow*:
 
 <CodeGroup>
 ```python Prefect 2
