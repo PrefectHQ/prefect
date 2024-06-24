@@ -20,6 +20,7 @@ from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
+from prefect.cache_policies import DEFAULT, NONE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
@@ -76,7 +77,11 @@ class TaskWorker:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks: List[Task] = list(tasks)
+        self.tasks: List[Task] = [t.with_options(persist_result=True) for t in tasks]
+        for t in self.tasks:
+            if not t.cache_policy or t.cache_policy is NONE:
+                t.cache_policy = DEFAULT
+
         self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
 
         self._started_at: Optional[pendulum.DateTime] = None
