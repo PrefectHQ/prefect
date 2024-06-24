@@ -148,7 +148,7 @@ my_cached_task(1, debug=True) # still uses the cache
 
 ### Cache key functions
 
-Users can configure custom cache policy logic through the use of cache key functions.
+You can configure custom cache policy logic through the use of cache key functions.
 A cache key function is a function that accepts two positional arguments:
 - The first argument corresponds to the `TaskRunContext`, which stores task run metadata. For example, 
 this object has attributes `task_run_id`, `flow_run_id`, and `task`, all of which can be used in your
