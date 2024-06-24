@@ -176,6 +176,7 @@ Flows can call [tasks](/3.0rc/develop/write-tasks), the most granular units of o
 ```python
 from prefect import flow, task
 
+
 @task
 def print_hello(name):
     print(f"Hello {name}!")
