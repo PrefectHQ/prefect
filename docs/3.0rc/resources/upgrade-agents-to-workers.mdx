@@ -144,7 +144,7 @@ KubernetesJob.load("my-k8s-job").publish_as_work_pool()
 <Tip>
 **Serving flows**
 If you are using a `Process` infrastructure block and a `LocalFilesystem` storage block 
-(or aren't using an infrastructure and storage block at all), you can use [`flow.serve`](/3.0rc/deploy/serve-flows/deploy-a-flow) 
+(or aren't using an infrastructure and storage block at all), you can use [`flow.serve`](/3.0rc/deploy/dynamic-infra/index) 
 to create a deployment without specifying a work pool name or start a worker.
 
 This is a quick way to create a deployment for a flow and manage your 
@@ -187,7 +187,7 @@ but here are some possible changes you may need:
   - If you've used the `.publish_as_work_pool` method on your infrastructure block, use the 
   name of the created work pool.
 - Replace `infra_overrides` with `job_variables`.
-- Replace `storage` with a call to [`flow.from_source`](/3.0rc/deploy/serve-flows/deploy-a-flow).
+- Replace `storage` with a call to [`flow.from_source`](/3.0rc/deploy/dynamic-infra/index).
   - `flow.from_source` loads your flow from a remote storage location and makes it deployable. 
   You can pass your existing storage block to the `source` argument of `flow.from_source`.
 

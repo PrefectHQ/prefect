@@ -127,17 +127,17 @@
       "pages": [
         "3.0rc/deploy/store-flow-code",
         {
-          "group": "Serve flows",
+          "group": "Deploy to static infrastructure",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/serve-flows/deploy-a-flow",
-            "3.0rc/deploy/serve-flows/serve-a-flow"
+            "3.0rc/deploy/static-infra/index"
           ]
         },
         {
           "group": "Dynamic infrastructure",
           "version": "3.0rc",
           "pages": [
+            "3.0rc/deploy/dynamic-infra/index",
             "3.0rc/deploy/dynamic-infra/push-runs-serverless",
             "3.0rc/deploy/dynamic-infra/push-runs-remote",
             "3.0rc/deploy/dynamic-infra/customize",
