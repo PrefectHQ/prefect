@@ -163,7 +163,7 @@ The values passed cannot be positional.
 
 Parameters are validated before a flow is run.
 If a flow call receives invalid parameters, a flow run is created in a `Failed` state.
-If a flow run for a deployment receives invalid parameters, it moves from a `Pending` state to `Failed` without entering a `Running` state.
+If a flow run for a deployment receives invalid parameters, it moves from a `Pending` state to a `Failed` state without entering a `Running` state.
 
 <Note>
 Flow run parameters cannot exceed `512kb` in size.
