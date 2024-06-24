@@ -13,6 +13,8 @@ from pydantic import Field
 from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
+from prefect.exceptions import MissingContextError
+from prefect.logging.loggers import PrefectLogAdapter, get_run_logger
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import (
@@ -22,6 +24,7 @@ from prefect.results import (
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.engine import _get_hook_name
 
 
 class IsolationLevel(AutoEnum):
@@ -58,6 +61,7 @@ class Transaction(ContextModel):
         default_factory=list
     )
     overwrite: bool = False
+    logger: Optional[PrefectLogAdapter] = None
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
 
@@ -178,6 +182,7 @@ class Transaction(ContextModel):
                 child.commit()
 
             for hook in self.on_commit_hooks:
+                hook_name = _get_hook_name(hook)
                 hook(self)
 
             if self.store and self.key:
@@ -185,6 +190,11 @@ class Transaction(ContextModel):
             self.state = TransactionState.COMMITTED
             return True
         except Exception:
+            if self.logger:
+                self.logger.exception(
+                    f"An error was encountered while running commit hook {hook_name!r}",
+                    exc_info=True,
+                )
             self.rollback()
             return False
 
@@ -212,6 +222,7 @@ class Transaction(ContextModel):
 
         try:
             for hook in reversed(self.on_rollback_hooks):
+                hook_name = _get_hook_name(hook)
                 hook(self)
 
             self.state = TransactionState.ROLLED_BACK
@@ -221,6 +232,11 @@ class Transaction(ContextModel):
 
             return True
         except Exception:
+            if self.logger:
+                self.logger.exception(
+                    f"An error was encountered while running rollback hook {hook_name!r}",
+                    exc_info=True,
+                )
             return False
 
     @classmethod
@@ -238,6 +254,7 @@ def transaction(
     store: Optional[RecordStore] = None,
     commit_mode: Optional[CommitMode] = None,
     overwrite: bool = False,
+    logger: Optional[PrefectLogAdapter] = None,
 ) -> Generator[Transaction, None, None]:
     """
     A context manager for opening and managing a transaction.
@@ -288,7 +305,16 @@ def transaction(
             result_factory=new_factory,
         )
 
+    try:
+        logger = logger or get_run_logger()
+    except MissingContextError:
+        logger = None
+
     with Transaction(
-        key=key, store=store, commit_mode=commit_mode, overwrite=overwrite
+        key=key,
+        store=store,
+        commit_mode=commit_mode,
+        overwrite=overwrite,
+        logger=logger,
     ) as txn:
         yield txn
