@@ -11,19 +11,27 @@ import anyio.abc
 import typer
 
 import prefect
+from prefect.cli._prompts import prompt
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.cloud import prompt_select_from_list
+from prefect.cli.root import app, is_interactive
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_API_URL,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
     PREFECT_SERVER_API_PORT,
     PREFECT_UI_ENABLED,
+    Profile,
+    load_current_profile,
+    load_profiles,
+    save_profiles,
+    update_current_profile,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import (
@@ -88,6 +96,68 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
     return blurb
 
 
+def prestart_check():
+    """
+    Check if `PREFECT_API_URL` is set in the current profile. If not, prompt the user to set it.
+    """
+    current_profile = load_current_profile()
+    if PREFECT_API_URL not in current_profile.settings:
+        app.console.print(
+            "`PREFECT_API_URL` is not set. You need to set it to communicate with the server.",
+            style="yellow",
+        )
+
+        choice = prompt_select_from_list(
+            app.console,
+            "How would you like to proceed?",
+            [
+                (
+                    "create",
+                    "Create a new profile with `PREFECT_API_URL` set and switch to it",
+                ),
+                (
+                    "set",
+                    f"Set `PREFECT_API_URL` in the current profile: {current_profile.name!r}",
+                ),
+            ],
+        )
+        profiles = load_profiles()
+
+        if choice == "create":
+            while True:
+                profile_name = prompt("Enter a new profile name")
+                if profile_name in profiles:
+                    app.console.print(
+                        f"Profile {profile_name!r} already exists. Please choose a different name.",
+                        style="red",
+                    )
+                else:
+                    api_url = prompt(
+                        "Enter the `PREFECT_API_URL` value",
+                        default="http://127.0.0.1:4200/api",
+                    )
+                    break
+            profiles.add_profile(
+                Profile(name=profile_name, settings={"PREFECT_API_URL": api_url})
+            )
+            profiles.set_active(profile_name)
+            save_profiles(profiles)
+
+            app.console.print(
+                f"Switched to new profile {profile_name!r}", style="green"
+            )
+        elif choice == "set":
+            api_url = prompt(
+                "Enter the `PREFECT_API_URL` value", default="http://127.0.0.1:4200/api"
+            )
+            prefect_api_url_setting = {"PREFECT_API_URL": api_url}
+            update_current_profile(prefect_api_url_setting)
+            app.console.print(
+                f"Set `PREFECT_API_URL` to {api_url!r} in the current profile {current_profile.name!r}",
+                style="green",
+            )
+
+
 @server_app.command()
 async def start(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
@@ -102,6 +172,12 @@ async def start(
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
 ):
     """Start a Prefect server instance"""
+
+    if is_interactive:
+        try:
+            prestart_check()
+        except Exception:
+            pass
 
     server_env = os.environ.copy()
     server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
