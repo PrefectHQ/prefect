@@ -386,10 +386,10 @@ Prefect is installed into a conda environment named `prefect`.
 If your flow relies on dependencies not found in the default `prefecthq/prefect` images, 
 you may want to build your own image. You can either
 base it off of one of the provided `prefecthq/prefect` images, or build your own image.
-See the [Work pool deployment guide](/3.0rc/deploy/work-pools/prefect-deploy) 
+See the [Work pool deployment guide](/3.0rc/deploy/control-runs/prefect-deploy) 
 to build custom images with dependencies specified in a `requirements.txt` file.
 
-By default, Prefect [work pools](/3.0rc/deploy/work-pools/control-runs) 
+By default, Prefect [work pools](/3.0rc/deploy/control-runs/work-pools) 
 that use containers refer to the `3-latest` image.
 You can specify another image at work pool creation.
 You can override the work pool image choice in individual deployments.
@@ -436,4 +436,4 @@ different configuration](/3.0rc/develop/write-flows#serving-multiple-flows-at-on
 - To learn more about deploying flows, check out the [Deployments](/3.0rc/deploy/serve-flows/) 
 concept doc.
 - For advanced infrastructure requirements, such as executing each flow run within its own dedicated 
-Docker container, learn more in the [Work pool deployment guide](/3.0rc/deploy/work-pools/prefect-deploy).
+Docker container, learn more in the [Work pool deployment guide](/3.0rc/deploy/control-runs/prefect-deploy).

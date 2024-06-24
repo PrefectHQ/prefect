@@ -3,7 +3,7 @@ title: Push work to serverless computing infrastructure
 description: Learn how to use Prefect push work pools to schedule work on serverless infrastructure without having to run a worker.
 ---
 
-Push [work pools](/3.0rc/deploy/work-pools/control-runs/#work-pool-overview) are a special type of work pool. They allow 
+Push [work pools](/3.0rc/deploy/control-runs/work-pools/) are a special type of work pool. They allow 
 Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without requiring you to run a worker.
 Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, and Modal.
 
@@ -659,7 +659,7 @@ Click **Create** to configure your push work pool by selecting a push option in 
   <Tab title="AWS ECS">
 
     Each step has several optional fields that are detailed in the
-     [work pools documentation](/3.0rc/deploy/work-pools/control-runs/). 
+     [work pools documentation](/3.0rc/deploy/control-runs/work-pools/). 
     Select the block you created under the AWS Credentials field. 
     This allows Prefect Cloud to securely interact with your ECS cluster.
  </Tab>
@@ -671,14 +671,14 @@ Click **Create** to configure your push work pool by selecting a push option in 
  <Tab title="Google Cloud Run">
 
     Each step has several optional fields that are detailed in the 
-    [work pools guide](/3.0rc/deploy/work-pools/control-runs/). 
+    [work pools guide](/3.0rc/deploy/control-runs/work-pools/). 
     Select the block you created under the GCP Credentials field. 
     This allows Prefect Cloud to securely interact with your GCP project.
  </Tab>
  <Tab title="Modal">
 
     Each step has several optional fields that are detailed in the 
-    [work pools documentation](/3.0rc/deploy/work-pools/control-runs/). 
+    [work pools documentation](/3.0rc/deploy/control-runs/work-pools/). 
     Select the block you created under the Modal Credentials field. 
     This allows Prefect Cloud to securely interact with your Modal account.
  </Tab>
@@ -717,7 +717,7 @@ to your serverless infrastructure, created a job, ran the job, and reported on i
 
 ## Next steps
 
-Learn more about [workers and work pools](/3.0rc/deploy/work-pools/control-runs/).
+Learn more about [work pools](/3.0rc/deploy/control-runs/work-pools/) and [workers](/3.0rc/deploy/control-runs/workers/).
 
 Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploying flows to work 
-pools and workers](/3.0rc/deploy/work-pools/prefect-deploy/#creating-work-pool-based-deployments-with-deploy) guide.
+pools and workers](/3.0rc/deploy/control-runs/prefect-deploy/#creating-work-pool-based-deployments-with-deploy) guide.

@@ -4,6 +4,9 @@ description: Learn how to schedule and trigger flow runs through the API and eas
 ---
 
 In this guide, you will configure a deployment that uses a work pool for dynamically provisioned infrastructure.
+Work pools and workers bridge the Prefect _orchestration environment_ with your _execution environment_. 
+When a [deployment](/3.0rc/deploy/serve-flows/) creates a flow run, it is submitted to a specific work pool for scheduling. 
+A worker running in the execution environment polls its respective work pool for new runs to execute; or the work pool submits flow runs to serverless infrastructure directly, depending on the type of work pool.
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
 You can call a flow locally or on a remote environment and it will be trackable.
@@ -89,7 +92,7 @@ These work pool types require a worker running on your infrastructure to poll a 
     - **[Push Work Pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless)**: serverless cloud options that don't require 
     a worker because Prefect Cloud submits them to your serverless cloud infrastructure on your behalf. 
     Prefect can auto-provision your cloud infrastructure for you and set it up to use your work pool.
-    - **[Managed Execution](/3.0rc/deploy/work-pools/managed-execution/)**: Prefect Cloud submits and runs your 
+    - **[Managed Execution](/3.0rc/deploy/control-runs/managed-execution/)**: Prefect Cloud submits and runs your 
     deployment on serverless infrastructure. No cloud provider account required.
 </Note>
 
@@ -100,7 +103,7 @@ and allow you to limit concurrent runs at the work pool level.
 
 When creating a deployment that uses a work pool and worker, there are two important considerations:
 
-- What instructions does a [worker](/3.0rc/deploy/work-pools/control-runs/) require to set up an execution environment for your flow? 
+- What instructions does a [worker](/3.0rc/deploy/control-runs/workers/) require to set up an execution environment for your flow? 
 For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
@@ -135,7 +138,7 @@ if __name__ == "__main__":
     )
 ```
 
-Make the [work pool](/3.0rc/deploy/work-pools/control-runs/) exists in the Prefect Cloud workspace you are 
+Ensure the [work pool](/3.0rc/deploy/control-runs/work-pools/) exists in the Prefect Cloud workspace you are 
 authenticated to, or on your running self-hosted server instance.  
 Then run the script to create a deployment (in future examples this step is omitted for brevity):
 
@@ -441,7 +444,7 @@ if __name__ == "__main__":
 
 The `job_variables` parameter allows you to fine-tune the infrastructure settings for a deployment.
 The values passed in override default values in the specified work pool's 
-[base job template](/3.0rc/deploy/work-pools/control-runs/#base-job-template).
+[base job template](/3.0rc/deploy/control-runs/work-pools/#base-job-template).
 
 You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables` 
 argument.
@@ -1211,7 +1214,7 @@ These are fields you can add to a deployment declaration's `work_pool` section.
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                                         | The name of the work pool to schedule flow runs in for the deployment.                                                                                                                                    |
 | <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool is used.                       |
-| `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/3.0rc/deploy/work-pools/control-runs/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
+| `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/3.0rc/deploy/control-runs/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
 #### Deployment mechanics
 
@@ -1241,7 +1244,7 @@ Each time a step runs, the following actions take place in order:
 
 Now that you are familiar with creating deployments, you can explore infrastructure options for running your deployments:
 
-- [Managed work pools](/3.0rc/deploy/work-pools/managed-execution/)
+- [Managed work pools](/3.0rc/deploy/control-runs/managed-execution/)
 - [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/)
 - [Kubernetes work pools](/3.0rc/deploy/dynamic-infra/deploy-kubernetes/)
 - [Serverless hybrid work pools](/3.0rc/deploy/dynamic-infra/push-runs-remote/)

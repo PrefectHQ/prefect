@@ -21,7 +21,7 @@ If you are new to Prefect, we recommend starting with the
 </Note>
 
 ## About workers and agents
-A [worker](/3.0rc/deploy/work-pools/control-runs/#worker-overview) is the fusion of an 
+A [worker](/3.0rc/deploy/control-runs/workers/) is the fusion of an 
 agent with an infrastructure block. 
 Like agents, workers poll a work pool for flow runs that are scheduled to start. 
 Like infrastructure blocks, workers are typed. They work with only one kind of infrastructure, 
@@ -30,7 +30,7 @@ and they specify the default configuration for jobs submitted to that infrastruc
 Accordingly, workers are not a drop-in replacement for agents. **Using workers requires 
 deploying flows differently.** In particular, deploying a flow with a worker does not involve 
 specifying an infrastructure block. Instead, infrastructure configuration is specified on the 
-[work pool](/3.0rc/deploy/work-pools/control-runs/) and passed to each worker that polls work 
+[work pool](/3.0rc/deploy/control-runs/work-pools/) and passed to each worker that polls work 
 from that pool.
 
 ## Upgrade enhancements
@@ -44,10 +44,10 @@ and when it last polled.
 ### Work pools
 
 - Work pools allow greater customization and governance of infrastructure parameters for deployments 
-through their [base job template](/3.0rc/deploy/work-pools/control-runs/#base-job-template).
+through their [base job template](/3.0rc/deploy/control-runs/work-pools/#base-job-template).
 - Prefect Cloud [push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/) enable flow 
 execution in your cloud provider environment without the need to host a worker.
-- Prefect Cloud [managed work pools](/3.0rc/deploy/work-pools/managed-execution/) allow you to run flows on 
+- Prefect Cloud [managed work pools](/3.0rc/deploy/control-runs/managed-execution/) allow you to run flows on 
 Prefect's infrastructure, without the need to host a worker or configure cloud provider infrastructure.
 
 ### Improved deployment interfaces
@@ -77,14 +77,14 @@ to enable [dryer deployment definitions](/3.0rc/deploy/serve-flows/#reusing-conf
 
     When using the YAML-based deployment API, you can configure a pull action in your `prefect.yaml` 
     file to specify how to retrieve flow code for your deployments. You can use configuration from your 
-    existing storage blocks to define your pull action [through templating](/3.0rc/deploy/work-pools/prefect-deploy/#templating-options).
+    existing storage blocks to define your pull action [through templating](/3.0rc/deploy/control-runs/prefect-deploy/#templating-options).
 
     When using the Python deployment API, you can pass any storage block to the `flow.deploy` method to 
     specify how to retrieve flow code for your deployment.
 
 3. **Configuring flow run infrastructure:**
 
-    infrastructure blocks --> [typed work pool](/3.0rc/deploy/work-pools/control-runs/#worker-types)
+    infrastructure blocks --> [typed work pool](/3.0rc/deploy/control-runs/workers/#worker-types)
 
     Default infrastructure config is now set on the typed work pool, and can be overwritten by 
     individual deployments.
@@ -104,7 +104,7 @@ to enable [dryer deployment definitions](/3.0rc/deploy/serve-flows/#reusing-conf
 
     `infra_override` -> [`job_variable`](/3.0rc/deploy/serve-flows/#work-pool-fields)
 
-- The process for starting an agent and [starting a worker](/3.0rc/deploy/work-pools/control-runs/#starting-a-worker) 
+- The process for starting an agent and [starting a worker](/3.0rc/deploy/control-runs/workers/#start-a-worker) 
 in your environment are virtually identical.
 
     `prefect agent start --pool <work pool name>` --> `prefect worker start --pool <work pool name>`
@@ -122,7 +122,7 @@ to host workers in your cluster.
 If you have existing deployments that use infrastructure blocks, you can quickly upgrade them to 
 be compatible with workers by following these steps:
 
-1. **[Create a work pool](/3.0rc/deploy/work-pools/control-runs/#work-pool-configuration)**
+1. **[Create a work pool](/3.0rc/deploy/control-runs/work-pools/#work-pool-configuration)**
 
 This new work pool replaces your infrastructure block.
 
@@ -155,7 +155,7 @@ Check out our [Docker guide](/3.0rc/deploy/dynamic-infra/deploy-docker/) for how
 served flow into a Docker image and host it in your environment.
 </Tip>
 
-2. **[Start a worker](/3.0rc/deploy/work-pools/control-runs/#starting-a-worker)**
+2. **[Start a worker](/3.0rc/deploy/control-runs/workers/#start-a-worker)**
 
 This worker replaces your agent and polls your new work pool for flow runs to execute.
 
@@ -387,4 +387,4 @@ You can add more [deployments](/3.0rc/deploy/serve-flows/#deployment-declaration
 to the `deployments` list in your `prefect.yaml` file and/or by continuing to use the deployment 
 creation wizard.
 
-For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/3.0rc/deploy/work-pools/prefect-deploy/).
+For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/3.0rc/deploy/control-runs/prefect-deploy/).

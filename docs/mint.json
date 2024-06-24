@@ -150,9 +150,10 @@
           "group": "Control runs",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/work-pools/control-runs",
-            "3.0rc/deploy/work-pools/prefect-deploy",
-            "3.0rc/deploy/work-pools/managed-execution"
+            "3.0rc/deploy/control-runs/work-pools",
+            "3.0rc/deploy/control-runs/workers",
+            "3.0rc/deploy/control-runs/prefect-deploy",
+            "3.0rc/deploy/control-runs/managed-execution"
           ]
         }
       ]
