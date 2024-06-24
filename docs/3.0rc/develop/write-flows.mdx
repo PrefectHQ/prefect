@@ -188,7 +188,7 @@ def hello_world(name="world"):
 
 A single flow function can contain all of your workflow's code.
 However, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow fails and must be retried from the beginning. 
-Organizing your workflow code into smaller flow and task units lets you take advantage of Prefect features like retries, 
+Organizing your workflow code into smaller flows and tasks lets you take advantage of Prefect features such as retries, 
 more granular visibility into runtime state, the ability to determine final state regardless of individual task state, and more.
 
 You may call any number of tasks, other flows, and even regular Python functions within your flow. 
