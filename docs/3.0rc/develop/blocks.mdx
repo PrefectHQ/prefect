@@ -39,21 +39,20 @@ For configuration that will change between flow runs, we recommend using [parame
 ## Prefect built-in blocks
 
 Commonly used block types come built-in with Prefect. 
-You can create and use these block types through the UI and without installing any additional packages.
+You can create and use these block types through the UI without installing any additional packages.
 
 | Block                                                                                                                | Slug                                                     | Description                                                                                                                             |
 | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Custom Webhook                 | `custom-webhook`                                                | Calls custom webhooks.                                                |
-| Discord Webhook                                                | Calls Discord webhooks.                                                |                                  |
-| Kubernetes Cluster Config   | <span class="no-wrap">`kubernetes-cluster-config`</span> | Stores configuration for interaction with Kubernetes clusters.                                 |
-| Mattermost Webhook                               | `mattermost-webhook`                                                | Sends notifications through a provided Mattermost webhook. |
-| Microsoft Teams Webhook | `ms-teams-webhook`                                       | Sends notifications through a provided Microsoft Teams webhook.                           |
-| Opsgenie Webhook            | `opsgenie-webhook`                                       | Sends notifications through a provided Opsgenie webhook.                             |
-| Pager Duty Webhook          | `pager-duty-webhook`                                     | Sends notifications through a provided PagerDuty webhook.                                  |
-| Secret                                               | `secret`                                           | Stores a secret value. The value will be obfuscated when this block is logged or shown in the UI. |
-| Sendgrid Email                 | `sendgrid-email`                                         | Sends notifications through Sendgrid email.                                         |
-| Slack Webhook                  | `slack-webhook`                                          | Sends notifications through a provided Slack webhook.                      |                                                   |
-| Twilio SMS                        | `twilio-sms`                                             | Sends notifications through Twilio SMS.                                                       |
+| Custom Webhook              | `custom-webhook`      | Calls custom webhooks.                                                |
+| Discord Webhook             | Calls Discord webhooks.                                                |                                  |
+| Mattermost Webhook          | `mattermost-webhook`    | Sends notifications through a provided Mattermost webhook. |
+| Microsoft Teams Webhook     | `ms-teams-webhook`       | Sends notifications through a provided Microsoft Teams webhook.                |
+| Opsgenie Webhook            | `opsgenie-webhook`       | Sends notifications through a provided Opsgenie webhook.                       |
+| Pager Duty Webhook          | `pager-duty-webhook`     | Sends notifications through a provided PagerDuty webhook.                      |
+| Secret                      | `secret`                 | Stores a secret value. The value will be obfuscated when this block is logged or shown in the UI. |
+| Sendgrid Email              | `sendgrid-email`         | Sends notifications through Sendgrid email.                                   |
+| Slack Webhook               | `slack-webhook`          | Sends notifications through a provided Slack webhook.                         |
+| Twilio SMS                  | `twilio-sms`             | Sends notifications through Twilio SMS.                                       |
 
 
 <Warning>
@@ -68,7 +67,6 @@ The JSON, DateTime, and String blocks are deprecated in favor of [Variables](/3.
 Some block types that appear in the UI can be created immediately, with the corresponding integration library installed for use.
 For example, an AWS Secret block can be created, but not used until the [`prefect-aws` library](/integrations/prefect-aws/) is installed.
 
-Anyone can create block types and optionally share them with the community.
 Find available block types in many of the published [Prefect integrations libraries](/integrations/).
 If a block type is not available in the UI, you can [register it](#register-blocks) through the CLI.
 
@@ -76,14 +74,14 @@ If a block type is not available in the UI, you can [register it](#register-bloc
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | [prefect-aws](/integrations/prefect-aws/)                 | ECS Task                            | `ecs-task`                             |
 | [prefect-aws](/integrations/prefect-aws/)                 | MinIO Credentials            | `minio-credentials`                    |
-| [prefect-aws](/integrations/prefect-aws/)                 | S3 Bucket                                    | `s3-bucket`                            |
+| [prefect-aws](/integrations/prefect-aws/)                 | S3 Bucket                       | `s3-bucket`                            |
 | [prefect-azure](/integrations/prefect-azure/)             | Azure Blob Storage Credentials           | `azure-blob-storage-credentials`       |
 | [prefect-azure](/integrations/prefect-azure/)             | Azure Container Instance Credentials | `azure-container-instance-credentials` |
 | [prefect-azure](/integrations/prefect-azure/)             | Azure Container Instance Job]   | `azure-container-instance-job`         |
 | [prefect-azure](/integrations/prefect-azure/)             | Azure Cosmos DB Credentials      | `azure-cosmos-db-credentials`          |
 | [prefect-azure](/integrations/prefect-azure/)             | AzureML Credentials    | `azureml-credentials`                  |
 | [prefect-bitbucket](/integrations/prefect-bitbucket/)     | BitBucket Credentials         | `bitbucket-credentials`                |
-| [prefect-bitbucket](/integrations/prefect-bitbucket/)     | BitBucket Repository                               | `bitbucket-repository`                 |
+| [prefect-bitbucket](/integrations/prefect-bitbucket/)     | BitBucket Repository               | `bitbucket-repository`                 |
 | [prefect-databricks](/integrations/prefect-databricks/)   | Databricks Credentials             | `databricks-credentials`               |
 | [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI BigQuery Target Configs      |`dbt-cli-bigquery-target-configs`      |
 | [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Profile         | `dbt-cli-profile`                      |
@@ -113,6 +111,8 @@ If a block type is not available in the UI, you can [register it](#register-bloc
 | [prefect-snowflake](/integrations/prefect-snowflake/)       |Snowflake Credentials      | `snowflake-credentials`                |
 | [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   |Database Credentials      | `database-credentials`                 |
 | [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   |SQLAlchemy Connector              | `sqlalchemy-connector`                 |
+
+Anyone can create a custom block type and, optionally, share it with the community.
 
 ## Use existing block types
 
