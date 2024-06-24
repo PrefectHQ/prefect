@@ -106,7 +106,7 @@ async def my_flow():
 
 The `PrefectFuture` methods are also always synchronous in Prefect 3. Names and return values have changed to reflect this:
 
-- `PrefectFututure.get_state()` is now `PrefectFuture.state`
+- `PrefectFuture.get_state()` is now `PrefectFuture.state`
 - `PrefectFuture.wait()` now returns `None` instead of a `State`
 
 *Wait for the future to complete, then retrieve the state separately*:
