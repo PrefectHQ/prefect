@@ -157,7 +157,6 @@ def prestart_check():
                 style="green",
             )
 
-        return
 
 
 @server_app.command()
