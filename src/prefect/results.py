@@ -1,4 +1,5 @@
 import abc
+import inspect
 import uuid
 from functools import partial
 from typing import (
@@ -620,9 +621,36 @@ class PersistedResult(BaseResult):
         try:
             data = serializer.dumps(obj)
         except Exception as exc:
+            extra_info = ""
+            # check if this is a known issue with cloudpickle and pydantic
+            # and add extra information to help the user recover
+
+            if (
+                isinstance(exc, TypeError)
+                and isinstance(obj, BaseModel)
+                and str(exc).startswith("cannot pickle")
+            ):
+                try:
+                    from IPython import get_ipython
+
+                    if get_ipython() is not None:
+                        extra_info = inspect.cleandoc(
+                            """
+                        This is a known issue in Pydantic that prevents models
+                        from being serialized by cloudpickle in IPython/Jupyter
+                        environments. Please see
+                        https://github.com/pydantic/pydantic/issues/8232 for
+                        more information. To fix the issue, either use the JSON
+                        serializer (`result_serializer="json"`) or disable
+                        result persistence (`persist_result=False`) when
+                        creating this flow or task.
+                        """
+                        ).replace("\n", " ")
+                except ImportError:
+                    pass
             raise ValueError(
                 f"Failed to serialize object of type {type(obj).__name__!r} with "
-                f"serializer {serializer.type!r}."
+                f"serializer {serializer.type!r}. {extra_info}"
             ) from exc
         blob = PersistedResultBlob(
             serializer=serializer, data=data, expiration=self.expiration
