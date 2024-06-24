@@ -111,7 +111,7 @@ They are stored by the Prefect orchestration engine on the flow run object.
 
 Prefect automatically performs type conversion of inputs using any provided type hints.
 Type hints provide an easy way to enforce typing on your flow parameters and can be customized with [Pydantic](https://pydantic-docs.helpmanual.io/).
-Prefect supports _any_ Pydantic model as a type hint within a flow is coerced automatically into the relevant object type:
+Prefect supports _any_ Pydantic model as a type hint for a flow parameter.
 
 ```python
 from prefect import flow
