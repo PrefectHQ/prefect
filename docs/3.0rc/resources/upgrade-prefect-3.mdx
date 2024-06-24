@@ -85,7 +85,7 @@ async def my_task():
 
 @flow
 async def my_flow():
-    #must await `.submit()`
+    # Must await `.submit()`
     future = await my_task.submit()
     return future
 ```
