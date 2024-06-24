@@ -32,14 +32,16 @@ allowing you to observe and act on flow execution.
 - A flow can be [deployed](/3.0rc/deploy/serve-flows/), which exposes an API for interacting with it remotely.
 
 Flows are uniquely identified by name. 
-You can provide a `name` parameter value for the flow.
-If you don't provide a name, Prefect uses the flow function name.
+You can provide a `name` parameter value for the flow:
+
 
 ```python
 @flow(name="My Flow")
 def my_flow():
     return
 ```
+
+If you don't provide a name, Prefect uses the flow function name.
 
 ## Running flows
 
@@ -104,7 +106,7 @@ Forks 🍴 : 1245
 As shown above, flow definitions can contain arbitrary Python code.
 </Tip>
 
-## Parameters
+## Specifying Parameters
 
 As with any Python function, you can pass arguments to a flow, including both positional and keyword arguments.
 These arguments defined on your flow function are called [parameters](/3.0rc/develop/write-flows/#parameters).
@@ -220,8 +222,9 @@ Nested flow runs block execution of the parent flow run until completion.
 However, asynchronous nested flows can run concurrently with [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or 
 [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
-A task that represents a nested flow run is annotated in its `state_details` with the presence of a `child_flow_run_id` field.
-A nested flow run is identified with the presence of a `parent_task_run_id` on `state_details`.
+The relationship between nested runs is recorded through a special task run in the parent flow run that represents the child flow run.
+The `state_details` feild of the task run representing the child flow run includes a `child_flow_run_id`. 
+The `state_details` feild of the nested flow run includes a `parent_task_run_id`.
 
 You can define multiple flows within the same file.
 Whether running locally or through a [deployment](/3.0rc/deploy/serve-flows/), you must indicate which flow is the entrypoint for a flow run.
@@ -445,7 +448,7 @@ list(generator) # prints 'Generator consumed!'
 
 ## Flow settings
 
-Flows allow a great deal of configuration by passing arguments to the decorator. Flows accept the following optional settings.
+Flows can be configured by passing arguments to the decorator. Flows accept the following optional settings:
 
 | Argument                                           | Description                                                                                                                                                                                                          |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
