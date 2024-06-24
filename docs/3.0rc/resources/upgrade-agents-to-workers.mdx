@@ -104,7 +104,7 @@ to enable [dryer deployment definitions](/3.0rc/deploy/serve-flows/#reusing-conf
 
     `infra_override` -> [`job_variable`](/3.0rc/deploy/serve-flows/#work-pool-fields)
 
-- The process for starting an agent and [starting a worker](/3.0rc/deploy/control-runs/workers/#start-a-worker) 
+- The process for starting an agent and [starting a worker](/3.0rc/deploy/control-runs/workerz/#start-a-worker) 
 in your environment are virtually identical.
 
     `prefect agent start --pool <work pool name>` --> `prefect worker start --pool <work pool name>`
@@ -155,7 +155,7 @@ Check out our [Docker guide](/3.0rc/deploy/dynamic-infra/deploy-docker/) for how
 served flow into a Docker image and host it in your environment.
 </Tip>
 
-2. **[Start a worker](/3.0rc/deploy/control-runs/workers/#start-a-worker)**
+2. **[Start a worker](/3.0rc/deploy/control-runs/workers/#starting-a-worker)**
 
 This worker replaces your agent and polls your new work pool for flow runs to execute.
 
