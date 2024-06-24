@@ -21,6 +21,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -42,6 +43,7 @@ from prefect.logging import get_logger
 T = TypeVar("T")
 P = ParamSpec("P")
 R = TypeVar("R")
+F = TypeVar("F", bound=Callable[..., Any])
 Async = Literal[True]
 Sync = Literal[False]
 A = TypeVar("A", Async, Sync, covariant=True)
@@ -304,7 +306,23 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
+@overload
+def sync_compatible(
+    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+) -> Callable[..., R]:
+    ...
+
+
+@overload
+def sync_compatible(
+    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+) -> Callable[..., Coroutine[Any, Any, R]]:
+    ...
+
+
+def sync_compatible(
+    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+) -> Callable[..., Union[R, Coroutine[Any, Any, R]]]:
     """
     Converts an async function into a dual async and sync function.
 
@@ -320,7 +338,9 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
 
     @wraps(async_fn)
-    def coroutine_wrapper(*args, _sync: Optional[bool] = None, **kwargs):
+    def coroutine_wrapper(
+        *args: Any, _sync: Optional[bool] = None, **kwargs: Any
+    ) -> Union[R, Coroutine[Any, Any, R]]:
         from prefect.context import MissingContextError, get_run_context
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
@@ -368,8 +388,6 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
         else:
             return run_coro_as_sync(ctx_call())
 
-    # TODO: This is breaking type hints on the callable... mypy is behind the curve
-    #       on argument annotations. We can still fix this for editors though.
     if is_async_fn(async_fn):
         wrapper = coroutine_wrapper
     elif is_async_gen_fn(async_fn):
@@ -377,7 +395,7 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     else:
         raise TypeError("The decorated function must be async.")
 
-    wrapper.aio = async_fn
+    wrapper.aio = async_fn  # type: ignore
     return wrapper
 
 

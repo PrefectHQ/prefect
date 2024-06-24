@@ -78,10 +78,10 @@ def client_injector(
 
 
 def inject_client(
-    fn: Callable[P, Coroutine[Any, Any, Any]],
-) -> Callable[P, Coroutine[Any, Any, Any]]:
+    fn: Callable[P, Coroutine[Any, Any, R]],
+) -> Callable[P, Coroutine[Any, Any, R]]:
     """
-    Simple helper to provide a context managed client to a asynchronous function.
+    Simple helper to provide a context managed client to an asynchronous function.
 
     The decorated function _must_ take a `client` kwarg and if a client is passed when
     called it will be used instead of creating a new one, but it will not be context
@@ -89,7 +89,7 @@ def inject_client(
     """
 
     @wraps(fn)
-    async def with_injected_client(*args: P.args, **kwargs: P.kwargs) -> Any:
+    async def with_injected_client(*args: P.args, **kwargs: P.kwargs) -> R:
         client = cast(Optional["PrefectClient"], kwargs.pop("client", None))
         client, inferred = get_or_create_client(client)
         if not inferred:
