@@ -37,37 +37,37 @@ Here are some examples:
 **Synchronous tasks and flows cannot be called from asynchronous tasks or flows as they could in Prefect 2.**
 
 <CodeGroup>
-    ```python Prefect 2
-    @task
-    async def my_task():
-        ...
-	
+```python Prefect 2
+@task
+async def my_task():
+    ...
 
-    # Enclosing flow can be sync
-    @flow
-    def my_flow():
-	    return my_task()
-	
-		
-    if __name__ == "__main__":
-	    my_flow()
-    ```
 
-    ```python Prefect 3
-    @task
-    async def my_task():
-	...
-	
+# Enclosing flow can be sync
+@flow
+def my_flow():
+    return my_task()
 
-    # Enclosing flow must be async as well
-    @flow
-    async def my_flow():
-	    return await my_task()
-	
-	
-    if __name__ == "__main__":
-	    asyncio.run(my_flow())
-    ``` 
+    
+if __name__ == "__main__":
+    my_flow()
+```
+
+```python Prefect 3
+@task
+async def my_task():
+    ...
+
+
+# Enclosing flow must be async as well
+@flow
+async def my_flow():
+    return await my_task()
+
+
+if __name__ == "__main__":
+    asyncio.run(my_flow())
+``` 
 </CodeGroup>
 
 Because `Task.submit` is always a synchronous call, it does not need to be awaited. 
@@ -75,31 +75,31 @@ Because `Task.submit` is always a synchronous call, it does not need to be await
 So, *you do not need to use the `await` keyword in front of your `.submit` call*:
 
 <CodeGroup>
-    ```python Prefect 2
-    @task
-    async def my_task():
-	...
-	
-	
-    @flow
-    async def my_flow():
-	    #must await `.submit()`
-	    future = await my_task.submit()
-	    return future
-    ```
+```python Prefect 2
+@task
+async def my_task():
+    ...
 
-    ```python Prefect 3
-    @task
-    async def my_task():
-	...
-	
-	
-    @flow
-    async def my_flow():
-	    # No need to await `.submit()`
-	    future = my_task.submit()
-	    return future
-    ```
+
+@flow
+async def my_flow():
+    #must await `.submit()`
+    future = await my_task.submit()
+    return future
+```
+
+```python Prefect 3
+@task
+async def my_task():
+    ...
+
+
+@flow
+async def my_flow():
+    # No need to await `.submit()`
+    future = my_task.submit()
+    return future
+```
 </CodeGroup>
 
 The `PrefectFuture` methods are also always synchronous in Prefect 3. Names and return values have changed to reflect this:
@@ -110,35 +110,35 @@ The `PrefectFuture` methods are also always synchronous in Prefect 3. Names and 
 *Wait for the future to complete, then retrieve the state separately*:
 
 <CodeGroup>
-    ```python Prefect 2
-    @task
-    async def my_task():
-    	...
-	
-	
-    @flow
-    async def my_flow():
-    	future = await my_task.submit()
-	    # State is returned by `wait()`
-	    state = await future.wait()
-	    return state
-    ```
+```python Prefect 2
+@task
+async def my_task():
+    ...
 
-    ```python Prefect 3
-    @task
-    async def my_task():
-    	...
-	
-	
-    @flow
-    async def my_flow():
-	    future = my_task.submit()
-	    # Wait for future completion  
-	    # before retrieving the state
-	    future.wait()
-	    state = future.state
-	    return state
-    ```
+
+@flow
+async def my_flow():
+    future = await my_task.submit()
+    # State is returned by `wait()`
+    state = await future.wait()
+    return state
+```
+
+```python Prefect 3
+@task
+async def my_task():
+    ...
+
+
+@flow
+async def my_flow():
+    future = my_task.submit()
+    # Wait for future completion  
+    # before retrieving the state
+    future.wait()
+    state = future.state
+    return state
+```
 </CodeGroup>
 
 If you do not first wait for the future to complete, the run may raise an 'AttributeError: coroutine object has no attribute get' exception. 
@@ -146,31 +146,31 @@ If you do not first wait for the future to complete, the run may raise an 'Attri
 In Prefect 3, `PrefectFutures` resulting from submitted task runs are not automatically awaited/resolved before exiting a flow, unless they’re a dependency of other flows or tasks, so *you must wait for a task’s `PrefectFuture` resolution before the end of a flow*:
 
 <CodeGroup>
-    ```python Prefect 2
-    @task
-    def my_task():
-	    ...
-	
-	
-    @flow
-    def my_flow():
-	    # The flow will not exit until 
-	    # these futures are resolved
-	    futures = my_task.map([1, 2, 3, 4])
-    ```
+```python Prefect 2
+@task
+def my_task():
+    ...
 
-    ```python Prefect 3
-    @task
-    def my_task():
-	    ...
-	
-	
-    @flow
-    def my_flow():
-	    futures = my_task.map([1, 2, 3, 4])
-	    # You must wait for futures before exiting flow.
-	    futures.wait()
-    ```
+
+@flow
+def my_flow():
+    # The flow will not exit until 
+    # these futures are resolved
+    futures = my_task.map([1, 2, 3, 4])
+```
+
+```python Prefect 3
+@task
+def my_task():
+    ...
+
+
+@flow
+def my_flow():
+    futures = my_task.map([1, 2, 3, 4])
+    # You must wait for futures before exiting flow.
+    futures.wait()
+```
 </CodeGroup>
 
 If you do not wait for the futures, the tasks may fail with a 'Flow must be running to start a task' error. 
