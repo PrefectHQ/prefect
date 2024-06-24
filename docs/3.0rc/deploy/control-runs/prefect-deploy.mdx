@@ -6,7 +6,7 @@ description: Learn how to schedule and trigger flow runs through the API and eas
 In this guide, you will configure a deployment that uses a work pool for dynamically provisioned infrastructure.
 Work pools and workers bridge the Prefect _orchestration environment_ with your _execution environment_. 
 When a [deployment](/3.0rc/deploy/serve-flows/) creates a flow run, it is submitted to a specific work pool for scheduling. 
-A worker running in the execution environment polls its respective work pool for new runs to execute; or the work pool submits flow runs to serverless infrastructure directly, depending on your configuration.
+A worker running in the execution environment polls its respective work pool for new runs to execute; or the work pool submits flow runs to serverless infrastructure directly, depending on the type of work pool.
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
 You can call a flow locally or on a remote environment and it will be trackable.
