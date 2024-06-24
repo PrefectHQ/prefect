@@ -178,10 +178,13 @@ def my_flow():
 If you do not wait for the futures, the tasks may fail with a 'Flow must be running to start a task' error. 
 The one exception to this case is that `PrefectFuture`s returned from a flow will resolve to states before completing the flow.
 
-## Result persistence and caching enabled by default
+## Eager caching enabled by default
 
 Prefect 3 supports transactional semantics - tasks runs can be grouped into larger transactions, enabling more resilient, idempotent workflows. 
-To support this, Prefect 3 has more eager, intelligent caching defaults than Prefect 2.
+To support this, Prefect 3 has more eager, intelligent caching defaults than Prefect 2. 
+Note that result persistence is still disabled by default, so the new caching behavior will only take effect
+when result persistence has been enabled.
+The simplest way to enable result persistence is through the Prefect setting `PREFECT_RESULTS_PERSIST_BY_DEFAULT=true`.
 
 Whenever a task runs, Prefect 3 first computes its cache key, then uses that cache key to evaluate whether that same task has run with the same inputs and as part of the same flow before. 
 If it has, the cached result from the previous run is used.
