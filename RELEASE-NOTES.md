@@ -1,5 +1,21 @@
 # Prefect Release Notes
 
+## Release 2.19.6
+
+### Enhancements
+- Enable deploying from local paths with `Flow.deploy` - https://github.com/PrefectHQ/prefect/pull/13981
+
+### Fixes
+- Fix `concurrency` timeout scoping - https://github.com/PrefectHQ/prefect/pull/14183
+- Fix deployment & work queue statuses - https://github.com/PrefectHQ/prefect/pull/14097
+* Fix resolution of block documents in `job_variables` in a `prefect.yaml` before saving server-side - https://github.com/PrefectHQ/prefect/pull/14156
+
+### Documentation
+- Fix typo in Cloud Run V2 worker navigation link - https://github.com/PrefectHQ/prefect/pull/14170
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.19.5...2.19.6
+
 ## Release 2.19.5
 
 ### Fixes
