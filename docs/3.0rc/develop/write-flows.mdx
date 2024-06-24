@@ -386,6 +386,7 @@ Any values yielded by the generator can be consumed by other flows or tasks.
 ```python
 from prefect import flow
 
+
 @flow
 def generator():
     for i in range(10):
