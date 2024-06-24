@@ -9,7 +9,7 @@ Flow code is not stored in a Prefect server instance or in Prefect Cloud.
 You have several flow code storage options.
 
 This guide focuses on deployments created with the interactive CLI experience or a prefect.yaml file. 
-To create deployments with Python code, see the [work pools and workers guide](/3.0rc/deploy/work-pools/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
+To create deployments with Python code, see the [work pools and workers guide](/3.0rc/deploy/control-runs/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
 
 
 ## Option 1: Git-based storage
@@ -292,7 +292,7 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
     </Tab>
 </Tabs>
 
-Another authentication option is to give the [worker](/3.0rc/deploy/work-pools/control-runs/#worker-overview) access 
+Another authentication option is to give the [worker](/3.0rc/deploy/control-runs/workers/) access 
 to the storage location at runtime through SSH keys.
 
 Alternatively, you can inject environment variables into your deployment. See this example that uses an environment variable named 

@@ -14,7 +14,7 @@ You can assign multiple schedules to deployments in the Prefect UI, or the CLI w
 the `Deployment` class, and in 
 [block-based deployment](/3.0rc/deploy/serve-flows/#block-based-deployments) YAML files.
 
-Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [worker-based deployments](/3.0rc/deploy/work-pools/control-runs/) 
+Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [worker-based deployments](/3.0rc/deploy/control-runs/workers/) 
 with `prefect deploy` will arrive soon.
 </Tip>
 
@@ -191,7 +191,7 @@ There are several ways to create a schedule for a deployment:
 - With the `cron`, `interval`, or `rrule` parameters if building your deployment with the 
 [`serve` method](/3.0rc/develop/write-flows/#serving-a-flow) of the `Flow` object or 
 [the `serve` utility](/3.0rc/develop/write-flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
-- If using [worker-based deployments](/3.0rc/deploy/work-pools/control-runs/)
+- If using [worker-based deployments](/3.0rc/deploy/control-runs/workers/)
   - When you define a deployment with `flow.serve` or `flow.deploy`
   - Through the interactive `prefect deploy` command
   - With the `deployments` -> `schedules` section of the `prefect.yaml` file
@@ -268,7 +268,7 @@ timezone="America/Chicago"))
 
 ### Create schedules with the interactive `prefect deploy` command
 
-If you are using [worker-based deployments](/3.0rc/deploy/work-pools/control-runs/), you can create a schedule through the 
+If you are using [worker-based deployments](/3.0rc/deploy/control-runs/workers/), you can create a schedule through the 
 interactive `prefect deploy` command.
 
 You will be prompted to choose which type of schedule to create.

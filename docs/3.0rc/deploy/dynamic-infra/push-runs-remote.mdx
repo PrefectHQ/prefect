@@ -39,7 +39,7 @@ graph TD
 <Tip>
 Notice above that the worker is in charge of provisioning the _flow run infrastructure_.
 In the context of this tutorial, that flow run infrastructure is an ephemeral Docker container to host each flow run.
-Different [worker types](/3.0rc/deploy/work-pools/control-runs/#worker-types) create different types of flow run 
+Different [worker types](/3.0rc/deploy/control-runs/workers/#worker-types) create different types of flow run 
 infrastructure.
 </Tip>
 
@@ -55,7 +55,7 @@ client to execute all work sent to this pool inside a dedicated Docker container
 <Tip>
 **Other work pool types**
 
-There are [work pool types](/3.0rc/deploy/work-pools/control-runs/#worker-types) for serverless computing 
+There are [work pool types](/3.0rc/deploy/control-runs/work-pools/#work-pool-types) for serverless computing 
 environments such as AWS ECS, Azure Container Instances, Google Cloud Run, and Vertex AI.
 Kubernetes is also a popular work pool type.
 </Tip>
@@ -222,7 +222,7 @@ To update your deployment, modify your script and rerun it. Specify a value for 
 so your Docker worker can successfully execute scheduled runs for this flow. See the example below.
 
 The `job_variables` section allows you to fine-tune the infrastructure settings for a specific deployment. These values override 
-default values in the specified work pool's [base job template](/3.0rc/deploy/work-pools/control-runs/#base-job-template).
+default values in the specified work pool's [base job template](/3.0rc/deploy/control-runs/work-pools/#base-job-template).
 
 When testing images locally without pushing them to a registry (to avoid potential errors like docker.errors.NotFound), 
 we recommend including an `image_pull_policy` job_variable set to `Never`. However, for production workflows, push images to a 
@@ -288,7 +288,7 @@ prefect deployment run 'get_repo_info/my-deployment'
 
 ## Learn more
 
-- Learn how to configure deployments in YAML with [`prefect.yaml`](/3.0rc/deploy/work-pools/prefect-deploy/).
+- Learn how to configure deployments in YAML with [`prefect.yaml`](/3.0rc/deploy/control-runs/prefect-deploy/).
 - [Deploy flows on Kubernetes](/3.0rc/deploy/dynamic-infra/deploy-kubernetes/)
 - [Deploy flows in Docker](/3.0rc/deploy/dynamic-infra/deploy-docker/)
 - [Deploy flows on serverless infrastructure](/3.0rc/deploy/dynamic-infra/push-runs-remote/)
@@ -346,10 +346,10 @@ levels.
 
 ## Next steps
 
-Learn more about [workers and work pools](/3.0rc/deploy/work-pools/control-runs/).
+Learn more about [work pools](/3.0rc/deploy/control-runs/work-pools/) and [workers](/3.0rc/deploy/control-runs/workers/).
 
 Learn about installing dependencies at runtime or baking them into your Docker image in the 
-[work pools and workers guide](/3.0rc/deploy/work-pools/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
+[work pools and workers guide](/3.0rc/deploy/control-runs/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
 
 To set up a long-lived process on a Windows machine the pattern is similar.
 Instead of systemd, you can use [NSSM](https://nssm.cc/).
