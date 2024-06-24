@@ -3973,8 +3973,9 @@ class TestFlowFromSource:
             return MockStorage()
 
         monkeypatch.setattr(
-            "prefect.flows.create_storage_from_source", mock_create_storage_from_source
-        )  # adjust the import path as per your module's name and location
+            "prefect.runner.storage.create_storage_from_source",
+            mock_create_storage_from_source,
+        )
 
         loaded_flow = await Flow.from_source(
             source="https://github.com/org/repo.git", entrypoint="flows.py:test_flow"
@@ -4027,7 +4028,7 @@ class TestFlowDeploy:
     @pytest.fixture
     def mock_deploy(self, monkeypatch):
         mock = AsyncMock()
-        monkeypatch.setattr("prefect.flows.deploy", mock)
+        monkeypatch.setattr("prefect.deployments.runner.deploy", mock)
         return mock
 
     @pytest.fixture
