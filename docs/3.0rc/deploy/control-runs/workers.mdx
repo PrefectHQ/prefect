@@ -71,52 +71,42 @@ after it stopped sending heartbeats, but you can configure the threshold with th
 
 Use the `prefect worker start` CLI command to start a worker. You must pass at least the work pool name. 
 If the work pool does not exist, it will be created if the `--type` flag is used.
-<div class="terminal">
+
 ```bash
 prefect worker start -p [work pool name]
 ```
-</div>
 
 For example:
-<div class="terminal">
+
 ```bash
 prefect worker start -p "my-pool"
 ```
-</div>
 
 Results in output like this:
 
-<div class="terminal">
 ```bash
 Discovered worker type 'process' for work pool 'my-pool'.
 Worker 'ProcessWorker 65716280-96f8-420b-9300-7e94417f2673' started!
 ```
-</div>
 
 In this case, Prefect automatically discovered the worker type from the work pool.
 To create a work pool and start a worker in one command, use the `--type` flag:
 
-<div class="terminal">
 ```bash
 prefect worker start -p "my-pool" --type "process"
 ```
-</div>
 
-<div class="terminal">
 ```bash
 Worker 'ProcessWorker d24f3768-62a9-4141-9480-a056b9539a25' started!
 06:57:53.289 | INFO    | prefect.worker.process.processworker d24f3768-62a9-4141-9480-a056b9539a25 - Worker pool 'my-pool' created.
 ```
-</div>
 
 In addition, workers can limit the number of flow runs to start simultaneously with the `--limit` flag.
 For example, to limit a worker to five concurrent flow runs:
 
-<div class="terminal">
 ```bash
 prefect worker start --pool "my-pool" --limit 5
 ```
-</div>
 
 ### Configure prefetch
 
