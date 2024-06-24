@@ -61,6 +61,8 @@ async def get_collection_view(view: str):
             GLOBAL_COLLECTIONS_VIEW_CACHE[view] = data
             return data
     except Exception:
+        if view not in KNOWN_VIEWS:
+            raise
         local_file = Path(__file__).parent / Path(f"collections_data/views/{view}.json")
         if await local_file.exists():
             raw_data = await local_file.read_text()
