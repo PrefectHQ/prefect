@@ -86,6 +86,17 @@
           ]
         },
         {
+          "group": "Configure runtime behavior",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/develop/transactions",
+            "3.0rc/develop/state-hooks",
+            "3.0rc/develop/pause-resume",
+            "3.0rc/develop/inputs",
+            "3.0rc/develop/runtime-context"
+          ]
+        },
+        {
           "group": "Manage state and configuration",
           "version": "3.0rc",
           "pages": [
@@ -95,17 +106,6 @@
             "3.0rc/develop/variables",
             "3.0rc/develop/blocks",
             "3.0rc/develop/interact-with-data"
-          ]
-        },
-        {
-          "group": "Configure runtime behavior",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/develop/recover-from-failure",
-            "3.0rc/develop/state-hooks",
-            "3.0rc/develop/pause-resume",
-            "3.0rc/develop/inputs",
-            "3.0rc/develop/runtime-context"
           ]
         },
         {
