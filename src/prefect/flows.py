@@ -53,8 +53,6 @@ from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
-from prefect.deployments.runner import deploy
-from prefect.deployments.steps.core import run_steps
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
@@ -69,12 +67,6 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
-from prefect.runner.storage import (
-    BlockStorageAdapter,
-    LocalStorage,
-    RunnerStorage,
-    create_storage_from_source,
-)
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_FLOW_DEFAULT_RETRIES,
@@ -120,6 +112,7 @@ if TYPE_CHECKING:
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
     from prefect.flows import FlowRun
+    from prefect.runner.storage import RunnerStorage
 
 
 class Flow(Generic[P, R]):
@@ -353,7 +346,7 @@ class Flow(Generic[P, R]):
         self.on_running_hooks = on_running or []
 
         # Used for flows loaded from remote storage
-        self._storage: Optional[RunnerStorage] = None
+        self._storage: Optional["RunnerStorage"] = None
         self._entrypoint: Optional[str] = None
 
         module = fn.__module__
@@ -919,7 +912,7 @@ class Flow(Generic[P, R]):
     @sync_compatible
     async def from_source(
         cls: Type[F],
-        source: Union[str, RunnerStorage, ReadableDeploymentStorage],
+        source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
     ) -> F:
         """
@@ -968,6 +961,14 @@ class Flow(Generic[P, R]):
             my_flow()
             ```
         """
+
+        from prefect.runner.storage import (
+            BlockStorageAdapter,
+            LocalStorage,
+            RunnerStorage,
+            create_storage_from_source,
+        )
+
         if isinstance(source, str):
             storage = create_storage_from_source(source)
         elif isinstance(source, RunnerStorage):
@@ -1145,7 +1146,9 @@ class Flow(Generic[P, R]):
             entrypoint_type=entrypoint_type,
         )
 
-        deployment_ids = await deploy(
+        from prefect.deployments import runner
+
+        deployment_ids = await runner.deploy(
             deployment,
             work_pool_name=work_pool_name,
             image=image,
@@ -1833,6 +1836,9 @@ async def load_flow_from_flow_run(
         run_logger.debug(
             f"Running {len(deployment.pull_steps)} deployment pull step(s)"
         )
+
+        from prefect.deployments.steps.core import run_steps
+
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
