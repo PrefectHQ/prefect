@@ -1,4 +1,4 @@
-name: 🐞 Report a bug
+name: 🐞 Report a bug in Prefect 2.x
 description: Errors and regression reports with complete reproducing test cases and/or stack traces.
 labels: ["needs:triage", "bug"]
 body:
@@ -75,7 +75,7 @@ body:
 
   - type: textarea
     attributes:
-      label: Versions
+      label: Versions (`prefect version` output)
       description: >
         Provide information about your Prefect version and environment. The easiest way to retrieve all of the information we require is the `prefect version` command.
         If using Prefect 1.x, it is useful to also include the output of `prefect diagnostics`.
