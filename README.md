@@ -20,12 +20,9 @@
 
 # Prefect
 
-Prefect is an orchestration and observation platform for building and reacting to workflows.
-It's the simplest way to transform Python code into an interactive workflow application.
-
-With Prefect you can standardize workflow deployment across your organization.
-
-You can build resilient, dynamic workflows that react to the world around them and recover from unexpected changes.
+Prefect is a workflow orchestration framework for building data pipelines in Python.
+It's the simplest way to elevate a script into an interactive workflow application.
+With Prefect, you can build resilient, dynamic workflows that react to the world around them and recover from unexpected changes.
 
 With just a few decorators, Prefect supercharges your code with features like automatic retries, distributed execution, scheduling, caching, and much more.
 
@@ -71,8 +68,6 @@ Fire up the Prefect UI to see what happened:
 prefect server start
 ```
 
-![Prefect UI dashboard](https://github.com/PrefectHQ/prefect/blob/main/docs/images/cloud-overview1.png?raw=true)
-
 To run your workflow on a schedule, turn it into a deployment and schedule it to run every minute by changing the last line of your script to the following:
 
 ```python
@@ -85,15 +80,9 @@ Additionally you can run your workflow manually from the UI or CLI - and if you'
 
 ## Prefect Cloud
 
-Stop worrying about your workflows.
 Prefect Cloud allows you to centrally deploy, monitor, and manage the data workflows you support. With managed orchestration, automations, and webhooks, all backed by enterprise-class security, build production-ready code quickly and reliably.
 
 Read more about Prefect Cloud [here](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) or sign up to [try it for yourself](https://app.prefect.cloud?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
-
-![Prefect Automations](https://github.com/PrefectHQ/prefect/blob/main/docs/images/automations-1.png?raw=true)
-![Prefect Automations](https://github.com/PrefectHQ/prefect/blob/main/docs/images/automations-2.png?raw=true)
-![Prefect Automations](https://github.com/PrefectHQ/prefect/blob/main/docs/images/automations-4.png?raw=true)
-
 
 ## prefect-client
 
