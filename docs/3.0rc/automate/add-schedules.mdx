@@ -52,7 +52,7 @@ Just add the keyword argument `cron`, `interval`, or `rrule`.
 | `schedules` | A list of schedule objects defining when to execute runs of this deployment. Used to define multiple schedules or additional scheduling options such as `timezone`.                                                                                   |
 | `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options such as `timezone`.                                                                                                                     |
 
-This `serve` method will create a deployment of `my_flow` with a cron schedule that creates runs every minute of every day:
+The `serve` method below will create a deployment of `my_flow` with a cron schedule that creates runs every minute of every day:
 
 ```python
 my_flow.serve(name="flowing", cron="* * * * *")
