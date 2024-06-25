@@ -40,7 +40,6 @@ from prefect.cli._utilities import (
     exit_with_error,
 )
 from prefect.cli.root import app, is_interactive
-from prefect.client.orchestration import ServerType
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -615,17 +614,6 @@ async def _run_single_deploy(
         options.get("triggers"), deploy_config.get("triggers")
     ):
         triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
-        if client.server_type != ServerType.CLOUD:
-            app.console.print(
-                Panel(
-                    (
-                        "Deployment triggers are only supported on "
-                        "Prefect Cloud. Any triggers defined for the deployment will "
-                        "not be created."
-                    ),
-                ),
-                style="yellow",
-            )
     else:
         triggers = []
 
