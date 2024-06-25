@@ -1,0 +1,34 @@
+---
+title: Intro to deployments
+description: Learn what deployments are and how to use them in Prefect.
+---
+
+[Deployments](/3.0rc/deploy/dynamic-infra/prefect-deploy/) are server-side representations of flows. 
+They store the crucial metadata for remote orchestration including when, where, and 
+how a workflow should run.
+
+Attributes of a deployment include:
+
+- **Flow entrypoint**: path to your flow function
+- **Schedule** or **Trigger**: optional schedule or triggering rules for this deployment
+- **Tags**: optional text labels for organizing deployments
+
+Some of the most common reasons to use an orchestration tool like Prefect are for 
+[scheduling](/3.0rc/automate/add-schedules/) and [event-based triggering](/3.0rc/automate/events/automations-triggers/).
+As opposed to manually triggering and managing flow runs, deploying a flow exposes an API and 
+UI that allow you to:
+
+- trigger new runs, [cancel active runs](/3.0rc/develop/write-flows/#cancel-a-flow-run), 
+pause scheduled runs, customize parameters, and more
+- remotely configure schedules and automation rules for your deployments
+- dynamically provision infrastructure using [workers](/3.0rc/deploy/dynamic-infra/push-runs-remote)
+
+<Note>
+**Connect to Prefect Cloud or a self-hosted Prefect server instance**
+
+Some features in this tutorial, such as scheduling, require you to connect to a Prefect server.
+If using a self-hosted setup, run `prefect server start` to run both the webserver and UI.
+If using Prefect Cloud, make sure you have 
+[successfully authenticated your local environment](/3.0rc/manage/cloud/connect-to-cloud).
+
+</Note>

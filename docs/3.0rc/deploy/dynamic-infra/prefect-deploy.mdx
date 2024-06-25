@@ -5,7 +5,7 @@ description: Learn how to schedule and trigger flow runs through the API and eas
 
 In this guide, you will configure a deployment that uses a work pool for dynamically provisioned infrastructure.
 Work pools and workers bridge the Prefect _orchestration environment_ with your _execution environment_. 
-When a [deployment](/3.0rc/deploy/serve-flows/) creates a flow run, it is submitted to a specific work pool for scheduling. 
+When a [deployment](/3.0rc/deploy/dynamic-infra/prefect-deploy/) creates a flow run, it is submitted to a specific work pool for scheduling. 
 A worker running in the execution environment polls its respective work pool for new runs to execute; or the work pool submits flow runs to serverless infrastructure directly, depending on the type of work pool.
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows.
@@ -107,7 +107,7 @@ When creating a deployment that uses a work pool and worker, there are two impor
 For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
-[Serve flows](/3.0rc/deploy/serve-flows/) shows how to create a deployment with a long-running process using `.serve`, 
+[Serve flows](/3.0rc/deploy/dynamic-infra/prefect-deploy/) shows how to create a deployment with a long-running process using `.serve`, 
 and how to move to a [work-pool-based deployment](/3.0rc/deploy/dynamic-infra/push-runs-remote/) setup with `.deploy`.
 Learn more about when to move to [work-pool-based deployments](/3.0rc/deploy/dynamic-infra/push-runs-remote/#why-workers-and-work-pools).
 
@@ -1186,7 +1186,7 @@ These are fields you can add to each deployment declaration.
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
 | `schedule`                                 | An optional [schedule](/3.0rc/automate/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
-| `triggers`                                  | An optional array of [triggers](/3.0rc/deploy/serve-flows/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
+| `triggers`                                  | An optional array of [triggers](/3.0rc/deploy/dynamic-infra/prefect-deploy/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |

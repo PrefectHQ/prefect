@@ -125,16 +125,17 @@
       "group": "Deploy",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/deploy/index",
         "3.0rc/deploy/store-flow-code",
         {
-          "group": "Deploy to static infrastructure",
+          "group": "Static infrastructure",
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/static-infra/index"
           ]
         },
         {
-          "group": "Deploy to dynamic infrastructure",
+          "group": "Dynamic infrastructure",
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/dynamic-infra/index",
