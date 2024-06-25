@@ -184,16 +184,14 @@ def my_flow():
 If you do not wait for the futures, the tasks may fail with a 'Flow must be running to start a task' error. 
 The one exception to this case is that `PrefectFuture`s returned from a flow will resolve to states before completing the flow:
 
-<CodeGroup>
 ```python Prefect 3
 @flow
 def my_flow():
-    # Prefect will resolve these futures to states
-    # because the flow returned them, so you
-    # don't have to call `wait()`.
+    # Prefect will resolve these futures to 
+    # states because the flow returned them, 
+    # so you don't have to call `wait()`.
     return my_task.map([1, 2, 3, 4])
 ```
-</CodeGroup>
 
 ## Task caching and result persistence
 
