@@ -1192,7 +1192,14 @@ class TestResultPersistence:
         def my_task():
             pass
 
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(persist_result=persist_result)
+
         assert my_task.persist_result is persist_result
+        assert new_task.persist_result is persist_result
 
     @pytest.mark.parametrize(
         "cache_policy",
@@ -1203,14 +1210,28 @@ class TestResultPersistence:
         def my_task():
             pass
 
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(cache_policy=cache_policy)
+
         assert my_task.persist_result is True
+        assert new_task.persist_result is True
 
     def test_setting_cache_key_fn_sets_persist_result_to_true(self):
         @task(cache_key_fn=lambda *_: "test-key")
         def my_task():
             pass
 
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(cache_key_fn=lambda *_: "test-key")
+
         assert my_task.persist_result is True
+        assert new_task.persist_result is True
 
     def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
         block = LocalFileSystem(basepath=str(tmpdir))
@@ -1219,21 +1240,42 @@ class TestResultPersistence:
         def my_task():
             pass
 
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage=block)
+
         assert my_task.persist_result is True
+        assert new_task.persist_result is True
 
     def test_setting_result_serializer_sets_persist_result_to_true(self):
         @task(result_serializer="json")
         def my_task():
             pass
 
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_serializer="json")
+
         assert my_task.persist_result is True
+        assert new_task.persist_result is True
 
     def test_setting_result_storage_key_sets_persist_result_to_true(self):
         @task(result_storage_key="test-key")
         def my_task():
             pass
 
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage_key="test-key")
+
         assert my_task.persist_result is True
+        assert new_task.persist_result is True
 
 
 class TestTaskCaching:

@@ -504,7 +504,7 @@ class Task(Generic[P, R]):
             Type[NotSet],
         ] = NotSet,
         retry_jitter_factor: Union[float, Type[NotSet]] = NotSet,
-        persist_result: Union[bool, Type[NotSet]] = NotSet,
+        persist_result: Union[bool, Type[NotSet]] = None,
         result_storage: Union[ResultStorage, Type[NotSet]] = NotSet,
         result_serializer: Union[ResultSerializer, Type[NotSet]] = NotSet,
         result_storage_key: Union[str, Type[NotSet]] = NotSet,
@@ -621,9 +621,7 @@ class Task(Generic[P, R]):
                 if retry_jitter_factor is not NotSet
                 else self.retry_jitter_factor
             ),
-            persist_result=(
-                persist_result if persist_result is not NotSet else self.persist_result
-            ),
+            persist_result=persist_result,
             result_storage=(
                 result_storage if result_storage is not NotSet else self.result_storage
             ),
