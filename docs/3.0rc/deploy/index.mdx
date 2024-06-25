@@ -30,7 +30,7 @@ UI that allow you to:
 - trigger new runs, [cancel active runs](/3.0rc/develop/write-flows/#cancel-a-flow-run), 
 pause scheduled runs, customize parameters, and more
 - remotely configure schedules and automation rules for your deployments
-- dynamically provision infrastructure using [workers](/3.0rc/deploy/dynamic-infra/push-runs-remote)
+- dynamically provision infrastructure using [workers](/3.0rc/deploy/static-infra/push-runs-remote)
 
 <Note>
 **Connect to Prefect Cloud or a self-hosted Prefect server instance**
@@ -299,7 +299,7 @@ than the team managing infrastructure.
 
 [Work pools](/3.0rc/deploy/dynamic-infra/work-pools/) allow Prefect to exercise greater control 
 of the infrastructure on which flows run.
-Options for [serverless work pools](/3.0rc/deploy/dynamic-infra/push-runs-remote/) allow you to 
+Options for [serverless work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/) allow you to 
 scale to zero when workflows aren't running.
 Prefect even provides you with the ability to 
 [provision cloud infrastructure via a single CLI command](/3.0rc/deploy/dynamic-infra/push-runs-serverless/#automatically-creating-a-new-push-work-pool-and-provisioning-infrastructure), 
