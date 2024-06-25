@@ -47,10 +47,8 @@ Just add the keyword argument `cron`, `interval`, or `rrule`.
 | Argument    | Description                                                                                                                                                                                                                                           |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `interval`  | An interval on which to execute the deployment. Accepts a number or a timedelta object to create a single schedule. If a number is given, it is interpreted as seconds. Also accepts an iterable of numbers or timedelta to create multiple schedules.|
-| `cron`      | A cron schedule string of when to execute runs of this deployment.                                                                                                                                                                                    |
-    Also accepts an iterable of cron schedule strings to create multiple schedules.
-| `rrule`     | An rrule schedule string of when to execute runs of this deployment.                                                                                                                                                                                  |
-    Also accepts an iterable of rrule schedule strings to create multiple schedules.
+| `cron`      | A cron schedule string of when to execute runs of this deployment. Also accepts an iterable of cron schedule strings to create multiple schedules.                                                                                                    |
+| `rrule`     | An rrule schedule string of when to execute runs of this deployment. Also accepts an iterable of rrule schedule strings to create multiple schedules.                                                                                                 |
 | `schedules` | A list of schedule objects defining when to execute runs of this deployment. Used to define multiple schedules or additional scheduling options such as `timezone`.                                                                                   |
 | `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options like `timezone`.                                                                                                                     |
 
@@ -115,10 +113,17 @@ This is useful to keep the schedule configuration but temporarily stop the sched
 
 ### Cron
 
-You can specify a schedule with a [`cron`](https://en.wikipedia.org/wiki/Cron) pattern. You may also provide a timezone to 
-enforce DST behaviors.
+You can specify a schedule with a [`cron`](https://en.wikipedia.org/wiki/Cron) pattern. 
+You may also provide a timezone to enforce daylight saving time (DST) behaviors.
 
 Prefect uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
+
+<Tip>
+**Supported `croniter` features**
+
+While Prefect supports most features of `croniter` for creating `cron`-like schedules, it does not support "R" 
+random or "H" hashed keyword expressions or the schedule jittering possible with those expressions.
+</Tip>
 
 `Cron` properties include:
 
@@ -147,15 +152,7 @@ operation, as in the SQL statement `SELECT * from employees WHERE first_name = '
 For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **3rd Tuesday** in January. 
 This behavior matches `fcron` instead of `cron`.
 
-<Tip>
-**Supported `croniter` features**
-
-While Prefect supports most features of `croniter` for creating `cron`-like schedules, we do not support "R" 
-random or "H" hashed keyword expressions or the schedule jittering possible with those expressions.
-</Tip>
-
-<Note>
-**Daylight saving time considerations**
+#### Daylight saving time considerations**
 
 If the `timezone` is a DST-observing one, then the schedule adjusts itself appropriately.
 
@@ -165,7 +162,6 @@ For example, when clocks are set back, this results in a two-hour pause as the s
 reached and _the first time_ 2am is reached, 120 minutes later. 
     
 Longer schedules, such as one that fires at 9am every morning, adjust for DST automatically.
-</Note>
   
 ### Interval
 
