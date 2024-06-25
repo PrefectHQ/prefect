@@ -389,7 +389,7 @@ class Task(Generic[P, R]):
 
         # result persistence settings
         if persist_result is None:
-            if cache_policy and cache_policy != NONE:
+            if cache_policy and cache_policy != NONE and cache_policy != NotSet:
                 persist_result = True
             elif cache_key_fn is not None:
                 persist_result = True
