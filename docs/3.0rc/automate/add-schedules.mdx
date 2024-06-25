@@ -66,7 +66,7 @@ When `my_flow` is served with this interval schedule, it will run every 10 minut
 from datetime import timedelta, datetime
 from prefect.client.schemas.schedules import IntervalSchedule
 
-my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minutes=10), anchor_date=datetime(2023, 1, 1, 0, 0), 
+my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minutes=10), anchor_date=datetime(2026, 1, 1, 0, 0), 
 timezone="America/Chicago"))
 ```
 
