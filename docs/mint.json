@@ -203,13 +203,8 @@
       "group": "Resources",
       "version": "3.0rc",
       "pages": [
-        {
-          "group": "Migrate",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/resources/upgrade-agents-to-workers"
-          ]
-        },
+        "3.0rc/resources/upgrade-prefect-3",
+        "3.0rc/resources/upgrade-agents-to-workers",
         "3.0rc/resources/cancel",
         "3.0rc/resources/visualize-flow-structure",
         "3.0rc/resources/daemonize-processes",
