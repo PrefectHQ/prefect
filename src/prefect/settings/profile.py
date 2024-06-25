@@ -37,4 +37,4 @@ class Profile(BaseModel):
         path: Path = PrefectSettings().PREFECT_HOME,
         name: Optional[str] = None,
     ) -> Union[Self, list[Self]]:
-        return toml.loads(path.read_text())
+        return cls(**toml.loads(path.read_text()))
