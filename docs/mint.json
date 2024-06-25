@@ -216,9 +216,7 @@
         "3.0rc/resources/daemonize-processes",
         "3.0rc/resources/big-data",
         "3.0rc/resources/cli-shell",
-        "3.0rc/resources/secrets",
-        "3.0rc/resources/upgrade-prefect-3"
-      ]
+        "3.0rc/resources/secrets"      ]
     },
     {
       "group": "Integrations",
