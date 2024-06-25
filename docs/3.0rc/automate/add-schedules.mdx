@@ -152,7 +152,8 @@ operation, as in the SQL statement `SELECT * from employees WHERE first_name = '
 For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **3rd Tuesday** in January. 
 This behavior matches `fcron` instead of `cron`.
 
-#### Daylight saving time considerations**
+<Note> 
+**Daylight saving time considerations**
 
 If the `timezone` is a DST-observing one, then the schedule adjusts itself appropriately.
 
@@ -162,6 +163,7 @@ For example, when clocks are set back, this results in a two-hour pause as the s
 reached and _the first time_ 2am is reached, 120 minutes later. 
     
 Longer schedules, such as one that fires at 9am every morning, adjust for DST automatically.
+</Note>
   
 ### Interval
 
