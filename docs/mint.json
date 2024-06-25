@@ -138,7 +138,6 @@
           "group": "Dynamic infrastructure",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/dynamic-infra/index",
             "3.0rc/deploy/dynamic-infra/work-pools",
             "3.0rc/deploy/dynamic-infra/customize",
             "3.0rc/deploy/dynamic-infra/workers",
