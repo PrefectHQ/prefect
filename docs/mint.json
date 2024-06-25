@@ -86,6 +86,18 @@
           ]
         },
         {
+          "group": "Configure runtime behavior",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/develop/task-caching",
+            "3.0rc/develop/transactions",
+            "3.0rc/develop/state-hooks",
+            "3.0rc/develop/pause-resume",
+            "3.0rc/develop/inputs",
+            "3.0rc/develop/runtime-context"
+          ]
+        },
+        {
           "group": "Manage state and configuration",
           "version": "3.0rc",
           "pages": [
@@ -95,17 +107,6 @@
             "3.0rc/develop/variables",
             "3.0rc/develop/blocks",
             "3.0rc/develop/interact-with-data"
-          ]
-        },
-        {
-          "group": "Configure runtime behavior",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/develop/recover-from-failure",
-            "3.0rc/develop/state-hooks",
-            "3.0rc/develop/pause-resume",
-            "3.0rc/develop/inputs",
-            "3.0rc/develop/runtime-context"
           ]
         },
         {
@@ -149,9 +150,10 @@
           "group": "Control runs",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/work-pools/control-runs",
-            "3.0rc/deploy/work-pools/prefect-deploy",
-            "3.0rc/deploy/work-pools/managed-execution"
+            "3.0rc/deploy/control-runs/work-pools",
+            "3.0rc/deploy/control-runs/workers",
+            "3.0rc/deploy/control-runs/prefect-deploy",
+            "3.0rc/deploy/control-runs/managed-execution"
           ]
         }
       ]
@@ -207,20 +209,14 @@
       "group": "Resources",
       "version": "3.0rc",
       "pages": [
-        {
-          "group": "Migrate",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/resources/upgrade-agents-to-workers"
-          ]
-        },
+        "3.0rc/resources/upgrade-prefect-3",
+        "3.0rc/resources/upgrade-agents-to-workers",
         "3.0rc/resources/cancel",
         "3.0rc/resources/visualize-flow-structure",
         "3.0rc/resources/daemonize-processes",
         "3.0rc/resources/big-data",
         "3.0rc/resources/cli-shell",
-        "3.0rc/resources/secrets"
-      ]
+        "3.0rc/resources/secrets"      ]
     },
     {
       "group": "Integrations",
