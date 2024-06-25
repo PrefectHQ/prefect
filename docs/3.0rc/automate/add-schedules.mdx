@@ -50,7 +50,7 @@ Just add the keyword argument `cron`, `interval`, or `rrule`.
 | `cron`      | A cron schedule string of when to execute runs of this deployment. Also accepts an iterable of cron schedule strings to create multiple schedules.                                                                                                    |
 | `rrule`     | An rrule schedule string of when to execute runs of this deployment. Also accepts an iterable of rrule schedule strings to create multiple schedules.                                                                                                 |
 | `schedules` | A list of schedule objects defining when to execute runs of this deployment. Used to define multiple schedules or additional scheduling options such as `timezone`.                                                                                   |
-| `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options like `timezone`.                                                                                                                     |
+| `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options such as `timezone`.                                                                                                                     |
 
 This `serve` method will create a deployment of `my_flow` with a cron schedule that creates runs every minute of every day:
 
