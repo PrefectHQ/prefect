@@ -50,7 +50,6 @@ from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutu
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -399,10 +398,8 @@ class Task(Generic[P, R]):
                 ]
             ):
                 persist_result = True
-            else:
-                persist_result = PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
 
-        if not persist_result:
+        if persist_result is False:
             self.cache_policy = None if cache_policy is None else NONE
             if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
                 logger.warning(
@@ -504,7 +501,7 @@ class Task(Generic[P, R]):
             Type[NotSet],
         ] = NotSet,
         retry_jitter_factor: Union[float, Type[NotSet]] = NotSet,
-        persist_result: Union[bool, Type[NotSet]] = None,
+        persist_result: Union[bool, Type[NotSet]] = NotSet,
         result_storage: Union[ResultStorage, Type[NotSet]] = NotSet,
         result_serializer: Union[ResultSerializer, Type[NotSet]] = NotSet,
         result_storage_key: Union[str, Type[NotSet]] = NotSet,
@@ -621,7 +618,9 @@ class Task(Generic[P, R]):
                 if retry_jitter_factor is not NotSet
                 else self.retry_jitter_factor
             ),
-            persist_result=persist_result,
+            persist_result=(
+                persist_result if persist_result is not NotSet else self.persist_result
+            ),
             result_storage=(
                 result_storage if result_storage is not NotSet else self.result_storage
             ),
