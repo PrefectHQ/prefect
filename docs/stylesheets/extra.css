@@ -473,3 +473,7 @@ to force column width */
 a.cloud-button:hover {
     background-color: rgb(2, 37, 172);
 }
+
+[data-md-component="announce"] {
+    display: block !important;
+}
