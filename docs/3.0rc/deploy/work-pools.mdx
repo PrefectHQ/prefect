@@ -21,6 +21,63 @@ serverless infrastructure providers such as Google Cloud Run, Azure Container In
 Users can control aspects of work pool behavior, such as how many runs the pool allows to run concurrently. You can modify these options 
 at any time, and any workers requesting work for a specific pool only see matching flow runs.
 
+The following diagram provides a high-level overview of the conceptual elements involved in defining a work-pool based 
+deployment that is polled by a worker and executes a flow run based on that deployment.
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontSize': '19px'
+    }
+  }
+}%%
+
+flowchart LR
+    F("<div style='margin: 5px 10px 5px 5px;'>Flow Code</div>"):::yellow -.-> A("<div style='margin: 5px 10px 5px 5px;'>Deployment Definition</div>"):::gold
+    subgraph Server ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Prefect API</div>"]
+        D("<div style='margin: 5px 10px 5px 5px;'>Deployment</div>"):::green
+    end
+    subgraph Remote Storage ["<div style='width: 160px; text-align: center; margin-top: 5px;'>Remote Storage</div>"]
+        B("<div style='margin: 5px 6px 5px 5px;'>Flow</div>"):::yellow
+    end
+    subgraph Infrastructure ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Infrastructure</div>"]
+        G("<div style='margin: 5px 10px 5px 5px;'>Flow Run</div>"):::blue
+    end
+
+    A --> D
+    D --> E("<div style='margin: 5px 10px 5px 5px;'>Worker</div>"):::red
+    B -.-> E
+    A -.-> B
+    E -.-> G
+
+    classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px,color:black
+    classDef yellow fill:gold,stroke:gold,stroke-width:4px,color:black
+    classDef gray fill:lightgray,stroke:lightgray,stroke-width:4px
+    classDef blue fill:blue,stroke:blue,stroke-width:4px,color:white
+    classDef green fill:green,stroke:green,stroke-width:4px,color:white
+    classDef red fill:red,stroke:red,stroke-width:4px,color:white
+    classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
+```
+
+Work pool-based deployments that use a worker also allow you to assign a work queue name to prioritize work 
+and allow you to limit concurrent runs at the work pool level.
+
+When creating a deployment that uses a work pool and worker, there are two important considerations:
+
+- What instructions does a [worker](/3.0rc/deploy/workers/) require to set up an execution environment for your flow? 
+For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
+- How should the flow code be accessed?
+
+[Serve flows](/3.0rc/deploy/static-infra/index/) shows how to create a deployment with a long-running process using `.serve`, 
+and how to move to a [work-pool-based deployment](/3.0rc/deploy/static-infra/push-runs-remote/) setup with `.deploy`.
+Learn more about when to move to [work-pool-based deployments](/3.0rc/deploy/work-pools/).
+
+Next, you'll learn how to use `.deploy` to create deployments with Python code.
+If you prefer to learn about using a YAML-based alternative for managing deployment configuration, skip to the 
+[`prefect.yaml` section](#creating-work-pool-based-deployments-with-prefectyaml).
+
 ### Work pool configuration
 
 You can configure work pools by using any of the following:
@@ -459,7 +516,7 @@ Work pools are a bridge between the Prefect orchestration layer and infrastructu
 To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
 
 <Tip>
-    **[Choosing Between `flow.deploy()` and `flow.serve()`](/3.0rc/deploy/dynamic-infra/prefect-deploy/#two-approaches-to-deployments)**
+    **Choosing Between `flow.deploy()` and `flow.serve()`**
 
     For many use cases, `serve` is sufficient for scheduling and orchestration.
     Work pools are great for complex infrastructure requirements. But they are optional.

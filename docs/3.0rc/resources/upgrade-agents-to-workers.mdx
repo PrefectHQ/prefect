@@ -46,17 +46,17 @@ Prefect's infrastructure, without the need to host a worker or configure cloud p
 
 - The Python deployment experience with `.deploy()` or the alternative deployment experience with 
 `prefect.yaml` are more flexible and easier to use than block and agent-based deployments.
-- Both options allow you to [deploy multiple flows](/3.0rc/deploy/dynamic-infra/prefect-deploy/#working-with-multiple-deployments) 
+- Both options allow you to [deploy multiple flows](/3.0rc/deploy/prefect-yaml/#work-with-multiple-deployments-with-prefect-yaml) 
 with a single command.
 - Both options allow you to build Docker images for your flows to create portable execution environments.
-- The YAML-based API supports [templating](/3.0rc/deploy/dynamic-infra/prefect-deploy/#templating-options) 
-to enable [dryer deployment definitions](/3.0rc/deploy/dynamic-infra/prefect-deploy/#reusing-configuration-across-deployments).
+- The YAML-based API supports [templating](/3.0rc/deploy/prefect-yaml/#templating-options) 
+to enable [dryer deployment definitions](/3.0rc/deploy/static-infra/push-runs-remote/#reusing-configuration-across-deployments).
 
 ## Upgrade changes
 
 1. **Deployment CLI and Python SDK:**
 
-    `prefect deployment build <entrypoint>`/`prefect deployment apply` --> [`prefect deploy`](/3.0rc/deploy/dynamic-infra/prefect-deploy/#deployment-declaration-reference)
+    `prefect deployment build <entrypoint>`/`prefect deployment apply` --> [`prefect deploy`](/3.0rc/deploy/prefect-yaml/#deployment-declaration-reference)
 
     Prefect now automatically detects flows in your repo and provides a [wizard](/3.0rc/#step-5-deploy-the-flow)  
     to guide you through setting required attributes for your deployments.
@@ -65,11 +65,11 @@ to enable [dryer deployment definitions](/3.0rc/deploy/dynamic-infra/prefect-dep
 
 2. **Configuring remote flow code storage:**
 
-    storage blocks --> [pull action](/3.0rc/deploy/dynamic-infra/prefect-deploy/#the-pull-action)
+    storage blocks --> [pull action](/3.0rc/deploy/prefect-yaml/#the-pull-action)
 
     When using the YAML-based deployment API, you can configure a pull action in your `prefect.yaml` 
     file to specify how to retrieve flow code for your deployments. You can use configuration from your 
-    existing storage blocks to define your pull action [through templating](/3.0rc/deploy/dynamic-infra/prefect-deploy/#templating-options).
+    existing storage blocks to define your pull action [through templating](/3.0rc/deploy/prefect-yaml/#templating-options).
 
     When using the Python deployment API, you can pass any storage block to the `flow.deploy` method to 
     specify how to retrieve flow code for your deployment.
@@ -84,7 +84,7 @@ to enable [dryer deployment definitions](/3.0rc/deploy/dynamic-infra/prefect-dep
 4. **Managing multiple deployments:**
 
     Create and/or update many deployments at once through a 
-    [`prefect.yaml`](/3.0rc/deploy/dynamic-infra/prefect-deploy/#working-with-multiple-deployments) 
+    [`prefect.yaml`](/3.0rc/deploy/prefect-yaml/#work-with-multiple-deployments-with-prefect-yaml) 
     file or use the [`deploy`](/3.0rc/deploy/static-infra/push-runs-remote) 
     function.
 
@@ -94,7 +94,7 @@ to enable [dryer deployment definitions](/3.0rc/deploy/dynamic-infra/prefect-dep
 - Infrastructure blocks have configuration fields similar to typed work pools.
 - Deployment-level infrastructure overrides operate in much the same way.
 
-    `infra_override` -> [`job_variable`](/3.0rc/deploy/dynamic-infra/prefect-deploy/#work-pool-fields)
+    `infra_override` -> [`job_variable`](/3.0rc/deploy/prefect-yaml/#work-pool-fields)
 
 - The process for starting an agent and [starting a worker](/3.0rc/deploy/workers/#start-a-worker) 
 in your environment are virtually identical.
@@ -349,7 +349,7 @@ flow is executed.
 
 With agents, you may have multiple `deployment.yaml` files. But under worker deployment 
 patterns, each repo has a single `prefect.yaml` file located at the **root** of the repo 
-that contains [deployment configuration](/3.0rc/deploy/dynamic-infra/prefect-deploy/#working-with-multiple-deployments) 
+that contains [deployment configuration](/3.0rc/deploy/prefect-yaml/#work-with-multiple-deployments-with-prefect-yaml) 
 for all flows in that repo.
 </Warning>
 
@@ -368,12 +368,12 @@ This starts a wizard that guides you through setting up your deployment.
 **For step 4, select `y` on the last prompt to save the configuration for the deployment.**
 
 Saving the configuration for your deployment results in a `prefect.yaml` file populated 
-with your first deployment. You can use this YAML file to edit and [define multiple deployments](/3.0rc/deploy/dynamic-infra/prefect-deploy/#working-with-multiple-deployments) 
+with your first deployment. You can use this YAML file to edit and [define multiple deployments](/3.0rc/deploy/prefect-yaml/#work-with-multiple-deployments-with-prefect-yaml) 
 for this repo.
 </Note>
 
-You can add more [deployments](/3.0rc/deploy/dynamic-infra/prefect-deploy/#deployment-declaration-reference) 
+You can add more [deployments](/3.0rc/deploy/prefect-yaml/#deployment-declaration-reference) 
 to the `deployments` list in your `prefect.yaml` file and/or by continuing to use the deployment 
 creation wizard.
 
-For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/3.0rc/deploy/dynamic-infra/prefect-deploy/).
+For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/3.0rc/deploy/static-infra/push-runs-remote/).
