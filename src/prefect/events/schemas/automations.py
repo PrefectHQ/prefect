@@ -3,8 +3,6 @@ import textwrap
 from datetime import timedelta
 from enum import Enum
 from typing import (
-    Any,
-    Dict,
     List,
     Literal,
     Optional,
@@ -172,33 +170,18 @@ class EventTrigger(ResourceTrigger):
         ),
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def enforce_minimum_within_for_proactive_triggers(
-        cls, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        if not isinstance(data, dict):
-            return data
-
-        if "within" in data and data["within"] is None:
-            raise ValueError("`within` should be a valid timedelta")
-
-        posture: Optional[Posture] = data.get("posture")
-        within: Optional[timedelta] = data.get("within")
-
-        if isinstance(within, (int, float)):
-            data["within"] = within = timedelta(seconds=within)
-
-        if posture == Posture.Proactive:
-            if not within or within == timedelta(0):
-                data["within"] = timedelta(seconds=10.0)
-            elif within < timedelta(seconds=10.0):
+    @model_validator(mode="after")
+    def enforce_minimum_within_for_proactive_triggers(self) -> Self:
+        if self.posture == Posture.Proactive:
+            if self.within == timedelta(0):
+                self.within = timedelta(seconds=10.0)
+            elif self.within < timedelta(seconds=10.0):
                 raise ValueError(
                     "`within` for Proactive triggers must be greater than or equal to "
                     "10 seconds"
                 )
 
-        return data
+        return self
 
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""
