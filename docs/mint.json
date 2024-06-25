@@ -126,7 +126,6 @@
       "version": "3.0rc",
       "pages": [
         "3.0rc/deploy/index",
-        "3.0rc/deploy/store-flow-code",
         {
           "group": "Static infrastructure",
           "version": "3.0rc",
@@ -139,16 +138,17 @@
           "group": "Dynamic infrastructure",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/dynamic-infra/work-pools",
-            "3.0rc/deploy/dynamic-infra/customize",
-            "3.0rc/deploy/dynamic-infra/workers",
             "3.0rc/deploy/dynamic-infra/managed-execution",
             "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
             "3.0rc/deploy/dynamic-infra/push-runs-serverless",
             "3.0rc/deploy/dynamic-infra/prefect-deploy"
           ]
         },
-        "3.0rc/deploy/deploy-ci-cd"
+        "3.0rc/deploy/work-pools",
+        "3.0rc/deploy/workers",
+        "3.0rc/deploy/store-flow-code",
+        "3.0rc/deploy/deploy-ci-cd",
+        "3.0rc/deploy/customize"
       ]
     },
     {

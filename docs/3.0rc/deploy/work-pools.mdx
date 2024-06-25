@@ -269,7 +269,7 @@ deployments:
         stream_output: false
 ```
 
-Learn more about [overriding job variables](/3.0rc/deploy/dynamic-infra/customize).
+Learn more about [overriding job variables](/3.0rc/deploy/customize).
 
 <Tip>
 **Advanced customization of the base job template**
@@ -286,7 +286,7 @@ Learn more about [overriding job variables](/3.0rc/deploy/dynamic-infra/customiz
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
     documentation.
 
-    See more information about [overriding a work pool's job variables](/3.0rc/deploy/dynamic-infra/customize).
+    See more information about [overriding a work pool's job variables](/3.0rc/deploy/customize).
 </Tip>
 
 ### View work pools
@@ -482,9 +482,9 @@ Other advantages of work pools:
 
 - Configure default infrastructure configurations on your work pools that all jobs inherit and can override.
 - Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
-- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/dynamic-infra/work-pools/#work-queues).
+- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/work-pools/#work-queues).
 
-Prefect provides several [types of work pools](/3.0rc/deploy/dynamic-infra/work-pools/#work-pool-types).
+Prefect provides several [types of work pools](/3.0rc/deploy/work-pools/#work-pool-types).
 Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
