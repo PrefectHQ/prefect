@@ -139,8 +139,8 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/dynamic-infra/managed-execution",
-            "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
-            "3.0rc/deploy/dynamic-infra/push-runs-serverless"
+            "3.0rc/deploy/dynamic-infra/push-runs-serverless",
+            "3.0rc/deploy/dynamic-infra/deploy-kubernetes"
           ]
         },
         "3.0rc/deploy/work-pools",
