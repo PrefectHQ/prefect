@@ -23,7 +23,7 @@ There are several ways to create a schedule for a deployment:
 
 ### Create schedules in the UI
 
-You can add schedules in the **Schedules** section on a **Deployment** page in the UI.
+You can add schedules in the **Schedules** section of a **Deployment** page in the UI.
 To add a schedule select the **+ Schedule** button. 
 A modal dialog will open. 
 Choose **Interval** or **Cron** to create a schedule.
@@ -35,7 +35,7 @@ However, the UI will display RRule schedules that you've created through the com
 </Note>
 
 The new schedule appears on the **Deployment** page where you created it. 
-New scheduled flow runs are visible in the **Upcoming** tab of the **Deployment** page..
+New scheduled flow runs are visible in the **Upcoming** tab of the **Deployment** page.
 
 To edit an existing schedule, select the **Edit** from the three-dot menu next to a schedule on a **Deployment** page.
 
@@ -44,21 +44,15 @@ To edit an existing schedule, select the **Edit** from the three-dot menu next t
 Specify the schedule when you create a deployment in a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy`. 
 Just add the keyword argument `cron`, `interval`, or `rrule`.
 
-```
-interval: An interval on which to execute the deployment. Accepts a number or a 
-    timedelta object to create a single schedule. If a number is given, it is 
-    interpreted as seconds. Also accepts an iterable of numbers or timedelta to create 
-    multiple schedules.
-cron: A cron schedule string of when to execute runs of this deployment. 
+| Argument    | Description                                                                                                                                                                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `interval`  | An interval on which to execute the deployment. Accepts a number or a timedelta object to create a single schedule. If a number is given, it is interpreted as seconds. Also accepts an iterable of numbers or timedelta to create multiple schedules.|
+| `cron`      | A cron schedule string of when to execute runs of this deployment.                                                                                                                                                                                    |
     Also accepts an iterable of cron schedule strings to create multiple schedules.
-rrule: An rrule schedule string of when to execute runs of this deployment.
+| `rrule`     | An rrule schedule string of when to execute runs of this deployment.                                                                                                                                                                                  |
     Also accepts an iterable of rrule schedule strings to create multiple schedules.
-schedules: A list of schedule objects defining when to execute runs of this deployment.
-    Used to define multiple schedules or additional scheduling options such as `timezone`.
-schedule: A schedule object defining when to execute runs of this deployment. Used to
-    define additional scheduling options like `timezone`.
-
-```
+| `schedules` | A list of schedule objects defining when to execute runs of this deployment. Used to define multiple schedules or additional scheduling options such as `timezone`.                                                                                   |
+| `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options like `timezone`.                                                                                                                     |
 
 This `serve` method will create a deployment of `my_flow` with a cron schedule that creates runs every minute of every day:
 
