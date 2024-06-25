@@ -387,8 +387,23 @@ class Task(Generic[P, R]):
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
 
+        # result persistence settings
         if persist_result is None:
-            persist_result = PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+            if cache_policy and cache_policy != NONE:
+                persist_result = True
+            elif cache_key_fn is not None:
+                persist_result = True
+            elif any(
+                [
+                    result_storage_key is not None,
+                    result_storage is not None,
+                    result_serializer is not None,
+                ]
+            ):
+                persist_result = True
+            else:
+                persist_result = PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+
         if not persist_result:
             self.cache_policy = None if cache_policy is None else NONE
             if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
