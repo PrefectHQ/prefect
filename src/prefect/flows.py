@@ -335,6 +335,11 @@ class Flow(Generic[P, R]):
                     "Disable validation or change the argument names."
                 ) from exc
 
+        # result persistence settings
+        if persist_result is None:
+            if result_storage is not None or result_serializer is not None:
+                persist_result = True
+
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer

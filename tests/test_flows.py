@@ -267,6 +267,53 @@ class TestDecorator:
                 pass
 
 
+class TestResultPersistence:
+    @pytest.mark.parametrize("persist_result", [True, False])
+    def test_persist_result_set_to_bool(self, persist_result):
+        @flow(persist_result=persist_result)
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(persist_result=persist_result)
+
+        assert my_flow.persist_result is persist_result
+        assert new_flow.persist_result is persist_result
+
+    def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        @flow(result_storage=block)
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(result_storage=block)
+
+        assert my_flow.persist_result is True
+        assert new_flow.persist_result is True
+
+    def test_setting_result_serializer_sets_persist_result_to_true(self):
+        @flow(result_serializer="json")
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(result_serializer="json")
+
+        assert my_flow.persist_result is True
+        assert new_flow.persist_result is True
+
+
 class TestFlowWithOptions:
     def test_with_options_allows_override_of_flow_settings(self):
         @flow(

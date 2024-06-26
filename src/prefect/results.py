@@ -268,7 +268,14 @@ class ResultFactory(BaseModel):
             if ctx and ctx.result_factory
             else get_default_result_serializer()
         )
-        persist_result = task.persist_result
+        if task.persist_result is None:
+            persist_result = (
+                ctx.result_factory.persist_result
+                if ctx and ctx.result_factory
+                else get_default_persist_setting()
+            )
+        else:
+            persist_result = task.persist_result
 
         cache_result_in_memory = task.cache_result_in_memory
 
