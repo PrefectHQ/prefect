@@ -1116,7 +1116,7 @@ class TestCachePolicy:
 
         assert state.is_completed()
         assert await state.result() == 1800
-        assert state.data.storage_key == key
+        assert Path(state.data.storage_key).name == key
 
     async def test_cache_expiration_is_respected(self, prefect_client, advance_time):
         @task(
