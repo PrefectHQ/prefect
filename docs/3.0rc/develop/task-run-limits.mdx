@@ -30,12 +30,11 @@ and instructs the client to try entering a `Running` state again in 30 seconds
 ### Configure concurrency limits
 
 <Tip>
-
 **Flow run concurrency limits are set at a work pool and/or work queue level**
-While task run concurrency limits are configured through tags (as shown below), 
-[flow run concurrency limits](https://docs.prefect.io/latest/deploy/dynamic-infra/control-runs/#work-pool-concurrency) 
-are configured through work pools and/or work queues.
+
+While task run concurrency limits are configured through tags (as shown below), [flow run concurrency limits](/3.0rc/develop/global-concurrency-limits) are configured through work pools and/or work queues.
 </Tip>
+
 You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
 
 - Prefect [CLI](#cli)
