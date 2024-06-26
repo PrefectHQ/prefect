@@ -5414,6 +5414,8 @@ class TestDeploymentTrigger:
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
                 "job_variables": {"foo": "bar"},
+                "within": 60,
+                "threshold": 2,
             }
 
             expected_triggers = _initialize_deployment_triggers(

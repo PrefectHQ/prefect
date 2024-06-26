@@ -142,11 +142,9 @@ Ensure the [work pool](/3.0rc/deploy/work-pools/) exists in the Prefect Cloud wo
 authenticated to, or on your running self-hosted server instance.  
 Then run the script to create a deployment (in future examples this step is omitted for brevity):
 
-<div class="terminal">
 ```bash
 python buy.py
 ```
-</div>
 
 You should see messages in your terminal that Docker is building your image.
 When the deployment build succeeds, you will see information in your terminal showing you how to start a worker for your 
@@ -285,11 +283,9 @@ See all the optional keyword arguments for the [DockerImage class](https://docke
 
     To set a default Docker namespace for your current profile run:
 
-    <div class="terminal">
     ```bash
     prefect config set PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
     ```
-    </div>
 
     Once set, you can omit the namespace from your image name when creating a deployment:
 

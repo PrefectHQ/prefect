@@ -267,6 +267,53 @@ class TestDecorator:
                 pass
 
 
+class TestResultPersistence:
+    @pytest.mark.parametrize("persist_result", [True, False])
+    def test_persist_result_set_to_bool(self, persist_result):
+        @flow(persist_result=persist_result)
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(persist_result=persist_result)
+
+        assert my_flow.persist_result is persist_result
+        assert new_flow.persist_result is persist_result
+
+    def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        @flow(result_storage=block)
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(result_storage=block)
+
+        assert my_flow.persist_result is True
+        assert new_flow.persist_result is True
+
+    def test_setting_result_serializer_sets_persist_result_to_true(self):
+        @flow(result_serializer="json")
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(result_serializer="json")
+
+        assert my_flow.persist_result is True
+        assert new_flow.persist_result is True
+
+
 class TestFlowWithOptions:
     def test_with_options_allows_override_of_flow_settings(self):
         @flow(
@@ -1299,7 +1346,7 @@ class TestFlowTimeouts:
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
             await state.result()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
 
     async def test_async_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
@@ -1311,7 +1358,7 @@ class TestFlowTimeouts:
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
             await state.result()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
 
     async def test_timeout_only_applies_if_exceeded(self):
         @flow(timeout_seconds=10)
@@ -1346,7 +1393,7 @@ class TestFlowTimeouts:
         state = my_flow(return_state=True)
 
         assert state.is_failed()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
         assert not completed
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
@@ -1371,7 +1418,7 @@ class TestFlowTimeouts:
         state = my_flow(return_state=True)
 
         assert state.is_failed()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
 
         assert not completed
         assert not task_completed
@@ -1393,7 +1440,7 @@ class TestFlowTimeouts:
         state = await my_flow(return_state=True)
 
         assert state.is_failed()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
         assert not completed
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
@@ -1418,7 +1465,7 @@ class TestFlowTimeouts:
         state = await my_flow(return_state=True)
 
         (_, subflow_state) = await state.result()
-        assert "exceeded timeout of 0.1 seconds" in subflow_state.message
+        assert "exceeded timeout of 0.1 second(s)" in subflow_state.message
         assert not completed
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
@@ -1447,7 +1494,7 @@ class TestFlowTimeouts:
         state = my_flow(return_state=True)
 
         (_, subflow_state) = await state.result()
-        assert "exceeded timeout of 0.1 seconds" in subflow_state.message
+        assert "exceeded timeout of 0.1 second(s)" in subflow_state.message
 
         assert not completed
 
