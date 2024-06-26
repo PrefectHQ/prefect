@@ -236,33 +236,33 @@ We can create an automation via a POST call, where we can programmatically creat
 def create_event_driven_automation():
     api_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/automations/"
     data = {
-    "name": "Event Driven Redeploy",
-    "description": "Programmatically created an automation to redeploy a flow based on an event",
-    "enabled": "true",
-    "trigger": {
-    "after": [
-        "string"
-    ],
-    "expect": [
-        "prefect.flow-run.Running"
-    ],
-    "for_each": [
-        "prefect.resource.id"
-    ],
-    "posture": "Proactive",
-    "threshold": 30,
-    "within": 0
-    },
-    "actions": [
-    {
-        "type": "run-deployment",
-        "source": "selected",
-        "deployment_id": "YOUR-DEPLOYMENT-ID", 
-        "parameters": "10"
+        "name": "Event Driven Redeploy",
+        "description": "Programmatically created an automation to redeploy a flow based on an event",
+        "enabled": "true",
+        "trigger": {
+            "after": [
+                "string"
+            ],
+            "expect": [
+                "prefect.flow-run.Running"
+            ],
+            "for_each": [
+                "prefect.resource.id"
+            ],
+            "posture": "Proactive",
+            "threshold": 30,
+            "within": 0
+        },
+        "actions": [
+            {
+                "type": "run-deployment",
+                "source": "selected",
+                "deployment_id": "YOUR-DEPLOYMENT-ID", 
+                "parameters": "10"
+            }
+        ],
+        "owner_resource": "string"
     }
-    ],
-    "owner_resource": "string"
-        }
 
     headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
     response = requests.post(api_url, headers=headers, json=data)
@@ -458,9 +458,9 @@ deployments:
     - enabled: true
       match:
         prefect.resource.id: "prefect.flow-run.*"
-      after: "prefect.flow-run.Running",
-      expect: [],
-      for_each: ["prefect.resource.id"],
+      after: ["prefect.flow-run.Running"]
+      expect: []
+      for_each: ["prefect.resource.id"]
       parameters:
         param_1: 10
       posture: "Proactive"
