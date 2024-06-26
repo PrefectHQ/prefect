@@ -849,3 +849,35 @@ async def test_result_factory_from_task_with_no_flow_run_context(options, expect
     assert result_factory.cache_result_in_memory == expected["cache_result_in_memory"]
     assert result_factory.serializer == expected["serializer"]
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
+
+
+@pytest.mark.parametrize("persist_result", [True, False])
+async def test_result_factory_from_task_loads_persist_result_from_flow_factory(
+    persist_result,
+):
+    @task
+    def my_task():
+        return get_run_context().result_factory
+
+    @flow(persist_result=persist_result)
+    def foo():
+        return my_task()
+
+    result_factory = foo()
+
+    assert result_factory.persist_result is persist_result
+
+
+@pytest.mark.parametrize("persist_result", [True, False])
+async def test_result_factory_from_task_takes_precedence_from_task(persist_result):
+    @task(persist_result=persist_result)
+    def my_task():
+        return get_run_context().result_factory
+
+    @flow(persist_result=not persist_result)
+    def foo():
+        return my_task()
+
+    result_factory = foo()
+
+    assert result_factory.persist_result is persist_result
