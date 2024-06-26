@@ -8,10 +8,19 @@ from prefect._internal.concurrency.cancellation import (
 )
 
 
+def fail_if_not_timeout_error(timeout_exc_type: Type[Exception]) -> None:
+    if not issubclass(timeout_exc_type, TimeoutError):
+        raise ValueError(
+            "The `timeout_exc_type` argument must be a subclass of `TimeoutError`."
+        )
+
+
 @contextmanager
 def timeout_async(
     seconds: Optional[float] = None, timeout_exc_type: Type[TimeoutError] = TimeoutError
 ):
+    fail_if_not_timeout_error(timeout_exc_type)
+
     if seconds is None:
         yield
         return
@@ -27,6 +36,8 @@ def timeout_async(
 def timeout(
     seconds: Optional[float] = None, timeout_exc_type: Type[TimeoutError] = TimeoutError
 ):
+    fail_if_not_timeout_error(timeout_exc_type)
+
     if seconds is None:
         yield
         return
