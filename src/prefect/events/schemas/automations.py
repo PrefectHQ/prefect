@@ -198,7 +198,7 @@ class EventTrigger(ResourceTrigger):
                     "10 seconds"
                 )
 
-        return data | {"within": within}
+        return data | {"within": within} if within else data
 
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""
