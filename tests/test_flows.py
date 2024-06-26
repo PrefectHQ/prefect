@@ -285,6 +285,7 @@ class TestResultPersistence:
 
     def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
         block = LocalFileSystem(basepath=str(tmpdir))
+        block.save("foo-bar-flow", _sync=True)
 
         @flow(result_storage=block)
         def my_flow():
@@ -316,6 +317,12 @@ class TestResultPersistence:
 
 class TestFlowWithOptions:
     def test_with_options_allows_override_of_flow_settings(self):
+        fooblock = LocalFileSystem(basepath="foo")
+        barblock = LocalFileSystem(basepath="bar")
+
+        fooblock.save("fooblock", _sync=True)
+        barblock.save("barblock", _sync=True)
+
         @flow(
             name="Initial flow",
             description="Flow before with options",
@@ -324,7 +331,7 @@ class TestFlowWithOptions:
             validate_parameters=True,
             persist_result=True,
             result_serializer="pickle",
-            result_storage=LocalFileSystem(basepath="foo"),
+            result_storage=fooblock,
             cache_result_in_memory=False,
             on_completion=None,
             on_failure=None,
@@ -357,7 +364,7 @@ class TestFlowWithOptions:
             validate_parameters=False,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(basepath="bar"),
+            result_storage=barblock,
             cache_result_in_memory=True,
             on_completion=[success_hook],
             on_failure=[failure_hook],
@@ -375,7 +382,7 @@ class TestFlowWithOptions:
         assert flow_with_options.should_validate_parameters is False
         assert flow_with_options.persist_result is False
         assert flow_with_options.result_serializer == "json"
-        assert flow_with_options.result_storage == LocalFileSystem(basepath="bar")
+        assert flow_with_options.result_storage == barblock
         assert flow_with_options.cache_result_in_memory is True
         assert flow_with_options.on_completion_hooks == [success_hook]
         assert flow_with_options.on_failure_hooks == [failure_hook]
@@ -384,6 +391,7 @@ class TestFlowWithOptions:
 
     def test_with_options_uses_existing_settings_when_no_override(self, tmp_path: Path):
         storage = LocalFileSystem(basepath=tmp_path)
+        storage.save("test-overrides", _sync=True)
 
         @flow(
             name="Initial flow",
@@ -454,9 +462,12 @@ class TestFlowWithOptions:
         assert flow_with_options.flow_run_name is generate_flow_run_name
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
+        storage = LocalFileSystem(basepath=tmp_path)
+        storage.save("test-unset", _sync=True)
+
         @flow(
             result_serializer="json",
-            result_storage=LocalFileSystem(basepath=tmp_path),
+            result_storage=storage,
         )
         def initial_flow():
             pass
@@ -4318,6 +4329,7 @@ class TestTransactions:
 
     def test_task_doesnt_persist_prior_to_commit(self, tmp_path):
         result_storage = LocalFileSystem(basepath=tmp_path)
+        result_storage.save("txn-results", _sync=True)
 
         @task(result_storage=result_storage, result_storage_key="task1-result")
         def task1():
@@ -4340,6 +4352,7 @@ class TestTransactions:
 
     def test_task_persists_only_at_commit(self, tmp_path):
         result_storage = LocalFileSystem(basepath=tmp_path)
+        result_storage.save("moar-results", _sync=True)
 
         @task(
             result_storage=result_storage,
