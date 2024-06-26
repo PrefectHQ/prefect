@@ -128,9 +128,14 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     """
     Generate a default file system for background task parameter/result storage.
     """
-    return await _get_or_create_default_storage(
-        PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value()
-    )
+    default_block = PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value()
+
+    if default_block is not None:
+        return await Block.load(default_block)
+
+    # otherwise, use the local file system
+    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    return LocalFileSystem(basepath=basepath)
 
 
 def get_default_result_serializer() -> ResultSerializer:
