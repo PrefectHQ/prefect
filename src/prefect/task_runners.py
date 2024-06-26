@@ -41,8 +41,8 @@ if TYPE_CHECKING:
 
 P = ParamSpec("P")
 T = TypeVar("T")
-F = TypeVar("F", bound=PrefectFuture)
 R = TypeVar("R")
+F = TypeVar("F", bound=PrefectFuture, default=PrefectConcurrentFuture)
 
 
 class TaskRunner(abc.ABC, Generic[F]):
