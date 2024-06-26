@@ -28,7 +28,6 @@ from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingResult, ObjectAlreadyExists
 from prefect.filesystems import (
     LocalFileSystem,
-    ReadableFileSystem,
     WritableFileSystem,
 )
 from prefect.logging import get_logger
@@ -111,22 +110,32 @@ async def _get_or_create_default_storage(block_document_slug: str) -> ResultStor
 
 
 @sync_compatible
-async def get_or_create_default_result_storage() -> ResultStorage:
+async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
     """
-    return await _get_or_create_default_storage(
-        PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
-    )
+    default_block = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
+
+    if default_block is not None:
+        return await Block.load(default_block)
+
+    # otherwise, use the local file system
+    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    return LocalFileSystem(basepath=basepath)
 
 
 async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     """
     Generate a default file system for background task parameter/result storage.
     """
-    return await _get_or_create_default_storage(
-        PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value()
-    )
+    default_block = PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value()
+
+    if default_block is not None:
+        return await Block.load(default_block)
+
+    # otherwise, use the local file system
+    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    return LocalFileSystem(basepath=basepath)
 
 
 def get_default_result_serializer() -> ResultSerializer:
@@ -177,9 +186,7 @@ class ResultFactory(BaseModel):
                 kwargs.pop(key)
 
         # Apply defaults
-        kwargs.setdefault(
-            "result_storage", await get_or_create_default_result_storage()
-        )
+        kwargs.setdefault("result_storage", await get_default_result_storage())
         kwargs.setdefault("result_serializer", get_default_result_serializer())
         kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)
@@ -230,9 +237,7 @@ class ResultFactory(BaseModel):
         """
         Create a new result factory for a task.
         """
-        return await cls._from_task(
-            task, get_or_create_default_result_storage, client=client
-        )
+        return await cls._from_task(task, get_default_result_storage, client=client)
 
     @classmethod
     @inject_client
@@ -337,16 +342,7 @@ class ResultFactory(BaseModel):
                 # Avoid saving the block if it already has an identifier assigned
                 storage_block_id = storage_block._block_document_id
             else:
-                if persist_result:
-                    # TODO: Overwrite is true to avoid issues where the save collides with
-                    # a previously saved document with a matching hash
-                    storage_block_id = await storage_block._save(
-                        is_anonymous=True, overwrite=True, client=client
-                    )
-                else:
-                    # a None-type UUID on unpersisted storage should not matter
-                    # since the ID is generated on the server
-                    storage_block_id = None
+                storage_block_id = None
         elif isinstance(result_storage, str):
             storage_block = await Block.load(result_storage, client=client)
             storage_block_id = storage_block._block_document_id
@@ -419,9 +415,6 @@ class ResultFactory(BaseModel):
 
     @sync_compatible
     async def store_parameters(self, identifier: UUID, parameters: Dict[str, Any]):
-        assert (
-            self.storage_block_id is not None
-        ), "Unexpected storage block ID. Was it persisted?"
         data = self.serializer.dumps(parameters)
         blob = PersistedResultBlob(serializer=self.serializer, data=data)
         await self.storage_block.write_path(
@@ -430,9 +423,6 @@ class ResultFactory(BaseModel):
 
     @sync_compatible
     async def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
-        assert (
-            self.storage_block_id is not None
-        ), "Unexpected storage block ID. Was it persisted?"
         blob = PersistedResultBlob.model_validate_json(
             await self.storage_block.read_path(f"parameters/{identifier}")
         )
@@ -535,8 +525,8 @@ class PersistedResult(BaseResult):
     type: str = "reference"
 
     serializer_type: str
-    storage_block_id: uuid.UUID
     storage_key: str
+    storage_block_id: Optional[uuid.UUID] = None
     expiration: Optional[DateTime] = None
 
     _should_cache_object: bool = PrivateAttr(default=True)
@@ -553,6 +543,17 @@ class PersistedResult(BaseResult):
         self._cache = obj
         self._storage_block = storage_block
         self._serializer = serializer
+
+    @inject_client
+    async def _get_storage_block(self, client: "PrefectClient") -> WritableFileSystem:
+        if self._storage_block is not None:
+            return self._storage_block
+        elif self.storage_block_id is not None:
+            block_document = await client.read_block_document(self.storage_block_id)
+            self._storage_block = Block._from_block_document(block_document)
+        else:
+            self._storage_block = await get_default_result_storage()
+        return self._storage_block
 
     @sync_compatible
     @inject_client
@@ -574,12 +575,8 @@ class PersistedResult(BaseResult):
 
     @inject_client
     async def _read_blob(self, client: "PrefectClient") -> "PersistedResultBlob":
-        assert (
-            self.storage_block_id is not None
-        ), "Unexpected storage block ID. Was it persisted?"
-        block_document = await client.read_block_document(self.storage_block_id)
-        storage_block: ReadableFileSystem = Block._from_block_document(block_document)
-        content = await storage_block.read_path(self.storage_key)
+        block = await self._get_storage_block(client=client)
+        content = await block.read_path(self.storage_key)
         blob = PersistedResultBlob.model_validate_json(content)
         return blob
 
@@ -614,10 +611,7 @@ class PersistedResult(BaseResult):
         obj = obj if obj is not NotSet else self._cache
 
         # next, the storage block
-        storage_block = self._storage_block
-        if storage_block is None:
-            block_document = await client.read_block_document(self.storage_block_id)
-            storage_block = Block._from_block_document(block_document)
+        storage_block = await self._get_storage_block(client=client)
 
         # finally, the serializer
         serializer = self._serializer
@@ -680,9 +674,9 @@ class PersistedResult(BaseResult):
         cls: "Type[PersistedResult]",
         obj: R,
         storage_block: WritableFileSystem,
-        storage_block_id: uuid.UUID,
         storage_key_fn: Callable[[], str],
         serializer: Serializer,
+        storage_block_id: Optional[uuid.UUID] = None,
         cache_object: bool = True,
         expiration: Optional[DateTime] = None,
         defer_persistence: bool = False,
@@ -693,10 +687,6 @@ class PersistedResult(BaseResult):
         The object will be serialized and written to the storage block under a unique
         key. It will then be cached on the returned result.
         """
-        assert (
-            storage_block_id is not None
-        ), "Unexpected storage block ID. Was it saved?"
-
         key = storage_key_fn()
         if not isinstance(key, str):
             raise TypeError(
@@ -711,6 +701,10 @@ class PersistedResult(BaseResult):
                 description += f" persisted to [{uri}]({uri})."
         else:
             description += f" persisted with storage block `{storage_block_id}`."
+
+        # in this case we store an absolute path
+        if storage_block_id is None and uri is not None:
+            key = str(uri)
 
         result = cls(
             serializer_type=serializer.type,
