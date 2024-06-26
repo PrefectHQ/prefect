@@ -72,6 +72,10 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+class FlowRunTimeoutError(TimeoutError):
+    """Raised when a flow run exceeds its defined timeout."""
+
+
 def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
     ## TODO: add error handling to update state and log tracebacks
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
@@ -255,7 +259,12 @@ class FlowRunEngine(Generic[P, R]):
         return state
 
     def handle_timeout(self, exc: TimeoutError) -> None:
-        message = f"Flow run exceeded timeout of {self.flow.timeout_seconds} seconds"
+        if isinstance(exc, FlowRunTimeoutError):
+            message = (
+                f"Flow run exceeded timeout of {self.flow.timeout_seconds} second(s)"
+            )
+        else:
+            message = f"Flow run failed due to timeout: {exc!r}"
         self.logger.error(message)
         state = Failed(
             data=exc,
@@ -363,7 +372,7 @@ class FlowRunEngine(Generic[P, R]):
 
         return flow_run
 
-    def call_hooks(self, state: State = None) -> Iterable[Callable]:
+    def call_hooks(self, state: Optional[State] = None) -> Iterable[Callable]:
         if state is None:
             state = self.state
         flow = self.flow
@@ -564,7 +573,10 @@ class FlowRunEngine(Generic[P, R]):
         # reenter the run context to ensure it is up to date for every run
         with self.setup_run_context():
             try:
-                with timeout_context(seconds=self.flow.timeout_seconds):
+                with timeout_context(
+                    seconds=self.flow.timeout_seconds,
+                    timeout_exc_type=FlowRunTimeoutError,
+                ):
                     self.logger.debug(
                         f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                     )
