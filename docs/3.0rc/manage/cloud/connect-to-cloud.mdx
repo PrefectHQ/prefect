@@ -21,26 +21,23 @@ You will "log in" to Prefect Cloud from a local environment where you want to ru
 1. Open a new terminal session.
 2. [Install Prefect](/3.0rc/get-started/install/) in the environment where you want to execute flow runs.
 
-<div class="terminal">
 ```bash
-$ pip install -U prefect
+pip install -U prefect
 ```
-</div>
 
 3. Use the `prefect cloud login` Prefect CLI command to log into Prefect Cloud from your environment.
 
-<div class="terminal">
 ```bash
-$ prefect cloud login
+prefect cloud login
 ```
-</div>
 
 The `prefect cloud login` command provides an interactive login experience. 
-You can log in with either an [API key](/3.0rc/manage/cloud/manage-users/api-keys/) or through a browser.
 
-<div class="terminal">
 ```bash
-$ prefect cloud login
+prefect cloud login
+```
+
+```bash
 ? How would you like to authenticate? [Use arrows to move; enter to select]
 > Log in with a web browser
     Paste an API key
@@ -50,18 +47,17 @@ Paste your authentication key:
     g-gadflow/g-workspace
 Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspace'.
 ```
-</div>
+
+You can authenticate by manually pasting an [API key](/3.0rc/manage/cloud/manage-users/api-keys/) or through a browser-based approval that auto-generates an API key with a 30-day expiration.
 
 ### Change workspaces
 
 To change which workspace to sync with, use the `prefect cloud workspace set` 
 Prefect CLI command while logged in, passing the account handle and workspace name:
 
-<div class="terminal">
 ```bash
-$ prefect cloud workspace set --workspace "prefect/my-workspace"
+prefect cloud workspace set --workspace "prefect/my-workspace"
 ```
-</div>
 
 If you don't provide a workspace, you will need to select one.
 
@@ -70,11 +66,9 @@ command to sync a local execution environment with a given workspace.
 
 You may also use the `prefect cloud login` command with the `--workspace` or `-w` option to set the current workspace.
 
-<div class="terminal">
 ```bash
-$ prefect cloud login --workspace "prefect/my-workspace"
+prefect cloud login --workspace "prefect/my-workspace"
 ```
-</div>
 
 ## Manually configure Prefect API settings
 
@@ -83,12 +77,10 @@ You can manually configure the `PREFECT_API_URL` setting to specify the Prefect 
 For Prefect Cloud, configure the `PREFECT_API_URL` and `PREFECT_API_KEY` settings to authenticate 
 with Prefect Cloud by using an account ID, workspace ID, and API key.
 
-<div class="terminal">
 ```bash
-$ prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
-$ prefect config set PREFECT_API_KEY="[API-KEY]"
+prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+prefect config set PREFECT_API_KEY="[API-KEY]"
 ```
-</div>
 
 When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` value directly from the page URL.
 

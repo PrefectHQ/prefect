@@ -45,7 +45,6 @@ if __name__ == "__main__":
 
 Output:
 
-<div class="terminal">
 ```bash
 cat-facts 58ed68b1-0201-4f37-adef-0ea24bd2a022
 dog-facts e7c0403d-44e7-45cf-a6c8-79117b7f3766
@@ -53,7 +52,6 @@ sloth-facts 771c0574-f5bf-4f59-a69d-3be3e061a62d
 capybara-facts fbadaf8b-584f-48b9-b092-07d351edd424
 lemur-facts 53f710e7-3b0f-4b2f-ab6b-44934111818c
 ```
-</div>
 
 ### Requests with Prefect
 
@@ -108,12 +106,10 @@ Note that in this example `--data-raw "{}"` is required and is where you can spe
 
 When working with the Prefect Cloud REST API you will need your Account ID and often the Workspace ID for the [workspace](/3.0rc/manage/cloud/workspaces/) you want to interact with. You can find both IDs for a [Prefect profile](/3.0rc/manage/settings-and-profiles/) in the CLI with `prefect profile inspect my_profile`. This command will also display your [Prefect API key](/3.0rc/manage/cloud/manage-users/api-keys/), as shown below:
 
-<div class="terminal">
 ```bash
 PREFECT_API_URL='https://api.prefect.cloud/api/accounts/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here'
 PREFECT_API_KEY='123abc_my_api_key_is_here'
 ```
-</div>
 
 Alternatively, view your Account ID and Workspace ID in your browser URL. For example: `https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here`. 
 

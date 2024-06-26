@@ -144,19 +144,15 @@ To use automatic infrastructure provisioning, you need:
 
     Install `modal` by running:
 
-    <div class="terminal">
     ```bash
     pip install modal
     ```
-    </div>
 
     Create a Modal API token by running:
 
-    <div class="terminal">
     ```bash
     modal token new
     ```
-    </div>
   </Tab>
 </Tabs>
 
@@ -168,13 +164,9 @@ run this command for your particular cloud provider:
 <Tabs>
   <Tab title="AWS ECS">
 
-    <div class="terminal">
-
     ```bash
     prefect work-pool create --type ecs:push --provision-infra my-ecs-pool
     ```
-
-    </div>
 
     The `--provision-infra` flag automatically sets up your default AWS account to execute 
     flows with ECS tasks.
@@ -184,8 +176,6 @@ run this command for your particular cloud provider:
     [`AWSCredentials` block](https://prefecthq.github.io/prefect-aws/credentials/) for storing the generated credentials.
 
     Here's an abbreviated example output from running the command:
-
-    <div class="terminal">
 
     ```bash
     ╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
@@ -215,8 +205,6 @@ run this command for your particular cloud provider:
     Infrastructure successfully provisioned!
     Created work pool 'my-ecs-pool'!
     ```
-
-    </div>
 
  <Tip>
  **Default Docker build namespace**
@@ -257,12 +245,9 @@ run this command for your particular cloud provider:
   </Tab>
   <Tab title="Azure Container Instances">
 
-    <div class="terminal">
-
     ```bash
     prefect work-pool create --type azure-container-instance:push --provision-infra my-aci-pool
     ```
-    </div>
 
     The `--provision-infra` flag automatically sets up your default Azure account to execute 
     flows through Azure Container Instances.
@@ -273,8 +258,6 @@ run this command for your particular cloud provider:
     to store the client secret value from the generated secret.
 
     Here's an abbreviated example output from running the command:
-
-    <div class="terminal">
 
     ```bash
     ╭───────────────────────────────────────────────────────────────────────────────────────────╮
@@ -311,7 +294,6 @@ run this command for your particular cloud provider:
     Created work pool 'my-aci-work-pool'!
     ```
 
-    </div>
     <Tip>
     **Default Docker build namespace**
         After infrastructure provisioning completes, you are logged into your new Azure Container Registry and 
@@ -348,13 +330,9 @@ run this command for your particular cloud provider:
   </Tab>
   <Tab title="Google Cloud Run">
 
-    <div class="terminal">
-
     ```bash
     prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool 
     ```
-
-    </div>
 
     The `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically 
     configures it to execute flows through Cloud Run.
@@ -364,8 +342,6 @@ run this command for your particular cloud provider:
     [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) to store the service account key.
 
     Here's an abbreviated example output from running the command:
-
-    <div class="terminal">
 
     ```bash
     ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
@@ -401,8 +377,6 @@ run this command for your particular cloud provider:
     Infrastructure successfully provisioned!
     Created work pool 'my-cloud-run-pool'!
     ```
-
-    </div>
 
     <Tip>
     **Default Docker build namespace**
@@ -442,13 +416,9 @@ run this command for your particular cloud provider:
   </Tab>
   <Tab title="Modal">
 
-    <div class="terminal">
-
     ```bash
     prefect work-pool create --type modal:push --provision-infra my-modal-pool 
     ```
-
-    </div>
 
     Using the `--provision-infra` flag triggers the creation of a `ModalCredentials` block in your Prefect Cloud workspace. 
     This block stores your Modal API token, which authenticates with Modal's API. By default, the token for your 
@@ -466,8 +436,6 @@ If you already have the necessary infrastructure set up, Prefect detects that at
 infrastructure provisioning for that resource is skipped.
 
 For example, here's how `prefect work-pool create my-work-pool --provision-infra` looks when existing Azure resources are detected:
-
-<div class="terminal">
 
 ```bash
 Proceed with infrastructure provisioning? [y/n]: y
@@ -489,26 +457,18 @@ Infrastructure successfully provisioned!
 Created work pool 'my-work-pool'!
 ```
 
-</div>
-
 ## Provision infrastructure for an existing push work pool
 
 If you already have a push work pool set up, but haven't configured the necessary infrastructure, you can use the 
 `provision-infra` sub-command to provision the infrastructure for that work pool.
 For example, you can run the following command if you have a work pool named "my-work-pool".
 
-<div class="terminal">
-
 ```bash
 prefect work-pool provision-infra my-work-pool
 ```
 
-</div>
-
 Prefect creates the necessary infrastructure for the `my-work-pool` work pool and provides you with a summary 
 of the changes:
-
-<div class="terminal">
 
 ```bash
 ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
@@ -530,8 +490,6 @@ of the changes:
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 Proceed with infrastructure provisioning? [y/n]: y
 ```
-
-</div>
 
 This command speeds up your infrastructure setup process.
 

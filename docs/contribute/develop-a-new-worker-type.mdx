@@ -9,7 +9,7 @@ Prefect workers set up execution infrastructure and start flow runs.
 **Advanced topic**
 
 Extending the Prefect framework by developing a worker requires deep knowledge of 
-Prefect. For standard needs, we recommend using one of the [available worker types](/3.0rc/deploy/work-pools/control-runs/#worker-types).
+Prefect. For standard needs, we recommend using one of the [available worker types](/3.0rc/deploy/control-runs/workers/).
 </Tip>
 
 This guide walks you through creating a custom worker that can run your flows on your chosen infrastructure.
@@ -23,7 +23,7 @@ The worker uses this configuration to create the execution environment and start
 <Tip>
 **How are the configuration values populated?**
 
-The work pool that a worker polls for flow runs has a [base job template](/3.0rc/deploy/work-pools/control-runs/#base-job-template) 
+The work pool that a worker polls for flow runs has a [base job template](/3.0rc/deploy/control-runs/work-pools#base-job-template/) 
 associated with it. 
 The template is the contract for how configuration values populate for each flow run.
 

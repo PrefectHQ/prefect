@@ -142,11 +142,9 @@ Ensure the [work pool](/3.0rc/deploy/control-runs/work-pools/) exists in the Pre
 authenticated to, or on your running self-hosted server instance.  
 Then run the script to create a deployment (in future examples this step is omitted for brevity):
 
-<div class="terminal">
 ```bash
 python buy.py
 ```
-</div>
 
 You should see messages in your terminal that Docker is building your image.
 When the deployment build succeeds, you will see information in your terminal showing you how to start a worker for your 
@@ -285,11 +283,9 @@ See all the optional keyword arguments for the [DockerImage class](https://docke
 
     To set a default Docker namespace for your current profile run:
 
-    <div class="terminal">
     ```bash
     prefect config set PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
     ```
-    </div>
 
     Once set, you can omit the namespace from your image name when creating a deployment:
 
@@ -684,13 +680,11 @@ Use the build section of `prefect.yaml` to specify setup steps or dependencies,
 If you initialize with the Docker recipe, you are prompted to provide 
 required information, such as image name and tag:
 
-<div class="terminal">
 ```bash
 prefect init --recipe docker
 >> image_name: < insert image name here >
 >> tag: < insert image tag here >
 ```
-</div>
 
 <Tip>
 **Use `--field` to avoid the interactive experience**
@@ -700,13 +694,11 @@ prefect init --recipe docker
     Sometimes you may need to initialize programmatically and avoid the interactive prompts.  
     To do this, provide all required fields for your recipe using the `--field` flag:
 
-    <div class="terminal">
     ```bash
     prefect init --recipe docker \
         --field image_name=my-repo/my-image \
         --field tag=my-tag
     ```
-    </div>
 
 ```yaml
 build:
@@ -762,12 +754,10 @@ The push section allows users to specify and customize the logic for pushing thi
 For example, a user who stores their code in an S3 bucket and relies on default worker settings for its runtime environment 
 could use the `s3` recipe:
 
-<div class="terminal">
 ```bash
 prefect init --recipe s3
 >> bucket: < insert bucket name here >
 ```
-</div>
 
 In your newly created`prefect.yaml` file, you should find that the `push` and `pull` sections have been templated out 
 as follows:
@@ -1045,43 +1035,33 @@ field and can be deployed individually with the `--name` flag when deploying.
 
 For example, to deploy `deployment-1`, run:
 
-<div class="terminal">
 ```bash
 prefect deploy --name deployment-1
 ```
-</div>
 
 To deploy multiple deployments, provide multiple `--name` flags:
 
-<div class="terminal">
 ```bash
 prefect deploy --name deployment-1 --name deployment-2
 ```
-</div>
 
 To deploy multiple deployments with the same name, prefix the deployment name with its flow name:
 
-<div class="terminal">
 ```bash
 prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
 ```
-</div>
 
 To deploy all deployments, use the `--all` flag:
 
-<div class="terminal">
 ```bash
 prefect deploy --all
 ```
-</div>
 
 To deploy deployments that match a pattern, run:
 
-<div class="terminal">
 ```bash
 prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
 ```
-</div>
 
 The above command deploys:
 - all deployments from the flow `my-flow`
