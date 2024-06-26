@@ -1,9 +1,7 @@
 ---
 title: Configure settings and profiles
-description: Prefect settings let you customize your workflow environment, including working with Prefect server and Prefect Cloud.
+description: Prefect settings let you customize your workflow environment, including your Cloud profile and locally hosted Server
 ---
-
-Learn how to configure your Prefect local settings to customize your workflow environment.
 
 {/* These settings are type-validated and [documented][prefect.settings.Settings.] */}
 
@@ -61,7 +59,7 @@ PREFECT_API_URL="http://127.0.0.1:4200/api"
 **`PREFECT_API_URL` setting for workers**
 
 If you're using a [worker](/3.0rc/deploy/control-runs/workers/) to run flows in remote environments, 
-[`PREFECT_API_URL`](/3.0rc/manage/configure-client/) must be set for the environment where your worker is running.
+`PREFECT_API_URL` must be set for the environment where your worker is running.
 
 For the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or 
 Docker container, you must configure `PREFECT_API_URL` in that environment.
@@ -75,7 +73,7 @@ locally-hosted Prefect UI instance, you must also configure the Prefect server i
 The [`PREFECT_UI_API_URL`](https://prefect-python-sdk-docs.netlify.app/prefect/settings/) should be set to the external proxy URL 
 (for example, if your external URL is \<https://prefect-server.example.com/> then set 
 `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process). 
-You can also set [`PREFECT_API_URL`](/3.0rc/manage/configure-client/#prefect.settings.PREFECT_API_URL) to the API URL. 
+You can also set `PREFECT_API_URL` to the API URL. 
 This setting is a fallback if `PREFECT_UI_API_URL` is not set.
 
 ### PREFECT_HOME
