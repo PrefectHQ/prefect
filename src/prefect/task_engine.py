@@ -402,9 +402,7 @@ class TaskRunEngine(Generic[P, R]):
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
             if isinstance(exc, TaskRunTimeoutError):
-                message = (
-                    f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
-                )
+                message = f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
             else:
                 message = f"Task run failed due to timeout: {exc!r}"
             self.logger.error(message)
