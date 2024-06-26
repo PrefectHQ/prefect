@@ -469,20 +469,17 @@ If you do not have a block available for use, you can register it.
 
 Register blocks from a Python module available in the current environment with a CLI command:
 
-<div class="terminal">
 ```bash
 prefect block register --module prefect_aws.credentials
 ```
-</div>
 
 This command is useful for registering all blocks found within a module in a [Prefect Integration library](/integrations/).
 
 Alternatively, if a custom block was created in a `.py` file, you can register the block with the CLI command:
 
-<div class="terminal">
 ```bash
 prefect block register --file my_block.py
 ```
-</div>
+
 
 The registered block is now available for configuration.

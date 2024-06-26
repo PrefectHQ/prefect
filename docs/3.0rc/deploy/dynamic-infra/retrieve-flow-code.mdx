@@ -31,7 +31,6 @@ Git-based version control platforms provide redundancy, version control, and eas
 Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. 
 Select "y" to be prompted to confirm the URL of your git repository and the branch name, as in the example below:
 
-<div class="terminal">
 ```bash
 ? Your Prefect workers will need access to this flow's code in order to run it. 
 Would you like your workers to pull your flow code from its remote repository when running this flow? [y/n] (y): 
@@ -39,7 +38,6 @@ Would you like your workers to pull your flow code from its remote repository wh
 ? Is main the correct branch to pull your flow code from? [y/n] (y): 
 ? Is this a private repository? [y/n]: y
 ```
-</div>
 
 In this example, the git repository is hosted on GitHub.
 If you are using Bitbucket or GitLab, the URL will match your provider.
