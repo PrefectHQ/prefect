@@ -152,7 +152,7 @@ async def test_background_task_state_changes(
     tmp_path,
 ):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage.save("test")
+    await storage.save("test")
 
     @task(result_storage=storage)
     def foo():
