@@ -187,18 +187,18 @@ class EventTrigger(ResourceTrigger):
         within: Optional[timedelta] = data.get("within")
 
         if isinstance(within, (int, float)):
-            data["within"] = within = timedelta(seconds=within)
+            within = timedelta(seconds=within)
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
-                data["within"] = timedelta(seconds=10.0)
+                within = timedelta(seconds=10.0)
             elif within < timedelta(seconds=10.0):
                 raise ValueError(
                     "`within` for Proactive triggers must be greater than or equal to "
                     "10 seconds"
                 )
 
-        return data
+        return data | {"within": within} if within else data
 
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""
