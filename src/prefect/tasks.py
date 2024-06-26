@@ -442,7 +442,8 @@ class Task(Generic[P, R]):
         if result_storage and not isinstance(result_storage, str):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
-                    "Result storage must have a block document ID - save it first."
+                    "Result storage configuration must be persisted server-side."
+                    " Please call `.save()` on your block before passing it in."
                 )
 
         self.result_storage = result_storage
