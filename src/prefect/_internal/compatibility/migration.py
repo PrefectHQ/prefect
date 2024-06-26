@@ -42,7 +42,7 @@ REMOVED_IN_V3 = {
     "prefect.filesystems:GitHub": "Use `prefect_github.GitHubRepository` instead.",
     "prefect.engine:_out_of_process_pause": "Use `prefect.flow_runs.pause_flow_run` instead.",
     "prefect.agent:PrefectAgent": "Use workers instead. " + upgrade_guide_msg,
-    "prefect.infrastructure:KubernetesJob": "Use `prefect_kubernetes.KubernetesJob` instead.",
+    "prefect.infrastructure:KubernetesJob": "Use workers instead. " + upgrade_guide_msg,
     "prefect.infrastructure.base:Infrastructure": "Use the `BaseWorker` class to create custom infrastructure integrations instead. "
     + upgrade_guide_msg,
     "prefect.workers.block:BlockWorkerJobConfiguration": upgrade_guide_msg,
