@@ -7,7 +7,7 @@ from prefect.flows import flow
 from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import (
-    get_or_create_default_result_storage,
+    get_default_result_storage,
     get_or_create_default_task_scheduling_storage,
 )
 from prefect.settings import (
@@ -283,7 +283,7 @@ class TestDefaultTransactionStorage:
             # make sure we aren't using an anonymous block
             assert (
                 result.storage_block_id
-                == get_or_create_default_result_storage()._block_document_id
+                == get_default_result_storage()._block_document_id
             )
             return result
 

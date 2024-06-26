@@ -125,7 +125,6 @@ async def test_flow_literal_result_is_available_but_not_serialized_or_persisted(
     @flow(
         persist_result=True,
         result_serializer="pickle",
-        result_storage=LocalFileSystem(basepath=PREFECT_HOME.value()),
     )
     def foo():
         return value
@@ -187,6 +186,7 @@ async def test_flow_result_serializer(serializer, prefect_client):
 
 async def test_flow_result_storage_by_instance(prefect_client):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+    await storage.save("test-storage-stuff")
 
     @flow(result_storage=storage, persist_result=True)
     def foo():
@@ -271,6 +271,7 @@ async def test_child_flow_result_serializer(prefect_client, source):
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_child_flow_result_storage(prefect_client, source):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+    await storage.save("child-flow-test")
 
     @flow(result_storage=storage if source == "parent" else None)
     def foo():
@@ -318,9 +319,7 @@ async def test_child_flow_result_missing_with_null_return(prefect_client):
 def test_flow_empty_result_is_retained(
     persist_result: bool, empty_type, tmp_path: Path
 ):
-    storage = LocalFileSystem(basepath=str(tmp_path))
-
-    @flow(persist_result=persist_result, result_storage=storage)
+    @flow(persist_result=persist_result)
     def my_flow():
         return empty_type()
 
@@ -346,9 +345,8 @@ def test_flow_resultlike_result_is_retained(
     Since Pydantic will coerce dictionaries into `BaseResult` types, we need to be sure
     that user dicts that look like a bit like results do not cause problems
     """
-    storage = LocalFileSystem(basepath=str(tmp_path))
 
-    @flow(persist_result=persist_result, result_storage=storage)
+    @flow(persist_result=persist_result)
     def my_flow():
         return resultlike
 
@@ -417,8 +415,7 @@ async def test_root_flow_nonexistent_default_storage_block_fails():
     ):
         with pytest.raises(
             ValueError,
-            match="The default storage block does not exist, but it is of type"
-            " 'fake-block-type-slug' which cannot be created implicitly",
+            match="Unable to find block document",
         ):
             await foo()
 

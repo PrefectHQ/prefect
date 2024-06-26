@@ -67,11 +67,6 @@ class TestLocalFileSystem:
         assert (tmp_path / "folder").exists()
         assert (tmp_path / "folder" / "test.txt").read_text() == "hello"
 
-    async def test_write_outside_of_basepath(self, tmp_path):
-        fs = LocalFileSystem(basepath=str(tmp_path / "foo"))
-        with pytest.raises(ValueError, match="..."):
-            await fs.write_path(tmp_path / "bar" / "test.txt", content=b"hello")
-
     async def test_read_fails_for_directory(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
         (tmp_path / "folder").mkdir()

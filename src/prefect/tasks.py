@@ -438,6 +438,14 @@ class Task(Generic[P, R]):
 
         self.retry_jitter_factor = retry_jitter_factor
         self.persist_result = persist_result
+
+        if result_storage and not isinstance(result_storage, str):
+            if getattr(result_storage, "_block_document_id", None) is None:
+                raise TypeError(
+                    "Result storage configuration must be persisted server-side."
+                    " Please call `.save()` on your block before passing it in."
+                )
+
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.result_storage_key = result_storage_key

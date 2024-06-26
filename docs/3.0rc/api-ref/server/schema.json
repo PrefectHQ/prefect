@@ -22258,9 +22258,15 @@
                         "default": true
                     },
                     "PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK": {
-                        "type": "string",
-                        "title": "Prefect Task Scheduling Default Storage Block",
-                        "default": "local-file-system/prefect-task-scheduling"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Task Scheduling Default Storage Block"
                     },
                     "PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS": {
                         "type": "boolean",

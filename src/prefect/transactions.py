@@ -22,7 +22,7 @@ from prefect.records.result_store import ResultFactoryStore
 from prefect.results import (
     BaseResult,
     ResultFactory,
-    get_or_create_default_result_storage,
+    get_default_result_storage,
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
@@ -297,7 +297,7 @@ def transaction(
                 }
             )
         else:
-            default_storage = get_or_create_default_result_storage(_sync=True)
+            default_storage = get_default_result_storage(_sync=True)
             if existing_factory:
                 new_factory = existing_factory.model_copy(
                     update={

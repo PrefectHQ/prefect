@@ -2,6 +2,7 @@ import asyncio
 import signal
 import uuid
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
@@ -369,9 +370,9 @@ class TestTaskWorkerTaskResults:
         assert await updated_task_run.state.result() == x
 
         if "foo" in storage_key:
-            assert updated_task_run.state.data.storage_key == storage_key
+            assert Path(updated_task_run.state.data.storage_key).name == storage_key
         else:
-            assert updated_task_run.state.data.storage_key == x
+            assert Path(updated_task_run.state.data.storage_key).name == x
 
     async def test_task_run_via_task_worker_with_complex_result_type(
         self, prefect_client
