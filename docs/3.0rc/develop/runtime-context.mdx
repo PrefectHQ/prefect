@@ -20,12 +20,11 @@ a scheduled start time to ensure your code is functioning properly.
 
 Mock values in runtime through an environment variable using the schema 
 `PREFECT__RUNTIME__{SUBMODULE}__{KEY_NAME}=value`:
-<div class="terminal">
+
 ```bash
 export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
 $ python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
 ```
-</div>
 
 If the environment variable mocks an existing runtime attribute, the value is cast to the same type. 
 This works for runtime attributes of basic types (`bool`, `int`, `float` and `str`) and `pendulum.DateTime`. 
@@ -64,7 +63,6 @@ my_flow(1)
 
 Running this file produces output similar to the following:
 
-<div class="terminal">
 ```bash
 10:08:02.948 | INFO    | prefect.engine - Created flow run 'solid-gibbon' for flow 'my-flow'
 10:08:03.555 | INFO    | Flow run 'solid-gibbon' - My name is solid-gibbon
@@ -76,7 +74,6 @@ Running this file produces output similar to the following:
 10:08:04.105 | INFO    | Task run 'my_task-0' - Finished in state Completed()
 10:08:04.968 | INFO    | Flow run 'solid-gibbon' - Finished in state Completed('All states completed.')
 ```
-</div>
 
 The above example demonstrates access to information about the current flow run, task run, and deployment.
 When run without a deployment (through `python my_runtime_info.py`), you should see `"I belong to deployment None"` logged.

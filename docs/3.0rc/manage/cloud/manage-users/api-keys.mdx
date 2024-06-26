@@ -9,7 +9,7 @@ If you run `prefect cloud login` from your CLI, you can authenticate through you
 
 Authenticating through the browser directs you to an authorization page.
 After you grant approval to connect, you're redirected to the CLI and the API key is saved to your local 
-[Prefect profile](/3.0rc/manage/configure-client/).
+[Prefect profile](/3.0rc/manage/settings-and-profiles/).
 
 If you choose to authenticate by pasting an API key, you must create an API key in the Prefect Cloud UI first.
 
@@ -32,11 +32,9 @@ Copy the key to a secure location since an API key cannot be revealed again in t
 
 ## Log into Prefect Cloud with an API Key
 
-<div class="terminal">
 ```bash
 prefect cloud login -k '<my-api-key>'
 ```
-</div>
 
 ## Service account API keys (Pro) (Enterprise)
 

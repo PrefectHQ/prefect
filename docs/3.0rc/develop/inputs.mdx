@@ -749,15 +749,12 @@ To run the example, you need a Python environment with Prefect installed, pointe
 
 With your environment set up, start a flow runner in one terminal with the following command:
 
-<div class="terminal">
 ```bash
 python my_file_name greeter
 ```
-</div>
 
 For example, with Prefect Cloud, you should see output like this:
 
-<div class="terminal">
 ```bash
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ Your flow 'greeter' is being served and polling for scheduled runs!                              │
@@ -771,31 +768,24 @@ For example, with Prefect Cloud, you should see output like this:
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-</div>
 
 Then start the greeter process in another terminal:
 
-<div class="terminal">
 ```bash
 python my_file_name sender
 ```
-</div>
 
 You should see output like this:
 
-<div class="terminal">
 ```bash
 11:38:41.800 | INFO    | prefect.engine - Created flow run 'gregarious-owl' for flow 'sender'
 11:38:41.802 | INFO    | Flow run 'gregarious-owl' - View at https://app.prefect.cloud/account/...
 What is your name?
 ```
-</div>
 
 Type a name and press the enter key to see a greeting to see sending and receiving in action:
 
-<div class="terminal">
 ```bash
 What is your name? andrew
 Hello, andrew!
 ```
-</div>
