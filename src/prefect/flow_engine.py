@@ -97,7 +97,10 @@ class FlowRunEngine(Generic[P, R]):
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     wait_for: Optional[Iterable[PrefectFuture]] = None
-    _result: Union[R, Exception, Type[NotSet]] = NotSet
+    # holds the return value from the user code
+    _return_value: Union[R, Type[NotSet]] = NotSet
+    # holds the exception raised by the user code, if any
+    _raised: Union[Exception, Type[NotSet]] = NotSet
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
@@ -211,11 +214,14 @@ class FlowRunEngine(Generic[P, R]):
         return state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
-        if self._result is not NotSet and not isinstance(self._result, State):
-            if isinstance(self._result, Exception) and raise_on_failure:
-                raise self._result
-            else:
-                return self._result
+        if self._return_value is not NotSet and not isinstance(
+            self._return_value, State
+        ):
+            return self._return_value
+        if self._raised is not NotSet:
+            if raise_on_failure:
+                raise self._raised
+            return self._raised
         _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
@@ -235,7 +241,7 @@ class FlowRunEngine(Generic[P, R]):
             )
         )
         self.set_state(terminal_state)
-        self._result = resolved_result
+        self._return_value = resolved_result
         return result
 
     def handle_exception(
@@ -262,7 +268,7 @@ class FlowRunEngine(Generic[P, R]):
                 ),
             )
             state = self.set_state(Running())
-        self._result = exc
+        self._raised = exc
         return state
 
     def handle_timeout(self, exc: TimeoutError) -> None:

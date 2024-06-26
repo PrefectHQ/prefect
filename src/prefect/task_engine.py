@@ -91,7 +91,10 @@ class TaskRunEngine(Generic[P, R]):
     retries: int = 0
     wait_for: Optional[Iterable[PrefectFuture]] = None
     context: Optional[Dict[str, Any]] = None
-    _result: Union[R, Exception, Type[NotSet]] = NotSet
+    # holds the return value from the user code
+    _return_value: Union[R, Type[NotSet]] = NotSet
+    # holds the exception raised by the user code, if any
+    _raised: Union[Exception, Type[NotSet]] = NotSet
     _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
@@ -307,11 +310,12 @@ class TaskRunEngine(Generic[P, R]):
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
-        if self._result is not NotSet:
-            if isinstance(self._result, Exception) and raise_on_failure:
-                raise self._result
-            else:
-                return self._result
+        if self._return_value is not NotSet:
+            return self._return_value
+        if self._raised is not NotSet:
+            if raise_on_failure:
+                raise self._raised
+            return self._raised
         _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
@@ -347,7 +351,7 @@ class TaskRunEngine(Generic[P, R]):
         if transaction.is_committed():
             terminal_state.name = "Cached"
         self.set_state(terminal_state)
-        self._result = result
+        self._return_value = result
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
@@ -407,7 +411,7 @@ class TaskRunEngine(Generic[P, R]):
                 )
             )
             self.set_state(state)
-            self._result = exc
+            self._raised = exc
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
@@ -648,18 +652,20 @@ class TaskRunEngine(Generic[P, R]):
 
             async def _call_task_fn():
                 if transaction.is_committed():
-                    result = transaction.read()
+                    result = await transaction.read().get()
                 else:
                     result = await call_with_parameters(self.task.fn, parameters)
                 self.handle_success(result, transaction=transaction)
+                return result
 
             return _call_task_fn()
         else:
             if transaction.is_committed():
-                result = transaction.read()
+                result = transaction.read().get(_sync=True)
             else:
                 result = call_with_parameters(self.task.fn, parameters)
             self.handle_success(result, transaction=transaction)
+            return result
 
 
 def run_task_sync(
