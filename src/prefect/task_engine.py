@@ -80,6 +80,10 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+class TaskRunTimeoutError(TimeoutError):
+    """Raised when a task run exceeds its timeout."""
+
+
 @dataclass
 class TaskRunEngine(Generic[P, R]):
     task: Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]
@@ -397,9 +401,10 @@ class TaskRunEngine(Generic[P, R]):
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
-            message = (
-                f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
-            )
+            if isinstance(exc, TaskRunTimeoutError):
+                message = f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
+            else:
+                message = f"Task run failed due to timeout: {exc!r}"
             self.logger.error(message)
             state = Failed(
                 data=exc,
@@ -612,7 +617,10 @@ class TaskRunEngine(Generic[P, R]):
         # reenter the run context to ensure it is up to date for every run
         with self.setup_run_context():
             try:
-                with timeout_context(seconds=self.task.timeout_seconds):
+                with timeout_context(
+                    seconds=self.task.timeout_seconds,
+                    timeout_exc_type=TaskRunTimeoutError,
+                ):
                     self.logger.debug(
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
                     )
