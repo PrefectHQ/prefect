@@ -439,7 +439,7 @@ class Task(Generic[P, R]):
         self.retry_jitter_factor = retry_jitter_factor
         self.persist_result = persist_result
 
-        if result_storage is not None:
+        if result_storage and not isinstance(result_storage, str):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
                     "Result storage must have a block document ID - save it first."

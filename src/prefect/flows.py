@@ -187,7 +187,7 @@ class Flow(Generic[P, R]):
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
         persist_result: Optional[bool] = None,
-        result_storage: Optional[ResultStorage] = None,
+        result_storage: Optional[Union[ResultStorage, str]] = None,
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
@@ -341,7 +341,7 @@ class Flow(Generic[P, R]):
                 persist_result = True
 
         self.persist_result = persist_result
-        if result_storage is not None:
+        if result_storage and not isinstance(result_storage, str):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
                     "Result storage must have a block document ID - save it first."
