@@ -146,13 +146,13 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 ## Create a work pool
 
 Running a flow locally is a good start, but you should use a remote destination for production flows.
-A [work pool](/3.0rc/deploy/work-pools/control-runs/) is the most common way to do this.
+A [work pool](/3.0rc/deploy/control-runs/work-pools/) is the most common way to do this.
 
 <Tabs>
   <Tab title="Prefect Cloud">
 Deploy your flow to Cloud using a managed work pool.
 
-1. Create a [managed work pool](/3.0rc/deploy/work-pools/control-runs):
+1. Create a [managed work pool](/3.0rc/deploy/control-runs/work-pools):
 
    ```bash
    prefect work-pool create my-work-pool --type prefect:managed

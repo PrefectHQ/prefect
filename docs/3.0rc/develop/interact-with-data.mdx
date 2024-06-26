@@ -19,7 +19,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
 <Tabs>
   <Tab title="AWS">
 
-    [prefect-aws](https://prefecthq.github.io/prefect-aws/) provides blocks for interacting with AWS services.
+    [prefect-aws](/integrations/prefect-aws/) provides blocks for interacting with AWS services.
 
     <div class="terminal">
     ```bash
@@ -29,7 +29,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
   </Tab>
   <Tab title="Azure">
 
-    [prefect-azure](https://prefecthq.github.io/prefect-azure/) provides blocks for interacting with Azure services.
+    [prefect-azure](/integrations/prefect-azure/) provides blocks for interacting with Azure services.
 
     <div class="terminal">
     ```bash
@@ -39,13 +39,12 @@ In the CLI, install the Prefect integration library for your cloud provider:
   </Tab>
   <Tab title="GCP">
 
-    [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) provides blocks for interacting with GCP services.
+    [prefect-gcp](/integrations/prefect-gcp/) provides blocks for interacting with GCP services.
     
-    <div class="terminal">
     ```bash
      pip install -U prefect-gcp
     ```
-    </div>
+
   </Tab>
 </Tabs>
 ## Register the block types
@@ -55,27 +54,24 @@ Register the new block types with Prefect Cloud (or with your self-hosted Prefec
 <Tabs>
   <Tab title="AWS">
 
-    <div class="terminal">
     ```bash
     prefect block register -m prefect_aws  
     ```
-    </div>
+
   </Tab>
   <Tab title="Azure">
 
-    <div class="terminal">
     ```bash
     prefect block register -m prefect_azure 
     ```
-    </div>
+
   </Tab>
   <Tab title="GCP">
 
-    <div class="terminal">
     ```bash
     prefect block register -m prefect_gcp
     ```
-    </div>
+
   </Tab>
 </Tabs>
 A confirmation message in the CLI shows that several block types were registered.
@@ -114,6 +110,7 @@ The examples below use environment variables to store credential values.
     import os
     from prefect_aws import AwsCredentials
 
+
     my_aws_creds = AwsCredentials(
         aws_access_key_id="123abc",
         aws_secret_access_key=os.environ.get("MY_AWS_SECRET_ACCESS_KEY"),
@@ -126,6 +123,7 @@ The examples below use environment variables to store credential values.
     ```python
     import os
     from prefect_azure import AzureBlobStorageCredentials
+
 
     my_azure_creds = AzureBlobStorageCredentials(
         connection_string=os.environ.get("MY_AZURE_CONNECTION_STRING"),
@@ -141,6 +139,7 @@ The examples below use environment variables to store credential values.
     import os
     from prefect_gcp import GCPCredentials
 
+
     my_gcp_creds = GCPCredentials(
         service_account_info=os.environ.get("GCP_SERVICE_ACCOUNT_KEY_FILE_CONTENTS"), 
     )
@@ -148,6 +147,7 @@ The examples below use environment variables to store credential values.
     ```
   </Tab>
 </Tabs>
+
 Run the code to create the block. You should see a message that the block was created.
 
 ## Create a storage block
@@ -165,6 +165,7 @@ This example uses Python code.
 
     ```python
     from prefect_aws import S3Bucket
+
 
     s3bucket = S3Bucket.create(
         bucket="my-bucket-name",
@@ -190,6 +191,7 @@ This example uses Python code.
     ```python
     from prefect_gcp.cloud_storage import GcsBucket
 
+
     gcsbucket = GcsBucket(
         bucket="my-bucket-name", 
         credentials="my-gcp-creds-block"
@@ -212,12 +214,14 @@ Use your new block inside a flow to write data to your cloud provider.
     from prefect import flow
     from prefect_aws.s3 import S3Bucket
 
+
     @flow()
     def upload_to_s3():
         """Flow function to upload data"""
         path = Path("my_path_to/my_file.parquet")
         aws_block = S3Bucket.load("my-s3-bucket-block")
         aws_block.upload_from_path(from_path=path, to_path=path)
+
 
     if __name__ == "__main__":
         upload_to_s3()
@@ -229,6 +233,7 @@ Use your new block inside a flow to write data to your cloud provider.
     from prefect import flow
     from prefect_azure import AzureBlobStorageCredentials
     from prefect_azure.blob_storage import blob_storage_upload
+
 
     @flow
     def upload_to_azure():
@@ -245,6 +250,7 @@ Use your new block inside a flow to write data to your cloud provider.
                 blob_storage_credentials=blob_storage_credentials,
             )
 
+
     if __name__ == "__main__":
         upload_to_azure()
     ```
@@ -256,12 +262,14 @@ Use your new block inside a flow to write data to your cloud provider.
     from prefect import flow
     from prefect_gcp.cloud_storage import GcsBucket
 
+
     @flow()
     def upload_to_gcs():
         """Flow function to upload data"""
         path = Path("my_path_to/my_file.parquet")
         gcs_block = GcsBucket.load("my-gcs-bucket-block")
         gcs_block.upload_from_path(from_path=path, to_path=path)
+
 
     if __name__ == "__main__":
         upload_to_gcs()
@@ -276,9 +284,9 @@ Use your block to read data from your cloud provider inside a flow.
   <Tab title="AWS">
 
     ```python
-
     from prefect import flow
     from prefect_aws import S3Bucket
+
 
     @flow
     def download_from_s3():
@@ -288,6 +296,7 @@ Use your block to read data from your cloud provider inside a flow.
             from_path="my_path_to/my_file.parquet", 
             local_path="my_path_to/my_file.parquet"
         )
+
 
     if __name__ == "__main__":
         download_from_s3()
@@ -339,7 +348,7 @@ Use your block to read data from your cloud provider inside a flow.
 
 ## Next steps
 
-Check out the [`prefect-aws`](https://prefecthq.github.io/prefect-aws/), [`prefect-azure`](https://prefecthq.github.io/prefect-azure/), and [`prefect-gcp`](https://prefecthq.github.io/prefect-gcp/) docs to see additional methods for interacting with cloud storage providers.
+Check out the [`prefect-aws`](/ntegrations/prefect-aws/), [`prefect-azure`](/integrations/prefect-azure/), and [`prefect-gcp`](/integrations/prefect-gcp/) docs to see additional methods for interacting with cloud storage providers.
 Each library also contains blocks for interacting with other cloud-provider services.
 
 
