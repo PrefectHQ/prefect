@@ -12,6 +12,8 @@ search:
   boost: 2
 ---
 
+## What is a deployment?
+
 [Deployments](/3.0rc/deploy/static-infra/push-runs-remote/) are server-side representations of flows. 
 They store the crucial metadata for remote orchestration including when, where, and 
 how a workflow should run.
@@ -70,7 +72,7 @@ class Deployment:
 All methods for creating Prefect deployments are interfaces for populating this schema. 
 The following sections explain each component in more detail.
 
-### Required data
+### Required defining data
 
 Deployments universally require a `name` and a reference to an underlying `Flow`.
 
@@ -113,7 +115,7 @@ This is key to the Prefect hybrid model: there's a boundary between your proprie
 such as your flow code, and the Prefect backend (including [Prefect Cloud](/3.0rc/manage/cloud/)). 
 </Note>
 
-### Scheduling and parametrization
+### Workflow scheduling and parametrization
 
 One of the primary motivations for creating deployments of flows is to remotely _schedule_ and _trigger_ them.
 Just as you can call flows as functions with different input values, deployments can be triggered or 
@@ -141,73 +143,7 @@ passed to a flow run against the schema defined by `parameter_openapi_schema`.
 Pausing a schedule, updating your deployment, and other actions reset your auto-scheduled runs.
 </Tip>
 
-#### Run a deployed flow from within Python flow code
-
-Prefect provides a [`run_deployment` function](https://prefect-python-sdk-docs.netlify.app/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) 
-to schedule the run of an existing deployment when your Python code executes.
-
-```python
-from prefect.deployments import run_deployment
-
-def main():
-    run_deployment(name="my_flow_name/my_deployment_name")
-```
-
-<Tip>
-**Run a deployment without blocking**
-
-By default, `run_deployment` blocks until the scheduled flow run finishes
-executing. Pass `timeout=0` to return immediately and not block.
-</Tip>
-    
-If you call `run_deployment` from within a flow or task, the scheduled flow
-run is linked to the calling flow run (or the calling task's flow run)
-as a nested flow run by default.
-
-Nested flow runs have different behavior than regular flow runs. For example, you can't suspend a 
-nested flow run independently of its parent flow run. 
-To prevent the flow run triggered by `run_deployment` from being linked to the flow run from which the method was called,
-pass `as_subflow=False` to disable it:
-
-```python
-from prefect import flow
-from prefect.deployments import run_deployment
-
-
-@flow
-def my_flow():
-    # This flow run will not be linked to `my_flow` run as a child 
-    run_deployment(name="my_other_flow/my_deployment_name", as_subflow=False)
-```
-
-The return value of `run_deployment` is a [FlowRun](https://prefect-python-sdk-docs.netlify.app/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) 
-object containing metadata about the scheduled run. Use this object to retrieve information 
-about the run after calling
-`run_deployment`:
-
-```python
-from prefect import get_client
-from prefect.deployments import run_deployment
-
-def main():
-    flow_run = run_deployment(name="my_flow_name/my_deployment_name")
-    flow_run_id = flow_run.id
-
-    # If you save the flow run's ID, you can use it later to retrieve
-    # flow run metadata again, e.g. to check if it's completed.
-    async with get_client() as client:
-        flow_run = client.read_flow_run(flow_run_id)
-        print(f"Current state of the flow run: {flow_run.state}")
-```
-
-<Tip>
-**Using the Prefect client**
-
-For more information on using the Prefect client to interact with Prefect's
-REST API, see [Interact with the API](/3.0rc/manage/interact-with-api/).
-</Tip>
-
-## Versioning and bookkeeping
+### Metadata for bookkeeping
 
 Here is important information on the versions, descriptions, and tags fields:
 
@@ -229,7 +165,7 @@ versions set through their respective decorators. These versions are sent to the
 anytime the flow or task runs, allowing you to audit changes.
 </Tip>
 
-### Workers and work pools
+### Worker-specific fields
 
 [Work pools](/3.0rc/deploy/work-pools/) and [workers](/3.0rc/deploy/workers/) are an advanced deployment pattern that 
 allow you to dynamically provision infrastructure for each flow run.
@@ -253,7 +189,12 @@ Pull steps allow users to highly decouple their workflow architecture.
 For example, a common use of pull steps is to dynamically pull code from remote filesystems such as 
 GitHub with each run of their deployment.
 
-### Serving flows on long-lived infrastructure
+## Static vs. dynamic infrastructure
+
+You can deploy your flows on long-lived static infrastructure or on dynamic infrastructure that is able to scale horizontally.
+The right choice depends on your use case.
+
+### Static infrastructure
 
 When you have several flows running regularly, [the `serve` method](/3.0rc/develop/write-flows/#serving-a-flow) 
 of the `Flow` object or [the `serve` utility](/3.0rc/develop/write-flows/#serving-multiple-flows-at-once) 
@@ -274,10 +215,9 @@ run is a suitable deployment environment.
 - Creating deployments requires a minimal set of decisions.
 - Iteration speed is fast.
 
-### Dynamically provisioning infrastructure with work pools
+### Dynamic infrastructure
 
-Consider running flows on dynamically provisioned 
-infrastructure with work pools under these circumstances:
+Consider running flows on dynamically provisioned infrastructure with work pools under these circumstances:
 
 - Flows that have expensive infrastructure due to the long-running process.
 - Flows with heterogeneous infrastructure needs across runs.
