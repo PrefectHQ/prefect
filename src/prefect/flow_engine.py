@@ -262,7 +262,7 @@ class FlowRunEngine(Generic[P, R]):
                 ),
             )
             state = self.set_state(Running())
-        self._exception = exc
+        self._result = exc
         return state
 
     def handle_timeout(self, exc: TimeoutError) -> None:
