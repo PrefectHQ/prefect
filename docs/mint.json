@@ -201,7 +201,7 @@
           ]
         },
         "3.0rc/manage/self-host",
-        "3.0rc/manage/configure-client",
+        "3.0rc/manage/settings-and-profiles",
         "3.0rc/manage/interact-with-api"
       ]
     },

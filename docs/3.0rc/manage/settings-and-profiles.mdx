@@ -1,0 +1,138 @@
+---
+title: Configure settings and profiles
+description: Prefect settings let you customize your workflow environment, including your Cloud profile and locally hosted Server
+---
+
+Many of Prefect's features - especially interactions with the API - require configuration.
+Configuration can be set through two mechanisms:
+- **environment variables**: Prefect settings are always prefixed with `PREFECT_`. Using environment variables
+is most useful when configuring the runtime environment of a workflow or when updating settings temporarily
+for a single session.
+- **Prefect profiles**: Prefect profiles store your preferred settings locally, and allow you to switch
+between common groups of configuration; for example, when switching between a locally hosted server and a
+Prefect Cloud instance.
+
+To view all available settings and their active values from the command line, run:
+
+```bash
+prefect config view --show-defaults
+```
+
+These settings are type-validated and [documented](https://prefect-python-sdk-docs.netlify.app/prefect/settings/).
+
+## Manage profiles
+
+Prefect profiles are persisted groups of settings on your local machine. 
+By default these settings are stored in a [TOML](https://toml.io/en/) file located at `~/.prefect/profiles.toml`.
+This location can be configured through the setting `PREFECT_PROFILES_PATH`. 
+One and only one profile can be active at any time.
+Initially, a `default` profile is active and contains no settings overrides.
+
+The `prefect profile` CLI commands enable you to create, review, and manage profiles.
+
+| Command | Description |
+| --- | --- |
+| `create` | Create a new profile; use the `--from` flag to copy settings from another profile. |
+| `delete` | Delete the given profile. |
+| `inspect` | Display settings from a given profile; defaults to active. |
+| `ls` | List all profile names. |
+| `rename` | Change the name of a profile. |
+| `use` | Switch the active profile. |
+
+### Configure settings
+
+The `prefect config` CLI commands enable you to manage the settings within the currently active profile.
+
+| Command | Description |
+| --- | --- |
+| set | Change the value for a setting. |
+| unset | Restore the default value for a setting. |
+| view | Display the current settings. |
+
+For example, the following CLI commands set configuration in the `default` profile and then create a new
+profile with new settings:
+
+```bash
+prefect profile use default
+prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+
+prefect profile create new-profile --from default
+prefect profile use new-profile
+prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true PREFECT_LOGGING_LEVEL="ERROR"
+
+prefect profile inspect
+prefect config unset PREFECT_LOGGING_LEVEL="ERROR" -y
+```
+
+### Use Environment variables
+
+All settings have keys that match the name of the environment variable that can be used to override them.
+
+For example, we can temporarily set the logging level through an environment variable so that it 
+only lasts for the duration of the command:
+
+```bash
+PREFECT_LOGGING_LEVEL="CRITICAL" prefect config view --show-sources
+```
+
+<Tip>
+**Environment variables always take precedence**
+
+Environment variables always take precedence over values stored within a profile.
+This allows you to configure certain runtime behavior for your workflows by setting the appropriate
+environment variable on the job or process executing the workflow.
+</Tip>
+
+## Commonly configured settings
+
+This section describes some commonly configured settings. 
+
+### Prefect Cloud
+
+- **`PREFECT_API_KEY`**: the `PREFECT_API_KEY` value specifies the 
+[API key](/3.0rc/manage/cloud/manage-users/api-keys/) used to authenticate with Prefect Cloud.
+- **`PREFECT_API_URL`**: the `PREFECT_API_URL` value specifies the API endpoint of your 
+Prefect Cloud workspace or a self-hosted Prefect server instance.
+
+<Tip>
+**Use `prefect cloud login` to set these values for Prefect Cloud**
+
+To set the `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`. 
+Read more about [managing API keys](/3.0rc/manage/cloud/manage-users/api-keys/). 
+</Tip>
+
+### Prefect Server
+
+- **`PREFECT_HOME`**: the `PREFECT_HOME` value specifies the local Prefect directory for configuration files,
+profiles, and the location of the default Prefect SQLite database.
+- **`PREFECT_API_DATABASE_CONNECTION_URL`**: the database connection URL for a locally hosted Prefect instance.
+Must be provided in a SQLAlchemy-compatible format. Prefect currently supports SQLite and Postgres. 
+
+## Security settings
+
+### Host the UI behind a reverse proxy
+
+When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a 
+locally-hosted Prefect UI instance, you must also configure the Prefect server instance to connect to the API. 
+The PREFECT_UI_API_URL should be set to the external proxy URL.
+
+For example, if your external URL is `https://prefect-server.example.com` then set 
+`PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process.
+You can also set `PREFECT_API_URL` to the API URL. 
+
+This setting is a fallback if `PREFECT_UI_API_URL` is not set.
+
+### CSRF protection settings
+
+If using a local Prefect server instance, you can configure CSRF protection settings.
+
+- **`PREFECT_SERVER_CSRF_PROTECTION_ENABLED`**: activates CSRF protection on the server, 
+requiring valid CSRF tokens for applicable requests. Recommended for production to prevent CSRF attacks. 
+Defaults to `False`.
+- **`PREFECT_SERVER_CSRF_TOKEN_EXPIRATION`**: sets the expiration duration for server-issued CSRF tokens, 
+influencing how often tokens need to be refreshed. The default is 1 hour.
+- **`PREFECT_CLIENT_CSRF_SUPPORT_ENABLED`**: enables or disables CSRF token handling in the Prefect client. 
+When enabled, the client manages CSRF tokens for state-changing API requests. Defaults to `True`.
+
+By default clients expect that CSRF protection is enabled on the server. If you are running a server without CSRF protection, 
+you can disable CSRF support in the client.
