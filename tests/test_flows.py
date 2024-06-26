@@ -1346,7 +1346,7 @@ class TestFlowTimeouts:
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
             await state.result()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
 
     async def test_async_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
@@ -1358,7 +1358,7 @@ class TestFlowTimeouts:
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
             await state.result()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
 
     async def test_timeout_only_applies_if_exceeded(self):
         @flow(timeout_seconds=10)
@@ -1393,7 +1393,7 @@ class TestFlowTimeouts:
         state = my_flow(return_state=True)
 
         assert state.is_failed()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
         assert not completed
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
@@ -1418,7 +1418,7 @@ class TestFlowTimeouts:
         state = my_flow(return_state=True)
 
         assert state.is_failed()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
 
         assert not completed
         assert not task_completed
@@ -1440,7 +1440,7 @@ class TestFlowTimeouts:
         state = await my_flow(return_state=True)
 
         assert state.is_failed()
-        assert "exceeded timeout of 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 second(s)" in state.message
         assert not completed
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
@@ -1465,7 +1465,7 @@ class TestFlowTimeouts:
         state = await my_flow(return_state=True)
 
         (_, subflow_state) = await state.result()
-        assert "exceeded timeout of 0.1 seconds" in subflow_state.message
+        assert "exceeded timeout of 0.1 second(s)" in subflow_state.message
         assert not completed
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
@@ -1494,7 +1494,7 @@ class TestFlowTimeouts:
         state = my_flow(return_state=True)
 
         (_, subflow_state) = await state.result()
-        assert "exceeded timeout of 0.1 seconds" in subflow_state.message
+        assert "exceeded timeout of 0.1 second(s)" in subflow_state.message
 
         assert not completed
 
