@@ -8,7 +8,6 @@ from typing import (
     Generic,
     List,
     Optional,
-    TypeVar,
     Union,
     overload,
 )
@@ -26,7 +25,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import Literal, Self
+from typing_extensions import Literal, Self, TypeVar
 
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
@@ -61,7 +60,7 @@ if TYPE_CHECKING:
     from prefect.results import BaseResult
 
 
-R = TypeVar("R")
+R = TypeVar("R", default=Any)
 
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"

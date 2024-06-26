@@ -17,11 +17,9 @@ Run a flow with managed infrastructure in three steps.
 Create a new work pool of type Prefect Managed in the UI or the CLI.
 Use this command to create a new work pool using the CLI:
 
-<div class="terminal">
 ```bash
 prefect work-pool create my-managed-pool --type prefect:managed
 ```
-</div>
 
 ### Step 2: Create a deployment
 
@@ -45,11 +43,9 @@ if __name__ == "__main__":
 With your [CLI authenticated to your Prefect Cloud workspace](/3.0rc/manage/cloud/manage-users/api-keys/), 
 run the script to create your deployment:
 
-<div class="terminal">
 ```bash
 python managed-execution.py
 ```
-</div>
 
 Note that this deployment uses flow code stored in a GitHub repository.
 
