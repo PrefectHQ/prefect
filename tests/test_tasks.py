@@ -17,7 +17,7 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
-from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE
+from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE, CachePolicy
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
@@ -1183,6 +1183,99 @@ class TestTaskRetries:
 
             test_flow()
             assert mock.call_count == 2
+
+
+class TestResultPersistence:
+    @pytest.mark.parametrize("persist_result", [True, False])
+    def test_persist_result_set_to_bool(self, persist_result):
+        @task(persist_result=persist_result)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(persist_result=persist_result)
+
+        assert my_task.persist_result is persist_result
+        assert new_task.persist_result is persist_result
+
+    @pytest.mark.parametrize(
+        "cache_policy",
+        [policy for policy in CachePolicy.__subclasses__() if policy != NONE],
+    )
+    def test_setting_cache_policy_sets_persist_result_to_true(self, cache_policy):
+        @task(cache_policy=cache_policy)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(cache_policy=cache_policy)
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_cache_key_fn_sets_persist_result_to_true(self):
+        @task(cache_key_fn=lambda *_: "test-key")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(cache_key_fn=lambda *_: "test-key")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        @task(result_storage=block)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage=block)
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_serializer_sets_persist_result_to_true(self):
+        @task(result_serializer="json")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_serializer="json")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_storage_key_sets_persist_result_to_true(self):
+        @task(result_storage_key="test-key")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage_key="test-key")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
 
 
 class TestTaskCaching:
