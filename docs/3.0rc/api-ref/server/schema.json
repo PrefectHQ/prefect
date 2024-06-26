@@ -20756,6 +20756,13 @@
                         "type": "array",
                         "title": "Children"
                     },
+                    "encapsulating": {
+                        "items": {
+                            "$ref": "#/components/schemas/Edge"
+                        },
+                        "type": "array",
+                        "title": "Encapsulating"
+                    },
                     "artifacts": {
                         "items": {
                             "$ref": "#/components/schemas/GraphArtifact"
@@ -20774,6 +20781,7 @@
                     "end_time",
                     "parents",
                     "children",
+                    "encapsulating",
                     "artifacts"
                 ],
                 "title": "Node"
