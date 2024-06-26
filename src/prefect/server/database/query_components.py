@@ -830,7 +830,8 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                                 ELSE NULL
                             END
                         ) as end_time,
-                        (argument->>'id')::uuid as parent
+                        (argument->>'id')::uuid as parent,
+                        input.key = '__parents__' as has_encapsulating_task
                 FROM    task_run
                         LEFT JOIN jsonb_each(task_run.task_inputs) as input ON true
                         LEFT JOIN jsonb_array_elements(input.value) as argument ON true
@@ -851,12 +852,22 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 -- edges in the with_parents and with_children CTEs below
                 ORDER BY COALESCE(subflow.id, task_run.id)
             ),
+            with_encapsulating AS (
+                SELECT  children.id,
+                        array_agg(parents.id order by parents.start_time) as encapsulating_ids
+                FROM    edges as children
+                        INNER JOIN edges as parents
+                                ON parents.id = children.parent
+                WHERE children.has_encapsulating_task is True
+                GROUP BY children.id
+            ),
             with_parents AS (
                 SELECT  children.id,
                         array_agg(parents.id order by parents.start_time) as parent_ids
                 FROM    edges as children
                         INNER JOIN edges as parents
                                 ON parents.id = children.parent
+                WHERE children.has_encapsulating_task is FALSE OR children.has_encapsulating_task is NULL
                 GROUP BY children.id
             ),
             with_children AS (
@@ -865,6 +876,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 FROM    edges as parents
                         INNER JOIN edges as children
                                 ON children.parent = parents.id
+                WHERE children.has_encapsulating_task is FALSE OR children.has_encapsulating_task is NULL
                 GROUP BY parents.id
             ),
             nodes AS (
@@ -876,12 +888,15 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         edges.start_time,
                         edges.end_time,
                         with_parents.parent_ids,
-                        with_children.child_ids
+                        with_children.child_ids,
+                        with_encapsulating.encapsulating_ids
                 FROM    edges
                         LEFT JOIN with_parents
                                 ON with_parents.id = edges.id
                         LEFT JOIN with_children
                                 ON with_children.id = edges.id
+                        LEFT JOIN with_encapsulating
+                                ON with_encapsulating.id = edges.id
             )
             SELECT  kind,
                     id,
@@ -890,7 +905,8 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                     start_time,
                     end_time,
                     parent_ids,
-                    child_ids
+                    child_ids,
+                    encapsulating_ids
             FROM    nodes
             WHERE   end_time IS NULL OR end_time >= :since
             ORDER BY start_time, end_time
@@ -931,6 +947,9 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         end_time=row.end_time,
                         parents=[Edge(id=id) for id in row.parent_ids or []],
                         children=[Edge(id=id) for id in row.child_ids or []],
+                        encapsulating=[
+                            Edge(id=id) for id in row.encapsulating_ids or []
+                        ],
                         artifacts=graph_artifacts.get(row.id, []),
                     ),
                 )
@@ -1256,7 +1275,8 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                                 ELSE NULL
                             END
                         ) as end_time,
-                        json_extract(argument.value, '$.id') as parent
+                        json_extract(argument.value, '$.id') as parent,
+                        input.key = '__parents__' as has_encapsulating_task
                 FROM    task_run
                         LEFT JOIN json_each(task_run.task_inputs) as input ON true
                         LEFT JOIN json_each(input.value) as argument ON true
@@ -1277,12 +1297,22 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 -- edges in the with_parents and with_children CTEs below
                 ORDER BY COALESCE(subflow.id, task_run.id)
             ),
+            with_encapsulating AS (
+                SELECT  children.id,
+                        group_concat(parents.id) as encapsulating_ids
+                FROM    edges as children
+                        INNER JOIN edges as parents
+                                ON parents.id = children.parent
+                WHERE children.has_encapsulating_task IS TRUE
+                GROUP BY children.id
+            ),
             with_parents AS (
                 SELECT  children.id,
                         group_concat(parents.id) as parent_ids
                 FROM    edges as children
                         INNER JOIN edges as parents
                                 ON parents.id = children.parent
+                WHERE children.has_encapsulating_task is FALSE OR children.has_encapsulating_task IS NULL
                 GROUP BY children.id
             ),
             with_children AS (
@@ -1291,6 +1321,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 FROM    edges as parents
                         INNER JOIN edges as children
                                 ON children.parent = parents.id
+                WHERE children.has_encapsulating_task IS FALSE OR children.has_encapsulating_task IS NULL
                 GROUP BY parents.id
             ),
             nodes AS (
@@ -1303,12 +1334,15 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         edges.start_time,
                         edges.end_time,
                         with_parents.parent_ids,
-                        with_children.child_ids
+                        with_children.child_ids,
+                        with_encapsulating.encapsulating_ids
                 FROM    edges
                         LEFT JOIN with_parents
                                 ON with_parents.id = edges.id
                         LEFT JOIN with_children
                                 ON with_children.id = edges.id
+                        LEFT JOIN with_encapsulating
+                                ON with_encapsulating.id = edges.id
             )
             SELECT  kind,
                     id,
@@ -1317,7 +1351,8 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                     start_time,
                     end_time,
                     parent_ids,
-                    child_ids
+                    child_ids,
+                    encapsulating_ids
             FROM    nodes
             WHERE   end_time IS NULL OR end_time >= :since
             ORDER BY start_time, end_time
@@ -1392,6 +1427,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         end_time=time(row.end_time),
                         parents=edges(row.parent_ids),
                         children=edges(row.child_ids),
+                        encapsulating=edges(row.encapsulating_ids),
                         artifacts=graph_artifacts.get(UUID(row.id), []),
                     ),
                 )
