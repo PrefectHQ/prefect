@@ -14,7 +14,7 @@ from prefect.workers.process import ProcessWorker
 
 def start_healthcheck_server(
     worker: Union[BaseWorker, ProcessWorker],
-    query_interval_seconds: int,
+    query_interval_seconds: float,
     log_level: str = "error",
 ) -> None:
     """

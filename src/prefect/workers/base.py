@@ -1,6 +1,9 @@
 import abc
 import inspect
+import threading
 import warnings
+from contextlib import AsyncExitStack
+from functools import partial
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
@@ -50,11 +53,13 @@ from prefect.settings import (
     PREFECT_TEST_MODE,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
+    PREFECT_WORKER_QUERY_SECONDS,
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
+from prefect.utilities.services import critical_service_loop
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import (
     apply_values,
@@ -394,6 +399,9 @@ class BaseWorker(abc.ABC):
         heartbeat_interval_seconds: Optional[int] = None,
         *,
         base_job_template: Optional[Dict[str, Any]] = None,
+        run_loops: bool = True,
+        run_once: bool = False,
+        with_healthcheck: bool = False,
     ):
         """
         Base class for all Prefect workers.
@@ -413,12 +421,24 @@ class BaseWorker(abc.ABC):
                 ensure that work pools are not created accidentally.
             limit: The maximum number of flow runs this worker should be running at
                 a given time.
+            heartbeat_interval_seconds: The number of seconds between worker heartbeats.
             base_job_template: If creating the work pool, provide the base job
                 template to use. Logs a warning if the pool already exists.
+            run_loops: Whether to run the worker loops. If `False`, the worker
+                will not poll for flow runs.
+            run_once: Whether to run the worker once and then exit. If `True`,
+                the worker will not run loops and will exit after submitting
+                any scheduled flow runs.
+            with_healthcheck: Whether to run a healthcheck server. If `True`, the
+                worker will start a server that listens for healthcheck requests.
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
+        self._run_loops = run_loops
+        self._run_once = run_once
+        self._with_healthcheck = with_healthcheck
+        self._started_event: Optional[Event] = None
         self._logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
 
         self.is_setup = False
@@ -435,6 +455,8 @@ class BaseWorker(abc.ABC):
         )
 
         self._work_pool: Optional[WorkPool] = None
+        self._exit_stack: AsyncExitStack = AsyncExitStack()
+        self._loops_task_group: Optional[anyio.abc.TaskGroup] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
@@ -549,6 +571,7 @@ class BaseWorker(abc.ABC):
         """Prepares the worker to run."""
         self._logger.debug("Setting up worker...")
         self._runs_task_group = anyio.create_task_group()
+        self._loops_task_group = anyio.create_task_group()
         self._limiter = (
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
         )
@@ -557,8 +580,9 @@ class BaseWorker(abc.ABC):
             raise ValueError("`PREFECT_API_URL` must be set to start a Worker.")
 
         self._client = get_client()
-        await self._client.__aenter__()
-        await self._runs_task_group.__aenter__()
+        await self._exit_stack.enter_async_context(self._client)
+        await self._exit_stack.enter_async_context(self._runs_task_group)
+        await self._exit_stack.enter_async_context(self._loops_task_group)
 
         self.is_setup = True
 
@@ -568,14 +592,14 @@ class BaseWorker(abc.ABC):
         self.is_setup = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
-        if self._runs_task_group:
-            await self._runs_task_group.__aexit__(*exc_info)
-        if self._client:
-            await self._client.__aexit__(*exc_info)
+
+        await self._exit_stack.__aexit__(*exc_info)
+        if self._started_event:
+            await self._emit_worker_stopped_event(self._started_event)
         self._runs_task_group = None
         self._client = None
 
-    def is_worker_still_polling(self, query_interval_seconds: int) -> bool:
+    def is_worker_still_polling(self, query_interval_seconds: float) -> bool:
         """
         This method is invoked by a webserver healthcheck handler
         and returns a boolean indicating if the worker has recorded a
@@ -1162,6 +1186,62 @@ class BaseWorker(abc.ABC):
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
         await self.setup()
+
+        assert self._loops_task_group, "Loops task group not initialized"
+        # wait for an initial heartbeat to configure the worker
+        await self.sync_with_backend()
+        # schedule the scheduled flow run polling loop
+        self._loops_task_group.start_soon(
+            partial(
+                critical_service_loop,
+                workload=self.get_and_submit_flow_runs,
+                interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                run_once=self._run_once,
+                jitter_range=0.3,
+                backoff=4,  # Up to ~1 minute interval during backoff
+            )
+        )
+        # schedule the sync loop
+        self._loops_task_group.start_soon(
+            partial(
+                critical_service_loop,
+                workload=self.sync_with_backend,
+                interval=self.heartbeat_interval_seconds,
+                run_once=self._run_once,
+                jitter_range=0.3,
+                backoff=4,
+            )
+        )
+        self._loops_task_group.start_soon(
+            partial(
+                critical_service_loop,
+                workload=self.check_for_cancelled_flow_runs,
+                interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                run_once=self._run_once,
+                jitter_range=0.3,
+                backoff=4,
+            )
+        )
+
+        self._started_event = await self._emit_worker_started_event()
+
+        # if --with-healthcheck was passed, start the healthcheck server
+        if self._with_healthcheck:
+            from prefect.workers.server import start_healthcheck_server
+
+            # we'll start the ASGI server in a separate thread so that
+            # uvicorn does not block the main thread
+            webserver_thread = threading.Thread(
+                name="healthcheck-server-thread",
+                target=partial(
+                    start_healthcheck_server,
+                    worker=self,
+                    query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                ),
+                daemon=True,
+            )
+            webserver_thread.start()
+
         return self
 
     async def __aexit__(self, *exc_info):
