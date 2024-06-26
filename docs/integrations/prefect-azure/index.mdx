@@ -14,20 +14,40 @@ For example, you can retrieve secrets, read and write Blob Storage objects, and 
 
 ### Install prefect-azure
 
+Install or update to the latest version of the prefect-azure library and dependencies.
 
-```bash
-pip install -U prefect-azure
-```
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-azure
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-azure
+    ```
+    </Tab>
+</Tabs>
 
 
 If necessary, see [additional installation options for Blob Storage, Cosmos DB, and ML Datastore](#additional-installation-options).
 
 To install with all additional functionality, use the following command:
 
+Install or update to the latest version of the prefect-aws library and dependencies.
 
-```bash
-pip install -U "prefect-azure[all_extras]"
-```
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-azure[all_extras]
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-azure[all_extras]
+    ```
+    </Tab>
+</Tabs>
 
 
 ### Register newly installed block types
@@ -91,6 +111,8 @@ For assistance using Azure, consult the [Azure documentation](https://learn.micr
 Refer to the prefect-azure API documentation linked in the sidebar to explore all the capabilities of the prefect-azure library.
 
 ### Additional installation options
+
+Add the `--pre` flag to install the latest pre-release version of the library for use with Prefect 3.
 
 To use Blob Storage:
 

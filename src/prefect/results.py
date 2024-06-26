@@ -1,4 +1,5 @@
 import abc
+import inspect
 import uuid
 from functools import partial
 from typing import (
@@ -142,38 +143,6 @@ def get_default_persist_setting() -> bool:
     return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
 
 
-def flow_features_require_result_persistence(flow: "Flow") -> bool:
-    """
-    Returns `True` if the given flow uses features that require its result to be
-    persisted.
-    """
-    if not flow.cache_result_in_memory:
-        return True
-    return False
-
-
-def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
-    """
-    Returns `True` if the given flow uses features that require child flow and task
-    runs to persist their results.
-    """
-    if flow and flow.retries:
-        return True
-    return False
-
-
-def task_features_require_result_persistence(task: "Task") -> bool:
-    """
-    Returns `True` if the given task uses features that require its result to be
-    persisted.
-    """
-    if task.cache_key_fn:
-        return True
-    if not task.cache_result_in_memory:
-        return True
-    return False
-
-
 def _format_user_supplied_storage_key(key: str) -> str:
     # Note here we are pinning to task runs since flow runs do not support storage keys
     # yet; we'll need to split logic in the future or have two separate functions
@@ -235,17 +204,7 @@ class ResultFactory(BaseModel):
                 result_storage=flow.result_storage or ctx.result_factory.storage_block,
                 result_serializer=flow.result_serializer
                 or ctx.result_factory.serializer,
-                persist_result=(
-                    flow.persist_result
-                    if flow.persist_result is not None
-                    # !! Child flows persist their result by default if the it or the
-                    #    parent flow uses a feature that requires it
-                    else (
-                        flow_features_require_result_persistence(flow)
-                        or flow_features_require_child_result_persistence(ctx.flow)
-                        or get_default_persist_setting()
-                    )
-                ),
+                persist_result=flow.persist_result,
                 cache_result_in_memory=flow.cache_result_in_memory,
                 storage_key_fn=DEFAULT_STORAGE_KEY_FN,
                 client=client,
@@ -258,16 +217,7 @@ class ResultFactory(BaseModel):
                 client=client,
                 result_storage=flow.result_storage,
                 result_serializer=flow.result_serializer,
-                persist_result=(
-                    flow.persist_result
-                    if flow.persist_result is not None
-                    # !! Flows persist their result by default if uses a feature that
-                    #    requires it
-                    else (
-                        flow_features_require_result_persistence(flow)
-                        or get_default_persist_setting()
-                    )
-                ),
+                persist_result=flow.persist_result,
                 cache_result_in_memory=flow.cache_result_in_memory,
                 storage_key_fn=DEFAULT_STORAGE_KEY_FN,
             )
@@ -318,21 +268,14 @@ class ResultFactory(BaseModel):
             if ctx and ctx.result_factory
             else get_default_result_serializer()
         )
-        persist_result = (
-            task.persist_result
-            if task.persist_result is not None
-            # !! Tasks persist their result by default if their parent flow uses a
-            #    feature that requires it or the task uses a feature that requires it
-            else (
-                (
-                    flow_features_require_child_result_persistence(ctx.flow)
-                    if ctx
-                    else False
-                )
-                or task_features_require_result_persistence(task)
-                or get_default_persist_setting()
+        if task.persist_result is None:
+            persist_result = (
+                ctx.result_factory.persist_result
+                if ctx and ctx.result_factory
+                else get_default_persist_setting()
             )
-        )
+        else:
+            persist_result = task.persist_result
 
         cache_result_in_memory = task.cache_result_in_memory
 
@@ -355,11 +298,14 @@ class ResultFactory(BaseModel):
         cls: Type[Self],
         result_storage: ResultStorage,
         result_serializer: ResultSerializer,
-        persist_result: bool,
+        persist_result: Optional[bool],
         cache_result_in_memory: bool,
         storage_key_fn: Callable[[], str],
         client: "PrefectClient",
     ) -> Self:
+        if persist_result is None:
+            persist_result = get_default_persist_setting()
+
         storage_block_id, storage_block = await cls.resolve_storage_block(
             result_storage, client=client, persist_result=persist_result
         )
@@ -431,7 +377,11 @@ class ResultFactory(BaseModel):
 
     @sync_compatible
     async def create_result(
-        self, obj: R, key: Optional[str] = None, expiration: Optional[DateTime] = None
+        self,
+        obj: R,
+        key: Optional[str] = None,
+        expiration: Optional[DateTime] = None,
+        defer_persistence: bool = False,
     ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
@@ -464,6 +414,7 @@ class ResultFactory(BaseModel):
             serializer=self.serializer,
             cache_object=should_cache_object,
             expiration=expiration,
+            defer_persistence=defer_persistence,
         )
 
     @sync_compatible
@@ -589,6 +540,19 @@ class PersistedResult(BaseResult):
     expiration: Optional[DateTime] = None
 
     _should_cache_object: bool = PrivateAttr(default=True)
+    _persisted: bool = PrivateAttr(default=False)
+    _storage_block: WritableFileSystem = PrivateAttr(default=None)
+    _serializer: Serializer = PrivateAttr(default=None)
+
+    def _cache_object(
+        self,
+        obj: Any,
+        storage_block: WritableFileSystem = None,
+        serializer: Serializer = None,
+    ) -> None:
+        self._cache = obj
+        self._storage_block = storage_block
+        self._serializer = serializer
 
     @sync_compatible
     @inject_client
@@ -596,12 +560,11 @@ class PersistedResult(BaseResult):
         """
         Retrieve the data and deserialize it into the original object.
         """
-
         if self.has_cached_object():
             return self._cache
 
         blob = await self._read_blob(client=client)
-        obj = blob.serializer.loads(blob.data)
+        obj = blob.load()
         self.expiration = blob.expiration
 
         if self._should_cache_object:
@@ -632,6 +595,85 @@ class PersistedResult(BaseResult):
         if hasattr(storage_block, "_remote_file_system"):
             return storage_block._remote_file_system._resolve_path(key)
 
+    @sync_compatible
+    @inject_client
+    async def write(self, obj: R = NotSet, client: "PrefectClient" = None) -> None:
+        """
+        Write the result to the storage block.
+        """
+
+        if self._persisted:
+            # don't double write or overwrite
+            return
+
+        # load objects from a cache
+
+        # first the object itself
+        if obj is NotSet and not self.has_cached_object():
+            raise ValueError("Cannot write a result that has no object cached.")
+        obj = obj if obj is not NotSet else self._cache
+
+        # next, the storage block
+        storage_block = self._storage_block
+        if storage_block is None:
+            block_document = await client.read_block_document(self.storage_block_id)
+            storage_block = Block._from_block_document(block_document)
+
+        # finally, the serializer
+        serializer = self._serializer
+        if serializer is None:
+            # this could error if the serializer requires kwargs
+            serializer = Serializer(type=self.serializer_type)
+
+        try:
+            data = serializer.dumps(obj)
+        except Exception as exc:
+            extra_info = (
+                'You can try a different serializer (e.g. result_serializer="json") '
+                "or disabling persistence (persist_result=False) for this flow or task."
+            )
+            # check if this is a known issue with cloudpickle and pydantic
+            # and add extra information to help the user recover
+
+            if (
+                isinstance(exc, TypeError)
+                and isinstance(obj, BaseModel)
+                and str(exc).startswith("cannot pickle")
+            ):
+                try:
+                    from IPython import get_ipython
+
+                    if get_ipython() is not None:
+                        extra_info = inspect.cleandoc(
+                            """
+                            This is a known issue in Pydantic that prevents
+                            locally-defined (non-imported) models from being
+                            serialized by cloudpickle in IPython/Jupyter
+                            environments. Please see
+                            https://github.com/pydantic/pydantic/issues/8232 for
+                            more information. To fix the issue, either: (1) move
+                            your Pydantic class definition to an importable
+                            location, (2) use the JSON serializer for your flow
+                            or task (`result_serializer="json"`), or (3)
+                            disable result persistence for your flow or task
+                            (`persist_result=False`).
+                            """
+                        ).replace("\n", " ")
+                except ImportError:
+                    pass
+            raise ValueError(
+                f"Failed to serialize object of type {type(obj).__name__!r} with "
+                f"serializer {serializer.type!r}. {extra_info}"
+            ) from exc
+        blob = PersistedResultBlob(
+            serializer=serializer, data=data, expiration=self.expiration
+        )
+        await storage_block.write_path(self.storage_key, content=blob.to_bytes())
+        self._persisted = True
+
+        if not self._should_cache_object:
+            self._cache = NotSet
+
     @classmethod
     @sync_compatible
     async def create(
@@ -643,6 +685,7 @@ class PersistedResult(BaseResult):
         serializer: Serializer,
         cache_object: bool = True,
         expiration: Optional[DateTime] = None,
+        defer_persistence: bool = False,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
@@ -652,19 +695,13 @@ class PersistedResult(BaseResult):
         """
         assert (
             storage_block_id is not None
-        ), "Unexpected storage block ID. Was it persisted?"
-        data = serializer.dumps(obj)
-        blob = PersistedResultBlob(
-            serializer=serializer, data=data, expiration=expiration
-        )
+        ), "Unexpected storage block ID. Was it saved?"
 
         key = storage_key_fn()
         if not isinstance(key, str):
             raise TypeError(
                 f"Expected type 'str' for result storage key; got value {key!r}"
             )
-        await storage_block.write_path(key, content=blob.to_bytes())
-
         description = f"Result of type `{type(obj).__name__}`"
         uri = cls._infer_path(storage_block, key)
         if uri:
@@ -684,11 +721,22 @@ class PersistedResult(BaseResult):
             expiration=expiration,
         )
 
-        if cache_object:
+        if cache_object and not defer_persistence:
             # Attach the object to the result so it's available without deserialization
-            result._cache_object(obj)
+            result._cache_object(
+                obj, storage_block=storage_block, serializer=serializer
+            )
 
         object.__setattr__(result, "_should_cache_object", cache_object)
+
+        if not defer_persistence:
+            await result.write(obj=obj)
+        else:
+            # we must cache temporarily to allow for writing later
+            # the cache will be removed on write
+            result._cache_object(
+                obj, storage_block=storage_block, serializer=serializer
+            )
 
         return result
 
@@ -704,6 +752,9 @@ class PersistedResultBlob(BaseModel):
     data: bytes
     prefect_version: str = Field(default=prefect.__version__)
     expiration: Optional[DateTime] = None
+
+    def load(self) -> Any:
+        return self.serializer.loads(self.data)
 
     def to_bytes(self) -> bytes:
         return self.model_dump_json(serialize_as_any=True).encode()

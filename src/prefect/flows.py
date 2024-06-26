@@ -8,7 +8,6 @@ import ast
 import datetime
 import importlib.util
 import inspect
-import json
 import os
 import re
 import sys
@@ -17,11 +16,9 @@ import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import (
     TYPE_CHECKING,
     Any,
-    AnyStr,
     Awaitable,
     Callable,
     Coroutine,
@@ -56,9 +53,7 @@ from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
-from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
-from prefect.deployments.steps.core import run_steps
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     InvalidNameError,
@@ -72,11 +67,6 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
-from prefect.runner.storage import (
-    BlockStorageAdapter,
-    RunnerStorage,
-    create_storage_from_url,
-)
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_FLOW_DEFAULT_RETRIES,
@@ -87,6 +77,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
@@ -118,11 +109,12 @@ logger = get_logger("flows")
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+    from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
+    from prefect.deployments.runner import RunnerDeployment
     from prefect.flows import FlowRun
+    from prefect.runner.storage import RunnerStorage
 
 
-@PrefectObjectRegistry.register_instances
 class Flow(Generic[P, R]):
     """
     A Prefect workflow definition.
@@ -145,7 +137,7 @@ class Flow(Generic[P, R]):
             be provided as a string template with the flow's parameters as variables,
             or a function that returns a string.
         task_runner: An optional task runner to use for task execution within the flow;
-            if not provided, a `ConcurrentTaskRunner` will be used.
+            if not provided, a `ThreadPoolTaskRunner` will be used.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
@@ -343,6 +335,11 @@ class Flow(Generic[P, R]):
                     "Disable validation or change the argument names."
                 ) from exc
 
+        # result persistence settings
+        if persist_result is None:
+            if result_storage is not None or result_serializer is not None:
+                persist_result = True
+
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
@@ -354,7 +351,7 @@ class Flow(Generic[P, R]):
         self.on_running_hooks = on_running or []
 
         # Used for flows loaded from remote storage
-        self._storage: Optional[RunnerStorage] = None
+        self._storage: Optional["RunnerStorage"] = None
         self._entrypoint: Optional[str] = None
 
         module = fn.__module__
@@ -920,7 +917,7 @@ class Flow(Generic[P, R]):
     @sync_compatible
     async def from_source(
         cls: Type[F],
-        source: Union[str, RunnerStorage, ReadableDeploymentStorage],
+        source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
     ) -> F:
         """
@@ -969,8 +966,16 @@ class Flow(Generic[P, R]):
             my_flow()
             ```
         """
+
+        from prefect.runner.storage import (
+            BlockStorageAdapter,
+            LocalStorage,
+            RunnerStorage,
+            create_storage_from_source,
+        )
+
         if isinstance(source, str):
-            storage = create_storage_from_url(source)
+            storage = create_storage_from_source(source)
         elif isinstance(source, RunnerStorage):
             storage = source
         elif hasattr(source, "get_directory"):
@@ -981,6 +986,9 @@ class Flow(Generic[P, R]):
                 " URL to remote storage or a storage object."
             )
         with tempfile.TemporaryDirectory() as tmpdir:
+            if not isinstance(storage, LocalStorage):
+                storage.set_base_path(Path(tmpdir))
+                await storage.pull_code()
             storage.set_base_path(Path(tmpdir))
             await storage.pull_code()
 
@@ -998,7 +1006,7 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         work_pool_name: Optional[str] = None,
-        image: Optional[Union[str, DeploymentImage]] = None,
+        image: Optional[Union[str, DockerImage]] = None,
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
@@ -1034,7 +1042,7 @@ class Flow(Generic[P, R]):
             work_pool_name: The name of the work pool to use for this deployment. Defaults to
                 the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
             image: The name of the Docker image to build, including the registry and
-                repository. Pass a DeploymentImage instance to customize the Dockerfile used
+                repository. Pass a DockerImage instance to customize the Dockerfile used
                 and build arguments.
             build: Whether or not to build a new image for the flow. If False, the provided
                 image will be used as-is and pulled at runtime.
@@ -1143,7 +1151,9 @@ class Flow(Generic[P, R]):
             entrypoint_type=entrypoint_type,
         )
 
-        deployment_ids = await deploy(
+        from prefect.deployments import runner
+
+        deployment_ids = await runner.deploy(
             deployment,
             work_pool_name=work_pool_name,
             image=image,
@@ -1638,47 +1648,6 @@ def select_flow(
         return list(flows_dict.values())[0]
 
 
-def load_flows_from_script(path: str) -> List[Flow]:
-    """
-    Load all flow objects from the given python script. All of the code in the file
-    will be executed.
-
-    Returns:
-        A list of flows
-
-    Raises:
-        FlowScriptError: If an exception is encountered while running the script
-    """
-    return registry_from_script(path).get_instances(Flow)
-
-
-def load_flow_from_script(path: str, flow_name: Optional[str] = None) -> Flow:
-    """
-    Extract a flow object from a script by running all of the code in the file.
-
-    If the script has multiple flows in it, a flow name must be provided to specify
-    the flow to return.
-
-    Args:
-        path: A path to a Python script containing flows
-        flow_name: An optional flow name to look for in the script
-
-    Returns:
-        The flow object from the script
-
-    Raises:
-        FlowScriptError: If an exception is encountered while running the script
-        MissingFlowError: If no flows exist in the iterable
-        MissingFlowError: If a flow name is provided and that flow does not exist
-        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
-    """
-    return select_flow(
-        load_flows_from_script(path),
-        flow_name=flow_name,
-        from_message=f"in script '{path}'",
-    )
-
-
 def load_flow_from_entrypoint(
     entrypoint: str,
 ) -> Flow:
@@ -1696,52 +1665,25 @@ def load_flow_from_entrypoint(
         FlowScriptError: If an exception is encountered while running the script
         MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
-    with PrefectObjectRegistry(  # type: ignore
-        block_code_execution=True,
-        capture_failures=True,
-    ):
-        if ":" in entrypoint:
-            # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
-            path, func_name = entrypoint.rsplit(":", maxsplit=1)
-        else:
-            path, func_name = entrypoint.rsplit(".", maxsplit=1)
-        try:
-            flow = import_object(entrypoint)
-        except AttributeError as exc:
-            raise MissingFlowError(
-                f"Flow function with name {func_name!r} not found in {path!r}. "
-            ) from exc
 
-        if not isinstance(flow, Flow):
-            raise MissingFlowError(
-                f"Function with name {func_name!r} is not a flow. Make sure that it is "
-                "decorated with '@flow'."
-            )
-
-        return flow
-
-
-def load_flow_from_text(script_contents: AnyStr, flow_name: str) -> Flow:
-    """
-    Load a flow from a text script.
-
-    The script will be written to a temporary local file path so errors can refer
-    to line numbers and contextual tracebacks can be provided.
-    """
-    with NamedTemporaryFile(
-        mode="wt" if isinstance(script_contents, str) else "wb",
-        prefix=f"flow-script-{flow_name}",
-        suffix=".py",
-        delete=False,
-    ) as tmpfile:
-        tmpfile.write(script_contents)
-        tmpfile.flush()
+    if ":" in entrypoint:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+    else:
+        path, func_name = entrypoint.rsplit(".", maxsplit=1)
     try:
-        flow = load_flow_from_script(tmpfile.name, flow_name=flow_name)
-    finally:
-        # windows compat
-        tmpfile.close()
-        os.remove(tmpfile.name)
+        flow = import_object(entrypoint)
+    except AttributeError as exc:
+        raise MissingFlowError(
+            f"Flow function with name {func_name!r} not found in {path!r}. "
+        ) from exc
+
+    if not isinstance(flow, Flow):
+        raise MissingFlowError(
+            f"Function with name {func_name!r} is not a flow. Make sure that it is "
+            "decorated with '@flow'."
+        )
+
     return flow
 
 
@@ -1880,7 +1822,7 @@ async def load_flow_from_flow_run(
             )
             storage_block = Block._from_block_document(storage_document)
         else:
-            basepath = deployment.path or Path(deployment.manifest_path).parent
+            basepath = deployment.path
             if runner_storage_base_path:
                 basepath = str(basepath).replace(
                     "$STORAGE_BASE_PATH", runner_storage_base_path
@@ -1899,19 +1841,15 @@ async def load_flow_from_flow_run(
         run_logger.debug(
             f"Running {len(deployment.pull_steps)} deployment pull step(s)"
         )
+
+        from prefect.deployments.steps.core import run_steps
+
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
-    # for backwards compat
-    if deployment.manifest_path:
-        with open(deployment.manifest_path, "r") as f:
-            import_path = json.load(f)["import_path"]
-            import_path = (
-                Path(deployment.manifest_path).parent / import_path
-            ).absolute()
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))

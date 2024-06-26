@@ -51,18 +51,19 @@ Make sure `PREFECT_API_KEY` is configured to use a valid API key.
 
 You can use the `prefect cloud workspace ls` CLI command to view or set the active workspace.
 
-<div class="terminal">
 ```bash
-$ prefect cloud workspace ls
+prefect cloud workspace ls
+```
+
+```shell
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃   Available Workspaces: ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
 │   g-gadflow/g-workspace │
 │    * prefect/workinonit │
-└─────────────────────────┘
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
     * active workspace
 ```
-</div>
 
 You can also check that the account and workspace IDs specified in the URL for `PREFECT_API_URL` 
 match those shown in the URL for your Prefect Cloud workspace.
@@ -135,7 +136,7 @@ They should be upgraded simultaneously with the core library, using the same met
 
 ## Logs
 
-In many cases, there is an informative stack trace in Prefect's [logs](/3.0rc/develop/observe-workflows/logging/). 
+In many cases, there is an informative stack trace in Prefect's [logs](/3.0rc/develop/logging/). 
 **Read it carefully**, locate the source of the error, and try to identify the cause.
 
 There are two types of logs:
@@ -148,7 +149,7 @@ If your flow and task logs are empty, there may have been an infrastructure issu
 Check your worker logs for more details.
 
 If there is no clear indication of what went wrong, try updating the logging level from the default `INFO` level 
-to the `DEBUG` level. [Settings](/3.0rc/api-ref/prefect/settings/) such as the logging level are propagated 
+to the `DEBUG` level. [Settings](https://prefect-python-sdk-docs.netlify.app/prefect/settings/) such as the logging level are propagated 
 from the worker environment to the flow run environment. Set them with environment variables or the `prefect config set` CLI:
 
 ```bash
@@ -229,12 +230,10 @@ async def test_example(client):
 
 You'll see a failure like:
 
-<div class="terminal">
 ```bash
 E       assert 307 == 201
 E        +  where 307 = <Response [307 Temporary Redirect]>.status_code
 ```
-</div>
 
 To resolve this, include the trailing `/`:
 
@@ -263,7 +262,6 @@ async def test_nested_example(client):
 As you're working with one of the `FlowRunner` implementations, you may get an
 error like this:
 
-<div class="terminal">
 ```bash
 E               pytest.PytestUnraisableExceptionWarning: Exception ignored in: <ssl.SSLSocket fd=-1, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0>
 E
@@ -275,7 +273,7 @@ E               ResourceWarning: unclosed <ssl.SSLSocket fd=10, family=AddressFa
 .../_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning
 
 ```
-</div>
+
 
 This error states that your test suite (or the `prefect` library code) opened a
 connection to something (like a Docker daemon or a Kubernetes cluster) and didn't close

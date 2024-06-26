@@ -21,7 +21,7 @@ async def test_task_persisted_result_due_to_flow_feature(prefect_client, options
     def foo():
         return bar(return_state=True)
 
-    @task
+    @task(persist_result=True)
     def bar():
         return 1
 
@@ -41,7 +41,7 @@ async def test_task_persisted_result_due_to_task_feature(prefect_client, options
     def foo():
         return bar(return_state=True)
 
-    @task(**options)
+    @task(**options, persist_result=True)
     def bar():
         return 1
 
@@ -316,7 +316,7 @@ async def test_task_result_with_null_return(prefect_client):
     def foo():
         return bar(return_state=True)
 
-    @task
+    @task(persist_result=True)
     def bar():
         return None
 

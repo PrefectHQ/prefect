@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
+    Any,
     Generator,
     Iterable,
     List,
@@ -142,7 +143,7 @@ def build_image(
     pull: bool = False,
     platform: Optional[str] = None,
     stream_progress_to: Optional[TextIO] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> str:
     """Builds a Docker image, returning the image ID
 

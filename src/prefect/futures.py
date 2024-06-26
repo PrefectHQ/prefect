@@ -2,27 +2,31 @@ import abc
 import concurrent.futures
 import inspect
 import uuid
+from collections.abc import Iterator
 from functools import partial
-from typing import Any, Generic, Optional, Set, Union, cast
+from typing import Any, Generic, List, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
+from prefect._internal.compatibility.deprecated import deprecated_async_method
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import Pending, State
 from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
+from prefect.utilities.timeout import timeout as timeout_context
 
 F = TypeVar("F")
+R = TypeVar("R")
 
 logger = get_logger(__name__)
 
 
-class PrefectFuture(abc.ABC):
+class PrefectFuture(abc.ABC, Generic[R]):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
     asynchronous execution of a task run. It provides methods to wait for the task
@@ -31,7 +35,7 @@ class PrefectFuture(abc.ABC):
 
     def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
-        self._final_state = None
+        self._final_state: Optional[State[R]] = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
@@ -61,7 +65,7 @@ class PrefectFuture(abc.ABC):
         If the task run has already completed, this method will return immediately.
 
         Args:
-            - timeout: The maximum number of seconds to wait for the task run to complete.
+            timeout: The maximum number of seconds to wait for the task run to complete.
               If the task run has not completed after the timeout has elapsed, this method will return.
         """
 
@@ -70,7 +74,7 @@ class PrefectFuture(abc.ABC):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         ...
         """
         Get the result of the task run associated with this future.
@@ -78,16 +82,16 @@ class PrefectFuture(abc.ABC):
         If the task run has not completed, this method will wait for the task run to complete.
 
         Args:
-            - timeout: The maximum number of seconds to wait for the task run to complete.
+            timeout: The maximum number of seconds to wait for the task run to complete.
             If the task run has not completed after the timeout has elapsed, this method will return.
-            - raise_on_failure: If `True`, an exception will be raised if the task run fails.
+            raise_on_failure: If `True`, an exception will be raised if the task run fails.
 
         Returns:
             The result of the task run.
         """
 
 
-class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
+class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
     """
     A Prefect future that wraps another future object.
     """
@@ -102,12 +106,13 @@ class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
         return self._wrapped_future
 
 
-class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
+class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]):
     """
     A Prefect future that wraps a concurrent.futures.Future. This future is used
     when the task run is submitted to a ThreadPoolExecutor.
     """
 
+    @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
@@ -116,11 +121,12 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
         if isinstance(result, State):
             self._final_state = result
 
+    @deprecated_async_method
     def result(
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         if not self._final_state:
             try:
                 future_result = self._wrapped_future.result(timeout=timeout)
@@ -143,8 +149,20 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
             _result = run_coro_as_sync(_result)
         return _result
 
+    def __del__(self):
+        if self._final_state or self._wrapped_future.done():
+            return
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "A future was garbage collected before it resolved."
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+        )
 
-class PrefectDistributedFuture(PrefectFuture):
+
+class PrefectDistributedFuture(PrefectFuture[R]):
     """
     Represents the result of a computation happening anywhere.
 
@@ -153,6 +171,7 @@ class PrefectDistributedFuture(PrefectFuture):
     any task run scheduled in Prefect's API.
     """
 
+    @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
         return run_coro_as_sync(self.wait_async(timeout=timeout))
 
@@ -189,11 +208,12 @@ class PrefectDistributedFuture(PrefectFuture):
                 self._final_state = task_run.state
             return
 
+    @deprecated_async_method
     def result(
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         return run_coro_as_sync(
             self.result_async(timeout=timeout, raise_on_failure=raise_on_failure)
         )
@@ -202,7 +222,7 @@ class PrefectDistributedFuture(PrefectFuture):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ):
+    ) -> R:
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
@@ -218,6 +238,63 @@ class PrefectDistributedFuture(PrefectFuture):
         if not isinstance(other, PrefectDistributedFuture):
             return False
         return self.task_run_id == other.task_run_id
+
+
+class PrefectFutureList(list, Iterator, Generic[F]):
+    """
+    A list of Prefect futures.
+
+    This class provides methods to wait for all futures
+    in the list to complete and to retrieve the results of all task runs.
+    """
+
+    def wait(self, timeout: Optional[float] = None) -> None:
+        """
+        Wait for all futures in the list to complete.
+
+        Args:
+            timeout: The maximum number of seconds to wait for all futures to
+                complete. This method will not raise if the timeout is reached.
+        """
+        try:
+            with timeout_context(timeout):
+                for future in self:
+                    future.wait()
+        except TimeoutError:
+            logger.debug("Timed out waiting for all futures to complete.")
+            return
+
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> List:
+        """
+        Get the results of all task runs associated with the futures in the list.
+
+        Args:
+            timeout: The maximum number of seconds to wait for all futures to
+                complete.
+            raise_on_failure: If `True`, an exception will be raised if any task run fails.
+
+        Returns:
+            A list of results of the task runs.
+
+        Raises:
+            TimeoutError: If the timeout is reached before all futures complete.
+        """
+        try:
+            with timeout_context(timeout):
+                return [
+                    future.result(raise_on_failure=raise_on_failure) for future in self
+                ]
+        except TimeoutError as exc:
+            # timeout came from inside the task
+            if "Scope timed out after {timeout} second(s)." not in str(exc):
+                raise
+            raise TimeoutError(
+                f"Timed out waiting for all futures to complete within {timeout} seconds"
+            ) from exc
 
 
 def resolve_futures_to_states(

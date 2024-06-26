@@ -14,9 +14,21 @@ The prefect-docker library is required to create deployments that will submit ru
 
 ### Install prefect-docker
 
-```bash
-pip install prefect-docker
-```
+
+Install or update to the latest version of the prefect-docker library and dependencies.
+
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-docker
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-docker
+    ```
+    </Tab>
+</Tabs>
 
 ### Examples
 See the Prefect [Workers docs](3.0rc/deploy/dynamic-infra/push-runs-remote) to learn how to create and run deployments that use Docker.

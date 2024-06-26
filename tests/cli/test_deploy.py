@@ -5403,46 +5403,6 @@ class TestDeploymentTrigger:
 
                 assert triggers == expected_triggers
 
-        async def test_deploy_command_warns_triggers_not_created_not_cloud(
-            self, project_dir, prefect_client, work_pool
-        ):
-            prefect_file = Path("prefect.yaml")
-            with prefect_file.open(mode="r") as f:
-                contents = yaml.safe_load(f)
-
-            contents["deployments"] = [
-                {
-                    "name": "test-name-1",
-                    "work_pool": {
-                        "name": work_pool.name,
-                    },
-                    "triggers": [
-                        {
-                            "enabled": True,
-                            "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                            "expect": ["prefect.flow-run.Completed"],
-                            "match_related": {
-                                "prefect.resource.name": "seed",
-                                "prefect.resource.role": "flow",
-                            },
-                        }
-                    ],
-                }
-            ]
-
-            with prefect_file.open(mode="w") as f:
-                yaml.safe_dump(contents, f)
-
-            # Deploy the deployment with a name
-            await run_sync_in_worker_thread(
-                invoke_and_assert,
-                command="deploy ./flows/hello.py:my_flow -n test-name-1",
-                expected_code=0,
-                expected_output_contains=[
-                    "Deployment triggers are only supported on Prefect Cloud"
-                ],
-            )
-
     class TestDeploymentTriggerPassedViaCLI:
         @pytest.mark.usefixtures("project_dir")
         async def test_json_string_trigger(self, docker_work_pool):

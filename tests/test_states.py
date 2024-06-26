@@ -140,7 +140,12 @@ class TestReturnValueToState:
         state = Completed(data="hello!")
         assert await return_value_to_state(state, factory) is state
 
-    async def test_returns_single_state_with_null_data(self, factory):
+    async def test_returns_single_state_with_null_data_and_persist_off(
+        self, prefect_client
+    ):
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=False
+        )
         state = Completed(data=None)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state

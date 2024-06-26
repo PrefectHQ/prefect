@@ -31,8 +31,8 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
+from prefect.deployments.runner import RunnerDeployment
+from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
@@ -48,6 +48,7 @@ from prefect.flows import (
     load_flow_from_flow_run,
 )
 from prefect.logging import get_run_logger
+from prefect.results import PersistedResultBlob
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -71,6 +72,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.transactions import transaction
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
@@ -265,6 +267,53 @@ class TestDecorator:
                 pass
 
 
+class TestResultPersistence:
+    @pytest.mark.parametrize("persist_result", [True, False])
+    def test_persist_result_set_to_bool(self, persist_result):
+        @flow(persist_result=persist_result)
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(persist_result=persist_result)
+
+        assert my_flow.persist_result is persist_result
+        assert new_flow.persist_result is persist_result
+
+    def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        @flow(result_storage=block)
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(result_storage=block)
+
+        assert my_flow.persist_result is True
+        assert new_flow.persist_result is True
+
+    def test_setting_result_serializer_sets_persist_result_to_true(self):
+        @flow(result_serializer="json")
+        def my_flow():
+            pass
+
+        @flow
+        def base():
+            pass
+
+        new_flow = base.with_options(result_serializer="json")
+
+        assert my_flow.persist_result is True
+        assert new_flow.persist_result is True
+
+
 class TestFlowWithOptions:
     def test_with_options_allows_override_of_flow_settings(self):
         @flow(
@@ -406,7 +455,6 @@ class TestFlowWithOptions:
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @flow(
-            persist_result=True,
             result_serializer="json",
             result_storage=LocalFileSystem(basepath=tmp_path),
         )
@@ -414,11 +462,9 @@ class TestFlowWithOptions:
             pass
 
         flow_with_options = initial_flow.with_options(
-            persist_result=None,
             result_serializer=None,
             result_storage=None,
         )
-        assert flow_with_options.persist_result is None
         assert flow_with_options.result_serializer is None
         assert flow_with_options.result_storage is None
 
@@ -739,16 +785,6 @@ class TestFlowCall:
 
         with pytest.raises(ValueError, match="Test 2"):
             await second.result()
-
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    async def test_call_execution_blocked_does_not_run_flow(self):
-        @flow(version="test")
-        def foo(x, y=3, z=3):
-            return x + y + z
-
-        with PrefectObjectRegistry(block_code_execution=True):
-            state = foo(1, 2)
-            assert state is None
 
     def test_flow_can_end_in_paused_state(self):
         @flow
@@ -1798,6 +1834,36 @@ class TestSubflowTaskInputs:
             y=[],
         )
 
+    async def test_subflow_with_upstream_task_passes_validation(self, prefect_client):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14036
+        """
+
+        @task
+        def child_task(x: int):
+            return x
+
+        @flow
+        def child_flow(x: int):
+            return x
+
+        @flow
+        def parent_flow():
+            task_state = child_task(257, return_state=True)
+            flow_state = child_flow(x=task_state, return_state=True)
+            return task_state, flow_state
+
+        task_state, flow_state = parent_flow()
+        assert flow_state.is_completed()
+
+        flow_tracking_task_run = await prefect_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
+
 
 # We flush the APILogHandler in a non-blocking manner, so we need to wait for the logs to be
 # written before we can read them to avoid flakiness.
@@ -1989,7 +2055,7 @@ class TestFlowRetries:
     def test_flow_retry_with_error_in_flow(self):
         run_count = 0
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         def foo():
             nonlocal run_count
             run_count += 1
@@ -2004,13 +2070,13 @@ class TestFlowRetries:
         task_run_count = 0
         flow_run_count = 0
 
-        @task
+        @task(persist_result=True)
         def my_task():
             nonlocal task_run_count
             task_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         def foo():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -2164,13 +2230,13 @@ class TestFlowRetries:
         child_run_count = 0
         flow_run_count = 0
 
-        @flow
+        @flow(persist_result=True)
         def child_flow():
             nonlocal child_run_count
             child_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -3950,12 +4016,13 @@ class TestFlowFromSource:
         assert deployment.storage == storage
 
     async def test_load_flow_from_source_with_url(self, monkeypatch):
-        def mock_create_storage_from_url(url):
+        def mock_create_storage_from_source(url):
             return MockStorage()
 
         monkeypatch.setattr(
-            "prefect.flows.create_storage_from_url", mock_create_storage_from_url
-        )  # adjust the import path as per your module's name and location
+            "prefect.runner.storage.create_storage_from_source",
+            mock_create_storage_from_source,
+        )
 
         loaded_flow = await Flow.from_source(
             source="https://github.com/org/repo.git", entrypoint="flows.py:test_flow"
@@ -4008,7 +4075,7 @@ class TestFlowDeploy:
     @pytest.fixture
     def mock_deploy(self, monkeypatch):
         mock = AsyncMock()
-        monkeypatch.setattr("prefect.flows.deploy", mock)
+        monkeypatch.setattr("prefect.deployments.runner.deploy", mock)
         return mock
 
     @pytest.fixture
@@ -4029,7 +4096,7 @@ class TestFlowDeploy:
     async def test_calls_deploy_with_expected_args(
         self, mock_deploy, local_flow, work_pool, capsys
     ):
-        image = DeploymentImage(
+        image = DockerImage(
             name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
         )
         await local_flow.deploy(
@@ -4079,7 +4146,7 @@ class TestFlowDeploy:
         remote_flow,
         work_pool,
     ):
-        image = DeploymentImage(
+        image = DockerImage(
             name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
         )
         await remote_flow.deploy(
@@ -4248,6 +4315,71 @@ class TestTransactions:
 
         assert "called" not in data2
         assert data1["called"] is True
+
+    def test_task_doesnt_persist_prior_to_commit(self, tmp_path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+
+        @task(result_storage=result_storage, result_storage_key="task1-result")
+        def task1():
+            pass
+
+        @task(result_storage=result_storage, result_storage_key="task2-result")
+        def task2():
+            raise RuntimeError("oopsie")
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        with pytest.raises(ValueError, match="does not exist"):
+            result_storage.read_path("task1-result", _sync=True)
+
+    def test_task_persists_only_at_commit(self, tmp_path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            result_storage=result_storage,
+            result_storage_key="task1-result-A",
+            persist_result=True,
+        )
+        def task1():
+            return dict(some="data")
+
+        @task(
+            result_storage=result_storage,
+            result_storage_key="task2-result-B",
+            persist_result=True,
+        )
+        def task2():
+            pass
+
+        @flow
+        def main():
+            retval = None
+
+            with transaction():
+                task1()
+
+                try:
+                    result_storage.read_path("task1-result-A", _sync=True)
+                except ValueError as exc:
+                    retval = exc
+
+                task2()
+
+            return retval
+
+        val = main()
+
+        assert isinstance(val, ValueError)
+        assert "does not exist" in str(val)
+        content = result_storage.read_path("task1-result-A", _sync=True)
+        blob = PersistedResultBlob.model_validate_json(content)
+        assert blob.load() == {"some": "data"}
 
     def test_commit_isnt_called_on_rollback(self):
         data = {}

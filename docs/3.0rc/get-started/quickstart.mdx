@@ -3,8 +3,10 @@ title: Quickstart
 description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
 ---
 
-Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly.
-In this quickstart, you will use Prefect to convert the following Python script to a schedulable, observable, resilient, and deployable workflow in minutes.
+import Installation from '/snippets/installation.mdx'
+
+Prefect is an orchestration and observability platform that empowers developers to build and scale workflows quickly.
+In this quickstart, you will use Prefect to convert the following Python script to a schedulable, observable, resilient, and deployable workflow in minutes:
 
 ```python
 import httpx
@@ -23,12 +25,11 @@ if __name__ == "__main__":
 
 ## Install Prefect
 
-Install the Prefect client.
-If needed, see [Install Prefect](/3.0rc/get-started/install/) for other options.
+<Installation />
 
-```bash
-pip install -U prefect==3.0.0rc3
-```
+<Tip>
+If needed, see [Install Prefect](/3.0rc/get-started/install/) for other options.
+</Tip>
 
 ## Connect to Prefect's API
 
@@ -37,7 +38,7 @@ Connect to the Prefect API, either Prefect Cloud hosted by us, or a local Prefec
 <Tabs>
   <Tab title="Prefect Cloud">
 1. Head to [https://app.prefect.cloud/](https://app.prefect.cloud/) and sign in or create a forever-free Prefect Cloud account.
-1. Log in to Prefect Cloud from your development environment.
+1. Log in to Prefect Cloud from your development environment:
 
    ```bash
    prefect cloud login
@@ -47,7 +48,7 @@ Connect to the Prefect API, either Prefect Cloud hosted by us, or a local Prefec
 
 Your CLI is now authenticated with your Prefect Cloud account through a locally-stored API key that expires in 30 days.
 
-If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/manage/cloud/manage-users/api-keys/) to learn how to authenticate with a manually created API key.
+If you have any issues with browser-based authentication, you can [authenticate with a manually created API key](/3.0rc/manage/cloud/manage-users/api-keys/) instead.
   </Tab>
   <Tab title="Local server">
 1. Ensure your current profile isn't authenticated to Prefect Cloud:
@@ -66,13 +67,15 @@ If you have any issues with browser-based authentication, see the [Prefect Cloud
   </Tab>
 </Tabs>
 
-## Convert your script to a Prefect flow
+## Convert your script to a Prefect workflow
 
-The easiest way to convert a Python script into a workflow is to add a `@flow` decorator.
-[Flows](/3.0rc/develop/write-flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
+The easiest way to convert a Python script into a workflow is to add a `@flow` decorator to the script's entrypoint, the Python function that runs first.
+[Flows](/3.0rc/develop/write-flows/) are containers for workflow logic as code. 
+They're the core observable, orchestrated, deployable units of work in Prefect.
 
-Convert the script into a flow with two tasks, each defined by the `@task` decorator.
-Tasks are the smallest unit of observed and orchestrated work in Prefect.
+Adding `@task` decorators to the functions called by the flow converts them to tasks. 
+Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
+Prefect will record these dependencies and states as it orchestrates these tasks when they run.
 
 ```python my_gh_workflow.py
 import httpx   # an HTTP client library and dependency of Prefect
@@ -118,7 +121,7 @@ The `log_prints=True` argument provided to the `@flow` decorator logs output fro
 
 ## Run your flow
 
-Run your Prefect flow.
+Run your Prefect flow just as you would a Python script:
 
 ```bash
 python my_gh_workflow.py
@@ -143,13 +146,13 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 ## Create a work pool
 
 Running a flow locally is a good start, but you should use a remote destination for production flows.
-A [work pool](/3.0rc/deploy/work-pools/control-runs/) is the most common way to do this.
+A [work pool](/3.0rc/deploy/control-runs/work-pools/) is the most common way to do this.
 
 <Tabs>
   <Tab title="Prefect Cloud">
 Deploy your flow to Cloud using a managed work pool.
 
-1. Create a [managed work pool](/3.0rc/deploy/serve-flows/index):
+1. Create a [managed work pool](/3.0rc/deploy/control-runs/work-pools):
 
    ```bash
    prefect work-pool create my-work-pool --type prefect:managed
@@ -249,8 +252,8 @@ Deployments elevate flows to remotely configurable entities that have their own 
 You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect.
 Now considering reading: 
 
-* [Write flows](/3.0rc/develop/write-flows/index)
-* [Write tasks](/3.0rc/develop/write-tasks/index)
+* [Write flows](/3.0rc/develop/write-flows)
+* [Write tasks](/3.0rc/develop/write-tasks)
 * [Self-host](/3.0rc/manage/self-host) your Prefect server
 
 <Tip>

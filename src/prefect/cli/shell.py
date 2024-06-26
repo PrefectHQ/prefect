@@ -18,11 +18,11 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.context import tags
-from prefect.deployments.runner import EntrypointType
 from prefect.exceptions import FailedRun
 from prefect.logging.loggers import get_run_logger
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
+from prefect.types.entrypoint import EntrypointType
 
 shell_app = PrefectTyper(
     name="shell", help="Serve and watch shell commands as Prefect flows."

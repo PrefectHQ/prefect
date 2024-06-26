@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -11,6 +12,7 @@ import anyio
 import pytest
 
 from prefect import Task, flow, task
+from prefect.cache_policies import FLOW_PARAMETERS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import (
@@ -435,11 +437,11 @@ class TestTaskRunsAsync:
         assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         async def first():
             return 42
 
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         async def second():
             return 500
 
@@ -635,11 +637,11 @@ class TestTaskRunsSync:
         assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         def first():
             return 42
 
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         def second():
             return 500
 
@@ -1071,39 +1073,6 @@ class TestPersistence:
         state = await async_task(return_state=True)
         assert await state.result() == 42
 
-    async def test_task_persists_results_with_run_id_key(self):
-        @task(persist_result=True)
-        async def async_task():
-            return 42
-
-        state = await async_task(return_state=True)
-        assert state.is_completed()
-        assert await state.result() == 42
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == str(state.state_details.task_run_id)
-
-    async def test_task_loads_result_if_exists(self, prefect_client, tmp_path):
-        run_id = uuid4()
-
-        fs = LocalFileSystem(basepath=tmp_path)
-
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True, result_storage=fs
-        )
-        await factory.create_result(1800, key=str(run_id))
-
-        @task(result_storage=fs)
-        async def async_task():
-            return 42
-
-        state = await run_task_async(
-            async_task, task_run_id=run_id, return_type="state"
-        )
-        assert state.is_completed()
-        assert await state.result() == 1800
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == str(run_id)
-
     async def test_task_loads_result_if_exists_using_result_storage_key(
         self, prefect_client, tmp_path
     ):
@@ -1114,7 +1083,7 @@ class TestPersistence:
         )
         await factory.create_result(-92, key="foo-bar")
 
-        @task(result_storage=fs, result_storage_key="foo-bar")
+        @task(result_storage=fs, result_storage_key="foo-bar", persist_result=True)
         async def async_task():
             return 42
 
@@ -1238,6 +1207,70 @@ class TestCachePolicy:
 
         assert first_val is None
         assert second_val is None
+
+    async def test_flow_parameter_caching(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(
+            cache_policy=FLOW_PARAMETERS,
+            result_storage=fs,
+            persist_result=True,
+        )
+        def my_random_task(x: int):
+            import random
+
+            return random.randint(0, x)
+
+        @flow
+        def my_param_flow(x: int, other_val: str):
+            first_val = my_random_task(x, return_state=True)
+            second_val = my_random_task(x, return_state=True)
+            return first_val, second_val
+
+        first, second = my_param_flow(4200, other_val="foo")
+        assert first.name == "Completed"
+        assert second.name == "Cached"
+
+        first_result = await first.result()
+        second_result = await second.result()
+        assert first_result == second_result
+
+        third, fourth = my_param_flow(4200, other_val="bar")
+        assert third.name == "Completed"
+        assert fourth.name == "Cached"
+
+        third_result = await third.result()
+        fourth_result = await fourth.result()
+
+        assert third_result not in [first_result, second_result]
+        assert fourth_result not in [first_result, second_result]
+
+    async def test_bad_api_result_references_cause_reruns(self, tmp_path: Path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        PAYLOAD = {"return": 42}
+
+        @task(result_storage=fs, result_storage_key="tmp-first", persist_result=True)
+        async def first():
+            return PAYLOAD["return"], get_run_context().task_run
+
+        result, task_run = await run_task_async(first)
+
+        assert result == 42
+        assert await fs.read_path("tmp-first")
+
+        # delete record
+        path = fs._resolve_path("tmp-first")
+        os.unlink(path)
+        with pytest.raises(ValueError, match="does not exist"):
+            assert await fs.read_path("tmp-first")
+
+        # rerun with same task run ID
+        PAYLOAD["return"] = "bar"
+        result, task_run = await run_task_async(first, task_run=task_run)
+
+        assert result == "bar"
+        assert await fs.read_path("tmp-first")
 
 
 class TestGenerators:
