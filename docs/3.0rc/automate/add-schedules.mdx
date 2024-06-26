@@ -166,9 +166,7 @@ Longer schedules, such as one that fires at 9am every morning, adjust for DST au
   
 ### Interval
 
-An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional 
-`anchor_date`. For example, this is how you create a schedule for every 10 minutes in a 
-[block-based deployment](/3.0rc/deploy/prefect-yaml/#block-based-deployments) YAML file:
+An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional `anchor_date`.
 
 ```yaml
 schedule:
@@ -228,9 +226,6 @@ week day or day-of-month adjustments, and more. RRules can represent complex log
 | timezone | String name of a time zone. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.                                          |
 
 You may find it useful to use an RRule string generator such as the [iCalendar.org RRule Tool](https://icalendar.org/rrule-tool.html) to help create valid RRules.
-
-For example, the following RRule schedule in a [block-based deployment](/3.0rc/deploy/prefect-yaml/#block-based-deployments) 
-YAML file creates flow runs on Monday, Wednesday, and Friday until July 30, 2024.
 
 ```yaml
 schedule:
