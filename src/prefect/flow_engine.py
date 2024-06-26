@@ -16,6 +16,7 @@ from typing import (
     Literal,
     Optional,
     Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -50,6 +51,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
     call_with_parameters,
@@ -95,6 +97,7 @@ class FlowRunEngine(Generic[P, R]):
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     wait_for: Optional[Iterable[PrefectFuture]] = None
+    _result: Union[R, Exception, Type[NotSet]] = NotSet
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
@@ -208,6 +211,11 @@ class FlowRunEngine(Generic[P, R]):
         return state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
+        if self._result is not NotSet and not isinstance(self._result, State):
+            if isinstance(self._result, Exception) and raise_on_failure:
+                raise self._result
+            else:
+                return self._result
         _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
@@ -219,13 +227,15 @@ class FlowRunEngine(Generic[P, R]):
         result_factory = getattr(FlowRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
+        resolved_result = resolve_futures_to_states(result)
         terminal_state = run_coro_as_sync(
             return_value_to_state(
-                resolve_futures_to_states(result),
+                resolved_result,
                 result_factory=result_factory,
             )
         )
         self.set_state(terminal_state)
+        self._result = resolved_result
         return result
 
     def handle_exception(
@@ -252,6 +262,7 @@ class FlowRunEngine(Generic[P, R]):
                 ),
             )
             state = self.set_state(Running())
+        self._exception = exc
         return state
 
     def handle_timeout(self, exc: TimeoutError) -> None:
@@ -572,7 +583,7 @@ class FlowRunEngine(Generic[P, R]):
             except TimeoutError as exc:
                 self.handle_timeout(exc)
             except Exception as exc:
-                self.logger.exception(f"Encountered exception during execution: {exc}")
+                self.logger.exception("Encountered exception during execution: %r", exc)
                 self.handle_exception(exc)
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:

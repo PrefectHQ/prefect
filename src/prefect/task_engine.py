@@ -17,6 +17,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Type,
     TypeVar,
     Union,
 )
@@ -63,6 +64,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.transactions import Transaction, transaction
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
@@ -89,6 +91,7 @@ class TaskRunEngine(Generic[P, R]):
     retries: int = 0
     wait_for: Optional[Iterable[PrefectFuture]] = None
     context: Optional[Dict[str, Any]] = None
+    _result: Union[R, Exception, Type[NotSet]] = NotSet
     _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
@@ -304,6 +307,11 @@ class TaskRunEngine(Generic[P, R]):
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
+        if self._result is not NotSet:
+            if isinstance(self._result, Exception) and raise_on_failure:
+                raise self._result
+            else:
+                return self._result
         _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
@@ -339,6 +347,7 @@ class TaskRunEngine(Generic[P, R]):
         if transaction.is_committed():
             terminal_state.name = "Cached"
         self.set_state(terminal_state)
+        self._result = result
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
@@ -365,9 +374,11 @@ class TaskRunEngine(Generic[P, R]):
                 new_state = Retrying()
 
             self.logger.info(
-                f"Task run failed with exception {exc!r} - "
-                f"Retry {self.retries + 1}/{self.task.retries} will start "
-                f"{str(delay) + ' second(s) from now' if delay else 'immediately'}"
+                "Task run failed with exception: %r - " "Retry %s/%s will start %s",
+                exc,
+                self.retries + 1,
+                self.task.retries,
+                str(delay) + " second(s) from now" if delay else "immediately",
             )
 
             self.set_state(new_state, force=True)
@@ -375,7 +386,9 @@ class TaskRunEngine(Generic[P, R]):
             return True
         elif self.retries >= self.task.retries:
             self.logger.error(
-                f"Task run failed with exception {exc!r} - Retries are exhausted"
+                "Task run failed with exception: %r - Retries are exhausted",
+                exc,
+                exc_info=True,
             )
             return False
 
@@ -394,6 +407,7 @@ class TaskRunEngine(Generic[P, R]):
                 )
             )
             self.set_state(state)
+            self._result = exc
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
@@ -539,8 +553,8 @@ class TaskRunEngine(Generic[P, R]):
 
                             @flow
                             def example_flow():
-                                future = say_hello.submit(name="Marvin)
-                                future.wait()
+                                say_hello.submit(name="Marvin)
+                                say_hello.wait()
 
                             example_flow()
                                       """
