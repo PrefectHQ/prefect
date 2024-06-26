@@ -341,6 +341,11 @@ class Flow(Generic[P, R]):
                 persist_result = True
 
         self.persist_result = persist_result
+        if result_storage is not None:
+            if getattr(result_storage, "_block_document_id", None) is None:
+                raise TypeError(
+                    "Result storage must have a block document ID - save it first."
+                )
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
