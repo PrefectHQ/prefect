@@ -17,11 +17,6 @@ markdown_extensions:
     - meta
     - pymdownx.highlight:
           use_pygments: true
-    - pymdownx.superfences:
-          custom_fences:
-              - name: mermaid
-                class: mermaid
-                format: !!python/name:pymdownx.superfences.fence_code_format
     - pymdownx.details
     - pymdownx.tabbed:
           alternate_style: true
@@ -63,7 +58,7 @@ plugins:
           default_handler: python
           handlers:
               python:
-                  paths: [..]
+                  paths: [src]
 watch:
     - mkdocs.yml
     - src

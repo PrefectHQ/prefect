@@ -539,8 +539,8 @@ class TaskRunEngine(Generic[P, R]):
 
                             @flow
                             def example_flow():
-                                say_hello.submit(name="Marvin)
-                                say_hello.wait()
+                                future = say_hello.submit(name="Marvin)
+                                future.wait()
 
                             example_flow()
                                       """
@@ -602,6 +602,7 @@ class TaskRunEngine(Generic[P, R]):
             key=self.compute_transaction_key(),
             store=ResultFactoryStore(result_factory=result_factory),
             overwrite=overwrite,
+            logger=self.logger,
         ) as txn:
             yield txn
 

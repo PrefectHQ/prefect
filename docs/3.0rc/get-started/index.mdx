@@ -1,36 +1,54 @@
 ---
 title: Welcome to Prefect
-description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
-# TODO Figure out how to do this: hide_table_of_contents: true
+description: Prefect is a workflow orchestration framework for building resilient data pipelines in Python.
+mode: wide
 ---
 
-Prefect is a workflow orchestration tool empowering developers to build, observe, and react to data pipelines.
+```python
+from prefect import flow, task
 
-It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. Just bring your Python code, sprinkle in a few decorators, and go!
+@task(log_prints=True)
+def say_hello(name: str):
+    print(f"Hello, {name}!")
 
-With Prefect you gain:
+@flow
+def hello_universe(names: list[str]):
+    for name in names:
+        say_hello(name)
 
-* [Scheduling](/3.0rc/automate/add-schedules)
-* [Retries](/3.0rc/develop/write-tasks#task-arguments)
-* [Logging](/3.0rc/develop/logging/) 
-* [Convenient async functionality](/3.0rc/develop/task-runners/#task-runners)
-* [Caching](/3.0rc/develop/write-tasks#caching)
-* [Notifications](/3.0rc/automate/events/automations-triggers/)
-* [Observability](/3.0rc/develop/runtime-context/)
-* [Event-based orchestration](/3.0rc/automate/events/webhook-triggers)
+if __name__ == "__main__":
+    # create your first deployment to automate your flow
+    hello_universe.serve(name="your-first-deployment")
+```
 
-![screenshot of Prefect Cloud dashboard](/3.0rc/img/ui/cloud-dashboard.png)
+## Get started
 
-## New to Prefect?
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="play" href="/3.0rc/get-started/quickstart">
+    Learn how to schedule a script to run on remote infrastructure and observe its state.
+  </Card>
+  <Card title="Prefect Cloud" icon="cloud" href="/3.0rc/manage/cloud/index">
+    Use our hosted workflow application platform that provides all the capabilities of open source Prefect plus additional features.
+  </Card>
+  <Card title="Upgrade to Prefect 3" icon="sparkles" href="/3.0rc/resources/upgrade-prefect-3">
+    Learn how to migrate from Prefect 2 to Prefect 3 to get the latest features and performance enhancements.
+  </Card>
+</CardGroup>
 
-Get up and running quickly with the [quickstart guide](/3.0rc/get-started/quickstart/).
+## Start building
 
-Take your understanding even further with Prefect's [API reference](/3.0rc/api-ref/).
+<CardGroup cols={3}>
+  <Card title="Develop" icon="code" href="/3.0rc/develop/write-flows">
+    Write and observe workflows, create tasks, and build interactive workflows.
+  </Card>
+  <Card title="Deploy" icon="rocket" href="/3.0rc/deploy/serve-flows/deploy-a-flow">
+    Serve workflows on long lived infrastructure or deploy workflows to dynamic infrastructure.
+  </Card>
+  <Card title="Automate" icon="eyes" href="/3.0rc/automate/events/automations-triggers">
+    Enable workflows to react to their environment with events, automations, and webhooks.
+  </Card>
+</CardGroup>
 
-Join Prefect's [vibrant community](/contribute/index/) of over 26,000 engineers to learn with others and share your knowledge!
+## Join our community
 
-<Tip>
-**Need help?**
-
-Get your questions answered by a Prefect Product Advocate! [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
-</Tip>
+Join Prefect's vibrant [community of nearly 30,000 engineers](/contribute/index/) to learn with others and share your knowledge!

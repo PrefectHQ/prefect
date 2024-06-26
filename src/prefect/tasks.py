@@ -50,7 +50,6 @@ from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutu
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -387,9 +386,20 @@ class Task(Generic[P, R]):
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
 
+        # result persistence settings
         if persist_result is None:
-            persist_result = PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
-        if not persist_result:
+            if any(
+                [
+                    cache_policy and cache_policy != NONE and cache_policy != NotSet,
+                    cache_key_fn is not None,
+                    result_storage_key is not None,
+                    result_storage is not None,
+                    result_serializer is not None,
+                ]
+            ):
+                persist_result = True
+
+        if persist_result is False:
             self.cache_policy = None if cache_policy is None else NONE
             if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
                 logger.warning(
@@ -480,7 +490,7 @@ class Task(Generic[P, R]):
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
-        task_run_name: Optional[Union[Callable[[], str], str]] = None,
+        task_run_name: Optional[Union[Callable[[], str], str, Type[NotSet]]] = NotSet,
         cache_expiration: Optional[datetime.timedelta] = None,
         retries: Union[int, Type[NotSet]] = NotSet,
         retry_delay_seconds: Union[
@@ -594,7 +604,9 @@ class Task(Generic[P, R]):
             else self.cache_policy,
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
-            task_run_name=task_run_name,
+            task_run_name=task_run_name
+            if task_run_name is not NotSet
+            else self.task_run_name,
             retries=retries if retries is not NotSet else self.retries,
             retry_delay_seconds=(
                 retry_delay_seconds
