@@ -19,6 +19,14 @@
         />
       </div>
     </div>
+    <FlowRunGraphEventPopover
+      v-if="selection && selection.kind === 'event'"
+      v-model:selection="selection"
+    />
+    <FlowRunGraphEventsPopover
+      v-if="selection && selection.kind === 'events'"
+      v-model:selection="selection"
+    />
     <FlowRunGraphArtifactsPopover
       v-if="selection && selection.kind === 'artifacts'"
       v-model:selection="selection"
@@ -42,6 +50,8 @@
     FlowRunGraphArtifactsPopover,
     FlowRunGraphStatePopover,
     RunGraphFetchEventsContext,
+    FlowRunGraphEventPopover,
+    FlowRunGraphEventsPopover,
     RunGraphEvent,
     WorkspaceEventsFilter,
     useWorkspaceApi
