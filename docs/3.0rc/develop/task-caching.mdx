@@ -18,6 +18,19 @@ This implies that, by default, calling the same task with the same inputs more t
 will result in cached behavior for all calls after the first.
 This behavior can be configured - see [customizing the cache](/3.0rc/develop/write-tasks#customizing-the-cache) below.
 
+<Warning>
+**Caching requires result persistence**
+
+Caching requires result persistence, which is off by default.
+To turn on result persistence for all of your tasks use the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting:
+
+```
+prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
+```
+
+See [settings](/3.0rc/manage/settings-and-profiles) for more details on managing Prefect settings.
+</Warning>
+
 ## Cache keys
 
 To determine whether a task run should retrieve a cached state, Prefect uses the concept of a "cache key". 
@@ -285,6 +298,7 @@ particularly useful when you have a flow that is responsible for updating the ca
 To refresh the cache for all tasks, use the `PREFECT_TASKS_REFRESH_CACHE` setting. 
 Setting `PREFECT_TASKS_REFRESH_CACHE=true` changes the default behavior of all tasks to refresh. 
 This is particularly useful to rerun a flow without cached results.
+See [settings](/3.0rc/manage/settings-and-profiles) for more details on managing Prefect settings.
 
 If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` 
 to `False`. These tasks will never refresh the cache. If a cache key exists it will be read, not updated. 
