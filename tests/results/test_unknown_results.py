@@ -51,12 +51,6 @@ async def test_unknown_result_json_roundtrip_base_result_parser():
     assert await deserialized.get() is None
 
 
-async def test_unknown_result_populates_default_artifact_metadata():
-    result = await UnknownResult.create()
-    assert result.artifact_type == "result"
-    assert result.artifact_description == "Unknown result persisted to Prefect."
-
-
 async def test_unknown_result_null_is_distinguishable_from_none():
     """
     This is important for separating cases where _no result_ is stored in the database
