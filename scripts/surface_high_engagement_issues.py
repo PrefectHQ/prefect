@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime, timedelta
+from typing import Union
 
 import httpx
 
@@ -12,7 +13,7 @@ GITHUB_REPO = "PrefectHQ/prefect"
 TOKEN_REGEX = re.compile(r"\s* Token:\s(.*)")
 ENGAGEMENT_THRESHOLD = 5  # Number of comments to consider an issue high engagement
 LABEL_REMOVAL_INTERVAL_MONTHS = (
-    1  # Buffer number of days to wait before re-adding the "Needs Priority" label
+    1  # Buffer number of months to wait before re-adding the "Needs Priority" label
 )
 
 PROJECT_ID = "PVT_kwDOAlc6B84AGBLE"
@@ -26,7 +27,7 @@ single_select_options_cache = None
 
 def get_github_token() -> str:
     """
-    Retrieve the current GitHub token from the `gh` CLI.
+    Retrieve the current GitHub token from the `gh` CLI or environment variables.
     """
     if "GITHUB_TOKEN" in os.environ:
         return os.environ["GITHUB_TOKEN"]
@@ -64,10 +65,19 @@ def get_github_token() -> str:
     return match.groups()[0]
 
 
-def get_high_engagement_issues(headers: dict):
+def get_high_engagement_issues(headers: dict) -> list:
+    """
+    Fetch all high engagement issues from the repository.
+
+    Args:
+        headers (dict): HTTP headers for GitHub API requests.
+
+    Returns:
+        list: List of high engagement issues.
+    """
     all_issues = []
     page = 1
-    per_page = 100  # GitHub API supports up to 100 items per page
+    per_page = 100
 
     while True:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/issues"
@@ -87,18 +97,27 @@ def get_high_engagement_issues(headers: dict):
 
         all_issues.extend(issues)
         page += 1
-        print(f"Fetched page {page} with {len(issues)} issues")  # Debug information
+        print(f"Fetched page {page} with {len(issues)} issues")
 
     high_engagement_issues = [
         issue for issue in all_issues if issue["comments"] >= ENGAGEMENT_THRESHOLD
     ]
-    print(
-        f"Total high engagement issues: {len(high_engagement_issues)}"
-    )  # Debug information
+    print(f"Total high engagement issues: {len(high_engagement_issues)}")
     return high_engagement_issues
 
 
-def issue_has_new_comment(issue, new_comment_interval_days, headers: dict):
+def issue_has_new_comment(issue, new_comment_interval_days, headers: dict) -> bool:
+    """
+    Check if an issue has a new comment within the specified interval.
+
+    Args:
+        issue (dict): The issue to check.
+        new_comment_interval_days (int): Interval in days to check for new comments.
+        headers (dict): HTTP headers for GitHub API requests.
+
+    Returns:
+        bool: True if there is a new comment within the interval, False otherwise.
+    """
     comments_url = issue["comments_url"]
     response = httpx.get(comments_url, headers=headers)
     response.raise_for_status()
@@ -116,7 +135,7 @@ def issue_has_new_comment(issue, new_comment_interval_days, headers: dict):
     return False
 
 
-def prioritized_recently(issue_number: int, headers: dict):
+def prioritized_recently(issue_number: int, headers: dict) -> bool:
     """
     An issue is considered to have been prioritized recently if it was removed within the last LABEL_REMOVAL_INTERVAL_MONTHS months.
     We don't want to re-add the "Needs Priority" label if it was removed recently as there is likely to be further discussion
@@ -124,6 +143,13 @@ def prioritized_recently(issue_number: int, headers: dict):
 
     It's possible we may want to increase the LABEL_REMOVAL_INTERVAL_MONTHS to a larger value if we find that the label is being
     re-added too frequently.
+
+    Args:
+        issue_number (int): The number of the issue.
+        headers (dict): HTTP headers for GitHub API requests.
+
+    Returns:
+        bool: True if the issue was prioritized recently, False otherwise.
     """
     timeline_url = (
         f"https://api.github.com/repos/{GITHUB_REPO}/issues/{issue_number}/timeline"
@@ -145,7 +171,17 @@ def prioritized_recently(issue_number: int, headers: dict):
     return False
 
 
-def get_issue_id(issue_number: int, headers: dict):
+def get_issue_id(issue_number: int, headers: dict) -> str:
+    """
+    Retrieve the ID of an issue given its number.
+
+    Args:
+        issue_number (int): The number of the issue.
+        headers (dict): HTTP headers for GitHub API requests.
+
+    Returns:
+        str: The ID of the issue.
+    """
     query = """
     query($owner: String!, $repo: String!, $issueNumber: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -167,7 +203,16 @@ def get_issue_id(issue_number: int, headers: dict):
     return issue_id
 
 
-def get_all_project_items(headers):
+def get_all_project_items(headers) -> list:
+    """
+    Retrieve all project items from the project.
+
+    Args:
+        headers (dict): HTTP headers for GitHub API requests.
+
+    Returns:
+        list: List of project items.
+    """
     global project_items_cache
     if project_items_cache is not None:
         "use da cache"
@@ -224,7 +269,17 @@ def get_all_project_items(headers):
     return all_items
 
 
-def get_project_item_id(issue_id: str, headers: dict):
+def get_project_item_id(issue_id: str, headers: dict) -> Union[str, None]:
+    """
+    Retrieve the project item ID for a given issue ID.
+
+    Args:
+        issue_id (str): The ID of the issue.
+        headers (dict): HTTP headers for GitHub API requests.
+
+    Returns:
+        str: The project item ID, or None if not found.
+    """
     items = get_all_project_items(headers)
     print(f"Total project items retrieved: {len(items)}")  # Debug statement
 
@@ -243,7 +298,17 @@ def get_project_item_id(issue_id: str, headers: dict):
     print(f"No match found for issue ID {issue_id}")
 
 
-def get_single_select_options(project_id: str, headers: dict):
+def get_single_select_options(project_id: str, headers: dict) -> list:
+    """
+    Retrieve the options for the single select field.
+
+    Args:
+        project_id (str): The ID of the project.
+        headers (dict): HTTP headers for GitHub API requests.
+
+    Returns:
+        list: List of options for the single select field.
+    """
     global single_select_options_cache
     if single_select_options_cache is not None:
         "use da sso cache"
@@ -291,6 +356,15 @@ def get_single_select_options(project_id: str, headers: dict):
 
 
 def get_needs_priority_option_id(options):
+    """
+    Retrieve the option ID for the "Needs Priority" status.
+
+    Args:
+        options (list): List of options for the single select field.
+
+    Returns:
+        str: The option ID for "Needs Priority".
+    """
     for option in options:
         if "Needs Priority" in option["name"]:
             return option["id"]
@@ -298,6 +372,17 @@ def get_needs_priority_option_id(options):
 
 
 def add_issue_to_project(issue_id: str, project_id: str, headers: dict):
+    """
+    Add an issue to the project.
+
+    Args:
+        issue_id (str): The ID of the issue.
+        project_id (str): The ID of the project.
+        headers (dict): HTTP headers for GitHub API requests.
+
+    Returns:
+        str: The ID of the added project item.
+    """
     query = """
     mutation($projectId: ID!, $contentId: ID!) {
       addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
@@ -320,6 +405,14 @@ def add_issue_to_project(issue_id: str, project_id: str, headers: dict):
 
 
 def update_project_status(project_item_id, option_id, headers: dict):
+    """
+    Update the status of a project item.
+
+    Args:
+        project_item_id (str): The ID of the project item.
+        option_id (str): The ID of the option to set as the status.
+        headers (dict): HTTP headers for GitHub API requests.
+    """
     print(f"Updating status to: {option_id}")
 
     query = """
@@ -353,6 +446,13 @@ def update_project_status(project_item_id, option_id, headers: dict):
 
 
 def add_needs_priority_label_to_high_engagement_issues(new_comment_interval_days: int):
+    """
+    Sets the "Needs Priority" status on high engagement issues with new comments.
+    This status is a field on the Prefect Backlog project board.
+
+    Args:
+        new_comment_interval_days (int): Interval in days to check for new comments.
+    """
     headers = {
         "Authorization": f"Bearer {get_github_token()}",
         "Accept": "application/vnd.github.v3+json",
