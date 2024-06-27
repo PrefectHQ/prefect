@@ -68,12 +68,10 @@ def my_flow():
 
 Calling this flow blocks code execution after the first task and waits for resumption to deliver the punchline.
 
-<div class="terminal">
 ```bash
 await inspiring_joke()
 > "a raft of ducks walk into a bar..."
 ```
-</div>
 
 Resume paused flow runs by clicking **Resume** in the Prefect UI or 
 calling the `resume_flow_run` utility through client code.
@@ -84,11 +82,9 @@ resume_flow_run(FLOW_RUN_ID)
 
 The paused flow run then finishes.
 
-<div class="terminal">
 ```
 > "it's a wonder none of them ducked!"
 ```
-</div>
 
 ### Suspend a flow run
 

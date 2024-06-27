@@ -35,6 +35,7 @@ class Node(PrefectBaseModel):
     end_time: Optional[datetime]
     parents: List[Edge]
     children: List[Edge]
+    encapsulating: List[Edge]
     artifacts: List[GraphArtifact]
 
 

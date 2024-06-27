@@ -13,7 +13,7 @@ bytes to an object respectively.
 
 import abc
 import base64
-from typing import Any, Dict, Generic, Optional, Type, TypeVar
+from typing import Any, Dict, Generic, Optional, Type
 
 from pydantic import (
     BaseModel,
@@ -23,7 +23,7 @@ from pydantic import (
     ValidationError,
     field_validator,
 )
-from typing_extensions import Literal, Self
+from typing_extensions import Literal, Self, TypeVar
 
 from prefect._internal.schemas.validators import (
     cast_type_names_to_serializers,
@@ -36,7 +36,7 @@ from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_b
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect.utilities.pydantic import custom_pydantic_encoder
 
-D = TypeVar("D")
+D = TypeVar("D", default=Any)
 
 
 def prefect_json_object_encoder(obj: Any) -> Any:

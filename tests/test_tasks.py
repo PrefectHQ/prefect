@@ -1267,6 +1267,7 @@ class TestResultPersistence:
 
     def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
         block = LocalFileSystem(basepath=str(tmpdir))
+        block.save("test-name", _sync=True)
 
         @task(result_storage=block)
         def my_task():
@@ -1679,7 +1680,7 @@ class TestTaskCaching:
     ):
         block = LocalFileSystem(basepath=str(tmpdir))
 
-        block.save("test-cache-key-fn-takes-precedence-over-cache-policy")
+        await block.save("test-cache-key-fn-takes-precedence-over-cache-policy")
 
         @task(
             cache_key_fn=lambda *_: "cache-hit-9",
@@ -3036,6 +3037,9 @@ class TestTaskWithOptions:
         def second_cache_key_fn(*_):
             return "second cache hit"
 
+        block = LocalFileSystem(basepath="foo")
+        block.save("foo-test", _sync=True)
+
         @task(
             name="Initial task",
             description="Task before with options",
@@ -3046,7 +3050,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=5,
             persist_result=True,
             result_serializer="pickle",
-            result_storage=LocalFileSystem(basepath="foo"),
+            result_storage=block,
             cache_result_in_memory=False,
             timeout_seconds=None,
             refresh_cache=False,
@@ -3054,6 +3058,9 @@ class TestTaskWithOptions:
         )
         def initial_task():
             pass
+
+        new_block = LocalFileSystem(basepath="bar")
+        new_block.save("bar-test", _sync=True)
 
         task_with_options = initial_task.with_options(
             name="Copied task",
@@ -3065,7 +3072,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=10,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(basepath="bar"),
+            result_storage=new_block,
             cache_result_in_memory=True,
             timeout_seconds=42,
             refresh_cache=True,
@@ -3081,7 +3088,7 @@ class TestTaskWithOptions:
         assert task_with_options.retry_delay_seconds == 10
         assert task_with_options.persist_result is False
         assert task_with_options.result_serializer == "json"
-        assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
+        assert task_with_options.result_storage == new_block
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
@@ -3092,6 +3099,7 @@ class TestTaskWithOptions:
             return "cache hit"
 
         storage = LocalFileSystem(basepath=tmp_path)
+        storage.save("another-passthrough", _sync=True)
 
         @task(
             name="Initial task",
@@ -3134,9 +3142,12 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage_key == "test"
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+        result_storage.save("test-yet-again", _sync=True)
+
         @task(
             result_serializer="json",
-            result_storage=LocalFileSystem(basepath=tmp_path),
+            result_storage=result_storage,
             refresh_cache=True,
             result_storage_key="test",
         )
