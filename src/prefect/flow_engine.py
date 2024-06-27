@@ -214,18 +214,16 @@ class FlowRunEngine(Generic[P, R]):
         return state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
-        if self._return_value is not NotSet:
-            if isinstance(self._return_value, State):
-                _result = self._return_value.result(
-                    raise_on_failure=raise_on_failure, fetch=True
-                )
-            elif isinstance(self._return_value, BaseResult):
+        if self._return_value is not NotSet and not isinstance(
+            self._return_value, State
+        ):
+            if isinstance(self._return_value, BaseResult):
                 _result = self._return_value.get()
             else:
                 _result = self._return_value
 
             if inspect.isawaitable(_result):
-                # getting the value for a State or BaseResult may return an awaitable
+                # getting the value for a BaseResult may return an awaitable
                 # depending on whether the parent frame is sync or not
                 _result = run_coro_as_sync(_result)
             return _result
@@ -235,12 +233,17 @@ class FlowRunEngine(Generic[P, R]):
                 raise self._raised
             return self._raised
 
-        # _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
-        # # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # # depending on whether the parent frame is sync or not
-        # if inspect.isawaitable(_result):
-        #     _result = run_coro_as_sync(_result)
-        # return _result
+        # This is a fall through case which leans on the existing state result mechanics to get the
+        # return value. This is necessary because we currently will return a State object if the
+        # the State was Prefect-created.
+        # TODO: Remove the need to get the result from a State except in cases where the return value
+        # is a State object.
+        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
+        # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # depending on whether the parent frame is sync or not
+        if inspect.isawaitable(_result):
+            _result = run_coro_as_sync(_result)
+        return _result
 
     def handle_success(self, result: R) -> R:
         result_factory = getattr(FlowRunContext.get(), "result_factory", None)

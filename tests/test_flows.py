@@ -1856,7 +1856,7 @@ class TestSubflowTaskInputs:
         def foo():
             return bar(x=2, y=1, return_state=True)
 
-        child_flow_state = foo()
+        child_flow_state = await foo(return_state=True).result()
         flow_tracking_task_run = await prefect_client.read_task_run(
             child_flow_state.state_details.task_run_id
         )

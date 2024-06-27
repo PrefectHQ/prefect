@@ -329,13 +329,6 @@ class TaskRunEngine(Generic[P, R]):
             # otherwise, return the exception
             return self._raised
 
-        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
-            _result = run_coro_as_sync(_result)
-        return _result
-
     def handle_success(self, result: R, transaction: Transaction) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory is None:
