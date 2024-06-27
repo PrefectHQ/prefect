@@ -120,4 +120,4 @@ class Telemetry(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(Telemetry().start())
+    asyncio.run(Telemetry(handle_signals=True).start())

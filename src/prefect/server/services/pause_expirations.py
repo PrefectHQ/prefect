@@ -81,4 +81,4 @@ class FailExpiredPauses(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(FailExpiredPauses().start())
+    asyncio.run(FailExpiredPauses(handle_signals=True).start())

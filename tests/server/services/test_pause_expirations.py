@@ -46,14 +46,14 @@ async def active_pause(session, flow):
 
 async def test_fails_expired_pause(session, expired_pause):
     assert expired_pause.state.type == "PAUSED"
-    await FailExpiredPauses(handle_signals=False).start(loops=1)
+    await FailExpiredPauses().start(loops=1)
     await session.refresh(expired_pause)
     assert expired_pause.state.type == "FAILED"
 
 
 async def test_does_not_fail_active_pause(session, active_pause):
     assert active_pause.state.type == "PAUSED"
-    await FailExpiredPauses(handle_signals=False).start(loops=1)
+    await FailExpiredPauses().start(loops=1)
     await session.refresh(active_pause)
     assert active_pause.state.type == "PAUSED"
 
@@ -62,7 +62,7 @@ async def test_fails_multiple_expired_pauses(session, expired_pause, expired_pau
     assert expired_pause.state.type == "PAUSED"
     assert expired_pause_2.state.type == "PAUSED"
 
-    await FailExpiredPauses(handle_signals=False).start(loops=1)
+    await FailExpiredPauses().start(loops=1)
 
     await session.refresh(expired_pause)
     await session.refresh(expired_pause_2)

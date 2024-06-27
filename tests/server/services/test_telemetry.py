@@ -32,7 +32,7 @@ def error_sens_o_matic_mock():
 async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
     from prefect.client.constants import SERVER_API_VERSION
 
-    telemetry = Telemetry(handle_signals=False)
+    telemetry = Telemetry()
     await telemetry.start(loops=1)
 
     assert sens_o_matic_mock.called
@@ -59,7 +59,7 @@ async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
 
 
 async def test_sets_and_fetches_session_information(sens_o_matic_mock):
-    telemetry = Telemetry(handle_signals=False)
+    telemetry = Telemetry()
     await telemetry.start(loops=1)
 
     # set it on the first call
@@ -69,7 +69,7 @@ async def test_sets_and_fetches_session_information(sens_o_matic_mock):
     assert sts
 
     # retrieve from the db if process restarted
-    telemetry_2 = Telemetry(handle_signals=False)
+    telemetry_2 = Telemetry()
     await telemetry_2.start(loops=1)
     assert telemetry_2.session_id == sid
     assert telemetry_2.session_start_timestamp == sts
@@ -77,7 +77,7 @@ async def test_sets_and_fetches_session_information(sens_o_matic_mock):
 
 async def test_errors_shutdown_service(error_sens_o_matic_mock, caplog):
     # When telemetry encounters an error on any loop the service is stopped
-    telemetry = Telemetry(handle_signals=False)
+    telemetry = Telemetry()
 
     await telemetry.start(loops=5)
 

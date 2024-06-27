@@ -27,13 +27,13 @@ class LoopService:
     loop_seconds = 60
 
     def __init__(
-        self, loop_seconds: Optional[float] = None, handle_signals: bool = True
+        self, loop_seconds: Optional[float] = None, handle_signals: bool = False
     ):
         """
         Args:
             loop_seconds (float): if provided, overrides the loop interval
                 otherwise specified as a class variable
-            handle_signals (bool): if True (default), SIGINT and SIGTERM are
+            handle_signals (bool): if True, SIGINT and SIGTERM are
                 gracefully intercepted and shut down the running service.
         """
         if loop_seconds:

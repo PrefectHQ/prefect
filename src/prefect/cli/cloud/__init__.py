@@ -127,9 +127,6 @@ async def serve_login_api(cancel_scope, task_status):
         cause = exc.__context__  # Hide the system exit
         traceback.print_exception(type(cause), value=cause, tb=cause.__traceback__)
         cancel_scope.cancel()
-    except KeyboardInterrupt:
-        # `uvicorn.serve` can raise `KeyboardInterrupt` when it's done serving.
-        cancel_scope.cancel()
     else:
         # Exit if we are done serving the API
         # Uvicorn overrides signal handlers so without this Ctrl-C is broken
@@ -270,9 +267,8 @@ async def login_with_browser() -> str:
             app.console.print("Waiting for response...")
             await result_event.wait()
 
-        # Uvicorn installs signal handlers, this is the cleanest way to shutdown the
-        # login API
-        raise_signal(signal.SIGINT)
+        # Shut down the background uvicorn server
+        tg.cancel_scope.cancel()
 
     result = login_api.extra.get("result")
     if not result:
