@@ -570,8 +570,8 @@ class TaskRunEngine(Generic[P, R]):
 
                             @flow
                             def example_flow():
-                                say_hello.submit(name="Marvin)
-                                say_hello.wait()
+                                future = say_hello.submit(name="Marvin)
+                                future.wait()
 
                             example_flow()
                                       """
@@ -668,7 +668,7 @@ class TaskRunEngine(Generic[P, R]):
 
             async def _call_task_fn():
                 if transaction.is_committed():
-                    result = await transaction.read().get()
+                    result = transaction.read()
                 else:
                     result = await call_with_parameters(self.task.fn, parameters)
                 self.handle_success(result, transaction=transaction)
@@ -677,7 +677,7 @@ class TaskRunEngine(Generic[P, R]):
             return _call_task_fn()
         else:
             if transaction.is_committed():
-                result = transaction.read().get(_sync=True)
+                result = transaction.read()
             else:
                 result = call_with_parameters(self.task.fn, parameters)
             self.handle_success(result, transaction=transaction)
