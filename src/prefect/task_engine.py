@@ -43,6 +43,7 @@ from prefect.exceptions import (
     Abort,
     Pause,
     PrefectException,
+    TerminationSignal,
     UpstreamTaskError,
 )
 from prefect.futures import PrefectFuture
@@ -141,14 +142,6 @@ class TaskRunEngine(Generic[P, R]):
                 exc_info=True,
             )
             return False
-
-    def cancel(self):
-        if (
-            self.context
-            and "cancel_event" in self.context
-            and isinstance(self.context["cancel_event"], threading.Event)
-        ):
-            self.context["cancel_event"].set()
 
     def is_cancelled(self) -> bool:
         if (
@@ -522,9 +515,8 @@ class TaskRunEngine(Generic[P, R]):
                         )
                         yield self
 
-                except KeyboardInterrupt as exc:
+                except TerminationSignal as exc:
                     # TerminationSignals are caught and handled as crashes
-                    self.cancel()
                     self.handle_crash(exc)
                     raise exc
 
@@ -650,7 +642,7 @@ class TaskRunEngine(Generic[P, R]):
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
                     )
                     if self.is_cancelled():
-                        raise CancelledError("Task run was cancelled")
+                        raise CancelledError("Task run cancelled by the task runner")
 
                     yield self
             except TimeoutError as exc:
