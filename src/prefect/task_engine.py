@@ -1,6 +1,8 @@
 import inspect
 import logging
+import threading
 import time
+from asyncio import CancelledError
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from textwrap import dedent
@@ -36,7 +38,7 @@ from prefect.context import (
     TaskRunContext,
     hydrated_context,
 )
-from prefect.events.schemas.events import Event
+from prefect.events.schemas.events import Event as PrefectEvent
 from prefect.exceptions import (
     Abort,
     Pause,
@@ -97,7 +99,7 @@ class TaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     _task_name_set: bool = False
-    _last_event: Optional[Event] = None
+    _last_event: Optional[PrefectEvent] = None
 
     def __post_init__(self):
         if self.parameters is None:
@@ -140,7 +142,24 @@ class TaskRunEngine(Generic[P, R]):
             )
             return False
 
-    def call_hooks(self, state: State = None) -> Iterable[Callable]:
+    def cancel(self):
+        if (
+            self.context
+            and "cancel_event" in self.context
+            and isinstance(self.context["cancel_event"], threading.Event)
+        ):
+            self.context["cancel_event"].set()
+
+    def is_cancelled(self) -> bool:
+        if (
+            self.context
+            and "cancel_event" in self.context
+            and isinstance(self.context["cancel_event"], threading.Event)
+        ):
+            return self.context["cancel_event"].is_set()
+        return False
+
+    def call_hooks(self, state: Optional[State] = None):
         if state is None:
             state = self.state
         task = self.task
@@ -175,7 +194,7 @@ class TaskRunEngine(Generic[P, R]):
             else:
                 self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
-    def compute_transaction_key(self) -> str:
+    def compute_transaction_key(self) -> Optional[str]:
         key = None
         if self.task.cache_policy:
             flow_run_context = FlowRunContext.get()
@@ -624,6 +643,8 @@ class TaskRunEngine(Generic[P, R]):
                     self.logger.debug(
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
                     )
+                    if self.is_cancelled():
+                        raise CancelledError("Task run was cancelled")
                     yield self
             except TimeoutError as exc:
                 self.handle_timeout(exc)

@@ -513,6 +513,11 @@ class FlowRunEngine(Generic[P, R]):
                 )
             try:
                 yield self
+
+            except KeyboardInterrupt as exc:
+                self.cancel_all_tasks()
+                self.handle_crash(exc)
+                raise
             except Exception:
                 # regular exceptions are caught and re-raised to the user
                 raise
@@ -547,6 +552,10 @@ class FlowRunEngine(Generic[P, R]):
         if getattr(self, "flow_run", None) is None:
             return False  # TODO: handle this differently?
         return getattr(self, "flow_run").state.is_pending()
+
+    def cancel_all_tasks(self):
+        if hasattr(self.flow.task_runner, "cancel_all"):
+            self.flow.task_runner.cancel_all()  # type: ignore
 
     # --------------------------
     #
