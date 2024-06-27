@@ -1,5 +1,5 @@
 ---
-title: Deploy to serverless infrastructure
+title: Run flows on serverless infra
 description: Learn how to use Prefect push work pools to schedule work on serverless infrastructure without having to run a worker.
 ---
 
@@ -645,7 +645,7 @@ Create your pool to be ready to deploy flows to your Push work pool.
 
 ## Deployment
 
-You need to configure your [deployment](/3.0rc/deploy/dynamic-infra/push-runs-remote/) to send flow runs to your push work pool.
+You need to configure your [deployment](/3.0rc/deploy/infrastructure/docker/) to send flow runs to your push work pool.
 For example, if you create a deployment through the interactive command line experience, 
 choose the work pool you just created. If you are deploying an existing `prefect.yaml` file, the deployment would contain:
 
@@ -675,4 +675,4 @@ to your serverless infrastructure, created a job, ran the job, and reported on i
 
 Learn more about [work pools](/3.0rc/deploy/work-pools/) and [workers](/3.0rc/deploy/workers/).
 
-Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/3.0rc/deploy/dynamic-infra/push-runs-remote#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/3.0rc/deploy/infrastructure/docker#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.

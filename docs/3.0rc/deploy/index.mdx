@@ -14,7 +14,7 @@ search:
 
 ## What is a deployment?
 
-[Deployments](/3.0rc/deploy/dynamic-infra/push-runs-remote/) are server-side representations of flows. 
+[Deployments](/3.0rc/deploy/infrastructure/docker/) are server-side representations of flows. 
 They store the crucial metadata for remote orchestration including when, where, and 
 how a workflow should run.
 
@@ -32,7 +32,7 @@ UI that allow you to:
 - trigger new runs, [cancel active runs](/3.0rc/develop/write-flows/#cancel-a-flow-run), 
 pause scheduled runs, customize parameters, and more
 - remotely configure schedules and automation rules for your deployments
-- dynamically provision infrastructure using [workers](/3.0rc/deploy/dynamic-infra/push-runs-remote)
+- dynamically provision infrastructure using [workers](/3.0rc/deploy/infrastructure/docker)
 
 ## Deployment schema
 
@@ -227,10 +227,10 @@ than the team managing infrastructure.
 
 [Work pools](/3.0rc/deploy/work-pools/) allow Prefect to exercise greater control 
 of the infrastructure on which flows run.
-Options for [serverless work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/) allow you to 
+Options for [serverless work pools](/3.0rc/deploy/infrastructure/serverless/) allow you to 
 scale to zero when workflows aren't running.
 Prefect even provides you with the ability to 
-[provision cloud infrastructure via a single CLI command](/3.0rc/deploy/dynamic-infra/push-runs-serverless/#automatically-create-a-new-push-work-pool-and-provision-infrastructure), 
+[provision cloud infrastructure via a single CLI command](/3.0rc/deploy/infrastructure/serverless/#automatically-create-a-new-push-work-pool-and-provision-infrastructure), 
 if you use a Prefect Cloud push work pool option.
 
 With work pools:
