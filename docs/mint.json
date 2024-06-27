@@ -125,35 +125,28 @@
       "group": "Deploy",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/deploy/index",
+        "3.0rc/deploy/run-flows-in-local-processes",
         {
-          "group": "Serve flows",
+          "group": "Run flows on infrastructure",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/serve-flows/deploy-a-flow",
-            "3.0rc/deploy/serve-flows/serve-a-flow"
+            "3.0rc/deploy/infrastructure-concepts/work-pools",
+            "3.0rc/deploy/infrastructure-concepts/workers",
+            "3.0rc/deploy/infrastructure-concepts/store-flow-code",
+            "3.0rc/deploy/infrastructure-concepts/prefect-yaml",
+            "3.0rc/deploy/infrastructure-concepts/deploy-ci-cd",
+            "3.0rc/deploy/infrastructure-concepts/customize"
           ]
         },
         {
-          "group": "Dynamic infrastructure",
+          "group": "Infrastructure specific examples",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/dynamic-infra/push-runs-serverless",
-            "3.0rc/deploy/dynamic-infra/push-runs-remote",
-            "3.0rc/deploy/dynamic-infra/retrieve-flow-code",
-            "3.0rc/deploy/dynamic-infra/customize",
-            "3.0rc/deploy/dynamic-infra/deploy-docker",
-            "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
-            "3.0rc/deploy/dynamic-infra/deploy-ci-cd"
-          ]
-        },
-        {
-          "group": "Control runs",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/deploy/control-runs/work-pools",
-            "3.0rc/deploy/control-runs/workers",
-            "3.0rc/deploy/control-runs/prefect-deploy",
-            "3.0rc/deploy/control-runs/managed-execution"
+            "3.0rc/deploy/infrastructure-examples/managed",
+            "3.0rc/deploy/infrastructure-examples/serverless",
+            "3.0rc/deploy/infrastructure-examples/docker",
+            "3.0rc/deploy/infrastructure-examples/kubernetes"
           ]
         }
       ]

@@ -1,13 +1,41 @@
 ---
-title: Workers
+title: Learn about workers
 description: Prefect workers poll work pools for new runs to execute.
 ---
 
 Workers are lightweight polling services that retrieve scheduled runs from a work pool and execute them.
 
-Workers each have a type corresponding to the execution environment to submit flow runs to. Workers can only poll 
-work pools that match their type. As a result, when deployments are assigned to a work pool, you know in which execution environment 
-scheduled flow runs for that deployment will run.
+Workers each have a type corresponding to the execution environment to submit flow runs to.
+Workers can only poll work pools that match their type.
+As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will run.
+
+The following diagram summarizes the architecture of a worker-based work pool deployment:
+
+```mermaid
+graph TD
+    subgraph your_infra["Your Execution Environment"]
+        worker["Worker"]
+    subgraph flow_run_infra[Flow Run Infra]
+     flow_run_a(("Flow Run A"))
+    end
+    subgraph flow_run_infra_2[Flow Run Infra]
+     flow_run_b(("Flow Run B"))
+    end      
+    end
+
+    subgraph api["Prefect API"]
+    Deployment --> |assigned to| work_pool
+        work_pool(["Work Pool"])
+    end
+
+    worker --> |polls| work_pool
+    worker --> |creates| flow_run_infra
+    worker --> |creates| flow_run_infra_2
+```
+
+<Tip>
+Notice above that the worker is in charge of provisioning the _flow run infrastructure_.
+</Tip>
 
 ### Worker types
 
@@ -28,10 +56,10 @@ If you don’t see a worker type that meets your needs, consider
 
 ### Worker options
 
-Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, 
-it is created automatically. The worker CLI infers the worker type from the work pool. Alternatively, you can  
-specify the worker type explicitly. If you supply the worker type to the worker CLI, a work pool is created automatically 
-if it doesn't exist (using default job settings).
+Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it is created automatically.
+The worker CLI infers the worker type from the work pool.
+Alternatively, you can specify the worker type explicitly.
+If you supply the worker type to the worker CLI, a work pool is created automatically if it doesn't exist (using default job settings).
 
 Configuration parameters you can specify when starting a worker include:
 
@@ -140,8 +168,8 @@ If `prefect worker start` is run non-interactively, the `prompt` install policy 
 
 ### Additional resources
 
-See how to [daemonize a Prefect worker](/3.0rc/deploy/dynamic-infra/push-runs-remote/).
+See how to [daemonize a Prefect worker](/3.0rc/resources/daemonize-processes/).
 
-See more information on [overriding a work pool's job variables](/3.0rc/deploy/dynamic-infra/customize).
+See more information on [overriding a work pool's job variables](/3.0rc/deploy/infrastructure-concepts/customize).
 
 ---------
