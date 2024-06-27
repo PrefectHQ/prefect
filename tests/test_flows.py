@@ -1009,6 +1009,38 @@ class TestFlowCall:
                 def bar():
                     pass
 
+    def test_returns_when_cache_result_in_memory_is_false_sync_flow(self):
+        @flow(cache_result_in_memory=False)
+        def my_flow():
+            return 42
+
+        assert my_flow() == 42
+
+    async def test_returns_when_cache_result_in_memory_is_false_async_flow(self):
+        @flow(cache_result_in_memory=False)
+        async def my_flow():
+            return 42
+
+        assert await my_flow() == 42
+
+    def test_raises_correct_error_when_cache_result_in_memory_is_false_sync_flow(self):
+        @flow(cache_result_in_memory=False)
+        def my_flow():
+            raise ValueError("Test")
+
+        with pytest.raises(ValueError, match="Test"):
+            my_flow()
+
+    async def test_raises_correct_error_when_cache_result_in_memory_is_false_async_flow(
+        self,
+    ):
+        @flow(cache_result_in_memory=False)
+        async def my_flow():
+            raise ValueError("Test")
+
+        with pytest.raises(ValueError, match="Test"):
+            await my_flow()
+
 
 class TestSubflowCalls:
     async def test_subflow_call_with_no_tasks(self):
@@ -1835,7 +1867,7 @@ class TestSubflowTaskInputs:
         def foo():
             return bar(x=2, y=1, return_state=True)
 
-        child_flow_state = foo()
+        child_flow_state = await foo(return_state=True).result()
         flow_tracking_task_run = await prefect_client.read_task_run(
             child_flow_state.state_details.task_run_id
         )
