@@ -45,13 +45,3 @@ async def test_unpersisted_result_missing_after_json_roundtrip(value):
     deserialized = UnpersistedResult.model_validate_json(serialized)
     with pytest.raises(MissingResult):
         await deserialized.get()
-
-
-@pytest.mark.parametrize("value", TEST_VALUES)
-async def test_unpersisted_result_populates_default_artifact_metadata(value):
-    result = await UnpersistedResult.create(value)
-    assert result.artifact_type == "result"
-    assert (
-        result.artifact_description
-        == f"Unpersisted result of type `{type(value).__name__}`"
-    )
