@@ -78,11 +78,17 @@ Note that Prefect requires that deployments reference flows defined _within Pyth
 Flows defined within interactive REPLs or notebooks cannot currently be deployed as such. 
 They are still valid flows that will be monitored by the API and observable in the UI whenever they are run, but Prefect cannot trigger them.
 
-!!! info "Deployments do not contain code definitions"
-    Deployment metadata references code that exists in potentially diverse locations within your environment.
+<Info>
+**Deployments do not contain code definitions**
+
+Deployment metadata references code that exists in potentially diverse locations within your environment.
+
+
     This separation of concerns means that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
 
     This is the heart of the Prefect hybrid model: there's a boundary between your proprietary assets, such as your flow code, and the Prefect backend (including [Prefect Cloud](/3.0rc/cloud/)). 
+
+</Info>
 
 ### Scheduling and parametrization
 
@@ -102,9 +108,13 @@ This is used by both the UI and the backend to expose options for creating manua
 These can be overwritten through a trigger or when manually creating a custom run.
 - **`enforce_parameter_schema`**: a boolean flag that determines whether the API should validate the parameters passed to a flow run against the schema defined by `parameter_openapi_schema`.
 
-!!! tip "Scheduling is asynchronous and decoupled"
+<Tip>
+**Scheduling is asynchronous and decoupled**
+
     Because deployments are nothing more than metadata, runs can be created at anytime.
     Note that pausing a schedule, updating your deployment, and other actions reset your auto-scheduled runs.
+
+</Tip>
 
 #### Running a deployed flow from within Python flow code
 
@@ -117,10 +127,14 @@ def main():
     run_deployment(name="my_flow_name/my_deployment_name")
 ```
 
-!!! tip "Run a deployment without blocking"
+<Tip>
+**Run a deployment without blocking**
+
     By default, `run_deployment` blocks until the scheduled flow run finishes
     executing. Pass `timeout=0` to return immediately and not block.
     
+</Tip>
+
 If you call `run_deployment` from within a flow or task, the scheduled flow
 run will be linked to the calling flow run (or the calling task's flow run)
 as a subflow run by default.
@@ -160,9 +174,13 @@ def main():
         print(f"Current state of the flow run: {flow_run.state}")
 ```
 
-!!! tip "Using the Prefect client"
+<Tip>
+**Using the Prefect client**
+
     For more information on using the Prefect client to interact with Prefect's
     REST API, see [our guide](/3.0rc/guides/using-the-client/).
+
+</Tip>
 
 ## Versioning and bookkeeping
 
@@ -177,8 +195,12 @@ For example if you leverage `git` to manage code changes, use either a tag or co
 All of these bits of metadata can be leveraged to great effect by injecting them into the processes that Prefect is orchestrating. For example you can use both run ID and versions to organize files that you produce from your workflows, or by associating your flow run's tags with the metadata of a job it orchestrates.
 This metadata is available during execution through [Prefect runtime](/3.0rc/guides/runtime-context/).
 
-!!! tip "Everything has a version"
+<Tip>
+**Everything has a version**
+
     Deployments aren't the only entity in Prefect with a version attached; both flows and tasks also have versions that can be set through their respective decorators. These versions will be sent to the API anytime the flow or task is run and thereby allow you to audit your changes across all levels.
+
+</Tip>
 
 ### Workers and Work Pools
 
@@ -251,6 +273,11 @@ With work pools:
 - Prefect is more infrastructure-aware and therefore collects more event data from your infrastructure by default.
 - Highly decoupled setups are possible.
 
-!!! note "You don't have to commit to one approach"
-    You are not required to use only one of these approaches for your deployments. You can mix and match approaches based on the needs of each flow. Further, you can change the deployment approach for a particular flow as its needs evolve.
+<Note>
+**You don't have to commit to one approach**
+
+  You are not required to use only one of these approaches for your deployments. You can mix and match approaches based on the needs of each flow. Further, you can change the deployment approach for a particular flow as its needs evolve.
     For example, you might use workers for your expensive machine learning pipelines, but use the serve mechanics for smaller, more frequent file-processing pipelines.
+
+</Note>
+  

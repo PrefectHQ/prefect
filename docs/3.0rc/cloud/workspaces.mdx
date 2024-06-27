@@ -60,8 +60,12 @@ Within a workspace, select **Settings -> General** to view or edit workspace det
 
 On this page you can edit workspace details or delete the workspace.
 
-!!! warning "Deleting a workspace"
+<Warning>
+**Deleting a workspace**
+
     Deleting a workspace deletes all deployments, flow run history, work pools, and notifications configured in workspace.
+
+</Warning>
 
 ## Workspace access <span class="badge pro"></span> <span class="badge custom"></span>
 
@@ -95,10 +99,14 @@ Workspace transfer enables you to move an existing workspace from one account to
 
 Workspace transfer retains existing workspace configuration and flow run history, including blocks, deployments, notifications, work pools, and logs.
 
-!!! note "Workspace transfer permissions"
+<Note>
+**Workspace transfer permissions**
+
     Workspace transfer must be initiated or approved by a user with admin privileges for the workspace to be transferred.
 
     To initiate a workspace transfer between personal accounts, contact [support@prefect.io](mailto:support@prefect.io).
+
+</Note>
 
 ### Transfer a workspace
 
@@ -110,7 +118,9 @@ Then, from the three dot menu in the upper right of the page, select **Transfer*
 The **Transfer Workspace** page shows the workspace to be transferred on the left.
 Select the target account for the workspace on the right.
 
-!!! tip "Workspace transfer impact on accounts"
+<Tip>
+**Workspace transfer impact on accounts**
+
     Workspace transfer may impact resource usage and costs for source and target accounts.
 
     When you transfer a workspace, users, API keys, and service accounts may lose access to the workspace. 
@@ -122,3 +132,5 @@ Select the target account for the workspace on the right.
 
     The **Transfer Workspace** page outlines the impacts of transferring the selected workspace to the selected target. 
     Please review these notes carefully before selecting **Transfer** to transfer the workspace.
+
+</Tip>

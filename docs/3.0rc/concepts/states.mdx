@@ -23,8 +23,12 @@ At any moment, you can learn anything you need to know about a task or flow by e
 
 By manipulating a relatively small number of task states, Prefect flows can harness the complexity that emerges in workflows.
 
-!!! note "Only runs have states"
+<Note>
+**Only runs have states**
+
     Though we often refer to the "state" of a flow or a task, what we really mean is the state of a flow _run_ or a task _run_. Flows and tasks are templates that describe what a system does; only when we run the system does it also take on a state. So while we might refer to a task as "running" or being "successful", we really mean that a specific instance of the task is in that state.
+
+</Note>
 
 ## State Types
 
@@ -72,7 +76,7 @@ Returning [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.Pref
 
 By default, running a task will return data:
 
-```python hl_lines="3-5"
+```python
 from prefect import flow, task 
 
 @task 
@@ -86,7 +90,7 @@ def my_flow():
 
 The same rule applies for a subflow:
 
-```python hl_lines="1-3"
+```python
 @flow 
 def subflow():
     return 42 
@@ -100,7 +104,7 @@ def my_flow():
 
 To return a `State` instead, add `return_state=True` as a parameter of your task call.
 
-```python hl_lines="3-4"
+```python
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -108,7 +112,7 @@ def my_flow():
 
 To get data from a `State`, call `.result()`.
 
-```python hl_lines="4-5"
+```python
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -117,7 +121,7 @@ def my_flow():
 
 The same rule applies for a subflow:
 
-```python hl_lines="7-8"
+```python
 @flow 
 def subflow():
     return 42 
@@ -132,7 +136,7 @@ def my_flow():
 
 To get a `PrefectFuture`, add `.submit()` to your task call.
 
-```python hl_lines="3-5"
+```python
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -140,7 +144,7 @@ def my_flow():
 
 To get data from a `PrefectFuture`, call `.result()`.
 
-```python hl_lines="4-5"
+```python
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -149,7 +153,7 @@ def my_flow():
 
 To get a `State` from a `PrefectFuture`, call `.wait()`.
 
-```python hl_lines="4-5"
+```python
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture

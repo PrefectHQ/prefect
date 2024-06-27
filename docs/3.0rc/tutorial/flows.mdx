@@ -32,7 +32,7 @@ The script below fetches statistics about the [main Prefect repository](https://
 (Note that [httpx](https://www.python-httpx.org/) is an HTTP client library and a dependency of Prefect.)
 Let's turn this function into a Prefect flow and run the script:
 
-```python title="repo_info.py" hl_lines="2 5"
+```python 
 import httpx
 from prefect import flow
 
@@ -62,8 +62,12 @@ Forks 🍴 : 1245
 ```
 
 
-!!! tip "Flows can contain arbitrary Python"
+<Tip>
+**Flows can contain arbitrary Python**
+
     As shown above, flow definitions can contain arbitrary Python logic.
+
+</Tip>
 
 ## Parameters
 
@@ -72,7 +76,7 @@ The positional and keyword arguments defined on your flow function are called [p
 Prefect automatically performs type conversion using any provided type hints.
 Let's make the repository a string parameter with a default value:
 
-```python hl_lines="6 7 11" title="repo_info.py"
+```python 
 import httpx
 from prefect import flow
 
@@ -115,7 +119,7 @@ Prefect enables you to log a variety of useful information about your flow and t
 If you navigate to your dashboard and explore the runs created above, you will notice that the repository statistics are not captured in the flow run logs.  
 Let's fix that by adding some [logging](/3.0rc/guides/logs) to your flow:
 
-```python hl_lines="2 11-14" title="repo_info.py"
+```python 
 import httpx
 from prefect import flow, get_run_logger
 
@@ -171,7 +175,7 @@ For example the GitHub API may be temporarily unavailable or rate limited.
 [Retries](/3.0rc/concepts/flows/#flow-settings) help make flows more resilient.
 Let's add retry functionality to the example above:
 
-```python hl_lines="5" title="repo_info.py"
+```python 
 import httpx
 from prefect import flow
 

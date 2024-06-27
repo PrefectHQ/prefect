@@ -22,9 +22,13 @@ By using the `SqlAlchemyConnector` as a context manager, you can make sure that 
 
 Be sure to install [prefect-sqlalchemy](#installation) and [save your credentials to a Prefect block](#saving-credentials-to-block) to run the examples below!
 
-!!! note "Async support"
+<Note>
+**Async support**
 
     `SqlAlchemyConnector` also supports async workflows! Just be sure to save, load, and use an async driver as in the example below.
+
+</Note>
+
 
     ```python
     from prefect_sqlalchemy import SqlAlchemyConnector, ConnectionComponents, AsyncDriver
@@ -199,15 +203,20 @@ connector = SqlAlchemyConnector(
 connector.save("BLOCK_NAME-PLACEHOLDER")
 ```
 
-!!! info "Registering blocks"
+<Info>
+**Registering blocks**
 
-    Register blocks in this module to
+Register blocks in this module to
+
+
     [view and edit them](https://orion-docs.prefect.io/ui/blocks/)
     on Prefect Cloud:
 
     ```bash
     prefect block register -m prefect_sqlalchemy
     ```
+
+</Info>
 
 ### Feedback
 

@@ -19,9 +19,13 @@ Before we begin, there are a few pre-requisites:
 
 Prefect is tested against Kubernetes 1.26.0 and newer minor versions.
 
-!!! Note "Administrator Access"
+<Note>
+**Administrator Access**
+
     Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider.
     Admin access is only necessary during the initial setup and can be downgraded after.
+
+</Note>
 
 ## Create a cluster
 
@@ -73,7 +77,8 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     gcloud container clusters <CLUSTER-NAME> --region <AVAILABILITY-ZONE>
     ```
 
-    !!! Warning "GCP Gotchas"
+    <Warning>
+**GCP Gotchas**
 
       - You'll need to enable the default service account in the IAM console, or specify a different service account with the appropriate permissions to be used.
 
@@ -86,6 +91,8 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
       ```
       creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
       ```
+</Warning>
+
 
 === "Azure"
 
@@ -221,7 +228,10 @@ You can configure the Kubernetes cluster to use for job creation by specifying a
 Generally you should leave the cluster config blank as the worker should be provisioned with appropriate access and permissions.
 Typically this setting is used when a worker is deployed to a cluster that is different from the cluster where flow runs are executed.
 
-!!! Note "Advanced Settings"
+<Note>
+**Advanced Settings**
+
+
     Want to modify the default base job template to add other fields or delete existing fields?
 
     Select the **Advanced** tab and edit the JSON representation of the base job template.
@@ -255,6 +265,8 @@ Typically this setting is used when a worker is deployed to a cluster that is di
     ```
 
     Running deployments with this work pool will now request the specified CPU.
+
+</Note>
 
 After configuring the work pool settings, move to the next screen.
 
@@ -427,9 +439,13 @@ You can pass a custom Dockerfile instead with `dockerfile: Dockerfile` or `docke
 Also note that we are specifically building for the `linux/amd64` platform.
 This specification is often necessary when images are built on Macs with M series chips but run on cloud provider instances.
 
-!!! note "Deployment specific build, push, and pull"
+<Note>
+**Deployment specific build, push, and pull**
+
     The build, push, and pull steps can be overridden for each deployment.
     This allows for more custom behavior, such as specifying a different image for each deployment.
+
+</Note>
 
 Let's make sure we define our requirements in a `requirements.txt` file:
 
@@ -455,7 +471,7 @@ If your code is stored in a GitHub repository, it's good practice to tag your im
 This can be done in the `prefect.yaml` file with a few minor modifications, and isn't yet an option with the Python deployment creation method.
 Let's use the `run_shell_script` command to grab the SHA and pass it to the `tag` parameter of `build_docker_image`:
 
-```yaml hl_lines="2-5 10"
+```yaml 
 build:
 - prefect.deployments.steps.run_shell_script:
     id: get-commit-hash
@@ -472,7 +488,7 @@ build:
 
 Let's also set the SHA as a tag for easy identification in the UI:
 
-```yaml hl_lines="4"
+```yaml 
 definitions:
   tags: &common_tags
     - "eks"

@@ -9,7 +9,9 @@ Think of the run context as a global variable that allows the Prefect engine to 
 
 The run context itself contains many internal objects used by Prefect to manage execution of your run and is only available in specific situations. For this reason, we expose a simple interface that only includes the items you care about and dynamically retrieves additional information when necessary. We call this the "runtime context" as it contains information that can be accessed only during a run.
 
-!!! tip "Mock values through environment variable"
+<Tip>
+**Mock values through environment variable**
+
     You may want to mock certain values for testing purposes.  For example, by manually setting an ID or a scheduled start time to ensure your code is functioning properly.  You can mock values in runtime through an environment variable using the schema `PREFECT__RUNTIME__{SUBMODULE}__{KEY_NAME}=value`:
     <div class="terminal">
     ```bash
@@ -19,6 +21,8 @@ The run context itself contains many internal objects used by Prefect to manage 
     </div>
 
     If the environment variable mocks an existing runtime attribute, the value is cast to the same type. This works for runtime attributes of basic types (`bool`, `int`, `float` and `str`) and `pendulum.DateTime`. For complex types like `list` or `dict`, we suggest mocking them using [monkeypatch](https://docs.pytest.org/en/latest/how-to/monkeypatch.html) or a similar tool.
+
+</Tip>
 
 ## Access runtime information
 
@@ -30,7 +34,7 @@ The `prefect.runtime` module is the home for all runtime context access. Each ma
 
 For example:
 
-```python hl_lines="2 6 7 12 13" title="my_runtime_info.py"
+```python 
 from prefect import flow, task
 from prefect import runtime
 

@@ -1,0 +1,27 @@
+---
+title: Explore Prefect concepts
+sidebarTitle: Overview
+---
+
+| Concept                                            | Description                                                                                                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| __[Flows](/2.14/concepts/flows)__                       | A Prefect workflow, defined as a Python function.             |
+| __[Tasks](/2.14/concepts/tasks)__                       | Discrete units of work in a Prefect workflow.                |
+| __[Deployments](/2.14/concepts/deployments)__           | A server-side concept that encapsulates flow metadata, allowing it to be scheduled and triggered via API. |
+| __[Work Pools & Workers](/2.14/concepts/work-pools)__   | Use Prefect to dynamically provision and configure infrastructure in your execution environment.    |
+| __[Schedules](/2.14/concepts/schedules)__               | Tell the Prefect API how to create new flow runs for you automatically on a specified cadence.     |
+| __[Results](/2.14/concepts/results)__                   | The data returned by a flow or a task.                                 |
+| __[Artifacts](/2.14/concepts/artifacts)__               | Formatted outputs rendered in the Prefect UI, such as markdown, tables, or links.  
+| __[States](/2.14/concepts/states)__                     | Rich objects that capture the status of a particular task run or flow run.                                                                            |
+| __[Blocks](/2.14/concepts/blocks)__                     | Prefect primitives that enable the storage of configuration and provide a UI interface.          |
+| __[Task Runners](/2.14/concepts/task-runners)__         | Configure how tasks are run - concurrently, in parallel, or in a distributed environment. |
+| __[Automations](/2.14/concepts/automations)__           | Configure actions that Prefect executes automatically based on trigger conditions.         |
+
+|  Block and Agent-Based Deployments                 | Description   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| __[Block-based Deployments](/2.14/concepts/deployments-block-based)__    | Create deployments that rely on blocks.   |
+| __[Infrastructure](/2.14/concepts/infrastructure)__           | Blocks that specify infrastructure for flow runs created by a deployment.   |
+| __[Storage](/2.14/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved.     |
+| __[Agents](/2.14/concepts/agents)__                           | Like untyped workers. |
+
+Many features specific to [Prefect Cloud](/2.14/cloud/) are in their own navigation subheading.

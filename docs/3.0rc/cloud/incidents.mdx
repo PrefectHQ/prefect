@@ -65,7 +65,9 @@ To automatically take action when an incident is declared, set up a custom trigg
 }
 ```
 
-!!! tip "Building custom triggers"
+<Tip>
+**Building custom triggers**
+
     To get started with incident automations, you only need to specify two fields in your trigger:
 
       - **match**: The resource emitting your event of interest. You can match on specific resource IDs, use wildcards to match on all resources of a given type, and even match on other resource attributes, like `prefect.resource.name`.
@@ -76,6 +78,8 @@ To automatically take action when an incident is declared, set up a custom trigg
           - `prefect-cloud.incident.updated.severity`
 
     See [Event Triggers](/3.0rc/concepts/automations/#custom-triggers) for more information on custom triggers, and check out your Event Feed to see the event types emitted by your incidents and other resources (i.e. events that you can react to).
+
+</Tip>
 
 When an incident is declared, any actions you configure such as pausing work pools or sending notifications, will execute immediately.
 

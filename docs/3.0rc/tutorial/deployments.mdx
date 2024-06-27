@@ -41,7 +41,7 @@ As opposed to manually triggering and managing flow runs, deploying a flow expos
 
 Continuing with the `get_repo_info` flow from the previous section, create a deployment by calling a single method on the flow object: `flow.serve`.
 
-```python hl_lines="16-17" title="repo_info.py"
+```python 
 import httpx
 from prefect import flow
 
@@ -110,14 +110,18 @@ if __name__ == "__main__":
 When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work.  
 Stop the script in the CLI using `CTRL+C` and your schedule automatically pauses.
 
-!!! note "`.serve` is a long-running process"
+<Note>
+**`.serve` is a long-running process**
+
     To execute remotely triggered or scheduled runs, your script with `flow.serve` must be actively running.
+
+</Note>
 
 ## Run multiple deployments at once
 
 This method is useful for creating deployments for single flows. For two or more flows, you must provide a few additional method calls and imports:
 
-```python hl_lines="2 18-20" title="multi_flow_deployment.py"
+```python 
 import time
 from prefect import flow, serve
 

@@ -55,16 +55,20 @@ Your CLI is now authenticated with your Prefect Cloud account through a locally-
 
 If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/cloud/users/api-keys/) to learn how to authenticate with a manually created API key.
 
-!!! note "Self-hosted Prefect server instance"
+<Note>
+**Self-hosted Prefect server instance**
+
     If you would like to host a Prefect server instance on your own infrastructure, see the [tutorial](/3.0rc/tutorial/) and select the "Self-hosted" tab.
     Note that you will need to both host your own server and run your flows on your own infrastructure.
+
+</Note>
 
 ## Step 3: Turn your function into a Prefect flow
 
 The fastest way to get started with Prefect is to add a `@flow` decorator to your Python function.
 [Flows](/3.0rc/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
 
-```python hl_lines="2 5" title="my_gh_workflow.py"
+```python
 import httpx   # an HTTP client library and dependency of Prefect
 from prefect import flow, task
 
@@ -159,7 +163,7 @@ Deployments elevate flows to remotely configurable entities that have their own 
 
 Let's make a script to build a deployment with the name *my-first-deployment* and set it to run on a schedule.
 
-```python hl_lines="15-22" title="create_deployment.py"
+```python 
 from prefect import flow
 
 if __name__ == "__main__":
@@ -176,7 +180,7 @@ if __name__ == "__main__":
 Run the script to create the deployment on the Prefect Cloud server.
 Note that the `cron` argument will schedule the deployment to run at 1am every day.
 
-```bash
+```
 python create_deployment.py
 ```
 
@@ -197,20 +201,25 @@ To schedule a run for this deployment, use the following command:
 
 You can also run your flow via the Prefect UI: <https://app.prefect.cloud/account/abc/workspace/123/deployments/deployment/xyz>
 
-``
+```
 
 Head to the **Deployments** page of the UI to check it out.
 
-!!! note "Code storage options"
+<Note>
+**Code storage options**
+
     You can store your flow code in nearly any location.
     You just need to tell Prefect where to find it.
     In this example, we use a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage.
     Read more in [this guide](/3.0rc/guides/prefect-deploy/#creating-work-pool-based-deployments).
 
-!!! caution "Push your code to GitHub"
+</Note>
+
+<Warning>
+**Push your code to GitHub**
     In the example above, we use an existing GitHub repository.
     If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument to point to your repository.
-
+</Warning>
 You can trigger a manual run of this deployment by either clicking the **Run** button in the top right of the deployment page in the UI, or by running the following CLI command in your terminal:
 
 ```bash
@@ -224,8 +233,12 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 
 ![Managed flow run graph and logs](/3.0rc/img/ui/qs-flow-run.png)
 
-!!! warning "Remove the schedule"
+<Warning>
+**Remove the schedule**
+
     Click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
+
+</Warning>
 
 ## Next steps
 
@@ -233,7 +246,11 @@ You've seen how to move from a Python script to a scheduled, observable, remotel
 
 To learn how to run flows on your own infrastructure, customize the Docker image where your flow runs, and gain more orchestration and observation benefits check out the [tutorial](/3.0rc/tutorial/).
 
-!!! tip "Need help?"
+<Tip>
+**Need help?**
+
     Get your questions answered by a Prefect Product Advocate! [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
+
+</Tip>
 
 Happy building!

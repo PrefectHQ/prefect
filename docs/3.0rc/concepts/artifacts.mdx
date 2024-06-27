@@ -24,6 +24,9 @@ Creating artifacts allows you to publish data from task and flow runs or outside
 There are five artifact types: links, Markdown, progress, images, and tables.
 
 <Note> 
+**Artifacts render individually**
+
+
  Each artifact created within a task will be displayed individually in the Prefect UI.
     This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact.
 
@@ -66,10 +69,11 @@ def my_flow():
 if __name__ == "__main__":
     my_flow()
 ```
-
-!!! tip Specify multiple artifacts with the same key for artifact lineage
+<Tip>
+ Specify multiple artifacts with the same key for artifact lineage
+ 
     You can specify multiple artifacts with the same key to more easily track something very specific that you care about, such as irregularities in your data pipeline.
-
+</Tip>
 After running the above flows, you can find your new artifacts in the Artifacts page of the UI.
 Click into the "irregular-data" artifact and see all versions of it, along with custom descriptions and links to the relevant data.
 
@@ -152,8 +156,12 @@ To create a Markdown artifact, you can use the `create_markdown_artifact()` func
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track an artifact's history over time.
 Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run.
 
-!!! warning "Don't indent Markdown"
+<Warning>
+**Don't indent Markdown**
+
     Markdown in mult-line strings must be unindented to be interpreted correctly.
+
+</Warning>
 
 ```python
 from prefect import flow, task
@@ -218,8 +226,9 @@ You can create a table artifact by calling `create_table_artifact()`.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track an artifact's history over time.
 Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run.
 
-!!! note
+<Note>
     The `create_table_artifact()` function accepts a `table` argument, which can be provided as either a list of lists, a list of dictionaries, or a dictionary of lists.
+</Note>
 
 ```python
 from prefect.artifacts import create_table_artifact

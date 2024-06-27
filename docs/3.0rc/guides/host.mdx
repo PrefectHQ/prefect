@@ -46,12 +46,16 @@ Go to your terminal session and run this command to set the API URL to point to 
 prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
 
-!!! tip "`PREFECT_API_URL` required when running Prefect inside a container"
+<Tip>
+**`PREFECT_API_URL` required when running Prefect inside a container**
+
     You must set the API server address to use Prefect within a container, such as a Docker container.
 
     You can save the API server address in a [Prefect profile](/3.0rc/concepts/settings/). Whenever that profile is active, the API endpoint is at that address.
 
     See [Profiles & Configuration](/3.0rc/concepts/settings/) for more information on profiles and configurable Prefect settings.
+
+</Tip>
 
 ## The Prefect database
 
@@ -165,8 +169,12 @@ prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file
 ```
 
 
-!!! warning "Use SQLite database for testing only"
+<Warning>
+**Use SQLite database for testing only**
+
     SQLite is only supported by Prefect for testing purposes and is not compatible with multiprocessing.  
+
+</Warning>
 
 ### Migrations
 

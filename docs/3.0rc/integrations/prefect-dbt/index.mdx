@@ -185,11 +185,16 @@ DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
 
 ### dbt Core CLI
 
-!!! info "Available `TargetConfigs` blocks"
+<Info>
+**Available `TargetConfigs` blocks**
 
-    Visit the [API Reference](cli/configs/base) to see other built-in `TargetConfigs` blocks.
+Visit the [API Reference](cli/configs/base) to see other built-in `TargetConfigs` blocks.
 
     If the desired service profile is not available, check out the [Examples Catalog](examples_catalog/#clicredentials-module) to see how you can  build one from the generic `TargetConfigs` class.
+
+</Info>
+
+
 
 To create dbt Core target config and profile blocks for BigQuery:
 
@@ -275,7 +280,8 @@ pip install -U "prefect-dbt[postgres]"
 ```
 </div>
 
-!!! warning "Some dbt Core profiles require additional installation"
+<Warning>
+**Some dbt Core profiles require additional installation**
 
     According to dbt's [Databricks setup page](https://docs.getdbt.com/reference/warehouse-setups/databricks-setup), users must first install the adapter:
 
@@ -286,3 +292,5 @@ pip install -U "prefect-dbt[postgres]"
     </div>
 
     Check out the [desired profile setup page](https://docs.getdbt.com/reference/profiles.yml) on the sidebar for others.
+
+</Warning>

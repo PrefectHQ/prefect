@@ -27,12 +27,16 @@ In addition, the following Prefect-developed task runners for parallel or distri
 - [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) can run tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
-!!! note "Concurrency versus parallelism"
+<Note>
+**Concurrency versus parallelism**
+
     The words "concurrency" and "parallelism" may sound the same, but they mean different things in computing.
 
     **Concurrency** refers to a system that can do more than one thing simultaneously, but not at the _exact_ same time. It may be more accurate to think of concurrent execution as non-blocking: within the restrictions of resources available in the execution environment and data dependencies between tasks, execution of one task does not block execution of other tasks in a flow.
 
     **Parallelism** refers to a system that can do more than one thing at the _exact_ same time. Again, within the restrictions of resources available, parallel execution can run tasks at the same time, such as for operations mapped across a dataset.
+
+</Note>
 
 ## Using a task runner
 
@@ -40,12 +44,16 @@ You do not need to specify a task runner for a flow unless your tasks require a 
 
 To configure your flow to use a specific task runner, import a task runner and assign it as an argument for the flow when the flow is defined.
 
-!!! note "Remember to call `.submit()` when using a task runner"
+<Note>
+**Remember to call `.submit()` when using a task runner**
+
     Make sure you use `.submit()` to run your task with a task runner. Calling the task directly, without `.submit()`, from within a flow will run the task sequentially instead of using a specified task runner.
+
+</Note>
 
 For example, you can use `ConcurrentTaskRunner` to allow tasks to switch when they would block.
 
-```python hl_lines="2 11"
+```python
 from prefect import flow, task
 from prefect.task_runners import ConcurrentTaskRunner
 import time
@@ -64,15 +72,23 @@ def elevator():
 
 If you specify an uninitialized task runner class, a task runner instance of that type is created with the default settings. You can also pass additional configuration parameters for task runners that accept parameters, such as [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) and [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/).
 
-!!! tip "Default task runner"
+<Tip>
+**Default task runner**
+
     If you don't specify a task runner for a flow and you call a task with `.submit()` within the flow, Prefect uses the default `ConcurrentTaskRunner`.
+
+</Tip>
 
 ## Running tasks sequentially
 
 Sometimes, it's useful to force tasks to run sequentially to make it easier to reason about the behavior of your program. Switching to the `SequentialTaskRunner` will force submitted tasks to run sequentially rather than concurrently.
 
-!!! note "Synchronous and asynchronous tasks"
+<Note>
+**Synchronous and asynchronous tasks**
+
     The `SequentialTaskRunner` works with both synchronous and asynchronous task functions. Asynchronous tasks are Python functions defined using `async def` rather than `def`.
+
+</Note>
 
 The following example demonstrates using the `SequentialTaskRunner` to ensure that tasks run sequentially. In the example, the flow `glass_tower` runs the task `stop_at_floor` for floors one through 38, in that order.
 
@@ -129,8 +145,12 @@ if __name__ == "__main__":
     sequential_flow()
 ```
 
-!!! tip "Guarding main"
+<Tip>
+**Guarding main**
+
     Note that you should guard the `main` function by using `if __name__ == "__main__"` to avoid issues with parallel processing. 
+
+</Tip>
 
 This script outputs the following logs demonstrating the use of the Dask task runner:
 
@@ -407,8 +427,12 @@ hello_world()
 Note that `.result()` also limits Prefect's ability to track task dependencies. In the "mixed" example above, Prefect will not be aware that `say_hello` is upstream of `nice_to_meet_you`.
 
 
-!!! note "Calling `.result()` is blocking"
+<Note>
+**Calling `.result()` is blocking**
+
     When calling `.result()`, be mindful your flow function will have to wait until the task run is completed before continuing.
+
+</Note>
 
 ```python
 from prefect import flow, task
@@ -440,7 +464,7 @@ The [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) is a parallel 
 
 For example, this flow uses the `DaskTaskRunner` configured to access an existing Dask cluster at `http://my-dask-cluster`.
 
-```python hl_lines="4"
+```python
 from prefect import flow
 from prefect_dask.task_runners import DaskTaskRunner
 
@@ -459,10 +483,14 @@ def my_flow():
 | adapt_kwargs | Additional kwargs to pass to `cluster.adapt` when creating a temporary Dask cluster. Note that adaptive scaling is only enabled if `adapt_kwargs` are provided. |
 | client_kwargs | Additional kwargs to use when creating a [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client). |
 
-!!! warning "Multiprocessing safety"
+<Warning>
+**Multiprocessing safety**
+
     Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows
     in scripts must be guarded with `if __name__ == "__main__":` or you will encounter 
     warnings and errors.
+
+</Warning>
 
 If you don't provide the `address` of a Dask scheduler, Prefect creates a temporary local cluster automatically. The number of workers used is based on the number of cores on your machine. The default provides a mix of processes and threads that should work well for
 most workloads. If you want to specify this explicitly, you can pass values for `n_workers` or `threads_per_worker` to `cluster_kwargs`.
@@ -609,8 +637,12 @@ if __name__ == "__main__":
 
 The [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) &mdash; installed separately as a [Prefect Collection](/3.0rc/collections/catalog/) &mdash; is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via an `address` argument.
 
-!!! note "Remote storage and Ray tasks"
+<Note>
+**Remote storage and Ray tasks**
+
     We recommend configuring [remote storage](/3.0rc/concepts/storage/) for task execution with the `RayTaskRunner`. This ensures tasks executing in Ray have access to task result storage, particularly when accessing a Ray instance outside of your execution environment.
+
+</Note>
 
 To configure your flow to use the `RayTaskRunner`:
 
@@ -620,7 +652,7 @@ To configure your flow to use the `RayTaskRunner`:
 
 For example, this flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`.
 
-```python hl_lines="4"
+```python
 from prefect import flow
 from prefect_ray.task_runners import RayTaskRunner
 
@@ -638,7 +670,9 @@ def my_flow():
 
 Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
-!!! warning "Ray environment limitations"
+<Warning>
+**Ray environment limitations**
+
     While we're excited about adding support for parallel task execution via Ray to Prefect, there are some inherent limitations with Ray you should be aware of:
     
     Ray's support for Python 3.11 is [experimental](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
@@ -646,5 +680,7 @@ Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray
     Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
 
     See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overview/installation.html) for further compatibility information.
+
+</Warning>
 
 

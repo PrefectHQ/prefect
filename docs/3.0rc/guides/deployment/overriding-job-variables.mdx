@@ -75,15 +75,15 @@ deployments:
   schedule: null
 ```
 
-!!! note
+<Note>
     While not the focus of this guide, note that this deployment definition uses a default "global" `pull` step, because one is not explicitly defined on the deployment. For reference, here's what that would look like at the top of the `prefect.yaml` file:
-    ```yaml
+  ```yaml
     pull:
     - prefect.deployments.steps.git_clone: &clone_repo
         repository: https://github.com/some-user/prefect-monorepo
         branch: main
     ```
-
+</Note>
 #### Hard-coded job variables
 To provide the `EXECUTION_ENVIRONMENT` and `MY_NOT_SO_SECRET_CONFIG` environment variables to this deployment, we can add a `job_variables` section to our deployment definition in the `prefect.yaml` file:
 
@@ -122,9 +122,9 @@ deployments:
   schedule: null
 ```
 
-!!! note
+<Note>
     This assumes that the machine where `prefect deploy` is run would have these environment variables set.
-
+</Note>
     <div class="terminal">
     ```bash
     export EXECUTION_ENVIRONMENT=staging
@@ -155,18 +155,18 @@ if __name__ == "__main__":
     )
 ```
 
-!!! note
+<Note>
     The above example works assuming a couple things:
     - the machine where this script is run would have these environment variables set.
     <div class="terminal">
-    ```bash
+   ```bash
     export EXECUTION_ENVIRONMENT=staging
     export MY_NOT_SO_SECRET_CONFIG=plumbus
     ```
     </div>
 
     - `demo_project/daily_flow.py` _already exists_ in the repository at the specified path
-
+</Note>
 Running this script with something like:
 <div class="terminal">
 ```bash

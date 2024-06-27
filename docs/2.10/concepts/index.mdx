@@ -1,0 +1,32 @@
+---
+title: Explore Prefect concepts
+---
+
+## Develop
+
+| Keyword                                            | Description                                                                                                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| __[Flows](/2.10/concepts/flows)__                       | A Prefect workflow, modeled as a Python function.                                                                           |
+| __[Tasks](/2.10/concepts/tasks)__                       | Discrete units of work in a Prefect workflow.                                                                               |
+| __[Results](/2.10/concepts/results)__                   | The data returned by a flow or a task.                                                                                      |
+| __[Artifacts](/2.10/concepts/artifacts)__               | Formatted outputs rendered in the Prefect UI, such as markdown, tables, or links.                                                                |
+| __[States](/2.10/concepts/states)__                     | The status of a particular task run or flow run.                                                                            |
+| __[Task Runners](/2.10/concepts/task-runners)__         | Enable you to engage specific executors for Prefect tasks, such as concurrent, parallel, or distributed execution of tasks. |
+| __[Runtime Context](/2.10/concepts/runtime-context)__   | Information about the current flow or task run that you can refer to in your code.                                          |
+| __[Profiles & Configuration](/2.10/concepts/settings)__ | Settings you can use to interact with Prefect Cloud and a Prefect server.                                                   |
+| __[Blocks](/2.10/concepts/blocks)__                     | Prefect primitives that enable the storage of configuration and provide a UI interface.                                     |
+| __[Variables](/2.10/concepts/variables)__               | Named, mutable string values, much like environment variables.                                                              |
+
+## Deploy
+| Keyword                                                  | Description                                                                                        |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| __[Deployments](/2.10/concepts/deployments)__                 | A server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. |
+| __[Deployment Management](/2.10/concepts/deployments-ux)__                       | A minimally opinionated set of files that describe how to prepare one or more flow deployments.    |
+| __[Work Pools, Workers & Agents](/2.10/concepts/work-pools)__ | Bridge the Prefect orchestration environment with your execution environment.                      |
+| __[Storage](/2.10/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved by Prefect agents.     |
+| __[Filesystems](/2.10/concepts/filesystems)__                 | [Blocks](/2.10/concepts/blocks/) that allow you to read and write data from paths.                      |
+| __[Infrastructure](/2.10/concepts/infrastructure)__           | [Blocks](/2.10/concepts/blocks/) that specify infrastructure for flow runs created by the deployment.   |
+| __[Schedules](/2.10/concepts/schedules)__                     | Tell the Prefect API how to create new flow runs for you automatically on a specified cadence.     |
+| __[Logging](/2.10/concepts/logs)__                            | Log a variety of useful information about your flow and task runs on the server.                   |
+
+Features specific to [Prefect Cloud](/2.10/cloud/) are in their own subheading.

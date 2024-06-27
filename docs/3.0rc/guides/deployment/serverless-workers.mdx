@@ -19,10 +19,14 @@ The following options are available:
 - Start a worker in your serverless cloud provider that will poll its matched work pool for scheduled runs
 - Schedule a deployment run that a worker will pick up from the work pool and run on your serverless infrastructure
 
-!!! note "Push work pools don't require a worker"
+<Note>
+**Push work pools don't require a worker**
+
     Options for push work pool versions of AWS ECS, Azure Container Instances, and Google Cloud Run that do not require a worker are available with Prefect Cloud.
     These push work pool options require connection configuration information to be stored on Prefect Cloud.
     Read more in the [Serverless Push Work Pool Guide](/3.0rc/guides/deployment/push-work-pools/).
+
+</Note>
 
 This is a brief overview of the options to run workflows on serverless infrastructure.
 For in-depth guides, see the Prefect integration libraries:
@@ -32,8 +36,12 @@ For in-depth guides, see the Prefect integration libraries:
 - [Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
 - For Google Vertex AI, follow the Cloud Run guide, substituting *Google Vertex AI* where *Google Cloud Run* is mentioned.
 
-!!! note "Choosing between Google Cloud Run and Google Vertex AI"
+<Note>
+**Choosing between Google Cloud Run and Google Vertex AI**
+
     Google Vertex AI is well-suited for machine learning model training applications in which GPUs or TPUs and high resource levels are desired.
+
+</Note>
 
 ## Steps
 

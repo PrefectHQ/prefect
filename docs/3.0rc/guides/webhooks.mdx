@@ -161,10 +161,13 @@ can be entirely static:
 }
 ```
 
-!!! tip "Make sure to produce valid JSON"
+<Tip>
+**Make sure to produce valid JSON**
 
     The output of your template, when rendered, should be a valid string that can be
     parsed, for example, with `json.loads`.
+
+</Tip>
 
 A webhook with this template may be invoked through _any_ of the HTTP methods, including a
 `GET` request with no body, so the team you are integrating with can include this line at the
@@ -229,12 +232,15 @@ All subsequent `POST` requests will produce events with those variable
 resource IDs and names.  The other statically-defined parts, such as `event` or the
 `producing-team` label you included earlier, will still be used.
 
-!!! tip "Use Jinja2's `default` filter to handle missing values"
+<Tip>
+**Use Jinja2's `default` filter to handle missing values**
 
     Jinja2 has a helpful [`default`](https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.default)
     filter that can compensate for missing values in the request.  In this example,
     you may want to use the model's ID in place of the friendly name when the friendly name is not
     provided: `{{ body.friendly_name|default(body.model) }}`.
+
+</Tip>
 
 ### How HTTP request components are handled
 
@@ -272,11 +278,14 @@ expressions are equivalent:
 {{ body.friendly_name }}
 ```
 
-!!! tip "Only for Python identifiers"
+<Tip>
+**Only for Python identifiers**
 
     Jinja2's syntax only allows attribute-like access if the key is a valid Python
     identifier, so `body.friendly-name` will not work.  Use `body['friendly-name']` in
     those cases.
+</Tip>
+
 
 Prefect Cloud will attempt to parse any other content type (such as `text/plain`) as if it were JSON first.
 In any case where the body cannot be transformed into JSON, it is made available to your

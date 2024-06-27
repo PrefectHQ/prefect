@@ -27,7 +27,7 @@ Run `prefect deploy` from the root directory of the git repository and create a 
 Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. Select "y" and you will be prompted to confirm the URL of your git repository and the branch name, as in the example below:
 
 <div class="terminal">
-```bash
+```
 ? Your Prefect workers will need access to this flow's code in order to run it. 
 Would you like your workers to pull your flow code from its remote repository when running this flow? [y/n] (y): 
 ? Is https://github.com/my_username/my_repo.git the correct URL to pull your flow code from? [y/n] (y): 
@@ -128,10 +128,14 @@ Alternatively, you can create a Credentials block ahead of time and reference it
             credentials: "{{ prefect.blocks.gitlab-credentials.my-block-name }}"
     ```
 
-!!! warning "Push your code"
+<Warning>
+**Push your code**
+
     When you make a change to your code, Prefect does not push your code to your git-based version control platform.
     You need to push your code manually or as part of your CI/CD pipeline.
     This design decision is an intentional one to avoid confusion about the git history and push process.
+
+</Warning>
 
 ## Option 2: Docker-based storage
 
@@ -143,9 +147,13 @@ All work pool options except Process and Prefect Managed work pools allow you to
 1. When a deployment runs the worker pulls the Docker image and spins up a container.
 1. The flow code baked into the image runs inside the container.
 
-!!! tip "CI/CD may not require push or pull steps"
+<Tip>
+**CI/CD may not require push or pull steps**
+
     You don't need push or pull steps in the `prefect.yaml` file if using CI/CD to build a Docker image outside of Prefect.
     Instead, the work pool can reference the image directly.
+
+</Tip>
 
 ## Option 3: Cloud-provider storage
 

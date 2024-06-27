@@ -95,7 +95,7 @@ The updates that you need to make to `repo_info.py` are:
 
 The updated `repo_info.py` looks like this:
 
-```python hl_lines="17-23" title="repo_info.py"
+```python 
 import httpx
 from prefect import flow
 
@@ -129,10 +129,10 @@ You can store your flow code in any of several types of remote storage.
 This example uses a GitHub repository, but you can also use a Docker image (more information on that later in this tutorial).
 Alternatively, you can store your flow code in cloud provider storage such as AWS S3, or within a different git-based cloud provider such as GitLab or Bitbucket.
 
-!!! note
+<Note>
     In the example above, you stored your code in a GitHub repository.
     If you make changes to the flow code, you must push those changes to your own GitHub account and update the `source` argument of `from_source` to point to your repository.
-
+</Note>
 Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
 
 
@@ -262,7 +262,7 @@ While the default namespace is set, any images you build without specifying a re
 
 To use this functionality, write your deploy script like this:
 
-```python hl_lines="14" title="example_deploy_script.py"
+```python 
 from prefect import flow                                                       
 from prefect.deployments import DeploymentImage                                
 
@@ -288,9 +288,9 @@ Run the script to create the deployment on the Prefect Cloud server.
 
 Running this script builds a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and pushes it to your repository.
 
-!!! tip
+<Tip>
     Make sure you have Docker running locally before running this script.
-
+</Tip>
 Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
 Otherwise, you can pass `image="my-image:latest"` to `deploy`.
 
