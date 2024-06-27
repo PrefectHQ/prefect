@@ -414,7 +414,7 @@ async def propose_state(
         response = await set_state_func()
         while response.status == SetStateStatus.WAIT:
             engine_logger.debug(
-                f"[ASYNC] Received wait instruction for {response.details.delay_seconds}s: "
+                f"Received wait instruction for {response.details.delay_seconds}s: "
                 f"{response.details.reason}"
             )
             await anyio.sleep(response.details.delay_seconds)
@@ -517,7 +517,7 @@ def propose_state_sync(
         response = set_state_func()
         while response.status == SetStateStatus.WAIT:
             engine_logger.debug(
-                f"[SYNC] Received wait instruction for {response.details.delay_seconds}s: "
+                f"Received wait instruction for {response.details.delay_seconds}s: "
                 f"{response.details.reason}"
             )
             time.sleep(response.details.delay_seconds)
