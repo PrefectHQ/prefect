@@ -4,7 +4,7 @@ description: Prefect can schedule when to automatically create new flow runs.
 ---
 
 Prefect allows you to specify schedules on which your flows run.
-You can add one or more schedules to any [served or deployed](/3.0rc/deploy/serve-flows/) flow.
+You can add one or more schedules to any [served or deployed](/3.0rc/deploy/run-flows-in-local-processes) flow.
 Schedules tell Prefect when and how to create new flow runs.
 You can add a schedule to a deployed flow in the Prefect UI, in the CLI through the `prefect deployment schedule` command, or the `prefect.yaml` configuration file.
 
@@ -16,7 +16,7 @@ There are several ways to create a schedule for a deployment:
 - With the `cron`, `interval`, or `rrule` parameters if building your deployment with the 
 [`serve` method](/3.0rc/develop/write-flows/#serving-a-flow) of the `Flow` object or 
 [the `serve` utility](/3.0rc/develop/write-flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
-- If using [worker-based deployments](/3.0rc/deploy/control-runs/workers/)
+- If using [worker-based deployments](/3.0rc/deploy/infrastructure-concepts/workers/)
   - When you define a deployment with `flow.serve` or `flow.deploy`
   - Through the interactive `prefect deploy` command
   - With the `deployments` -> `schedules` section of the `prefect.yaml` file
@@ -166,9 +166,7 @@ Longer schedules, such as one that fires at 9am every morning, adjust for DST au
   
 ### Interval
 
-An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional 
-`anchor_date`. For example, this is how you create a schedule for every 10 minutes in a 
-[block-based deployment](/3.0rc/deploy/serve-flows/#block-based-deployments) YAML file:
+An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional `anchor_date`.
 
 ```yaml
 schedule:
@@ -228,9 +226,6 @@ week day or day-of-month adjustments, and more. RRules can represent complex log
 | timezone | String name of a time zone. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.                                          |
 
 You may find it useful to use an RRule string generator such as the [iCalendar.org RRule Tool](https://icalendar.org/rrule-tool.html) to help create valid RRules.
-
-For example, the following RRule schedule in a [block-based deployment](/3.0rc/deploy/serve-flows/#block-based-deployments) 
-YAML file creates flow runs on Monday, Wednesday, and Friday until July 30, 2024.
 
 ```yaml
 schedule:

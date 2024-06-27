@@ -1,5 +1,5 @@
 ---
-title: Run flows with Kubernetes
+title: Run flows on Kubernetes
 description: Learn how to run flows on Kubernetes using containers.
 ---
 
@@ -183,7 +183,7 @@ If you already have a registry, skip ahead to the next section.
 
 ## Create a Kubernetes work pool
 
-[Work pools](3.0rc/deploy/control-runs/work-pools/) allow you to manage deployment 
+[Work pools](3.0rc/deploy/infrastructure-concepts/work-pools/) allow you to manage deployment 
 infrastructure.
 This section shows you how to configure the default values for your 
 Kubernetes base job template.
@@ -407,9 +407,9 @@ The `prefect.yaml` file currently allows for more customization in terms of push
 steps.
 
 To learn about the Python deployment creation method with `flow.deploy` see 
-[Workers](/3.0rc/deploy/dynamic-infra/push-runs-remote/).
+[Workers](/3.0rc/deploy/infrastructure-examples/docker/).
 
-The [`prefect.yaml`](/3.0rc/deploy/serve-flows/#managing-deployments) file is used 
+The [`prefect.yaml`](/3.0rc/deploy/infrastructure-concepts/prefect-yaml/#managing-deployments) file is used 
 by the `prefect deploy` command to deploy your flows.
 As a part of that process it also builds and pushes your image.
 Create a new file named `prefect.yaml` with the following contents:
