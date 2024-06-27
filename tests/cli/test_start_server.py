@@ -87,13 +87,6 @@ async def start_server_process():
 
 @pytest.mark.service("process")
 class TestUvicornSignalForwarding:
-    # Uvicorn signal forwarding relies on the uvicorn signal handler not being
-    # overwritten by other signal handlers within the uvicorn process. If
-    # these tests are failing, especially with a timeout, it's likely that some
-    # signal handler has found its way into the uvicorn process. The most
-    # likely candidate is a LoopService being added to `create_app` that has
-    # not been initialized with `handle_signals=False`.
-
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",

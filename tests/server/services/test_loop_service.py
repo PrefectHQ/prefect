@@ -165,7 +165,7 @@ class TestSignalHandling:
         assert service._should_stop is True
 
     async def test_handle_signals_can_be_disabled(self):
-        service = LoopService(handle_signals=False)
+        service = LoopService()
         assert service._should_stop is False
         signal.raise_signal(signal.SIGTERM)
         # yield so the signal handler would have time to run
