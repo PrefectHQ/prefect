@@ -4563,6 +4563,36 @@ class TestLoadFlowArgumentFromEntrypoint:
         assert result == "flow-function"
         assert "Failed to parse @flow argument: `name=get_name()`" in caplog.text
 
+    def test_load_flow_name_from_entrypoint_dynamic_name_fstring_multiline(
+        self, tmp_path: Path
+    ):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        flow_base_name = "flow-function"
+        version = "1.0"
+
+        @flow(
+            name=(
+                f"{flow_base_name}-"
+                f"{version}"
+            )
+        )
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function-1.0"
+
     def test_load_async_flow_from_entrypoint_no_name(self, tmp_path: Path):
         flow_source = dedent(
             """
