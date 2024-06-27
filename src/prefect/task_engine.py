@@ -431,12 +431,14 @@ class TaskRunEngine(Generic[P, R]):
                 name="TimedOut",
             )
             self.set_state(state)
+            self._raised = exc
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
+        self._raised = exc
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
