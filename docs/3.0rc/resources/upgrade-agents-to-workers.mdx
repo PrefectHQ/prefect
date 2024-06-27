@@ -50,7 +50,7 @@ Prefect's infrastructure, without the need to host a worker or configure cloud p
 with a single command.
 - Both options allow you to build Docker images for your flows to create portable execution environments.
 - The YAML-based API supports [templating](/3.0rc/deploy/prefect-yaml/#templating-options) 
-to enable [dryer deployment definitions](/3.0rc/deploy/static-infra/push-runs-remote/#reusing-configuration-across-deployments).
+to enable [dryer deployment definitions](/3.0rc/deploy/dynamic-infra/push-runs-remote/#reusing-configuration-across-deployments).
 
 ## Upgrade changes
 
@@ -85,7 +85,7 @@ to enable [dryer deployment definitions](/3.0rc/deploy/static-infra/push-runs-re
 
     Create and/or update many deployments at once through a 
     [`prefect.yaml`](/3.0rc/deploy/prefect-yaml/#work-with-multiple-deployments-with-prefect-yaml) 
-    file or use the [`deploy`](/3.0rc/deploy/static-infra/push-runs-remote) 
+    file or use the [`deploy`](/3.0rc/deploy/dynamic-infra/push-runs-remote) 
     function.
 
 ## What's similar
@@ -372,4 +372,4 @@ You can add more [deployments](/3.0rc/deploy/prefect-yaml/#deployment-declaratio
 to the `deployments` list in your `prefect.yaml` file and/or by continuing to use the deployment 
 creation wizard.
 
-For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/3.0rc/deploy/static-infra/push-runs-remote/).
+For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/3.0rc/deploy/dynamic-infra/push-runs-remote/).

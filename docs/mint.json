@@ -126,20 +126,14 @@
       "version": "3.0rc",
       "pages": [
         "3.0rc/deploy/index",
-        {
-          "group": "Static infrastructure",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/deploy/static-infra/index",
-            "3.0rc/deploy/static-infra/push-runs-remote"
-          ]
-        },
+        "3.0rc/deploy/run-flows-in-local-processes",
         {
           "group": "Dynamic infrastructure",
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/dynamic-infra/managed-execution",
             "3.0rc/deploy/dynamic-infra/push-runs-serverless",
+            "3.0rc/deploy/dynamic-infra/push-runs-remote",
             "3.0rc/deploy/dynamic-infra/deploy-kubernetes"
           ]
         },

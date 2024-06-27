@@ -70,8 +70,8 @@ When creating a deployment that uses a work pool and worker, there are two impor
 For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
-[Serve flows](/3.0rc/deploy/static-infra/index/) shows how to create a deployment with a long-running process using `.serve`, 
-and how to move to a [work pool deployment](/3.0rc/deploy/static-infra/push-runs-remote/) setup with `.deploy`.
+[Serve flows](/3.0rc/deploy/run-flows-in-local-processes/) shows how to create a deployment with a long-running process using `.serve`, 
+and how to move to a [work pool deployment](/3.0rc/deploy/dynamic-infra/push-runs-remote/) setup with `.deploy`.
 Learn more about when to move to [work pool deployments](#benefits-of-work-pools).
 
 Next, you'll learn how to use `.deploy` to create deployments with Python code.
@@ -807,5 +807,5 @@ See the [Push Work Pool guide](/3.0rc/deploy/dynamic-infra/push-runs-serverless/
 cloud provider.
 
 If you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect 
-server instance, see the Workers [guide](/3.0rc/deploy/static-infra/push-runs-remote/). You will learn how 
+server instance, see the Workers [guide](/3.0rc/deploy/dynamic-infra/push-runs-remote/). You will learn how 
 to use work pools that rely on a worker and customize Docker images for container-based infrastructure.
