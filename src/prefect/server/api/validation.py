@@ -127,7 +127,9 @@ async def _resolve_default_reference(
     if (provided_block_document_id := reference_data.get("block_document_id")) is None:
         return None
 
-    if not isinstance(provided_block_document_id, UUID):
+    if isinstance(provided_block_document_id, UUID):
+        block_document_id = provided_block_document_id
+    else:
         try:
             block_document_id = UUID(provided_block_document_id)
         except ValueError:
