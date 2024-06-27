@@ -9,10 +9,10 @@ from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
 from pydantic import Field, field_validator
 
-from prefect import get_run_logger, task
+from prefect import task
 from prefect.blocks.abstract import ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
-from prefect.logging import disable_run_logger
+from prefect.logging import disable_run_logger, get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
 
@@ -1288,7 +1288,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         ] = DataFrameSerializationFormat.CSV_GZIP,
         **upload_kwargs: Dict[str, Any],
     ) -> str:
-        """Upload a Pandas DataFrame to Google Cloud Storage in various formats.
+        """
+        Upload a Pandas DataFrame to Google Cloud Storage in various formats.
 
         This function uploads the data in a Pandas DataFrame to Google Cloud Storage
         in a specified format, such as .csv, .csv.gz, .parquet,
@@ -1302,7 +1303,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 'csv', 'csv_gzip',  'parquet', 'parquet_snappy', 'parquet_gzip'.
                 Defaults to `DataFrameSerializationFormat.CSV_GZIP`.
             **upload_kwargs: Additional keyword arguments to pass to the underlying
-            `Blob.upload_from_dataframe` method.
+                `upload_from_dataframe` method.
 
         Returns:
             The path that the object was uploaded to.

@@ -1,25 +1,32 @@
 import abc
 import concurrent.futures
 import inspect
-import time
 import uuid
+from collections.abc import Iterator
 from functools import partial
-from typing import Any, Generic, Optional, Set, Union, cast
+from typing import Any, Generic, List, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
+from prefect._internal.compatibility.deprecated import deprecated_async_method
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import Pending, State
+from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
+from prefect.utilities.timeout import timeout as timeout_context
 
 F = TypeVar("F")
+R = TypeVar("R")
+
+logger = get_logger(__name__)
 
 
-class PrefectFuture(abc.ABC):
+class PrefectFuture(abc.ABC, Generic[R]):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
     asynchronous execution of a task run. It provides methods to wait for the task
@@ -28,7 +35,7 @@ class PrefectFuture(abc.ABC):
 
     def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
-        self._final_state = None
+        self._final_state: Optional[State[R]] = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
@@ -53,12 +60,12 @@ class PrefectFuture(abc.ABC):
     def wait(self, timeout: Optional[float] = None) -> None:
         ...
         """
-        Wait for the task run to complete. 
+        Wait for the task run to complete.
 
         If the task run has already completed, this method will return immediately.
 
         Args:
-            - timeout: The maximum number of seconds to wait for the task run to complete.
+            timeout: The maximum number of seconds to wait for the task run to complete.
               If the task run has not completed after the timeout has elapsed, this method will return.
         """
 
@@ -67,7 +74,7 @@ class PrefectFuture(abc.ABC):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         ...
         """
         Get the result of the task run associated with this future.
@@ -75,16 +82,16 @@ class PrefectFuture(abc.ABC):
         If the task run has not completed, this method will wait for the task run to complete.
 
         Args:
-            - timeout: The maximum number of seconds to wait for the task run to complete.
+            timeout: The maximum number of seconds to wait for the task run to complete.
             If the task run has not completed after the timeout has elapsed, this method will return.
-            - raise_on_failure: If `True`, an exception will be raised if the task run fails.
+            raise_on_failure: If `True`, an exception will be raised if the task run fails.
 
         Returns:
             The result of the task run.
         """
 
 
-class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
+class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
     """
     A Prefect future that wraps another future object.
     """
@@ -99,12 +106,13 @@ class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
         return self._wrapped_future
 
 
-class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
+class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]):
     """
     A Prefect future that wraps a concurrent.futures.Future. This future is used
     when the task run is submitted to a ThreadPoolExecutor.
     """
 
+    @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
@@ -113,11 +121,12 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
         if isinstance(result, State):
             self._final_state = result
 
+    @deprecated_async_method
     def result(
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         if not self._final_state:
             try:
                 future_result = self._wrapped_future.result(timeout=timeout)
@@ -140,79 +149,152 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
             _result = run_coro_as_sync(_result)
         return _result
 
+    def __del__(self):
+        if self._final_state or self._wrapped_future.done():
+            return
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "A future was garbage collected before it resolved."
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+        )
 
-class PrefectDistributedFuture(PrefectFuture):
+
+class PrefectDistributedFuture(PrefectFuture[R]):
     """
     Represents the result of a computation happening anywhere.
 
     This class is typically used to interact with the result of a task run
-    scheduled to run in a Prefect task server but can be used to interact with
+    scheduled to run in a Prefect task worker but can be used to interact with
     any task run scheduled in Prefect's API.
     """
 
-    def __init__(self, task_run_id: uuid.UUID):
-        self._task_run = None
-        self._client = None
-        super().__init__(task_run_id=task_run_id)
+    @deprecated_async_method
+    def wait(self, timeout: Optional[float] = None) -> None:
+        return run_coro_as_sync(self.wait_async(timeout=timeout))
 
-    @property
-    def client(self):
-        if self._client is None:
-            self._client = get_client(sync_client=True)
-        return self._client
-
-    @property
-    def task_run(self):
-        if self._task_run is None:
-            self._task_run = self.client.read_task_run(task_run_id=self.task_run_id)
-        return self._task_run
-
-    @task_run.setter
-    def task_run(self, task_run):
-        self._task_run = task_run
-
-    def wait(
-        self, timeout: Optional[float] = None, polling_interval: Optional[float] = 0.2
-    ) -> None:
-        start_time = time.time()
-        # TODO: Websocket implementation?
-        while True:
-            self.task_run = cast(
-                TaskRun, self.client.read_task_run(task_run_id=self.task_run_id)
+    async def wait_async(self, timeout: Optional[float] = None):
+        if self._final_state:
+            logger.debug(
+                "Final state already set for %s. Returning...", self.task_run_id
             )
-            if self.task_run.state and self.task_run.state.is_final():
-                self._final_state = self.task_run.state
-                return
-            if timeout is not None and (time.time() - start_time) > timeout:
-                return
-            time.sleep(polling_interval)
+            return
 
+        # Ask for the instance of TaskRunWaiter _now_ so that it's already running and
+        # can catch the completion event if it happens before we start listening for it.
+        TaskRunWaiter.instance()
+
+        # Read task run to see if it is still running
+        async with get_client() as client:
+            task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state.is_final():
+                logger.debug(
+                    "Task run %s already finished. Returning...",
+                    self.task_run_id,
+                )
+                self._final_state = task_run.state
+                return
+
+            # If still running, wait for a completed event from the server
+            logger.debug(
+                "Waiting for completed event for task run %s...",
+                self.task_run_id,
+            )
+            await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
+            task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state.is_final():
+                self._final_state = task_run.state
+            return
+
+    @deprecated_async_method
     def result(
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-        polling_interval: Optional[float] = 0.2,
-    ) -> Any:
+    ) -> R:
+        return run_coro_as_sync(
+            self.result_async(timeout=timeout, raise_on_failure=raise_on_failure)
+        )
+
+    async def result_async(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> R:
         if not self._final_state:
-            self.wait(timeout=timeout)
+            await self.wait_async(timeout=timeout)
             if not self._final_state:
                 raise TimeoutError(
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 )
 
-        _result = self._final_state.result(
+        return await self._final_state.result(
             raise_on_failure=raise_on_failure, fetch=True
         )
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
-            _result = run_coro_as_sync(_result)
-        return _result
 
     def __eq__(self, other):
         if not isinstance(other, PrefectDistributedFuture):
             return False
         return self.task_run_id == other.task_run_id
+
+
+class PrefectFutureList(list, Iterator, Generic[F]):
+    """
+    A list of Prefect futures.
+
+    This class provides methods to wait for all futures
+    in the list to complete and to retrieve the results of all task runs.
+    """
+
+    def wait(self, timeout: Optional[float] = None) -> None:
+        """
+        Wait for all futures in the list to complete.
+
+        Args:
+            timeout: The maximum number of seconds to wait for all futures to
+                complete. This method will not raise if the timeout is reached.
+        """
+        try:
+            with timeout_context(timeout):
+                for future in self:
+                    future.wait()
+        except TimeoutError:
+            logger.debug("Timed out waiting for all futures to complete.")
+            return
+
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> List:
+        """
+        Get the results of all task runs associated with the futures in the list.
+
+        Args:
+            timeout: The maximum number of seconds to wait for all futures to
+                complete.
+            raise_on_failure: If `True`, an exception will be raised if any task run fails.
+
+        Returns:
+            A list of results of the task runs.
+
+        Raises:
+            TimeoutError: If the timeout is reached before all futures complete.
+        """
+        try:
+            with timeout_context(timeout):
+                return [
+                    future.result(raise_on_failure=raise_on_failure) for future in self
+                ]
+        except TimeoutError as exc:
+            # timeout came from inside the task
+            if "Scope timed out after {timeout} second(s)." not in str(exc):
+                raise
+            raise TimeoutError(
+                f"Timed out waiting for all futures to complete within {timeout} seconds"
+            ) from exc
 
 
 def resolve_futures_to_states(
@@ -243,6 +325,10 @@ def resolve_futures_to_states(
         return_data=False,
         context={},
     )
+
+    # if no futures were found, return the original expression
+    if not futures:
+        return expr
 
     # Get final states for each future
     states = []

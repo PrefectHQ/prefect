@@ -27,7 +27,7 @@ dependencies = [
   "azure_identity>=1.10",
   "azure_mgmt_containerinstance>=10.0",
   "azure-mgmt-resource>=21.2",
-  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "prefect>=3.0.0rc1",
   "setuptools",                                           #required in 3.12 to get pkg_resources (used by azureml.core)
 ]
 dynamic = ["version"]
@@ -53,6 +53,7 @@ dev = [
   "pre-commit",
   "pytest-asyncio",
   "pytest",
+  "pytest-env",
   "pytest-xdist",
 ]
 
@@ -65,7 +66,7 @@ prefect_azure = "prefect_azure"
 [tool.setuptools_scm]
 version_file = "prefect_azure/_version.py"
 root = "../../.."
-tag_regex = "^prefect-azure-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-azure-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-azure-*[0-9]*"'
 
@@ -85,3 +86,6 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+  "PREFECT_TEST_MODE=1",
+]

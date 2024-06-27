@@ -9,7 +9,6 @@ import pendulum
 import pytest
 
 from prefect.results import (
-    LiteralResult,
     PersistedResult,
     UnknownResult,
     UnpersistedResult,
@@ -1337,9 +1336,7 @@ class TestTransitionsFromTerminalStatesRule:
         ],
         ids=transition_names,
     )
-    @pytest.mark.parametrize(
-        "result_type", [PersistedResult, LiteralResult, UnknownResult]
-    )
+    @pytest.mark.parametrize("result_type", [PersistedResult, UnknownResult])
     async def test_transitions_from_completed_to_non_final_states_rejected_with_persisted_result(
         self,
         session,
@@ -3244,7 +3241,7 @@ class TestAddUnknownResultRule:
         "result_type,initial_state_type",
         list(
             product(
-                (UnpersistedResult, LiteralResult),
+                (UnpersistedResult,),
                 (states.StateType.FAILED, states.StateType.CRASHED),
             )
         ),

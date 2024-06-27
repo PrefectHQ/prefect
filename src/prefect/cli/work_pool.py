@@ -1,6 +1,7 @@
 """
 Command line interface for working with work queues.
 """
+
 import json
 import textwrap
 
@@ -9,7 +10,6 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._prompts import prompt_select_from_table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import (
@@ -18,21 +18,21 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
     _provisioners,
     get_infrastructure_provisioner_for_work_pool_type,
 )
-from prefect.settings import PREFECT_UI_URL, update_current_profile
+from prefect.settings import update_current_profile
+from prefect.utilities import urls
 from prefect.workers.utilities import (
     get_available_work_pool_types,
     get_default_base_job_template_for_infrastructure_type,
 )
 
-work_pool_app = PrefectTyper(
-    name="work-pool", help="Commands for working with work pools."
-)
+work_pool_app = PrefectTyper(name="work-pool", help="Manage work pools.")
 app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
@@ -214,12 +214,8 @@ async def create(
             if set_as_default:
                 set_work_pool_as_default(work_pool.name)
 
-            if PREFECT_UI_URL:
-                pool_url = (
-                    f"{PREFECT_UI_URL.value()}/work-pools/work-pool/{work_pool.name}"
-                )
-            else:
-                pool_url = "<no dashboard available>"
+            url = urls.url_for(work_pool)
+            pool_url = url if url else "<no dashboard available>"
 
             app.console.print(
                 textwrap.dedent(

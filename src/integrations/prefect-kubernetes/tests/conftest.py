@@ -9,7 +9,6 @@ from kubernetes.client.exceptions import ApiException
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.jobs import KubernetesJob
 
-from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
@@ -32,17 +31,6 @@ def disable_api_logging():
     Disables API logging for all tests.
     """
     with temporary_settings(updates={PREFECT_LOGGING_TO_API_ENABLED: False}):
-        yield
-
-
-@pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
         yield
 
 
@@ -80,9 +68,7 @@ def unsuccessful_job_status():
 @pytest.fixture
 def kubernetes_credentials(kube_config_dict):
     return KubernetesCredentials(
-        cluster_config=KubernetesClusterConfig(
-            context_name="test", config=kube_config_dict
-        )
+        cluster_config=dict(context_name="test", config=kube_config_dict)
     )
 
 

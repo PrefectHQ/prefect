@@ -42,6 +42,7 @@ dependent on the value of other settings or perform other dynamic effects.
 
 import logging
 import os
+import re
 import string
 import warnings
 from contextlib import contextmanager
@@ -89,21 +90,6 @@ T = TypeVar("T")
 
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
-
-# When we remove the experimental settings we also want to add them to the set of REMOVED_EXPERIMENTAL_FLAGS.
-# The reason for this is removing the settings entirely causes the CLI to crash for anyone who has them in one or more of their profiles.
-# Adding them to REMOVED_EXPERIMENTAL_FLAGS will make it so that the user is warned about it and they have time to take action.
-REMOVED_EXPERIMENTAL_FLAGS = {
-    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
-    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
-    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
-    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS",
-    "PREFECT_EXPERIMENTAL_EVENTS",
-    "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
-    "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
-    "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
-    "PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS",
-}
 
 
 class Setting(Generic[T]):
@@ -475,10 +461,8 @@ def default_cloud_ui_url(settings, value):
     # Otherwise, infer a value from the API URL
     ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
 
-    if api_url.startswith("https://api.prefect.cloud"):
-        ui_url = ui_url.replace(
-            "https://api.prefect.cloud", "https://app.prefect.cloud", 1
-        )
+    if re.match(r"^https://api[\.\w]*.prefect.[^\.]+/", api_url):
+        ui_url = ui_url.replace("https://api", "https://app", 1)
 
     if ui_url.endswith("/api"):
         ui_url = ui_url[:-4]
@@ -945,41 +929,6 @@ interpreted and lead to incomplete output, e.g.
 `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
 """
 
-PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD = Setting(
-    float,
-    default=10.0,
-)
-"""
-Threshold time in seconds for logging a warning if task parameter introspection
-exceeds this duration. Parameter introspection can be a significant performance hit
-when the parameter is a large collection object, e.g. a large dictionary or DataFrame,
-and each element needs to be inspected. See `prefect.utilities.annotations.quote`
-for more details.
-Defaults to `10.0`.
-Set to `0` to disable logging the warning.
-"""
-
-PREFECT_AGENT_QUERY_INTERVAL = Setting(
-    float,
-    default=15,
-)
-"""
-The agent loop interval, in seconds. Agents will check for new runs this often.
-Defaults to `15`.
-"""
-
-PREFECT_AGENT_PREFETCH_SECONDS = Setting(
-    int,
-    default=15,
-)
-"""
-Agents will look for scheduled runs this many seconds in
-the future and attempt to run them. This accounts for any additional
-infrastructure spin-up time or latency in preparing a flow run. Note
-flow runs will not start before their scheduled time, even if they are
-prefetched. Defaults to `15`.
-"""
-
 PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
 """
 Determines whether `State.result()` fetches results automatically or not.
@@ -1208,6 +1157,9 @@ PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = Setting(
 """The number of seconds before a work queue is marked as not ready if it has not been
 polled."""
 
+PREFECT_API_LOG_RETRYABLE_ERRORS = Setting(bool, default=False)
+"""If `True`, log retryable errors in the API and it's services."""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
@@ -1356,30 +1308,6 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
 The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
-"""
-Whether or not to enable artifacts on the flow run graph.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
-"""
-Whether or not to enable flow run states on the flow run graph.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect workers.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect workers are used.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect visualize is used.
-"""
 
 PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
@@ -1389,26 +1317,6 @@ Whether or not to enable experimental enhanced flow run cancellation.
 PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
 """
 Whether or not to warn when experimental enhanced flow run cancellation is used.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_DEPLOYMENT_STATUS = Setting(bool, default=True)
-"""
-Whether or not to enable deployment status in the UI
-"""
-
-PREFECT_EXPERIMENTAL_WARN_DEPLOYMENT_STATUS = Setting(bool, default=False)
-"""
-Whether or not to warn when deployment status is used.
-"""
-
-PREFECT_EXPERIMENTAL_FLOW_RUN_INPUT = Setting(bool, default=False)
-"""
-Whether or not to enable flow run input.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
-"""
-Whether or not to enable flow run input.
 """
 
 
@@ -1491,10 +1399,7 @@ PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED = Setting(bool, default=True)
 Whether or not to start the task scheduling service in the server application.
 """
 
-PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
-    str,
-    default="local-file-system/prefect-task-scheduling",
-)
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(Optional[str], default=None)
 """The `block-type/block-document` slug of a block to use as the default storage
 for autonomous tasks."""
 
@@ -1524,42 +1429,17 @@ The maximum number of retries to queue for submission.
 
 PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
     timedelta,
-    default=timedelta(seconds=30),
+    default=timedelta(0),
 )
 """
-How long before a PENDING task are made available to another task server.  In practice,
-a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
-PENDING for a while is a sign that the task server may have crashed.
+How long before a PENDING task are made available to another task worker.  In practice,
+a task worker should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task worker may have crashed.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental worker webserver endpoints.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect artifacts.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect artifacts are used.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=True)
-"""
-Whether or not to enable the experimental workspace dashboard.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
-"""
-Whether or not to warn when the experimental workspace dashboard is enabled.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
 PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
@@ -1647,11 +1527,6 @@ PREFECT_EVENTS_MAXIMUM_SIZE_BYTES = Setting(int, default=1_500_000)
 The maximum size of an Event when serialized to JSON
 """
 
-PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to start the event debug logger service in the server application.
-"""
-
 PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
 """
 Whether or not to start the triggers service in the server application.
@@ -1697,6 +1572,18 @@ PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
 )
 """
 How long to cache related resource data for emitting server-side vents
+"""
+
+PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL = Setting(
+    timedelta, default=timedelta(minutes=15)
+)
+"""
+The maximum range to look back for backfilling events for a websocket subscriber
+"""
+
+PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE = Setting(int, default=250, gt=0)
+"""
+The page size for the queries to backfill events for websocket subscribers
 """
 
 
@@ -2199,26 +2086,6 @@ class ProfilesCollection:
         )
 
 
-def _handle_removed_flags(
-    profile_name: str, settings: Dict[str, Any]
-) -> Dict[str, Any]:
-    to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
-
-    for name in to_remove:
-        warnings.warn(
-            (
-                f"Experimental flag {name!r} has been removed, please "
-                f"update your {profile_name!r} profile."
-            ),
-            UserWarning,
-            stacklevel=3,
-        )
-
-        settings.pop(name)
-
-    return settings
-
-
 def _read_profiles_from(path: Path) -> ProfilesCollection:
     """
     Read profiles from a path into a new `ProfilesCollection`.
@@ -2237,7 +2104,6 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
 
     profiles = []
     for name, settings in raw_profiles.items():
-        settings = _handle_removed_flags(name, settings)
         profiles.append(Profile(name=name, settings=settings, source=path))
 
     return ProfilesCollection(profiles, active=active_profile)

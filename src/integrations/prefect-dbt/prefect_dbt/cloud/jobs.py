@@ -10,9 +10,10 @@ from httpx import HTTPStatusError
 from pydantic import Field
 from typing_extensions import Literal
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.context import FlowRunContext
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
@@ -1131,3 +1132,6 @@ async def run_dbt_cloud_job(
             )
             run = await task(run.retry_failed_steps.aio)(run)
             targeted_retries -= 1
+    raise DbtCloudJobRunFailed(
+        f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
+    )

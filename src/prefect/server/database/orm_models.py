@@ -827,7 +827,6 @@ class Deployment(Base):
     name = sa.Column(sa.String, nullable=False)
     version = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.Text(), nullable=True)
-    manifest_path = sa.Column(sa.String, nullable=True)
     work_queue_name = sa.Column(sa.String, nullable=True, index=True)
     infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     path = sa.Column(sa.String, nullable=True)

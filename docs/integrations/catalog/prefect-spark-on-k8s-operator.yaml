@@ -1,0 +1,6 @@
+integrationName: prefect-spark-on-k8s-operator
+author: Manoj Babu Katragadda
+authorUrl: https://github.com/tardunge
+documentation: https://tardunge.github.io/prefect-spark-on-k8s-operator/
+iconUrl: /images/integrations/spark-on-kubernetes.png
+tag: Spark on Kubernetes

@@ -15,7 +15,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 
 help_message = """
-    Commands for interacting with Prefect settings.
+    View and set Prefect profiles.
 """
 
 config_app = PrefectTyper(name="config", help=help_message)
@@ -98,7 +98,7 @@ def validate():
 
 
 @config_app.command()
-def unset(settings: List[str]):
+def unset(settings: List[str], confirm: bool = typer.Option(False, "--yes", "-y")):
     """
     Restore the default value for a setting.
 
@@ -118,8 +118,12 @@ def unset(settings: List[str]):
         if setting not in profile.settings:
             exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
 
-    if is_interactive() and not typer.confirm(
-        f"Are you sure you want to unset the following settings: {settings!r}?",
+    if (
+        not confirm
+        and is_interactive()
+        and not typer.confirm(
+            f"Are you sure you want to unset the following settings: {settings!r}?",
+        )
     ):
         exit_with_error("Unset aborted.")
 

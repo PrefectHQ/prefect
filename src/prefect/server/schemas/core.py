@@ -597,12 +597,6 @@ class Deployment(ORMBaseModel):
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    manifest_path: Optional[str] = Field(
-        default=None,
-        description=(
-            "The path to the flow's manifest file, relative to the chosen storage."
-        ),
-    )
     storage_document_id: Optional[UUID] = Field(
         default=None,
         description="The block document defining storage used for this flow.",
@@ -1076,7 +1070,7 @@ class WorkPool(ORMBaseModel):
 
     # this required field has a default of None so that the custom validator
     # below will be called and produce a more helpful error message
-    default_queue_id: UUID = Field(
+    default_queue_id: Optional[UUID] = Field(
         None, description="The id of the pool's default queue."
     )
 

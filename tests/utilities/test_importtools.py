@@ -236,10 +236,10 @@ def test_safe_load_namespace():
     assert "math" in namespace
     assert "datetime" in namespace
     assert "BaseModel" in namespace
-    # module-level variables should not be present
-    assert "x" not in namespace
-    assert "y" not in namespace
-    assert "now" not in namespace
+    # module-level variables should be present
+    assert "x" in namespace
+    assert "y" in namespace
+    assert "now" in namespace
     # module-level classes should be present
     assert "MyModel" in namespace
     # module-level functions should be present
@@ -285,3 +285,25 @@ def test_safe_load_namespace_ignore_class_declaration_errors():
 
     assert "DataFrame" not in namespace
     assert "CoolDataFrame" not in namespace
+
+
+def test_safe_load_namespace_ignores_code_in_if_name_equals_main_block():
+    source_code = dedent(
+        """
+        import math
+
+        x = 10
+        y = math.sqrt(x)
+
+
+        if __name__ == "__main__":
+            z = 10
+    """
+    )
+
+    # should not raise any errors
+    namespace = safe_load_namespace(source_code)
+
+    assert "x" in namespace
+    assert "y" in namespace
+    assert "z" not in namespace

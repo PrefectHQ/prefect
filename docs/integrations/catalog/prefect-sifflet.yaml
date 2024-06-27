@@ -1,0 +1,6 @@
+integrationName: prefect-sifflet
+author: Sifflet and Alessandro Lollo
+authorUrl: https://www.siffletdata.com/
+documentation: https://siffletapp.github.io/prefect-sifflet/
+iconUrl: /images/integrations/sifflet.png
+tag: Sifflet

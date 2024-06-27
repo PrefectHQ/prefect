@@ -1,0 +1,6 @@
+integrationName: prefect-cubejs
+author: Alessandro Lollo
+authorUrl: https://github.com/AlessandroLollo
+documentation: https://alessandrolollo.github.io/prefect-cubejs/
+iconUrl: /images/integrations/cubejs.png
+tag: CubeJS

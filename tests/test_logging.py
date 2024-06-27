@@ -100,7 +100,6 @@ async def logger_test_deployment(prefect_client):
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="logger_test_deployment",
-        manifest_path="file.json",
     )
 
     return deployment_id
@@ -693,7 +692,7 @@ class TestAPILogWorker:
         self, log_dict, capsys, monkeypatch, exiting, worker
     ):
         monkeypatch.setattr(
-            "prefect.client.PrefectClient.create_logs",
+            "prefect.client.orchestration.PrefectClient.create_logs",
             MagicMock(side_effect=ValueError("Test")),
         )
 
@@ -707,7 +706,7 @@ class TestAPILogWorker:
     async def test_send_logs_batches_by_size(self, log_dict, monkeypatch):
         mock_create_logs = AsyncMock()
         monkeypatch.setattr(
-            "prefect.client.PrefectClient.create_logs", mock_create_logs
+            "prefect.client.orchestration.PrefectClient.create_logs", mock_create_logs
         )
 
         log_size = APILogHandler()._get_payload_size(log_dict)
@@ -1372,7 +1371,7 @@ def test_without_disable_logger(caplog):
 
     function_with_logging(logger)
     assert not logger.disabled
-    assert caplog.record_tuples == [("griffe.agents.nodes", 50, "it's enabled!")]
+    assert ("griffe.agents.nodes", 50, "it's enabled!") in caplog.record_tuples
 
 
 def test_disable_logger(caplog):

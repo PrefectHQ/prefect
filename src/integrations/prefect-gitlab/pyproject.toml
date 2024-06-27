@@ -23,7 +23,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "prefect>=3.0.0rc1",
   "python-gitlab>=3.12.0",
   "tenacity>=8.2.3",
 ]
@@ -43,6 +43,7 @@ dev = [
   "pre-commit",
   "pytest-asyncio",
   "pytest",
+  "pytest-env",
   "pytest-xdist",
 ]
 
@@ -55,7 +56,7 @@ prefect_gitlab = "prefect_gitlab"
 [tool.setuptools_scm]
 version_file = "prefect_gitlab/_version.py"
 root = "../../.."
-tag_regex = "^prefect-gitlab-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-gitlab-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-gitlab-*[0-9]*"'
 
@@ -75,3 +76,6 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+  "PREFECT_TEST_MODE=1",
+]

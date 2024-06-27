@@ -1,0 +1,6 @@
+integrationName: prefect-dbt
+author: Prefect
+authorUrl: https://prefect.io
+documentation: prefect-dbt
+iconUrl: /images/integrations/dbt.png
+tag: dbt

@@ -91,7 +91,7 @@ from azure.mgmt.resource.resources.models import (
 from pydantic import Field, SecretStr
 from slugify import slugify
 
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server.schemas.core import Flow
@@ -371,9 +371,11 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
         env = {**self._base_environment(), **self.env}
 
         azure_env = [
-            {"name": key, "secureValue": value}
-            if key in ENV_SECRETS
-            else {"name": key, "value": value}
+            (
+                {"name": key, "secureValue": value}
+                if key in ENV_SECRETS
+                else {"name": key, "value": value}
+            )
             for key, value in env.items()
         ]
         return azure_env

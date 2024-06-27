@@ -132,7 +132,8 @@ Here's an example of a flow that uses caching and remote result storage:
 ```python
 from typing import List
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
+from prefect.logging import get_run_logger
 from prefect.filesystems import S3
 from prefect.tasks import task_input_hash
 from prefect_ray.task_runners import RayTaskRunner

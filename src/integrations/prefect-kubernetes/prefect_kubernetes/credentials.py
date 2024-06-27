@@ -15,17 +15,11 @@ from kubernetes.client import (
     CustomObjectsApi,
 )
 from kubernetes.config.config_exception import ConfigException
-from pydantic.version import VERSION as PYDANTIC_VERSION
+from pydantic import Field, field_validator
 from typing_extensions import Literal, Self
 
 from prefect.blocks.core import Block
 from prefect.utilities.collections import listrepr
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
 
 KubernetesClient = Union[AppsV1Api, BatchV1Api, CoreV1Api]
 
@@ -66,14 +60,17 @@ class KubernetesClusterConfig(Block):
         default=..., description="The name of the kubectl context to use."
     )
 
-    @validator("config", pre=True)
+    @field_validator("config", mode="before")
+    @classmethod
     def parse_yaml_config(cls, value):
         if isinstance(value, str):
             return yaml.safe_load(value)
         return value
 
     @classmethod
-    def from_file(cls: Type[Self], path: Path = None, context_name: str = None) -> Self:
+    def from_file(
+        cls: Type[Self], path: Optional[Path] = None, context_name: Optional[str] = None
+    ) -> Self:
         """
         Create a cluster config from the a Kubernetes config file.
 

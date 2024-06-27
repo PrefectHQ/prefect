@@ -71,9 +71,19 @@ Example:
     ```
 """
 
-import asyncio
+import asyncio  # noqa: I001
 import inspect
-from typing import Any, Dict, Iterable, Optional, Set
+from typing import (
+    Any,
+    Coroutine,
+    Dict,
+    Iterable,
+    Optional,
+    Set,
+    TypeVar,
+    overload,
+)
+from typing_extensions import ParamSpec
 from uuid import UUID, uuid4
 
 import ray
@@ -81,7 +91,8 @@ from ray.exceptions import GetTimeoutError
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import serialize_context
-from prefect.futures import PrefectFuture, PrefectWrappedFuture
+from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import State, exception_to_crashed_state
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.task_runners import TaskRunner
@@ -90,8 +101,15 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
 from prefect_ray.context import RemoteOptionsContext
 
+logger = get_logger(__name__)
 
-class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
+P = ParamSpec("P")
+T = TypeVar("T")
+F = TypeVar("F", bound=PrefectFuture)
+R = TypeVar("R")
+
+
+class PrefectRayFuture(PrefectWrappedFuture[R, ray.ObjectRef]):
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = ray.get(self.wrapped_future, timeout=timeout)
@@ -106,7 +124,7 @@ class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> Any:
+    ) -> R:
         if not self._final_state:
             try:
                 object_ref_result = ray.get(self.wrapped_future, timeout=timeout)
@@ -128,6 +146,24 @@ class PrefectRayFuture(PrefectWrappedFuture[ray.ObjectRef]):
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
+
+    def __del__(self):
+        if self._final_state:
+            return
+        try:
+            ray.get(self.wrapped_future, timeout=0)
+            return
+        except GetTimeoutError:
+            pass
+
+        try:
+            local_logger = get_run_logger()
+        except Exception:
+            local_logger = logger
+        local_logger.warning(
+            "A future was garbage collected before it resolved."
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+        )
 
 
 class RayTaskRunner(TaskRunner[PrefectRayFuture]):
@@ -189,13 +225,33 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         else:
             return False
 
+    @overload
+    def submit(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectRayFuture[R]:
+        ...
+
+    @overload
+    def submit(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectRayFuture[R]:
+        ...
+
     def submit(
         self,
         task: Task,
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectRayFuture:
+    ):
         if not self._started:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
@@ -227,6 +283,32 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
             )
         )
         return PrefectRayFuture(task_run_id=task_run_id, wrapped_future=object_ref)
+
+    @overload
+    def map(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> PrefectFutureList[PrefectRayFuture[R]]:
+        ...
+
+    @overload
+    def map(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> PrefectFutureList[PrefectRayFuture[R]]:
+        ...
+
+    def map(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ):
+        return super().map(task, parameters, wait_for)
 
     def _exchange_prefect_for_ray_futures(self, kwargs_prefect_futures):
         """Exchanges Prefect futures for Ray futures."""

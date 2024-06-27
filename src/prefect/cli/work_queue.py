@@ -12,17 +12,15 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
 from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
-work_app = PrefectTyper(
-    name="work-queue", help="Commands for working with work queues."
-)
+work_app = PrefectTyper(name="work-queue", help="Manage work queues.")
 app.add_typer(work_app, aliases=["work-queues"])
 
 

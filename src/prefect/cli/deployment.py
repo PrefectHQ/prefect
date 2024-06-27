@@ -16,7 +16,6 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -36,8 +35,8 @@ from prefect.exceptions import (
     PrefectHTTPStatusError,
 )
 from prefect.flow_runs import wait_for_flow_run
-from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
+from prefect.utilities import urls
 from prefect.utilities.collections import listrepr
 
 if TYPE_CHECKING:
@@ -57,12 +56,8 @@ def str_presenter(dumper, data):
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 
-deployment_app = PrefectTyper(
-    name="deployment", help="Commands for working with deployments."
-)
-schedule_app = PrefectTyper(
-    name="schedule", help="Commands for interacting with your deployment's schedules."
-)
+deployment_app = PrefectTyper(name="deployment", help="Manage deployments.")
+schedule_app = PrefectTyper(name="schedule", help="Manage deployment schedules.")
 
 deployment_app.add_typer(schedule_app, aliases=["schedule"])
 app.add_typer(deployment_app, aliases=["deployments"])
@@ -183,42 +178,8 @@ async def check_work_pool_exists(
             exit_with_error("Work pool not found!")
 
 
-@inject_client
-async def _print_deployment_work_pool_instructions(
-    work_pool_name: str, client: "PrefectClient" = None
-):
-    work_pool = await client.read_work_pool(work_pool_name)
-    blurb = (
-        "\nTo execute flow runs from this deployment, start an agent "
-        f"that pulls work from the {work_pool_name!r} work pool:"
-    )
-    command = f"$ prefect agent start -p {work_pool_name!r}"
-    if work_pool.type != "prefect-agent":
-        if experiment_enabled("workers"):
-            blurb = (
-                "\nTo execute flow runs from this deployment, start a"
-                " worker that pulls work from the"
-                f" {work_pool_name!r} work pool:"
-            )
-            command = f"$ prefect worker start -p {work_pool_name!r}"
-        else:
-            blurb = (
-                "\nTo execute flow runs from this deployment, please"
-                " enable the workers CLI and start a worker that pulls"
-                f" work from the {work_pool_name!r} work pool:"
-            )
-            command = (
-                "$ prefect config set"
-                " PREFECT_EXPERIMENTAL_ENABLE_WORKERS=True\n$ prefect"
-                f" worker start -p {work_pool_name!r}"
-            )
-
-    app.console.print(blurb)
-    app.console.print(command, style="blue")
-
-
 class RichTextIO:
-    def __init__(self, console, prefix: str = None) -> None:
+    def __init__(self, console, prefix: Optional[str] = None) -> None:
         self.console = console
         self.prefix = prefix
 
@@ -853,11 +814,7 @@ async def run(
             else:
                 raise
 
-    if PREFECT_UI_URL:
-        run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
-    else:
-        run_url = "<no dashboard available>"
-
+    run_url = urls.url_for(flow_run) or "<no dashboard available>"
     datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
     scheduled_display = (
         datetime_local_tz.to_datetime_string()

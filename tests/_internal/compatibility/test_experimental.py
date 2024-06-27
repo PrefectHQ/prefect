@@ -355,25 +355,11 @@ def test_experimental_marker_cannot_be_used_without_opt_in_setting_if_required()
 def test_enabled_experiments_with_opt_in():
     assert enabled_experiments() == {
         "test",
-        "workers",
-        "artifacts",
-        "workspace_dashboard",
-        "deployment_status",
         "enhanced_cancellation",
-        "work_queue_status",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
     }
 
 
 def test_enabled_experiments_without_opt_in():
     assert enabled_experiments() == {
-        "workers",
-        "artifacts",
-        "workspace_dashboard",
-        "deployment_status",
         "enhanced_cancellation",
-        "work_queue_status",
-        "artifacts_on_flow_run_graph",
-        "states_on_flow_run_graph",
     }

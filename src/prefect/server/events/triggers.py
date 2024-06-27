@@ -433,7 +433,7 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0):
 
             bucketing_key = trigger.bucketing_key(event)
 
-            async with automations_session() as session:
+            async with automations_session(begin_transaction=True) as session:
                 try:
                     bucket: Optional["ORMAutomationBucket"] = None
 

@@ -1,6 +1,7 @@
 """
 Command line interface for working with blocks.
 """
+
 import inspect
 from importlib import import_module
 from pathlib import Path
@@ -15,7 +16,7 @@ from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
-from prefect.client import get_client
+from prefect.client.orchestration import get_client
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
@@ -27,10 +28,8 @@ from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
-blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
-blocktypes_app = PrefectTyper(
-    name="type", help="Commands for working with blocks types."
-)
+blocks_app = PrefectTyper(name="block", help="Manage blocks.")
+blocktypes_app = PrefectTyper(name="type", help="Inspect and delete block types.")
 app.add_typer(blocks_app, aliases=["blocks"])
 blocks_app.add_typer(blocktypes_app, aliases=["types"])
 

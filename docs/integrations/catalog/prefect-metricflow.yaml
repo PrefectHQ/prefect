@@ -1,0 +1,6 @@
+integrationName: prefect-metricflow
+author: Alessandro Lollo
+authorUrl: https://github.com/AlessandroLollo
+documentation: https://alessandrolollo.github.io/prefect-metricflow/
+iconUrl: /images/integrations/metricflow.png
+tag: MetricFlow

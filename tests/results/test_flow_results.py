@@ -18,10 +18,8 @@ from prefect.serializers import (
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_HOME,
-    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     temporary_settings,
 )
-from prefect.states import Cancelled, Completed, Failed
 from prefect.testing.utilities import (
     assert_blocks_equal,
     assert_uses_result_serializer,
@@ -43,9 +41,8 @@ class MyIntSerializer(Serializer):
         return int.from_bytes(blob, byteorder="little")
 
 
-@pytest.mark.parametrize("persist_result", [False, None])
-async def test_flow_with_unpersisted_result(prefect_client, persist_result):
-    @flow(persist_result=persist_result)
+async def test_flow_with_unpersisted_result(prefect_client):
+    @flow(persist_result=False)
     def foo():
         return 1
 
@@ -106,24 +103,8 @@ async def test_flow_with_uncached_but_persisted_result(prefect_client):
     assert await api_state.result() == 1
 
 
-async def test_flow_with_uncached_but_literal_result(prefect_client):
-    @flow(persist_result=True, cache_result_in_memory=False)
-    def foo():
-        return True
-
-    state = foo(return_state=True)
-    # Literal results are always cached
-    assert state.data.has_cached_object()
-    assert await state.result() is True
-
-    api_state = (
-        await prefect_client.read_flow_run(state.state_details.flow_run_id)
-    ).state
-    assert await api_state.result() is True
-
-
 async def test_flow_result_missing_with_null_return(prefect_client):
-    @flow
+    @flow(persist_result=False)
     def foo():
         return None
 
@@ -144,7 +125,6 @@ async def test_flow_literal_result_is_available_but_not_serialized_or_persisted(
     @flow(
         persist_result=True,
         result_serializer="pickle",
-        result_storage=LocalFileSystem(basepath=PREFECT_HOME.value()),
     )
     def foo():
         return value
@@ -206,6 +186,7 @@ async def test_flow_result_serializer(serializer, prefect_client):
 
 async def test_flow_result_storage_by_instance(prefect_client):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+    await storage.save("test-storage-stuff")
 
     @flow(result_storage=storage, persist_result=True)
     def foo():
@@ -239,28 +220,6 @@ async def test_flow_result_storage_by_slug(prefect_client):
     ).state
     assert await api_state.result() == 1
     await assert_uses_result_storage(api_state, slug, client=prefect_client)
-
-
-@pytest.mark.parametrize("options", [{"retries": 3}])
-async def test_child_flow_persisted_result_due_to_parent_feature(
-    prefect_client, options
-):
-    @flow(**options)
-    def foo():
-        return bar(return_state=True)
-
-    @flow
-    def bar():
-        return 1
-
-    parent_state = foo(return_state=True)
-    child_state = await parent_state.result()
-    assert await child_state.result() == 1
-
-    api_state = (
-        await prefect_client.read_flow_run(child_state.state_details.flow_run_id)
-    ).state
-    assert await api_state.result() == 1
 
 
 async def test_child_flow_persisted_result_due_to_opt_in(prefect_client):
@@ -312,6 +271,7 @@ async def test_child_flow_result_serializer(prefect_client, source):
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_child_flow_result_storage(prefect_client, source):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+    await storage.save("child-flow-test")
 
     @flow(result_storage=storage if source == "parent" else None)
     def foo():
@@ -338,7 +298,7 @@ async def test_child_flow_result_missing_with_null_return(prefect_client):
     def foo():
         return bar(return_state=True)
 
-    @flow
+    @flow(persist_result=False)
     def bar():
         return None
 
@@ -356,7 +316,9 @@ async def test_child_flow_result_missing_with_null_return(prefect_client):
 
 @pytest.mark.parametrize("empty_type", [dict, list])
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_empty_result_is_retained(persist_result, empty_type):
+def test_flow_empty_result_is_retained(
+    persist_result: bool, empty_type, tmp_path: Path
+):
     @flow(persist_result=persist_result)
     def my_flow():
         return empty_type()
@@ -376,7 +338,9 @@ def test_flow_empty_result_is_retained(persist_result, empty_type):
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_resultlike_result_is_retained(persist_result, resultlike):
+def test_flow_resultlike_result_is_retained(
+    persist_result: bool, resultlike, tmp_path: Path
+):
     """
     Since Pydantic will coerce dictionaries into `BaseResult` types, we need to be sure
     that user dicts that look like a bit like results do not cause problems
@@ -390,36 +354,6 @@ def test_flow_resultlike_result_is_retained(persist_result, resultlike):
     assert result == resultlike
 
 
-@pytest.mark.parametrize(
-    "return_state",
-    [
-        Completed(data="test"),
-        Completed(message="Hello!"),
-        Cancelled(),
-        Failed(),
-    ],
-)
-@pytest.mark.parametrize("persist_result", [True, False])
-async def test_flow_state_result_is_respected(persist_result, return_state):
-    @flow(persist_result=persist_result)
-    def my_flow():
-        return return_state
-
-    state = my_flow(return_state=True)
-    assert state.type == return_state.type
-
-    # id, timestamp, and state details must be excluded as they are copied from
-    # the API version of the state and will not match the state created for
-    # this test. Data must be excluded as it will have been updated to a
-    # result.
-    assert state.model_dump(
-        exclude={"id", "timestamp", "state_details", "data"}
-    ) == return_state.model_dump(exclude={"id", "timestamp", "state_details", "data"})
-
-    if return_state.data:
-        assert await state.result(raise_on_failure=False) == return_state.data
-
-
 async def test_root_flow_default_remote_storage(tmp_path: Path):
     @flow
     async def foo():
@@ -431,7 +365,6 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
 
     with temporary_settings(
         {
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
             PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
         }
     ):
@@ -444,7 +377,7 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
 async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
     await LocalFileSystem(basepath=tmp_path).save("my-result-storage")
 
-    @task(result_storage_key="my-result.pkl")
+    @task(result_storage_key="my-result.pkl", persist_result=True)
     async def bar():
         return {"foo": "bar"}
 
@@ -454,7 +387,6 @@ async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
 
     with temporary_settings(
         {
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
             PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
         }
     ):
@@ -478,12 +410,12 @@ async def test_root_flow_nonexistent_default_storage_block_fails():
 
     with temporary_settings(
         {
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "fake-block-type-slug/my-result-storage",
         }
     ):
         with pytest.raises(
-            ValueError, match="Unable to find block document named my-result-storage"
+            ValueError,
+            match="Unable to find block document",
         ):
             await foo()
 
@@ -500,7 +432,6 @@ async def test_root_flow_explicit_result_storage_settings_overrides_default():
 
     with temporary_settings(
         {
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
             PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: (
                 "local-file-system/default-result-storage"
             ),

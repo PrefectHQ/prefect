@@ -1,0 +1,6 @@
+integrationName: prefect-aws
+author: Prefect
+authorUrl: https://prefect.io
+documentation: prefect-aws
+iconUrl: /images/integrations/aws.png
+tag: AWS

@@ -1,0 +1,6 @@
+integrationName: prefect-email
+author: Prefect
+authorUrl: https://prefect.io
+documentation: prefect-email
+iconUrl: /images/integrations/email.png
+tag: Email

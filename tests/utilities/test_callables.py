@@ -2,7 +2,7 @@ import datetime
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pendulum
 import pydantic.version
@@ -559,15 +559,15 @@ class TestMethodToSchema:
 
     def test_methods_with_complex_arguments(self):
         class Foo:
-            def f(self, x: datetime.datetime, y: int = 42, z: bool = None):
+            def f(self, x: datetime.datetime, y: int = 42, z: Optional[bool] = None):
                 pass
 
             @classmethod
-            def g(cls, x: datetime.datetime, y: int = 42, z: bool = None):
+            def g(cls, x: datetime.datetime, y: int = 42, z: Optional[bool] = None):
                 pass
 
             @staticmethod
-            def h(x: datetime.datetime, y: int = 42, z: bool = None):
+            def h(x: datetime.datetime, y: int = 42, z: Optional[bool] = None):
                 pass
 
         for method in [Foo().f, Foo.g, Foo.h]:
@@ -592,13 +592,29 @@ class TestMethodToSchema:
                         "default": None,
                         "position": 2,
                         "title": "z",
-                        "type": "boolean",
+                        "anyOf": [{"type": "boolean"}, {"type": "null"}],
                     },
                 },
                 "required": ["x"],
                 "definitions": {},
             }
             assert schema.model_dump_for_openapi() == expected_schema
+
+    def test_method_with_kwargs_only(self):
+        def f(
+            *,
+            x: int,
+        ):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "properties": {"x": {"title": "x", "position": 0, "type": "integer"}},
+            "title": "Parameters",
+            "type": "object",
+            "definitions": {},
+            "required": ["x"],
+        }
 
 
 class TestParseFlowDescriptionToSchema:
@@ -1450,5 +1466,104 @@ class TestEntrypointToSchema:
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
+        }
+
+    def test_handles_dynamically_created_models(self, tmp_path: Path):
+        source_code = dedent(
+            """
+            from pydantic import BaseModel, create_model, Field
+
+
+            def get_model() -> BaseModel:
+                return create_model(
+                    "MyModel",
+                    param=(
+                        int,
+                        Field(
+                            title="param",
+                            default=1,
+                        ),
+                    ),
+                )
+
+
+            MyModel = get_model()
+
+
+            def f(
+                param: MyModel,
+            ) -> None:
+                pass        
+            """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "param": {
+                    "allOf": [{"$ref": "#/definitions/MyModel"}],
+                    "position": 0,
+                    "title": "param",
+                }
+            },
+            "required": ["param"],
+            "definitions": {
+                "MyModel": {
+                    "properties": {
+                        "param": {
+                            "default": 1,
+                            "title": "param",
+                            "type": "integer",
+                        }
+                    },
+                    "title": "MyModel",
+                    "type": "object",
+                }
+            },
+        }
+
+    def test_function_with_kwargs_only(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(
+            *,
+            x: int = 42,
+        ):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "type": "integer", "default": 42}
+            },
+            "title": "Parameters",
+            "type": "object",
+            "definitions": {},
+        }
+
+    def test_function_with_positional_only_args(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(x=1, /, y=2, z=3):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "default": 1},
+                "y": {"title": "y", "position": 1, "default": 2},
+                "z": {"title": "z", "position": 2, "default": 3},
+            },
+            "title": "Parameters",
+            "type": "object",
             "definitions": {},
         }

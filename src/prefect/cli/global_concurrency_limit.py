@@ -9,10 +9,10 @@ from pydantic import ValidationError
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import (
     GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
@@ -24,7 +24,7 @@ from prefect.exceptions import (
 
 global_concurrency_limit_app = PrefectTyper(
     name="global-concurrency-limit",
-    help="Commands for managing global concurrency limits.",
+    help="Manage global concurrency limits.",
 )
 
 app.add_typer(global_concurrency_limit_app, aliases=["gcl"])

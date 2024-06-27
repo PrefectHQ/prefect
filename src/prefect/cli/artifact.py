@@ -5,17 +5,15 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
 from prefect.exceptions import ObjectNotFound
 
-artifact_app = PrefectTyper(
-    name="artifact", help="Commands for starting and interacting with artifacts."
-)
+artifact_app = PrefectTyper(name="artifact", help="Inspect and delete artifacts.")
 app.add_typer(artifact_app)
 
 

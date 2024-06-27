@@ -1,23 +1,24 @@
+import asyncio
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Any, Optional
-from unittest import mock
+from typing import Any, List, Optional
 
 import pytest
 
 from prefect import task
 from prefect.exceptions import FailedRun, MissingResult
-from prefect.filesystems import LocalFileSystem
 from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
+    PrefectFuture,
+    PrefectFutureList,
     PrefectWrappedFuture,
     resolve_futures_to_states,
 )
 from prefect.states import Completed, Failed
-from prefect.task_engine import run_task_sync
+from prefect.task_engine import run_task_async, run_task_sync
 
 
 class MockFuture(PrefectWrappedFuture):
@@ -80,6 +81,18 @@ class TestPrefectConcurrentFuture:
         with pytest.raises(ValueError, match="oops"):
             future.result(raise_on_failure=True)
 
+    def test_warns_if_not_resolved_when_garbage_collected(self, caplog):
+        PrefectConcurrentFuture(uuid.uuid4(), Future())
+
+        assert "A future was garbage collected before it resolved" in caplog.text
+
+    def test_does_not_warn_if_resolved_when_garbage_collected(self, caplog):
+        wrapped_future = Future()
+        wrapped_future.set_result(Completed())
+        PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+
+        assert "A future was garbage collected before it resolved" not in caplog.text
+
 
 class TestResolveFuturesToStates:
     async def test_resolve_futures_transforms_future(self):
@@ -138,30 +151,27 @@ class TestResolveFuturesToStates:
 
 
 class TestPrefectDistributedFuture:
-    def test_with_client(self, task_run):
-        mock_client = mock.MagicMock()
-        mock_client.read_task_run = mock.MagicMock()
+    async def test_wait_with_timeout(self, task_run):
+        @task
+        async def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
         future = PrefectDistributedFuture(task_run_id=task_run.id)
-        future._client = mock_client
+
+        asyncio.create_task(
+            run_task_async(
+                task=my_task,
+                task_run_id=future.task_run_id,
+                task_run=task_run,
+                parameters={},
+                return_type="state",
+            )
+        )
+
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
         future.wait(timeout=0.25)
-        mock_client.read_task_run.assert_called_with(task_run_id=task_run.id)
-
-    def test_without_client(self, sync_prefect_client, task_run):
-        with mock.patch(
-            "prefect.futures.get_client", return_value=sync_prefect_client
-        ) as mock_get_client:
-            future = PrefectDistributedFuture(task_run_id=task_run.id)
-            future.wait(timeout=0.25)
-            mock_get_client.assert_called_with(sync_client=True)
-
-    def test_wait_with_timeout(self, sync_prefect_client, task_run):
-        with mock.patch(
-            "prefect.futures.get_client", return_value=sync_prefect_client
-        ) as mock_get_client:
-            future = PrefectDistributedFuture(task_run_id=task_run.id)
-            future.wait(timeout=0.25)
-            assert future.state.is_pending()
-            mock_get_client.assert_called_with(sync_client=True)
+        assert future.state.is_pending()
 
     async def test_wait_without_timeout(self):
         @task
@@ -180,17 +190,11 @@ class TestPrefectDistributedFuture:
         )
         assert state.is_completed()
 
-        future.wait(timeout=0)
+        future.wait()
         assert future.state.is_completed()
 
-    async def test_result_with_final_state(self, tmp_path):
-        # TODO: The default result storage block gets deleted during the
-        # execution of this test when it's run in as a suite, so we have to load
-        # a specific block and pass it in manually as the task's result storage.
-        # But why does the result storage block get deleted in the first place?
-        storage = LocalFileSystem(basepath=tmp_path)
-
-        @task(persist_result=True, result_storage=storage)
+    async def test_result_with_final_state(self):
+        @task(persist_result=True)
         def my_task():
             return 42
 
@@ -271,3 +275,79 @@ class TestPrefectDistributedFuture:
 
         with pytest.raises(MissingResult, match="State data is missing"):
             future.result()
+
+
+class TestPrefectFutureList:
+    def test_wait(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        futures = PrefectFutureList(mock_futures)
+        # should not raise a TimeoutError
+        futures.wait()
+
+        for future in futures:
+            assert future.state.is_completed()
+
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+    def test_wait_with_timeout(self):
+        mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]
+        hanging_future = Future()
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
+        futures = PrefectFutureList(mock_futures)
+        # should not raise a TimeoutError or hang
+        futures.wait(timeout=0.01)
+
+    def test_results(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        futures = PrefectFutureList(mock_futures)
+        result = futures.result()
+
+        for i, result in enumerate(result):
+            assert result == i
+
+    def test_results_with_failure(self):
+        mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]
+        failing_future = Future()
+        failing_future.set_exception(ValueError("oops"))
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), failing_future))
+        futures = PrefectFutureList(mock_futures)
+
+        with pytest.raises(ValueError, match="oops"):
+            futures.result()
+
+    def test_results_with_raise_on_failure_false(self):
+        mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]
+        final_state = Failed(data=ValueError("oops"))
+        wrapped_future = Future()
+        wrapped_future.set_result(final_state)
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), wrapped_future))
+        futures = PrefectFutureList(mock_futures)
+
+        result = futures.result(raise_on_failure=False)
+
+        for i, result in enumerate(result):
+            if i == 5:
+                assert isinstance(result, ValueError)
+            else:
+                assert result == i
+
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+    def test_results_with_timeout(self):
+        mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]
+        failing_future = Future()
+        failing_future.set_exception(TimeoutError("oops"))
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), failing_future))
+        futures = PrefectFutureList(mock_futures)
+
+        with pytest.raises(TimeoutError):
+            futures.result(timeout=0.01)
+
+    def test_result_does_not_obscure_other_timeouts(self):
+        mock_futures: List[PrefectFuture] = [MockFuture(data=i) for i in range(5)]
+        final_state = Failed(data=TimeoutError("oops"))
+        wrapped_future = Future()
+        wrapped_future.set_result(final_state)
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), wrapped_future))
+        futures = PrefectFutureList(mock_futures)
+
+        with pytest.raises(TimeoutError, match="oops"):
+            futures.result()

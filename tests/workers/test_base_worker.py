@@ -21,12 +21,14 @@ from prefect.exceptions import (
 )
 from prefect.flows import flow
 from prefect.server import models
-from prefect.server.schemas.core import Flow
+from prefect.server.schemas.core import Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    PREFECT_TEST_MODE,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
     temporary_settings,
@@ -64,7 +66,7 @@ async def ensure_default_agent_pool_exists(session):
     if default_work_pool is None:
         await models.workers.create_work_pool(
             session=session,
-            work_pool=schemas.actions.WorkPoolCreate(
+            work_pool=WorkPool(
                 name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
             ),
         )
@@ -90,6 +92,21 @@ def enable_enhanced_cancellation():
         }
     ):
         yield
+
+
+@pytest.fixture
+def no_api_url():
+    with temporary_settings(updates={PREFECT_TEST_MODE: False, PREFECT_API_URL: None}):
+        yield
+
+
+async def test_worker_requires_api_url_when_not_in_test_mode(no_api_url):
+    with pytest.raises(ValueError, match="PREFECT_API_URL"):
+        async with WorkerTestImpl(
+            name="test",
+            work_pool_name="test-work-pool",
+        ):
+            pass
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(
@@ -959,6 +976,42 @@ async def test_job_configuration_from_template_overrides_with_block():
         # block_type_slug is added by Block.model_dump()
         "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
     }
+
+
+async def test_job_configuration_from_template_coerces_work_pool_values():
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        var1: str
+
+    test_work_pool_base_job_config = {
+        "job_configuration": {
+            "var1": "hello",
+            "env": {"MY_ENV_VAR": 42, "OTHER_ENV_VAR": None},
+        },
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                },
+                "env": {
+                    "type": "object",
+                },
+            },
+        },
+    }
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=test_work_pool_base_job_config, values={}
+    )
+
+    assert config.model_dump() == {
+        "command": None,
+        "env": {"MY_ENV_VAR": "42", "OTHER_ENV_VAR": None},
+        "labels": {},
+        "name": None,
+        "var1": "hello",
+    }
+
+    assert isinstance(config, ArbitraryJobConfiguration)
 
 
 @pytest.mark.usefixtures("variables")

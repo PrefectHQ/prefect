@@ -1,14 +1,11 @@
 import asyncio
 import datetime
 import gc
-import logging
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import AsyncContextManager, AsyncGenerator, Callable, Type
+from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
-import aiosqlite
-import asyncpg
 import pendulum
 import pytest
 from sqlalchemy.exc import InterfaceError
@@ -60,29 +57,6 @@ async def database_engine(db: PrefectDBInterface):
 
     for engine in engines:
         await engine.dispose()
-
-    # Now confirm that after disposing all engines, all connections are closed
-    #
-    # A note to maintainers: if this section flakes out, let's just remove it since we
-    # are filtering the resource-related warnings that were emitted when connections
-    # weren't closed.
-
-    for connection in TRACKER.all_connections:
-        driver_connection = connection.driver_connection
-
-        if isinstance(driver_connection, asyncpg.Connection):
-            if driver_connection.is_closed():
-                continue
-        elif isinstance(driver_connection, aiosqlite.Connection):
-            if not driver_connection._connection:
-                continue
-        else:
-            continue
-
-        try:
-            await driver_connection.close()
-        except Exception:
-            logging.exception("Exception closed while closing connection.")
 
     # Finally, free up all references to connections and clean up proactively so that
     # we don't have any lingering connections after this.  This should prevent
@@ -981,12 +955,12 @@ def initialize_orchestration(flow):
         initial_details=None,
         initial_state_data=None,
         proposed_details=None,
-        flow_retries: int = None,
-        flow_run_count: int = None,
-        resuming: bool = None,
+        flow_retries: Optional[int] = None,
+        flow_run_count: Optional[int] = None,
+        resuming: Optional[bool] = None,
         initial_flow_run_state_details=None,
-        initial_state_name: str = None,
-        proposed_state_name: str = None,
+        initial_state_name: Optional[str] = None,
+        proposed_state_name: Optional[str] = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}

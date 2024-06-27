@@ -21,12 +21,11 @@ from prefect.server.api.task_runs import TaskQueue
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.services.task_scheduling import TaskSchedulingTimeouts
 from prefect.settings import (
-    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT,
     temporary_settings,
 )
-from prefect.task_server import TaskServer
+from prefect.task_worker import TaskWorker
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
@@ -53,9 +52,9 @@ async def clear_scheduled_task_queues():
 
 @pytest.fixture(autouse=True)
 async def clear_cached_filesystems():
-    prefect.results._default_task_scheduling_storages.clear()
+    prefect.results._default_storages.clear()
     yield
-    prefect.results._default_task_scheduling_storages.clear()
+    prefect.results._default_storages.clear()
 
 
 @pytest.fixture
@@ -88,28 +87,29 @@ def async_foo_task_with_result_storage(async_foo_task, local_filesystem):
     return async_foo_task.with_options(result_storage=local_filesystem)
 
 
-async def test_task_submission_with_parameters_uses_default_storage(foo_task):
+async def test_task_submission_with_parameters_uses_default_storage(
+    foo_task, prefect_client
+):
     foo_task_without_result_storage = foo_task.with_options(result_storage=None)
     task_run_future = foo_task_without_result_storage.apply_async((42,))
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
 
     result_factory = await result_factory_from_task(foo_task)
     await result_factory.read_parameters(
-        task_run_future.task_run.state.state_details.task_parameters_id
+        task_run.state.state_details.task_parameters_id
     )
 
 
 async def test_task_submission_with_parameters_reuses_default_storage_block(
-    foo_task: Task, tmp_path: Path
+    foo_task: Task, tmp_path: Path, prefect_client
 ):
     with temporary_settings(
         {
             PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: "local-file-system/my-tasks",
-            PREFECT_LOCAL_STORAGE_PATH: tmp_path / "some-storage",
         }
     ):
-        # The block will not exist initially
-        with pytest.raises(ValueError, match="Unable to find block document"):
-            await Block.load("local-file-system/my-tasks")
+        block = LocalFileSystem(basepath=tmp_path / "some-storage")
+        await block.save("my-tasks", overwrite=True)
 
         foo_task_without_result_storage = foo_task.with_options(result_storage=None)
         task_run_future_a = foo_task_without_result_storage.apply_async((42,))
@@ -125,63 +125,69 @@ async def test_task_submission_with_parameters_reuses_default_storage_block(
         assert isinstance(storage_after, LocalFileSystem)
 
         result_factory = await result_factory_from_task(foo_task)
+        task_run_a = await prefect_client.read_task_run(task_run_future_a.task_run_id)
+        task_run_b = await prefect_client.read_task_run(task_run_future_b.task_run_id)
         assert await result_factory.read_parameters(
-            task_run_future_a.task_run.state.state_details.task_parameters_id
+            task_run_a.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 42}, "context": mock.ANY}
         assert await result_factory.read_parameters(
-            task_run_future_b.task_run.state.state_details.task_parameters_id
+            task_run_b.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 24}, "context": mock.ANY}
 
 
 async def test_task_submission_creates_a_scheduled_task_run(
-    foo_task_with_result_storage,
+    foo_task_with_result_storage, prefect_client
 ):
     task_run_future = foo_task_with_result_storage.apply_async((42,))
-    assert task_run_future.task_run.state.is_scheduled()
-    assert task_run_future.task_run.state.state_details.deferred is True
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+    assert task_run.state.is_scheduled()
+    assert task_run.state.state_details.deferred is True
 
     result_factory = await result_factory_from_task(foo_task_with_result_storage)
 
     parameters = await result_factory.read_parameters(
-        task_run_future.task_run.state.state_details.task_parameters_id
+        task_run.state.state_details.task_parameters_id
     )
 
     assert parameters == {"parameters": {"x": 42}, "context": mock.ANY}
 
 
-async def test_sync_task_not_awaitable_in_async_context(foo_task):
+async def test_sync_task_not_awaitable_in_async_context(foo_task, prefect_client):
     task_run_future = foo_task.apply_async((42,))
-    assert task_run_future.task_run.state.is_scheduled()
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+    assert task_run.state.is_scheduled()
 
     result_factory = await result_factory_from_task(foo_task)
 
     parameters = await result_factory.read_parameters(
-        task_run_future.task_run.state.state_details.task_parameters_id
+        task_run.state.state_details.task_parameters_id
     )
 
     assert parameters == {"parameters": {"x": 42}, "context": mock.ANY}
 
 
 async def test_async_task_submission_creates_a_scheduled_task_run(
-    async_foo_task_with_result_storage,
+    async_foo_task_with_result_storage, prefect_client
 ):
     task_run_future = async_foo_task_with_result_storage.apply_async((42,))
-    assert task_run_future.task_run.state.is_scheduled()
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+    assert task_run.state.is_scheduled()
 
     result_factory = await result_factory_from_task(async_foo_task_with_result_storage)
 
     parameters = await result_factory.read_parameters(
-        task_run_future.task_run.state.state_details.task_parameters_id
+        task_run.state.state_details.task_parameters_id
     )
 
     assert parameters == {"parameters": {"x": 42}, "context": mock.ANY}
 
 
 async def test_scheduled_tasks_are_enqueued_server_side(
-    foo_task_with_result_storage: Task,
+    foo_task_with_result_storage: Task, prefect_client
 ):
     task_run_future = foo_task_with_result_storage.apply_async((42,))
-    client_run: TaskRun = task_run_future.task_run
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+    client_run: TaskRun = task_run
     assert client_run.state.is_scheduled()
 
     enqueued_run: ServerTaskRun = await TaskQueue.for_key(client_run.task_key).get()
@@ -226,8 +232,16 @@ async def prefect_client() -> AsyncGenerator["PrefectClient", None]:
         yield client
 
 
+@pytest.fixture
+def enabled_task_scheduling_pending_task_timeout():
+    with temporary_settings({PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT: 30}):
+        yield
+
+
 async def test_scheduled_tasks_are_restored_at_server_startup(
-    foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
+    foo_task_with_result_storage: Task,
+    prefect_client: "PrefectClient",
+    enabled_task_scheduling_pending_task_timeout: None,
 ):
     # run one iteration of the timeouts service
     service = TaskSchedulingTimeouts()
@@ -235,7 +249,7 @@ async def test_scheduled_tasks_are_restored_at_server_startup(
 
     # schedule a task
     task_run_future = foo_task_with_result_storage.apply_async((42,))
-    task_run: TaskRun = task_run_future.task_run
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
     assert task_run.state.is_scheduled()
 
     # pull the task from the queue to make sure it's cleared; this simulates when a task
@@ -268,14 +282,16 @@ async def test_scheduled_tasks_are_restored_at_server_startup(
 
 
 async def test_stuck_pending_tasks_are_reenqueued(
-    foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
+    foo_task_with_result_storage: Task,
+    prefect_client: "PrefectClient",
+    enabled_task_scheduling_pending_task_timeout: None,
 ):
     task_run_future = foo_task_with_result_storage.apply_async((42,))
-    task_run: TaskRun = task_run_future.task_run
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
     assert task_run.state.is_scheduled()
 
-    # now we simulate a stuck task by having the TaskServer try to run it but fail
-    server = TaskServer(foo_task_with_result_storage)
+    # now we simulate a stuck task by having the TaskWorker try to run it but fail
+    server = TaskWorker(foo_task_with_result_storage)
 
     def assert_exception(exc_group: ExceptionGroup):
         assert len(exc_group.exceptions) == 1
@@ -284,12 +300,21 @@ async def test_stuck_pending_tasks_are_reenqueued(
 
     with catch({ValueError: assert_exception}):
         with mock.patch(
-            "prefect.task_server.run_task_sync",
+            "prefect.task_worker.run_task_sync",
             side_effect=ValueError("woops"),
         ):
             await server.execute_task_run(task_run)
 
     # now the task will be in a stuck pending state
+    task_run = await prefect_client.read_task_run(task_run.id)
+    assert task_run.state.type == StateType.PENDING
+
+    # first, run an iteration of the TaskSchedulingTimeouts loop service with the
+    # setting disabled to demonstrate that it will not re-schedule the task
+    with temporary_settings({PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT: 0}):
+        await TaskSchedulingTimeouts().start(loops=1)
+
+    # the task will still be PENDING and not re-enqueued
     task_run = await prefect_client.read_task_run(task_run.id)
     assert task_run.state.type == StateType.PENDING
 
@@ -333,7 +358,7 @@ class TestCall:
 
 class TestMap:
     async def test_map(self, async_foo_task):
-        task_runs = async_foo_task.map([1, 2, 3])
+        task_runs = async_foo_task.map([1, 2, 3], deferred=True)
 
         assert len(task_runs) == 3
 
@@ -350,7 +375,7 @@ class TestMap:
         def bar(x: int, unmappable: int) -> Tuple[int, int]:
             return (x, unmappable)
 
-        task_runs = bar.map([1, 2, 3], unmappable=42)
+        task_runs = bar.map([1, 2, 3], unmappable=42, deferred=True)
 
         assert len(task_runs) == 3
 
@@ -367,7 +392,7 @@ class TestMap:
         async def bar(x: int, unmappable: int) -> Tuple[int, int]:
             return (x, unmappable)
 
-        task_runs = bar.map([1, 2, 3], unmappable=42)
+        task_runs = bar.map([1, 2, 3], unmappable=42, deferred=True)
 
         assert len(task_runs) == 3
 
@@ -384,7 +409,9 @@ class TestMap:
         def bar(x: int, mappable: Iterable) -> Tuple[int, Iterable]:
             return (x, mappable)
 
-        task_runs = bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
+        task_runs = bar.map(
+            [1, 2, 3], mappable=unmapped(["some", "iterable"]), deferred=True
+        )
 
         assert len(task_runs) == 3
 
@@ -404,7 +431,9 @@ class TestMap:
         async def bar(x: int, mappable: Iterable) -> Tuple[int, Iterable]:
             return (x, mappable)
 
-        task_runs = bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
+        task_runs = bar.map(
+            [1, 2, 3], mappable=unmapped(["some", "iterable"]), deferred=True
+        )
 
         assert len(task_runs) == 3
 

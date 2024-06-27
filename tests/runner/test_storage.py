@@ -14,11 +14,13 @@ from prefect.filesystems import ReadableDeploymentStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
     GitRepository,
+    LocalStorage,
     RemoteStorage,
     RunnerStorage,
-    create_storage_from_url,
+    create_storage_from_source,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
+from prefect.utilities.filesystem import tmpchdir
 
 
 @pytest.fixture(autouse=True)
@@ -26,7 +28,7 @@ def tmp_cwd(monkeypatch, tmp_path):
     monkeypatch.chdir(str(tmp_path))
 
 
-class TestCreateStorageFromUrl:
+class TestCreateStorageFromSource:
     @pytest.mark.parametrize(
         "url, expected_type",
         [
@@ -35,7 +37,7 @@ class TestCreateStorageFromUrl:
         ],
     )
     def test_create_git_storage(self, url, expected_type):
-        storage = create_storage_from_url(url)
+        storage = create_storage_from_source(url)
         assert isinstance(storage, eval(expected_type))
         assert storage.pull_interval == 60  # default value
 
@@ -47,7 +49,7 @@ class TestCreateStorageFromUrl:
         ],
     )
     def test_create_git_storage_custom_pull_interval(self, url, pull_interval):
-        storage = create_storage_from_url(url, pull_interval=pull_interval)
+        storage = create_storage_from_source(url, pull_interval=pull_interval)
         assert isinstance(
             storage, GitRepository
         )  # We already know it's GitRepository from above tests
@@ -61,9 +63,27 @@ class TestCreateStorageFromUrl:
         ],
     )
     def test_alternative_storage_url(self, url):
-        storage = create_storage_from_url(url)
+        storage = create_storage_from_source(url)
         assert isinstance(storage, RemoteStorage)
         assert storage._url == url
+        assert storage.pull_interval == 60  # default value
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/path/to/local/flows",
+            "C:\\path\\to\\local\\flows",
+            "file:///path/to/local/flows",
+            "flows",  # Relative Path
+        ],
+    )
+    def test_local_storage_path(self, path):
+        storage = create_storage_from_source(path)
+
+        path = path.split("://")[-1]  # split from Scheme when present
+
+        assert isinstance(storage, LocalStorage)
+        assert storage._path == Path(path).resolve()
         assert storage.pull_interval == 60  # default value
 
 
@@ -248,20 +268,23 @@ class TestGitRepository:
             cwd=Path.cwd() / "repo",
         )
 
-    async def test_git_clone_errors_obscure_access_token(self, monkeypatch, capsys):
+    async def test_git_clone_errors_obscure_access_token(
+        self, monkeypatch, capsys, tmp_path: Path
+    ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
 
-        with pytest.raises(RuntimeError) as exc:
-            # we uppercase the token because this test definition does show up in the exception traceback
-            await GitRepository(
-                url="https://github.com/prefecthq/prefect.git",
-                branch="definitely-does-not-exist-123",
-                credentials={"access_token": "super-secret-42".upper()},
-            ).pull_code()
-        assert "super-secret-42".upper() not in str(exc.getrepr())
-        console_output = capsys.readouterr()
-        assert "super-secret-42".upper() not in console_output.out
-        assert "super-secret-42".upper() not in console_output.err
+        with tmpchdir(str(tmp_path)):
+            with pytest.raises(RuntimeError) as exc:
+                # we uppercase the token because this test definition does show up in the exception traceback
+                await GitRepository(
+                    url="https://github.com/prefecthq/prefect.git",
+                    branch="definitely-does-not-exist-123",
+                    credentials={"access_token": "super-secret-42".upper()},
+                ).pull_code()
+            assert "super-secret-42".upper() not in str(exc.getrepr())
+            console_output = capsys.readouterr()
+            assert "super-secret-42".upper() not in console_output.out
+            assert "super-secret-42".upper() not in console_output.err
 
     class TestCredentialFormatting:
         async def test_credential_formatting_maintains_secrets(
@@ -631,6 +654,43 @@ class TestRemoteStorage:
     def test_repr(self):
         rs = RemoteStorage("s3://bucket/path")
         assert repr(rs) == "RemoteStorage(url='s3://bucket/path')"
+
+
+class TestLocalStorage:
+    def test_init(self):
+        ls = LocalStorage("/path/to/directory", pull_interval=60)
+        assert ls._path == Path("/path/to/directory")
+        assert ls.pull_interval == 60
+
+    def test_set_base_path(self):
+        locals = LocalStorage("/path/to/directory")
+        path = Path.cwd() / "new_base_path"
+        locals.set_base_path(path)
+        assert locals._storage_base_path == path
+
+    def test_destination(self):
+        locals = LocalStorage("/path/to/directory")
+        assert locals.destination == Path("/path/to/directory")
+
+    def test_to_pull_step(self):
+        locals = LocalStorage("/path/to/directory")
+        pull_step = locals.to_pull_step()
+        assert pull_step == {
+            "prefect.deployments.steps.set_working_directory": {
+                "directory": "/path/to/directory"
+            }
+        }
+
+    def test_eq(self):
+        local1 = LocalStorage(path="/path/to/local/flows")
+        local2 = LocalStorage(path="/path/to/local/flows")
+        local3 = LocalStorage(path="C:\\path\\to\\local\\flows")
+        assert local1 == local2
+        assert local1 != local3
+
+    def test_repr(self):
+        local = LocalStorage(path="/path/to/local/flows")
+        assert repr(local) == "LocalStorage(path=PosixPath('/path/to/local/flows'))"
 
 
 class TestBlockStorageAdapter:

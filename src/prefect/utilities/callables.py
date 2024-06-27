@@ -44,11 +44,23 @@ def get_call_parameters(
     apply_defaults: bool = True,
 ) -> Dict[str, Any]:
     """
-    Bind a call to a function to get parameter/value mapping. Default values on the
-    signature will be included if not overridden.
+    Bind a call to a function to get parameter/value mapping. Default values on
+    the signature will be included if not overridden.
 
-    Raises a ParameterBindError if the arguments/kwargs are not valid for the function
+    If the function has a `__prefect_self__` attribute, it will be included as
+    the first parameter. This attribute is set when Prefect decorates a bound
+    method, so this approach allows Prefect to work with bound methods in a way
+    that is consistent with how Python handles them (i.e. users don't have to
+    pass the instance argument to the method) while still making the implicit self
+    argument visible to all of Prefect's parameter machinery (such as cache key
+    functions).
+
+    Raises a ParameterBindError if the arguments/kwargs are not valid for the
+    function
     """
+    if hasattr(fn, "__prefect_self__"):
+        call_args = (fn.__prefect_self__,) + call_args
+
     try:
         bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
     except TypeError as exc:
@@ -456,7 +468,14 @@ def _generate_signature_from_source(
         (
             node
             for node in ast.walk(parsed_code)
-            if isinstance(node, ast.FunctionDef) and node.name == func_name
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
         ),
         None,
     )
@@ -464,6 +483,26 @@ def _generate_signature_from_source(
         raise ValueError(f"Function {func_name} not found in source code")
     parameters = []
 
+    # Handle annotations for positional only args e.g. def func(a, /, b, c)
+    for arg in func_def.args.posonlyargs:
+        name = arg.arg
+        annotation = arg.annotation
+        if annotation is not None:
+            try:
+                ann_code = compile(ast.Expression(annotation), "<string>", "eval")
+                annotation = eval(ann_code, namespace)
+            except Exception as e:
+                logger.debug("Failed to evaluate annotation for %s: %s", name, e)
+                annotation = inspect.Parameter.empty
+        else:
+            annotation = inspect.Parameter.empty
+
+        param = inspect.Parameter(
+            name, inspect.Parameter.POSITIONAL_ONLY, annotation=annotation
+        )
+        parameters.append(param)
+
+    # Determine the annotations for args e.g. def func(a: int, b: str, c: float)
     for arg in func_def.args.args:
         name = arg.arg
         annotation = arg.annotation
@@ -486,6 +525,7 @@ def _generate_signature_from_source(
         )
         parameters.append(param)
 
+    # Handle default values for args e.g. def func(a=1, b="hello", c=3.14)
     defaults = [None] * (
         len(func_def.args.args) - len(func_def.args.defaults)
     ) + func_def.args.defaults
@@ -501,6 +541,42 @@ def _generate_signature_from_source(
                 default = None  # Set to None if evaluation fails
             parameters[parameters.index(param)] = param.replace(default=default)
 
+    # Handle annotations for keyword only args e.g. def func(*, a: int, b: str)
+    for kwarg in func_def.args.kwonlyargs:
+        name = kwarg.arg
+        annotation = kwarg.annotation
+        if annotation is not None:
+            try:
+                ann_code = compile(ast.Expression(annotation), "<string>", "eval")
+                annotation = eval(ann_code, namespace)
+            except Exception as e:
+                logger.debug("Failed to evaluate annotation for %s: %s", name, e)
+                annotation = inspect.Parameter.empty
+        else:
+            annotation = inspect.Parameter.empty
+
+        param = inspect.Parameter(
+            name, inspect.Parameter.KEYWORD_ONLY, annotation=annotation
+        )
+        parameters.append(param)
+
+    # Handle default values for keyword only args e.g. def func(*, a=1, b="hello")
+    defaults = [None] * (
+        len(func_def.args.kwonlyargs) - len(func_def.args.kw_defaults)
+    ) + func_def.args.kw_defaults
+    for param, default in zip(parameters[-len(func_def.args.kwonlyargs) :], defaults):
+        if default is not None:
+            try:
+                def_code = compile(ast.Expression(default), "<string>", "eval")
+                default = eval(def_code, namespace)
+            except Exception as e:
+                logger.debug(
+                    "Failed to evaluate default value for %s: %s", param.name, e
+                )
+                default = None
+            parameters[parameters.index(param)] = param.replace(default=default)
+
+    # Handle annotations for varargs and kwargs e.g. def func(*args: int, **kwargs: str)
     if func_def.args.vararg:
         parameters.append(
             inspect.Parameter(
@@ -512,7 +588,7 @@ def _generate_signature_from_source(
             inspect.Parameter(func_def.args.kwarg.arg, inspect.Parameter.VAR_KEYWORD)
         )
 
-    # Handle return annotation
+    # Handle return annotation e.g. def func() -> int
     return_annotation = func_def.returns
     if return_annotation is not None:
         try:
@@ -544,7 +620,14 @@ def _get_docstring_from_source(source_code: str, func_name: str) -> Optional[str
         (
             node
             for node in ast.walk(parsed_code)
-            if isinstance(node, ast.FunctionDef) and node.name == func_name
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
         ),
         None,
     )

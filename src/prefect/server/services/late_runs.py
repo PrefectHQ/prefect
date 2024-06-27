@@ -5,6 +5,7 @@ The threshold for a late run can be configured by changing `PREFECT_API_SERVICES
 
 import asyncio
 import datetime
+from typing import Optional
 
 import pendulum
 import sqlalchemy as sa
@@ -32,7 +33,7 @@ class MarkLateRuns(LoopService):
     Prefect REST API Settings.
     """
 
-    def __init__(self, loop_seconds: float = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS.value(),
@@ -125,4 +126,4 @@ class MarkLateRuns(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(MarkLateRuns().start())
+    asyncio.run(MarkLateRuns(handle_signals=True).start())

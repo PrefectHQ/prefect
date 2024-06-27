@@ -2,6 +2,7 @@ import os
 import sys
 from uuid import UUID
 
+from prefect._internal.compatibility.migration import getattr_migration
 from prefect.exceptions import (
     Abort,
     Pause,
@@ -30,16 +31,16 @@ if __name__ == "__main__":
     try:
         from prefect.flow_engine import (
             load_flow_and_flow_run,
-            run_flow_async,
-            run_flow_sync,
+            run_flow,
         )
 
         flow_run, flow = load_flow_and_flow_run(flow_run_id=flow_run_id)
         # run the flow
         if flow.isasync:
-            run_coro_as_sync(run_flow_async(flow, flow_run=flow_run))
+            run_coro_as_sync(run_flow(flow, flow_run=flow_run))
         else:
-            run_flow_sync(flow, flow_run=flow_run)
+            run_flow(flow, flow_run=flow_run)
+
     except Abort as exc:
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator:"
@@ -70,3 +71,5 @@ if __name__ == "__main__":
         )
         # Let the exit code be determined by the base exception type
         raise
+
+__getattr__ = getattr_migration(__name__)

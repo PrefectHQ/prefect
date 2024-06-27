@@ -1,0 +1,64 @@
+site_name: Prefect SDK
+site_url: https://docs-3.prefect.io/
+repo_url: https://github.com/PrefectHQ/prefect
+docs_dir: docs/mkdocs
+extra_css:
+    - stylesheets/theme.css
+    - stylesheets/admonitions.css
+    - stylesheets/api_ref.css
+    - stylesheets/rest_ref.css
+    - stylesheets/syntax_highlights.css
+    - stylesheets/extra.css
+markdown_extensions:
+    - admonition
+    - attr_list
+    - codehilite
+    - md_in_html
+    - meta
+    - pymdownx.highlight:
+          use_pygments: true
+    - pymdownx.details
+    - pymdownx.tabbed:
+          alternate_style: true
+
+theme:
+    name: material
+    features:
+        - announce.dismiss
+        - content.code.copy
+        - navigation.tabs.sticky
+        - search.suggest
+        - search.highlight
+        - navigation.path
+        - navigation.indexes
+        - content.tabs.link
+    font:
+        text: Inter
+        code: Source Code Pro
+    logo: logo-word-white.svg
+    palette:
+        - media: "(prefers-color-scheme: light)"
+          accent: "#0225AC"
+          primary: "#0225AC"
+          scheme: default
+          toggle:
+              icon: material/weather-sunny
+              name: Switch to dark mode
+        - media: "(prefers-color-scheme: dark)"
+          accent: "#0225AC"
+          primary: "#0225AC"
+          scheme: slate
+          toggle:
+              icon: material/weather-night
+              name: Switch to light mode
+
+plugins:
+    - search
+    - mkdocstrings:
+          default_handler: python
+          handlers:
+              python:
+                  paths: [src]
+watch:
+    - mkdocs.yml
+    - src

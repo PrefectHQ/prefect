@@ -21,13 +21,13 @@ def prefect_db():
 
 
 @pytest.fixture
-def aws_credentials():
+async def aws_credentials():
     block = AwsCredentials(
         aws_access_key_id="access_key_id",
         aws_secret_access_key="secret_access_key",
         region_name="us-east-1",
     )
-    block.save("test-creds-block", overwrite=True)
+    await block.save("test-creds-block", overwrite=True)
     return block
 
 
@@ -44,14 +44,3 @@ def aws_client_parameters_empty():
 @pytest.fixture
 def aws_client_parameters_public_bucket():
     return AwsClientParameters(config=Config(signature_version=UNSIGNED))
-
-
-@pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield

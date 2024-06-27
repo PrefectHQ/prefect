@@ -25,7 +25,7 @@ classifiers = [
 dependencies = [
   "aiohttp",
   "slack_sdk>=3.15.1",
-  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "prefect>=3.0.0rc1",
 ]
 dynamic = ["version"]
 
@@ -42,6 +42,7 @@ dev = [
   "pre-commit",
   "pytest-asyncio",
   "pytest",
+  "pytest-env",
   "pytest-xdist",
 ]
 
@@ -54,7 +55,7 @@ prefect_slack = "prefect_slack"
 [tool.setuptools_scm]
 version_file = "prefect_slack/_version.py"
 root = "../../.."
-tag_regex = "^prefect-slack-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-slack-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-slack-*[0-9]*"'
 
@@ -74,3 +75,6 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = [
+  "PREFECT_TEST_MODE=1",
+]

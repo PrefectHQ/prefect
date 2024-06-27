@@ -1,0 +1,6 @@
+integrationName: prefect-fivetran
+author: Fivetran
+authorUrl: https://www.fivetran.com/
+documentation: https://fivetran.github.io/prefect-fivetran/
+iconUrl: /images/integrations/fivetran.png
+tag: Fivetran

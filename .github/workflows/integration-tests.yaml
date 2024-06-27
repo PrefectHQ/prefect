@@ -10,7 +10,7 @@ on:
       - ui/**
       - .nvmrc
       - Dockerfile
-      - flows/
+      - flows/*
   push:
     branches:
       - main

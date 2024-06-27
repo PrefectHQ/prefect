@@ -19,27 +19,30 @@ async def test_set_sync(variable):
         assert variable_doesnt_exist is None
 
         # create new
-        Variable.set(name="my_new_variable", value="my_value", tags=["123", "456"])
-        created = Variable.get("my_new_variable", as_object=True)
+        created = Variable.set(
+            name="my_new_variable",
+            value="my_value",
+            tags=["123", "456"],
+            as_object=True,
+        )
         assert created.value == "my_value"
         assert created.tags == ["123", "456"]
 
         # try to overwrite
         with pytest.raises(
             ValueError,
-            match="You are attempting to set a variable with a name that is already in use. "
-            "If you would like to overwrite it, pass `overwrite=True`.",
+            match="Variable 'my_new_variable' already exists. Use `overwrite=True` to update it.",
         ):
             Variable.set(name="my_new_variable", value="other_value")
 
         # actually overwrite
-        Variable.set(
+        updated = Variable.set(
             name="my_new_variable",
             value="other_value",
             tags=["new", "tags"],
             overwrite=True,
+            as_object=True,
         )
-        updated = Variable.get("my_new_variable", as_object=True)
         assert updated.value == "other_value"
         assert updated.tags == ["new", "tags"]
 
@@ -52,27 +55,27 @@ async def test_set_async(variable):
     assert variable_doesnt_exist is None
 
     # create new
-    await Variable.set(name="my_new_variable", value="my_value", tags=["123", "456"])
-    created = await Variable.get("my_new_variable", as_object=True)
+    created = await Variable.set(
+        name="my_new_variable", value="my_value", tags=["123", "456"], as_object=True
+    )
     assert created.value == "my_value"
     assert created.tags == ["123", "456"]
 
     # try to overwrite
     with pytest.raises(
         ValueError,
-        match="You are attempting to set a variable with a name that is already in use. "
-        "If you would like to overwrite it, pass `overwrite=True`.",
+        match="Variable 'my_new_variable' already exists. Use `overwrite=True` to update it.",
     ):
         await Variable.set(name="my_new_variable", value="other_value")
 
     # actually overwrite
-    await Variable.set(
+    updated = await Variable.set(
         name="my_new_variable",
         value="other_value",
         tags=["new", "tags"],
         overwrite=True,
+        as_object=True,
     )
-    updated = await Variable.get("my_new_variable", as_object=True)
     assert updated.value == "other_value"
     assert updated.tags == ["new", "tags"]
 
@@ -93,8 +96,8 @@ async def test_set_async(variable):
     ],
 )
 async def test_json_types(value):
-    await Variable.set("json_variable", value=value)
-    assert await Variable.get("json_variable") == value
+    set_value = await Variable.set("json_variable", value=value)
+    assert set_value == value
 
 
 async def test_get(variable):
@@ -142,7 +145,7 @@ async def test_get_async(variable):
 async def test_unset(variable):
     # unset a variable
     unset = await Variable.unset(variable.name)
-    assert unset
+    assert unset is True
 
     # confirm it's gone
     doesnt_exist = await Variable.get(variable.name)
@@ -150,13 +153,13 @@ async def test_unset(variable):
 
     # unset a variable that doesn't exist
     unset_doesnt_exist = await Variable.unset("doesnt_exist")
-    assert not unset_doesnt_exist
+    assert unset_doesnt_exist is False
 
 
 async def test_unset_async(variable):
     # unset a variable
     unset = await Variable.unset(variable.name)
-    assert unset
+    assert unset is True
 
     # confirm it's gone
     doesnt_exist = await Variable.get(variable.name)
@@ -164,7 +167,7 @@ async def test_unset_async(variable):
 
     # unset a variable that doesn't exist
     unset_doesnt_exist = await Variable.unset("doesnt_exist")
-    assert not unset_doesnt_exist
+    assert unset_doesnt_exist is False
 
 
 def test_get_in_sync_flow(variable):
@@ -190,21 +193,21 @@ async def test_get_in_async_flow(variable):
 def test_set_in_sync_flow():
     @flow
     def foo():
-        Variable.set("my_variable", value="my-value")
+        return Variable.set("my_variable", value="my-value")
 
-    foo()
-    value = Variable.get("my_variable")
-    assert value
+    res = foo()
+    assert res
+    assert res == "my-value"
 
 
 async def test_set_in_async_flow():
     @flow
     async def foo():
-        await Variable.set("my_variable", value="my-value")
+        return await Variable.set("my_variable", value="my-value")
 
-    await foo()
-    value = await Variable.get("my_variable")
-    assert value
+    res = await foo()
+    assert res
+    assert res == "my-value"
 
 
 async def test_unset_in_sync_flow(variable):
