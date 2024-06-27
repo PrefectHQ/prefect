@@ -134,8 +134,8 @@
             "3.0rc/deploy/infrastructure-concepts/work-pools",
             "3.0rc/deploy/infrastructure-concepts/workers",
             "3.0rc/deploy/infrastructure-concepts/store-flow-code",
-            "3.0rc/deploy/infrastructure-concepts/deploy-ci-cd",
             "3.0rc/deploy/infrastructure-concepts/prefect-yaml",
+            "3.0rc/deploy/infrastructure-concepts/deploy-ci-cd",
             "3.0rc/deploy/infrastructure-concepts/customize"
           ]
         },
