@@ -131,12 +131,12 @@
           "group": "Run flows on infrastructure",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/work-pools",
-            "3.0rc/deploy/workers",
-            "3.0rc/deploy/store-flow-code",
-            "3.0rc/deploy/deploy-ci-cd",
-            "3.0rc/deploy/prefect-yaml",
-            "3.0rc/deploy/customize"
+            "3.0rc/deploy/infrastructure-concepts/work-pools",
+            "3.0rc/deploy/infrastructure-concepts/workers",
+            "3.0rc/deploy/infrastructure-concepts/store-flow-code",
+            "3.0rc/deploy/infrastructure-concepts/deploy-ci-cd",
+            "3.0rc/deploy/infrastructure-concepts/prefect-yaml",
+            "3.0rc/deploy/infrastructure-concepts/customize"
           ]
         },
         {

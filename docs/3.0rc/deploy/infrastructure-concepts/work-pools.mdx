@@ -66,7 +66,7 @@ and allow you to limit concurrent runs at the work pool level.
 
 When creating a deployment that uses a work pool and worker, there are two important considerations:
 
-- What instructions does a [worker](/3.0rc/deploy/workers/) require to set up an execution environment for your flow? 
+- What instructions does a [worker](/3.0rc/deploy/infrastructure-concepts/workers/) require to set up an execution environment for your flow? 
 For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
@@ -75,7 +75,7 @@ and how to move to a [work pool deployment](/3.0rc/deploy/infrastructure-example
 Learn more about when to move to [work pool deployments](#benefits-of-work-pools).
 
 Next, you'll learn how to use `.deploy` to create deployments with Python code.
-If you prefer to learn about using a YAML-based alternative for managing deployment configuration, skip to [Create deployments with YAML](/3.0rc/deploy/prefect-yaml).
+If you prefer to learn about using a YAML-based alternative for managing deployment configuration, skip to [Create deployments with YAML](/3.0rc/deploy/infrastructure-concepts/prefect-yaml).
 
 ### Work pool configuration
 
@@ -325,7 +325,7 @@ deployments:
         stream_output: false
 ```
 
-Learn more about [overriding job variables](/3.0rc/deploy/customize).
+Learn more about [overriding job variables](/3.0rc/deploy/infrastructure-concepts/customize).
 
 <Tip>
 **Advanced customization of the base job template**
@@ -342,7 +342,7 @@ Learn more about [overriding job variables](/3.0rc/deploy/customize).
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
     documentation.
 
-    See more information about [overriding a work pool's job variables](/3.0rc/deploy/customize).
+    See more information about [overriding a work pool's job variables](/3.0rc/deploy/infrastructure-concepts/customize).
 </Tip>
 
 ### View work pools
@@ -536,9 +536,9 @@ Other advantages of work pools:
 
 - Configure default infrastructure configurations on your work pools that all jobs inherit and can override.
 - Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
-- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/work-pools/#work-queues).
+- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/infrastructure-concepts/work-pools/#work-queues).
 
-Prefect provides several [types of work pools](/3.0rc/deploy/work-pools/#work-pool-types).
+Prefect provides several [types of work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/#work-pool-types).
 Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
