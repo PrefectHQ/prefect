@@ -452,6 +452,15 @@ def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_day
 
     Args:
         new_comment_interval_days (int): Interval in days to check for new comments.
+
+    Example:
+        python surface_high_engagement_issues.py --new_comment_interval_days 1
+
+        This will check for high engagement issues with new comments within the last day and add the "Needs Priority" status to them.
+        You may want to ad-hoc run this for a longer interval. For instance, if you wanted to loop through high-engagement issues that
+        have had new comments in the last year, you could run:
+
+        python surface_high_engagement_issues.py --new_comment_interval_days 365
     """
     headers = {
         "Authorization": f"Bearer {get_github_token()}",
