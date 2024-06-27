@@ -126,4 +126,4 @@ class MarkLateRuns(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(MarkLateRuns().start())
+    asyncio.run(MarkLateRuns(handle_signals=True).start())
