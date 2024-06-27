@@ -526,7 +526,7 @@ class TaskRunEngine(Generic[P, R]):
                     # TerminationSignals are caught and handled as crashes
                     self.cancel()
                     self.handle_crash(exc)
-                    raise
+                    raise exc
 
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -653,10 +653,6 @@ class TaskRunEngine(Generic[P, R]):
                         raise CancelledError("Task run was cancelled")
 
                     yield self
-            except CancelledError as exc:
-                self.logger.error("Task run was cancelled")
-                self.handle_crash(exc)
-                exit()
             except TimeoutError as exc:
                 self.handle_timeout(exc)
             except Exception as exc:
