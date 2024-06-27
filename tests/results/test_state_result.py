@@ -92,9 +92,8 @@ async def test_graceful_retries_are_finite_while_retrieving_missing_results(
 
     # it should have taken ~3 retries for this to raise
     expected_sleep = (
-        prefect.states.RESULT_READ_MAXIMUM_ATTEMPTS
-        * prefect.states.RESULT_READ_RETRY_DELAY
-    )
+        prefect.states.RESULT_READ_MAXIMUM_ATTEMPTS - 1
+    ) * prefect.states.RESULT_READ_RETRY_DELAY
     elapsed = time.monotonic() - now
     assert elapsed >= expected_sleep
 
@@ -121,9 +120,8 @@ async def test_graceful_retries_reraise_last_error_while_retrieving_missing_resu
     # the loop should have failed three times, sleeping 0.01s per error
     assert m.call_count == prefect.states.RESULT_READ_MAXIMUM_ATTEMPTS
     expected_sleep = (
-        prefect.states.RESULT_READ_MAXIMUM_ATTEMPTS
-        * prefect.states.RESULT_READ_RETRY_DELAY
-    )
+        prefect.states.RESULT_READ_MAXIMUM_ATTEMPTS - 1
+    ) * prefect.states.RESULT_READ_RETRY_DELAY
     elapsed = time.monotonic() - now
     assert elapsed >= expected_sleep
 

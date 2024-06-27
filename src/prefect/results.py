@@ -432,10 +432,7 @@ class ResultFactory(BaseModel):
 @register_base_type
 class BaseResult(BaseModel, abc.ABC, Generic[R]):
     model_config = ConfigDict(extra="forbid")
-
     type: str
-    artifact_type: Optional[str] = None
-    artifact_description: Optional[str] = None
 
     def __init__(self, **data: Any) -> None:
         type_string = get_dispatch_key(self) if type(self) != BaseResult else "__base__"
@@ -501,11 +498,7 @@ class UnpersistedResult(BaseResult):
         obj: R,
         cache_object: bool = True,
     ) -> "UnpersistedResult[R]":
-        description = f"Unpersisted result of type `{type(obj).__name__}`"
-        result = cls(
-            artifact_type="result",
-            artifact_description=description,
-        )
+        result = cls()
         # Only store the object in local memory, it will not be sent to the API
         if cache_object:
             result._cache_object(obj)
@@ -692,15 +685,7 @@ class PersistedResult(BaseResult):
             raise TypeError(
                 f"Expected type 'str' for result storage key; got value {key!r}"
             )
-        description = f"Result of type `{type(obj).__name__}`"
         uri = cls._infer_path(storage_block, key)
-        if uri:
-            if isinstance(storage_block, LocalFileSystem):
-                description += f" persisted to: `{uri}`"
-            else:
-                description += f" persisted to [{uri}]({uri})."
-        else:
-            description += f" persisted with storage block `{storage_block_id}`."
 
         # in this case we store an absolute path
         if storage_block_id is None and uri is not None:
@@ -710,8 +695,6 @@ class PersistedResult(BaseResult):
             serializer_type=serializer.type,
             storage_block_id=storage_block_id,
             storage_key=key,
-            artifact_type="result",
-            artifact_description=description,
             expiration=expiration,
         )
 
@@ -788,5 +771,4 @@ class UnknownResult(BaseResult):
                 "Only None is supported."
             )
 
-        description = "Unknown result persisted to Prefect."
-        return cls(value=obj, artifact_type="result", artifact_description=description)
+        return cls(value=obj)
