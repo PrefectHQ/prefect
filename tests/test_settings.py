@@ -424,10 +424,31 @@ class TestSettingAccess:
     @pytest.mark.parametrize(
         "api_url,ui_url",
         [
+            # We'll infer that app. and api. subdomains go together for prefect domains
             (
                 "https://api.prefect.cloud/api",
                 "https://app.prefect.cloud",
             ),
+            (
+                "https://api.theoretical.prefect.bonkers/api",
+                "https://app.theoretical.prefect.bonkers",
+            ),
+            (
+                "https://api.prefect.banooners/api",
+                "https://app.prefect.banooners",
+            ),
+            # We'll leave URLs with non-prefect TLDs alone
+            (
+                "https://api.theoretical.prefect.customer.com/api",
+                "https://api.theoretical.prefect.customer.com",
+            ),
+            # Some day, some day...
+            (
+                "https://api.prefect/api",
+                "https://api.prefect",
+            ),
+            # We'll leave all other URLs alone
+            ("http://prefect/api", "http://prefect"),
             ("http://my-cloud/api", "http://my-cloud"),
             ("https://api.foo.bar", "https://api.foo.bar"),
         ],
