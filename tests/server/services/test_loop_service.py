@@ -156,15 +156,15 @@ async def test_stop_block_escapes_deadlock(caplog):
 
 class TestSignalHandling:
     @pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
-    async def test_handle_signals_to_shutdown(self, sig):
-        service = LoopService()
+    async def test_can_handle_signals_to_shutdown(self, sig):
+        service = LoopService(handle_signals=True)
         assert service._should_stop is False
         signal.raise_signal(sig)
         # yield so the signal handler can run
         await asyncio.sleep(0.1)
         assert service._should_stop is True
 
-    async def test_handle_signals_can_be_disabled(self):
+    async def test_does_not_handle_signals_by_default(self):
         service = LoopService()
         assert service._should_stop is False
         signal.raise_signal(signal.SIGTERM)
