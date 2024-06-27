@@ -4,6 +4,7 @@ Command line interface for working with Prefect
 
 import os
 import textwrap
+import webbrowser
 from functools import partial
 
 import anyio
@@ -170,6 +171,9 @@ async def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    no_ui: bool = typer.Option(
+        False, "--no-ui", "-nu", help="do not open the UI in a browser automatically"
+    ),
 ):
     """Start a Prefect server instance"""
 
@@ -216,12 +220,12 @@ async def start(
             )
         )
 
-        # Explicitly handle the interrupt signal here, as it will allow us to
-        # cleanly stop the uvicorn server. Failing to do that may cause a
-        # large amount of anyio error traces on the terminal, because the
-        # SIGINT is handled by Typer/Click in this process (the parent process)
-        # and will start shutting down subprocesses:
-        # https://github.com/PrefectHQ/server/issues/2475
+        # Open UI URL if the no-ui flag hasn't been passed
+        if not no_ui:
+            try:
+                webbrowser.open_new(base_url)
+            except RuntimeError:
+                pass
 
         setup_signal_handlers_server(
             server_process_id, "the Prefect server", app.console.print
