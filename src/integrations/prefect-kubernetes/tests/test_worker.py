@@ -39,8 +39,6 @@ from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_KEY,
-    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_EXPERIMENTAL_WARN_WORKERS,
     get_current_settings,
     temporary_settings,
 )
@@ -48,14 +46,6 @@ from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
-
-
-@pytest.fixture(autouse=True)
-def enable_workers():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1, PREFECT_EXPERIMENTAL_WARN_WORKERS: 0}
-    ):
-        yield
 
 
 @pytest.fixture

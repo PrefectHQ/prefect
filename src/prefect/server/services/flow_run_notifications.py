@@ -160,4 +160,4 @@ class FlowRunNotifications(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(FlowRunNotifications().start())
+    asyncio.run(FlowRunNotifications(handle_signals=True).start())
