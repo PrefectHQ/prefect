@@ -14,7 +14,7 @@ search:
 
 # **Welcome to Prefect**
 
-Prefect is a workflow orchestration tool empowering developers to build, observe, and react to data pipelines.
+Prefect is a workflow orchestration framework for building resilient data pipelines in Python.
 
 It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. Just bring your Python code, sprinkle in a few decorators, and go!
 
