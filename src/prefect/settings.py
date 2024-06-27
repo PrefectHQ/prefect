@@ -42,6 +42,7 @@ dependent on the value of other settings or perform other dynamic effects.
 
 import logging
 import os
+import re
 import string
 import warnings
 from contextlib import contextmanager
@@ -460,10 +461,8 @@ def default_cloud_ui_url(settings, value):
     # Otherwise, infer a value from the API URL
     ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
 
-    if api_url.startswith("https://api.prefect.cloud"):
-        ui_url = ui_url.replace(
-            "https://api.prefect.cloud", "https://app.prefect.cloud", 1
-        )
+    if re.match(r"^https://api[\.\w]*.prefect.[^\.]+/", api_url):
+        ui_url = ui_url.replace("https://api", "https://app", 1)
 
     if ui_url.endswith("/api"):
         ui_url = ui_url[:-4]
