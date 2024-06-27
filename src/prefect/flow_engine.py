@@ -30,7 +30,13 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import ClientContext, FlowRunContext, TagsContext
-from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
+from prefect.exceptions import (
+    Abort,
+    Pause,
+    PrefectException,
+    TerminationSignal,
+    UpstreamTaskError,
+)
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import (
@@ -514,7 +520,7 @@ class FlowRunEngine(Generic[P, R]):
             try:
                 yield self
 
-            except KeyboardInterrupt as exc:
+            except TerminationSignal as exc:
                 self.cancel_all_tasks()
                 self.handle_crash(exc)
                 raise

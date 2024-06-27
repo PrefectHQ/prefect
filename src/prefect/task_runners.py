@@ -300,8 +300,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
             future = self._executor.submit(
                 context.run,
                 asyncio.run,
-                run_task_async,
-                **submit_kwargs,
+                run_task_async(**submit_kwargs),
             )
         else:
             future = self._executor.submit(
@@ -343,7 +342,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
     def cancel_all(self):
         for event in self._cancel_events.values():
             event.set()
-            print("Set cancel event")
+            self.logger.debug("Set cancel event")
 
         if self._executor is not None:
             self._executor.shutdown(cancel_futures=True)
