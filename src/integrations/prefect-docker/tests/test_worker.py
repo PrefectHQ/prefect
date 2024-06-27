@@ -21,24 +21,13 @@ from prefect.client.schemas import FlowRun
 from prefect.events import RelatedResource
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_EXPERIMENTAL_WARN_WORKERS,
     get_current_settings,
-    temporary_settings,
 )
 from prefect.testing.utilities import assert_does_not_warn
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CONTAINER_ID = "fake-id"
 FAKE_BASE_URL = "my-url"
-
-
-@pytest.fixture(autouse=True)
-def enable_workers():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1, PREFECT_EXPERIMENTAL_WARN_WORKERS: 0}
-    ):
-        yield
 
 
 @pytest.fixture(autouse=True)

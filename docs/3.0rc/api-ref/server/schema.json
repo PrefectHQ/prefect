@@ -22167,16 +22167,6 @@
                         "title": "Prefect Api Max Flow Run Graph Artifacts",
                         "default": 10000
                     },
-                    "PREFECT_EXPERIMENTAL_ENABLE_WORKERS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Workers",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_WORKERS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Workers",
-                        "default": false
-                    },
                     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION": {
                         "type": "boolean",
                         "title": "Prefect Experimental Enable Enhanced Cancellation",
