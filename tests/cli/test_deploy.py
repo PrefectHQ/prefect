@@ -4792,6 +4792,84 @@ class TestSaveUserInputs:
 
         assert prefect_config["deployments"][0]["work_pool"]["name"] == work_pool.name
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_does_not_resolve_block_references_in_job_variables_section(
+        self, prefect_client, work_pool
+    ):
+        """
+        Ensure block references are resolved in deployments section of prefect.yaml
+        """
+        await Secret(value="bloop").save(name="test-secret-block")
+
+        # add block reference to prefect.yaml
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        prefect_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                    "job_variables": {
+                        "env": {
+                            "SECRET": "{{ prefect.blocks.secret.test-secret-block}}"
+                        }
+                    },
+                },
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        # ensure block reference was added
+        assert (
+            prefect_config["deployments"][0]["work_pool"]["job_variables"]["env"][
+                "SECRET"
+            ]
+            == "{{ prefect.blocks.secret.test-secret-block}}"
+        )
+
+        # run deploy
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy flows/hello.py:my_flow -n test-name",
+            expected_code=0,
+            user_input=(
+                # reject schedule
+                "n"
+                + readchar.key.ENTER
+                # accept saving configuration
+                + "y"
+                + readchar.key.ENTER
+                # accept overwrite config
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Deployment 'An important name/test-name' successfully created",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+
+        # ensure block reference was not resolved
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        assert (
+            prefect_config["deployments"][0]["work_pool"]["job_variables"]["env"][
+                "SECRET"
+            ]
+            == "{{ prefect.blocks.secret.test-secret-block}}"
+        )
+
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_resolves_variables_in_deployments_section(
         self, prefect_client, work_pool
