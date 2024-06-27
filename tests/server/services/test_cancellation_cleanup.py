@@ -150,7 +150,7 @@ async def test_service_cleans_up_nonterminal_runs(
     assert orphaned_subflow_run.state.type == state_constructor[0]
     assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
-    await CancellationCleanup(handle_signals=False).start(loops=1)
+    await CancellationCleanup().start(loops=1)
     await session.refresh(orphaned_task_run)
     await session.refresh(orphaned_subflow_run)
     await session.refresh(orphaned_subflow_run_from_deployment)
@@ -186,7 +186,7 @@ async def test_service_ignores_old_cancellations(
     assert orphaned_subflow_run.state.type == state_constructor[0]
     assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
-    await CancellationCleanup(handle_signals=False).start(loops=1)
+    await CancellationCleanup().start(loops=1)
     await session.refresh(orphaned_task_run)
     await session.refresh(orphaned_subflow_run)
     await session.refresh(orphaned_subflow_run_from_deployment)
@@ -224,7 +224,7 @@ async def test_service_leaves_terminal_runs_alone(
     assert orphaned_subflow_run.state.type == state_constructor[0]
     assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
-    await CancellationCleanup(handle_signals=False).start(loops=1)
+    await CancellationCleanup().start(loops=1)
     await session.refresh(orphaned_task_run)
     await session.refresh(orphaned_subflow_run)
     await session.refresh(orphaned_subflow_run_from_deployment)

@@ -346,4 +346,11 @@ class RecentDeploymentsScheduler(Scheduler):
 
 
 if __name__ == "__main__":
-    asyncio.run(run_multiple_services([Scheduler(), RecentDeploymentsScheduler()]))
+    asyncio.run(
+        run_multiple_services(
+            [
+                Scheduler(handle_signals=True),
+                RecentDeploymentsScheduler(handle_signals=True),
+            ]
+        )
+    )

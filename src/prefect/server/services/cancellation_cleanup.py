@@ -174,4 +174,4 @@ class CancellationCleanup(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(CancellationCleanup().start())
+    asyncio.run(CancellationCleanup(handle_signals=True).start())

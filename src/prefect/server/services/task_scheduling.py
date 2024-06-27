@@ -125,4 +125,4 @@ class TaskSchedulingTimeouts(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(TaskSchedulingTimeouts().start())
+    asyncio.run(TaskSchedulingTimeouts(handle_signals=True).start())
