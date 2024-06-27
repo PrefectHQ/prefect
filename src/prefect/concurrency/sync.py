@@ -28,6 +28,7 @@ def concurrency(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
+    active: Optional[bool] = False,
 ):
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -37,6 +38,7 @@ def concurrency(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+        active: If implicitly creating the limit, whether or not the new limit is active.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -57,7 +59,11 @@ def concurrency(
     names = names if isinstance(names, list) else [names]
 
     limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
-        _acquire_concurrency_slots, names, occupy, timeout_seconds=timeout_seconds
+        _acquire_concurrency_slots,
+        names,
+        occupy,
+        timeout_seconds=timeout_seconds,
+        active=active,
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)

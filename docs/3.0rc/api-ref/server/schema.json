@@ -12571,6 +12571,11 @@
                         ],
                         "title": "Mode",
                         "default": "concurrency"
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "title": "Active",
+                        "default": false
                     }
                 },
                 "type": "object",

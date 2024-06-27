@@ -185,6 +185,7 @@ async def delete_concurrency_limit(
 async def bulk_read_or_create_concurrency_limits(
     session: AsyncSession,
     names: List[str],
+    active: Optional[bool] = False,
 ):
     # Get all existing concurrency limits in `names`.
     existing_query = sa.select(orm_models.ConcurrencyLimitV2).where(
@@ -199,7 +200,7 @@ async def bulk_read_or_create_concurrency_limits(
         new_limits = [
             orm_models.ConcurrencyLimitV2(
                 **schemas.core.ConcurrencyLimitV2(
-                    name=name, limit=1, active=False
+                    name=name, limit=1, active=active
                 ).model_dump()
             )
             for name in missing_names

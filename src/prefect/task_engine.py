@@ -30,6 +30,8 @@ from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
 from prefect.context import (
     ClientContext,
     FlowRunContext,
@@ -70,7 +72,7 @@ from prefect.utilities.engine import (
     _get_hook_name,
     emit_task_run_state_change_event,
     link_state_to_result,
-    propose_state_sync,
+    propose_state,
     resolve_to_final_result,
 )
 from prefect.utilities.math import clamped_poisson_interval
@@ -281,8 +283,11 @@ class TaskRunEngine(Generic[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
-            new_state = propose_state_sync(
-                self.client, state, task_run_id=self.task_run.id, force=force
+            new_state = run_coro_as_sync(
+                propose_state(
+                    self.client, state, task_run_id=self.task_run.id, force=force
+                ),
+                # force_new_thread=True
             )
         except Pause as exc:
             # We shouldn't get a pause signal without a state, but if this happens,
@@ -644,7 +649,10 @@ class TaskRunEngine(Generic[P, R]):
                 if transaction.is_committed():
                     result = transaction.read()
                 else:
-                    result = await call_with_parameters(self.task.fn, parameters)
+                    async with aconcurrency(
+                        list(self.task.tags), occupy=1, active=True
+                    ):
+                        result = await call_with_parameters(self.task.fn, parameters)
                 self.handle_success(result, transaction=transaction)
 
             return _call_task_fn()
@@ -652,7 +660,8 @@ class TaskRunEngine(Generic[P, R]):
             if transaction.is_committed():
                 result = transaction.read()
             else:
-                result = call_with_parameters(self.task.fn, parameters)
+                with concurrency(list(self.task.tags), occupy=1, active=True):
+                    result = call_with_parameters(self.task.fn, parameters)
             self.handle_success(result, transaction=transaction)
 
 
