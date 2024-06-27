@@ -36,6 +36,7 @@ Note some important details:
 """
 
 from typing import Any, Dict, Optional, Tuple, Union
+from uuid import UUID
 
 import pydantic
 from fastapi import HTTPException, status
@@ -117,23 +118,31 @@ async def _resolve_default_reference(
     }
     """
     if not isinstance(variable, dict):
-        return
+        return None
 
     if "$ref" not in variable:
-        return
+        return None
 
     reference_data = variable.get("$ref", {})
-    if (block_doc_id := reference_data.get("block_document_id")) is None:
-        return
+    if (provided_block_document_id := reference_data.get("block_document_id")) is None:
+        return None
+
+    if isinstance(provided_block_document_id, UUID):
+        block_document_id = provided_block_document_id
+    else:
+        try:
+            block_document_id = UUID(provided_block_document_id)
+        except ValueError:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found.")
 
     try:
         block_document = await models.block_documents.read_block_document_by_id(
-            session, block_doc_id
+            session, block_document_id
         )
     except pydantic.ValidationError:
         # It's possible to get an invalid UUID here because the block document ID is
         # not validated by our schemas.
-        logger.info("Could not find block document with ID %s", block_doc_id)
+        logger.info("Could not find block document with ID %s", block_document_id)
         block_document = None
 
     if not block_document:
