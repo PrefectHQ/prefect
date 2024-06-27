@@ -522,6 +522,12 @@ class TaskRunEngine(Generic[P, R]):
                         )
                         yield self
 
+                except KeyboardInterrupt as exc:
+                    # TerminationSignals are caught and handled as crashes
+                    self.cancel()
+                    self.handle_crash(exc)
+                    raise
+
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
                     raise
@@ -645,7 +651,12 @@ class TaskRunEngine(Generic[P, R]):
                     )
                     if self.is_cancelled():
                         raise CancelledError("Task run was cancelled")
+
                     yield self
+            except CancelledError as exc:
+                self.logger.error("Task run was cancelled")
+                self.handle_crash(exc)
+                exit()
             except TimeoutError as exc:
                 self.handle_timeout(exc)
             except Exception as exc:

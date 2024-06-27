@@ -345,6 +345,10 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
             event.set()
             print("Set cancel event")
 
+        if self._executor is not None:
+            self._executor.shutdown(wait=True, cancel_futures=True)
+            self._executor = None
+
     def __enter__(self):
         super().__enter__()
         self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
