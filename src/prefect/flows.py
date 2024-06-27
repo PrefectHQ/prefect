@@ -1925,8 +1925,12 @@ def load_flow_argument_from_entrypoint(
                     literal_arg_value = ast.get_source_segment(
                         source_code, keyword.value
                     )
+                    cleaned_value = (
+                        literal_arg_value.replace("\n", "") if literal_arg_value else ""
+                    )
+
                     try:
-                        evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
+                        evaluated_value = eval(cleaned_value, namespace)  # type: ignore
                     except Exception as e:
                         logger.info(
                             "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
