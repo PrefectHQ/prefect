@@ -445,7 +445,7 @@ def update_project_status(project_item_id, option_id, headers: dict):
     print(response.json())
 
 
-def add_needs_priority_label_to_high_engagement_issues(new_comment_interval_days: int):
+def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_days: int):
     """
     Sets the "Needs Priority" status on high engagement issues with new comments.
     This status is a field on the Prefect Backlog project board.
@@ -491,4 +491,4 @@ if __name__ == "__main__":
         help="Interval in days to check for new comments",
     )
     args = parser.parse_args()
-    add_needs_priority_label_to_high_engagement_issues(args.new_comment_interval_days)
+    set_needs_priority_status_on_high_engagement_issues(args.new_comment_interval_days)
