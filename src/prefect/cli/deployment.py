@@ -16,7 +16,6 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -177,40 +176,6 @@ async def check_work_pool_exists(
                 f"$ prefect work-pool create {work_pool_name!r}\n", style="blue"
             )
             exit_with_error("Work pool not found!")
-
-
-@inject_client
-async def _print_deployment_work_pool_instructions(
-    work_pool_name: str, client: "PrefectClient" = None
-):
-    work_pool = await client.read_work_pool(work_pool_name)
-    blurb = (
-        "\nTo execute flow runs from this deployment, start an agent "
-        f"that pulls work from the {work_pool_name!r} work pool:"
-    )
-    command = f"$ prefect agent start -p {work_pool_name!r}"
-    if work_pool.type != "prefect-agent":
-        if experiment_enabled("workers"):
-            blurb = (
-                "\nTo execute flow runs from this deployment, start a"
-                " worker that pulls work from the"
-                f" {work_pool_name!r} work pool:"
-            )
-            command = f"$ prefect worker start -p {work_pool_name!r}"
-        else:
-            blurb = (
-                "\nTo execute flow runs from this deployment, please"
-                " enable the workers CLI and start a worker that pulls"
-                f" work from the {work_pool_name!r} work pool:"
-            )
-            command = (
-                "$ prefect config set"
-                " PREFECT_EXPERIMENTAL_ENABLE_WORKERS=True\n$ prefect"
-                f" worker start -p {work_pool_name!r}"
-            )
-
-    app.console.print(blurb)
-    app.console.print(command, style="blue")
 
 
 class RichTextIO:
