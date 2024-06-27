@@ -1,5 +1,5 @@
 ---
-title: Workspaces
+title: Manage workspaces
 description: Organize and compartmentalize your workflows with Workspaces.
 ---
 
@@ -33,7 +33,7 @@ Configure:
 Select **Create** to create the new workspace. The number of available workspaces varies by [Prefect Cloud plan](https://www.prefect.io/pricing/). 
 See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces or users.
 
-## Workspace access 
+## Control access 
 
 Within a Prefect Cloud Pro or Enterprise tier account, workspace owners can invite other people as members, and provision [service accounts](https://docs.prefect.io/ui/service-accounts/) to a workspace. 
 A workspace owner assigns a [workspace role](https://docs.prefect.io/ui/roles/) to the user and specifies the user's scope of permissions within the workspace.
@@ -41,16 +41,12 @@ A workspace owner assigns a [workspace role](https://docs.prefect.io/ui/roles/) 
 As a workspace owner, select **Workspaces -> Members** to manage members and **Workspaces -> Service Accounts** and service accounts for the workspace.
 Previously invited individuals or provisioned service accounts are listed here.
 
-### Manage users
-
 To invite someone to an account, select the **Members +** icon. You can select from a list of existing account members.
 
 Select a role for the user. This is the initial role for the user within the workspace.
 A workspace owner can change this role at any time.
 
 To remove a workspace member, select **Remove** from the menu on the right side of the user information on this page.
-
-### Manage service accounts
 
 To add a service account to a workspace, select the **Service Accounts +** icon. 
 Seelect a **Name**, **Account Role**, **Expiration Date**, and optionally, a **Workspace**. 
