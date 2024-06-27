@@ -35,7 +35,6 @@ def test_app_exposes_ui_settings():
 
     flags = set(json.pop("flags"))
     assert flags == {
-        "workers",
         "enhanced_cancellation",
     }
     assert json == {
@@ -55,7 +54,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     flags = set(json.pop("flags"))
     assert flags == {
         "test",
-        "workers",
         "enhanced_cancellation",
     }
     assert json == {
