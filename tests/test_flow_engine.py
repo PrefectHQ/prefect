@@ -18,7 +18,12 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
-from prefect.exceptions import CrashedRun, FailedRun, ParameterTypeError, Pause
+from prefect.exceptions import (
+    CrashedRun,
+    FlowPauseTimeout,
+    ParameterTypeError,
+    Pause,
+)
 from prefect.flow_engine import (
     FlowRunEngine,
     load_flow_and_flow_run,
@@ -954,7 +959,7 @@ class TestPauseFlowRun:
             await pause_flow_run(timeout=0.1)
             await doesnt_pause()
 
-        with pytest.raises(FailedRun):
+        with pytest.raises(FlowPauseTimeout):
             await pausing_flow()
 
     def test_paused_flows_block_execution_in_sync_flows(self, prefect_client):
