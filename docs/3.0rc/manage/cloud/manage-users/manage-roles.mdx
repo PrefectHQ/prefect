@@ -39,6 +39,7 @@ The following built-in roles have permissions within a given workspace in Prefec
 | Viewer    | - View flow runs within a workspace. <br /> - View deployments within a workspace. <br /> - View all work pools within a workspace. <br /> - View all blocks within a workspace. <br /> - View all automations within a workspace. <br /> - View workspace handle and description.                                                                                                                                                                |
 | Runner    | All Viewer abilities, _plus_: <br /> - Run deployments within a workspace.                                                                                                                                                                                                                                                                                                                                                                                         |
 | Developer | All Runner abilities, _plus_: <br /> - Run flows within a workspace. <br /> - Delete flow runs within a workspace. <br /> - Create, edit, and delete deployments within a workspace. <br /> - Create, edit, and delete work pools within a workspace. <br /> - Create, edit, and delete all blocks and their secrets within a workspace. <br /> - Create, edit, and delete automations within a workspace. <br /> - View all workspace settings. |
+
 | Owner     | All Developer abilities, _plus_: <br /> - Add and remove account members, and set their role within a workspace. <br /> - Set the workspace’s default workspace role for all users in the account. <br /> - Set, view, edit workspace settings.                                                                                                                                                                                                    |
 | Worker     | The minimum scopes required for a worker to poll for and submit work.|
 
@@ -71,8 +72,6 @@ new functionality becomes available.
 
 To configure an inherited role alongside a custom role, select the **Inherit permission from a default role** 
 check box, then select the role from which the new role should inherit permissions.
-
-![Creating a custom role for a workspace using inherited permissions in Prefect Cloud](/3.0rc/img/ui/org-inherited-role.png)
 
 ## Workspace role permissions
 
