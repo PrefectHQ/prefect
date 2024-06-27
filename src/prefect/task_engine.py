@@ -72,7 +72,7 @@ from prefect.utilities.engine import (
     _get_hook_name,
     emit_task_run_state_change_event,
     link_state_to_result,
-    propose_state,
+    propose_state_sync,
     resolve_to_final_result,
 )
 from prefect.utilities.math import clamped_poisson_interval
@@ -284,10 +284,9 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Task run is not set")
         try:
             new_state = run_coro_as_sync(
-                propose_state(
+                new_state=propose_state_sync(
                     self.client, state, task_run_id=self.task_run.id, force=force
-                ),
-                # force_new_thread=True
+                )
             )
         except Pause as exc:
             # We shouldn't get a pause signal without a state, but if this happens,
