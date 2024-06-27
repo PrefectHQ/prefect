@@ -127,20 +127,26 @@
       "pages": [
         "3.0rc/deploy/index",
         "3.0rc/deploy/run-flows-in-local-processes",
-        "3.0rc/deploy/work-pools",
-        "3.0rc/deploy/workers",
-        "3.0rc/deploy/store-flow-code",
-        "3.0rc/deploy/deploy-ci-cd",
-        "3.0rc/deploy/prefect-yaml",
-        "3.0rc/deploy/customize",
+        {
+          "group": "Run flows on infrastructure",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/deploy/work-pools",
+            "3.0rc/deploy/workers",
+            "3.0rc/deploy/store-flow-code",
+            "3.0rc/deploy/deploy-ci-cd",
+            "3.0rc/deploy/prefect-yaml",
+            "3.0rc/deploy/customize"
+          ]
+        },
         {
           "group": "Infrastructure specific examples",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/infrastructure/managed",
-            "3.0rc/deploy/infrastructure/serverless",
-            "3.0rc/deploy/infrastructure/docker",
-            "3.0rc/deploy/infrastructure/kubernetes"
+            "3.0rc/deploy/infrastructure-examples/managed",
+            "3.0rc/deploy/infrastructure-examples/serverless",
+            "3.0rc/deploy/infrastructure-examples/docker",
+            "3.0rc/deploy/infrastructure-examples/kubernetes"
           ]
         }
       ]

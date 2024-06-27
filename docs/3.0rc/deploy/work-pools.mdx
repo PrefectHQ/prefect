@@ -5,9 +5,9 @@ description: Prefect work pools route deployment flow runs to workers.
 
 Work pools organize work for execution. Work pools have types corresponding to the infrastructure to execute the flow code, 
 as well as the delivery method of work to that environment. Pull work pools require workers to poll the work 
-pool for flow runs to execute. [Push work pools](/3.0rc/deploy/infrastructure/serverless) submit runs directly to your 
+pool for flow runs to execute. [Push work pools](/3.0rc/deploy/infrastructure-examples/serverless) submit runs directly to your 
 serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
-[Managed work pools](/3.0rc/deploy/infrastructure/managed) are administered by Prefect and handle the submission and execution of code on your behalf.
+[Managed work pools](/3.0rc/deploy/infrastructure-examples/managed) are administered by Prefect and handle the submission and execution of code on your behalf.
 
 <Tip>
 **Work pools are like pub/sub topics**
@@ -71,7 +71,7 @@ For example, a flow may have Python package requirements, unique Kubernetes sett
 - How should the flow code be accessed?
 
 [Serve flows](/3.0rc/deploy/run-flows-in-local-processes/) shows how to create a deployment with a long-running process using `.serve`, 
-and how to move to a [work pool deployment](/3.0rc/deploy/infrastructure/docker/) setup with `.deploy`.
+and how to move to a [work pool deployment](/3.0rc/deploy/infrastructure-examples/docker/) setup with `.deploy`.
 Learn more about when to move to [work pool deployments](#benefits-of-work-pools).
 
 Next, you'll learn how to use `.deploy` to create deployments with Python code.
@@ -680,7 +680,7 @@ prefect deployment run 'get_repo_info/my-deployment'
 ```
 
 Prefect Managed work pools are a great way to get started with Prefect.  
-See the [Managed Execution guide](/3.0rc/deploy/infrastructure/managed) for more details.
+See the [Managed Execution guide](/3.0rc/deploy/infrastructure-examples/managed) for more details.
 
 For more control over the infrastructure that your flows run on, we recommend Prefect Cloud's push work pools.
 
@@ -803,9 +803,9 @@ Otherwise, you can pass `image="my-image:latest"` to `deploy`.
 The `cron` argument schedules the deployment to run at 1:00 AM every day.
 See the [schedules](/3.0rc/automate/add-schedules/) guide for more information on scheduling options.
 
-See the [Push Work Pool guide](/3.0rc/deploy/infrastructure/serverless/) for more details and example commands for each 
+See the [Push Work Pool guide](/3.0rc/deploy/infrastructure-examples/serverless/) for more details and example commands for each 
 cloud provider.
 
 If you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect 
-server instance, see the Workers [guide](/3.0rc/deploy/infrastructure/docker/). You will learn how 
+server instance, see the Workers [guide](/3.0rc/deploy/infrastructure-examples/docker/). You will learn how 
 to use work pools that rely on a worker and customize Docker images for container-based infrastructure.
