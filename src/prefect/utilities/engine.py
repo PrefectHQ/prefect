@@ -393,6 +393,7 @@ async def propose_state(
         prefect.exceptions.Abort: if an ABORT instruction is received from
             the Prefect API
     """
+
     # Determine if working with a task run or flow run
     if not task_run_id and not flow_run_id:
         raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
