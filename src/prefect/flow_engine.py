@@ -40,7 +40,7 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.results import ResultFactory
+from prefect.results import BaseResult, ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
@@ -214,20 +214,33 @@ class FlowRunEngine(Generic[P, R]):
         return state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
-        if self._return_value is not NotSet and not isinstance(
-            self._return_value, State
-        ):
-            return self._return_value
+        if self._return_value is not NotSet:
+            if isinstance(self._return_value, State):
+                _result = self._return_value.result(
+                    raise_on_failure=raise_on_failure, fetch=True
+                )
+            elif isinstance(self._return_value, BaseResult):
+                _result = self._return_value.get()
+            else:
+                _result = self._return_value
+
+            if inspect.isawaitable(_result):
+                # getting the value for a State or BaseResult may return an awaitable
+                # depending on whether the parent frame is sync or not
+                _result = run_coro_as_sync(_result)
+            return _result
+
         if self._raised is not NotSet:
             if raise_on_failure:
                 raise self._raised
             return self._raised
-        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
-            _result = run_coro_as_sync(_result)
-        return _result
+
+        # _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
+        # # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # # depending on whether the parent frame is sync or not
+        # if inspect.isawaitable(_result):
+        #     _result = run_coro_as_sync(_result)
+        # return _result
 
     def handle_success(self, result: R) -> R:
         result_factory = getattr(FlowRunContext.get(), "result_factory", None)
@@ -332,7 +345,9 @@ class FlowRunEngine(Generic[P, R]):
                 limit=1,
             )
             if flow_runs:
-                return flow_runs[-1]
+                loaded_flow_run = flow_runs[-1]
+                self._return_value = loaded_flow_run.state
+                return loaded_flow_run
 
     def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()

@@ -47,7 +47,7 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.records.result_store import ResultFactoryStore
-from prefect.results import ResultFactory, _format_user_supplied_storage_key
+from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -311,11 +311,24 @@ class TaskRunEngine(Generic[P, R]):
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet:
+            # if the return value is a BaseResult, we need to fetch it
+            if isinstance(self._return_value, BaseResult):
+                _result = self._return_value.get()
+                if inspect.isawaitable(_result):
+                    _result = run_coro_as_sync(_result)
+                return _result
+
+            # otherwise, return the value as is
             return self._return_value
+
         if self._raised is not NotSet:
+            # if the task raised an exception, raise it
             if raise_on_failure:
                 raise self._raised
+
+            # otherwise, return the exception
             return self._raised
+
         _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
