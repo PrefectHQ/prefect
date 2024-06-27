@@ -13,7 +13,7 @@ ECS (Elastic Container Service) tasks are a good option for executing Prefect fl
 
 ## ECS flow run execution
 
-Prefect enables remote flow execution via workers and work pools. To learn more about these concepts please see our [deployment docs](/3.0rc/deploy/control-runs/work-pools/).
+Prefect enables remote flow execution via workers and work pools. To learn more about these concepts please see our [deployment docs](/3.0rc/deploy/infrastructure-concepts/work-pools/).
 
 For details on how workers and work pools are implemented for ECS, see the diagram below.
 
@@ -104,7 +104,7 @@ If you prefer infrastructure as code check out this [Terraform module](https://r
 
 ## Step 1: Set up an ECS work pool
 
-Before setting up the worker, create a [work pool](3.0rc/deploy/control-runs/work-pools/) of type ECS for the worker to pull work from. If doing so from the CLI, be sure to authenticate with Prefect Cloud or run a local Prefect server instance.
+Before setting up the worker, create a [work pool](/3.0rc/deploy/infrastructure-concepts/work-pools/) of type ECS for the worker to pull work from. If doing so from the CLI, be sure to authenticate with Prefect Cloud or run a local Prefect server instance.
 
 Create a work pool from the CLI:
 
@@ -358,4 +358,4 @@ prefect deploy my_flow.py:my_ecs_deployment
     - Do your flow runs require higher `CPU`?
     - Would an EC2 `Launch Type` speed up your flow run execution?
 
-    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/3.0rc/deploy/serve-flows/#workers-and-work-pools) if desired.
+    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/3.0rc/deploy/infrastructure-concepts/customize/) if desired.

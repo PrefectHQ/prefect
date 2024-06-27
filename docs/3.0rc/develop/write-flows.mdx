@@ -29,7 +29,7 @@ allowing you to observe and act on flow execution.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
-- A flow can be [deployed](/3.0rc/deploy/serve-flows/), which exposes an API for interacting with it remotely.
+- A flow can be [deployed](/3.0rc/deploy/infrastructure-examples/docker/), which exposes an API for interacting with it remotely.
 
 Flows are uniquely identified by name. 
 You can provide a `name` parameter value for the flow:
@@ -53,7 +53,7 @@ For example, by running a script or importing the function into an interactive s
 You can also create a flow run by:
 
 - Using external schedulers such as `cron` to invoke a flow function
-- Triggering a [deployment](/3.0rc/deploy/serve-flows/) of that flow on Prefect Cloud or a self-hosted Prefect server instance
+- Triggering a [deployment](/3.0rc/deploy/infrastructure-examples/docker/) of that flow on Prefect Cloud or a self-hosted Prefect server instance
 - Starting a flow run for the deployment through a schedule, the Prefect UI, or the Prefect API
 
 However you run your flow, Prefect monitors the flow run, capturing its state for observability.
@@ -153,7 +153,7 @@ When you run this flow, you'll see the following output:
 It was Friday on 2021-01-01T02:00:19.180906
 ```
 
-Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/serve-flows/).
+Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/infrastructure-examples/docker/).
 Flow run parameters sent to the API on flow calls are coerced to the appropriate types.
 
 <Warning>
@@ -227,7 +227,7 @@ The `state_details` feild of the task run representing the child flow run includ
 The `state_details` feild of the nested flow run includes a `parent_task_run_id`.
 
 You can define multiple flows within the same file.
-Whether running locally or through a [deployment](/3.0rc/deploy/serve-flows/), you must indicate which flow is the entrypoint for a flow run.
+Whether running locally or through a [deployment](/3.0rc/deploy/infrastructure-examples/docker/), you must indicate which flow is the entrypoint for a flow run.
 
 <Warning>
 **Cancelling nested flow runs**
@@ -492,7 +492,7 @@ When you run this flow, you'll see the following output:
 It was Friday on 2021-01-01T02:00:19.180906
 ```
 
-Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/serve-flows/).
+Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/infrastructure-examples/docker/).
 Flow run parameters sent to the API on flow calls are coerced to the appropriate types.
 
 <Warning>
@@ -520,7 +520,7 @@ For example, by running a Python script or importing the flow into an interactiv
 You can also create a flow run by:
 
 - Using external schedulers such as `cron` to invoke a flow function
-- Creating a [deployment](/3.0rc/deploy/serve-flows/) on Prefect Cloud or a locally run Prefect server
+- Creating a [deployment](/3.0rc/deploy/infrastructure-examples/docker/) on Prefect Cloud or a locally run Prefect server
 - Creating a flow run for the deployment through a schedule, the Prefect UI, or the Prefect API
 
 However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
