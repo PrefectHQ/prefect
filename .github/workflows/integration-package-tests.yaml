@@ -43,7 +43,12 @@ jobs:
           fi
           python scripts/generate_integration_package_tests_matrix.py "$COMMIT_RANGE" > matrix.json
           cat matrix.json
-          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+          MATRIX=$(cat matrix.json)
+          if [[ "$MATRIX" == "[]" ]]; then
+            echo "matrix=''" >> $GITHUB_OUTPUT
+          else
+            echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          fi
 
   run-tests:
     timeout-minutes: 20
@@ -51,6 +56,7 @@ jobs:
     name: Run Tests for ${{ matrix.package }} on Python ${{ matrix.python-version }}
     needs: prepare-matrix
     runs-on: ubuntu-latest
+    if: ${{ needs.prepare-matrix.outputs.matrix != '' }}
     strategy:
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
       fail-fast: false
@@ -88,7 +94,7 @@ jobs:
 
       - name: Build dev docker image
         if: matrix.package == 'prefect-docker'
-        run : prefect dev build-image
+        run: prefect dev build-image
 
       - name: Run tests
         if: matrix.package != 'prefect-ray'
