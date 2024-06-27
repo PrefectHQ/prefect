@@ -358,7 +358,7 @@ async def resolve_inputs(
 
 
 async def propose_state(
-    client: Union["PrefectClient", "SyncPrefectClient"],
+    client: "PrefectClient",
     state: State[object],
     force: bool = False,
     task_run_id: Optional[UUID] = None,
@@ -393,80 +393,68 @@ async def propose_state(
         prefect.exceptions.Abort: if an ABORT instruction is received from
             the Prefect API
     """
-    from prefect.client.orchestration import SyncPrefectClient, get_client
+    # Determine if working with a task run or flow run
+    if not task_run_id and not flow_run_id:
+        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
 
-    if isinstance(client, SyncPrefectClient):
-        manager = get_client
-    else:
-        manager = contextlib.nullcontext
+    # Handle task and sub-flow tracing
+    if state.is_final():
+        if isinstance(state.data, BaseResult) and state.data.has_cached_object():
+            # Avoid fetching the result unless it is cached, otherwise we defeat
+            # the purpose of disabling `cache_result_in_memory`
+            result = await state.result(raise_on_failure=False, fetch=True)
+        else:
+            result = state.data
 
-    async with manager() as client:
-        # Determine if working with a task run or flow run
-        if not task_run_id and not flow_run_id:
-            raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+        link_state_to_result(state, result)
 
-        # Handle task and sub-flow tracing
-        if state.is_final():
-            if isinstance(state.data, BaseResult) and state.data.has_cached_object():
-                # Avoid fetching the result unless it is cached, otherwise we defeat
-                # the purpose of disabling `cache_result_in_memory`
-                result = await state.result(raise_on_failure=False, fetch=True)
-            else:
-                result = state.data
-
-            link_state_to_result(state, result)
-
-        # Handle repeated WAITs in a loop instead of recursively, to avoid
-        # reaching max recursion depth in extreme cases.
-        async def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+    # Handle repeated WAITs in a loop instead of recursively, to avoid
+    # reaching max recursion depth in extreme cases.
+    async def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+        response = await set_state_func()
+        while response.status == SetStateStatus.WAIT:
+            engine_logger.debug(
+                f"[ASYNC] Received wait instruction for {response.details.delay_seconds}s: "
+                f"{response.details.reason}"
+            )
+            await anyio.sleep(response.details.delay_seconds)
             response = await set_state_func()
-            while response.status == SetStateStatus.WAIT:
-                engine_logger.debug(
-                    f"[ASYNC] Received wait instruction for {response.details.delay_seconds}s: "
-                    f"{response.details.reason}"
-                )
-                await anyio.sleep(response.details.delay_seconds)
-                response = await set_state_func()
-            return response
+        return response
 
-        # Attempt to set the state
-        if task_run_id:
-            set_state = partial(
-                client.set_task_run_state, task_run_id, state, force=force
-            )
-            response = await set_state_and_handle_waits(set_state)
-        elif flow_run_id:
-            set_state = partial(
-                client.set_flow_run_state, flow_run_id, state, force=force
-            )
-            response = await set_state_and_handle_waits(set_state)
-        else:
-            raise ValueError(
-                "Neither flow run id or task run id were provided. At least one must "
-                "be given."
-            )
+    # Attempt to set the state
+    if task_run_id:
+        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
+        response = await set_state_and_handle_waits(set_state)
+    elif flow_run_id:
+        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+        response = await set_state_and_handle_waits(set_state)
+    else:
+        raise ValueError(
+            "Neither flow run id or task run id were provided. At least one must "
+            "be given."
+        )
 
-        # Parse the response to return the new state
-        if response.status == SetStateStatus.ACCEPT:
-            # Update the state with the details if provided
-            state.id = response.state.id
-            state.timestamp = response.state.timestamp
-            if response.state.state_details:
-                state.state_details = response.state.state_details
-            return state
+    # Parse the response to return the new state
+    if response.status == SetStateStatus.ACCEPT:
+        # Update the state with the details if provided
+        state.id = response.state.id
+        state.timestamp = response.state.timestamp
+        if response.state.state_details:
+            state.state_details = response.state.state_details
+        return state
 
-        elif response.status == SetStateStatus.ABORT:
-            raise prefect.exceptions.Abort(response.details.reason)
+    elif response.status == SetStateStatus.ABORT:
+        raise prefect.exceptions.Abort(response.details.reason)
 
-        elif response.status == SetStateStatus.REJECT:
-            if response.state.is_paused():
-                raise Pause(response.details.reason, state=response.state)
-            return response.state
+    elif response.status == SetStateStatus.REJECT:
+        if response.state.is_paused():
+            raise Pause(response.details.reason, state=response.state)
+        return response.state
 
-        else:
-            raise ValueError(
-                f"Received unexpected `SetStateStatus` from server: {response.status!r}"
-            )
+    else:
+        raise ValueError(
+            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
+        )
 
 
 def propose_state_sync(
