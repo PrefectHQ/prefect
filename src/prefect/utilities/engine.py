@@ -67,10 +67,7 @@ from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import (
-        PrefectClient,
-        SyncPrefectClient,
-    )
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
