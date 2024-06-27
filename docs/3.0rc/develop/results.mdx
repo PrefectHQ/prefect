@@ -1,7 +1,72 @@
 ---
 title: Manage results
-description: Results represent the data returned by a flow or a task.
+description: Results represent the data returned by a flow or a task and enable features such as caching.
 ---
+
+Results are the backbone of many Prefect features - most notably [transactions](transactions) 
+and [caching](task-caching) - and are foundational to the resilient execution paradigm that Prefect enables.
+At the most basic level any return value from a task or a flow is a result.
+By default these results are not persisted and no reference to them is maintained in the API.
+
+Turning on result persistence allows you to fully benefit from Prefect's orchestration features.
+
+<Tip>
+**Turn on persistence globally by default**
+
+The simplest way to turn on result persistence is through the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting:
+
+```bash
+prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
+```
+
+See [settings](/3.0rc/manage/settings-and-profiles) for more information on how settings are managed.
+</Tip>
+
+## Persisting Results
+
+As mentioned above, enabling result persistence by default can be achieved through the 
+`PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting which is set to `False` by default.
+
+Result persistence can also be enabled on a per-flow or even per-task basis.
+The following keywords on the task decorator will enable result persistence for that task:
+- `persist_result`: a boolean that allows you to explicity enable or disable result persistence.
+- `result_storage`: accepts either a string reference to a storage block or a storage block class that
+specifies where results should be stored.
+- `result_storage_key`: a string that specifies the filename of the result within the task's result storage.
+- `result_serializer`: a string or serializer that configures how the data should be serialized and deserialized.
+- `cache_policy`: a [cache policy](task-caching#cache-policies) specifying the behavior of the task's cache.
+- `cache_key_fn`: [a function](task-caching#cache-key-functions) that configures a custom cache policy.
+
+Similarly, setting `persist_result=True`, `result_storage` or `result_serializer` on a flow will enable
+persistence for that flow.
+
+<Note>
+**Enabling persistence on a flow enables persistence by default for tasks**
+
+Enabling result persistence on a flow through any of the above keywords will also enable it for all
+tasks called within that flow by default. 
+
+Any settings _explicitly_ set on a task will not be overriden by the flow defaults.
+
+</Note>
+
+### Default persistence configuration
+
+Once result persistence is enabled, Prefect relies on a few default settings that allow you to immediately begin
+experimenting with result persistence. 
+All of these defaults are configurable and can also be explicitly set on flows and tasks through the
+[keyword arguments listed above](results#persisting-results).
+
+- by default results are persisted locally to `~/.prefect/storage`.
+- how to use a block
+
+## Configuring how results are persisted
+
+### Result storage
+
+#### Result keys
+
+### Result serialization
 
 ## Retrieve results
 
@@ -667,58 +732,3 @@ Drawbacks of the JSON serializer:
 - Supported types are limited.
 - You must implement support for additional types at the serializer level.
 
-## Result types
-
-Prefect uses internal result types to capture information about the result attached to a state. 
-The following types are used:
-
-- `UnpersistedResult`: Stores result metadata but the value is only available when created.
-- `LiteralResult`: Stores simple values inline.
-- `PersistedResult`: Stores a reference to a result persisted to storage.
-
-All result types include a `get()` method that can be called to return the value of the result. 
-This is done behind the scenes when the `result()` method is used on states or futures.
-
-### Unpersisted results
-
-Unpersisted results represent results that are not persisted beyond the current flow run. 
-The value associated with the result is stored in memory, but is not available later. 
-Result metadata is attached to this object for storage in the API and representation in the UI.
-
-### Literal results
-
-Literal results represent [results stored in the Prefect database](#storage-of-results-in-prefect). 
-The values contained by these results must be JSON serializable.
-
-Example:
-
-```
-result = LiteralResult(value=None)
-result.json()
-# {"type": "result", "value": "null"}
-```
-
-Literal results reduce the overhead required to persist simple results.
-
-### Persisted results
-
-The persisted result type contains all of the information needed to retrieve the result from storage. This includes:
-
-- Storage: A reference to the [result storage](#result-storage-types) to read the serialized result.
-- Key: Indicates where this specific result is in storage.
-
-Persisted result types also contain metadata for inspection without retrieving the result:
-
-- Serializer type: The name of the [result serializer](#result-serializer-types) type.
-
-The `get()` method on result references retrieves the data from storage, deserializes it, and returns the original object.
-The `get()` operation caches the resolved object to reduce the overhead of subsequent calls.
-
-#### Persisted result blob
-
-When results are persisted to storage, they are always written as a JSON document. The schema for this is described 
-by the `PersistedResultBlob` type. The document contains:
-
-- The serialized data of the result.
-- A full description of [result serializer](#result-serializer-types) to deserialize the result data.
-- The Prefect version used to create the result.
