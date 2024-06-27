@@ -227,6 +227,13 @@ async def start(
             except RuntimeError:
                 pass
 
+        # Explicitly handle the interrupt signal here, as it will allow us to
+        # cleanly stop the uvicorn server. Failing to do that may cause a
+        # large amount of anyio error traces on the terminal, because the
+        # SIGINT is handled by Typer/Click in this process (the parent process)
+        # and will start shutting down subprocesses:
+        # https://github.com/PrefectHQ/server/issues/2475
+
         setup_signal_handlers_server(
             server_process_id, "the Prefect server", app.console.print
         )
