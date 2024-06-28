@@ -294,81 +294,7 @@ def get_project_item_id(issue_id: str, headers: dict) -> Union[str, None]:
             print(f"Matched project item ID: {project_item_id}")
             return project_item_id
 
-    # Additional debugging: print a message if no match was found
     print(f"No match found for issue ID {issue_id}")
-
-
-def get_single_select_options(project_id: str, headers: dict) -> list:
-    """
-    Retrieve the options for the single select field.
-
-    Args:
-        project_id (str): The ID of the project.
-        headers (dict): HTTP headers for GitHub API requests.
-
-    Returns:
-        list: List of options for the single select field.
-    """
-    global single_select_options_cache
-    if single_select_options_cache is not None:
-        "use da sso cache"
-        return single_select_options_cache
-
-    query = """
-    query($projectId: ID!) {
-      node(id: $projectId) {
-        ... on ProjectV2 {
-          fields(first: 100) {
-            nodes {
-              ... on ProjectV2SingleSelectField {
-                id
-                name
-                options {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    """
-    variables = {"projectId": project_id}
-    url = "https://api.github.com/graphql"
-    response = httpx.post(
-        url, headers=headers, json={"query": query, "variables": variables}
-    )
-    response.raise_for_status()
-    data = response.json()
-
-    # Find the specific field by name and return its options
-    for field in data["data"]["node"]["fields"]["nodes"]:
-        if (
-            field.get("name", None) == "Status"
-        ):  # Replace with your actual field name if different
-            options = field["options"]
-            print(f"Retrieved single select options: {options}")
-            single_select_options_cache = options
-            return options
-
-    raise ValueError("No 'Status' field found in the project")
-
-
-def get_needs_priority_option_id(options):
-    """
-    Retrieve the option ID for the "Needs Priority" status.
-
-    Args:
-        options (list): List of options for the single select field.
-
-    Returns:
-        str: The option ID for "Needs Priority".
-    """
-    for option in options:
-        if "Needs Priority" in option["name"]:
-            return option["id"]
-    raise ValueError("No 'Needs Priority' option found")
 
 
 def add_issue_to_project(issue_id: str, project_id: str, headers: dict):
@@ -404,45 +330,18 @@ def add_issue_to_project(issue_id: str, project_id: str, headers: dict):
     return item_id
 
 
-def update_project_status(project_item_id, option_id, headers: dict):
+def add_needs_attention_label(issue_number: int, headers: dict):
     """
-    Update the status of a project item.
+    Add a "needs:attention" label to the issue.
 
     Args:
-        project_item_id (str): The ID of the project item.
-        option_id (str): The ID of the option to set as the status.
+        issue_number (int): The number of the issue.
         headers (dict): HTTP headers for GitHub API requests.
     """
-    print(f"Updating status to: {option_id}")
-
-    query = """
-    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
-      updateProjectV2ItemFieldValue(input: {
-        projectId: $projectId,
-        itemId: $itemId,
-        fieldId: $fieldId,
-        value: {
-          singleSelectOptionId: $value
-        }
-      }) {
-        projectV2Item {
-          id
-        }
-      }
-    }
-    """
-
-    variables = {
-        "projectId": PROJECT_ID,
-        "itemId": project_item_id,
-        "fieldId": FIELD_ID,
-        "value": option_id,
-    }
-    url = "https://api.github.com/graphql"
-    response = httpx.post(
-        url, headers=headers, json={"query": query, "variables": variables}
-    )
-    print(response.json())
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/issues/{issue_number}/labels"
+    response = httpx.post(url, headers=headers, json=["needs:attention"])
+    response.raise_for_status()
+    print(f"Added 'needs:attention' label to issue #{issue_number}")
 
 
 def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_days: int):
@@ -462,32 +361,34 @@ def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_day
 
         python surface_high_engagement_issues.py --new_comment_interval_days 365
     """
+    token = get_github_token()
     headers = {
-        "Authorization": f"Bearer {get_github_token()}",
+        "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github.v3+json",
     }
-    options = get_single_select_options(PROJECT_ID, headers)
-    needs_priority_option_id = get_needs_priority_option_id(options)
 
     high_engagement_issues = get_high_engagement_issues(headers)
     for issue in high_engagement_issues:
         issue_number = issue["number"]
         if issue_has_new_comment(
             issue, new_comment_interval_days, headers
-        ) and not prioritized_recently(issue_number, headers):
-            issue_id = get_issue_id(issue_number, headers)
-            project_item_id = get_project_item_id(issue_id, headers)
+        ) or not prioritized_recently(
+            issue_number, headers
+        ):  # tk change back to and instead of or
+            issue_id = get_issue_id(
+                issue_number, headers
+            )  # Issue id is a globally unique identifier
+            project_item_id = get_project_item_id(
+                issue_id, headers
+            )  # Project item id is unique to the project
             if project_item_id is None:
                 print(f"Issue #{issue_number} is not in the project. Adding it now.")
                 project_item_id = add_issue_to_project(issue_id, PROJECT_ID, headers)
             else:
                 print(f"Issue #{issue_number} is already in the project.")
-
-                update_project_status(
-                    project_item_id, needs_priority_option_id, headers
-                )
+                add_needs_attention_label(issue_number, headers)
                 print(
-                    f'Added "Needs Priority" status to issue #{issue_number} in the project.'
+                    f'Added "needs:attention" label to issue #{issue_number} in the project.'
                 )
 
 
