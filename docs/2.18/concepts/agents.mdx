@@ -3,8 +3,12 @@ title: Agents
 ---
 
 
-!!! warning "Workers are recommended"
+<Warning>
+**Workers are recommended**
+
     Agents are part of the block-based deployment model. [Work Pools and Workers](/2.18/concepts/work-pools/) simplify the specification of a flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/2.18/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
+
+</Warning>
 
 ## Agent overview
 
@@ -33,13 +37,21 @@ Configuration parameters you can specify when starting an agent include:
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
 
-!!! tip "Prefect must be installed in execution environments"
+<Tip>
+**Prefect must be installed in execution environments**
+
     Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
 
-!!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY` settings for agents"
+</Tip>
+
+<Tip>
+**`PREFECT_API_URL` and `PREFECT_API_KEY` settings for agents**
+
     `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. You must also have a user or service account with the `Worker` role, which can be configured by setting the `PREFECT_API_KEY`.
 
     If you want an agent to communicate with Prefect Cloud or a Prefect server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+
+</Tip>
 
 ### Starting an agent
 

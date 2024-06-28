@@ -1,9 +1,13 @@
 ---
 title: Flows
 ---
-!!! note "Prerequisites"
+<Note>
+**Prerequisites**
+
     This tutorial assumes you have already installed Prefect and connected to Prefect Cloud or a self-hosted server instance.
     See the prerequisites section of the [tutorial](/2.18/tutorial/) for more details.
+
+</Note>
 
 ## What is a flow?
 
@@ -26,7 +30,7 @@ The script below fetches statistics about the [main Prefect repository](https://
 Note that [httpx](https://www.python-httpx.org/) is an HTTP client library and a dependency of Prefect.
 Let's turn this function into a Prefect flow and run the script:
 
-```python title="repo_info.py" hl_lines="2 5"
+```python python
 import httpx
 from prefect import flow
 
@@ -59,8 +63,12 @@ Forks 🍴 : 1245
 
 
 
-!!! tip "Flows can contain arbitrary Python"
+<Tip>
+**Flows can contain arbitrary Python**
+
     As we can see above, flow definitions can contain arbitrary Python logic.
+
+</Tip>
 
 ## Parameters
 
@@ -69,8 +77,7 @@ The positional and keyword arguments defined on your flow function are called [p
 Prefect will automatically perform type conversion using any provided type hints.
 Let's make the repository a string parameter with a default value:
 
-```python hl_lines="6 7 11" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from prefect import flow
 
 
@@ -120,8 +127,7 @@ Prefect enables you to log a variety of useful information about your flow and t
 If we navigate to our dashboard and explore the runs we created above, we will notice that the repository statistics are not captured in the flow run logs.  
 Let's fix that by adding some [logging](/2.18/concepts/logs) to our flow:
 
-```python hl_lines="2 11-14" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from prefect import flow, get_run_logger
 
 
@@ -149,7 +155,9 @@ Now the output looks more consistent _and_, more importantly, our statistics are
 ```
 
 
-!!! tip "`log_prints=True`"
+<Tip>
+**`log_prints=True`**
+
     We could have achieved the exact same outcome by using Prefect's convenient `log_prints` keyword argument in the `flow` decorator:
 
     ```python
@@ -159,11 +167,17 @@ Now the output looks more consistent _and_, more importantly, our statistics are
         ...
 
     ```
+</Tip>
 
-!!! warning "Logging vs Artifacts"
+
+<Warning>
+**Logging vs Artifacts**
+
     The example above is for educational purposes.
     In general, it is better to use [Prefect artifacts](/2.18/concepts/artifacts/) for storing metrics and output.
     Logs are best for tracking progress and debugging errors.
+
+</Warning>
 
 ## Retries
 
@@ -172,8 +186,7 @@ For example the GitHub API may be temporarily unavailable or rate limited.
 [Retries](/2.18/concepts/flows/#flow-settings) help make our flow more resilient.
 Let's add retry functionality to our example above:
 
-```python hl_lines="5" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from prefect import flow
 
 

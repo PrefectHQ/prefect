@@ -2,8 +2,12 @@
 title: Infrastructure
 ---
 
-!!! warning "Workers are recommended"
+<Warning>
+**Workers are recommended**
+
     Infrastructure blocks are part of the agent based deployment model. [Work Pools and Workers](/2.18/concepts/work-pools/) simplify the specification of each flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/2.18/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
+
+</Warning>
 
 Users may specify an [infrastructure](/2.18/api-ref/prefect/infrastructure/) block when creating a deployment. This block will be used to specify infrastructure for flow runs created by the deployment at runtime.
 
@@ -29,13 +33,15 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 - [`Cloud Run`](https://prefecthq.github.io/prefect-gcp/cloud_run/) runs flows in a Google Cloud Run Job.
 - [`Container Instance`](https://prefecthq.github.io/prefect-azure/container_instance/) runs flows in an Azure Container Instance.
 
-!!! question "What about tasks?"
+<Info>
+**What about tasks?**
+
     Flows and tasks can both use configuration objects to manage the environment in which code runs.
 
     Flows use infrastructure.
     
     Tasks use task runners. For more on how task runners work, see [Task Runners](/2.18/concepts/task-runners/).
-
+</Info>
 ## Using infrastructure
 
 You may create customized infrastructure blocks through the Prefect UI or Prefect Cloud [Blocks](/2.18/ui/blocks/) page or create them in code and save them to the API using the blocks [`.save()`](/2.18/api-ref/prefect/blocks/core/#prefect.blocks.core.Block.save) method.
@@ -131,8 +137,12 @@ parameter_openapi_schema:
 timestamp: '2023-02-08T23:00:14.974642+00:00'
 ```
 
-!!! note "Editing deployment YAML"
+<Note>
+**Editing deployment YAML**
+
     Note the big **DO NOT EDIT** comment in the deployment YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API.
+
+</Note>
 
 Once the deployment exists, any flow runs that this deployment starts will use `DockerContainer` infrastructure.
 
@@ -337,10 +347,14 @@ FROM prefecthq/prefect:2-python3.9  # example base image
 RUN pip install s3fs prefect-aws
 ```
 
-!!! tip "Make sure to allocate enough CPU and memory to your agent, and consider adding retries"
+<Tip>
+**Make sure to allocate enough CPU and memory to your agent, and consider adding retries**
+
     When you start a Prefect agent on AWS ECS Fargate, allocate as much [CPU and memory](https://docs.aws.amazon.com/AmazonECS/latest/userguide/fargate-task-defs.html#fargate-tasks-size) as needed for your workloads. Your agent needs enough resources to appropriately provision infrastructure for your flow runs and to monitor their execution. Otherwise, your flow runs may [get stuck](https://github.com/PrefectHQ/prefect-aws/issues/156#issuecomment-1320748748) in a `Pending` state. Alternatively, set a work-queue concurrency limit to ensure that the agent will not try to process all runs at the same time.
 
     Some API calls to provision infrastructure may fail due to unexpected issues on the client side (for example, transient errors such as `ConnectionError`, `HTTPClientError`, or `RequestTimeout`), or due to server-side rate limiting from the AWS service. To mitigate those issues, we recommend adding [environment variables](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables) such as `AWS_MAX_ATTEMPTS` (can be set to an integer value such as 10) and `AWS_RETRY_MODE` (can be set to a string value including `standard` or `adaptive` modes). Those environment variables must be added within the *agent* environment, e.g. on your ECS service running the agent, rather than on the `ECSTask` infrastructure block. 
+
+</Tip>
 
 ## Docker images
 

@@ -8,8 +8,12 @@ Results from a task can be provided to other tasks (or subflows) as upstream dep
 1. To populate dependency arrows in the flow run graph
 2. To determine execution order for [concurrently submitted](/2.18/concepts/task-runners) units of work that depend on each other
 
-!!! note "Tasks vs. other functions"
+<Note>
+**Tasks vs. other functions**
+
     **Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including subflows, do not carry the same information about their origin as task results.
+
+</Note>
 
 When using non-sequential task runners such as the [`ConcurrentTaskRunner`](/2.18/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted tasks is not guaranteed unless their dependencies are specified.
 
@@ -38,7 +42,7 @@ For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave wi
         print("I'm third!")
     ```
 
-    ```text hl_lines="7-9"
+    ```text text
     Flow run 'pumpkin-puffin' - Created task run 'first-0' for task 'first'
     Flow run 'pumpkin-puffin' - Submitted task run 'first-0' for execution.
     Flow run 'pumpkin-puffin' - Created task run 'second-0' for task 'second'
@@ -77,7 +81,7 @@ For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave wi
         print("I'm third!")
     ```
 
-    ```text hl_lines="7 9 11"
+    ```text text
     Flow run 'statuesque-waxbill' - Created task run 'first-0' for task 'first'
     Flow run 'statuesque-waxbill' - Submitted task run 'first-0' for execution.
     Flow run 'statuesque-waxbill' - Created task run 'second-0' for task 'second'
@@ -146,8 +150,12 @@ def final_task(input):
 
 Tasks that do not share data can be informed of their upstream dependencies through the `wait_for` parameter. Just as with automatic dependencies, this applies to direct task function calls, [`.submit()`](/2.18/api-ref/prefect/tasks/#prefect.tasks.Task.submit), [`.map()`](/2.18/api-ref/prefect/tasks/#prefect.tasks.Task.map), and subflows.
 
-!!! warning "Differences with `.map()`"
+<Warning>
+**Differences with `.map()`**
+
     Manually defined upstream dependencies apply to all tasks submitted by `.map()`, so each mapped task must wait for _all_ upstream dependencies passed into `wait_for` to finish. This is distinct from automatic dependencies for mapped tasks, where each mapped task must only wait for the upstream tasks whose results it depends on.
+
+</Warning>
 
 ```python
 from prefect import flow, task

@@ -3,8 +3,12 @@ sidebarTitle: Custom Workers
 title: Developing a New Worker Type
 ---
 
-!!! warning "Advanced Topic"
+<Warning>
+**Advanced Topic**
+
     This tutorial is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/2.18/concepts/work-pools/#worker-types) instead.
+
+</Warning>
 
 Prefect workers are responsible for setting up execution infrastructure and starting flow runs on that infrastructure.
 
@@ -14,12 +18,16 @@ A list of available workers can be found [here](/2.18/concepts/work-pools/#worke
 
 When setting up an execution environment for a flow run, a worker receives configuration for the infrastructure it is designed to work with. Examples of configuration values include memory allocation, CPU allocation, credentials, image name, etc. The worker then uses this configuration to create the execution environment and start the flow run.
 
-!!! tip "How are the configuration values populated?"
+<Tip>
+**How are the configuration values populated?**
+
     The work pool that a worker polls for flow runs has a [base job template](/2.18/concepts/work-pools/#base-job-template) associated with it. The template is the contract for how configuration values populate for each flow run.
 
     The keys in the `job_configuration` section of this base job template match the worker's configuration class attributes. The values in the `job_configuration` section of the base job template are used to populate the attributes of the worker's configuration class.
 
     The work pool creator gets to decide how they want to populate the values in the `job_configuration` section of the base job template. The values can be hard-coded, templated using placeholders, or a mix of these two approaches. Because you, as the worker developer, don't know how the work pool creator will populate the values, you should set sensible defaults for your configuration class attributes as a matter of best practice.
+
+</Tip>
 
 ### Implementing a `BaseJobConfiguration` subclass
 

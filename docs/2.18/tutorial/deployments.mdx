@@ -3,10 +3,14 @@ sidebarTitle: Deployments
 title: Deploying Flows¶
 ---
 
-!!! note "Reminder to connect to Prefect Cloud or a self-hosted Prefect server instance"
+<Note>
+**Reminder to connect to Prefect Cloud or a self-hosted Prefect server instance**
+
     Some features in this tutorial, such as scheduling, require you to be connected to a Prefect server.
     If using a self-hosted setup, run `prefect server start` to run both the webserver and UI.
     If using Prefect Cloud, make sure you have [successfully authenticated your local environment](/2.18/cloud/cloud-quickstart/).
+
+</Note>
 
 ## Why deployments?
 
@@ -36,8 +40,7 @@ Attributes of a deployment include (but are not limited to):
 
 Using our `get_repo_info` flow from the previous sections, we can easily create a deployment for it by calling a single method on the flow object: `flow.serve`.
 
-```python hl_lines="16-17" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from prefect import flow
 
 
@@ -61,9 +64,13 @@ Running this script will do two things:
 - create a deployment called "my-first-deployment" for your flow in the Prefect API
 - stay running to listen for flow runs for this deployment; when a run is found, it will be *asynchronously executed within a subprocess*
 
-!!! warning "Deployments must be defined in static files"
+<Warning>
+**Deployments must be defined in static files**
+
     Flows can be defined and run interactively, that is, within REPLs or Notebooks.
     Deployments, on the other hand, require that your flow definition be in a known file (which can be located on a remote filesystem in certain setups, as we'll see in the next section of the tutorial).  
+
+</Warning>
 
 Because this deployment has no schedule or triggering automation, you will need to use the UI or API to create runs for it.
 Let's use the CLI (in a separate terminal window) to create a run for this deployment:
@@ -103,15 +110,18 @@ if __name__ == "__main__":
 When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work!  
 Stop the script in the CLI using `CTRL+C` and your schedule will be automatically paused.
 
-!!! note "`.serve` is a long-running process"
+<Note>
+**`.serve` is a long-running process**
+
     For remotely triggered or scheduled runs to be executed, your script with `flow.serve` must be actively running.
+
+</Note>
 
 ## Running multiple deployments at once
 
 This method is useful for creating deployments for single flows, but what if we have two or more flows?  This situation only requires a few additional method calls and imports to get up and running:
 
-```python hl_lines="2 18-20" title="multi_flow_deployment.py"
-import time
+```python pythonimport time
 from prefect import flow, serve
 
 
@@ -146,12 +156,16 @@ A few potential next steps for exploration include:
 - using the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
 - cancelling an active run for the "sleeper" deployment from the UI (good luck cancelling the "fast" one 😉)
 
-!!! tip "Hybrid execution option"
+<Tip>
+**Hybrid execution option**
+
     Another implication of Prefect's deployment interface is that you can choose to use our hybrid execution model.
     Whether you use Prefect Cloud or host a Prefect server instance yourself, you can run work flows in the environments best suited to their execution.
     This model allows you efficient use of your infrastructure resources while maintaining the privacy of your code and data.
     There is no ingress required.
     For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
+
+</Tip>
 
 ## Next steps
 

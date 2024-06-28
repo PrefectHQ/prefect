@@ -60,11 +60,15 @@ For this tutorial you will create a **Docker** type work pool via the CLI.
 
 Using the **Docker** work pool type means that all work sent to this work pool will run within a dedicated Docker container using a Docker client available to the worker.
 
-!!! tip "Other work pool types"
+<Tip>
+**Other work pool types**
+
     There are [work pool types](/2.18/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, Google Cloud Run, and Vertex AI.
     Kubernetes is also a popular work pool type.
 
     These options are expanded upon in various [How-to Guides](/2.18/guides/).
+
+</Tip>
 
 ### Create a work pool
 
@@ -140,8 +144,7 @@ The updates that you need to make to `repo_info.py` are:
 
 Here's what the updated `repo_info.py` looks like:
 
-```python hl_lines="17-22" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from prefect import flow
 
 
@@ -165,10 +168,14 @@ if __name__ == "__main__":
     )
 ```
 
-!!! note "Why the `push=False`?"
+<Note>
+**Why the `push=False`?**
+
     For this tutorial, your Docker worker is running on your machine, so we don't need to push the image built by `flow.deploy` to a registry. When your worker is running on a remote machine, you will need to push the image to a registry that the worker can access.
 
     Remove the `push=False` argument, include your registry name, and ensure you've [authenticated with the Docker CLI](https://docs.docker.com/engine/reference/commandline/login/) to push the image to a registry.
+
+</Note>
 
 Now that you've updated your script, you can run it to deploy your flow to the work pool:
 
@@ -180,13 +187,14 @@ python repo_info.py
 
 Prefect will build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run.
 
-!!! note "What Dockerfile?"
+<Note>
+**What Dockerfile?**
+
     In this example, Prefect generates a Dockerfile for you that will build an image based off of one of Prefect's published images. The generated Dockerfile will copy the current directory into the Docker image and install any dependencies listed in a `requirements.txt` file.
 
     If you want to use a custom Dockerfile, you can specify the path to the Dockerfile using the `DeploymentImage` class:
 
-    ```python hl_lines="21-25" title="repo_info.py"
-    import httpx
+    ```python python    import httpx
     from prefect import flow
     from prefect.deployments import DeploymentImage
 
@@ -214,6 +222,8 @@ Prefect will build a custom Docker image containing your workflow code that the 
             push=False
         )
     ```
+</Note>
+
 
 ### Modify the deployment
 
@@ -225,8 +235,7 @@ When testing images locally without pushing them to a registry (to avoid potenti
 
 Here's how you can quickly set the `image_pull_policy` to be `Never` for this tutorial deployment without affecting the default value set on your work pool:
 
-```python hl_lines="21" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from prefect import flow
 
 
@@ -266,13 +275,18 @@ Now everything is set for us to submit a flow-run to the work pool:
 prefect deployment run 'get_repo_info/my-deployment'
 ```
 
+<Warning>
+**Common Pitfall**
 
-!!! danger "Common Pitfall"
     - Store and run your deploy scripts at the **root of your repo**, otherwise the built Docker file may be missing files that it needs to execute!
+</Warning>
+<Tip>
+**Did you know?**
 
-!!! tip "Did you know?"
     A Prefect flow can have more than one deployment. 
     This pattern can be useful if you want your flow to run in different execution environments.
+
+</Tip>
 
 ## Next steps
 

@@ -17,16 +17,23 @@ Flows and tasks share some common features:
 
 Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/2.18/concepts/tasks/#retries), [caching](/2.18/concepts/tasks/#caching), and [concurrency](/2.18/concepts/task-runners/#using-a-task-runner).
 
-!!! tip "Tasks may be called from other tasks"
+<Tip>
+**Tasks may be called from other tasks**
+
     As of `prefect 2.18.x`, tasks can be called from within other tasks. This removes the need to use subflows for simple task composition.
 
-!!! note "When to use tasks"
+</Tip>
+
+<Note>
+**When to use tasks**
+
     Not all functions in a flow need be tasks. Use them only when their features are useful.
+
+</Note>
 
 Let's take our flow from before and move the request into a task:
 
-```python hl_lines="2 5-9 15" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from prefect import flow, task
 from typing import Optional
 
@@ -74,7 +81,7 @@ Caching allows you to efficiently reuse [results](/2.18/concepts/results/) of ta
 
 To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. You can define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/2.18/api-ref/prefect/tasks/#prefect.tasks.task_input_hash). Let's add caching to our `get_url` task:
 
-```python hl_lines="2 4 7"
+```python python
 import httpx
 from datetime import timedelta
 from prefect import flow, task, get_run_logger
@@ -93,9 +100,13 @@ def get_url(url: str, params: Optional[dict[str, any]] = None):
 
 You can test this caching behavior by using a personal repository as your workflow parameter - give it a star, or remove a star and see how the output of this task changes (or doesn't) by running your flow multiple times.
 
-!!! warning "Task results and caching"
+<Warning>
+**Task results and caching**
+
     Task results are cached in memory during a flow run and persisted to your home directory by default.
     Prefect Cloud only stores the cache key, not the data itself.
+
+</Warning>
 
 ## Concurrency
 
@@ -104,8 +115,7 @@ This concurrency can greatly enhance the efficiency and performance of your work
 Let's expand our script to calculate the average open issues per user.
 This will require making more requests:
 
-```python hl_lines="14-24 30-31 35" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from datetime import timedelta
 from prefect import flow, task
 from prefect.tasks import task_input_hash
@@ -152,8 +162,7 @@ Now we're fetching the data we need, but the requests are happening sequentially
 Tasks expose a [`submit`](/2.18/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method that changes the execution from sequential to concurrent.
 In our specific example, we also need to use the [`result`](/2.18/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method because we are unpacking a list of return values:
 
-```python hl_lines="6 11"
-def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
+```python pythondef get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
     issues = []
     pages = range(1, -(open_issues_count // -per_page) + 1)
     for page in pages:
@@ -211,7 +220,7 @@ Subflows are a great way to organize your workflows and offer more visibility wi
 
 Let's add a `flow` decorator to our `get_open_issues` function:
 
-```python hl_lines="1"
+```python python
 @flow
 def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
     issues = []

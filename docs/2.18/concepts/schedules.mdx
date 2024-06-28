@@ -13,10 +13,14 @@ Schedules tell the Prefect API how to create new flow runs for you automatically
 You can add a schedule to any [deployment](/2.18/concepts/deployments/).
 The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule configured for the deployment.
 
-!!! tip "Support for multiple schedules"
+<Tip>
+**Support for multiple schedules**
+
     We are currently rolling out support for multiple schedules per deployment. You can now assign multiple schedules to deployments in the Prefect UI, the CLI via `prefect deployment schedule` commands, the `Deployment` class, and in [block-based deployment](/2.18/concepts/deployments/#block-based-deployments) YAML files.
 
     Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [worker-based deployments](/2.18/concepts/work-pools/) with `prefect deploy` will arrive soon.
+
+</Tip>
 
 ## Schedule types
 
@@ -26,9 +30,13 @@ Prefect supports several types of schedules that cover a wide range of use cases
 - [`Interval`](#interval) is best suited for deployments that need to run at some consistent cadence that isn't related to absolute time.
 - [`RRule`](#rrule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
 
-!!! tip "Schedules can be inactive"
+<Tip>
+**Schedules can be inactive**
+
     When you create or edit a schedule, you can set the `active` property to `False` in Python (or `false` in a YAML file) to deactivate the schedule.
     This is useful if you want to keep the schedule configuration but temporarily stop the schedule from creating new flow runs.
+
+</Tip>
 
 ### Cron
 
@@ -52,10 +60,16 @@ For example, with `day_or` set to `True`, the cron schedule `* * 3 1 2` runs a f
 
 With `day_or` set to `False`, the `day` (of the month) and `day_of_week` entries are joined with the more restrictive `AND` operation, as in the SQL statement `SELECT * from employees WHERE first_name = 'Andrew' AND last_name = 'Brookins';`. For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **3rd Tuesday** in January. This behavior matches `fcron` instead of `cron`.
 
-!!! tip "Supported `croniter` features"
+<Tip>
+**Supported `croniter` features**
+
     While Prefect supports most features of `croniter` for creating `cron`-like schedules, we do not currently support "R" random or "H" hashed keyword expressions or the schedule jittering possible with those expressions.
 
-!!! info "Daylight saving time considerations"
+</Tip>
+
+<Info>
+**Daylight saving time considerations**
+
     If the `timezone` is a DST-observing one, then the schedule will adjust itself appropriately.
 
     The `cron` rules for DST are based on schedule times, not intervals. This means that an hourly `cron` schedule fires on every new schedule hour, not every elapsed hour. 
@@ -63,6 +77,8 @@ With `day_or` set to `False`, the `day` (of the month) and `day_of_week` entries
     
     Longer schedules, such as one that fires at 9am every morning, will adjust for DST automatically.
   
+</Info>
+
 ### Interval
 
 An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional `anchor_date`. For example, here's how you can create a schedule for every 10 minutes in a [block-based deployment](/2.18/concepts/deployments/#block-based-deployments) YAML file:
@@ -85,7 +101,9 @@ Note that the `anchor_date` does not indicate a "start time" for the schedule, b
 If the anchor date is in the future, then schedule dates are computed by subtracting the `interval` from it.
 Note that in this example, we import the [Pendulum](https://pendulum.eustace.io/) Python package for easy datetime manipulation. Pendulum isn’t required, but it’s a useful tool for specifying dates.
 
-!!! info "Daylight saving time considerations"
+<Info>
+**Daylight saving time considerations**
+
     If the schedule's `anchor_date` or `timezone` are provided with a DST-observing timezone, then the schedule will adjust itself appropriately.
     Intervals greater than 24 hours will follow DST conventions, while intervals of less than 24 hours will follow UTC intervals.
 
@@ -93,6 +111,8 @@ Note that in this example, we import the [Pendulum](https://pendulum.eustace.io/
     
     For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. 
     This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
+
+</Info>
 
 ### RRule
 
@@ -122,14 +142,22 @@ schedule:
   rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20240730T040000Z'
 ```
 
-!!! info "RRule restrictions"
+<Info>
+**RRule restrictions**
+
     Note the max supported character length of an `rrulestr` is 6500 characters
 
     Note that `COUNT` is not supported. Please use `UNTIL` or the `/deployments/{id}/runs` endpoint to schedule a fixed number of flow runs.
 
-!!! info "Daylight saving time considerations"
+</Info>
+
+<Info>
+**Daylight saving time considerations**
+
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.
     A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
+
+</Info>
 
 ## Creating schedules
 
@@ -159,8 +187,12 @@ Under **Schedules**, select the **+ Schedule** button. A modal dialog will open.
 
 ![Prefect UI with Interval button selected](/2.18/img/ui/interval-schedule.png)
 
-!!! note "What about RRule?"
+<Note>
+**What about RRule?**
+
     The UI does not support creating RRule schedules. However, the UI will display RRule schedules that you've created via the command line.
+
+</Note>
 
 The new schedule will appear on the **Deployment** page where you created it. In addition, the schedule will be viewable in human-friendly text in the list of deployments on the **Deployments** page.
 
@@ -282,9 +314,13 @@ See the [Settings docs](/2.18/concepts/settings/) for more information on alteri
 These settings mean that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours).
 If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
 
-!!! tip "The `Scheduler` does not affect execution"
+<Tip>
+**The `Scheduler` does not affect execution**
+
     The Prefect `Scheduler` service only creates new flow runs and places them in `Scheduled` states.
     It is not involved in flow or task execution.
+
+</Tip>
 
 If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are created to reflect the new schedule.
 

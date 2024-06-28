@@ -86,8 +86,12 @@ When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` val
 
 In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect server start`. See [Settings](/2.18/concepts/settings/) for details.
 
-!!! note "Environment variables"
+<Note>
+**Environment variables**
+
     You can also set `PREFECT_API_URL` and `PREFECT_API_KEY` as you would any other environment variable. See [Overriding defaults with environment variables](/2.18/concepts/settings/#overriding-defaults-with-environment-variables) for more information.
+
+</Note>
 
 See the [Flow orchestration with Prefect](/2.18/tutorial/flows/) tutorial for examples.
 

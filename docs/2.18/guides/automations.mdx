@@ -12,8 +12,12 @@ In this guide, we will showcase the following common use cases:
 - Build upon an event based automation
 - Combine into a multi-layered responsive deployment pattern
 
-!!! cloud-ad "Available only on Prefect Cloud"
+<Info>
+**Available only on Prefect Cloud**
+
         Automations are a Prefect Cloud feature.
+
+</Info>
 
 ## Prerequisites
 Please have the following before exploring the guide:
@@ -94,8 +98,12 @@ Now let's try to send a notification based off a completed state outcome. We can
 6. Now the automation is ready to be triggered from a flow run completion. Let's run the file locally and see that the notification is sent to our inbox after the completion. It may take a few minutes for the notification to arrive.
 ![Final notification](/2.18/img/guides/final-automation.png)
 
-!!! Tip "No deployment created"
+<Tip>
+**No deployment created**
+
     Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not required to create a deployment to trigger a notification.
+
+</Tip>
 Now that you've seen how to create an email notification from a flow run completion, let's see how we can kick off a deployment run in response to an event.
 ## Event-based deployment automation 
 We can create an automation that can kick off a deployment instead of a notification. Let's explore how we can programmatically create this automation. We will take advantage of Prefect's REST API to help create this automation.  
@@ -161,9 +169,13 @@ You can create a deployment with a `prefect.yaml` file or a Python file that use
 
 Now let's grab our `deployment_id` from this deployment, and embed it in our automation. There are many ways to obtain the `deployment_id`, but the CLI is a quick way to see all of your deployment ids. 
 
-!!! Tip "Find deployment_id from the CLI"
+<Tip>
+**Find deployment_id from the CLI**
+
       The quickest way to see the ID's associated with your deployment would be running `prefect deployment ls`
       in an authenticated command prompt, and you will be able to see the id's associated with all of your deployments
+
+</Tip>
 
 ```bash 
 prefect deployment ls

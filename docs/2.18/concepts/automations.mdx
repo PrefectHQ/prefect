@@ -9,8 +9,12 @@ Potential triggers include the occurrence of events from changes in a flow run's
 
 Potential actions include kicking off flow runs, pausing schedules, and sending custom notifications.
 
-!!! cloud-ad "Automations are only available in Prefect Cloud"
+<Info>
+**Automations are only available in Prefect Cloud**
+
     [Notifications](/2.18/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
+
+</Info>
 
 Automations provide a flexible and powerful framework for automatically taking action in response to events.
 
@@ -47,8 +51,12 @@ Triggers specify the conditions under which your action should be performed. The
 - Incident declarations (available on Pro and Custom plans)
 - Custom event triggers
 
-!!! note "Automations API"
+<Note>
+**Automations API**
+
     The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
+
+</Note>
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to fire in the absence of an expected event.
 
@@ -270,8 +278,9 @@ def transform(table_name: str):
 
 The following configuration uses `after` to prevent this automation from firing unless either a `table-missing` or a `table-empty` event has occurred before a flow run of this deployment completes.
 
-!!! tip
+<Tip>
     Note how `match` and `match_related` are used to ensure the trigger only evaluates events that are relevant to its purpose.
+</Tip>
 
 ```json
 "match": {
@@ -746,9 +755,13 @@ triggers:
 
 Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
 
-!!! warning "Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`"
+<Warning>
+**Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`**
+
     While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` will
     take precedence over those defined in `prefect.yaml`.
+
+</Warning>
 
 Note that deployment triggers contribute to the total number of automations in your workspace.
 

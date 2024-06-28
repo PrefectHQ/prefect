@@ -229,8 +229,9 @@ async def main():
 
 asyncio.run(main())
 ```
+<Info>
+**Resolving results**
 
-!!! important "Resolving results"
     Prefect 2.6.0 added automatic retrieval of persisted results.
     Prior to this version, `State.result()` did not require an `await`.
     For backwards compatibility, when used from an asynchronous context, `State.result()` returns a raw result type.
@@ -241,7 +242,7 @@ asyncio.run(main())
     
     You may also opt-out by setting `fetch=False`.
     This will silence the warning, but you will need to retrieve your result manually from the result type.
-
+</Info>
 When submitting tasks to a runner, the result can be retrieved with the `Future.result()` method:
 
 ```python

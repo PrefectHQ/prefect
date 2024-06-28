@@ -205,10 +205,11 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
             # Never pull the image because we're using a local image
             imagePullPolicy: Never
 ```
+<Tip>
+**Keep your API key secret**
 
-    !!!tip "Keep your API key secret"
           In the above manifest we are passing in the Prefect API URL and API key as environment variables. This approach is simple, but it is not secure. If you are deploying your flow to a remote cluster, you should use a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) to store your API key.
-
+</Tip>
 === "Self-hosted"
 
 ```yaml title="deployment-manifest.yaml"
@@ -235,10 +236,11 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
             # Never pull the image because we're using a local image
             imagePullPolicy: Never
 ```
-
-    !!!tip "Linux users"
+<Tip>
+**Linux users**
+      
         If you're running Linux, you'll need to set your `PREFECT_API_URL` to use the IP address of your machine instead of `host.docker.internal`.
-
+</Tip>
 This manifest defines how our image will run when deployed in our Kubernetes cluster. Note that we will be running a single replica of our flow container. If you want to run multiple replicas of your flow container to keep up with an active schedule, or because our flow is resource-intensive, you can increase the `replicas` value.
 
 ### Deploying our flow to the cluster
@@ -290,10 +292,14 @@ For example, when release `2.11.5` is published:
 5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release, e.g. `prefect.2-python3.10`
 6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version, which in this case would be equivalent to `prefect:2.1.1-python3.10`.
 
-!!! tip "Choose image versions carefully"
+<Tip>
+**Choose image versions carefully**
+
     It's a good practice to use Docker images with specific Prefect versions in production.
 
     Use care when employing images that automatically update to new versions (such as `prefecthq/prefect:2-python3.11` or `prefecthq/prefect:2-latest`).
+
+</Tip>
 
 ### Standard Python
 

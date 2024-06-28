@@ -19,8 +19,12 @@ For development, you can use [SQLite](/2.18/concepts/database/#configuring_a_sql
 [Prefect Cloud](/2.18/cloud/) is a managed solution that provides strong scaling, performance, and security.
 Learn more about Prefect Cloud solutions for enterprises [here](https://www.prefect.io/pricing).
 
-!!! info "Windows and Linux requirements"
+<Info>
+**Windows and Linux requirements**
+
     See [Windows installation notes](#windows-installation-notes) and [Linux installation notes](#linux-installation-notes) for details on additional installation requirements and considerations.
+
+</Info>
 
 ## Install Prefect
 
@@ -140,12 +144,14 @@ By default, a local Prefect server instance uses SQLite as the backing database.
 SQLite is not packaged with the Prefect installation.
 Most systems will already have SQLite installed, because it is typically bundled with Python.
 
-!!! note
+<Note>
     Note that in production we recommend using [Prefect Cloud](/2.18/ui/cloud/) as your API server or [hosting your own Prefect server instance](/2.18/host/) backed by [PostgreSQL](/2.18/concepts/database/#configuring_a_postgresql_database).
 
-!!! info
-    If you install the [`prefect-client`](https://pypi.org/project/prefect-client/) library that provides a limited set of the full Prefect library's functionality, you do not need SQLite installed.
+</Note>
 
+<Info>
+    If you install the [`prefect-client`](https://pypi.org/project/prefect-client/) library that provides a limited set of the full Prefect library's functionality, you do not need SQLite installed.
+</Info>
 ### Install SQLite on RHEL
 
 To install an appropriate version of SQLite on Red Hat Custom Linux (RHEL), follow the instructions below:
@@ -210,8 +216,12 @@ pip install -U git+https://github.com/PrefectHQ/prefect
 ```
 
 
-!!! warning "The `main` branch may not be stable"
+<Warning>
+**The `main` branch may not be stable**
+
     Please be aware that this method installs unreleased code and may not be stable.
+
+</Warning>
 
 ## Next steps
 

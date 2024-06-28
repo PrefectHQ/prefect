@@ -2,9 +2,13 @@
 title: Storage
 ---
 
-!!! warning "Storage blocks are not recommended"
+<Warning>
+**Storage blocks are not recommended**
+
     Storage blocks are part of the legacy block-based deployment model. Instead, using `serve` or `runner`-based Python creation methods or workers and work pools with `prefect deploy` via the CLI are the recommended options for creating a deployment. 
     Flow code storage can be specified in the Python file with `serve` or `runner`-based Python creation methods; alternatively, with the work pools and workers style of flow deployment, you can specify flow code storage during the interactive `prefect deploy` CLI experience and in its resulting `prefect.yaml` file. 
+
+</Warning>
 
 Storage lets you configure how flow code for deployments is persisted and retrieved by [Prefect workers](/2.18/concepts/work-pools) (or legacy [agents](/2.18/concepts/agents)). Anytime you build a block-based deployment, a storage block is used to upload the entire directory containing your workflow code (along with supporting files) to its configured location.  This helps ensure portability of your relative imports, configuration files, and more.  Note that your environment dependencies (for example, external Python packages) still need to be managed separately.
 
@@ -12,10 +16,14 @@ If no storage is explicitly configured, Prefect will use `LocalFileSystem` stora
 
 Prefect supports creating multiple storage configurations and switching between storage as needed.
 
-!!! tip "Storage uses blocks"
+<Tip>
+**Storage uses blocks**
+
     [Blocks](/2.18/concepts/blocks/) are the Prefect technology underlying storage, and enables you to do so much more.
 
     In addition to creating storage blocks via the Prefect CLI, you can now create storage blocks and other kinds of block configuration objects via the [Prefect UI and Prefect Cloud](/2.18/ui/blocks/).
+
+</Tip>
 
 ## Configuring storage for a deployment
 
@@ -46,12 +54,16 @@ Current options for deployment storage blocks include:
 | [GitLab Repository](https://prefecthq.github.io/prefect-gitlab/)                         | Store code in a GitLab repository.                                                                         | [`prefect-gitlab`](https://github.com/PrefectHQ/prefect-gitlab)       |
 | [Bitbucket Repository](https://prefecthq.github.io/prefect-bitbucket/)                   | Store code in a Bitbucket repository.                                                                      | [`prefect-bitbucket`](https://github.com/PrefectHQ/prefect-bitbucket) |
 
-!!! note "Accessing files may require storage filesystem libraries"
+<Note>
+**Accessing files may require storage filesystem libraries**
+
     Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block or accessing the storage location from flow scripts.
 
     For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library.
 
     See [Filesystem package dependencies](/2.18/concepts/filesystems/#filesystem-package-dependencies) for more information about configuring filesystem libraries in your execution environment.
+
+</Note>
 
 ### Configuring a block
 

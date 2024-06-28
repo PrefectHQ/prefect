@@ -7,9 +7,13 @@ title:  API Rate Limits & Retention Periods
 API rate limits restrict the number of requests that a single client can make in a given time period.
 They ensure Prefect Cloud's stability, so that when you make an API call, you always get a response.
 
-!!! info "Prefect Cloud rate limits are subject to change"
+<Info>
+**Prefect Cloud rate limits are subject to change**
+
     The following rate limits are in effect currently, but are subject to change.
     Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) if you have questions about current rate limits.
+
+</Info>
 
 Prefect Cloud enforces the following rate limits:
 
@@ -36,8 +40,12 @@ The Prefect Cloud API will return a `429` response if these limits are triggered
 
 ## Flow run retention
 
-!!! info "Prefect Cloud feature"
+<Info>
+**Prefect Cloud feature**
+
     The Flow Run Retention Policy setting is only applicable in Prefect Cloud.
+
+</Info>
 
 Flow runs in Prefect Cloud are retained according to the Flow Run Retention Policy set by your account tier.
 The policy setting applies to all workspaces owned by the account.
@@ -45,8 +53,12 @@ The policy setting applies to all workspaces owned by the account.
 The flow run retention policy represents the number of days each flow run is available in the Prefect Cloud UI, and via the Prefect CLI and API after it ends.
 Once a flow run reaches a terminal state ([detailed in the chart here](/2.18/concepts/states/#state-types)), it will be retained until the end of the flow run retention period.
 
-!!! tip "Flow Run Retention Policy keys on terminal state"
+<Tip>
+**Flow Run Retention Policy keys on terminal state**
+
     Note that, because Flow Run Retention Policy keys on terminal state, if two flows start at the same time, but reach a terminal state at different times, they will be removed at different times according to when they each reached their respective terminal states.
+
+</Tip>
 
 This retention policy applies to all [details about a flow run](/2.18/ui/flow-runs/#inspect-a-flow-run), including its task runs.
 Subflow runs follow the retention policy independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state.

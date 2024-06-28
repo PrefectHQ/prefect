@@ -19,8 +19,12 @@ A deployment enables you to:
 - Create ad-hoc flow runs from the API or Prefect UI.
 - Upload flow files to a defined storage location for retrieval at run time.
 
-!!! note "Deployments created with `.serve`"
+<Note>
+**Deployments created with `.serve`**
+
     A deployment created with the Python `flow.serve` method or the `serve` function runs flows in a subprocess on the same machine where the deployment is created. It does not use a work pool or worker.
+
+</Note>
 
 ## Work pool-based deployments
 
@@ -74,15 +78,15 @@ flowchart LR
 ```
 
 The work pool types above require a worker to be running on your infrastructure to poll a work pool for scheduled flow runs.
-
-!!!note "Additional work pool options available with Prefect Cloud"
+<Note>
+**Additional work pool options available with Prefect Cloud**
 
     Prefect Cloud offers other flavors of work pools that don't require a worker:
 
     - [Push Work Pools](/2.18/guides/deployment/push-work-pools) - serverless cloud options that don't require a worker because Prefect Cloud submits them to your serverless cloud infrastructure on your behalf. Prefect can auto-provision your cloud infrastructure for you and set it up to use your work pool.
     
     - [Managed Execution](/2.18/guides/managed-execution/) Prefect Cloud submits and runs your deployment on serverless infrastructure. No cloud provider account required.
-
+</Note>
 In this guide, we focus on deployments that require a worker.
 
 Work pool-based deployments that use a worker also allow you to assign a work queue name to prioritize work and allow you to limit concurrent runs at the work pool level.
@@ -104,8 +108,7 @@ If you'd prefer to learn about using a YAML-based alternative for managing deplo
 
 You can create a deployment from Python code by calling the `.deploy` method on a flow.
 
-```python hl_lines="17-22" title="buy.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 
 
 @flow(log_prints=True)
@@ -136,17 +139,24 @@ Your deployment will be visible on the `Deployments` page in the UI.
 
 By default, `.deploy` will build a Docker image with your flow code baked into it and push the image to the [Docker Hub](https://hub.docker.com/) registry specified in the `image` argument`.
 
-!!! note "Authentication to Docker Hub"
+<Note>
+**Authentication to Docker Hub**
+
     You need your environment to be authenticated to your Docker registry to push an image to it.
+
+</Note>
 
 You can specify a registry other than Docker Hub by providing the full registry path in the `image` argument.
 
-!!! warning
+<Warning>
     If building a Docker image, the environment in which you are creating the deployment needs to have Docker installed and running.
+
+</Warning>
+
 
 To avoid pushing to a registry, set `push=False` in the `.deploy` method.
 
-```python hl_lines="6"
+```python python
 
 if __name__ == "__main__":
     buy.deploy(
@@ -159,7 +169,7 @@ if __name__ == "__main__":
 
 To avoid building an image, set `build=False` in the `.deploy` method.
 
-```python hl_lines="6"
+```python python
 
 if __name__ == "__main__":
     buy.deploy(
@@ -178,8 +188,7 @@ Prefect generates a Dockerfile for you that will build an image based off of one
 
 If you want to use a custom Dockerfile, you can specify the path to the Dockerfile with the `DeploymentImage` class:
 
-```python hl_lines="14-17" title="custom_dockerfile.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 from prefect.deployments import DeploymentImage
 
 
@@ -219,8 +228,7 @@ RUN pip install --extra-index-url ${AUTHED_ARTIFACT_REG_URL} -r /requirements.tx
 
 Create our deployment by leveraging the DeploymentImage class.
 
-```python hl_lines="2 18-22" title="private-package.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 from prefect.deployments.runner import DeploymentImage
 from prefect.blocks.system import Secret
 from my_private_package import do_something_cool
@@ -250,7 +258,9 @@ Note that we used a [Prefect Secret block](/2.18/concepts/blocks/) to load the U
 
 See all the optional keyword arguments for the DeploymentImage class [here](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build).
 
-!!! tip "Default Docker namespace"
+<Tip>
+**Default Docker namespace**
+
     You can set the `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` setting to append a default Docker namespace to all images you build with `.deploy`. This is great if you use a private registry to store your images.
 
     To set a default Docker namespace for your current profile run:
@@ -263,8 +273,7 @@ See all the optional keyword arguments for the DeploymentImage class [here](http
 
     Once set, you can omit the namespace from your image name when creating a deployment:
 
-    ```python hl_lines="5" title="with_default_docker_namespace.py"
-    if __name__ == "__main__":
+    ```python python    if __name__ == "__main__":
         buy.deploy(
             name="my-code-baked-into-an-image-deployment", 
             work_pool_name="my-docker-pool", 
@@ -274,6 +283,8 @@ See all the optional keyword arguments for the DeploymentImage class [here](http
 
     The above code will build an image with the format `<docker-registry-url>/<organization-or-username>/my_image:my_image_tag` when `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` is set.
 
+</Tip>
+
 While baking code into Docker images is a popular deployment option, many teams decide to store their workflow code in git-based storage, such as GitHub, Bitbucket, or Gitlab. Let's see how to do that next.
 
 ### Store your code in git-based cloud storage
@@ -282,8 +293,7 @@ If you don't specify an `image` argument for `.deploy`, then you need to specify
 
 Here's how we can pull our flow code from a GitHub repository.
 
-```python hl_lines="4-6" title="git_storage.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 
 if __name__ == "__main__":
     flow.from_source(
@@ -300,8 +310,10 @@ The `entrypoint` is the path to the file the flow is located in and the function
 
 Alternatively, you could specify a git-based cloud storage URL for a Bitbucket or Gitlab repository.
 
-!!! note
+<Note>
     If you don't specify an image as part of your deployment creation, the image specified in the work pool will be used to run your flow.
+
+</Note>
 
 After creating a deployment you might change your flow code.
 Generally, you can just push your code to GitHub, without rebuilding your deployment.
@@ -310,8 +322,7 @@ Rerunning the Python script with `.deploy` will update your deployment on the se
 
 If you need to provide additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/2.18/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL:
 
-```python hl_lines="2-3 7-12" title="private_git_storage.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 from prefect.runner.storage import GitRepository
 from prefect.blocks.system import Secret
 
@@ -341,8 +352,7 @@ Another option for flow code storage is any [fsspec](https://filesystem-spec.rea
 
 For example, you can pass the S3 bucket path to `source`.
 
-```python hl_lines="4-6" title="s3_storage.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 
 if __name__ == "__main__":
     flow.from_source(
@@ -361,8 +371,7 @@ A storage block also ensures your credentials will be available in both your dep
 
 Here's an example that uses an `S3Bucket` block from the [prefect-aws library](https://prefecthq.github.io/prefect-aws/).
 
-```python hl_lines="2 5-7" title="s3_storage_auth.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 from prefect_aws.s3 import S3Bucket
 
 if __name__ == "__main__":
@@ -382,8 +391,7 @@ Let's turn our attention to other deployment configuration options.
 
 To pass parameters to your flow, you can use the `parameters` argument in the `.deploy` method. Just pass in a dictionary of key-value pairs.
 
-```python hl_lines="11" title="pass_params.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 
 @flow
 def hello_world(name: str):
@@ -403,8 +411,7 @@ The values passed in override default values in the specified work pool's [base 
 
 You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables` argument.
 
-```python hl_lines="5" title="job_var_image_pull.py"
-if __name__ == "__main__":
+```python pythonif __name__ == "__main__":
     get_repo_info.deploy(
         name="my-deployment-never-pull", 
         work_pool_name="my-docker-pool", 
@@ -416,8 +423,7 @@ if __name__ == "__main__":
 
 Similarly, you can override the environment variables specified in a work pool through the `job_variables` parameter:
 
-```python hl_lines="5" title="job_var_env_vars.py"
-if __name__ == "__main__":
+```python pythonif __name__ == "__main__":
     get_repo_info.deploy(
         name="my-deployment-never-pull", 
         work_pool_name="my-docker-pool", 
@@ -486,8 +492,7 @@ In the example above the code for both flows gets baked into the same image.
 We can specify that one or more flows should be pulled from a remote location at runtime by using the `from_source` method.
 Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
 
-```python hl_lines="9-19"
-from prefect import deploy, flow
+```python pythonfrom prefect import deploy, flow
 
 
 @flow(log_prints=True)
@@ -517,17 +522,25 @@ The `prefect.yaml` file is a YAML file describing base settings for your deploym
 
 You can initialize your deployment configuration, which creates the `prefect.yaml` file, by running the CLI command `prefect init` in any directory or repository that stores your flow code.
 
-!!! tip "Deployment configuration recipes"
+<Tip>
+**Deployment configuration recipes**
+
     Prefect ships with many off-the-shelf "recipes" that allow you to get started with more structure within your `prefect.yaml` file; run `prefect init` to be prompted with available recipes in your installation. You can provide a recipe name in your initialization command with the `--recipe` flag, otherwise Prefect will attempt to guess an appropriate recipe based on the structure of your working directory (for example if you initialize within a `git` repository, Prefect will use the `git` recipe).
+
+</Tip>
 
 The `prefect.yaml` file contains deployment configuration for deployments created from this file, default instructions for how to build and push any necessary code artifacts (such as Docker images), and default instructions for pulling a deployment in remote execution environments (e.g., cloning a GitHub repository).
 
 Any deployment configuration can be overridden via options available on the `prefect deploy` CLI command when creating a deployment.
 
-!!! tip "`prefect.yaml` file flexibility"
+<Tip>
+**`prefect.yaml` file flexibility**
+
     In older versions of Prefect, this file had to be in the root of your repository or project directory and named `prefect.yaml`. Now this file can be located in a directory outside the project or a subdirectory inside the project. It can be named differently, provided the filename ends in `.yaml`. You can even have multiple `prefect.yaml` files with the same name in different directories. By default, `prefect deploy` will use a `prefect.yaml` file in the project's root directory. To use a custom deployment configuration file, supply the new  `--prefect-file` CLI argument when running the `deploy` command from the root of your project directory:
 
     `prefect deploy --prefect-file path/to/my_file.yaml`
+
+</Tip>
 
 The base structure for `prefect.yaml` is as follows:
 
@@ -588,12 +601,16 @@ section:
 
 Every step can optionally provide a `requires` field that Prefect will use to auto-install in the event that the step cannot be found in the current environment. Each step can also specify an `id` for the step which is used when referencing step outputs in later steps. The additional fields map directly onto Python keyword arguments to the step function. Within a given section, steps always run in the order that they are provided within the `prefect.yaml` file.
 
-!!! tip "Deployment Instruction Overrides"
+<Tip>
+**Deployment Instruction Overrides**
+
     `build`, `push`, and `pull` sections can all be overridden on a per-deployment basis by defining `build`, `push`, and `pull` fields within a deployment definition in the `prefect.yaml` file.
 
     The `prefect deploy` command will use any `build`, `push`, or `pull` instructions provided in a deployment's definition in the `prefect.yaml` file.
 
     This capability is useful with multiple deployments that require different deployment instructions.
+
+</Tip>
 
 ### The build action
 
@@ -607,7 +624,9 @@ prefect init --recipe docker
 ```
 </div>
 
-!!! tip "Use `--field` to avoid the interactive experience"
+<Tip>
+**Use `--field` to avoid the interactive experience**
+
     We recommend that you only initialize a recipe when you are first creating your deployment structure, and afterwards store your configuration files within version control.
     However, sometimes you may need to initialize programmatically and avoid the interactive prompts.  
     To do so, provide all required fields for your recipe using the `--field` flag:
@@ -619,6 +638,8 @@ prefect init --recipe docker
         --field tag=my-tag
     ```
     </div>
+
+</Tip>
 
 ```yaml
 build:
@@ -634,10 +655,14 @@ Once you've confirmed that these fields are set to their desired values, this st
 [As the `prefect-docker` package documentation notes](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  
 It is best practice to use `{{ image }}` within `prefect.yaml` (specifically the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  
 
-!!! note Some steps require Prefect integrations
-    Note that in the build step example above, we relied on the `prefect-docker` package; in cases that deal with external services, additional packages are often required and will be auto-installed for you.
+<Note>
+**Some steps require Prefect integrations**
 
-!!! tip "Pass output to downstream steps"
+    Note that in the build step example above, we relied on the `prefect-docker` package; in cases that deal with external services, additional packages are often required and will be auto-installed for you.
+</Note>
+<Tip>
+**Pass output to downstream steps**
+
     Each deployment action can be composed of multiple steps. For example, if you wanted to build a Docker image tagged with the current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
 
     ```yaml
@@ -654,6 +679,8 @@ It is best practice to use `{{ image }}` within `prefect.yaml` (specifically the
     ```
 
     Note that the `id` field is used in the `run_shell_script` step so that its output can be referenced in the next step.
+
+</Tip>
 
 ### The push action
 
@@ -712,7 +739,10 @@ There are three main types of steps that typically show up in a `pull` section:
 - `git_clone`: this step clones the provided repository on the provided branch
 - `pull_from_{cloud}`: this step pulls the working directory from a Cloud storage location (e.g., S3)
 
-!!! tip "Use block and variable references"
+<Tip>
+**Use block and variable references**
+
+</Tip>
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
 
 Below is an example of how to use an existing `GitHubCredentials` block to clone a private GitHub repository:
@@ -755,7 +785,9 @@ build:
         dockerfile: auto
 ```
 
-!!! warning "Provided environment variables are not expanded by default"
+<Warning>
+**Provided environment variables are not expanded by default**
+
     To expand environment variables in your shell script, set `expand_env_vars: true` in your `run_shell_script` step. For example:
 
     ```yaml
@@ -767,6 +799,8 @@ build:
     ```
 
     Without `expand_env_vars: true`, the above step would return a literal string `$USER` instead of the current user.
+
+</Warning>
 
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
 
@@ -854,10 +888,14 @@ deployments:
 
 So long as our `build` steps produce fields called `image_name` and `tag`, every time we deploy a new version of our deployment, the `{{ build-image.image }}` variable will be dynamically populated with the relevant values.
 
-!!! note "Docker step"
+<Note>
+**Docker step**
+
     The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/2.18/guides/deployment/docker/) which produces both the `image_name` and `tag` fields.
 
     For an example, [check out the deployments tutorial](/2.18/guides/deployment/docker/).
+
+</Note>
 
 A `prefect.yaml` file can have multiple deployment configurations that control the behavior of several deployments.
 These deployments can be managed independently of one another, allowing you to deploy the same flow with different configurations in the same codebase.
@@ -868,9 +906,12 @@ Prefect supports multiple deployment declarations within the `prefect.yaml` file
 
 New deployment declarations can be added to the `prefect.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field which is used to select deployment declarations when using the `prefect deploy` command.
 
-!!! warning
+<Warning>
     When using a `prefect.yaml` file that is in another directory or differently named, remember that the value for
     the deployment `entrypoint` must be relative to the root directory of the project.  
+
+</Warning>
+
 
 For example, consider the following `prefect.yaml` file:
 
@@ -946,10 +987,14 @@ prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
 
 The above command will deploy all deployments from the flow `my-flow`, all flows ending in `dev` with a deployment named `my-deployment`, and all deployments starting with `dep` and ending in `prod`.
 
-!!! note "CLI Options When Deploying Multiple Deployments"
+<Note>
+**CLI Options When Deploying Multiple Deployments**
+
     When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided via the CLI will be ignored.
 
     To provide overrides to a deployment via the CLI, you must deploy that deployment individually.
+
+</Note>
 
 ### Reusing configuration across deployments
 
@@ -1075,8 +1120,12 @@ Anytime you run `prefect deploy` in a directory that contains a `prefect.yaml` f
 - Next, all variable and block references are resolved with the deployment declaration.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file.
 - The final step occurs when the fully realized deployment specification is registered with the Prefect API
 
-!!! tip "Deployment Instruction Overrides"
+<Tip>
+**Deployment Instruction Overrides**
+
     The `build`, `push`, and `pull` sections in deployment definitions take precedence over the corresponding sections above them in `prefect.yaml`.
+
+</Tip>
 
 Each time a step is run, the following actions are taken in order:
 

@@ -6,8 +6,12 @@ sidebarTitle: Global Concurrency Limits
 
 Global concurrency limits allow you to manage execution efficiently, controlling how many tasks, flows, or other operations can run simultaneously. They are ideal when optimizing resource usage, preventing bottlenecks, and customizing task execution are priorities.
 
-!!! tip "Clarification on use of the term 'tasks'"
+<Tip>
+**Clarification on use of the term 'tasks'**
+
     In the context of global concurrency and rate limits, "tasks" refers not specifically to Prefect tasks, but to concurrent units of work in general, such as those managed by an event loop or `TaskGroup` in asynchronous programming. These general "tasks" could include Prefect tasks when they are part of an asynchronous execution environment.
+
+</Tip>
 
 Rate Limits ensure system stability by governing the frequency of requests or operations. They are suitable for preventing overuse, ensuring fairness, and handling errors gracefully.
 
@@ -51,8 +55,12 @@ Slot decay provides fine-grained control over the availability of slots, enablin
 
 The `concurrency`context manager allows control over the maximum number of concurrent operations. You can select either the synchronous (`sync`) or asynchronous (`async`) version, depending on your use case. Here's how to use it:
 
-!!! tip "Concurrency limits are implicitly created"
+<Tip>
+**Concurrency limits are implicitly created**
+
     When using the `concurrency` context manager, the concurrency limit you use will be created, in an inactive state, if it does not already exist.
+
+</Tip>
 
 **Sync**
 
@@ -109,8 +117,12 @@ if __name__ == "__main__":
 
 The Rate Limit feature provides control over the frequency of requests or operations, ensuring responsible usage and system stability. Depending on your requirements, you can utilize `rate_limit` to govern both synchronous (sync) and asynchronous (async) operations. Here's how to make the most of it:
 
-!!! tip "Slot decay"
+<Tip>
+**Slot decay**
+
     When using the `rate_limit` function the concurrency limit you use must have a slot decay configured.
+
+</Tip>
 
 **Sync**
 

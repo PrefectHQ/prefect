@@ -4,7 +4,10 @@ title:  Block Based Deployments
 ---
 
 
-!!! warning "Workers are recommended"
+<Warning>
+**Workers are recommended**
+
+</Warning>
     This page is about the block-based deployment model. The [Work Pools and Workers](/2.18/concepts/work-pools/) based [deployment model](/2.18/concepts/deployments/) simplifies the specification of a flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/2.18/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
 
 We encourage you to check out the new [deployment experience](/2.18/concepts/deployments/) with guided command line prompts and convenient CI/CD with `prefect.yaml` files.
@@ -13,12 +16,16 @@ With remote storage blocks, you can package not only your flow code script but a
 
 To define how your flow execution environment should be configured, you may either reference pre-configured infrastructure blocks or let Prefect create those automatically for you as anonymous blocks (this happens when you specify the infrastructure type using `--infra` flag during the build process).
 
-!!! warning "Work queue affinity improved starting from Prefect 2.0.5"
+<Warning>
+**Work queue affinity improved starting from Prefect 2.0.5**
+
     Until Prefect 2.0.4, tags were used to associate flow runs with work queues. Starting in Prefect 2.0.5, tag-based work queues are deprecated. Instead, work queue names are used to explicitly direct flow runs from deployments into queues.
 
     Note that **backward compatibility is maintained** and work queues that use tag-based matching can still be created and will continue to work. However, those work queues are now considered legacy and we encourage you to use the new behavior by specifying work queues explicitly on agents and deployments.
 
     See [Agents & Work Pools](/2.18/concepts/work-pools/) for details.
+
+</Warning>
 
 ## Deployments and flows
 
@@ -94,15 +101,23 @@ When you run this command, Prefect:
 - Uploads your flow files to the configured storage location (local by default).
 - Submit your deployment to the work queue `test`. The work queue `test` will be created if it doesn't exist.
 
-!!! note "Uploading files may require storage filesystem libraries"
+<Note>
+**Uploading files may require storage filesystem libraries**
+
     Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library.
 
-!!! tip "Ignore files or directories from a deployment"
+</Note>
+
+<Tip>
+**Ignore files or directories from a deployment**
+
     By default, Prefect uploads _all files_ in the current folder to the configured storage location (local by default) when you build a deployment.
 
     If you want to omit certain files or directories from your deployments, add a `.prefectignore` file to the root directory. `.prefectignore` enables users to omit certain files or directories from their deployments.
 
     Similar to other `.ignore` files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure all `.pyc` files are ignored by the deployment call when uploading to remote storage.
+
+</Tip>
 
 ### Deployment build options
 
@@ -211,10 +226,14 @@ parameter_openapi_schema:
   definitions: null
 ```
 
-!!! note "Editing deployment.yaml"
+<Note>
+**Editing deployment.yaml**
+
     Note the big **DO NOT EDIT** comment in your deployment's YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API.
 
     We recommend editing most of these fields from the CLI or Prefect UI for convenience.
+
+</Note>
 
 ### Parameters in deployments
 
@@ -226,8 +245,12 @@ To configure default parameter values, add them to the `parameters: {}` line of 
 parameters: {"name": "Marvin", "num": 42, "url": "https://catfact.ninja/fact"}
 ```
 
-!!! tip "Passing **kwargs as flow parameters"
+<Tip>
+**Passing **kwargs as flow parameters**
+
     You may pass `**kwargs` as a deployment parameter as a `"kwargs":{}` JSON object containing the key-value pairs of any passed keyword arguments.
+
+</Tip>
 
 ```
     parameters: {"name": "Marvin", "kwargs":{"cattype":"tabby","num": 42}
@@ -290,10 +313,14 @@ When you run a deployed flow with Prefect, the following happens:
 
 [Agents and work pools](/2.18/concepts/work-pools/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
 
-!!! note "Scheduled flow runs"
+<Note>
+**Scheduled flow runs**
+
     Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect server started with `prefect server start`.
 
     Scheduled flow runs will not run unless an appropriate [agent and work pool](/2.18/concepts/work-pools/) are configured.
+
+</Note>
 
 ## Create a deployment from a Python object
 
@@ -432,7 +459,10 @@ If you specify a schedule for a deployment, the deployment will execute its flow
 
 ### Create a flow run with an event trigger
 
-!!! cloud-ad "deployment triggers are only available in Prefect Cloud"
+<Info>
+**deployment triggers are only available in Prefect Cloud**
+
+</Info>
 
 Deployments can optionally take a trigger specification, which will configure an automation to run the deployment based on the presence or absence of events, and optionally pass event data into the deployment run as parameters via jinja templating.
 
@@ -473,8 +503,12 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `schedule`        | Commands for interacting with your deployment's schedules.      |
 | `set-schedule`    | Set schedule for a given deployment.                            |
 
-!!! warning "Deprecated Schedule Commands"
+<Warning>
+**Deprecated Schedule Commands**
+
 The pause-schedule, resume-schedule, and set-schedule commands are deprecated due to the introduction of multi-schedule support for deployments. Use the new `prefect deployment schedule` command for enhanced flexibility and control over your deployment schedules.
+
+</Warning>
 
 ### Create a flow run in a Python script 
 
@@ -493,10 +527,14 @@ if __name__ == "__main__":
    main()
 ``` 
 
-!!! tip "`PREFECT_API_URL` setting for agents"
+<Tip>
+**`PREFECT_API_URL` setting for agents**
+
     You'll need to configure [agents and work pools](/2.18/concepts/work-pools/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/2.18/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
 
     If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+
+</Tip>
 
 ## Examples
 

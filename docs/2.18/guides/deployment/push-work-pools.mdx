@@ -193,15 +193,16 @@ Here's the command to create a new push work pool and configure the necessary in
 
     </div>
 
-    !!! tip "Default Docker build namespace"
+    <Tip>
+**Default Docker build namespace**
+
         After infrastructure provisioning completes, you will be logged into your new ECR repository and the default Docker build namespace will be set to the URL of the registry.
 
         While the default namespace is set, you will not need to provide the registry URL when building images as part of your deployment process.
 
         To take advantage of this, you can write your deploy scripts like this:
 
-        ```python hl_lines="14" title="example_deploy_script.py"
-        from prefect import flow
+        ```python python        from prefect import flow
         from prefect.deployments import DeploymentImage
 
         @flow(log_prints=True)            
@@ -223,6 +224,8 @@ Here's the command to create a new push work pool and configure the necessary in
         This will build an image with the tag `<ecr-registry-url>/my-image:latest` and push it to the registry.
 
         Your image name will need to match the name of the repository created with your work pool. You can create new repositories in the ECR console.
+
+</Tip>
 
 === "Azure Container Instances"
 
@@ -278,15 +281,16 @@ Here's the command to create a new push work pool and configure the necessary in
 
     </div>
 
-    !!! tip "Default Docker build namespace"
+    <Tip>
+**Default Docker build namespace**
+
         After infrastructure provisioning completes, you will be logged into your new Azure Container Registry and the default Docker build namespace will be set to the URL of the registry.
 
         While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the registry.
 
         To take advantage of this functionality, you can write your deploy scripts like this:
 
-        ```python hl_lines="14" title="example_deploy_script.py"
-        from prefect import flow                                                       
+        ```python python        from prefect import flow                                                       
         from prefect.deployments import DeploymentImage                                
 
 
@@ -307,6 +311,8 @@ Here's the command to create a new push work pool and configure the necessary in
         ```
 
         This will build an image with the tag `<acr-registry-url>/my-image:latest` and push it to the registry.
+
+</Tip>
 
 === "Google Cloud Run"
 
@@ -363,15 +369,16 @@ Here's the command to create a new push work pool and configure the necessary in
 
     </div>
 
-    !!! tip "Default Docker build namespace"
+    <Tip>
+**Default Docker build namespace**
+
         After infrastructure provisioning completes, you will be logged into your new Artifact Registry repository and the default Docker build namespace will be set to the URL of the repository.
 
         While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the repository.
 
         To take advantage of this functionality, you can write your deploy scripts like this:
 
-        ```python hl_lines="14" title="example_deploy_script.py"
-        from prefect import flow                                                       
+        ```python python        from prefect import flow                                                       
         from prefect.deployments import DeploymentImage                                
 
 
@@ -392,6 +399,8 @@ Here's the command to create a new push work pool and configure the necessary in
         ```
 
         This will build an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to the repository.
+
+</Tip>
 
 === "Modal"
     <div class="terminal">
@@ -617,10 +626,11 @@ For example, if you create a deployment through the interactive command line exp
 ```
 
 Deploying your flow to the `my-push-pool` work pool will ensure that runs that are ready for execution will be submitted immediately, without the need for a worker to poll for them.
+<Warning>
+**Serverless infrastructure may require a certain image architecture**
 
-!!! danger "Serverless infrastructure may require a certain image architecture"
     Note that serverless infrastructure may assume a certain Docker image architecture; for example, Google Cloud Run will fail to run images built with `linux/arm64` architecture. If using Prefect to build your image, you can change the image architecture through the `platform` keyword (e.g., `platform="linux/amd64"`).
-
+</Warning>
 ## Putting it all together
 
 With your deployment created, navigate to its detail page and create a new flow run.

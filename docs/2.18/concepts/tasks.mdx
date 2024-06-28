@@ -18,8 +18,7 @@ You can define your tasks within the same file as your flow definition, or you c
 
 Use the `@task` decorator to designate a function as a task. Calling the task creates a new task run:
 
-```python hl_lines="3-5"
-from prefect import flow, task
+```python pythonfrom prefect import flow, task
 
 @task
 def my_task():
@@ -48,10 +47,14 @@ def my_parent_task():
 
 Tasks are uniquely identified by a task key, which is a hash composed of the task name, the fully-qualified name of the function, and any tags. If the task does not have a name specified, the name is derived from the task function.
 
-!!! note "How big should a task be?"
+<Note>
+**How big should a task be?**
+
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
     To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be avoided by splitting the code into multiple dependent tasks.
+
+</Note>
 
 
 ## Task arguments
@@ -74,7 +77,7 @@ See all possible parameters in the [Python SDK API docs](/2.18/api-ref/prefect/t
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
-```python hl_lines="1"
+```python python
 @task(name="hello-task", 
       description="This task says hello.")
 def my_task():
@@ -158,7 +161,7 @@ Tags are optional string labels that enable you to identify and group tasks othe
 
 Tags may be specified as a keyword argument on the [task decorator](/2.18/api-ref/prefect/tasks/#prefect.tasks.task).
 
-```python hl_lines="1"
+```python python
 @task(name="hello-task", tags=["test"])
 def my_task():
     print("Hello, I'm a task")
@@ -166,7 +169,7 @@ def my_task():
 
 You can also provide tags as an argument with a [`tags` context manager](/2.18/api-ref/prefect/context/#prefect.context.tags), specifying tags when the task is called rather than in its definition.
 
-```python hl_lines="10"
+```python python
 from prefect import flow, task
 from prefect import tags
 
@@ -191,8 +194,12 @@ task. If the task fails, Prefect will retry it up to `retries` times, waiting
 final retry, Prefect marks the task as _crashed_ if the task raised an exception
 or _failed_ if it returned a string.
 
-!!! note "Retries don't create new task runs"
+<Note>
+**Retries don't create new task runs**
+
     A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
+
+</Note>
 
 ### A real-world example: making an API request
 
@@ -200,7 +207,7 @@ Consider the real-world problem of making an API request. In this example,
 we'll use the [`httpx`](https://www.python-httpx.org/) library to make an HTTP
 request.
 
-```python hl_lines="4"
+```python python
 import httpx
 
 from prefect import flow, task
@@ -334,8 +341,7 @@ Note that, if any arguments are not JSON serializable, the pickle serializer is 
 
 In this example, until the `cache_expiration` time ends, as long as the input to `hello_task()` remains the same when it is called, the cached return value is returned. In this situation the task is not rerun. However, if the input argument value changes, `hello_task()` runs using the new input.
 
-```python hl_lines="3 5"
-from datetime import timedelta
+```python pythonfrom datetime import timedelta
 from prefect import flow, task
 from prefect.tasks import task_input_hash
 
@@ -357,10 +363,14 @@ Alternatively, you can provide your own function or other callable that returns 
 
 Note that the `cache_key_fn` is _not_ defined as a `@task`.
 
-!!! note "Task cache keys"
+<Note>
+**Task cache keys**
+
     By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` setting.
 
-```python hl_lines="3-5 7"
+</Note>
+
+```python python
 from prefect import task, flow
 
 def static_cache_key(context, parameters):
@@ -382,7 +392,7 @@ def test_caching():
 In this case, there's no expiration for the cache key, and no logic to change the cache key, so `cached_task()` only runs once.
 
 <div class="terminal">
-```bash hl_lines="2"
+```bash 
 >>> test_caching()
 running an expensive operation
 >>> test_caching()
@@ -404,8 +414,12 @@ def cached_task():
     return 42
 ```
 
-!!! note "Task results, retries, and caching"
+<Note>
+**Task results, retries, and caching**
+
     Task results are cached in memory during a flow run and persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
+
+</Note>
 
 ### Refreshing the cache
 
@@ -445,7 +459,7 @@ Task timeouts are used to prevent unintentional long-running tasks. When the dur
 
 Timeout durations are specified using the `timeout_seconds` keyword argument.
 
-```python hl_lines="4"
+```python python
 from prefect import task
 import time
 
@@ -470,8 +484,12 @@ To run your task with a [task runner](/2.18/concepts/task-runners/), you must ca
 
 See [state returned values](/2.18/concepts/task-runners/#using-results-from-submitted-tasks) for examples.
 
-!!! tip "Task runners are optional"
+<Tip>
+**Task runners are optional**
+
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
+
+</Tip>
 
 ## Wait for
 
@@ -595,8 +613,12 @@ If a task has multiple tags, it will run only if _all_ tags have available concu
 
 Tags without explicit limits are considered to have unlimited concurrency.
 
-!!! note "0 concurrency limit aborts task runs"
+<Note>
+**0 concurrency limit aborts task runs**
+
     Currently, if the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will be aborted instead of delayed.
+
+</Note>
 
 ### Execution behavior
 
@@ -606,8 +628,12 @@ If there are no concurrency slots available for any one of your task's tags, the
 
 ### Configuring concurrency limits
 
-!!! tip "Flow run concurrency limits are set at a work pool and/or work queue level"
+<Tip>
+**Flow run concurrency limits are set at a work pool and/or work queue level**
+
     While task run concurrency limits are configured via tags (as shown below), [flow run concurrency limits](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-concurrency) are configured via work pools and/or work queues.
+
+</Tip>
 
 You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
 

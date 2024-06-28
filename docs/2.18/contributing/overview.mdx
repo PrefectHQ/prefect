@@ -56,8 +56,12 @@ pytest tests/test_flows.py
 ```
 </div>
 
-!!! tip "Building the Prefect UI"
+<Tip>
+**Building the Prefect UI**
+
     If you intend to run a local Prefect server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
+
+</Tip>
 
 ## Prefect Code of Conduct
 
@@ -286,10 +290,14 @@ Try to make your migration name brief but descriptive. For example:
 - `rename_flow_run_old_column_to_new_column`
 
 The `--autogenerate` flag will automatically generate a migration file based on the changes to the models.
-!!! warning "Always inspect the output of `--autogenerate`"
+<Warning>
+**Always inspect the output of `--autogenerate`**
+
     `--autogenerate` will generate a migration file based on the changes to the models. However, it is not perfect.
     Be sure to check the file to make sure it only includes the changes you want to make. Additionally, you may need to
     remove extra statements that were included and not related to your change.
+
+</Warning>
 
 The new migration can be found in the `src/prefect/server/database/migrations/versions/` directory. Each database type
 has its own subdirectory. For example, the SQLite migrations are stored in `src/prefect/server/database/migrations/versions/sqlite/`.

@@ -9,9 +9,13 @@ Prefect handles the infrastructure and code execution for you.
 
 Managed execution is a great option for users who want to get started quickly, with no infrastructure setup.
 
-!!! warning "Managed Execution is in beta"
+<Warning>
+**Managed Execution is in beta**
+
     Managed Execution is currently in beta.
     Features are likely to change without warning.
+
+</Warning>
 
 ## Usage guide
 
@@ -34,8 +38,7 @@ Create a deployment using the flow `deploy` method or `prefect.yaml`.
 
 Specify the name of your managed work pool, as shown in this example that uses the `deploy` method:
 
-```python hl_lines="9" title="managed-execution.py"
-from prefect import flow
+```python pythonfrom prefect import flow
 
 if __name__ == "__main__":
     flow.from_source(
@@ -68,7 +71,7 @@ That's it! You ran a flow on remote infrastructure without any infrastructure se
 Prefect can install Python packages in the container that runs your flow at runtime.
 You can specify these dependencies in the **Pip Packages** field in the UI, or by configuring `job_variables={"pip_packages": ["pandas", "prefect-aws"]}` in your deployment creation like this:
 
-```python hl_lines="10"
+```python python
 from prefect import flow
 
 if __name__ == "__main__":

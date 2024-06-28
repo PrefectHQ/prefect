@@ -72,8 +72,12 @@ This guide provides an overview of the differences between agents and workers. I
 
     `prefect agent start --pool <work pool name>` --> `prefect worker start --pool <work pool name>`
 
-    !!! Tip "Worker Helm chart"
+<Tip>
+**Worker Helm chart**
+
         If you host your agents in a Kubernetes cluster, you can use the [Prefect worker Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker) to host workers in your cluster.
+
+</Tip>
 
 ## Upgrade guide
 
@@ -95,12 +99,16 @@ KubernetesJob.load("my-k8s-job").publish_as_work_pool()
 
     Running this script will create a work pool named 'my-k8s-job' with the same configuration as your infrastructure block.
 
-!!! Tip "Serving flows"
+<Tip>
+**Serving flows**
+
     If you are using a `Process` infrastructure block and a `LocalFilesystem` storage block (or aren't using an infrastructure and storage block at all), you can use [`flow.serve`](/2.18/api-ref/prefect/flows/#prefect.flows.Flow.deploy) to create a deployment without needing to specify a work pool name or start a worker.
 
     This is a quick way to create a deployment for a flow and is a great way to manage your deployments if you don't need the dynamic infrastructure creation or configuration offered by workers.
 
     Check out our [Docker guide](/2.18/guides/docker/) for how to build a served flow into a Docker image and host it in your environment.
+
+</Tip>
 
 2. **[Start a worker](/2.18/concepts/work-pools/#starting-a-worker)**
 
@@ -284,8 +292,12 @@ You can skip a `flow.from_source` call when building an image with `flow.deploy`
 
 ### Using `prefect deploy`
 
-!!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
+<Warning>
+**Always run `prefect deploy` commands from the **root** level of your repo!**
+
     With agents, you might have had multiple `deployment.yaml` files, but under worker deployment patterns, each repo will have a single `prefect.yaml` file located at the **root** of the repo that contains [deployment configuration](/2.18/concepts/deployments/#working-with-multiple-deployments) for all flows in that repo.
+
+</Warning>
 
 To set up a new `prefect.yaml` file for your deployments, run the following command from the root level of your repo:
 
@@ -297,8 +309,12 @@ prefect deploy
 
 This will start a wizard that will guide you through setting up your deployment.
 
-!!! Note "For step 4, select `y` on the last prompt to save the configuration for the deployment."
+<Note>
+**For step 4, select `y` on the last prompt to save the configuration for the deployment.**
+
     Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/2.18/concepts/deployments/#working-with-multiple-deployments) for this repo.
+
+</Note>
 
 You can add more [deployments](/2.18/concepts/deployments/#deployment-declaration-reference) to the `deployments` list in your `prefect.yaml` file and/or by continuing to use the deployment creation wizard.
 

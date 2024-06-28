@@ -7,7 +7,9 @@ title: Work Pools
 Work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
 To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
 
-!!! tip "[Choosing Between `flow.deploy()` and `flow.serve()`](/2.18/concepts/deployments/#two-approaches-to-deployments)"
+<Tip>
+**[Choosing Between `flow.deploy()` and `flow.serve()`](/2.18/concepts/deployments/#two-approaches-to-deployments)**
+
     Earlier in the tutorial you used `serve` to deploy your flows.
     For many use cases, `serve` is sufficient to meet scheduling and orchestration needs.
     Work pools are **optional**.
@@ -16,10 +18,16 @@ To transition from persistent infrastructure to dynamic infrastructure, use `flo
     You're not locked into one method.
     You can seamlessly combine approaches as needed.
 
-!!! note "Deployment definition methods differ slightly for work pools"
+</Tip>
+
+<Note>
+**Deployment definition methods differ slightly for work pools**
+
     When you use work-pool-based execution, you define deployments differently.
     Deployments for workers are configured with `deploy`, which requires additional configuration.
     A deployment created with `serve` cannot be used with a work pool.
+
+</Note>
 
 The primary reason to use work pools is for **dynamic infrastructure provisioning and configuration**.
 For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently.
@@ -37,10 +45,14 @@ A cloud-provider account, such as AWS, is not required with a Prefect Managed wo
 
 ## Set up a work pool
 
-!!! note "Prefect Cloud"
+<Note>
+**Prefect Cloud**
+
     This tutorial uses Prefect Cloud to deploy flows to work pools.
     Managed execution and push work pools are available in [Prefect Cloud](https://www.prefect.io/cloud) only.
     If you are not using Prefect Cloud, please learn about work pools below and then proceed to the [next tutorial](/2.18/tutorial/workers/) that uses worker-based work pools.
+
+</Note>
 
 ### Create a Prefect Managed work pool
 
@@ -91,8 +103,7 @@ The updates that we need to make to `repo_info.py` are:
 
 Here's what the updated `repo_info.py` looks like:
 
-```python hl_lines="17-23" title="repo_info.py"
-import httpx
+```python pythonimport httpx
 from prefect import flow
 
 
@@ -125,9 +136,11 @@ You can store your flow code in any of several types of remote storage.
 In this example, we use a GitHub repository, but you could use a Docker image, as you'll see in an upcoming section of the tutorial.
 Alternatively, you could store your flow code in cloud provider storage such as AWS S3, or within a different git-based cloud provider such as GitLab or Bitbucket.
 
-!!! note
+<Note>
     In the example above, we store our code in a GitHub repository.
     If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument of `from_source` to point to your repository.
+
+</Note>
 
 Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
 
@@ -272,8 +285,7 @@ While the default namespace is set, any images you build without specifying a re
 
 To take advantage of this functionality, you can write your deploy script like this:
 
-```python hl_lines="14" title="example_deploy_script.py"
-from prefect import flow                                                       
+```python pythonfrom prefect import flow                                                       
 from prefect.deployments import DeploymentImage                                
 
 
@@ -298,9 +310,9 @@ Run the script to create the deployment on the Prefect Cloud server.
 
 Running this script will build a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to your repository.
 
-!!! tip
+<Tip>
     Make sure you have Docker running locally before running this script.
-
+</Tip>
 Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
 Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
 

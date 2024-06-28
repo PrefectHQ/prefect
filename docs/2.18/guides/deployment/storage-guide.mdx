@@ -154,10 +154,14 @@ Alternatively, you can create a Credentials block ahead of time and reference it
             credentials: "{{ prefect.blocks.gitlab-credentials.my-block-name }}"
     ```
 
-!!! warning "Push your code"
+<Warning>
+**Push your code**
+
     When you make a change to your code, Prefect does not push your code to your git-based version control platform. 
     You need to push your code manually or as part of your CI/CD pipeline. 
     This design decision is an intentional one to avoid confusion about the git history and push process.
+
+</Warning>
 
 ## Option 3: Docker-based storage
 
@@ -179,9 +183,13 @@ Another popular way to store your flow code is to include it in a Docker image. 
 1. Upon deployment run the worker will pull the Docker image and spin up a container. 
 1. The flow code baked into the image will run inside the container. 
 
-!!! tip "CI/CD may not require push or pull steps"
+<Tip>
+**CI/CD may not require push or pull steps**
+
     You don't need push or pull steps in the `prefect.yaml` file if using CI/CD to build a Docker image outside of Prefect. 
     Instead, the work pool can reference the image directly.
+
+</Tip>
 
 ## Option 4: Cloud-provider storage
 

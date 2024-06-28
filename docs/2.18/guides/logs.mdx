@@ -89,8 +89,10 @@ Prefect automatically uses the flow run logger based on the flow context. If you
 
 The default flow run log formatter uses the flow run name for log messages.
 
-!!! note
+<Note>
         Starting in 2.7.11, if you use a logger that sends logs to the API outside of a flow or task run, a warning will be displayed instead of an error. You can silence this warning by setting `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore` or have the logger raise an error by setting the value to `error`.
+
+</Note>
 
 ### Logging in tasks
 
@@ -350,8 +352,12 @@ def my_flow():
 my_flow()
 ```
 
-!!! warning "Inaccurate logs could result"
+<Warning>
+**Inaccurate logs could result**
+
     Although this can be convenient, the downside is, if enabled, strings that contain square brackets may be inaccurately interpreted and lead to incomplete output, e.g. `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+
+</Warning>
 
 ## Log database schema
 
