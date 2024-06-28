@@ -283,10 +283,8 @@ class TaskRunEngine(Generic[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
-            new_state = run_coro_as_sync(
-                new_state=propose_state_sync(
-                    self.client, state, task_run_id=self.task_run.id, force=force
-                )
+            new_state = propose_state_sync(
+                self.client, state, task_run_id=self.task_run.id, force=force
             )
         except Pause as exc:
             # We shouldn't get a pause signal without a state, but if this happens,
