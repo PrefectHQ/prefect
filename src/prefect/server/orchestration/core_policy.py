@@ -72,7 +72,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             CacheRetrieval,
             HandleTaskTerminalStateTransitions,
             PreventRunningTasksFromStoppedFlows,
-            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+            # SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedTasks,
@@ -93,7 +93,7 @@ class BackgroundTaskPolicy(BaseOrchestrationPolicy):
             PreventPendingTransitions,
             CacheRetrieval,
             HandleTaskTerminalStateTransitions,
-            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+            # SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
             CopyTaskParametersID,
             WaitForScheduledTime,

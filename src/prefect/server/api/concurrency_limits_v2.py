@@ -150,6 +150,7 @@ async def bulk_increment_active_slots(
     slots: int = Body(..., gt=0),
     names: List[str] = Body(..., min_items=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
+    active: bool = Body(False),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
@@ -157,7 +158,7 @@ async def bulk_increment_active_slots(
             schemas.core.ConcurrencyLimitV2.model_validate(limit)
             for limit in (
                 await models.concurrency_limits_v2.bulk_read_or_create_concurrency_limits(
-                    session=session, names=names
+                    session=session, names=names, active=active
                 )
             )
         ]

@@ -31,6 +31,8 @@ from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
 from prefect.context import (
     ClientContext,
     FlowRunContext,
@@ -670,7 +672,10 @@ class TaskRunEngine(Generic[P, R]):
                 if transaction.is_committed():
                     result = transaction.read()
                 else:
-                    result = await call_with_parameters(self.task.fn, parameters)
+                    async with aconcurrency(
+                        list(self.task.tags), occupy=1, active=True
+                    ):
+                        result = await call_with_parameters(self.task.fn, parameters)
                 self.handle_success(result, transaction=transaction)
                 return result
 
@@ -679,7 +684,8 @@ class TaskRunEngine(Generic[P, R]):
             if transaction.is_committed():
                 result = transaction.read()
             else:
-                result = call_with_parameters(self.task.fn, parameters)
+                with concurrency(list(self.task.tags), occupy=1, active=True):
+                    result = call_with_parameters(self.task.fn, parameters)
             self.handle_success(result, transaction=transaction)
             return result
 

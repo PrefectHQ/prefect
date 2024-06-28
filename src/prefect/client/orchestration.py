@@ -877,7 +877,7 @@ class PrefectClient:
 
     async def reset_concurrency_limit_by_tag(
         self,
-        tag: str,
+        tag,
         slot_override: Optional[List[Union[UUID, str]]] = None,
     ):
         """
@@ -3012,11 +3012,11 @@ class PrefectClient:
         return response.json()
 
     async def increment_concurrency_slots(
-        self, names: List[str], slots: int, mode: str
+        self, names: List[str], slots: int, mode: str, active: Optional[bool]
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/increment",
-            json={"names": names, "slots": slots, "mode": mode},
+            json={"names": names, "slots": slots, "mode": mode, "active": active},
         )
 
     async def release_concurrency_slots(
