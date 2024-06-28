@@ -1,9 +1,21 @@
 import abc
 import asyncio
+import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
-from typing import TYPE_CHECKING, Any, Dict, Generic, Iterable, Optional, Set
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Coroutine,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    overload,
+)
 
 from typing_extensions import ParamSpec, Self, TypeVar
 
@@ -13,6 +25,7 @@ from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
     PrefectFuture,
+    PrefectFutureList,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.utilities.annotations import allow_failure, quote, unmapped
@@ -28,7 +41,8 @@ if TYPE_CHECKING:
 
 P = ParamSpec("P")
 T = TypeVar("T")
-F = TypeVar("F", bound=PrefectFuture)
+R = TypeVar("R")
+F = TypeVar("F", bound=PrefectFuture, default=PrefectConcurrentFuture)
 
 
 class TaskRunner(abc.ABC, Generic[F]):
@@ -84,7 +98,7 @@ class TaskRunner(abc.ABC, Generic[F]):
         task: "Task",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> Iterable[F]:
+    ) -> PrefectFutureList[F]:
         """
         Submit multiple tasks to the task run engine.
 
@@ -156,7 +170,7 @@ class TaskRunner(abc.ABC, Generic[F]):
 
         map_length = list(lengths)[0]
 
-        futures = []
+        futures: List[PrefectFuture] = []
         for i in range(map_length):
             call_parameters = {
                 key: value[i] for key, value in iterable_parameters.items()
@@ -186,7 +200,7 @@ class TaskRunner(abc.ABC, Generic[F]):
                 )
             )
 
-        return futures
+        return PrefectFutureList(futures)
 
     def __enter__(self):
         if self._started:
@@ -205,10 +219,30 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
     def __init__(self, max_workers: Optional[int] = None):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
-        self._max_workers = max_workers
+        self._max_workers = sys.maxsize if max_workers is None else max_workers
 
     def duplicate(self) -> "ThreadPoolTaskRunner":
         return type(self)(max_workers=self._max_workers)
+
+    @overload
+    def submit(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectConcurrentFuture[R]:
+        ...
+
+    @overload
+    def submit(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectConcurrentFuture[R]:
+        ...
 
     def submit(
         self,
@@ -216,7 +250,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectConcurrentFuture:
+    ):
         """
         Submit a task to the task run engine running in a separate thread.
 
@@ -277,6 +311,32 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         )
         return prefect_future
 
+    @overload
+    def map(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
+        ...
+
+    @overload
+    def map(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
+        ...
+
+    def map(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ):
+        return super().map(task, parameters, wait_for)
+
     def __enter__(self):
         super().__enter__()
         self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
@@ -305,13 +365,33 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
     def duplicate(self) -> "PrefectTaskRunner":
         return type(self)()
 
+    @overload
+    def submit(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDistributedFuture[R]:
+        ...
+
+    @overload
+    def submit(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDistributedFuture[R]:
+        ...
+
     def submit(
         self,
         task: "Task",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDistributedFuture:
+    ):
         """
         Submit a task to the task run engine running in a separate thread.
 
@@ -341,3 +421,29 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
         return task.apply_async(
             kwargs=parameters, wait_for=wait_for, dependencies=dependencies
         )
+
+    @overload
+    def map(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> PrefectFutureList[PrefectDistributedFuture[R]]:
+        ...
+
+    @overload
+    def map(
+        self,
+        task: "Task[Any, R]",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> PrefectFutureList[PrefectDistributedFuture[R]]:
+        ...
+
+    def map(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ):
+        return super().map(task, parameters, wait_for)

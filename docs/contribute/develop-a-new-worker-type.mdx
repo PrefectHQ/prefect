@@ -9,7 +9,7 @@ Prefect workers set up execution infrastructure and start flow runs.
 **Advanced topic**
 
 Extending the Prefect framework by developing a worker requires deep knowledge of 
-Prefect. For standard needs, we recommend using one of the [available worker types](/3.0rc/deploy/work-pools/control-runs/#worker-types).
+Prefect. For standard needs, we recommend using one of the [available worker types](/3.0rc/deploy/infrastructure-concepts/workers/#worker-types).
 </Tip>
 
 This guide walks you through creating a custom worker that can run your flows on your chosen infrastructure.
@@ -23,7 +23,7 @@ The worker uses this configuration to create the execution environment and start
 <Tip>
 **How are the configuration values populated?**
 
-The work pool that a worker polls for flow runs has a [base job template](/3.0rc/deploy/work-pools/control-runs/#base-job-template) 
+The work pool that a worker polls for flow runs has a [base job template](/3.0rc/deploy/infrastructure-concepts/work-pools/#base-job-template) 
 associated with it. 
 The template is the contract for how configuration values populate for each flow run.
 
@@ -39,10 +39,9 @@ for your configuration class attributes as a matter of best practice.
 
 ### Implementing a `BaseJobConfiguration` subclass
 
-A worker developer defines their worker's configuration to function with a class extending 
-[`BaseJobConfiguration`](/3.0rc/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration).
+Defines a worker's configuration to function with a class that extends `BaseJobConfiguration`.
 
-`BaseJobConfiguration` has attributes that are common to all workers:
+`BaseJobConfiguration` has attributes common to all workers:
 
 | Attribute | Description |
 | --------- | ----------- |
@@ -52,8 +51,7 @@ A worker developer defines their worker's configuration to function with a class
 | `command` | The command to use when starting a flow run. |
 
 Prefect sets values for each attribute before giving the configuration to the worker. If you want to customize 
-the values of these attributes, use the 
-[`prepare_for_flow_run`](/3.0rc/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration.prepare_for_flow_run) method.
+the values of these attributes, use the `prepare_for_flow_run` method.
 
 Here's an example `prepare_for_flow_run` method that adds a label to the execution environment:
 
@@ -482,8 +480,8 @@ Most of the execution logic is omitted from the example above, but it shows that
     3. Monitor the execution
     4. Get the execution's final status from the infrastructure and return a `BaseWorkerResult` object
 
-To see other examples of worker implementations, see the [`ProcessWorker`](/3.0rc/api-ref/prefect/workers/process/) and 
-[`KubernetesWorker`](https://prefecthq.github.io/prefect-kubernetes/worker/) implementations.
+To see other examples of worker implementations, see the [`ProcessWorker`](https://prefect-python-sdk-docs.netlify.app/prefect/workers/process/) and 
+[`KubernetesWorker`](https://prefect-python-sdk-docs.netlify.app/prefect_kubernetes/worker/) implementations.
 
 ### Integrate with the Prefect CLI
 

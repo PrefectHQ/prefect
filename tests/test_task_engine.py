@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import os
+import random
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -11,6 +13,7 @@ import anyio
 import pytest
 
 from prefect import Task, flow, task
+from prefect.cache_policies import FLOW_PARAMETERS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import (
@@ -408,14 +411,12 @@ class TestTaskRunsAsync:
 
         assert "__parents__" not in tr.task_inputs
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client, tmp_path):
-        fs = LocalFileSystem(basepath=tmp_path)
-
-        @task(persist_result=False, result_storage=fs)
+    async def test_task_runs_respect_result_persistence(self, prefect_client):
+        @task(persist_result=False)
         async def no_persist():
             return TaskRunContext.get().task_run.id
 
-        @task(persist_result=True, result_storage=fs)
+        @task(persist_result=True)
         async def persist():
             return TaskRunContext.get().task_run.id
 
@@ -434,19 +435,17 @@ class TestTaskRunsAsync:
 
         assert await api_state.result() == run_id
 
-    async def test_task_runs_respect_cache_key(self, tmp_path: Path):
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+    async def test_task_runs_respect_cache_key(self):
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         async def first():
             return 42
 
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         async def second():
             return 500
 
-        fs = LocalFileSystem(basepath=tmp_path)
-
-        one = await run_task_async(first.with_options(result_storage=fs))
-        two = await run_task_async(second.with_options(result_storage=fs))
+        one = await run_task_async(first)
+        two = await run_task_async(second)
 
         assert one == 42
         assert two == 42
@@ -604,16 +603,14 @@ class TestTaskRunsSync:
         assert "__parents__" in inner_run.task_inputs
         assert inner_run.task_inputs["__parents__"][0].id == b
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client, tmp_path):
-        fs = LocalFileSystem(basepath=tmp_path)
-
-        @task(persist_result=False, result_storage=fs)
+    async def test_task_runs_respect_result_persistence(self, prefect_client):
+        @task(persist_result=False)
         def no_persist():
             ctx = TaskRunContext.get()
             assert ctx
             return ctx.task_run.id
 
-        @task(persist_result=True, result_storage=fs)
+        @task(persist_result=True)
         def persist():
             ctx = TaskRunContext.get()
             assert ctx
@@ -634,19 +631,17 @@ class TestTaskRunsSync:
 
         assert await api_state.result() == run_id
 
-    async def test_task_runs_respect_cache_key(self, tmp_path: Path):
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+    async def test_task_runs_respect_cache_key(self):
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         def first():
             return 42
 
-        @task(cache_key_fn=lambda *args, **kwargs: "key")
+        @task(cache_key_fn=lambda *args, **kwargs: "key", persist_result=True)
         def second():
             return 500
 
-        fs = LocalFileSystem(basepath=tmp_path)
-
-        one = run_task_sync(first.with_options(result_storage=fs))
-        two = run_task_sync(second.with_options(result_storage=fs))
+        one = run_task_sync(first)
+        two = run_task_sync(second)
 
         assert one == 42
         assert two == 42
@@ -1071,50 +1066,15 @@ class TestPersistence:
         state = await async_task(return_state=True)
         assert await state.result() == 42
 
-    async def test_task_persists_results_with_run_id_key(self):
-        @task(persist_result=True)
-        async def async_task():
-            return 42
-
-        state = await async_task(return_state=True)
-        assert state.is_completed()
-        assert await state.result() == 42
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == str(state.state_details.task_run_id)
-
-    async def test_task_loads_result_if_exists(self, prefect_client, tmp_path):
-        run_id = uuid4()
-
-        fs = LocalFileSystem(basepath=tmp_path)
-
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True, result_storage=fs
-        )
-        await factory.create_result(1800, key=str(run_id))
-
-        @task(result_storage=fs)
-        async def async_task():
-            return 42
-
-        state = await run_task_async(
-            async_task, task_run_id=run_id, return_type="state"
-        )
-        assert state.is_completed()
-        assert await state.result() == 1800
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == str(run_id)
-
     async def test_task_loads_result_if_exists_using_result_storage_key(
-        self, prefect_client, tmp_path
+        self, prefect_client
     ):
-        fs = LocalFileSystem(basepath=tmp_path)
-
         factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True, result_storage=fs
+            client=prefect_client, persist_result=True
         )
         await factory.create_result(-92, key="foo-bar")
 
-        @task(result_storage=fs, result_storage_key="foo-bar")
+        @task(result_storage_key="foo-bar", persist_result=True)
         async def async_task():
             return 42
 
@@ -1124,12 +1084,31 @@ class TestPersistence:
         assert isinstance(state.data, PersistedResult)
         assert state.data.storage_key == "foo-bar"
 
+    async def test_task_result_persistence_references_absolute_path(
+        self, prefect_client
+    ):
+        @task(result_storage_key="test-absolute-path", persist_result=True)
+        async def async_task():
+            return 42
+
+        state = await run_task_async(async_task, return_type="state")
+        assert state.is_completed()
+        assert await state.result() == 42
+        assert isinstance(state.data, PersistedResult)
+
+        key_path = Path(state.data.storage_key)
+        assert key_path.is_absolute()
+        assert key_path.name == "test-absolute-path"
+
 
 class TestCachePolicy:
     async def test_result_stored_with_storage_key_if_no_policy_set(
         self, prefect_client
     ):
-        @task(persist_result=True, result_storage_key="foo-bar")
+        # avoid conflicts
+        key = f"foo-bar-{random.randint(0, 10000)}"
+
+        @task(persist_result=True, result_storage_key=key)
         async def async_task():
             return 1800
 
@@ -1137,22 +1116,15 @@ class TestCachePolicy:
 
         assert state.is_completed()
         assert await state.result() == 1800
-        assert state.data.storage_key == "foo-bar"
+        assert Path(state.data.storage_key).name == key
 
-    async def test_cache_expiration_is_respected(
-        self, prefect_client, tmp_path, advance_time
-    ):
-        fs = LocalFileSystem(basepath=tmp_path)
-
+    async def test_cache_expiration_is_respected(self, prefect_client, advance_time):
         @task(
             persist_result=True,
             result_storage_key="expiring-foo-bar",
             cache_expiration=timedelta(seconds=1.0),
-            result_storage=fs,
         )
         async def async_task():
-            import random
-
             return random.randint(0, 10000)
 
         first_state = await async_task(return_state=True)
@@ -1177,6 +1149,7 @@ class TestCachePolicy:
 
     async def test_cache_expiration_expires(self, prefect_client, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
+        await fs.save("test-once")
 
         @task(
             persist_result=True,
@@ -1185,8 +1158,6 @@ class TestCachePolicy:
             result_storage=fs,
         )
         async def async_task():
-            import random
-
             return random.randint(0, 10000)
 
         first_state = await async_task(return_state=True)
@@ -1214,6 +1185,8 @@ class TestCachePolicy:
 
     async def test_none_return_value_does_persist(self, prefect_client, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
+        await fs.save("none-test")
+
         FIRST_RUN = True
 
         @task(
@@ -1238,6 +1211,70 @@ class TestCachePolicy:
 
         assert first_val is None
         assert second_val is None
+
+    async def test_flow_parameter_caching(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+        await fs.save("param-test")
+
+        @task(
+            cache_policy=FLOW_PARAMETERS,
+            result_storage=fs,
+            persist_result=True,
+        )
+        def my_random_task(x: int):
+            return random.randint(0, x)
+
+        @flow
+        def my_param_flow(x: int, other_val: str):
+            first_val = my_random_task(x, return_state=True)
+            second_val = my_random_task(x, return_state=True)
+            return first_val, second_val
+
+        first, second = my_param_flow(4200, other_val="foo")
+        assert first.name == "Completed"
+        assert second.name == "Cached"
+
+        first_result = await first.result()
+        second_result = await second.result()
+        assert first_result == second_result
+
+        third, fourth = my_param_flow(4200, other_val="bar")
+        assert third.name == "Completed"
+        assert fourth.name == "Cached"
+
+        third_result = await third.result()
+        fourth_result = await fourth.result()
+
+        assert third_result not in [first_result, second_result]
+        assert fourth_result not in [first_result, second_result]
+
+    async def test_bad_api_result_references_cause_reruns(self, tmp_path: Path):
+        fs = LocalFileSystem(basepath=tmp_path)
+        await fs.save("badapi")
+
+        PAYLOAD = {"return": 42}
+
+        @task(result_storage=fs, result_storage_key="tmp-first", persist_result=True)
+        async def first():
+            return PAYLOAD["return"], get_run_context().task_run
+
+        result, task_run = await run_task_async(first)
+
+        assert result == 42
+        assert await fs.read_path("tmp-first")
+
+        # delete record
+        path = fs._resolve_path("tmp-first")
+        os.unlink(path)
+        with pytest.raises(ValueError, match="does not exist"):
+            assert await fs.read_path("tmp-first")
+
+        # rerun with same task run ID
+        PAYLOAD["return"] = "bar"
+        result, task_run = await run_task_async(first, task_run=task_run)
+
+        assert result == "bar"
+        assert await fs.read_path("tmp-first")
 
 
 class TestGenerators:

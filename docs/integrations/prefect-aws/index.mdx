@@ -14,10 +14,20 @@ For example, you can retrieve secrets using AWS Secrets Manager, read and write 
 
 ### Install prefect-aws
 
+Install or update to the latest version of the prefect-aws library and dependencies.
 
-```bash
-pip install -U prefect-aws
-```
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-aws
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-aws
+    ```
+    </Tab>
+</Tabs>
 
 
 ### Register newly installed block types
@@ -36,7 +46,7 @@ Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) 
 
 See the [ECS work pool docs](/integrations/prefect-aws/ecs_guide) for a walkthrough of using ECS in a hybrid work pool.
 
-If you're using Prefect Cloud, [ECS push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless) provide all the benefits of ECS with a quick setup and no worker needed.
+If you're using Prefect Cloud, [ECS push work pools](/3.0rc/deploy/infrastructure-examples/serverless) provide all the benefits of ECS with a quick setup and no worker needed.
 
 In the examples below, you create blocks with Python code.
 Alternatively, each block can be created through the Prefect UI.

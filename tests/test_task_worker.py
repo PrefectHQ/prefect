@@ -2,6 +2,7 @@ import asyncio
 import signal
 import uuid
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
@@ -9,7 +10,6 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow, task
-from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.settings import PREFECT_API_URL, temporary_settings
@@ -317,11 +317,8 @@ class TestTaskWorkerTaskRunRetries:
 
 
 class TestTaskWorkerTaskResults:
-    @pytest.mark.parametrize("persist_result", [True, False], ids=["persisted", "not"])
-    async def test_task_run_via_task_worker_respects_persist_result(
-        self, persist_result, prefect_client
-    ):
-        @task(persist_result=persist_result)
+    async def test_task_run_via_task_worker_persists_result(self, prefect_client):
+        @task
         def some_task():
             return 42
 
@@ -338,14 +335,7 @@ class TestTaskWorkerTaskResults:
 
         assert updated_task_run.state.is_completed()
 
-        if persist_result:
-            assert await updated_task_run.state.result() == 42
-        else:
-            with pytest.raises(
-                MissingResult,
-                match="The result was not persisted|State data is missing",
-            ):
-                await updated_task_run.state.result()
+        assert await updated_task_run.state.result() == 42
 
     @pytest.mark.parametrize(
         "storage_key",
@@ -380,9 +370,9 @@ class TestTaskWorkerTaskResults:
         assert await updated_task_run.state.result() == x
 
         if "foo" in storage_key:
-            assert updated_task_run.state.data.storage_key == storage_key
+            assert Path(updated_task_run.state.data.storage_key).name == storage_key
         else:
-            assert updated_task_run.state.data.storage_key == x
+            assert Path(updated_task_run.state.data.storage_key).name == x
 
     async def test_task_run_via_task_worker_with_complex_result_type(
         self, prefect_client

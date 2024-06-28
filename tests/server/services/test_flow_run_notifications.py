@@ -75,7 +75,7 @@ async def test_service_clears_queue(
     assert len(queued_notifications_query.scalars().fetchall()) == 2
     await session.commit()
 
-    await FlowRunNotifications(handle_signals=False).start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
     # no notifications in queue
     queued_notifications_query = await session.execute(
@@ -93,7 +93,7 @@ async def test_service_sends_notification(
     )
     await session.commit()
 
-    await FlowRunNotifications(handle_signals=False).start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
     captured = capsys.readouterr()
     assert (
@@ -118,7 +118,7 @@ async def test_service_sends_multiple_notifications(
     )
     await session.commit()
 
-    await FlowRunNotifications(handle_signals=False).start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
     captured = capsys.readouterr()
     assert (
@@ -139,7 +139,7 @@ async def test_service_does_not_send_notifications_without_policy(
     )
     await session.commit()
 
-    await FlowRunNotifications(handle_signals=False).start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
     captured = capsys.readouterr()
     assert (
@@ -168,7 +168,7 @@ async def test_service_sends_many_notifications_and_clears_queue(
     assert len(queued_notifications_query.scalars().fetchall()) == COUNT
     await session.commit()
 
-    await FlowRunNotifications(handle_signals=False).start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
     # no notifications in queue
     queued_notifications_query = await session.execute(
@@ -201,7 +201,7 @@ async def test_service_only_sends_notifications_for_matching_policy(
     )
     await session.commit()
 
-    await FlowRunNotifications(handle_signals=False).start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
     captured = capsys.readouterr()
     assert (
@@ -224,9 +224,7 @@ def test_get_ui_url_for_flow_run_id_with_ui_url(
     flow_run, provided_ui_url, expected_ui_url
 ):
     with temporary_settings({PREFECT_UI_URL: provided_ui_url}):
-        url = FlowRunNotifications(handle_signals=False).get_ui_url_for_flow_run_id(
-            flow_run_id=flow_run.id
-        )
+        url = FlowRunNotifications().get_ui_url_for_flow_run_id(flow_run_id=flow_run.id)
         assert url == expected_ui_url + "/runs/flow-run/{flow_run_id}".format(
             flow_run_id=flow_run.id
         )
@@ -252,10 +250,10 @@ async def test_service_uses_message_template(
     )
     await session.commit()
 
-    await FlowRunNotifications(handle_signals=False).start(loops=1)
-    expected_url = FlowRunNotifications(
-        handle_signals=False
-    ).get_ui_url_for_flow_run_id(flow_run_id=flow_run.id)
+    await FlowRunNotifications().start(loops=1)
+    expected_url = FlowRunNotifications().get_ui_url_for_flow_run_id(
+        flow_run_id=flow_run.id
+    )
 
     captured = capsys.readouterr()
     assert f"Hi there {flow_run.name}" in captured.out

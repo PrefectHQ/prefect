@@ -14,6 +14,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Dict,
     Generic,
     Iterable,
@@ -32,6 +33,10 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
+from prefect._internal.compatibility.deprecated import (
+    deprecated_async_method,
+)
+from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
@@ -41,9 +46,8 @@ from prefect.context import (
     TaskRunContext,
     serialize_context,
 )
-from prefect.futures import PrefectDistributedFuture, PrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.logging.loggers import get_logger
-from prefect.records.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -51,7 +55,10 @@ from prefect.settings import (
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.asyncutils import (
+    run_coro_as_sync,
+    sync_compatible,
+)
 from prefect.utilities.callables import (
     expand_mapping_parameters,
     get_call_parameters,
@@ -216,8 +223,10 @@ class Task(Generic[P, R]):
             cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd".
-        persist_result: An toggle indicating whether the result of this task
-            should be persisted to result storage. Defaults to `True`.
+        persist_result: A toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `None`, which
+            indicates that the global default should be used (which is `True` by
+            default).
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
@@ -269,7 +278,7 @@ class Task(Generic[P, R]):
             ]
         ] = None,
         retry_jitter_factor: Optional[float] = None,
-        persist_result: bool = True,
+        persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
         result_storage_key: Optional[str] = None,
@@ -377,7 +386,20 @@ class Task(Generic[P, R]):
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
 
-        if not persist_result:
+        # result persistence settings
+        if persist_result is None:
+            if any(
+                [
+                    cache_policy and cache_policy != NONE and cache_policy != NotSet,
+                    cache_key_fn is not None,
+                    result_storage_key is not None,
+                    result_storage is not None,
+                    result_serializer is not None,
+                ]
+            ):
+                persist_result = True
+
+        if persist_result is False:
             self.cache_policy = None if cache_policy is None else NONE
             if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
                 logger.warning(
@@ -416,6 +438,14 @@ class Task(Generic[P, R]):
 
         self.retry_jitter_factor = retry_jitter_factor
         self.persist_result = persist_result
+
+        if result_storage and not isinstance(result_storage, str):
+            if getattr(result_storage, "_block_document_id", None) is None:
+                raise TypeError(
+                    "Result storage configuration must be persisted server-side."
+                    " Please call `.save()` on your block before passing it in."
+                )
+
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.result_storage_key = result_storage_key
@@ -468,7 +498,7 @@ class Task(Generic[P, R]):
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
-        task_run_name: Optional[Union[Callable[[], str], str]] = None,
+        task_run_name: Optional[Union[Callable[[], str], str, Type[NotSet]]] = NotSet,
         cache_expiration: Optional[datetime.timedelta] = None,
         retries: Union[int, Type[NotSet]] = NotSet,
         retry_delay_seconds: Union[
@@ -582,7 +612,9 @@ class Task(Generic[P, R]):
             else self.cache_policy,
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
-            task_run_name=task_run_name,
+            task_run_name=task_run_name
+            if task_run_name is not NotSet
+            else self.task_run_name,
             retries=retries if retries is not NotSet else self.retries,
             retry_delay_seconds=(
                 retry_delay_seconds
@@ -821,29 +853,46 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture:
+    ) -> PrefectFuture[NoReturn]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
 
     @overload
     def submit(
-        self: "Task[P, T]",
+        self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture:
+    ) -> PrefectFuture[T]:
         ...
 
     @overload
     def submit(
         self: "Task[P, T]",
-        return_state: Literal[True],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFuture[T]:
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
         **kwargs: P.kwargs,
     ) -> State[T]:
         ...
 
+    @overload
+    def submit(
+        self: "Task[P, T]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> State[T]:
+        ...
+
+    @deprecated_async_method
     def submit(
         self,
         *args: Any,
@@ -971,9 +1020,15 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
+    ) -> PrefectFutureList[PrefectFuture[NoReturn]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFutureList[PrefectFuture[T]]:
         ...
 
     @overload
@@ -981,18 +1036,28 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture]:
+    ) -> PrefectFutureList[PrefectFuture[T]]:
         ...
 
     @overload
     def map(
-        self: "Task[P, T]",
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
         return_state: Literal[True],
-        *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[State[T]]:
+    ) -> PrefectFutureList[State[T]]:
         ...
 
+    @overload
+    def map(
+        self: "Task[P, T]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> PrefectFutureList[State[T]]:
+        ...
+
+    @deprecated_async_method
     def map(
         self,
         *args: Any,
@@ -1004,8 +1069,9 @@ class Task(Generic[P, R]):
         """
         Submit a mapped run of the task to a worker.
 
-        Must be called within a flow function. If writing an async task, this
-        call must be awaited.
+        Must be called within a flow run context. Will return a list of futures
+        that should be waited on before exiting the flow context to ensure all
+        mapped tasks have completed.
 
         Must be called with at least one iterable and all iterables must be
         the same length. Any arguments that are not iterable will be treated as
@@ -1043,15 +1109,14 @@ class Task(Generic[P, R]):
             >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
-            >>>     my_task.map([1, 2, 3])
+            >>>     return my_task.map([1, 2, 3])
 
             Wait for all mapped tasks to finish
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
-            >>>     for future in futures:
-            >>>         future.wait()
+            >>>     futures.wait():
             >>>     # Now all of the mapped tasks have finished
             >>>     my_task(10)
 
@@ -1060,8 +1125,8 @@ class Task(Generic[P, R]):
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
-            >>>     for future in futures:
-            >>>         print(future.result())
+            >>>     for x in futures.result():
+            >>>         print(x)
             >>> my_flow()
             2
             3
@@ -1082,6 +1147,7 @@ class Task(Generic[P, R]):
             >>>
             >>>     # task 2 will wait for task_1 to complete
             >>>     y = task_2.map([1, 2, 3], wait_for=[x])
+            >>>     return y
 
             Use a non-iterable input as a constant across mapped tasks
             >>> @task
@@ -1090,7 +1156,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> def my_flow():
-            >>>     display.map("Check it out: ", [1, 2, 3])
+            >>>     return display.map("Check it out: ", [1, 2, 3])
             >>>
             >>> my_flow()
             Check it out: 1
@@ -1284,7 +1350,8 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    def serve(self) -> "Task":
+    @sync_compatible
+    async def serve(self) -> NoReturn:
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1303,7 +1370,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        serve(self)
+        await serve(self)
 
 
 @overload
@@ -1332,7 +1399,7 @@ def task(
         Callable[[int], List[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
-    persist_result: bool = True,
+    persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
@@ -1364,7 +1431,7 @@ def task(
         float, int, List[float], Callable[[int], List[float]], None
     ] = None,
     retry_jitter_factor: Optional[float] = None,
-    persist_result: bool = True,
+    persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
@@ -1410,8 +1477,10 @@ def task(
             cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd".
-        persist_result: An toggle indicating whether the result of this task
-            should be persisted to result storage. Defaults to `True`.
+        persist_result: A toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `None`, which
+            indicates that the global default should be used (which is `True` by
+            default).
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.

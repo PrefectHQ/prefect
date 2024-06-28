@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import anyio
+import pydantic
 import pytest
 
 from prefect import Flow, flow, task
@@ -17,7 +18,12 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
-from prefect.exceptions import CrashedRun, FailedRun, ParameterTypeError, Pause
+from prefect.exceptions import (
+    CrashedRun,
+    FlowPauseTimeout,
+    ParameterTypeError,
+    Pause,
+)
 from prefect.flow_engine import (
     FlowRunEngine,
     load_flow_and_flow_run,
@@ -120,6 +126,23 @@ class TestFlowRunsAsync:
         result = await run_flow(bar, parameters=parameters)
 
         assert result == (42, "nate")
+
+    async def test_with_default_pydantic_model_dict_params(
+        self, prefect_client: PrefectClient
+    ):
+        class TheModel(pydantic.BaseModel):
+            x: int
+            y: str
+
+        @flow
+        async def bar(required: str, model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
+            return required, model.x, model.y
+
+        flow_run = await prefect_client.create_flow_run(
+            bar, parameters={"required": "hello"}
+        )
+        result = await run_flow(flow=bar, flow_run=flow_run)
+        assert result == ("hello", 42, "nate")
 
     async def test_with_param_validation(self):
         @flow
@@ -274,6 +297,23 @@ class TestFlowRunsSync:
 
         assert result == (42, "nate")
 
+    async def test_with_default_pydantic_model_dict_params(
+        self, prefect_client: PrefectClient
+    ):
+        class TheModel(pydantic.BaseModel):
+            x: int
+            y: str
+
+        @flow
+        def bar(required: str, model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
+            return required, model.x, model.y
+
+        flow_run = await prefect_client.create_flow_run(
+            bar, parameters={"required": "hello"}
+        )
+        result = run_flow(flow=bar, flow_run=flow_run)
+        assert result == ("hello", 42, "nate")
+
     async def test_with_param_validation(self):
         @flow
         def bar(x: int):
@@ -412,13 +452,13 @@ class TestFlowRetries:
         task_run_count = 0
         flow_run_count = 0
 
-        @task
+        @task(persist_result=True)
         async def my_task():
             nonlocal task_run_count
             task_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         async def foo():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -572,13 +612,13 @@ class TestFlowRetries:
         child_run_count = 0
         flow_run_count = 0
 
-        @flow
+        @flow(persist_result=True)
         async def child_flow():
             nonlocal child_run_count
             child_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         async def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -919,7 +959,7 @@ class TestPauseFlowRun:
             await pause_flow_run(timeout=0.1)
             await doesnt_pause()
 
-        with pytest.raises(FailedRun):
+        with pytest.raises(FlowPauseTimeout):
             await pausing_flow()
 
     def test_paused_flows_block_execution_in_sync_flows(self, prefect_client):
@@ -990,7 +1030,7 @@ class TestPauseFlowRun:
         class FlowInput(RunInput):
             x: int
 
-        @flow
+        @flow(persist_result=False)
         async def pausing_flow():
             nonlocal flow_run_id
             context = FlowRunContext.get()
@@ -1273,7 +1313,7 @@ class TestSuspendFlowRun:
         class FlowInput(RunInput):
             x: int
 
-        @flow()
+        @flow(persist_result=False)
         async def suspending_flow():
             nonlocal flow_run_id
             context = get_run_context()
@@ -1520,6 +1560,17 @@ class TestGenerators:
             pass
         assert values == [1, 2]
 
+    async def test_with_default_pydantic_model_dict_params(self):
+        class TheModel(pydantic.BaseModel):
+            x: list[int]
+
+        @flow
+        async def g(required: str, model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+            for i in model.x:
+                yield i
+
+        assert [i async for i in g("hello")] == [1, 2, 3]
+
 
 class TestAsyncGenerators:
     async def test_generator_flow(self):
@@ -1667,3 +1718,15 @@ class TestAsyncGenerators:
         except ValueError:
             pass
         assert values == [1, 2]
+
+    async def test_with_default_pydantic_model_dict_params(self):
+        class TheModel(pydantic.BaseModel):
+            x: list[int]
+
+        @flow
+        def g(required: str, model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+            yield required
+            for i in model.x:
+                yield i
+
+        assert [i for i in g("hello")] == ["hello", 1, 2, 3]

@@ -225,9 +225,9 @@ to force column width */
     content: "Pro";
 }
 
-.custom::before {
+.enterprise::before {
     background-color: #115AF4;
-    content: "Custom";
+    content: "Enterprise";
 }
 
 .deprecated::before {
@@ -473,6 +473,7 @@ to force column width */
 a.cloud-button:hover {
     background-color: rgb(2, 37, 172);
 }
+
 /* hide the announcement banner in non-latest versions */
 [data-md-component="announce"] {
     display: none;
