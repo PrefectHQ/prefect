@@ -9,46 +9,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-        cache: 'pip'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
 
-    - name: Install yq
-      run: |
-        pip install yq
+      - name: Install yq
+        run: |
+          pip install yq
 
-    - name: Get required labels from release.yml
-      id: get-required-labels
-      run: |
-        labels=$(yq e '.changelog.categories[] | select(.title != "Uncategorized") | .labels[]' .github/release.yml | tr '\n' ' ')
-        echo "required_labels=$labels" >> $GITHUB_OUTPUT
+      - name: Get required labels from release.yml
+        id: get-required-labels
+        run: |
+          labels=$(yq e '.changelog.categories[] | select(.title != "Uncategorized") | .labels[]' .github/release.yml | tr '\n' ' ')
+          echo "required_labels=$labels" >> $GITHUB_OUTPUT
 
-    - name: Get PR labels
-      id: get-pr-labels
-      run: |
-        labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH")
-        echo "labels=$labels" >> $GITHUB_OUTPUT
+      - name: Get PR labels
+        id: get-pr-labels
+        run: |
+          labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH")
+          echo "labels=$labels" >> $GITHUB_OUTPUT
 
-    - name: Check for specific labels
-      id: check-label
-      run: |
-        required_labels=(${{ steps.get-required-labels.outputs.required_labels }})
-        found=false
-        for label in "${required_labels[@]}"; do
-          if echo "${{ steps.get-pr-labels.outputs.labels }}" | grep -q "$label"; then
-            found=true
-            break
-          fi
-        done
-        echo "label_exists=$found" >> $GITHUB_OUTPUT
+      - name: Check for specific labels
+        id: check-label
+        run: |
+          required_labels="${{ steps.get-required-labels.outputs.required_labels }}"
+          pr_labels="${{ steps.get-pr-labels.outputs.labels }}"
 
-    - name: Fail if no required labels are found
-      if: steps.check-label.outputs.label_exists == 'false'
-      run: |
-        echo "None of the required labels are applied to the PR."
-        exit 1
+          # Convert newline-separated strings into arrays
+          readarray -t required_labels_array <<< "$required_labels"
+          readarray -t pr_labels_array <<< "$pr_labels"
+
+          found=false
+          for required_label in "${required_labels_array[@]}"; do
+            for pr_label in "${pr_labels_array[@]}"; do
+              if [[ "$required_label" == "$pr_label" ]]; then
+                found=true
+                break 2
+              fi
+            done
+          done
+
+          echo "label_exists=$found" >> $GITHUB_OUTPUT
+
+      - name: Fail if no required labels are found
+        if: steps.check-label.outputs.label_exists == 'false'
+        run: |
+          echo "None of the required labels are applied to the PR."
+          exit 1
