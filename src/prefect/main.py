@@ -26,7 +26,6 @@ import prefect.context
 # Perform any forward-ref updates needed for Pydantic models
 import prefect.client.schemas
 
-prefect.context.FlowRunContext.model_rebuild()
 prefect.context.TaskRunContext.model_rebuild()
 prefect.client.schemas.State.model_rebuild()
 prefect.client.schemas.StateCreate.model_rebuild()
