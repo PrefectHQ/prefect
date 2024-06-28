@@ -1,7 +1,7 @@
 site_name: Prefect Docs
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
-edit_uri: edit/main/docs
+edit_uri: edit/2.x/docs
 extra_css:
     - stylesheets/theme.css
     - stylesheets/admonitions.css
