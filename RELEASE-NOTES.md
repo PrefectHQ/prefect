@@ -4,6 +4,7 @@
 
 ### Fixes
 - Fix bug where assignments inside functions are evaluated when running `prefect deploy` - https://github.com/PrefectHQ/prefect/pull/14403
+- Allow `uvicorn>0.29.0` - https://github.com/PrefectHQ/prefect/pull/14370
 
 ### Documentation
 - Add Prefect 3 announcement bar to 2.x docs - https://github.com/PrefectHQ/prefect/pull/14248
