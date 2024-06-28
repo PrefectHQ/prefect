@@ -307,3 +307,26 @@ def test_safe_load_namespace_ignores_code_in_if_name_equals_main_block():
     assert "x" in namespace
     assert "y" in namespace
     assert "z" not in namespace
+
+
+def test_safe_load_namespace_does_not_execute_function_body():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/14402
+    """
+    source_code = dedent(
+        """
+        you_done_goofed = False
+
+        def my_fn():
+            nonlocal you_done_goofed
+            you_done_goofed = True
+
+        def my_other_fn():
+            foo = my_fn()
+    """
+    )
+
+    # should not raise any errors
+    namespace = safe_load_namespace(source_code)
+
+    assert not namespace["you_done_goofed"]
