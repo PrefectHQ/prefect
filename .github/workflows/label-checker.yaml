@@ -1,0 +1,54 @@
+name: Check PR Labels
+
+on:
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize]
+
+jobs:
+  check-label:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install yq
+      run: |
+        pip install yq
+
+    - name: Get required labels from release.yml
+      id: get-required-labels
+      run: |
+        labels=$(yq e '.changelog.categories[] | select(.title != "Uncategorized") | .labels[]' .github/release.yml | tr '\n' ' ')
+        echo "required_labels=$labels" >> $GITHUB_OUTPUT
+
+    - name: Get PR labels
+      id: get-pr-labels
+      run: |
+        labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH")
+        echo "labels=$labels" >> $GITHUB_OUTPUT
+
+    - name: Check for specific labels
+      id: check-label
+      run: |
+        required_labels=(${{ steps.get-required-labels.outputs.required_labels }})
+        found=false
+        for label in "${required_labels[@]}"; do
+          if echo "${{ steps.get-pr-labels.outputs.labels }}" | grep -q "$label"; then
+            found=true
+            break
+          fi
+        done
+        echo "label_exists=$found" >> $GITHUB_OUTPUT
+
+    - name: Fail if no required labels are found
+      if: steps.check-label.outputs.label_exists == 'false'
+      run: |
+        echo "None of the required labels are applied to the PR."
+        exit 1
