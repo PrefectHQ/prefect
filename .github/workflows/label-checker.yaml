@@ -29,8 +29,11 @@ jobs:
           for label in $(yq -r '.changelog.categories[] | select(.title != "Uncategorized") | .labels[]' .github/release.yml); do
             labels+=("$label")
           done
-          echo "Required labels: $labels"
-          echo "required_labels=$labels" >> $GITHUB_OUTPUT
+
+          labels_string=$(IFS=, ; echo "${labels[*]}")
+
+          echo "Required labels: $labels_string"
+          echo "required_labels=$labels_string" >> $GITHUB_OUTPUT
 
       - name: Get PR labels
         id: get-pr-labels
@@ -39,14 +42,20 @@ jobs:
           for label in $(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH"); do
             labels+=("$label")
           done
-          echo "PR labels: $labels"
-          echo "labels=$labels" >> $GITHUB_OUTPUT
+
+          labels_string=$(IFS=, ; echo "${labels[*]}")
+
+          echo "PR labels: $labels_string"
+          echo "labels=$labels_string" >> $GITHUB_OUTPUT
 
       - name: Check for specific labels
         id: check-label
         run: |
           required_labels="${{ steps.get-required-labels.outputs.required_labels }}"
           pr_labels="${{ steps.get-pr-labels.outputs.labels }}"
+
+          IFS=',' read -r -a required_labels_array <<< "$required_labels"
+          IFS=',' read -r -a pr_labels_array <<< "$pr_labels"
 
           found=false
           for required_label in "${required_labels_array[@]}"; do
