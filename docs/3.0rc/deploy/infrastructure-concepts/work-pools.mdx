@@ -1,13 +1,13 @@
 ---
-title: Work pools
+title: Manage infrastructure with work pools
 description: Prefect work pools route deployment flow runs to workers.
 ---
 
 Work pools organize work for execution. Work pools have types corresponding to the infrastructure to execute the flow code, 
 as well as the delivery method of work to that environment. Pull work pools require workers to poll the work 
-pool for flow runs to execute. [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless) submit runs directly to your 
+pool for flow runs to execute. [Push work pools](/3.0rc/deploy/infrastructure-examples/serverless) submit runs directly to your 
 serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
-[Managed work pools](/3.0rc/deploy/control-runs/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
+[Managed work pools](/3.0rc/deploy/infrastructure-examples/managed) are administered by Prefect and handle the submission and execution of code on your behalf.
 
 <Tip>
 **Work pools are like pub/sub topics**
@@ -20,6 +20,62 @@ serverless infrastructure providers such as Google Cloud Run, Azure Container In
 
 Users can control aspects of work pool behavior, such as how many runs the pool allows to run concurrently. You can modify these options 
 at any time, and any workers requesting work for a specific pool only see matching flow runs.
+
+The following diagram provides a high-level overview of the conceptual elements involved in defining a work-pool based 
+deployment that is polled by a worker and executes a flow run based on that deployment.
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontSize': '19px'
+    }
+  }
+}%%
+
+flowchart LR
+    F("<div style='margin: 5px 10px 5px 5px;'>Flow Code</div>"):::yellow -.-> A("<div style='margin: 5px 10px 5px 5px;'>Deployment Definition</div>"):::gold
+    subgraph Server ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Prefect API</div>"]
+        D("<div style='margin: 5px 10px 5px 5px;'>Deployment</div>"):::green
+    end
+    subgraph Remote Storage ["<div style='width: 160px; text-align: center; margin-top: 5px;'>Remote Storage</div>"]
+        B("<div style='margin: 5px 6px 5px 5px;'>Flow</div>"):::yellow
+    end
+    subgraph Infrastructure ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Infrastructure</div>"]
+        G("<div style='margin: 5px 10px 5px 5px;'>Flow Run</div>"):::blue
+    end
+
+    A --> D
+    D --> E("<div style='margin: 5px 10px 5px 5px;'>Worker</div>"):::red
+    B -.-> E
+    A -.-> B
+    E -.-> G
+
+    classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px,color:black
+    classDef yellow fill:gold,stroke:gold,stroke-width:4px,color:black
+    classDef gray fill:lightgray,stroke:lightgray,stroke-width:4px
+    classDef blue fill:blue,stroke:blue,stroke-width:4px,color:white
+    classDef green fill:green,stroke:green,stroke-width:4px,color:white
+    classDef red fill:red,stroke:red,stroke-width:4px,color:white
+    classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
+```
+
+Work pool-based deployments that use a worker also allow you to assign a work queue name to prioritize work 
+and allow you to limit concurrent runs at the work pool level.
+
+When creating a deployment that uses a work pool and worker, there are two important considerations:
+
+- What instructions does a [worker](/3.0rc/deploy/infrastructure-concepts/workers/) require to set up an execution environment for your flow? 
+For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
+- How should the flow code be accessed?
+
+[Serve flows](/3.0rc/deploy/run-flows-in-local-processes/) shows how to create a deployment with a long-running process using `.serve`, 
+and how to move to a [work pool deployment](/3.0rc/deploy/infrastructure-examples/docker/) setup with `.deploy`.
+Learn more about when to move to [work pool deployments](#benefits-of-work-pools).
+
+Next, you'll learn how to use `.deploy` to create deployments with Python code.
+If you prefer to learn about using a YAML-based alternative for managing deployment configuration, skip to [Create deployments with YAML](/3.0rc/deploy/infrastructure-concepts/prefect-yaml).
 
 ### Work pool configuration
 
@@ -269,7 +325,7 @@ deployments:
         stream_output: false
 ```
 
-Learn more about [overriding job variables](/3.0rc/deploy/dynamic-infra/customize).
+Learn more about [overriding job variables](/3.0rc/deploy/infrastructure-concepts/customize).
 
 <Tip>
 **Advanced customization of the base job template**
@@ -286,7 +342,7 @@ Learn more about [overriding job variables](/3.0rc/deploy/dynamic-infra/customiz
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
     documentation.
 
-    See more information about [overriding a work pool's job variables](/3.0rc/deploy/dynamic-infra/customize).
+    See more information about [overriding a work pool's job variables](/3.0rc/deploy/infrastructure-concepts/customize).
 </Tip>
 
 ### View work pools
@@ -457,7 +513,7 @@ Work pools are a bridge between the Prefect orchestration layer and infrastructu
 To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
 
 <Tip>
-    **[Choosing Between `flow.deploy()` and `flow.serve()`](/3.0rc/deploy/serve-flows/#two-approaches-to-deployments)**
+    **Choosing Between `flow.deploy()` and `flow.serve()`**
 
     For many use cases, `serve` is sufficient for scheduling and orchestration.
     Work pools are great for complex infrastructure requirements. But they are optional.
@@ -480,9 +536,9 @@ Other advantages of work pools:
 
 - Configure default infrastructure configurations on your work pools that all jobs inherit and can override.
 - Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
-- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/control-runs/work-pools/#work-queues).
+- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/infrastructure-concepts/work-pools/#work-queues).
 
-Prefect provides several [types of work pools](/3.0rc/deploy/control-runs/work-pools/#work-pool-types).
+Prefect provides several [types of work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/#work-pool-types).
 Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
@@ -624,7 +680,7 @@ prefect deployment run 'get_repo_info/my-deployment'
 ```
 
 Prefect Managed work pools are a great way to get started with Prefect.  
-See the [Managed Execution guide](/3.0rc/deploy/control-runs/managed-execution) for more details.
+See the [Managed Execution guide](/3.0rc/deploy/infrastructure-examples/managed) for more details.
 
 For more control over the infrastructure that your flows run on, we recommend Prefect Cloud's push work pools.
 
@@ -747,9 +803,9 @@ Otherwise, you can pass `image="my-image:latest"` to `deploy`.
 The `cron` argument schedules the deployment to run at 1:00 AM every day.
 See the [schedules](/3.0rc/automate/add-schedules/) guide for more information on scheduling options.
 
-See the [Push Work Pool guide](/3.0rc/deploy/dynamic-infra/push-runs-serverless/) for more details and example commands for each 
+See the [Push Work Pool guide](/3.0rc/deploy/infrastructure-examples/serverless/) for more details and example commands for each 
 cloud provider.
 
 If you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect 
-server instance, see the Workers [guide](/3.0rc/deploy/dynamic-infra/push-runs-remote/). You will learn how 
+server instance, see the Workers [guide](/3.0rc/deploy/infrastructure-examples/docker/). You will learn how 
 to use work pools that rely on a worker and customize Docker images for container-based infrastructure.

@@ -1,5 +1,5 @@
 from typing import Type, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
@@ -48,7 +48,45 @@ async def missing_block_doc_ref_template():
                 "block_string": {
                     "type": "string",
                     "title": "Block String",
-                    "default": {"$ref": {"block_document_id": "non-existing"}},
+                    "default": {"$ref": {"block_document_id": str(uuid4())}},
+                },
+            },
+            "required": ["block_string"],
+        },
+    }
+
+
+@pytest.fixture
+async def empty_block_doc_ref_template():
+    return {
+        "job_configuration": {
+            "block": "{{ block_string }}",
+        },
+        "variables": {
+            "properties": {
+                "block_string": {
+                    "type": "string",
+                    "title": "Block String",
+                    "default": {"$ref": {"block_document_id": ""}},
+                },
+            },
+            "required": ["block_string"],
+        },
+    }
+
+
+@pytest.fixture
+async def malicious_block_doc_ref_template():
+    return {
+        "job_configuration": {
+            "block": "{{ block_string }}",
+        },
+        "variables": {
+            "properties": {
+                "block_string": {
+                    "type": "string",
+                    "title": "Block String",
+                    "default": {"$ref": {"block_document_id": "i'm hacking ya"}},
                 },
             },
             "required": ["block_string"],
@@ -251,6 +289,19 @@ async def create_deployment_with_work_pool(
 
 
 class TestWorkPoolValidation:
+    async def test_work_pool_template_validation_empty_block_document(
+        self,
+        session,
+        work_pool,
+        empty_block_doc_ref_template,
+    ):
+        with pytest.raises(HTTPException, match="404: Block not found."):
+            await validate_job_variable_defaults_for_work_pool(
+                session,
+                work_pool.name,
+                empty_block_doc_ref_template,
+            )
+
     async def test_work_pool_template_validation_missing_block_document(
         self,
         session,
@@ -262,6 +313,19 @@ class TestWorkPoolValidation:
                 session,
                 work_pool.name,
                 missing_block_doc_ref_template,
+            )
+
+    async def test_work_pool_template_validation_malicious_block_document(
+        self,
+        session,
+        work_pool,
+        malicious_block_doc_ref_template,
+    ):
+        with pytest.raises(HTTPException, match="404: Block not found."):
+            await validate_job_variable_defaults_for_work_pool(
+                session,
+                work_pool.name,
+                malicious_block_doc_ref_template,
             )
 
     async def test_work_pool_template_validation_block_document_reference_incorrect_type(

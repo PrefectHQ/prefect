@@ -1,11 +1,14 @@
 ---
-title: Serve flows
+title: Run flows in local processes
 description: Create a deployment for a flow by calling the `serve` method.
 ---
 
-The simplest way to create a [deployment](/3.0rc/deploy/serve-flows/) for your 
+The simplest way to create a [deployment](/3.0rc/deploy/infrastructure-examples/docker/) for your 
 flow is by calling its `serve` method.
-This method creates a deployment for the flow and starts a long-running process 
+
+## Serve a flow
+
+The serve method creates a deployment for the flow and starts a long-running process 
 that monitors for work from the Prefect server.
 When work is found, it is executed within its own isolated subprocess.
 
@@ -59,7 +62,42 @@ if __name__ == "__main__":
 ```
 </Tip>
 
-### Serve multiple flows at once
+## Additional serve options
+
+The `serve` method on flows exposes many options for the deployment.
+Here's how to use some of those options:
+
+- `cron`: a keyword that allows you to set a cron string schedule for the deployment; see 
+[schedules](/3.0rc/automate/add-schedules/) for more advanced scheduling options
+- `tags`: a keyword that allows you to tag this deployment and its runs for bookkeeping and filtering purposes
+- `description`: a keyword that allows you to document what this deployment does; by default the 
+description is set from the docstring of the flow function (if documented)
+- `version`: a keyword that allows you to track changes to your deployment; uses a hash of the 
+file containing the flow by default; popular options include semver tags or git commit hashes
+
+Next, add these options to your deployment:
+
+```python
+if __name__ == "__main__":
+    get_repo_info.serve(
+        name="my-first-deployment",
+        cron="* * * * *",
+        tags=["testing", "tutorial"],
+        description="Given a GitHub repository, logs repository statistics for that repo.",
+        version="tutorial/deployments",
+    )
+```
+
+When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work.
+Stop the script in the CLI using `CTRL+C` and your schedule automatically pauses.
+
+<Note>
+**`serve()` is a long-running process**
+
+To execute remotely triggered or scheduled runs, your script with `flow.serve` must be actively running.
+</Note>
+
+## Serve multiple flows at once
 
 Serve multiple flows with the same process using the `serve` utility along with the `to_deployment` method of flows:
 
@@ -87,6 +125,32 @@ if __name__ == "__main__":
 ```
 
 The behavior and interfaces are identical to the single flow case.
+A few things to note:
+
+- the `flow.to_deployment` interface exposes the *exact same* options as `flow.serve`; this method 
+produces a deployment object
+- the deployments are only registered with the API once `serve(...)` is called
+- when serving multiple deployments, the only requirement is that they share a Python environment; 
+they can be executed and scheduled independently of each other
+
+A few optional steps for exploration include:
+
+- pause and unpause the schedule for the "sleeper" deployment
+- use the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
+- cancel an active run for the "sleeper" deployment from the UI
+
+<Tip>
+**Hybrid execution option**
+
+Prefect's deployment interface allows you to choose a hybrid execution model.
+Whether you use Prefect Cloud or host a Prefect server instance, you can run workflows in the 
+environments best suited to their execution.
+This model enables efficient use of your infrastructure resources while maintaining the privacy 
+of your code and data.
+There is no ingress required.
+Read more about our [hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
+</Tip>
+
 
 ## Retrieve a flow from remote storage
 
