@@ -5,7 +5,7 @@ description: See examples of using Prefect tasks and the task worker.
 
 Prefect tasks help you quickly execute small, discrete units of work. _Deferred_ Prefect tasks run in a 
 background process using a Prefect task worker. Use deferred tasks to move work out of the foreground of your 
-application and distribute concurrent execution across across multiple processes or machines.
+app and distribute concurrent execution across multiple processes or machines.
 
 For example, if you have a web app, deferred tasks allow you to offload processes such as sending emails, processing 
 images, or inserting data into a database.
@@ -41,7 +41,7 @@ You can call a task to run it immediately, or you can defer the task by scheduli
 <Note>
 You can submit tasks to a _task runner_ such as Ray or Dask within 
 a workflow, which in Prefect is called a _flow_. However, this guide focuses on deferring task execution outside of 
-workflows. For example, by calling `my_task.delay()` within a web application.
+workflows. For example, by calling `my_task.delay()` within a web app.
 </Note>
 
 However you run a task, Prefect uses your task configuration to manage and control task execution.
@@ -105,7 +105,7 @@ You will:
 
 - run a Prefect task in the foreground by calling it
 - start a task worker and defer tasks so that they run in the background
-- create a basic FastAPI application that defers tasks when you hit an endpoint
+- create a basic FastAPI app that defers tasks when you hit an endpoint
 - use Docker in two examples that mimic real use cases
 
 One example uses a FastAPI server with multiple microservices and simulates a new user signup workflow.

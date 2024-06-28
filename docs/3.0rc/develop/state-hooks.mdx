@@ -84,7 +84,7 @@ state = lazy_flow(return_state=True)
 assert data == {"my_arg": "custom_value", "state": state}
 ```
 
-... or define your hook to accept arbitrary keyword arguments:
+Or define your hook to accept arbitrary keyword arguments:
 
 ```python
 from functools import partial
@@ -115,7 +115,7 @@ assert data == {"x": "foo", "y": 42, "state": task_run_state}
 
 ## Common uses of state change hooks
 
-Below are two common real-world applications of state change hooks. 
+Below are two common real-world apps of state change hooks. 
 
 ### Send a notification when a flow run fails
 
