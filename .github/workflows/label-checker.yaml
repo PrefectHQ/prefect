@@ -29,15 +29,17 @@ jobs:
           for label in $(yq -r '.changelog.categories[] | select(.title != "Uncategorized") | .labels[]' .github/release.yml); do
             labels+=("$label")
           done
+          echo "Required labels: $labels"
           echo "required_labels=$labels" >> $GITHUB_OUTPUT
 
       - name: Get PR labels
         id: get-pr-labels
         run: |
           labels=()
-          for label in $(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | tr '\n' ' '); do
+          for label in $(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH"); do
             labels+=("$label")
           done
+          echo "PR labels: $labels"
           echo "labels=$labels" >> $GITHUB_OUTPUT
 
       - name: Check for specific labels
