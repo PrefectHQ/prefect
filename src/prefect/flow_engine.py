@@ -16,6 +16,7 @@ from typing import (
     Literal,
     Optional,
     Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -39,7 +40,7 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.results import ResultFactory
+from prefect.results import BaseResult, ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
@@ -50,6 +51,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
     call_with_parameters,
@@ -99,6 +101,10 @@ class FlowRunEngine(Generic[P, R]):
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     wait_for: Optional[Iterable[PrefectFuture]] = None
+    # holds the return value from the user code
+    _return_value: Union[R, Type[NotSet]] = NotSet
+    # holds the exception raised by the user code, if any
+    _raised: Union[Exception, Type[NotSet]] = NotSet
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
@@ -212,6 +218,30 @@ class FlowRunEngine(Generic[P, R]):
         return state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
+        if self._return_value is not NotSet and not isinstance(
+            self._return_value, State
+        ):
+            if isinstance(self._return_value, BaseResult):
+                _result = self._return_value.get()
+            else:
+                _result = self._return_value
+
+            if inspect.isawaitable(_result):
+                # getting the value for a BaseResult may return an awaitable
+                # depending on whether the parent frame is sync or not
+                _result = run_coro_as_sync(_result)
+            return _result
+
+        if self._raised is not NotSet:
+            if raise_on_failure:
+                raise self._raised
+            return self._raised
+
+        # This is a fall through case which leans on the existing state result mechanics to get the
+        # return value. This is necessary because we currently will return a State object if the
+        # the State was Prefect-created.
+        # TODO: Remove the need to get the result from a State except in cases where the return value
+        # is a State object.
         _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
@@ -223,13 +253,15 @@ class FlowRunEngine(Generic[P, R]):
         result_factory = getattr(FlowRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
+        resolved_result = resolve_futures_to_states(result)
         terminal_state = run_coro_as_sync(
             return_value_to_state(
-                resolve_futures_to_states(result),
+                resolved_result,
                 result_factory=result_factory,
             )
         )
         self.set_state(terminal_state)
+        self._return_value = resolved_result
         return result
 
     def handle_exception(
@@ -256,6 +288,7 @@ class FlowRunEngine(Generic[P, R]):
                 ),
             )
             state = self.set_state(Running())
+        self._raised = exc
         return state
 
     def handle_timeout(self, exc: TimeoutError) -> None:
@@ -272,12 +305,14 @@ class FlowRunEngine(Generic[P, R]):
             name="TimedOut",
         )
         self.set_state(state)
+        self._raised = exc
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
+        self._raised = exc
 
     def load_subflow_run(
         self,
@@ -324,7 +359,9 @@ class FlowRunEngine(Generic[P, R]):
                 limit=1,
             )
             if flow_runs:
-                return flow_runs[-1]
+                loaded_flow_run = flow_runs[-1]
+                self._return_value = loaded_flow_run.state
+                return loaded_flow_run
 
     def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
@@ -584,7 +621,7 @@ class FlowRunEngine(Generic[P, R]):
             except TimeoutError as exc:
                 self.handle_timeout(exc)
             except Exception as exc:
-                self.logger.exception(f"Encountered exception during execution: {exc}")
+                self.logger.exception("Encountered exception during execution: %r", exc)
                 self.handle_exception(exc)
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
