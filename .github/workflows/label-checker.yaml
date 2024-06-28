@@ -22,40 +22,18 @@ jobs:
         run: |
           pip install yq
 
-      - name: Get required labels from release.yml
-        id: get-required-labels
-        run: |
-          labels=()
-          for label in $(yq -r '.changelog.categories[] | select(.title != "Uncategorized") | .labels[]' .github/release.yml); do
-            labels+=("$label")
-          done
-
-          labels_string=$(IFS=, ; echo "${labels[*]}")
-
-          echo "Required labels: $labels_string"
-          echo "required_labels=$labels_string" >> $GITHUB_OUTPUT
-
-      - name: Get PR labels
-        id: get-pr-labels
-        run: |
-          labels=()
-          for label in $(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH"); do
-            labels+=("$label")
-          done
-
-          labels_string=$(IFS=, ; echo "${labels[*]}")
-
-          echo "PR labels: $labels_string"
-          echo "labels=$labels_string" >> $GITHUB_OUTPUT
-
       - name: Check for specific labels
         id: check-label
         run: |
-          required_labels="${{ steps.get-required-labels.outputs.required_labels }}"
-          pr_labels="${{ steps.get-pr-labels.outputs.labels }}"
+          required_labels=()
+          for label in $(yq -r '.changelog.categories[] | select(.title != "Uncategorized") | .labels[]' .github/release.yml); do
+            required_labels+=("$label")
+          done
 
-          IFS=',' read -r -a required_labels_array <<< "$required_labels"
-          IFS=',' read -r -a pr_labels_array <<< "$pr_labels"
+          pr_labels=()
+          for label in $(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH"); do
+            pr_labels+=("$label")
+          done
 
           found=false
           for required_label in "${required_labels_array[@]}"; do
