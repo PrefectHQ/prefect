@@ -1,5 +1,18 @@
 # Prefect Release Notes
 
+## Release 2.19.7
+
+### Fixes
+- Fix bug where assignments inside functions are evaluated when running `prefect deploy` - https://github.com/PrefectHQ/prefect/pull/14403
+- Allow `uvicorn>0.29.0` - https://github.com/PrefectHQ/prefect/pull/14370
+
+### Documentation
+- Add Prefect 3 announcement bar to 2.x docs - https://github.com/PrefectHQ/prefect/pull/14248
+- Update Prefect intro in 2.19.x docs - https://github.com/PrefectHQ/prefect/pull/14376
+- Update docs edit pencil icon link to route to `2.x` branch in GitHub - https://github.com/PrefectHQ/prefect/pull/14378
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.6...2.19.7
+
 ## Release 2.19.6
 
 ### Enhancements
@@ -14,7 +27,7 @@
 - Fix typo in Cloud Run V2 worker navigation link - https://github.com/PrefectHQ/prefect/pull/14170
 
 
-**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.19.5...2.19.6
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.5...2.19.6
 
 ## Release 2.19.5
 
