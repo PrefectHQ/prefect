@@ -1310,9 +1310,10 @@ class Task(Generic[P, R]):
             )
         )  # type: ignore
 
-        logger.info(
-            f"Created task run {task_run.name!r}. View it in the UI at {url_for(task_run)!r}"
-        )
+        if task_run_url := url_for(task_run):
+            logger.info(
+                f"Created task run {task_run.name!r}. View it in the UI at {task_run_url!r}"
+            )
 
         return PrefectDistributedFuture(task_run_id=task_run.id)
 
