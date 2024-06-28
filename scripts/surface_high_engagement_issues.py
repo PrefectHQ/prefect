@@ -198,8 +198,14 @@ def get_issue_id(issue_number: int, headers: dict) -> str:
     )
     response.raise_for_status()
     data = response.json()
-    issue_id = data["data"]["repository"]["issue"]["id"]
-    print(f"Retrieved issue ID: {issue_id}")
+    try:
+        assert data is not None
+        assert "errors" not in data
+        issue_id = data["data"]["repository"]["issue"]["id"]
+        print(f"Retrieved issue ID: {issue_id}")
+    except Exception:
+        print(f"Failed to retrieve issue ID for issue #{issue_number}: {data}")
+
     return issue_id
 
 
@@ -215,7 +221,6 @@ def get_all_project_items(headers) -> list:
     """
     global project_items_cache
     if project_items_cache is not None:
-        "use da cache"
         return project_items_cache
 
     all_items = []
@@ -325,8 +330,11 @@ def add_issue_to_project(issue_id: str, project_id: str, headers: dict):
     )
     response.raise_for_status()
     data = response.json()
-    item_id = data["data"]["addProjectV2ItemById"]["item"]["id"]
-    print(f"Added issue to project with item ID: {item_id}")
+    try:
+        item_id = data["data"]["addProjectV2ItemById"]["item"]["id"]
+        print(f"Added issue to project with item ID: {item_id}")
+    except Exception:
+        print(f"Failed to add issue to project: {data}")
     return item_id
 
 
