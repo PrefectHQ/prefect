@@ -30,14 +30,23 @@ MOVED_IN_V3 = {
     "prefect.client:get_client": "prefect.client.orchestration:get_client",
 }
 
+upgrade_guide_msg = "Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/."
+
 REMOVED_IN_V3 = {
     "prefect.client.schemas.objects:MinimalDeploymentSchedule": "Use `prefect.client.schemas.actions.DeploymentScheduleCreate` instead.",
     "prefect.deployments.deployments:Deployment": "Use `flow.serve()`, `flow.deploy()`, or `prefect deploy` instead.",
     "prefect.deployments:Deployment": "Use `flow.serve()`, `flow.deploy()`, or `prefect deploy` instead.",
-    "prefect.filesystems:GCS": "Use `prefect_gcp` instead.",
-    "prefect.filesystems:Azure": "Use `prefect_azure` instead.",
-    "prefect.filesystems:S3": "Use `prefect_aws` instead.",
+    "prefect.filesystems:GCS": "Use `prefect_gcp.GcsBucket` instead.",
+    "prefect.filesystems:Azure": "Use `prefect_azure.AzureBlobStorageContainer` instead.",
+    "prefect.filesystems:S3": "Use `prefect_aws.S3Bucket` instead.",
+    "prefect.filesystems:GitHub": "Use `prefect_github.GitHubRepository` instead.",
     "prefect.engine:_out_of_process_pause": "Use `prefect.flow_runs.pause_flow_run` instead.",
+    "prefect.agent:PrefectAgent": "Use workers instead. " + upgrade_guide_msg,
+    "prefect.infrastructure:KubernetesJob": "Use workers instead. " + upgrade_guide_msg,
+    "prefect.infrastructure.base:Infrastructure": "Use the `BaseWorker` class to create custom infrastructure integrations instead. "
+    + upgrade_guide_msg,
+    "prefect.workers.block:BlockWorkerJobConfiguration": upgrade_guide_msg,
+    "prefect.workers.cloud:BlockWorker": upgrade_guide_msg,
 }
 
 # IMPORTANT FOR USAGE: When adding new modules to MOVED_IN_V3 or REMOVED_IN_V3, include the following lines at the bottom of that module:
@@ -114,7 +123,7 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
         if import_path in REMOVED_IN_V3.keys():
             error_message = REMOVED_IN_V3[import_path]
             raise PrefectImportError(
-                f"{import_path!r} has been removed. {error_message}"
+                f"`{import_path}` has been removed. {error_message}"
             )
 
         globals: Dict[str, Any] = sys.modules[module_name].__dict__
