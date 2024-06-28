@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database import orm_models
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.utilities.collections import batched_iterable
 
@@ -31,9 +32,9 @@ def split_logs_into_batches(logs):
         yield batch
 
 
-@inject_db
+@db_injector
 async def create_logs(
-    session: AsyncSession, db: PrefectDBInterface, logs: List[schemas.core.Log]
+    db: PrefectDBInterface, session: AsyncSession, logs: List[schemas.core.Log]
 ):
     """
     Creates new logs
@@ -47,7 +48,7 @@ async def create_logs(
     """
     try:
         await session.execute(
-            db.insert(db.Log).values([log.model_dump() for log in logs])
+            db.insert(orm_models.Log).values([log.model_dump() for log in logs])
         )
     except RuntimeError as exc:
         if "can't create new thread at interpreter shutdown" in str(exc):
@@ -59,10 +60,8 @@ async def create_logs(
             raise
 
 
-@inject_db
 async def read_logs(
     session: AsyncSession,
-    db: PrefectDBInterface,
     log_filter: schemas.filters.LogFilter,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
@@ -80,9 +79,11 @@ async def read_logs(
         sort: Query sort
 
     Returns:
-        List[db.Log]: the matching logs
+        List[orm_models.Log]: the matching logs
     """
-    query = select(db.Log).order_by(sort.as_sql_sort()).offset(offset).limit(limit)
+    query = (
+        select(orm_models.Log).order_by(sort.as_sql_sort()).offset(offset).limit(limit)
+    )
 
     if log_filter:
         query = query.where(log_filter.as_sql_filter())
