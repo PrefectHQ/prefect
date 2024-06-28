@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
-from prefect.settings import PREFECT_API_URL, temporary_settings
+from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
 from prefect.states import Running
 from prefect.task_worker import TaskWorker, serve
 from prefect.tasks import task_input_hash
@@ -186,6 +186,20 @@ async def test_task_worker_stays_running_on_errors(monkeypatch):
 
     with anyio.move_on_after(1):
         await task_worker.start()
+
+
+async def test_task_worker_emits_run_ui_url_upon_submission(
+    foo_task, prefect_client, caplog
+):
+    task_worker = TaskWorker(foo_task)
+
+    task_run_future = foo_task.apply_async((42,))
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+
+    with temporary_settings({PREFECT_UI_URL: "http://test/api"}):
+        await task_worker.execute_task_run(task_run)
+
+    assert "in the UI at 'http://test/api/runs/task-run/" in caplog.text
 
 
 @pytest.mark.usefixtures("mock_task_worker_start")

@@ -66,6 +66,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -1300,14 +1301,20 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        task_run = run_coro_as_sync(
+        task_run: TaskRun = run_coro_as_sync(
             self.create_run(
                 parameters=parameters,
                 deferred=True,
                 wait_for=wait_for,
                 extra_task_inputs=dependencies,
             )
-        )
+        )  # type: ignore
+
+        if task_run_url := url_for(task_run):
+            logger.info(
+                f"Created task run {task_run.name!r}. View it in the UI at {task_run_url!r}"
+            )
+
         return PrefectDistributedFuture(task_run_id=task_run.id)
 
     def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture:

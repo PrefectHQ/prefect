@@ -39,6 +39,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
+    PREFECT_UI_URL,
     temporary_settings,
 )
 from prefect.states import State
@@ -4978,6 +4979,16 @@ class TestApplyAsync:
             "x": [TaskRunResult(id=task_run_id)],
             "y": [],
         }
+
+    def test_apply_async_emits_run_ui_url(self, caplog):
+        @task
+        def add(x, y):
+            return x + y
+
+        with temporary_settings({PREFECT_UI_URL: "http://test/api"}):
+            add.apply_async((42, 42))
+
+        assert "in the UI at 'http://test/api/runs/task-run/" in caplog.text
 
 
 class TestDelay:
