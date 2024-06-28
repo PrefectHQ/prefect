@@ -1,6 +1,7 @@
 from prefect._internal.compatibility.migration import getattr_migration
 import prefect.deployments.base
-import prefect.deployments.steps
+
+# import prefect.deployments.steps
 from prefect.deployments.base import (
     initialize_project,
 )

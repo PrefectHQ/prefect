@@ -9,11 +9,10 @@ For more user-accessible information about the current run, see [`prefect.runtim
 import os
 import sys
 import warnings
-from contextlib import ExitStack, contextmanager
+from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     Generator,
@@ -33,82 +32,17 @@ import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
-from prefect.client.schemas import FlowRun, TaskRun
-from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
-from prefect.states import State
-from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 T = TypeVar("T")
 
-if TYPE_CHECKING:
-    from prefect.flows import Flow
-    from prefect.tasks import Task
 
 # Define the global settings context variable
 # This will be populated downstream but must be null here to facilitate loading the
 # default settings.
 GLOBAL_SETTINGS_CONTEXT = None  # type: ignore
-
-
-def serialize_context() -> Dict[str, Any]:
-    """
-    Serialize the current context for use in a remote execution environment.
-    """
-
-    flow_run_context = EngineContext.get()
-    task_run_context = TaskRunContext.get()
-    tags_context = TagsContext.get()
-    settings_context = SettingsContext.get()
-
-    return {
-        "flow_run_context": flow_run_context.serialize() if flow_run_context else {},
-        "task_run_context": task_run_context.serialize() if task_run_context else {},
-        "tags_context": tags_context.serialize() if tags_context else {},
-        "settings_context": settings_context.serialize() if settings_context else {},
-    }
-
-
-@contextmanager
-def hydrated_context(
-    serialized_context: Optional[Dict[str, Any]] = None,
-    client: Union[PrefectClient, SyncPrefectClient, None] = None,
-):
-    with ExitStack() as stack:
-        if serialized_context:
-            # Set up settings context
-            if settings_context := serialized_context.get("settings_context"):
-                stack.enter_context(SettingsContext(**settings_context))
-            # Set up parent flow run context
-            client = client or get_client(sync_client=True)
-            if flow_run_context := serialized_context.get("flow_run_context"):
-                flow = flow_run_context["flow"]
-                flow_run_context = FlowRunContext(
-                    **flow_run_context,
-                    client=client,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
-                    task_runner=flow.task_runner.duplicate(),
-                    detached=True,
-                )
-                stack.enter_context(flow_run_context)
-            # Set up parent task run context
-            if parent_task_run_context := serialized_context.get("task_run_context"):
-                parent_task = parent_task_run_context["task"]
-                task_run_context = TaskRunContext(
-                    **parent_task_run_context,
-                    client=client,
-                    result_factory=run_coro_as_sync(
-                        ResultFactory.from_autonomous_task(parent_task)
-                    ),
-                )
-                stack.enter_context(task_run_context)
-            # Set up tags context
-            if tags_context := serialized_context.get("tags_context"):
-                stack.enter_context(tags(*tags_context["current_tags"]))
-        yield
 
 
 class ContextModel(BaseModel):
@@ -177,11 +111,6 @@ class ContextModel(BaseModel):
 class ClientContext(ContextModel):
     """
     A context for managing the Prefect client instances.
-
-    Clients were formerly tracked on the TaskRunContext and FlowRunContext, but
-    having two separate places and the addition of both sync and async clients
-    made it difficult to manage. This context is intended to be the single
-    source for clients.
 
     The client creates both sync and async clients, which can either be read
     directly from the context object OR loaded with get_client, inject_client,
@@ -256,105 +185,13 @@ class RunContext(ContextModel):
         )
 
 
-class EngineContext(RunContext):
-    """
-    The context for a flow run. Data in this context is only available from within a
-    flow run function.
-
-    Attributes:
-        flow: The flow instance associated with the run
-        flow_run: The API metadata for the flow run
-        task_runner: The task runner instance being used for the flow run
-        task_run_futures: A list of futures for task runs submitted within this flow run
-        task_run_states: A list of states for task runs created within this flow run
-        task_run_results: A mapping of result ids to task run states for this flow run
-        flow_run_states: A list of states for flow runs created within this flow run
-    """
-
-    flow: Optional["Flow"] = None
-    flow_run: Optional[FlowRun] = None
-    task_runner: TaskRunner
-    log_prints: bool = False
-    parameters: Optional[Dict[str, Any]] = None
-
-    # Flag signaling if the flow run context has been serialized and sent
-    # to remote infrastructure.
-    detached: bool = False
-
-    # Result handling
-    result_factory: ResultFactory
-
-    # Counter for task calls allowing unique
-    task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
-
-    # Counter for flow pauses
-    observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
-
-    # Tracking for result from task runs in this flow run
-    task_run_results: Dict[int, State] = Field(default_factory=dict)
-
-    # Events worker to emit events to Prefect Cloud
-    events: Optional[EventsWorker] = None
-
-    __var__: ContextVar = ContextVar("flow_run")
-
-    def serialize(self):
-        return self.model_dump(
-            include={
-                "flow_run",
-                "flow",
-                "parameters",
-                "log_prints",
-                "start_time",
-                "input_keyset",
-            },
-            exclude_unset=True,
-        )
-
-
-FlowRunContext = EngineContext  # for backwards compatibility
-
-
-class TaskRunContext(RunContext):
-    """
-    The context for a task run. Data in this context is only available from within a
-    task run function.
-
-    Attributes:
-        task: The task instance associated with the task run
-        task_run: The API metadata for this task run
-    """
-
-    task: "Task"
-    task_run: TaskRun
-    log_prints: bool = False
-    parameters: Dict[str, Any]
-
-    # Result handling
-    result_factory: ResultFactory
-
-    __var__ = ContextVar("task_run")
-
-    def serialize(self):
-        return self.model_dump(
-            include={
-                "task_run",
-                "task",
-                "parameters",
-                "log_prints",
-                "start_time",
-                "input_keyset",
-            },
-            exclude_unset=True,
-        )
-
-
 class TagsContext(ContextModel):
     """
     The context for `prefect.tags` management.
 
     Attributes:
         current_tags: A set of current tags in the context
+
     """
 
     current_tags: Set[str] = Field(default_factory=set)
@@ -410,29 +247,6 @@ class SettingsContext(ContextModel):
     def get(cls) -> "SettingsContext":
         # Return the global context instead of `None` if no context exists
         return super().get() or GLOBAL_SETTINGS_CONTEXT
-
-
-def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
-    """
-    Get the current run context from within a task or flow function.
-
-    Returns:
-        A `FlowRunContext` or `TaskRunContext` depending on the function type.
-
-    Raises
-        RuntimeError: If called outside of a flow or task run.
-    """
-    task_run_ctx = TaskRunContext.get()
-    if task_run_ctx:
-        return task_run_ctx
-
-    flow_run_ctx = FlowRunContext.get()
-    if flow_run_ctx:
-        return flow_run_ctx
-
-    raise MissingContextError(
-        "No run context available. You are not in a flow or task run context."
-    )
 
 
 def get_settings_context() -> SettingsContext:
