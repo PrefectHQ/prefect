@@ -24,9 +24,6 @@ See [settings](/3.0rc/manage/settings-and-profiles) for more information on how 
 
 ## Persisting Results
 
-As mentioned above, enabling result persistence by default can be achieved through the 
-`PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting which is set to `False` by default.
-
 Result persistence can also be enabled or disabled on both individual flows and individual tasks.
 The following keywords on the task decorator control result persistence for that task:
 - `persist_result`: a boolean that allows you to explicity enable or disable result persistence.
@@ -55,7 +52,7 @@ Any settings _explicitly_ set on a task take precedence over the flow settings.
 ### Default persistence configuration
 
 Result persistence is configured with the following defaults:
-All of these defaults are configurable and can also be explicitly set on flows and tasks through the
+Each default is configurable and can be explicitly set on flows and tasks through the
 [keyword arguments listed above](results#persisting-results).
 
 By default, results are persisted locally to `~/.prefect/storage/`. The filename is computed based on the task's
