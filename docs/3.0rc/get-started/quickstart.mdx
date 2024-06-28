@@ -146,13 +146,13 @@ Prefect automatically tracks the state of the flow run and logs the output in th
 ## Create a work pool
 
 Running a flow locally is a good start, but you should use a remote destination for production flows.
-A [work pool](/3.0rc/deploy/control-runs/work-pools/) is the most common way to do this.
+A [work pool](/3.0rc/deploy/infrastructure-concepts/work-pools/) is the most common way to do this.
 
 <Tabs>
   <Tab title="Prefect Cloud">
 Deploy your flow to Cloud using a managed work pool.
 
-1. Create a [managed work pool](/3.0rc/deploy/control-runs/work-pools):
+1. Create a [managed work pool](/3.0rc/deploy/infrastructure-concepts/work-pools):
 
    ```bash
    prefect work-pool create my-work-pool --type prefect:managed
@@ -189,7 +189,7 @@ You can also choose from other [work pool types](https://docs.prefect.io/concept
 
 ## Deploy and schedule your flow
 
-A [deployment](/3.0rc/deploy/serve-flows/) is used to determine when, where, and how a flow function should run.
+A [deployment](/3.0rc/deploy/infrastructure-examples/docker/) is used to determine when, where, and how a flow function should run.
 Deployments elevate flows to remotely configurable entities that have their own API.
 
 1. Create a deployment script:
@@ -213,7 +213,7 @@ Deployments elevate flows to remotely configurable entities that have their own 
 
    <Tip>
    You can store your flow code in nearly any location as long as Prefect can access it.
-   See [Where to store your flow code](/3.0rc/deploy/dynamic-infra/retrieve-flow-code) for more details.
+   See [Where to store your flow code](/3.0rc/deploy/infrastructure-concepts/store-flow-code) for more details.
    </Tip>
 
 1. Run the script to create the deployment:
