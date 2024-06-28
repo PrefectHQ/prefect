@@ -37,6 +37,7 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
+from prefect.utilities.urls import url_for
 
 logger = get_logger("task_worker")
 
@@ -288,10 +289,6 @@ class TaskWorker:
                     await self._client._client.delete(f"/task_runs/{task_run.id}")
                 return
 
-        logger.debug(
-            f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
-        )
-
         try:
             new_state = Pending()
             new_state.state_details.deferred = True
@@ -325,6 +322,11 @@ class TaskWorker:
             initial_state=task_run.state,
             validated_state=state,
         )
+
+        if task_run_url := url_for(task_run):
+            logger.info(
+                f"Submitting task run {task_run.name!r} to engine. View run in the UI at {task_run_url!r}"
+            )
 
         if task.isasync:
             await run_task_async(
