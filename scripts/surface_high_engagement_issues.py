@@ -1,4 +1,3 @@
-import argparse
 import os
 import re
 import shutil
@@ -396,12 +395,5 @@ def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_day
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--new_comment_interval_days",
-        type=int,
-        default=1,
-        help="Interval in days to check for new comments",
-    )
-    args = parser.parse_args()
-    set_needs_priority_status_on_high_engagement_issues(args.new_comment_interval_days)
+    new_comment_interval_days = int(os.getenv("NEW_COMMENT_INTERVAL_DAYS", 1))
+    set_needs_priority_status_on_high_engagement_issues(new_comment_interval_days)

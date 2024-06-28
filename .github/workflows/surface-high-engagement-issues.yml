@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 0 * * *' # Runs every day at midnight UTC
   workflow_dispatch:
+    inputs:
+        new_comment_interval_days:
+          description: 'Interval in days to check for new comments'
+          required: true
+          default: '1'
 
 jobs:
   surface-high-engagement-issues:
@@ -26,5 +31,6 @@ jobs:
     - name: Run surface_high_engagement_issues script
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NEW_COMMENT_INTERVAL_DAYS: ${{ github.event.inputs.new_comment_interval_days }}
       run: |
         python scripts/surface_high_engagement_issues.py
