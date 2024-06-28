@@ -380,15 +380,10 @@ def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_day
         issue_number = issue["number"]
         if issue_has_new_comment(
             issue, new_comment_interval_days, headers
-        ) or not prioritized_recently(
-            issue_number, headers
-        ):  # tk change back to and instead of or
-            issue_id = get_issue_id(
-                issue_number, headers
-            )  # Issue id is a globally unique identifier
-            project_item_id = get_project_item_id(
-                issue_id, headers
-            )  # Project item id is unique to the project
+        ) or not prioritized_recently(issue_number, headers):
+            # Issue id is a globally unique identifier
+            issue_id = get_issue_id(issue_number, headers)
+            project_item_id = get_project_item_id(issue_id, headers)
             if project_item_id is None:
                 print(f"Issue #{issue_number} is not in the project. Adding it now.")
                 project_item_id = add_issue_to_project(issue_id, PROJECT_ID, headers)
