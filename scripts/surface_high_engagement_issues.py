@@ -379,7 +379,7 @@ def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_day
         issue_number = issue["number"]
         if issue_has_new_comment(
             issue, new_comment_interval_days, headers
-        ) or not prioritized_recently(issue_number, headers):
+        ) and not prioritized_recently(issue_number, headers):
             # Issue id is a globally unique identifier
             issue_id = get_issue_id(issue_number, headers)
             project_item_id = get_project_item_id(issue_id, headers)
