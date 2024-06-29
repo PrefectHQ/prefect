@@ -17,7 +17,7 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
-from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE
+from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE, CachePolicy
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
@@ -39,6 +39,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
+    PREFECT_UI_URL,
     temporary_settings,
 )
 from prefect.states import State
@@ -486,6 +487,38 @@ class TestTaskCall:
                 @staticmethod
                 def bar():
                     pass
+
+    def test_returns_when_cache_result_in_memory_is_false_sync_task(self):
+        @task(cache_result_in_memory=False)
+        def my_task():
+            return 42
+
+        assert my_task() == 42
+
+    async def test_returns_when_cache_result_in_memory_is_false_async_task(self):
+        @task(cache_result_in_memory=False)
+        async def my_task():
+            return 42
+
+        assert await my_task() == 42
+
+    def test_raises_correct_error_when_cache_result_in_memory_is_false_sync_task(self):
+        @task(cache_result_in_memory=False)
+        def my_task():
+            raise ValueError("Test")
+
+        with pytest.raises(ValueError, match="Test"):
+            my_task()
+
+    async def test_raises_correct_error_when_cache_result_in_memory_is_false_async_task(
+        self,
+    ):
+        @task(cache_result_in_memory=False)
+        async def my_task():
+            raise ValueError("Test")
+
+        with pytest.raises(ValueError, match="Test"):
+            await my_task()
 
 
 class TestTaskRun:
@@ -1185,6 +1218,100 @@ class TestTaskRetries:
             assert mock.call_count == 2
 
 
+class TestResultPersistence:
+    @pytest.mark.parametrize("persist_result", [True, False])
+    def test_persist_result_set_to_bool(self, persist_result):
+        @task(persist_result=persist_result)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(persist_result=persist_result)
+
+        assert my_task.persist_result is persist_result
+        assert new_task.persist_result is persist_result
+
+    @pytest.mark.parametrize(
+        "cache_policy",
+        [policy for policy in CachePolicy.__subclasses__() if policy != NONE],
+    )
+    def test_setting_cache_policy_sets_persist_result_to_true(self, cache_policy):
+        @task(cache_policy=cache_policy)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(cache_policy=cache_policy)
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_cache_key_fn_sets_persist_result_to_true(self):
+        @task(cache_key_fn=lambda *_: "test-key")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(cache_key_fn=lambda *_: "test-key")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
+        block = LocalFileSystem(basepath=str(tmpdir))
+        block.save("test-name", _sync=True)
+
+        @task(result_storage=block)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage=block)
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_serializer_sets_persist_result_to_true(self):
+        @task(result_serializer="json")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_serializer="json")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_storage_key_sets_persist_result_to_true(self):
+        @task(result_storage_key="test-key")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage_key="test-key")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+
 class TestTaskCaching:
     async def test_repeated_task_call_within_flow_is_cached_by_default(self):
         @task(persist_result=True)
@@ -1554,7 +1681,7 @@ class TestTaskCaching:
     ):
         block = LocalFileSystem(basepath=str(tmpdir))
 
-        block.save("test-cache-key-fn-takes-precedence-over-cache-policy")
+        await block.save("test-cache-key-fn-takes-precedence-over-cache-policy")
 
         @task(
             cache_key_fn=lambda *_: "cache-hit-9",
@@ -2911,6 +3038,9 @@ class TestTaskWithOptions:
         def second_cache_key_fn(*_):
             return "second cache hit"
 
+        block = LocalFileSystem(basepath="foo")
+        block.save("foo-test", _sync=True)
+
         @task(
             name="Initial task",
             description="Task before with options",
@@ -2921,7 +3051,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=5,
             persist_result=True,
             result_serializer="pickle",
-            result_storage=LocalFileSystem(basepath="foo"),
+            result_storage=block,
             cache_result_in_memory=False,
             timeout_seconds=None,
             refresh_cache=False,
@@ -2929,6 +3059,9 @@ class TestTaskWithOptions:
         )
         def initial_task():
             pass
+
+        new_block = LocalFileSystem(basepath="bar")
+        new_block.save("bar-test", _sync=True)
 
         task_with_options = initial_task.with_options(
             name="Copied task",
@@ -2940,7 +3073,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=10,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(basepath="bar"),
+            result_storage=new_block,
             cache_result_in_memory=True,
             timeout_seconds=42,
             refresh_cache=True,
@@ -2956,7 +3089,7 @@ class TestTaskWithOptions:
         assert task_with_options.retry_delay_seconds == 10
         assert task_with_options.persist_result is False
         assert task_with_options.result_serializer == "json"
-        assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
+        assert task_with_options.result_storage == new_block
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
@@ -2967,6 +3100,7 @@ class TestTaskWithOptions:
             return "cache hit"
 
         storage = LocalFileSystem(basepath=tmp_path)
+        storage.save("another-passthrough", _sync=True)
 
         @task(
             name="Initial task",
@@ -3009,9 +3143,12 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage_key == "test"
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+        result_storage.save("test-yet-again", _sync=True)
+
         @task(
             result_serializer="json",
-            result_storage=LocalFileSystem(basepath=tmp_path),
+            result_storage=result_storage,
             refresh_cache=True,
             result_storage_key="test",
         )
@@ -4842,6 +4979,16 @@ class TestApplyAsync:
             "x": [TaskRunResult(id=task_run_id)],
             "y": [],
         }
+
+    def test_apply_async_emits_run_ui_url(self, caplog):
+        @task
+        def add(x, y):
+            return x + y
+
+        with temporary_settings({PREFECT_UI_URL: "http://test/api"}):
+            add.apply_async((42, 42))
+
+        assert "in the UI at 'http://test/api/runs/task-run/" in caplog.text
 
 
 class TestDelay:

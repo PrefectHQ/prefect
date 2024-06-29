@@ -21,7 +21,6 @@ from prefect.server.api.task_runs import TaskQueue
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.services.task_scheduling import TaskSchedulingTimeouts
 from prefect.settings import (
-    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT,
     temporary_settings,
@@ -107,12 +106,10 @@ async def test_task_submission_with_parameters_reuses_default_storage_block(
     with temporary_settings(
         {
             PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: "local-file-system/my-tasks",
-            PREFECT_LOCAL_STORAGE_PATH: tmp_path / "some-storage",
         }
     ):
-        # The block will not exist initially
-        with pytest.raises(ValueError, match="Unable to find block document"):
-            await Block.load("local-file-system/my-tasks")
+        block = LocalFileSystem(basepath=tmp_path / "some-storage")
+        await block.save("my-tasks", overwrite=True)
 
         foo_task_without_result_storage = foo_task.with_options(result_storage=None)
         task_run_future_a = foo_task_without_result_storage.apply_async((42,))

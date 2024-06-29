@@ -181,14 +181,12 @@ time to add some dynamic information to your webhook template.
 Your colleagues on the team have adjusted their daily `cron` scripts to `POST` a
 small body that includes the ID and name of the model that was updated:
 
-<div class="terminal">
 ```bash
 curl \
     -d "model=recommendations" \
     -d "friendly_name=Recommendations%20[Products]" \
     -X POST https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
 ```
-</div>
 
 This script sends a `POST` request and the body will include a traditional
 URL-encoded form with two fields describing the model that was updated: `model` and

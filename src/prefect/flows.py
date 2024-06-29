@@ -187,7 +187,7 @@ class Flow(Generic[P, R]):
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
         persist_result: Optional[bool] = None,
-        result_storage: Optional[ResultStorage] = None,
+        result_storage: Optional[Union[ResultStorage, str]] = None,
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
@@ -335,7 +335,18 @@ class Flow(Generic[P, R]):
                     "Disable validation or change the argument names."
                 ) from exc
 
+        # result persistence settings
+        if persist_result is None:
+            if result_storage is not None or result_serializer is not None:
+                persist_result = True
+
         self.persist_result = persist_result
+        if result_storage and not isinstance(result_storage, str):
+            if getattr(result_storage, "_block_document_id", None) is None:
+                raise TypeError(
+                    "Result storage configuration must be persisted server-side."
+                    " Please call `.save()` on your block before passing it in."
+                )
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
@@ -960,6 +971,29 @@ class Flow(Generic[P, R]):
 
             my_flow()
             ```
+
+            Load a flow from a local directory:
+
+            ``` python
+            # from_local_source.py
+
+            from pathlib import Path
+            from prefect import flow
+
+            @flow(log_prints=True)
+            def my_flow(name: str = "world"):
+                print(f"Hello {name}! I'm a flow from a Python script!")
+
+            if __name__ == "__main__":
+                my_flow.from_source(
+                    source=str(Path(__file__).parent),
+                    entrypoint="from_local_source.py:my_flow",
+                ).deploy(
+                    name="my-deployment",
+                    parameters=dict(name="Marvin"),
+                    work_pool_name="local",
+                )
+            ```
         """
 
         from prefect.runner.storage import (
@@ -988,7 +1022,7 @@ class Flow(Generic[P, R]):
             await storage.pull_code()
 
             full_entrypoint = str(storage.destination / entrypoint)
-            flow: "Flow" = await from_async.wait_for_call_in_new_thread(
+            flow: Flow = await from_async.wait_for_call_in_new_thread(
                 create_call(load_flow_from_entrypoint, full_entrypoint)
             )
             flow._storage = storage
@@ -1115,7 +1149,13 @@ class Flow(Generic[P, R]):
                 )
             ```
         """
-        work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+        if not (
+            work_pool_name := work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+        ):
+            raise ValueError(
+                "No work pool name provided. Please provide a `work_pool_name` or set the"
+                " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
+            )
 
         try:
             async with get_client() as client:
@@ -1914,8 +1954,12 @@ def load_flow_argument_from_entrypoint(
                     literal_arg_value = ast.get_source_segment(
                         source_code, keyword.value
                     )
+                    cleaned_value = (
+                        literal_arg_value.replace("\n", "") if literal_arg_value else ""
+                    )
+
                     try:
-                        evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
+                        evaluated_value = eval(cleaned_value, namespace)  # type: ignore
                     except Exception as e:
                         logger.info(
                             "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",

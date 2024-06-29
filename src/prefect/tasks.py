@@ -50,7 +50,6 @@ from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutu
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -67,6 +66,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -387,9 +387,20 @@ class Task(Generic[P, R]):
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
 
+        # result persistence settings
         if persist_result is None:
-            persist_result = PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
-        if not persist_result:
+            if any(
+                [
+                    cache_policy and cache_policy != NONE and cache_policy != NotSet,
+                    cache_key_fn is not None,
+                    result_storage_key is not None,
+                    result_storage is not None,
+                    result_serializer is not None,
+                ]
+            ):
+                persist_result = True
+
+        if persist_result is False:
             self.cache_policy = None if cache_policy is None else NONE
             if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
                 logger.warning(
@@ -428,6 +439,14 @@ class Task(Generic[P, R]):
 
         self.retry_jitter_factor = retry_jitter_factor
         self.persist_result = persist_result
+
+        if result_storage and not isinstance(result_storage, str):
+            if getattr(result_storage, "_block_document_id", None) is None:
+                raise TypeError(
+                    "Result storage configuration must be persisted server-side."
+                    " Please call `.save()` on your block before passing it in."
+                )
+
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.result_storage_key = result_storage_key
@@ -1282,14 +1301,20 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        task_run = run_coro_as_sync(
+        task_run: TaskRun = run_coro_as_sync(
             self.create_run(
                 parameters=parameters,
                 deferred=True,
                 wait_for=wait_for,
                 extra_task_inputs=dependencies,
             )
-        )
+        )  # type: ignore
+
+        if task_run_url := url_for(task_run):
+            logger.info(
+                f"Created task run {task_run.name!r}. View it in the UI at {task_run_url!r}"
+            )
+
         return PrefectDistributedFuture(task_run_id=task_run.id)
 
     def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture:
