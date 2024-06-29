@@ -289,7 +289,6 @@ async def test_replicate_successful_pod_events(
     )
 
 
-@pytest.mark.asyncio
 async def test_replicate_failed_pod_events(replicator, mock_watch, failed_pod_stream):
     mock_watch.return_value.stream = mock.Mock(side_effect=failed_pod_stream)
 

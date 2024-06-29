@@ -2,7 +2,7 @@ import asyncio
 from typing import Dict, List, Optional
 
 import kubernetes_asyncio
-from kubernetes_asyncio import watch
+import kubernetes_asyncio.watch
 from kubernetes_asyncio.client import ApiClient, V1Pod
 
 from prefect.events import Event, RelatedResource, emit_event
@@ -37,6 +37,7 @@ class KubernetesEventsReplicator:
         self._job_name = job_name
         self._namespace = namespace
         self._timeout_seconds = timeout_seconds
+        self._task = None
 
         # All events emitted by this replicator have the pod itself as the
         # resource. The `worker_resource` is what the worker uses when it's
@@ -57,14 +58,14 @@ class KubernetesEventsReplicator:
         """Stop the Kubernetes event watcher and ensure all tasks are completed before exiting the context."""
         self._state = "STOPPED"
         if self._task:
-            await self._task
+            self._task.cancel()
 
     def _pod_as_resource(self, pod: "V1Pod") -> Dict[str, str]:
         """Convert a pod to a resource dictionary"""
         return {
             "prefect.resource.id": f"prefect.kubernetes.pod.{pod.metadata.uid}",
-            "prefect.resource.name": str(pod.metadata.name),
-            "kubernetes.namespace": str(pod.metadata.namespace),
+            "prefect.resource.name": pod.metadata.name,
+            "kubernetes.namespace": pod.metadata.namespace,
         }
 
     async def _replicate_pod_events(self):
@@ -73,9 +74,9 @@ class KubernetesEventsReplicator:
         last_event = None
 
         core_client = kubernetes_asyncio.client.CoreV1Api(api_client=self._client)
-        w = watch.Watch()
-        try:
-            async for event in w.stream(
+        watch = kubernetes_asyncio.watch.Watch()
+        async with watch:
+            async for event in watch.stream(
                 func=core_client.list_namespaced_pod,
                 namespace=self._namespace,
                 label_selector=f"job-name={self._job_name}",
@@ -90,8 +91,6 @@ class KubernetesEventsReplicator:
                     seen_phases.add(phase)
                     if phase in FINAL_PHASES:
                         break
-        finally:
-            await w.close()
 
     async def _emit_pod_event(
         self,
