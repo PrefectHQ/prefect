@@ -197,7 +197,6 @@ async def test_lifecycle(replicator, mock_watch, mock_core_client):
     assert replicator._state == "STOPPED"
 
 
-@pytest.mark.asyncio
 async def test_replicate_successful_pod_events(
     replicator, mock_watch, successful_pod_stream
 ):

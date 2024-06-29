@@ -128,7 +128,7 @@ class TestCredentials:
                 pass
 
     async def test_instantiation_from_file(self, config_file):
-        cluster_config = await KubernetesClusterConfig.from_file(path=config_file)
+        cluster_config = KubernetesClusterConfig.from_file(path=config_file)
 
         assert isinstance(cluster_config, KubernetesClusterConfig)
         assert isinstance(cluster_config.config, Dict)
@@ -175,13 +175,13 @@ class TestCredentials:
             )
 
     async def test_get_api_client(self, config_file):
-        cluster_config = await KubernetesClusterConfig.from_file(path=config_file)
+        cluster_config = KubernetesClusterConfig.from_file(path=config_file)
 
         api_client = await cluster_config.get_api_client()
         assert isinstance(api_client, ApiClient)
 
     async def test_configure_client(self, config_file):
-        cluster_config = await KubernetesClusterConfig.from_file(path=config_file)
+        cluster_config = KubernetesClusterConfig.from_file(path=config_file)
         await cluster_config.configure_client()
         context_dict = list_kube_config_contexts(config_file=str(config_file))
         current_context = context_dict[1]["name"]

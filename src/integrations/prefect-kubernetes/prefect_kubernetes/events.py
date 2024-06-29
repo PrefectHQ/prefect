@@ -58,7 +58,7 @@ class KubernetesEventsReplicator:
         """Stop the Kubernetes event watcher and ensure all tasks are completed before exiting the context."""
         self._state = "STOPPED"
         if self._task:
-            self._task.cancel()
+            await self._task
 
     def _pod_as_resource(self, pod: "V1Pod") -> Dict[str, str]:
         """Convert a pod to a resource dictionary"""
