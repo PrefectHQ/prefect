@@ -89,7 +89,12 @@ or with the SDK using [`run_deployment`](https://prefect-python-sdk-docs.netlify
 ```python
 from prefect.deployments import run_deployment
 
-run_deployment("my-first-flow/my-first-deployment")
+run_deployment(
+    name="my-first-flow/my-first-deployment",
+    parameters={"my_param": "42"},
+    job_variables={"env": {"MY_ENV_VAR": "staging"}},
+    timeout=0, # don't wait for the run to finish
+)
 ```
 
 The other two fields are:
