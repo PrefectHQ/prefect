@@ -404,7 +404,7 @@ By default, each time you call `receive_input`, you get an iterator that iterate
 
 ```python
 from prefect import flow, get_client
-from prefect.deployments.deployments import run_deployment
+from prefect.deployments import run_deployment
 from prefect.input.run_input import receive_input, send_input
 
 EXIT_SIGNAL = "__EXIT__"
@@ -634,7 +634,7 @@ import sys
 from prefect import flow, get_client
 from prefect.blocks.system import JSON
 from prefect.context import get_run_context
-from prefect.deployments.deployments import run_deployment
+from prefect.deployments import run_deployment
 from prefect.input.run_input import receive_input, send_input
 
 
