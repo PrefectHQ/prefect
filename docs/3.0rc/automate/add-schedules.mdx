@@ -158,7 +158,7 @@ If the `timezone` is a DST-observing one, then the schedule adjusts itself appro
 
 The `cron` rules for DST are based on schedule times, not intervals. This means that an hourly `cron` schedule fires on 
 every new schedule hour, not every elapsed hour. 
-For example, when clocks are set back, this results in a two-hour pause as the schedule will fire _the first time_ 1 AM is  reached and _the first time_ 2 AM is reached, 120 minutes later. 
+For example, when clocks are set back, this results in a two-hour pause as the schedule will fire _the first time_ 1 AM is reached and _the first time_ 2 AM is reached, 120 minutes later. 
     
 Longer schedules, such as one that fires at 9 AM every morning, adjust for DST automatically.
 </Note>
