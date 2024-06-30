@@ -184,10 +184,10 @@ def replicator(client, worker_resource, related_resources):
     )
 
 
-async def test_lifecycle(replicator, mock_watch, mock_core_client):
+async def test_lifecycle(replicator, mock_watch, mock_core_client, pod):
     async def mock_stream(**kwargs):
         if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-            yield {"type": "ADDED", "object": MagicMock(spec=V1Pod)}
+            yield {"type": "ADDED", "object": pod}
 
     mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
     async with replicator:
