@@ -127,62 +127,66 @@ class TestCredentials:
             async with kubernetes_credentials.get_client("shoo-ba-daba-doo"):
                 pass
 
-    async def test_instantiation_from_file(self, config_file):
-        cluster_config = KubernetesClusterConfig.from_file(path=config_file)
+    class TestKubernetesClusterConfig:
+        async def test_instantiation_from_file(self, config_file):
+            cluster_config = KubernetesClusterConfig.from_file(path=config_file)
 
-        assert isinstance(cluster_config, KubernetesClusterConfig)
-        assert isinstance(cluster_config.config, Dict)
-        assert isinstance(cluster_config.context_name, str)
+            assert isinstance(cluster_config, KubernetesClusterConfig)
+            assert isinstance(cluster_config.config, Dict)
+            assert isinstance(cluster_config.context_name, str)
 
-        assert cluster_config.config == yaml.safe_load(self.CONFIG_CONTENT)
-        assert cluster_config.context_name == "docker-desktop"
+            assert cluster_config.config == yaml.safe_load(self.CONFIG_CONTENT)
+            assert cluster_config.context_name == "docker-desktop"
 
-    async def test_instantiation_from_dict(self, config_file):
-        cluster_config = KubernetesClusterConfig(
-            config=yaml.safe_load(self.CONFIG_CONTENT), context_name="docker-desktop"
-        )
-
-        assert isinstance(cluster_config, KubernetesClusterConfig)
-        assert isinstance(cluster_config.config, Dict)
-        assert isinstance(cluster_config.context_name, str)
-
-        assert cluster_config.config == yaml.safe_load(self.CONFIG_CONTENT)
-        assert cluster_config.context_name == "docker-desktop"
-
-    async def test_instantiation_from_str(self, config_context):
-        cluster_config = KubernetesClusterConfig(
-            config=self.CONFIG_CONTENT, context_name="docker-desktop"
-        )
-
-        assert isinstance(cluster_config, KubernetesClusterConfig)
-        assert isinstance(cluster_config.config, Dict)
-        assert isinstance(cluster_config.context_name, str)
-
-        assert cluster_config.config == yaml.safe_load(self.CONFIG_CONTENT)
-        assert cluster_config.context_name == "docker-desktop"
-
-    async def test_instantiation_from_invalid_str(self):
-        with pytest.raises(
-            pydantic.ValidationError,
-            match="Input should be a valid dictionary",
-        ):
-            KubernetesClusterConfig(config="foo", context_name="docker-desktop")
-
-    async def test_instantiation_from_file_with_unknown_context_name(self, config_file):
-        with pytest.raises(ValueError):
-            await KubernetesClusterConfig.from_file(
-                path=config_file, context_name="random_not_real"
+        async def test_instantiation_from_dict(self, config_file):
+            cluster_config = KubernetesClusterConfig(
+                config=yaml.safe_load(self.CONFIG_CONTENT),
+                context_name="docker-desktop",
             )
 
-    async def test_get_api_client(self, config_file):
-        cluster_config = KubernetesClusterConfig.from_file(path=config_file)
+            assert isinstance(cluster_config, KubernetesClusterConfig)
+            assert isinstance(cluster_config.config, Dict)
+            assert isinstance(cluster_config.context_name, str)
 
-        api_client = await cluster_config.get_api_client()
-        assert isinstance(api_client, ApiClient)
+            assert cluster_config.config == yaml.safe_load(self.CONFIG_CONTENT)
+            assert cluster_config.context_name == "docker-desktop"
 
-    async def test_configure_client(self, config_file):
-        cluster_config = KubernetesClusterConfig.from_file(path=config_file)
-        await cluster_config.configure_client()
-        context_dict = list_kube_config_contexts(config_file=str(config_file))
-        current_context = context_dict[1]["name"]
-        assert cluster_config.context_name == current_context
+        async def test_instantiation_from_str(self, config_context):
+            cluster_config = KubernetesClusterConfig(
+                config=self.CONFIG_CONTENT, context_name="docker-desktop"
+            )
+
+            assert isinstance(cluster_config, KubernetesClusterConfig)
+            assert isinstance(cluster_config.config, Dict)
+            assert isinstance(cluster_config.context_name, str)
+
+            assert cluster_config.config == yaml.safe_load(self.CONFIG_CONTENT)
+            assert cluster_config.context_name == "docker-desktop"
+
+        async def test_instantiation_from_invalid_str(self):
+            with pytest.raises(
+                pydantic.ValidationError,
+                match="Input should be a valid dictionary",
+            ):
+                KubernetesClusterConfig(config="foo", context_name="docker-desktop")
+
+        async def test_instantiation_from_file_with_unknown_context_name(
+            self, config_file
+        ):
+            with pytest.raises(ValueError):
+                await KubernetesClusterConfig.from_file(
+                    path=config_file, context_name="random_not_real"
+                )
+
+        async def test_get_api_client(self, config_file):
+            cluster_config = KubernetesClusterConfig.from_file(path=config_file)
+
+            api_client = await cluster_config.get_api_client()
+            assert isinstance(api_client, ApiClient)
+
+        async def test_configure_client(self, config_file):
+            cluster_config = KubernetesClusterConfig.from_file(path=config_file)
+            await cluster_config.configure_client()
+            context_dict = list_kube_config_contexts(config_file=str(config_file))
+            current_context = context_dict[1]["name"]
+            assert cluster_config.context_name == current_context
