@@ -63,7 +63,7 @@ class Deployment:
     # worker-specific fields
     work_pool_name: Optional[str] = None
     work_queue_name: Optional[str] = None
-    infra_overrides: Optional[Dict[str, Any]] = None
+    job_variables: Optional[Dict[str, Any]] = None
     pull_steps: Optional[Dict[str, Any]] = None
 ```
 
@@ -78,10 +78,23 @@ The deployment name is not required to be unique across all deployments, but is 
 for a given flow ID. This means you will often see references to the deployment's unique identifying name 
 `{FLOW_NAME}/{DEPLOYMENT_NAME}`.
 
-For example, triggering a run of a deployment from the Prefect CLI can be done with:
+For example, you can trigger a run of a deployment from the Prefect CLI:
 
 ```bash
 prefect deployment run my-first-flow/my-first-deployment
+```
+
+or with the SDK using [`run_deployment`](https://prefect-python-sdk-docs.netlify.app/prefect/deployments/flow_runs/#prefect.deployments.flow_runs.run_deployment):
+
+```python
+from prefect.deployments import run_deployment
+
+run_deployment(
+    name="my-first-flow/my-first-deployment",
+    parameters={"my_param": "42"},
+    job_variables={"env": {"MY_ENV_VAR": "staging"}},
+    timeout=0, # don't wait for the run to finish
+)
 ```
 
 The other two fields are:
@@ -125,8 +138,6 @@ These are the fields to capture the required metadata for those actions:
 Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves.
 For example, when [updating a deployment schedule in the UI](/3.0rc/automate/add-schedules/#creating-schedules-through-the-ui) 
 basic information such as a cron string or interval is all that's required.
-- **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment.
-For more information see [Automations](/3.0rc/automate/events/automations-triggers/).
 - **`parameter_openapi_schema`**: an [OpenAPI compatible schema](https://swagger.io/specification/) that defines 
 the types and defaults for the flow's parameters.
 This is used by the UI and the backend to expose options for creating manual runs as well as type validation.
@@ -176,8 +187,8 @@ Work pool types mirror infrastructure types, which means this field impacts the 
 for the other fields.
 - **`work_queue_name`**: if you are using work queues to either manage priority or concurrency, you can 
 associate a deployment with a specific queue within a work pool using this field.
-- **`infra_overrides`**: often called `job_variables` within various interfaces, this field allows 
-deployment authors to customize whatever infrastructure options have been exposed on this work pool.
+- **`job_variables`**: this field allows deployment authors to customize whatever infrastructure
+options have been exposed on this work pool.
 This field is often used for Docker image names, Kubernetes annotations and limits, 
 and environment variables.
 - **`pull_steps`**: a JSON description of steps that retrieves flow code or 

@@ -436,7 +436,7 @@ async def _run_single_deploy(
     deploy_config: Dict,
     actions: Dict,
     options: Optional[Dict] = None,
-    client: "PrefectClient" = None,
+    client: Optional["PrefectClient"] = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
