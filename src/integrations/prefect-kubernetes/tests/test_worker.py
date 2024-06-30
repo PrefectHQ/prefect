@@ -2320,7 +2320,6 @@ class TestKubernetesWorker:
             default_configuration: KubernetesWorkerJobConfiguration,
             mock_core_client,
             mock_watch,
-            mock_pods_stream_that_returns_running_pod,
             mock_batch_client,
             caplog,
             mock_pod,
@@ -2481,6 +2480,7 @@ class TestKubernetesWorker:
             mock_core_client,
             mock_watch,
             mock_batch_client,
+            mock_pod,
         ):
             # The job should not be completed to start
             mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
@@ -2498,7 +2498,7 @@ class TestKubernetesWorker:
             # TODO investigate why it needs type
             async def mock_stream(*args, **kwargs):
                 if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                    yield {"object": job_pod, "type": "ADDED"}
+                    yield {"object": mock_pod, "type": "ADDED"}
 
                 if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
                     job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
@@ -2524,6 +2524,7 @@ class TestKubernetesWorker:
             mock_core_client,
             mock_watch,
             mock_batch_client,
+            mock_pod,
         ):
             # The job should not be completed to start
             mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
@@ -2532,9 +2533,7 @@ class TestKubernetesWorker:
             # TODO investigate why it needs type
             async def mock_stream(*args, **kwargs):
                 if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                    job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-                    job_pod.status.phase = "Running"
-                    yield {"object": job_pod, "type": "ADDED"}
+                    yield {"object": mock_pod, "type": "ADDED"}
 
                 if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
                     job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
@@ -2560,6 +2559,7 @@ class TestKubernetesWorker:
             mock_core_client,
             mock_watch,
             mock_batch_client,
+            mock_pod,
         ):
             """
             This test case mimics the behavior of a pod that has been forcefully terminated
@@ -2582,9 +2582,7 @@ class TestKubernetesWorker:
             # TODO investigate why it needs type
             async def mock_stream(*args, **kwargs):
                 if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                    job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-                    job_pod.status.phase = "Running"
-                    yield {"object": job_pod, "type": "ADDED"}
+                    yield {"object": mock_pod, "type": "ADDED"}
 
                 if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
                     job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
