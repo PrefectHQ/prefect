@@ -1,0 +1,8 @@
+collectionName: # Your collection name. Should match your PyPI package name e.g. prefect-collection
+author: Your Name
+authorUrl: # A link to information about the author e.g. Company URL, GitHub user profile, etc
+documentation: # A link to the collection's documentation i.e. GitHub Pages
+iconUrl: # Used as the src attribute of the collection's logo.
+# You can provide an external URL or add your logo under docs/img/collections and provide a path
+# relative to docs/ e.g. /img/collections/my-logo.png
+tag: # A tag to help users search for your collection. Should correspond to the service that your collection integrates with e.g. "dbt", "AWS", "Databricks"
