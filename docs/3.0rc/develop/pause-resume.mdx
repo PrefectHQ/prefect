@@ -12,7 +12,7 @@ When a flow run is suspended, code execution is stopped and so is the process.
 ### Pause a flow run
 
 Prefect enables pausing an in-progress flow run for manual approval.
-Prefect exposes this functionality with the [`pause_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.pause_flow_run) 
+Prefect exposes this capability with the [`pause_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.pause_flow_run) 
 and [`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions.
 
 <Note>
@@ -103,7 +103,7 @@ This means you can suspend flow runs to save costs instead of paying for long-ru
 However, when the flow run resumes, the flow code will execute again from the beginning of the flow. 
 We recommend using [tasks](/3.0rc/develop/write-tasks/) and [task caching](/3.0rc/develop/task-caching) to avoid recomputing expensive operations.
 
-Prefect exposes this functionality through the [`suspend_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.suspend_flow_run) and 
+Prefect exposes this capability through the [`suspend_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.suspend_flow_run) and 
 [`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
 When called inside of a flow, `suspend_flow_run` immediately suspends execution of the flow run.
