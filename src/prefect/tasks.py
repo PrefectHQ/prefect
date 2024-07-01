@@ -1058,7 +1058,7 @@ class Task(Generic[P, R]):
     ) -> PrefectFutureList[State[T]]:
         ...
 
-    # @deprecated_async_method
+    @deprecated_async_method
     def map(
         self,
         *args: Any,
