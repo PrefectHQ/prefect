@@ -5,7 +5,7 @@ description: Learn how to use caching to gain efficiency and pipeline idempotenc
 
 Caching refers to the ability of a task run to enter a `Completed` state and return a predetermined 
 value without actually running the code that defines the task. 
-Caching allows you to efficiently reuse results of tasks that may be expensive to compute
+Caching allows you to efficiently reuse [results of tasks](results) that may be expensive to compute
 and ensure that your pipelines are idempotent when retrying them due to unexpected failure. 
 
 By default Prefect's caching logic is based on the following attributes of a task invocation:
@@ -28,7 +28,8 @@ To turn on result persistence for all of your tasks use the `PREFECT_RESULTS_PER
 prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 ```
 
-See [settings](/3.0rc/manage/settings-and-profiles) for more details on managing Prefect settings.
+See [managing results](results) for more details on managing your result configuration, and
+[settings](/3.0rc/manage/settings-and-profiles) for more details on managing Prefect settings.
 </Warning>
 
 ## Cache keys
