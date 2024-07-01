@@ -24,7 +24,7 @@ Flows and tasks are templates that describe what a system does;
 only when we **run** the system does it also take on a state.
 </Note>
 
-## State Types
+## State types
 
 States have names and types. State types are canonical, with specific orchestration rules that apply to transitions into 
 and out of each state type. A state's name is often, but not always, synonymous with its type. For example, a task run 
@@ -70,7 +70,7 @@ Returning Prefect [`State`](https://prefect-python-sdk-docs.netlify.app/prefect/
 
 Returning [`PrefectFuture`](https://prefect-python-sdk-docs.netlify.app/prefect/futures/#prefect.futures.PrefectFuture) is achieved by calling `your_task.submit()`.
 
-### Return Data
+### Return data
 
 By default, running a task returns data:
 
@@ -99,7 +99,7 @@ def my_flow():
     result = nested_flow() # return data
 ```
 
-### Return Prefect State
+### Return Prefect state
 
 To return a `State` instead, add `return_state=True` as a parameter of your task call:
 
@@ -161,7 +161,7 @@ def my_flow():
 
 ## Final state determination
 
-The final state of a flow is determined by its return value.  The following rules apply:
+The final state of a flow is determined by its return value. The following rules apply:
 
 - If an exception is raised directly in the flow function, the flow run is marked as `FAILED`.
 - If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and nested flows within it.

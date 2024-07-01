@@ -59,7 +59,7 @@ You can create and use these block types through the UI without installing any a
 
 
 <Warning>
-The `S3`, `Azure`, `GCS`, and `GitHub` blocks are deprecated in favor of the the corresponding `S3Bucket`, 
+The `S3`, `Azure`, `GCS`, and `GitHub` blocks are deprecated in favor of the corresponding `S3Bucket`, 
 `AzureBlobStorageCredentials`, `GCSBucket`, and `GitHubRepository` blocks found in the 
 [Prefect integration libraries](/integrations/).
 The JSON, DateTime, and String blocks are deprecated in favor of [Variables](/3.0rc/develop/variables/).
@@ -401,7 +401,7 @@ class S3Bucket(Block):
         s3_client.upload_fileobj(stream, Bucket=self.bucket_name, Key=key)
 ```
 
-You can use this `S3Bucket` block with previously saved `AWSCredentials` block values in order to interact with the configured S3 bucket:
+You can use this `S3Bucket` block with previously saved `AWSCredentials` block values to interact with the configured S3 bucket:
 
 ```python
 my_s3_bucket = S3Bucket(

@@ -148,7 +148,7 @@ and on Tuesday (the second day of the week) in January (the first month of the y
 
 With `day_or` set to `False`, the `day` (of the month) and `day_of_week` entries are joined with the more restrictive `AND` 
 operation, as in the SQL statement `SELECT * from employees WHERE first_name = 'Andrew' AND last_name = 'Brookins';`. 
-For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **3rd Tuesday** in January. 
+For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **third Tuesday** in January. 
 This behavior matches `fcron` instead of `cron`.
 
 <Note> 
@@ -158,10 +158,9 @@ If the `timezone` is a DST-observing one, then the schedule adjusts itself appro
 
 The `cron` rules for DST are based on schedule times, not intervals. This means that an hourly `cron` schedule fires on 
 every new schedule hour, not every elapsed hour. 
-For example, when clocks are set back, this results in a two-hour pause as the schedule will fire _the first time_ 1am is 
-reached and _the first time_ 2am is reached, 120 minutes later. 
+For example, when clocks are set back, this results in a two-hour pause as the schedule will fire _the first time_ 1 AM is reached and _the first time_ 2 AM is reached, 120 minutes later. 
     
-Longer schedules, such as one that fires at 9am every morning, adjust for DST automatically.
+Longer schedules, such as one that fires at 9 AM every morning, adjust for DST automatically.
 </Note>
   
 ### Interval
@@ -195,12 +194,10 @@ If the schedule's `anchor_date` or `timezone` are provided with a DST-observing 
 appropriately.
 Intervals greater than 24 hours will follow DST conventions, while intervals of less than 24 hours will follow UTC intervals.
 
-For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this results 
-in two runs that _appear_ to be scheduled for 1am local time, even though they are an hour apart in UTC time. 
+For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this results in two runs that _appear_ to be scheduled for 1 AM local time, even though they are an hour apart in UTC time. 
     
-For longer intervals, like a daily schedule, the interval schedule adjusts for DST boundaries so that the clock-hour remains 
-constant. 
-This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
+For longer intervals, like a daily schedule, the interval schedule adjusts for DST boundaries so that the clock-hour remains constant. 
+This means that a daily schedule that always fires at 9 AM will observe DST and continue to fire at 9 AM in the local time zone.
 </Note>
 
 ### RRule
@@ -244,8 +241,8 @@ flow runs.
 **Daylight saving time considerations**
 
 As a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.
-A 9am daily schedule with a DST-aware start date maintains a local 9am time through DST boundaries. A 9am daily schedule 
-with a UTC start date maintains a 9am UTC time.
+A 9 AM daily schedule with a DST-aware start date maintains a local 9 AM time through DST boundaries. A 9 AM daily schedule 
+with a UTC start date maintains a 9 AM UTC time.
 </Note>
 
 ## How scheduling works
