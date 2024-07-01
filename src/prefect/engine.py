@@ -1403,15 +1403,20 @@ def enter_task_run_engine(
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
+    call_arguments = {
+        "task": task,
+        "flow_run_context": flow_run_context,
+        "parameters": parameters,
+        "wait_for": wait_for,
+        "return_type": return_type,
+        "task_runner": task_runner,
+    }
+
+    if not mapped:
+        call_arguments["entering_from_task_run"] = entering_from_task_run
+
     begin_run = create_call(
-        begin_task_map if mapped else get_task_call_return_value,
-        task=task,
-        flow_run_context=flow_run_context,
-        parameters=parameters,
-        wait_for=wait_for,
-        return_type=return_type,
-        task_runner=task_runner,
-        entering_from_task_run=entering_from_task_run,
+        begin_task_map if mapped else get_task_call_return_value, **call_arguments
     )
 
     if task.isasync and (
