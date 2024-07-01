@@ -1,0 +1,8 @@
+recipeName: Unit Test Tasks
+author: Prefect
+authorUrl: https://prefect.io
+description: Unit testing best practices for tasks.
+topic: Testing
+recipeUrl: https://discourse.prefect.io/t/unit-testing-best-practices-for-prefect-flows-subflows-and-tasks/1070
+iconUrl: 
+  - /img/collections/python.png
