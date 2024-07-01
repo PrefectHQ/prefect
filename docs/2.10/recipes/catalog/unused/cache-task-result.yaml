@@ -1,0 +1,8 @@
+recipeName: Cache Task Results
+author: Prefect
+authorUrl: https://prefect.io
+description: Cache a task result to prevent recomputation for a specified timedelta.
+topic: Azure
+recipeUrl: https://discourse.prefect.io/t/how-can-i-cache-a-task-result-for-two-hours-to-prevent-re-computation/67
+iconUrl: 
+  - /img/collections/python.png
