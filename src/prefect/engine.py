@@ -1606,7 +1606,7 @@ async def create_task_run_future(
 
     # Remove any previous task run futures with the same name
     flow_run_context.task_run_futures = [
-        future 
+        future
         for future in flow_run_context.task_run_futures
         if not future.name.startswith(task.name)
     ]
