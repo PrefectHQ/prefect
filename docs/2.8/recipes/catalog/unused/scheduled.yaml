@@ -1,0 +1,8 @@
+recipeName: Scheduled or Ad Hoc?
+author: Prefect
+authorUrl: https://prefect.io
+description: Determine whether a flow run was scheduled or ad hoc. 
+topic: Observability
+recipeUrl: https://discourse.prefect.io/t/how-can-i-determine-whether-a-flow-run-has-been-executed-ad-hoc-or-was-running-on-schedule/120
+iconUrl: 
+  - /img/collections/python.png
