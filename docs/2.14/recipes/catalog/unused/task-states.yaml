@@ -1,0 +1,8 @@
+recipeName: Task State Dependencies
+author: Prefect
+authorUrl: https://prefect.io
+description: Define state dependencies between tasks in a flow.
+topic: Tasks
+recipeUrl: https://discourse.prefect.io/t/how-can-i-define-state-dependencies-between-tasks/69
+iconUrl: 
+  - /img/collections/python.png
