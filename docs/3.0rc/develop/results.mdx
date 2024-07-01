@@ -39,7 +39,8 @@ the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` set
 ### Default persistence configuration
 
 Once result persistence is enabled - whether through the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting or 
-through any of the mechanisms described above - Prefect's default result storage configuration is activated.
+through any of the mechanisms [described below](results#enabling-result-persistence) - Prefect's default 
+result storage configuration is activated.
 
 If you enable result persistence and don't specify a filesystem block, your results will be stored locally.
 By default, results are persisted to `~/.prefect/storage/`. 
