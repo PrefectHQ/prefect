@@ -2,6 +2,7 @@ import base64
 import json
 import re
 import uuid
+from contextlib import asynccontextmanager
 from time import monotonic, sleep
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock
@@ -148,6 +149,15 @@ def mock_core_client_lean(monkeypatch):
 @pytest.fixture
 def mock_batch_client(monkeypatch, mock_job):
     mock = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
+
+    @asynccontextmanager
+    async def get_batch_client(*args, **kwargs):
+        yield mock()
+
+    monkeypatch.setattr(
+        "prefect_kubernetes.worker.KubernetesWorker._get_batch_client",
+        get_batch_client,
+    )
 
     mock.return_value.create_namespaced_job.return_value = mock_job
     monkeypatch.setattr("prefect_kubernetes.worker.BatchV1Api", mock)
@@ -1306,7 +1316,6 @@ class TestKubernetesWorker:
         mock_core_client,
         mock_watch,
         mock_pods_stream_that_returns_completed_pod,
-        monkeypatch,
     ):
         mock_watch.return_value.stream = mock.Mock(
             side_effect=mock_pods_stream_that_returns_completed_pod
@@ -1356,7 +1365,6 @@ class TestKubernetesWorker:
         mock_core_client,
         mock_watch,
         mock_pods_stream_that_returns_completed_pod,
-        monkeypatch,
     ):
         mock_watch.return_value.stream = mock.Mock(
             side_effect=mock_pods_stream_that_returns_completed_pod

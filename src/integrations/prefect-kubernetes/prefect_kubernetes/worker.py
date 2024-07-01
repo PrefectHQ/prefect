@@ -669,25 +669,25 @@ class KubernetesWorker(BaseWorker):
                     "cluster than the one specified by the infrastructure PID."
                 )
 
-            batch_client = BatchV1Api(client)
-            try:
-                await batch_client.delete_namespaced_job(
-                    name=job_name,
-                    namespace=job_namespace,
-                    grace_period_seconds=grace_seconds,
-                    # Foreground propagation deletes dependent objects before deleting # noqa
-                    # owner objects. This ensures that the pods are cleaned up before # noqa
-                    # the job is marked as deleted.
-                    # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion # noqa
-                    propagation_policy="Foreground",
-                )
-            except kubernetes_asyncio.client.exceptions.ApiException as exc:
-                if exc.status == 404:
-                    raise InfrastructureNotFound(
-                        f"Unable to kill job {job_name!r}: The job was not found."
-                    ) from exc
-                else:
-                    raise
+            async with self._get_batch_client(client) as batch_client:
+                try:
+                    await batch_client.delete_namespaced_job(
+                        name=job_name,
+                        namespace=job_namespace,
+                        grace_period_seconds=grace_seconds,
+                        # Foreground propagation deletes dependent objects before deleting # noqa
+                        # owner objects. This ensures that the pods are cleaned up before # noqa
+                        # the job is marked as deleted.
+                        # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion # noqa
+                        propagation_policy="Foreground",
+                    )
+                except kubernetes_asyncio.client.exceptions.ApiException as exc:
+                    if exc.status == 404:
+                        raise InfrastructureNotFound(
+                            f"Unable to kill job {job_name!r}: The job was not found."
+                        ) from exc
+                    else:
+                        raise
 
     @asynccontextmanager
     async def _get_configured_kubernetes_client(
@@ -785,24 +785,25 @@ class KubernetesWorker(BaseWorker):
             await self._replace_api_key_with_secret(
                 configuration=configuration, client=client
             )
-        try:
-            batch_client = BatchV1Api(client)
-            job = await batch_client.create_namespaced_job(
-                configuration.namespace,
-                configuration.job_manifest,
-            )
-        except kubernetes_asyncio.client.exceptions.ApiException as exc:
-            # Parse the reason and message from the response if feasible
-            message = ""
-            if exc.reason:
-                message += ": " + exc.reason
-            if exc.body and "message" in (body := json.loads(exc.body)):
-                message += ": " + body["message"]
+        async with self._get_batch_client(client) as batch_client:
+            try:
+                batch_client = BatchV1Api(client)
+                job = await batch_client.create_namespaced_job(
+                    configuration.namespace,
+                    configuration.job_manifest,
+                )
+            except kubernetes_asyncio.client.exceptions.ApiException as exc:
+                # Parse the reason and message from the response if feasible
+                message = ""
+                if exc.reason:
+                    message += ": " + exc.reason
+                if exc.body and "message" in (body := json.loads(exc.body)):
+                    message += ": " + body["message"]
 
-            raise InfrastructureError(
-                f"Unable to create Kubernetes job{message}"
-            ) from exc
-        return job
+                raise InfrastructureError(
+                    f"Unable to create Kubernetes job{message}"
+                ) from exc
+            return job
 
     async def _upsert_secret(
         self, name: str, value: str, namespace: str, client: "ApiClient"
@@ -1036,54 +1037,58 @@ class KubernetesWorker(BaseWorker):
             return -1
 
         # Create a list of tasks to run concurrently
-        batch_client = BatchV1Api(client)
-        tasks = [
-            self._monitor_job_events(
-                batch_client,
-                job_name,
-                logger,
-                configuration,
-            )
-        ]
-
-        try:
-            with timeout_async(seconds=configuration.job_watch_timeout_seconds):
-                if configuration.stream_output:
-                    tasks.append(
-                        self._stream_job_logs(
-                            logger, pod.metadata.name, job_name, configuration, client
-                        )
-                    )
-                # The kubernetes library will disable retries if the timeout kwarg is
-                # present regardless of the value so we do not pass it unless given
-                # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
-
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                if any(isinstance(result, Exception) for result in results):
-                    for result in results:
-                        if isinstance(result, Exception):
-                            logger.error(
-                                f"Error during task execution: {result}",
-                                exc_info=True,
+        async with self._get_batch_client(client) as batch_client:
+            tasks = [
+                self._monitor_job_events(
+                    batch_client,
+                    job_name,
+                    logger,
+                    configuration,
+                )
+            ]
+            try:
+                with timeout_async(seconds=configuration.job_watch_timeout_seconds):
+                    if configuration.stream_output:
+                        tasks.append(
+                            self._stream_job_logs(
+                                logger,
+                                pod.metadata.name,
+                                job_name,
+                                configuration,
+                                client,
                             )
-        except TimeoutError:
-            logger.error(
-                f"Job {job_name!r}: Job did not complete within "
-                f"timeout of {configuration.job_watch_timeout_seconds}s."
-            )
-            return -1
+                        )
 
-        core_client = CoreV1Api(client)
-        # Get all pods for the job
-        pods = await core_client.list_namespaced_pod(
-            namespace=configuration.namespace, label_selector=f"job-name={job_name}"
-        )
-        # Get the status for only the most recently used pod
-        pods.items.sort(key=lambda pod: pod.metadata.creation_timestamp, reverse=True)
-        most_recent_pod = pods.items[0] if pods.items else None
-        first_container_status = (
-            most_recent_pod.status.container_statuses[0] if most_recent_pod else None
-        )
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    if any(isinstance(result, Exception) for result in results):
+                        for result in results:
+                            if isinstance(result, Exception):
+                                logger.error(
+                                    f"Error during task execution: {result}",
+                                    exc_info=True,
+                                )
+            except TimeoutError:
+                logger.error(
+                    f"Job {job_name!r}: Job did not complete within "
+                    f"timeout of {configuration.job_watch_timeout_seconds}s."
+                )
+                return -1
+
+            core_client = CoreV1Api(client)
+            # Get all pods for the job
+            pods = await core_client.list_namespaced_pod(
+                namespace=configuration.namespace, label_selector=f"job-name={job_name}"
+            )
+            # Get the status for only the most recently used pod
+            pods.items.sort(
+                key=lambda pod: pod.metadata.creation_timestamp, reverse=True
+            )
+            most_recent_pod = pods.items[0] if pods.items else None
+            first_container_status = (
+                most_recent_pod.status.container_statuses[0]
+                if most_recent_pod
+                else None
+            )
 
         if not first_container_status:
             logger.error(f"Job {job_name!r}: No pods found for job.")
@@ -1113,16 +1118,15 @@ class KubernetesWorker(BaseWorker):
         client: "ApiClient",
     ) -> Optional["V1Job"]:
         """Get a Kubernetes job by id."""
-
-        batch_client = BatchV1Api(client)
-        try:
-            job = await batch_client.read_namespaced_job(
-                name=job_id, namespace=configuration.namespace
-            )
-        except kubernetes_asyncio.client.exceptions.ApiException:
-            logger.error(f"Job {job_id!r} was removed.", exc_info=True)
-            return None
-        return job
+        async with self._get_batch_client(client) as batch_client:
+            try:
+                job = await batch_client.read_namespaced_job(
+                    name=job_id, namespace=configuration.namespace
+                )
+            except kubernetes_asyncio.client.exceptions.ApiException:
+                logger.error(f"Job {job_id!r} was removed.", exc_info=True)
+                return None
+            return job
 
     async def _get_job_pod(
         self,
