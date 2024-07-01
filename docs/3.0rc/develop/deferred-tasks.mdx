@@ -180,12 +180,12 @@ cd prefect-background-task-examples
 
 Add the `@task` decorator to any Python function to define a Prefect task.
 
-#### Step 1: Create a file named `greeter.py` 
+#### Step 1: Create a file with a task-decorated function 
 
-Create a file named `greeter.py` and save the following code in it, or run the existing file in the 
+Create a file and save the following code in it, or run the existing file in the 
 basic-examples directory.
 
-```python
+```python greeter.py
 from prefect import task 
 
 @task(log_prints=True)
@@ -223,17 +223,15 @@ Hit the refresh button for updates, if needed.
 
 ### Example 2: Start a task worker and run deferred tasks in the background
 
-This example starts a task worker and runs deferred tasks in the background.  
-
-To run tasks in a separate process or container, you need to start a task worker, similar to how you would run a 
+To run tasks in a separate process or container, start a task worker, similar to how you would run a 
 Celery worker or an arq worker.
 The task worker continually receives scheduled tasks to execute from Prefect's API, executes them, and reports the 
 results back to the API.
 Run a task worker by passing tasks into the `prefect.task_worker.serve()` method.
 
-#### Step 1: Define the task and task worker in the file `task_worker.py`
+#### Step 1: Define the task and task worker in a file 
 
-```python
+```python task_worker.py
 from prefect import task
 from prefect.task_worker import serve
 
@@ -255,10 +253,11 @@ python task_worker.py
 
 The task worker is waiting for runs of the `my_background_task` task.
 
-#### Step 3: Create a file named `task_scheduler.py` and save the following code in it:
+#### Step 3: Create a file and save the following code in it:
 
-```python
-from tasks import my_background_task
+```python task_scheduler.py
+from task_worker import my_background_task
+
 
 if __name__ == "__main__":
     my_background_task.delay("Agrajag")
@@ -270,7 +269,7 @@ Step 4: Open another terminal and run the script
 python task_scheduler.py
 ```
 
-We return a "future" from the `delay` method. You can use this object to wait for the task to complete with 
+The code returns a "future" from the `delay` method. You can use this object to wait for the task to complete with 
 `wait()` and to retrieve its result with `result()`.
 You can also see the task run's UUID and other information about the task run.
 
@@ -296,7 +295,7 @@ python task_worker.py
 Modify the `task_scheduler.py` file to send multiple tasks to the task worker with different inputs:
 
 ```python
-from tasks import my_background_task
+from task_worker import my_background_task
 
 if __name__ == "__main__":
     my_background_task.delay("Ford")
