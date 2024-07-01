@@ -1604,6 +1604,12 @@ async def create_task_run_future(
         )
     )
 
+    # Remove any previous task run futures with the same name
+    flow_run_context.task_run_futures = [
+        future for future in flow_run_context.task_run_futures
+        if not future.name.startswith(task.name)
+    ]
+
     # Track the task run future in the flow run context
     flow_run_context.task_run_futures.append(future)
 
