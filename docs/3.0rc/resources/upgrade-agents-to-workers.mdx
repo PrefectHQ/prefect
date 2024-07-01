@@ -317,13 +317,16 @@ if __name__ == "__main__":
         parameters=dict(name="Marvin"),
     )
 ```
-
+<!-- vale Google.Spacing = NO -->
 <Note>
 When using `flow.from_source(...).deploy(...)` with a remote
 `source` (like a `GitHub` block or `str` URL like https://github.com/me/myrepo.git),
 the flow you're deploying does not need to be available locally before running your script.
 See the [SDK reference](https://prefect-python-sdk-docs.netlify.app/prefect/#prefect.Flow.from_source) for more info on `from_source`.
+
 </Note>
+<!-- vale Google.Spacing = YES -->
+
 
 #### Deploying via a Docker image
 
