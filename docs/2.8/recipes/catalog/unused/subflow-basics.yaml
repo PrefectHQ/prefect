@@ -1,0 +1,8 @@
+recipeName: Subflow Basics
+author: Prefect
+authorUrl: https://prefect.io
+description: Prefect 2 Paradigm Shift, from flow-of-flows to subflows.
+topic: Flows
+recipeUrl: https://discourse.prefect.io/t/migrating-to-prefect-2-0-from-flow-of-flows-to-subflows/1318
+iconUrl: 
+  - /img/collections/python.png
