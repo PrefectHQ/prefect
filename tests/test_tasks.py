@@ -4226,6 +4226,35 @@ class TestNestedTasks:
         assert result == "Failed"
         assert count == 2
 
+    def test_nested_task_with_retries_on_outer_task(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14390
+        where the flow run would be marked as failed despite the tasks eventually succeeding.
+        """
+
+        failed = False
+
+        @task
+        def nested_flaky_task():
+            # This task will fail the first time it is run, but will succeed if called a second time
+            nonlocal failed
+            if not failed:
+                failed = True
+                raise ValueError("Forced task failure")
+
+        @task(
+            retries=1,
+        )
+        def top_task():
+            nested_flaky_task()
+
+        @flow
+        def nested_task_flow():
+            top_task()
+
+        result = nested_task_flow()
+        assert result[0].is_completed()
+
     def test_nested_task_with_retries_on_inner_and_outer_task(self):
         count = 0
 
