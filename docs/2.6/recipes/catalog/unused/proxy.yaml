@@ -1,0 +1,9 @@
+recipeName: Proxy Requests
+author: Prefect
+authorUrl: https://prefect.io
+description: Making HTTPS proxied requests with Prefect.
+topic: Flows
+recipeUrl: https://discourse.prefect.io/t/making-proxied-requests-with-prefect/1555
+iconUrl: 
+  - /img/collections/python.png
+  - /img/collections/mitmproxy.png
