@@ -1,0 +1,198 @@
+
+
+2.6 TABS ARE HERE
+
+{
+        "name": "Concepts",
+        "url": "2.6/concepts"
+      },
+      {
+        "name": "Prefect UI & Prefect Cloud",
+        "url": "2.6/ui"
+      },
+      {
+        "name": "Integrations",
+        "url": "2.6/integrations"
+      },
+      {
+        "name": "API References",
+        "url": "2.6/api-ref"
+      },
+      
+      {
+        "name": "Contributing",
+        "url": "2.6/contributing"
+      }
+
+
+2.6 NAV IS HERE
+
+      {
+        "group": "Getting Started",
+        "version": "2.6",
+        "pages": [
+          "2.6/getting-started/index",
+          "2.6/getting-started/overview",
+          "2.6/getting-started/installation"
+        ]
+      },
+      {
+        "group": "Tutorials",
+        "version": "2.6",
+        "pages": [
+          {
+            "group": "Prefect Fundamentals",
+            "pages": [
+              "2.6/tutorials/first-steps",
+              "2.6/tutorials/flow-task-config",
+              "2.6/tutorials/execution",
+              "2.6/tutorials/orion",
+              "2.6/tutorial/deployments",
+              "2.6/tutorials/storage",
+              "2.6/tutorials/docker",
+              "2.6/tutorials/cloud-quickstart"
+            ]
+          },
+          {
+            "group": "Advanced Tutorials",
+            "pages": [
+              "2.6/tutorials/testing",
+              "2.6/tutorials/dask-ray-task-runners"
+            ]
+          }
+
+        ]
+      },
+
+      {
+        "group": " ",
+        "version": "2.6",
+        "pages": [
+          "2.6/migration-guide"
+        ]
+      },
+      {
+        "group": "Prefect Recipes",
+        "version": "2.6",
+        "pages": [
+          "2.6/recipes/recipes",
+          "2.6/recipes/contribute-recipes"
+        ]
+      },
+
+
+      {
+        "group": "Concepts",
+        "version": "2.6",
+        "pages": [
+              "2.6/concepts/overview",
+              "2.6/concepts/flows",
+              "2.6/concepts/tasks",
+              "2.6/concepts/results",
+              "2.6/concepts/states",
+              "2.6/concepts/infrastructure",
+              "2.6/concepts/task-runners",
+              "2.6/concepts/deployments",
+              "2.6/concepts/work-queues",
+              "2.6/concepts/storage",
+              "2.6/concepts/blocks",
+              "2.6/concepts/filesystems",
+              "2.6/concepts/schedules",
+              "2.6/concepts/logs",
+              "2.6/concepts/database",
+              "2.6/concepts/settings"
+        ]
+      },
+
+      {
+        "group": "Prefect UI & Prefect Cloud",
+        "version": "2.6",
+        "pages": [
+          "2.6/ui/overview",
+          "2.6/ui/cloud",
+          "2.6/ui/cloud-getting-started",
+          {
+            "group": "Cloud Concepts",
+            "pages": [
+              "2.6/ui/cloud-api-keys",
+              "2.6/ui/cloud-local-environment"
+             
+            ]
+          },
+          "2.6/ui/flow-runs",
+          "2.6/ui/flows",
+          "2.6/ui/deployments",
+          "2.6/ui/work-queues",
+          "2.6/ui/blocks",
+          "2.6/ui/notifications",
+          "2.6/ui/task-concurrency",
+
+          "2.6/ui/workspaces",
+          "2.6/ui/automations",
+          "2.6/ui/organizations",
+          "2.6/ui/service-accounts",
+          "2.6/ui/roles",
+          "2.6/ui/sso",
+          "2.6/ui/audit-log",
+          "2.6/ui/troubleshooting"
+        ]
+      },
+
+
+      {
+        "group": "Integrations",
+        "version": "2.6",
+        "pages": [
+          "2.6/collections/catalog",
+          "2.6/collections/usage",
+          "2.6/collections/contribute"
+        ]
+      },
+
+
+
+      {
+        "group": " ",
+        "version": "2.6",
+        "pages": [
+          "2.6/faq"
+        ]
+      },
+
+
+      {
+        "group": "API Reference",
+        "version": "2.6",
+        "pages": [
+          "2.6/api-ref/overview",
+          {
+        "group": "Prefect REST API",
+        "version": "2.6",
+        "pages": [
+          "2.6/api-ref/rest-api",
+          "2.6/api-ref/rest-api-reference"
+          ]
+        }
+      ]
+      },
+
+
+      {
+        "group": "Contributing",
+        "version": "2.6",
+        "pages": [
+          "2.6/community/overview",
+          "2.6/community/style",
+          "2.6/community/versioning",
+          "2.6/community/common-mistakes"
+
+        ]
+      }
+
+
+      
+    
+
+
+
+
