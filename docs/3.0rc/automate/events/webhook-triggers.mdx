@@ -76,18 +76,16 @@ prefect cloud webhook rotate <webhook-url-slug>
 
 ## Webhook endpoints
 
-The webhook endpoints have randomly generated opaque URLs that do not divulge any
-information about your Prefect Cloud workspace.  They are rooted at
-`https://api.prefect.cloud/hooks/`. For example:
-`https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ`.
+The webhook endpoints have randomly generated opaque URLs that do not divulge any information about your Prefect Cloud workspace. 
+They are rooted at `https://api.prefect.cloud/hooks/`. 
+For example: `https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ`.
 Prefect Cloud assigns this URL when you create a webhook; it cannot be set through the API.
-You may rotate your webhook URL at any time without
-losing the associated configuration.
+You may rotate your webhook URL at any time without losing the associated configuration.
 
 All webhooks may accept requests with the most common HTTP methods:
 
 * Use `GET`, `HEAD`, and `DELETE` for webhooks that define a static event
-  template, or a template that does not depend on the _body_ of the HTTP request.  The
+  template, or a template that does not depend on the _body_ of the HTTP request. The
   headers of the request will be available for templates.
 * Use `POST`, `PUT`, and `PATCH` when the webhook request includes a body.
   See [How HTTP request components are
@@ -205,7 +203,7 @@ template and produce different events for the different models:
 ```
 
 All subsequent `POST` requests will produce events with those variable
-resource IDs and names. The other statically-defined parts, such as `event` or the
+resource IDs and names. The other statically defined parts, such as `event` or the
 `producing-team` label you included earlier, will still be used.
 
 <Tip>

@@ -547,7 +547,7 @@ When your flow receives input from another flow, Prefect knows the sending flow 
 respond by calling the `respond` method on the `RunInput` instance the flow received. There are a couple of requirements:
 
 - Pass in a `BaseModel` or `RunInput`, or use `with_metadata=True`.
-- The flow you are responding to must receive the same type of input you send in order to see it.
+- The flow you are responding to must receive the same type of input you send to see it.
 
 The `respond` method is equivalent to calling `send_input(..., flow_run_id=sending_flow_run.id)`. But with `respond`, 
 your flow doesn't need to know the sending flow run's ID.

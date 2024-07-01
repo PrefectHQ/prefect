@@ -1,8 +1,8 @@
-integrationName: # Your collection name. Should match your PyPI package name e.g. prefect-collection
+integrationName: # Your collection name. Should match your PyPI package name. For example: prefect-collection
 author: Your Name
-authorUrl: # A link to information about the author e.g. Company URL, GitHub user profile, etc
-documentation: # A link to the collection's documentation i.e. GitHub Pages
+authorUrl: # A link to information about the author. For example: Company URL, GitHub user profile, etc.
+documentation: # A link to the collection's documentation. For example, GitHub Pages.
 iconUrl: # Used as the src attribute of the collection's logo.
 # You can provide an external URL or add your logo under docs/3.0rc/img/collections and provide a path
-# relative to docs/ e.g. /images/integrations/my-logo.png
-tag: # A tag to help users search for your collection. Should correspond to the service that your collection integrates with e.g. "dbt", "AWS", "Databricks"
+# relative to docs/ For example: /images/integrations/my-logo.png
+tag: # A tag to help users search for your collection. Should correspond to the service that your collection integrates with. For example: "dbt", "AWS", "Databricks"

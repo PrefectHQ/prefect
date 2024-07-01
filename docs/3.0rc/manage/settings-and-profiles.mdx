@@ -113,7 +113,7 @@ Must be provided in a SQLAlchemy-compatible format. Prefect currently supports S
 ### Host the UI behind a reverse proxy
 
 When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a 
-locally-hosted Prefect UI instance, you must also configure the Prefect server instance to connect to the API. 
+ hosted Prefect UI instance, you must also configure the Prefect server instance to connect to the API. 
 The PREFECT_UI_API_URL should be set to the external proxy URL.
 
 For example, if your external URL is `https://prefect-server.example.com` then set 

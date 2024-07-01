@@ -64,7 +64,7 @@ However you run your flow, Prefect monitors the flow run, capturing its state fo
 You can log a [variety of metadata](/3.0rc/develop/logging) about your flow runs for monitoring, troubleshooting, and auditing purposes.
 </Tip>
 
-### An Example
+### Example
 
 The script below fetches statistics about the [main Prefect repository](https://github.com/PrefectHQ/prefect).
 (Note that [httpx](https://www.python-httpx.org/) is an HTTP client library and a dependency of Prefect.)
@@ -106,7 +106,7 @@ Forks 🍴 : 1245
 As shown above, flow definitions can contain arbitrary Python code.
 </Tip>
 
-## Specifying Parameters
+## Specifying parameters
 
 As with any Python function, you can pass arguments to a flow, including both positional and keyword arguments.
 These arguments defined on your flow function are called [parameters](/3.0rc/develop/write-flows/#parameters).
@@ -349,7 +349,7 @@ async def async_flow():
 asyncio.run(async_flow())
 ```
 
-### Class Methods
+### Class methods
 
 Prefect supports synchronous and asynchronous class methods as flows, including instance methods, class methods, and static methods. 
 For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
