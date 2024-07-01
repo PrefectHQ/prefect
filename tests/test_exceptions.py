@@ -1,3 +1,5 @@
+from typing import Any, List, Type
+
 import cloudpickle
 import pytest
 
@@ -6,24 +8,32 @@ from prefect.exceptions import (
     ParameterTypeError,
     SignatureMismatchError,
 )
-from prefect.pydantic import BaseModel, ValidationError, field_validator
+from prefect.pydantic import (
+    HAS_PYDANTIC_V2,
+    USE_PYDANTIC_V2,
+    BaseModel,
+    ValidationError,
+)
 
 
-class ValidationTestModel(BaseModel):
+def parse_as(T: Type[object], obj: Any) -> Any:
+    if HAS_PYDANTIC_V2 and USE_PYDANTIC_V2:
+        from pydantic import TypeAdapter
+
+        return TypeAdapter(T).validate_python(obj)
+    elif HAS_PYDANTIC_V2:
+        from pydantic.v1 import parse_obj_as
+
+        return parse_obj_as(T, obj)
+    else:
+        from pydantic import parse_obj_as
+
+        return parse_obj_as(T, obj)
+
+
+class Foo(BaseModel):
     num: int
     string: str
-
-    @field_validator("num")
-    def must_be_int(cls, n):
-        if not isinstance(n, int):
-            raise TypeError("must be int")
-        return n
-
-    @field_validator("string")
-    def must_be_str(cls, n):
-        if not isinstance(n, str):
-            raise TypeError("must be str")
-        return n
 
 
 class TestParameterTypeError:
@@ -31,18 +41,37 @@ class TestParameterTypeError:
         with pytest.raises(
             ValidationError, match=r"validation error.*\s+num\s+.*integer"
         ):
-            ValidationTestModel(**{"num": "not an int", "string": "a string"})
+            Foo(**{"num": "not an int", "string": "a string"})
 
     def test_construction_from_two_validation_errors(self):
         with pytest.raises(
             ValidationError,
             match=r"2 validation errors.*\s+num\s+.*integer.*\s+string\s+.*str",
         ):
-            ValidationTestModel(**{"num": "not an int", "string": [1, 2]})
+            Foo(**{"num": "not an int", "string": [1, 2]})
+
+    def test_construction_with_list_of_model_type_inputs(self):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/14406"""
+
+        errored = False
+
+        class HelloParams(BaseModel):
+            name: str
+
+        try:
+            parse_as(List[HelloParams], [{"name": "rodrigo"}, {}])
+        except ValidationError as exc:
+            errored = True
+            assert len(exc.errors()) == 1
+            parameter_type_error = ParameterTypeError.from_validation_error(exc)
+            assert "1.name" in str(parameter_type_error)
+            assert "field required" in str(parameter_type_error)
+
+        assert errored
 
     def test_pickle_roundtrip_single_error(self):
         try:
-            ValidationTestModel(**{"num": "not an int", "string": "a string"})
+            Foo(**{"num": "not an int", "string": "a string"})
         except Exception as exc:
             pte = ParameterTypeError.from_validation_error(exc)
             pickled = cloudpickle.dumps(pte)
@@ -52,7 +81,7 @@ class TestParameterTypeError:
 
     def test_pickle_roundtrip_two_errors(self):
         try:
-            ValidationTestModel(**{"num": "not an int", "string": [1, 2]})
+            Foo(**{"num": "not an int", "string": [1, 2]})
         except Exception as exc:
             pte = ParameterTypeError.from_validation_error(exc)
             pickled = cloudpickle.dumps(pte)
