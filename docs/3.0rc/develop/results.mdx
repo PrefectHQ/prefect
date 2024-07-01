@@ -55,7 +55,8 @@ prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
 
 In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, result persistence can also be 
 enabled or disabled on both individual flows and individual tasks.
-The following keywords on the task decorator control result persistence for that task:
+Specifying a non-null value for any of the following keywords on the task decorator will enable result 
+persistence for that task:
 - `persist_result`: a boolean that allows you to explicity enable or disable result persistence.
 - `result_storage`: accepts either a string reference to a storage block or a storage block class that
 specifies where results should be stored.
