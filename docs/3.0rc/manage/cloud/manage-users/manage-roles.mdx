@@ -8,7 +8,7 @@ access to the appropriate level within specific workspaces.
 
 Role-based access controls (RBAC) enable you to assign users granular permissions to perform certain activities.
 
-Enterprise account Admins can create custom roles for users to give users access to functionality 
+Enterprise account Admins can create custom roles for users to give users access to capabilities 
 beyond the scope of Prefect’s built-in workspace roles.
 
 ## Built-in roles
@@ -50,11 +50,11 @@ specific permissions within a workspace.
 
 Custom roles can inherit permissions from a built-in role.
 This enables tweaks to the role to meet your team’s needs, while ensuring users still benefit 
-from Prefect’s default workspace role permission curation as new functionality becomes available.
+from Prefect’s default workspace role permission curation as new capabilities becomes available.
 
 You can create custom workspace roles independently of Prefect’s built-in roles. This option gives 
-workspace admins full control of user access to workspace functionality. However, for non-inherited custom roles, 
-the workspace admin takes on the responsibility for monitoring and setting permissions for new functionality as it is released.
+workspace admins full control of user access to workspace capabilities. However, for non-inherited custom roles, 
+the workspace admin takes on the responsibility for monitoring and setting permissions for new capabilities as it is released.
 
 See [Role permissions](#workspace-role-permissions) for details of permissions you may set for custom roles.
 
@@ -68,10 +68,9 @@ custom role from a set of initial permissions associated with a built-in Prefect
 You can add additional permissions to the custom role. Permissions included in the inherited role cannot be removed.
 
 Custom roles created from an inherited role follow Prefect's default workspace role permission curation as 
-new functionality becomes available.
+new capabilities becomes available.
 
-To configure an inherited role alongside a custom role, select the **Inherit permission from a default role** 
-check box, then select the role from which the new role should inherit permissions.
+To configure an inherited role alongside a custom role, select **Inherit permission from a default role**, then select the role from which the new role should inherit permissions.
 
 ## Workspace role permissions
 
