@@ -1,0 +1,195 @@
+
+
+2.7.11 TABS ARE HERE
+      {
+        "name": "Concepts",
+        "url": "2.7.11/concepts"
+      },
+      {
+        "name": "Prefect UI & Prefect Cloud",
+        "url": "2.7.11/ui"
+      },
+      {
+        "name": "Integrations",
+        "url": "2.7.11/integrations"
+      },
+      {
+        "name": "API References",
+        "url": "2.7.11/api-ref"
+      },
+      
+      {
+        "name": "Contributing",
+        "url": "2.7.11/contributing"
+      }
+   
+
+
+   2.7.11 NAV IS HERE
+
+
+      {
+        "group": "Getting Started",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/getting-started/index",
+          "2.7.11/getting-started/overview",
+          "2.7.11/getting-started/installation"
+        ]
+      },
+      {
+        "group": "Tutorials",
+        "version": "2.7.11",
+        "pages": [
+          {
+            "group": "Prefect Fundamentals",
+            "pages": [
+              "2.7.11/tutorials/first-steps",
+              "2.7.11/tutorials/flow-task-config",
+              "2.7.11/tutorials/execution",
+              "2.7.11/tutorials/orion",
+              "2.7.11/tutorial/deployments",
+              "2.7.11/tutorials/storage",
+              "2.7.11/tutorials/docker",
+              "2.7.11/tutorials/cloud-quickstart"
+            ]
+          },
+          {
+            "group": "Advanced Tutorials",
+            "pages": [
+              "2.7.11/tutorials/testing",
+              "2.7.11/tutorials/dask-ray-task-runners"
+            ]
+          }
+
+        ]
+      },
+
+      {
+        "group": " ",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/migration-guide"
+        ]
+      },
+      {
+        "group": "Prefect Recipes",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/recipes/recipes",
+          "2.7.11/recipes/contribute-recipes"
+        ]
+      },
+
+
+      {
+        "group": "Concepts",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/concepts/overview",
+              "2.7.11/concepts/flows",
+              "2.7.11/concepts/tasks",
+              "2.7.11/concepts/results",
+              "2.7.11/concepts/states",
+              "2.7.11/concepts/infrastructure",
+              "2.7.11/concepts/task-runners",
+              "2.7.11/concepts/deployments",
+              "2.7.11/concepts/work-queues",
+              "2.7.11/concepts/storage",
+              "2.7.11/concepts/blocks",
+              "2.7.11/concepts/filesystems",
+              "2.7.11/concepts/schedules",
+              "2.7.11/concepts/logs",
+              "2.7.11/concepts/database",
+              "2.7.11/concepts/settings"
+        ]
+      },
+
+      {
+        "group": "Prefect UI & Prefect Cloud",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/ui/index",
+          "2.7.11/ui/cloud",
+          "2.7.11/ui/cloud-quickstart",
+          {
+            "group": "Cloud Concepts",
+            "pages": [
+              "2.7.11/ui/cloud-api-keys",
+              "2.7.11/ui/cloud-local-environment"
+             
+            ]
+          },
+          "2.7.11/ui/flow-runs",
+          "2.7.11/ui/flows",
+          "2.7.11/ui/deployments",
+          "2.7.11/ui/work-queues",
+          "2.7.11/ui/blocks",
+          "2.7.11/ui/notifications",
+          "2.7.11/ui/task-concurrency",
+
+          "2.7.11/ui/workspaces",
+          "2.7.11/ui/automations",
+          "2.7.11/ui/organizations",
+          "2.7.11/ui/service-accounts",
+          "2.7.11/ui/roles",
+          "2.7.11/ui/sso",
+          "2.7.11/ui/audit-log",
+          "2.7.11/ui/troubleshooting"
+        ]
+      },
+
+
+      {
+        "group": "Integrations",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/collections/catalog",
+          "2.7.11/collections/usage",
+          "2.7.11/collections/contribute"
+        ]
+      },
+
+
+
+      {
+        "group": " ",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/faq"
+        ]
+      },
+
+
+      {
+        "group": "API Reference",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/api-ref/overview",
+          {
+        "group": "Prefect REST API",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/api-ref/rest-api",
+          "2.7.11/api-ref/rest-api-reference"
+          ]
+        }
+      ]
+      },
+
+
+      {
+        "group": "Contributing",
+        "version": "2.7.11",
+        "pages": [
+          "2.7.11/community/overview",
+          "2.7.11/community/style",
+          "2.7.11/community/versioning",
+          "2.7.11/community/common-mistakes"
+
+        ]
+      }
+
+
+      
+    

@@ -1,0 +1,146 @@
+---
+description: Best practices for using Python virtual environments when developing Prefect flows.
+tags:
+    - Python
+    - virtual environments
+    - conda
+    - virtualenv
+    - venv
+    - development
+    - tutorial
+    - deployments
+---
+
+# Virtual environments
+
+Virtual environments allow you to separate your Python dependencies for each project. Using virtual environments is a highly recommended practice when developing with Python.
+
+## Creating a virtual environment
+
+We recommend reading the documentation for the virtual environment of your choice. We do not recommend a specific environment management tool, but will use `conda` for this tutorial.
+
+In this example, we create an environment named `prefect-dev` with Python 3.8:
+
+```bash
+conda create --name prefect-dev python=3.10   
+```
+
+Then, we activate the environment:
+
+```bash
+conda activate prefect-dev
+```
+
+Now, [install Prefect](/2.7.11/getting-started/installation.md):
+```bash
+pip install prefect>=2.0b
+```
+
+## Isolating settings per environment
+
+You may want each Python environment to have isolated Prefect settings. By default, Prefect settings are stored in your home directory and are shared across all versions of Python. To avoid this, you can change the `PREFECT_HOME` setting to a unique directory per environment. For example, with `conda` you can [configure the environment so the variable is set when your environment is activated](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#setting-environment-variables):
+
+```bash
+conda env config vars set PREFECT_HOME="~/.prefect/prefect-dev"
+```
+
+## Running a flow in the virtual environment
+
+Save the following script to the file `example.py`:
+
+```python
+from prefect import flow
+
+@flow
+def my_flow():
+    print("Hello world!")
+
+my_flow()
+```
+
+You can run this flow in your environment:
+
+```bash
+python example.py
+```
+
+If you flow has additional dependencies, you can add them to your environment with `pip install`.
+
+When doing ad hoc flow runs (by calling the flow function directly), the flow will always execute in the current environment.
+
+## Running deployed flows in a virtual environment
+
+If you run your Orion API or agent in the virtual environment, all flow runs using the subprocess flow runner will use the same Python environment by default.
+
+This behavior may be desirable for development or in simple cases where your flow does not have many dependencies.
+
+## Specifying a virtual environment on a deployment
+
+You may want your flows to run in a different Python environment than the agent. The subprocess flow runner supports the following virtual environments:
+
+- [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
+- [virtualenv](https://virtualenv.pypa.io/en/latest/)
+- [venv](https://docs.python.org/3/library/venv.html)
+
+
+For example, you can configure the deployment to run in the `prefect-dev` environment described earlier, using a work queue called `example`. Save the following to a `example-deployment.py` file:
+
+```python
+import sys
+from prefect import flow
+from prefect.deployments import Deployment
+from prefect.flow_runners import SubprocessFlowRunner
+
+@flow
+def my_flow():
+    print(f"Hello! Running with {sys.executable}")
+
+
+Deployment(
+    name="example",
+    flow=my_flow,
+    flow_runner=SubprocessFlowRunner(condaenv="prefect-dev", stream_output=True),
+    work_queue_name="venv-tutorial"
+)
+```
+
+Create the deployment:
+
+```bash
+prefect deployment create example-deployment.py
+```
+
+Then start an agent that pulls work from the tutorial work queue:
+
+```bash
+prefect agent start -q venv-tutorial
+```
+
+The agent will continue running in your terminal. 
+In a separate terminal window, create a flow run for your deployment:
+
+```bash
+prefect deployment run my-flow/example
+```
+
+You should see output from the agent in your terminal as the flow run is submitted and run.
+
+## Specifying environment paths
+
+Conda environments may also be provided as a path to the prefix:
+
+```python
+SubprocessFlowRunner(condaenv="/opt/homebrew/Caskroom/miniconda/base/envs/prefect-dev")
+```
+
+Virtualenv and venv environments must be specified as a path:
+
+```python
+SubprocessFlowRunner(virtualenv="./my-venv")
+```
+
+Relative paths will be resolved relative to the agent's working directory.
+
+Note, the same field is used for both venv and virtualenv.
+
+Shut down your agent by pressing `control` + `c` in the terminal window.
