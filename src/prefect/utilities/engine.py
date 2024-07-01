@@ -502,7 +502,7 @@ def propose_state_sync(
             # Avoid fetching the result unless it is cached, otherwise we defeat
             # the purpose of disabling `cache_result_in_memory`
             result = state.result(raise_on_failure=False, fetch=True)
-            if inspect.isawaitable(result):
+            if inspect.iscoroutine(result):
                 result = run_coro_as_sync(result)
         else:
             result = state.data
