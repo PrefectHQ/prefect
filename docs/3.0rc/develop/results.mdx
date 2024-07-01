@@ -22,14 +22,14 @@ prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 See [settings](/3.0rc/manage/settings-and-profiles) for more information on how settings are managed.
 </Tip>
 
-## Configuring how results are persisted
+## Configuring result persistence
 
-There are four categories of configuration for Prefect result persistence:
-- [whether to persist at all](results#enabling-result-persistence): this is configured through
+There are four categories of configuration for result persistence:
+- [whether to persist results at all](results#enabling-result-persistence): this is configured through
 various keyword arguments and the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting.
-- [what filesystem to persist to](results#result-storage): this is configured through the `result_storage` 
+- [what filesystem to persist results to](results#result-storage): this is configured through the `result_storage` 
 keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
-- [how to serialize and deserialize the data](results#result-serialization): this is configured through 
+- [how to serialize and deserialize results](results#result-serialization): this is configured through 
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
 - [what filename to use](results#result-filenames): this is configured through one of 
 `result_storage_key`, `cache_policy`, or `cache_key_fn`.
@@ -179,7 +179,7 @@ Current built-in options include `"pickle"`, `"json"`, `"compressed/pickle"` and
 The `result_serializer` accepts both a string identifier or an instance of a `ResultSerializer` class, allowing
 you to customize serialization behavior.
 
-## Advanced: Caching of results in memory
+## Advanced: Caching results in memory
 
 When running workflows, Prefect keeps the results of all tasks and flows in memory 
 so they can be passed downstream. In some cases, it is desirable to override this behavior. 
