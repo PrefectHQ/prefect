@@ -1,6 +1,6 @@
 """Module to define common exceptions within `prefect_kubernetes`."""
 
-from kubernetes.client.exceptions import ApiException, OpenApiException
+from kubernetes_asyncio.client.exceptions import ApiException, OpenApiException
 
 
 class KubernetesJobDefinitionError(OpenApiException):

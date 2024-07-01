@@ -1,7 +1,7 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from kubernetes.config import ConfigException
+from kubernetes_asyncio.config import ConfigException
 from prefect_kubernetes.utilities import (
     enable_socket_keep_alive,
 )
@@ -18,14 +18,14 @@ def mock_cluster_config(monkeypatch):
         [],
         {"context": {"cluster": FAKE_CLUSTER}},
     )
-    monkeypatch.setattr("kubernetes.config", mock)
-    monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
+    monkeypatch.setattr("kubernetes_asyncio.config", mock)
+    monkeypatch.setattr("kubernetes_asyncio.config.ConfigException", ConfigException)
     return mock
 
 
 @pytest.fixture
 def mock_api_client(mock_cluster_config):
-    return MagicMock()
+    return AsyncMock()
 
 
 def test_keep_alive_updates_socket_options(mock_api_client):

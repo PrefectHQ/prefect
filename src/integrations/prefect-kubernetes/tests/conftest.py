@@ -1,18 +1,27 @@
-from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import yaml
-from kubernetes.client import AppsV1Api, BatchV1Api, CoreV1Api, CustomObjectsApi, models
-from kubernetes.client.exceptions import ApiException
+from kubernetes_asyncio.client import (
+    AppsV1Api,
+    BatchV1Api,
+    CoreV1Api,
+    CustomObjectsApi,
+    models,
+)
+from kubernetes_asyncio.client.exceptions import ApiException
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.jobs import KubernetesJob
 
 from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
-BASEDIR = Path("tests")
+BASEDIR = (
+    Path.cwd() / "src" / "integrations" / "prefect-kubernetes" / "tests"
+    if Path.cwd().name == "prefect"
+    else Path.cwd() / "tests"
+)
 GOOD_CONFIG_FILE_PATH = BASEDIR / "kube_config.yaml"
 
 
@@ -21,8 +30,14 @@ def prefect_db():
     """
     Sets up test harness for temporary DB during test runs.
     """
-    with prefect_test_harness():
-        yield
+    try:
+        with prefect_test_harness():
+            yield
+    except OSError as e:
+        if "Directory not empty" in str(e):
+            pass
+        else:
+            raise e
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -74,31 +89,21 @@ def kubernetes_credentials(kube_config_dict):
 
 @pytest.fixture
 def _mock_api_app_client(monkeypatch):
-    app_client = MagicMock(spec=AppsV1Api)
-
-    @contextmanager
-    def get_client(self, _):
-        yield app_client
-
+    app_client = AsyncMock(spec=AppsV1Api)
     monkeypatch.setattr(
-        "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        get_client,
+        "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
+        app_client,
     )
-
     return app_client
 
 
 @pytest.fixture
-def _mock_api_batch_client(monkeypatch):
-    batch_client = MagicMock(spec=BatchV1Api)
-
-    @contextmanager
-    def get_client(self, _):
-        yield batch_client
+async def _mock_api_batch_client(monkeypatch):
+    batch_client = AsyncMock(spec=BatchV1Api)
 
     monkeypatch.setattr(
-        "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        get_client,
+        "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
+        batch_client,
     )
 
     return batch_client
@@ -106,31 +111,22 @@ def _mock_api_batch_client(monkeypatch):
 
 @pytest.fixture
 def _mock_api_core_client(monkeypatch):
-    core_client = MagicMock(spec=CoreV1Api)
-
-    @contextmanager
-    def get_client(self, _):
-        yield core_client
+    core_client = AsyncMock(spec=CoreV1Api)
 
     monkeypatch.setattr(
-        "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        get_client,
+        "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
+        core_client,
     )
-
     return core_client
 
 
 @pytest.fixture
 def _mock_api_custom_objects_client(monkeypatch):
-    custom_objects_client = MagicMock(spec=CustomObjectsApi)
-
-    @contextmanager
-    def get_client(self, _):
-        yield custom_objects_client
+    custom_objects_client = AsyncMock(spec=CustomObjectsApi)
 
     monkeypatch.setattr(
-        "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        get_client,
+        "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
+        custom_objects_client,
     )
 
     return custom_objects_client
@@ -138,18 +134,18 @@ def _mock_api_custom_objects_client(monkeypatch):
 
 @pytest.fixture
 def mock_create_namespaced_job(monkeypatch):
-    mock_v1_job = MagicMock(
+    mock_v1_job = AsyncMock(
         return_value=models.V1Job(metadata=models.V1ObjectMeta(name="test"))
     )
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api.create_namespaced_job", mock_v1_job
+        "kubernetes_asyncio.client.api.BatchV1Api.create_namespaced_job", mock_v1_job
     )
     return mock_v1_job
 
 
 @pytest.fixture
 def mock_read_namespaced_job_status(monkeypatch):
-    mock_v1_job_status = MagicMock(
+    mock_v1_job_status = AsyncMock(
         return_value=models.V1Job(
             metadata=models.V1ObjectMeta(
                 name="test", labels={"controller-uid": "test"}
@@ -170,7 +166,7 @@ def mock_read_namespaced_job_status(monkeypatch):
         )
     )
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api.read_namespaced_job_status",
+        "kubernetes_asyncio.client.BatchV1Api.read_namespaced_job_status",
         mock_v1_job_status,
     )
     return mock_v1_job_status
@@ -178,11 +174,11 @@ def mock_read_namespaced_job_status(monkeypatch):
 
 @pytest.fixture
 def mock_delete_namespaced_job(monkeypatch):
-    mock_v1_job = MagicMock(
+    mock_v1_job = AsyncMock(
         return_value=models.V1Job(metadata=models.V1ObjectMeta(name="test"))
     )
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api.delete_namespaced_job", mock_v1_job
+        "kubernetes_asyncio.client.BatchV1Api.delete_namespaced_job", mock_v1_job
     )
     return mock_v1_job
 
@@ -190,16 +186,19 @@ def mock_delete_namespaced_job(monkeypatch):
 @pytest.fixture
 def mock_stream_timeout(monkeypatch):
     monkeypatch.setattr(
-        "kubernetes.watch.Watch.stream",
+        "kubernetes_asyncio.watch.Watch.stream",
         MagicMock(side_effect=ApiException(status=408)),
     )
 
 
 @pytest.fixture
 def mock_pod_log(monkeypatch):
+    async def pod_log(*args, **kwargs):
+        yield "test log"
+
     monkeypatch.setattr(
-        "kubernetes.watch.Watch.stream",
-        MagicMock(return_value=["test log"]),
+        "kubernetes_asyncio.watch.Watch.stream",
+        MagicMock(side_effect=pod_log),
     )
 
 
@@ -213,25 +212,27 @@ def mock_list_namespaced_pod(monkeypatch):
             )
         ]
     )
-    mock_pod_list = MagicMock(return_value=result)
+    mock_pod_list = AsyncMock(return_value=result)
 
     monkeypatch.setattr(
-        "kubernetes.client.CoreV1Api.list_namespaced_pod", mock_pod_list
+        "kubernetes_asyncio.client.api.CoreV1Api.list_namespaced_pod", mock_pod_list
     )
     return mock_pod_list
 
 
 @pytest.fixture
 def read_pod_logs(monkeypatch):
-    pod_log = MagicMock(return_value="test log")
+    pod_log = AsyncMock(return_value="test log")
 
-    monkeypatch.setattr("kubernetes.client.CoreV1Api.read_namespaced_pod_log", pod_log)
+    monkeypatch.setattr(
+        "kubernetes_asyncio.client.api.CoreV1Api.read_namespaced_pod_log", pod_log
+    )
     return pod_log
 
 
 @pytest.fixture
 def valid_kubernetes_job_block(kubernetes_credentials):
-    with open("tests/sample_k8s_resources/sample_job.yaml") as f:
+    with open(BASEDIR / "sample_k8s_resources" / "sample_job.yaml") as f:
         job_dict = yaml.safe_load(f)
 
     return KubernetesJob(

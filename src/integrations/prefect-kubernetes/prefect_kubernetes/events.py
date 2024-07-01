@@ -1,17 +1,11 @@
-import atexit
-import threading
-from typing import TYPE_CHECKING, Dict, List, Optional
+import asyncio
+from typing import Dict, List, Optional
+
+import kubernetes_asyncio
+import kubernetes_asyncio.watch
+from kubernetes_asyncio.client import ApiClient, V1Pod
 
 from prefect.events import Event, RelatedResource, emit_event
-from prefect.utilities.importtools import lazy_import
-
-if TYPE_CHECKING:
-    import kubernetes
-    import kubernetes.client
-    import kubernetes.watch
-    from kubernetes.client import ApiClient, V1Pod
-else:
-    kubernetes = lazy_import("kubernetes")
 
 EVICTED_REASONS = {
     "OOMKilled",
@@ -43,6 +37,7 @@ class KubernetesEventsReplicator:
         self._job_name = job_name
         self._namespace = namespace
         self._timeout_seconds = timeout_seconds
+        self._task = None
 
         # All events emitted by this replicator have the pod itself as the
         # resource. The `worker_resource` is what the worker uses when it's
@@ -51,29 +46,19 @@ class KubernetesEventsReplicator:
         worker_resource["prefect.resource.role"] = "worker"
         worker_related_resource = RelatedResource(worker_resource)
         self._related_resources = related_resources + [worker_related_resource]
-
-        self._watch = kubernetes.watch.Watch()
-        self._thread = threading.Thread(target=self._replicate_pod_events)
-
         self._state = "READY"
 
-        atexit.register(self.stop)
-
-    def __enter__(self):
-        """Start the replicator thread."""
-        self._thread.start()
+    async def __aenter__(self):
+        """Start the Kubernetes event watcher when entering the context."""
+        self._task = asyncio.create_task(self._replicate_pod_events())
         self._state = "STARTED"
+        return self
 
-    def __exit__(self, *args, **kwargs):
-        """Stop the replicator thread."""
-        self.stop()
-
-    def stop(self):
-        """Stop watching for pod events and stop thread."""
-        if self._thread.is_alive():
-            self._watch.stop()
-            self._thread.join()
-            self._state = "STOPPED"
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        """Stop the Kubernetes event watcher and ensure all tasks are completed before exiting the context."""
+        self._state = "STOPPED"
+        if self._task:
+            await self._task
 
     def _pod_as_resource(self, pod: "V1Pod") -> Dict[str, str]:
         """Convert a pod to a resource dictionary"""
@@ -83,14 +68,15 @@ class KubernetesEventsReplicator:
             "kubernetes.namespace": pod.metadata.namespace,
         }
 
-    def _replicate_pod_events(self):
+    async def _replicate_pod_events(self):
         """Replicate Kubernetes pod events as Prefect Events."""
         seen_phases = set()
         last_event = None
 
-        try:
-            core_client = kubernetes.client.CoreV1Api(api_client=self._client)
-            for event in self._watch.stream(
+        core_client = kubernetes_asyncio.client.CoreV1Api(api_client=self._client)
+        watch = kubernetes_asyncio.watch.Watch()
+        async with watch:
+            async for event in watch.stream(
                 func=core_client.list_namespaced_pod,
                 namespace=self._namespace,
                 label_selector=f"job-name={self._job_name}",
@@ -99,14 +85,14 @@ class KubernetesEventsReplicator:
                 phase = event["object"].status.phase
 
                 if phase not in seen_phases:
-                    last_event = self._emit_pod_event(event, last_event=last_event)
+                    last_event = await self._emit_pod_event(
+                        event, last_event=last_event
+                    )
                     seen_phases.add(phase)
                     if phase in FINAL_PHASES:
-                        self._watch.stop()
-        finally:
-            self._client.rest_client.pool_manager.clear()
+                        break
 
-    def _emit_pod_event(
+    async def _emit_pod_event(
         self,
         pod_event: Dict,
         last_event: Optional[Event] = None,
