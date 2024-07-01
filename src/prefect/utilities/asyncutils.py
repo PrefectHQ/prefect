@@ -212,9 +212,9 @@ def run_coro_as_sync(
     """
     if not asyncio.iscoroutine(coroutine):
         if isinstance(coroutine, wrapt.ObjectProxy):
-            return coroutine.__wrapped__
+            return cast(R, getattr(coroutine, "__wrapped__"))
         else:
-            raise TypeError("`coroutine` must be a coroutine object")
+            return cast(R, coroutine)
 
     async def coroutine_wrapper() -> Union[R, None]:
         """
