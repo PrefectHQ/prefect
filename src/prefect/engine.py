@@ -1375,6 +1375,7 @@ def enter_task_run_engine(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
     mapped: bool,
+    entering_from_task_run: Optional[bool] = False,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]:
     """Sync entrypoint for task calls"""
 
@@ -1410,6 +1411,7 @@ def enter_task_run_engine(
         wait_for=wait_for,
         return_type=return_type,
         task_runner=task_runner,
+        entering_from_task_run=entering_from_task_run,
     )
 
     if task.isasync and (
@@ -1536,6 +1538,7 @@ async def get_task_call_return_value(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
     extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    entering_from_task_run: Optional[bool] = False,
 ):
     extra_task_inputs = extra_task_inputs or {}
 
@@ -1546,6 +1549,7 @@ async def get_task_call_return_value(
         wait_for=wait_for,
         task_runner=task_runner,
         extra_task_inputs=extra_task_inputs,
+        entering_from_task_run=entering_from_task_run,
     )
     if return_type == "future":
         return future
@@ -1564,12 +1568,14 @@ async def create_task_run_future(
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: Optional[BaseTaskRunner],
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    entering_from_task_run: Optional[bool] = False,
 ) -> PrefectFuture:
     # Default to the flow run's task runner
     task_runner = task_runner or flow_run_context.task_runner
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
+
     task_run_name = (
         f"{task.name}-{dynamic_key}"
         if flow_run_context and flow_run_context.flow_run
@@ -1604,15 +1610,9 @@ async def create_task_run_future(
         )
     )
 
-    # Remove any previous task run futures with the same name
-    flow_run_context.task_run_futures = [
-        future
-        for future in flow_run_context.task_run_futures
-        if not future.name.startswith(task.name)
-    ]
-
-    # Track the task run future in the flow run context
-    flow_run_context.task_run_futures.append(future)
+    if not entering_from_task_run:
+        # Track the task run future in the flow run context
+        flow_run_context.task_run_futures.append(future)
 
     if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         await future._wait()

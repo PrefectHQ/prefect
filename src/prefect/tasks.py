@@ -685,6 +685,7 @@ class Task(Generic[P, R]):
                 return_type=return_type,
                 client=get_client(),
             )
+        entering_from_task_run = bool(TaskRunContext.get())
 
         return enter_task_run_engine(
             self,
@@ -693,6 +694,7 @@ class Task(Generic[P, R]):
             task_runner=SequentialTaskRunner(),
             return_type=return_type,
             mapped=False,
+            entering_from_task_run=entering_from_task_run,
         )
 
     @overload
@@ -735,7 +737,6 @@ class Task(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
-
         return enter_task_run_engine(
             self,
             parameters=parameters,
@@ -1174,7 +1175,6 @@ class Task(Generic[P, R]):
                 return from_async.wait_for_call_in_loop_thread(map_call)
             else:
                 return from_sync.wait_for_call_in_loop_thread(map_call)
-
         return enter_task_run_engine(
             self,
             parameters=parameters,

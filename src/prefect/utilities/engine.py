@@ -144,6 +144,7 @@ async def wait_for_task_runs_and_report_crashes(
             result = await client.set_task_run_state(
                 task_run_id=future.task_run.id, state=state, force=True
             )
+
             if result.status == SetStateStatus.ACCEPT:
                 engine_logger.debug(
                     f"Reported crashed task run {future.name!r} successfully."
