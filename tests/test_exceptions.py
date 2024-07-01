@@ -65,7 +65,7 @@ class TestParameterTypeError:
             assert len(exc.errors()) == 1
             parameter_type_error = ParameterTypeError.from_validation_error(exc)
             assert "1.name" in str(parameter_type_error)
-            assert "field required" in str(parameter_type_error)
+            assert "field required" in str(parameter_type_error).lower()
 
         assert errored
 
