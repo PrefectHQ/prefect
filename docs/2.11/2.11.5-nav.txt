@@ -1,0 +1,180 @@
+TABS FOR 2.11
+
+
+
+      {
+        "name": "API References",
+        "url": "2.11/api-ref"
+      },
+      {
+        "name": "Integrations",
+        "url": "2.11/integrations"
+      },
+      {
+        "name": "Contribute",
+        "url": "2.11/community"
+      }
+
+
+
+
+NAV FOR 2.11
+
+
+
+      {
+        "group": "Getting Started",
+        "version": "2.11",
+        "pages": [
+          "2.11/getting-started/index",
+          "2.11/getting-started/installation"
+        ]
+      },
+      {
+        "group": "Tutorial",
+        "version": "2.11",
+        "pages": [
+          "2.11/tutorial/index",
+          "2.11/tutorial/flows",
+          "2.11/tutorial/tasks",
+          "2.11/tutorial/deployments"
+        ]
+      },
+      {
+        "group": "How-to Guides",
+        "version": "2.11",
+        "pages": [
+          "2.11/guides/index",
+          {
+            "group": "Deployment",
+            "version": "2.11",
+            "pages": [
+              "2.11/guides/deployment/storage-guide",
+              "2.11/guides/deployment/docker",
+              "2.11/guides/upgrade-guide-agents-to-workers",
+              "2.11/guides/deployment/kubernetes",
+              "2.11/guides/deployment/push-work-pools",
+              "2.11/guides/deployment/aci",
+              "2.11/guides/deployment/developing-a-new-worker-type"
+            ]
+            },
+
+              "2.11/guides/settings",
+              "2.11/guides/logs",
+              "2.11/guides/testing",
+              "2.11/guides/runtime-context",
+              "2.11/guides/variables",
+              "2.11/guides/webhooks",
+              "2.11/guides/state-change-hooks",
+              "2.11/guides/dask-ray-task-runners",
+              "2.11/guides/moving-data",
+              "2.11/guides/host",
+              "2.11/recipes/recipes"
+            ]
+          },
+         
+        
+      {
+        "group": "Concepts",
+        "version": "2.11",
+        "pages": [
+          "2.11/concepts/index",
+          "2.11/concepts/flows",
+          "2.11/concepts/tasks",
+          "2.11/concepts/deployments",
+          "2.11/concepts/work-pools",
+          "2.11/concepts/schedules",
+          "2.11/concepts/results",
+          "2.11/concepts/artifacts",
+          "2.11/concepts/states",
+          "2.11/concepts/blocks",
+          "2.11/concepts/task-runners",
+          "2.11/concepts/events",
+          "2.11/concepts/automations",
+          "2.11/concepts/filesystems",
+          {
+            "group": "Block and Agent-Based Deployments",
+            "version": "2.11",
+            "pages": [
+            "2.11/concepts/deployments-block-based",
+            "2.11/concepts/infrastructure",
+            "2.11/concepts/storage",
+            "2.11/concepts/agents"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Cloud",
+        "version": "2.11",
+        "pages": [
+          "2.11/cloud/index",
+          "2.11/cloud/cloud-quickstart",
+          "2.11/cloud/workspaces",
+          "2.11/cloud/organizations",
+          {
+            "group": "Users",
+            "version": "2.11",
+            "pages": [
+              "2.11/cloud/users/index",
+              "2.11/cloud/users/roles",
+              "2.11/cloud/users/api-keys",
+              "2.11/cloud/users/service-accounts",
+              "2.11/cloud/users/sso",
+              "2.11/cloud/users/audit-log"
+            ]
+          },
+          "2.11/cloud/rate-limits",
+          "2.11/cloud/connecting"
+        ]
+      },
+      {
+        "group": "Integrations",
+        "version": "2.11",
+        "pages": [
+          "2.11/integrations/index",
+          "2.11/integrations/usage",
+          "2.11/integrations/contribute"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "version": "2.11",
+        "pages": [
+          "2.11/api-ref/index"
+        ]
+      },
+
+      {
+        "group": "Python SDK",
+        "version": "2.11",
+        "pages": [
+          "2.11/api-ref/python/index"
+        ]
+      },
+      {
+        "group": "REST API",
+        "version": "2.11",
+        "pages": [
+          "2.11/api-ref/rest-api/index"
+        ]
+      },
+      {
+        "group": "Server API",
+        "version": "2.11",
+        "pages": [
+          "2.11/api-ref/server/index"
+        ]
+      },
+      {
+        "group": "Community",
+        "version": "2.11",
+        "pages": [
+          "2.11/community/index",
+          "2.11/community/overview",
+          "2.11/community/style",
+          "2.11/community/versioning",
+          "2.11/community/common-mistakes"
+
+        ]
+      }
