@@ -101,8 +101,8 @@
           "group": "Manage state and configuration",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/develop/manage-states",
             "3.0rc/develop/results",
+            "3.0rc/develop/manage-states",
             "3.0rc/develop/artifacts",
             "3.0rc/develop/variables",
             "3.0rc/develop/blocks",
