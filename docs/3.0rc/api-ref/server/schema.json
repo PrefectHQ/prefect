@@ -22289,11 +22289,6 @@
                         "title": "Prefect Experimental Disable Sync Compat",
                         "default": false
                     },
-                    "PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Schedule Concurrency",
-                        "default": false
-                    },
                     "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK": {
                         "anyOf": [
                             {
