@@ -3,11 +3,14 @@ import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import boto3
+import botocore
+import botocore.exceptions
 import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError
 from moto import mock_s3
 from prefect_aws import AwsCredentials, MinIOCredentials
 from prefect_aws.client_parameters import AwsClientParameters
+from prefect_aws.credentials import _get_client_cached
 from prefect_aws.s3 import (
     S3Bucket,
     s3_copy,
@@ -1118,3 +1121,23 @@ class TestS3Bucket:
             to_bucket=to_bucket,
         )
         assert key == expected_path
+
+    def test_round_trip_default_credentials(self):
+        # Regression test for
+        # https://github.com/PrefectHQ/prefect/issues/14147
+        block = S3Bucket(
+            bucket_name="test",
+            bucket_path="test/weather",
+        )
+        block.save(name="default-creds", overwrite=True)
+
+        loaded = S3Bucket.load("default-creds")
+
+        # Ensure that the client cache is cleared and that we will in fact
+        # get the broken client instead of one created earlier in this suite.
+        _get_client_cached.cache_clear()
+
+        # Attempt to use the client, which will raise an error, but it should
+        # be a `NoCredentialsError` instead of an opaque 'unhashable dict' error.
+        with pytest.raises(botocore.exceptions.NoCredentialsError):
+            loaded.copy_object("my_folder/notes.txt", "my_folder/notes_copy.txt")
