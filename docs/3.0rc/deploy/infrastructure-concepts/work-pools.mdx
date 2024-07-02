@@ -336,7 +336,7 @@ Learn more about [overriding job variables](/3.0rc/deploy/infrastructure-concept
     Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. 
     In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors. 
     Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which are useful for restricting 
-    functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template  
+    capabilities in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template  
     to configure the manifest that workers use to create jobs for flow execution.
 
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
@@ -765,7 +765,7 @@ build namespace is set to the URL of the repository.
 While the default namespace is set, any images you build without specifying a registry or username/organization 
 are pushed to the repository.
 
-To use this functionality, write your deploy script like this:
+To use this capability, write your deploy script like this:
 
 ```python example_deploy_script.py
 from prefect import flow                                                       
