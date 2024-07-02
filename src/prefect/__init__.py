@@ -27,8 +27,6 @@ del _version, pathlib
 if TYPE_CHECKING:
     from .main import (
         allow_failure,
-        flow,
-        Flow,
         get_client,
         get_run_logger,
         Manifest,
@@ -38,12 +36,11 @@ if TYPE_CHECKING:
         Task,
         Transaction,
         unmapped,
-        serve,
-        deploy,
-        pause_flow_run,
-        resume_flow_run,
-        suspend_flow_run,
     )
+
+    from .deployments import deploy
+    from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
+    from prefect.flows import flow, Flow, serve
 
 _slots: dict[str, Any] = {
     "__version_info__": __version_info__,
@@ -56,22 +53,22 @@ _slots: dict[str, Any] = {
 
 _public_api: dict[str, tuple[str, str]] = {
     "allow_failure": (__spec__.parent, ".main"),
-    "flow": (__spec__.parent, ".main"),
-    "Flow": (__spec__.parent, ".main"),
+    "flow": (__spec__.parent, ".flows"),
+    "Flow": (__spec__.parent, ".flows"),
     "get_client": (__spec__.parent, ".main"),
     "get_run_logger": (__spec__.parent, ".main"),
     "Manifest": (__spec__.parent, ".main"),
     "State": (__spec__.parent, ".main"),
     "tags": (__spec__.parent, ".main"),
-    "task": (__spec__.parent, ".main"),
-    "Task": (__spec__.parent, ".main"),
+    "task": (__spec__.parent, ".tasks"),
+    "Task": (__spec__.parent, ".tasks"),
     "Transaction": (__spec__.parent, ".main"),
     "unmapped": (__spec__.parent, ".main"),
-    "serve": (__spec__.parent, ".main"),
-    "deploy": (__spec__.parent, ".main"),
-    "pause_flow_run": (__spec__.parent, ".main"),
-    "resume_flow_run": (__spec__.parent, ".main"),
-    "suspend_flow_run": (__spec__.parent, ".main"),
+    "serve": (__spec__.parent, ".flows"),
+    "deploy": (__spec__.parent, ".deployments"),
+    "pause_flow_run": (__spec__.parent, ".flow_runs"),
+    "resume_flow_run": (__spec__.parent, ".flow_runs"),
+    "suspend_flow_run": (__spec__.parent, ".flow_runs"),
 }
 
 # Declare API for type-checkers

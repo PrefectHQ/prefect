@@ -36,6 +36,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
+from prefect.flows import Flow
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
@@ -45,7 +46,6 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 T = TypeVar("T")
 
 if TYPE_CHECKING:
-    from prefect.flows import Flow
     from prefect.tasks import Task
 
 # Define the global settings context variable
@@ -313,6 +313,7 @@ class EngineContext(RunContext):
 
 
 FlowRunContext = EngineContext  # for backwards compatibility
+FlowRunContext.model_rebuild()
 
 
 class TaskRunContext(RunContext):
