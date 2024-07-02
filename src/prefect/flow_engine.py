@@ -31,7 +31,13 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import ClientContext, FlowRunContext, TagsContext
-from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
+from prefect.exceptions import (
+    Abort,
+    Pause,
+    PrefectException,
+    TerminationSignal,
+    UpstreamTaskError,
+)
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import (
@@ -550,6 +556,11 @@ class FlowRunEngine(Generic[P, R]):
                 )
             try:
                 yield self
+
+            except TerminationSignal as exc:
+                self.cancel_all_tasks()
+                self.handle_crash(exc)
+                raise
             except Exception:
                 # regular exceptions are caught and re-raised to the user
                 raise
@@ -584,6 +595,10 @@ class FlowRunEngine(Generic[P, R]):
         if getattr(self, "flow_run", None) is None:
             return False  # TODO: handle this differently?
         return getattr(self, "flow_run").state.is_pending()
+
+    def cancel_all_tasks(self):
+        if hasattr(self.flow.task_runner, "cancel_all"):
+            self.flow.task_runner.cancel_all()  # type: ignore
 
     # --------------------------
     #
