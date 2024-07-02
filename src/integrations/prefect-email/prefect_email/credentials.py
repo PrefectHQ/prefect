@@ -9,6 +9,7 @@ from typing import Optional, Union
 from pydantic import Field, SecretStr, field_validator
 
 from prefect.blocks.core import Block
+from prefect.logging import get_run_logger
 
 
 class SMTPType(Enum):
@@ -82,6 +83,7 @@ class EmailServerCredentials(Block):
             keys from the built-in SMTPServer Enum members, like "gmail".
         smtp_type: Either "SSL", "STARTTLS", or "INSECURE".
         smtp_port: If provided, overrides the smtp_type's default port number.
+        verify: If `False`, SSL certificates will not be verified. Default to `True`.
 
     Example:
         Load stored email server credentials:
@@ -126,6 +128,13 @@ class EmailServerCredentials(Block):
         default=None,
         description=("If provided, overrides the smtp_type's default port number."),
         title="SMTP Port",
+    )
+
+    verify: Optional[bool] = Field(
+        default=True,
+        description=(
+            "If `False`, SSL certificates will not be verified. Default to `True`."
+        ),
     )
 
     @field_validator("smtp_server", mode="before")
@@ -182,13 +191,22 @@ class EmailServerCredentials(Block):
         if smtp_type == SMTPType.INSECURE:
             server = SMTP(smtp_server, smtp_port)
         else:
-            context = ssl.create_default_context()
+            context = (
+                ssl.create_default_context() if self.verify else
+                ssl._create_unverified_context(protocol=ssl.PROTOCOL_TLS_CLIENT)
+            )
             if smtp_type == SMTPType.SSL:
                 server = SMTP_SSL(smtp_server, smtp_port, context=context)
             elif smtp_type == SMTPType.STARTTLS:
                 server = SMTP(smtp_server, smtp_port)
                 server.starttls(context=context)
-            if self.username is not None:
-                server.login(self.username, self.password.get_secret_value())
+        if self.username is not None:
+            if not self.verify or smtp_type == SMTPType.INSECURE:
+                get_run_logger().warning(
+                    """SMTP login is not secure without a verified SSL/TLS or SECURE connection. 
+                    Without such a connection, the password may be sent in plain text, 
+                    making it vulnerable to interception."""
+                )
+            server.login(self.username, self.password.get_secret_value())
 
         return server
