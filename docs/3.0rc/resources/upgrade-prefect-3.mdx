@@ -246,3 +246,12 @@ In Prefect 3, variables can be any JSON-compatible type.
 Single-value blocks created in Prefect 2 are still accessible in Prefect 3, but you cannot create new single-value blocks.
 
 See the [set and get variables](/3.0rc/develop/variables) page for more information.
+
+## Self-hosted server instance database upgrade
+
+If you are [self-hosting a Prefect server instance](/3.0rc/manage/self-host), run the following code to update your database for Prefect 3:
+
+```bash
+prefect server database upgrade -y
+```
+
