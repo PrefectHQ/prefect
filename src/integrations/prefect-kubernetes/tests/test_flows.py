@@ -150,7 +150,7 @@ async def test_run_namespaced_job_successful_with_evictions(
     assert mock_delete_namespaced_job.call_count == 1
 
 
-def test_run_namespaced_job_sync_stream_logs(
+async def test_run_namespaced_job_stream_logs(
     valid_kubernetes_job_block,
     mock_create_namespaced_job,
     mock_read_namespaced_job_status,
@@ -161,20 +161,15 @@ def test_run_namespaced_job_sync_stream_logs(
     mock_pod_log,
     capsys,
 ):
-    @flow
-    def test_sync_flow():
-        return run_namespaced_job(
-            kubernetes_job=valid_kubernetes_job_block, print_func=print
-        )
+    successful_job_status.status.active = 0
+    successful_job_status.status.failed = 1
+    mock_read_namespaced_job_status.return_value = successful_job_status
 
-    test_sync_flow()
+    await run_namespaced_job(kubernetes_job=valid_kubernetes_job_block)
 
     assert mock_create_namespaced_job.call_count == 1
     assert mock_create_namespaced_job.call_args[1]["namespace"] == "default"
-    assert (
-        mock_create_namespaced_job.call_args[1]["body"].get("metadata").get("name")
-        == "pi"
-    )
+    assert mock_create_namespaced_job.call_args[1]["body"].metadata.name == "pi"
 
     assert read_pod_logs.call_count == 1
 
