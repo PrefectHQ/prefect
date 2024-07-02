@@ -165,7 +165,9 @@ async def test_run_namespaced_job_stream_logs(
     successful_job_status.status.failed = 1
     mock_read_namespaced_job_status.return_value = successful_job_status
 
-    await run_namespaced_job(kubernetes_job=valid_kubernetes_job_block)
+    await run_namespaced_job(
+        kubernetes_job=valid_kubernetes_job_block, print_func=print
+    )
 
     assert mock_create_namespaced_job.call_count == 1
     assert mock_create_namespaced_job.call_args[1]["namespace"] == "default"
