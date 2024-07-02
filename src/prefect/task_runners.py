@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import sys
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -220,6 +221,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
         self._max_workers = sys.maxsize if max_workers is None else max_workers
+        self._cancel_events: Dict[uuid.UUID, threading.Event] = {}
 
     def duplicate(self) -> "ThreadPoolTaskRunner":
         return type(self)(max_workers=self._max_workers)
@@ -270,6 +272,8 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         from prefect.task_engine import run_task_async, run_task_sync
 
         task_run_id = uuid.uuid4()
+        cancel_event = threading.Event()
+        self._cancel_events[task_run_id] = cancel_event
         context = copy_context()
 
         flow_run_ctx = FlowRunContext.get()
@@ -280,31 +284,29 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         else:
             self.logger.info(f"Submitting task {task.name} to thread pool executor...")
 
+        submit_kwargs = dict(
+            task=task,
+            task_run_id=task_run_id,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type="state",
+            dependencies=dependencies,
+            context=dict(cancel_event=cancel_event),
+        )
+
         if task.isasync:
             # TODO: Explore possibly using a long-lived thread with an event loop
             # for better performance
             future = self._executor.submit(
                 context.run,
                 asyncio.run,
-                run_task_async(
-                    task=task,
-                    task_run_id=task_run_id,
-                    parameters=parameters,
-                    wait_for=wait_for,
-                    return_type="state",
-                    dependencies=dependencies,
-                ),
+                run_task_async(**submit_kwargs),
             )
         else:
             future = self._executor.submit(
                 context.run,
                 run_task_sync,
-                task=task,
-                task_run_id=task_run_id,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type="state",
-                dependencies=dependencies,
+                **submit_kwargs,
             )
         prefect_future = PrefectConcurrentFuture(
             task_run_id=task_run_id, wrapped_future=future
@@ -337,14 +339,24 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
     ):
         return super().map(task, parameters, wait_for)
 
+    def cancel_all(self):
+        for event in self._cancel_events.values():
+            event.set()
+            self.logger.debug("Set cancel event")
+
+        if self._executor is not None:
+            self._executor.shutdown(cancel_futures=True)
+            self._executor = None
+
     def __enter__(self):
         super().__enter__()
         self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.cancel_all()
         if self._executor is not None:
-            self._executor.shutdown()
+            self._executor.shutdown(cancel_futures=True)
             self._executor = None
         super().__exit__(exc_type, exc_value, traceback)
 
