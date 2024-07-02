@@ -130,6 +130,7 @@ def issue_has_new_comment(issue, new_comment_interval_days, headers: dict) -> bo
         if latest_comment_date > datetime.utcnow() - timedelta(
             days=new_comment_interval_days
         ):
+            print(f"Issue #{issue['number']} has a new comment")
             return True
     return False
 
@@ -256,6 +257,12 @@ def get_all_project_items(headers) -> list:
         )
         response.raise_for_status()
         data = response.json()
+        print(data)
+        print(data.get("data"))
+        print(data["data"].get("organization"))
+        print(data["data"]["organization"].get("projectV2"))
+        print(data["data"]["organization"]["projectV2"].get("items"))
+        print(data["data"]["organization"]["projectV2"]["items"].get("nodes"))
 
         items = data["data"]["organization"]["projectV2"]["items"]["nodes"]
         all_items.extend(items)
