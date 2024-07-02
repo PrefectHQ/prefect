@@ -18,6 +18,13 @@ jobs:
     # These tests will only run if the integration paths are affected, or someone has
     # added the `integrations` label to the PR
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' &&
+      (
+          github.event.pull_request.changed_files &&
+          contains(github.event.pull_request.changed_files, 'src/**/*.py')
+      ) && contains(github.event.pull_request.labels.*.name, 'test-all-integrations')
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -88,7 +95,7 @@ jobs:
 
       - name: Build dev docker image
         if: matrix.package == 'prefect-docker'
-        run : prefect dev build-image
+        run: prefect dev build-image
 
       - name: Run tests
         if: matrix.package != 'prefect-ray'
