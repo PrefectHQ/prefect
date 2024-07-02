@@ -32,6 +32,7 @@ from typing_extensions import Self
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
+from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
@@ -41,7 +42,6 @@ from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect._internal.compatibility.migration import getattr_migration
 
 
 T = TypeVar("T")
