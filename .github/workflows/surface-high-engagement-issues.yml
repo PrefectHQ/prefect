@@ -28,9 +28,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install httpx
 
+    - name: Set NEW_COMMENT_INTERVAL_DAYS
+      run: echo "NEW_COMMENT_INTERVAL_DAYS=${{ github.event.inputs.new_comment_interval_days }}" >> $GITHUB_ENV
+
+  
+
     - name: Run surface_high_engagement_issues script
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        NEW_COMMENT_INTERVAL_DAYS: ${{ github.event.inputs.new_comment_interval_days }}
+        NEW_COMMENT_INTERVAL_DAYS: ${{ env.NEW_COMMENT_INTERVAL_DAYS }}
       run: |
         python scripts/surface_high_engagement_issues.py
