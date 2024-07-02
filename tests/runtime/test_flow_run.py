@@ -353,8 +353,8 @@ class TestParentFlowRunId:
         ):
             assert (
                 flow_run.parent_flow_run_id
-                == parent_flow_run.id
-                == parent_task_run.flow_run_id
+                == str(parent_flow_run.id)
+                == str(parent_task_run.flow_run_id)
             )
 
         assert flow_run.parent_flow_run_id is None
@@ -386,8 +386,8 @@ class TestParentFlowRunId:
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(child_flow_run.id))
         assert (
             flow_run.parent_flow_run_id
-            == parent_flow_run.id
-            == parent_task_run.flow_run_id
+            == str(parent_flow_run.id)
+            == str(parent_task_run.flow_run_id)
         )
 
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(parent_flow_run.id))
@@ -450,7 +450,7 @@ class TestParentDeploymentId:
             ),
             flow=Flow(fn=lambda: None, name="child-flow-with-parent-deployment"),
         ):
-            assert flow_run.parent_deployment_id == parent_flow_deployment_id
+            assert flow_run.parent_deployment_id == str(parent_flow_deployment_id)
 
         # No parent flow run
         with FlowRunContext.model_construct(
@@ -519,13 +519,74 @@ class TestParentDeploymentId:
         monkeypatch.setenv(
             name="PREFECT__FLOW_RUN_ID", value=str(child_flow_run_with_deployment.id)
         )
-        assert flow_run.parent_deployment_id == parent_flow_deployment_id
+        assert flow_run.parent_deployment_id == str(parent_flow_deployment_id)
 
         # No parent flow run
         monkeypatch.setenv(
             name="PREFECT__FLOW_RUN_ID", value=str(parent_flow_run_no_deployment.id)
         )
         assert flow_run.parent_deployment_id is None
+
+
+class TestRootFlowRunId:
+    async def test_root_flow_run_id_is_attribute(self):
+        assert "root_flow_run_id" in dir(flow_run)
+
+    async def test_root_flow_run_id_is_empty_when_not_set(self):
+        assert flow_run.root_flow_run_id is None
+
+    async def test_root_flow_run_id_pulls_from_api_when_needed(
+        self, monkeypatch, prefect_client
+    ):
+        assert flow_run.root_flow_run_id is None
+
+        root_flow_run = await prefect_client.create_flow_run(
+            flow=Flow(fn=lambda: None, name="root"),
+            parameters={"x": "foo", "y": "bar"},
+            parent_task_run_id=None,
+        )
+
+        @task
+        def root_task():
+            return 1
+
+        root_task_run = await prefect_client.create_task_run(
+            task=root_task,
+            dynamic_key="1",
+            flow_run_id=root_flow_run.id,
+        )
+
+        child_flow_run = await prefect_client.create_flow_run(
+            flow=Flow(fn=lambda: None, name="child"),
+            parameters={"x": "foo", "y": "bar"},
+            parent_task_run_id=root_task_run.id,
+        )
+
+        @task
+        def child_task():
+            return 1
+
+        child_task_run = await prefect_client.create_task_run(
+            task=child_task,
+            dynamic_key="1",
+            flow_run_id=child_flow_run.id,
+        )
+
+        deep_flow_run = await prefect_client.create_flow_run(
+            flow=Flow(fn=lambda: None, name="deep"),
+            parameters={"x": "foo", "y": "bar"},
+            parent_task_run_id=child_task_run.id,
+        )
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(deep_flow_run.id))
+        assert (
+            flow_run.root_flow_run_id
+            == str(root_flow_run.id)
+            == str(root_task_run.flow_run_id)
+        )
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(root_flow_run.id))
+        assert flow_run.root_flow_run_id == str(root_flow_run.id)
 
 
 class TestURL:
