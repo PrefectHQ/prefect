@@ -34,7 +34,7 @@ upgrade_guide_msg = "Refer to the upgrade guide for more information: https://do
 
 REMOVED_IN_V3 = {
     "prefect.client.schemas.objects:MinimalDeploymentSchedule": "Use `prefect.client.schemas.actions.DeploymentScheduleCreate` instead.",
-    "prefect.context.PrefectObjectRegistry": upgrade_guide_msg,
+    "prefect.context:PrefectObjectRegistry": upgrade_guide_msg,
     "prefect.deployments.deployments:Deployment": "Use `flow.serve()`, `flow.deploy()`, or `prefect deploy` instead.",
     "prefect.deployments:Deployment": "Use `flow.serve()`, `flow.deploy()`, or `prefect deploy` instead.",
     "prefect.filesystems:GCS": "Use `prefect_gcp.GcsBucket` instead.",
