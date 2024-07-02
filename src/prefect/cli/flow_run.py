@@ -10,6 +10,7 @@ from uuid import UUID
 import httpx
 import pendulum
 import typer
+from rich.markup import escape
 from rich.pretty import Pretty
 from rich.table import Table
 from starlette import status
@@ -304,13 +305,14 @@ async def logs(
             )
 
             for log in reversed(page_logs) if tail and not reverse else page_logs:
+                # Print following the flow run format (declared in logging.yml)
+                timestamp = f"{log.timestamp:%Y-%m-%d %H:%M:%S.%f}"[:-3]
+                log_level = f"{logging.getLevelName(log.level):7s}"
+                flow_run_info = f"Flow run {flow_run.name!r} - {escape(log.message)}"
+
+                log_message = f"{timestamp} | {log_level} | {flow_run_info}"
                 app.console.print(
-                    # Print following the flow run format (declared in logging.yml)
-                    (
-                        f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} |"
-                        f" {logging.getLevelName(log.level):7s} | Flow run"
-                        f" {flow_run.name!r} - {log.message}"
-                    ),
+                    log_message,
                     soft_wrap=True,
                 )
 
