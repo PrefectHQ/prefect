@@ -306,7 +306,7 @@ async def logs(
 
             for log in reversed(page_logs) if tail and not reverse else page_logs:
                 # Print following the flow run format (declared in logging.yml)
-                timestamp = f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d}"
+                timestamp = f"{log.timestamp:%Y-%m-%d %H:%M:%S.%f}"[:-3]
                 log_level = f"{logging.getLevelName(log.level):7s}"
                 flow_run_info = f"Flow run {flow_run.name!r} - {escape(log.message)}"
 
