@@ -38,8 +38,8 @@ async def run_namespaced_job(
     """
     kubernetes_job_run = await task(kubernetes_job.trigger.aio)(kubernetes_job)
 
-    await task(kubernetes_job_run.wait_for_completion.aio)(kubernetes_job_run)(
-        print_func
+    await task(kubernetes_job_run.wait_for_completion.aio)(
+        kubernetes_job_run, print_func
     )
 
     return await task(kubernetes_job_run.fetch_result.aio)(kubernetes_job_run)
