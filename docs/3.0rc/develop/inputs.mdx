@@ -432,7 +432,7 @@ to explicitly get the next input. If you're using the iterator in a loop, you sh
 
 ```python
 from prefect import flow, get_client
-from prefect.deployments.deployments import run_deployment
+from prefect.deployments import run_deployment
 from prefect.input.run_input import receive_input, send_input
 
 EXIT_SIGNAL = "__EXIT__"
@@ -547,7 +547,7 @@ When your flow receives input from another flow, Prefect knows the sending flow 
 respond by calling the `respond` method on the `RunInput` instance the flow received. There are a couple of requirements:
 
 - Pass in a `BaseModel` or `RunInput`, or use `with_metadata=True`.
-- The flow you are responding to must receive the same type of input you send in order to see it.
+- The flow you are responding to must receive the same type of input you send to see it.
 
 The `respond` method is equivalent to calling `send_input(..., flow_run_id=sending_flow_run.id)`. But with `respond`, 
 your flow doesn't need to know the sending flow run's ID.
@@ -668,7 +668,7 @@ import sys
 from prefect import flow, get_client
 from prefect.blocks.system import JSON
 from prefect.context import get_run_context
-from prefect.deployments.deployments import run_deployment
+from prefect.deployments import run_deployment
 from prefect.input.run_input import receive_input, send_input
 
 
