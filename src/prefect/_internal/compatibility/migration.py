@@ -30,7 +30,7 @@ Removed objects:
     __getattr__ = getattr_migration(__name__)
 
     ```
-    If the old module was removed, add a stub for the module with the following lines:
+    If the entire old module was removed, add a stub for the module with the following lines:
     ```python
     # at top
     from prefect._internal.compatibility.migration import getattr_migration
