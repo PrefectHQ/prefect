@@ -22,10 +22,39 @@ prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 See [settings](/3.0rc/manage/settings-and-profiles) for more information on how settings are managed.
 </Tip>
 
-## Persisting Results
+## Configuring result persistence
 
-Result persistence can also be enabled or disabled on both individual flows and individual tasks.
-The following keywords on the task decorator control result persistence for that task:
+There are four categories of configuration for result persistence:
+- [whether to persist results at all](results#enabling-result-persistence): this is configured through
+various keyword arguments and the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting.
+- [what filesystem to persist results to](results#result-storage): this is configured through the `result_storage` 
+keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
+- [how to serialize and deserialize results](results#result-serialization): this is configured through 
+the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
+- [what filename to use](results#result-filenames): this is configured through one of 
+`result_storage_key`, `cache_policy`, or `cache_key_fn`.
+
+### Default persistence configuration
+
+Once result persistence is enabled - whether through the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting or 
+through any of the mechanisms [described below](results#enabling-result-persistence) - Prefect's default 
+result storage configuration is activated.
+
+If you enable result persistence and don't specify a filesystem block, your results will be stored locally.
+By default, results are persisted to `~/.prefect/storage/`. 
+
+You can configure the location of these results through the `PREFECT_LOCAL_STORAGE_PATH` setting.
+
+```bash
+prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
+```
+
+### Enabling result persistence
+
+In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, result persistence can also be 
+enabled or disabled on both individual flows and individual tasks.
+Specifying a non-null value for any of the following keywords on the task decorator will enable result 
+persistence for that task:
 - `persist_result`: a boolean that allows you to explicity enable or disable result persistence.
 - `result_storage`: accepts either a string reference to a storage block or a storage block class that
 specifies where results should be stored.
@@ -47,20 +76,6 @@ Any settings _explicitly_ set on a task take precedence over the flow settings.
 
 </Note>
 
-## Configuring how results are persisted
-
-### Default persistence configuration
-
-Result persistence is configured with the following defaults:
-Each default is configurable and can be explicitly set on flows and tasks through the
-[keyword arguments listed above](results#persisting-results).
-
-By default, results are persisted locally to `~/.prefect/storage/`. The filename is computed based on the task's
-cache policy, which is typically a hash of various pieces of data and metadata. For flows, the filename is a random UUID.
-The return values are serialized by default using `cloudpickle` which can handle most (but not all!) Python objects
-and serializes them in machine-readable form.
-
-
 ### Result storage
 
 You can configure the system of record for your results through the `result_storage` keyword argument.
@@ -71,10 +86,10 @@ For example, a common distributed filesystem for result storage is AWS S3.
 
 ```python
 from prefect import flow, task
-from prefect.filesystems import S3
+from prefect_aws.s3 import S3Bucket
 
 
-test_block = S3(bucket='test-bucket')
+test_block = S3Bucket(bucket='test-bucket')
 test_block.save('test-block')
 
 
@@ -102,25 +117,26 @@ def my_flow():
     other_storage_task()
 ```
 
-<Tip>
-**Local configuration**
+#### Specifying a default filesystem
 
-If you enable result persistence and don't use a filesystem block, your results will be stored locally.
-You can configure the location of these results through the `PREFECT_LOCAL_STORAGE_PATH` setting.
+Alternatively, you can specify a different filesystem through the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
+Specifying a block document slug here will enable result persistence using that filesystem as the default.
 
-```bash
-prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
-```
-
-This location can also be configured as an environment variable:
+For example:
 
 ```bash
-export PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
+prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3/my-prod-bucket'
 ```
 
-</Tip>
+<Info>
+Note that any explicit configuration of `result_storage` on either a flow or task will override this default.
+</Info>
 
 #### Result filenames
+
+By default, the filename of a task's result is computed based on the task's cache policy, 
+which is typically a hash of various pieces of data and metadata. 
+For flows, the filename is a random UUID.
 
 You can configure the filename of the result file within result storage using either:
 - `result_storage_key`: a templated string that can use any of the fields within `prefect.runtime` and
@@ -163,14 +179,15 @@ Current built-in options include `"pickle"`, `"json"`, `"compressed/pickle"` and
 The `result_serializer` accepts both a string identifier or an instance of a `ResultSerializer` class, allowing
 you to customize serialization behavior.
 
-### Caching of results in memory
+## Advanced: Caching results in memory
 
 When running workflows, Prefect keeps the results of all tasks and flows in memory 
 so they can be passed downstream. In some cases, it is desirable to override this behavior. 
 For example, if you are returning a large amount of data from a task, it can be costly to 
 keep it in memory for the entire duration of the flow run.
 
-Flows and tasks both include an option to drop the result from memory with `cache_result_in_memory`:
+Flows and tasks both include an option to drop the result from memory once the
+result has been committed with `cache_result_in_memory`:
 
 ```python
 @flow(cache_result_in_memory=False)
