@@ -3,19 +3,20 @@ title: Visualize flow structure
 description: Learn how to view the overall structure of your flow.
 ---
 
-Get a quick view of the structure of your flow using the `.visualize()` method. 
+Quickly view the structure of your flow using its `visualize()` method. 
 Calling this method attempts to produce a schematic diagram of your flow and tasks without 
 actually running your flow code.
 
 <Warning>
 Functions and code outside of flows or tasks will still be run when calling 
-`.visualize()`. This may have unintended consequences. Place your code into tasks to 
+`visualize()`. This may have unintended consequences. Place your code into tasks to 
 avoid unintended 
 execution.
 </Warning>
 
 To use the `visualize()` method, you must havae Graphviz installed and on your PATH. 
 Please install Graphviz from [http://www.graphviz.org/download/](http://www.graphviz.org/download/). 
+
 <Note>
 Just installing the `graphviz` python package is not sufficient.
 </Note>
