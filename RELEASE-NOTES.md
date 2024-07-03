@@ -18,7 +18,7 @@
 - Handle multi-line dynamic flow names — https://github.com/PrefectHQ/prefect/pull/14380
 - Change default for BitBucketCredentials  URL  field — https://github.com/PrefectHQ/prefect/pull/13302
 - Fixes bug where assignments inside functions are evaluated when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/14405
-- handle join edge case in `ParameterTypeError.from_validation_error` — https://github.com/PrefectHQ/prefect/pull/14419
+- Handle join edge case in `ParameterTypeError.from_validation_error` — https://github.com/PrefectHQ/prefect/pull/14419
 - Fix error in `flow-run` CLI log printing and escape special characters — https://github.com/PrefectHQ/prefect/pull/14469
 - Save absolute paths with no block IDs by default — https://github.com/PrefectHQ/prefect/pull/14355
 - Resolves two log injection security alerts — https://github.com/PrefectHQ/prefect/pull/14373
