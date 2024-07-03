@@ -21,14 +21,14 @@
 - Handle join edge case in `ParameterTypeError.from_validation_error` — https://github.com/PrefectHQ/prefect/pull/14419
 - Fix error in `flow-run` CLI log printing and escape special characters — https://github.com/PrefectHQ/prefect/pull/14469
 - Save absolute paths with no block IDs by default — https://github.com/PrefectHQ/prefect/pull/14355
-- Resolves two log injection security alerts — https://github.com/PrefectHQ/prefect/pull/14373
+- Resolve two log injection security alerts — https://github.com/PrefectHQ/prefect/pull/14373
 - Remove unnecessary fields on result schemas — https://github.com/PrefectHQ/prefect/pull/14362
 - Correct our Cloud UI URL inference for Prefect development environments — https://github.com/PrefectHQ/prefect/pull/14367
 - Fix clicking "parent flow run" from a flow run with a grandparent navigates to the grandparent — https://github.com/PrefectHQ/prefect/pull/14471
 
 ### Documentation
 - Improve formatting of output and update links — https://github.com/PrefectHQ/prefect/pull/14335
-- Fixes broken links and removes extra divs — https://github.com/PrefectHQ/prefect/pull/14342
+- Fix broken links and removes extra divs — https://github.com/PrefectHQ/prefect/pull/14342
 - Update button in docs to Enterprise from Custom — https://github.com/PrefectHQ/prefect/pull/14344
 - Update workspaces docs — https://github.com/PrefectHQ/prefect/pull/14350
 - Fix indentation and invalid trigger spec. — https://github.com/PrefectHQ/prefect/pull/14351
@@ -39,10 +39,10 @@
 - Minor edits to "upgrade to Prefect 3" doc — https://github.com/PrefectHQ/prefect/pull/14411
 - Update import path for for run_deployment in docs code examples — https://github.com/PrefectHQ/prefect/pull/14424
 - Refresh `Deployment` overview and add note on `run_deployment` sdk use — https://github.com/PrefectHQ/prefect/pull/14425
-- Adds vale style guide for manual linting and updates docs to remove style guide errors — https://github.com/PrefectHQ/prefect/pull/14421
+- Add vale style guide for manual linting and updates docs to remove style guide errors — https://github.com/PrefectHQ/prefect/pull/14421
 - Update deferred tasks example — https://github.com/PrefectHQ/prefect/pull/14436
-- Results docs — https://github.com/PrefectHQ/prefect/pull/14394
-- More docs style improvements from Vale — https://github.com/PrefectHQ/prefect/pull/14454
+- Update result documentation — https://github.com/PrefectHQ/prefect/pull/14394
+- Add more docs style improvements from Vale — https://github.com/PrefectHQ/prefect/pull/14454
 - Update Prefect 3 upgrade page to include database migration — https://github.com/PrefectHQ/prefect/pull/14468
 - Update validator usage for pydantic 2 in `RunInput` examples — https://github.com/PrefectHQ/prefect/pull/14473
 - Add upgrade to Prefect 3 Guide — https://github.com/PrefectHQ/prefect/pull/14237
