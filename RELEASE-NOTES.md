@@ -36,7 +36,7 @@
 - Point to `main` for migration script in upgrade doc — https://github.com/PrefectHQ/prefect/pull/14365
 - Refactor and reorganize the 3.0 docs in the Deploy section — https://github.com/PrefectHQ/prefect/pull/14313
 - Add more direct recommendations to worker upgrade guide — https://github.com/PrefectHQ/prefect/pull/14395
-- minor edits to "upgrade to Prefect 3" doc — https://github.com/PrefectHQ/prefect/pull/14411
+- Minor edits to "upgrade to Prefect 3" doc — https://github.com/PrefectHQ/prefect/pull/14411
 - Update import path for for run_deployment in docs code examples — https://github.com/PrefectHQ/prefect/pull/14424
 - Refresh `Deployment` overview and add note on `run_deployment` sdk use — https://github.com/PrefectHQ/prefect/pull/14425
 - Adds vale style guide for manual linting and updates docs to remove style guide errors — https://github.com/PrefectHQ/prefect/pull/14421
