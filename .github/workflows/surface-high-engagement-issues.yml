@@ -10,7 +10,14 @@ on:
           required: true
           default: '1'
 
-permissions: read-all
+permissions:
+  contents: read
+  issues: read
+  metadata: read
+  projects: read
+  pull-requests: read
+  # Adding `read:org` if accessing organizational projects
+  organization: read
 
 jobs:
   surface-high-engagement-issues:
