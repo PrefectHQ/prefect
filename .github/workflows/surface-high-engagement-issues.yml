@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
         new_comment_interval_days:
-          description: 'Interval in days to check for new comments'
+          description: '# of days to look back for new comments on issues (e.g., 1 means looking back 1 day)'
           required: true
           default: '1'
 
