@@ -205,7 +205,7 @@ When a user sees the form for this input, the given Markdown appears above the i
 ### Handle custom validation
 
 Prefect uses the fields and type hints on your `RunInput` or `BaseModel` class to validate the general structure of input your flow receives. 
-If you require more complex validation, use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
+If you require more complex validation, use Pydantic [model_validators](https://docs.pydantic.dev/latest/concepts/validators/#model-validators).
 
 <Warning>
 **Calling custom validation runs after the flow resumes**
@@ -216,7 +216,7 @@ Because of this, validation happens _after the flow resumes_, so you should hand
 Continue reading for an example best practice.
 </Warning>
 
-The following is an example `RunInput` class that uses a custom field validator:
+The following is an example `RunInput` class that uses a custom `model_validator`:
 
 ```python
 import pydantic
@@ -227,17 +227,17 @@ class ShirtOrder(RunInput):
     size: Literal["small", "medium", "large", "xlarge"]
     color: Literal["red", "green", "black"]
 
-    @pydantic.validator("color")
-    def validate_age(cls, value, values, **kwargs):
-        if value == "green" and values["size"] == "small":
+    @pydantic.model_validator(mode="after")
+    def validate_age(self):
+        if self.color == "green" and self.size == "small":
             raise ValueError(
                 "Green is only in-stock for medium, large, and XL sizes."
             )
 
-        return value
+        return self
 ```
 
-In the example, we use Pydantic's `validator` decorator to define a custom validation method for the `color` field. 
+In the example, we use Pydantic's `model_validator` decorator to define custom validation for our `ShirtOrder` class.
 You can use it in a flow like this:
 
 ```python
@@ -250,14 +250,14 @@ class ShirtOrder(RunInput):
     size: Literal["small", "medium", "large", "xlarge"]
     color: Literal["red", "green", "black"]
 
-    @pydantic.validator("color")
-    def validate_age(cls, value, values, **kwargs):
-        if value == "green" and values["size"] == "small":
+    @pydantic.model_validator(mode="after")
+    def validate_age(self):
+        if self.color == "green" and self.size == "small":
             raise ValueError(
                 "Green is only in-stock for medium, large, and XL sizes."
             )
 
-        return value
+        return self
 
 
 @flow
@@ -285,14 +285,14 @@ class ShirtOrder(RunInput):
     size: Literal["small", "medium", "large", "xlarge"]
     color: Literal["red", "green", "black"]
 
-    @pydantic.validator("color")
-    def validate_age(cls, value, values, **kwargs):
-        if value == "green" and values["size"] == "small":
+    @pydantic.model_validator(mode="after")
+    def validate_age(self):
+        if self.color == "green" and self.size == "small":
             raise ValueError(
                 "Green is only in-stock for medium, large, and XL sizes."
             )
 
-        return value
+        return self
 
 
 @flow
