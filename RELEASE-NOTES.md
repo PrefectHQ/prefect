@@ -64,9 +64,6 @@
 - Fix run deployment form state shared by row index — https://github.com/PrefectHQ/prefect-ui-library/pull/2573
 - Remove global pause/resume from deployments list — https://github.com/PrefectHQ/prefect-ui-library/pull/2579
 
-### Contributors
-- @djsauble
-
 **All changes**: https://github.com/PrefectHQ/prefect/compare/3.0.0rc9...3.0.0rc10
 
 ## Release 3.0.0rc3

@@ -59,6 +59,7 @@ PREFECTIONISTS = {
     "collincchoy",
     "daniel-prefect",
     "desertaxle",
+    "djsauble",
     "discdiver",
     "dylanbhughes",
     "EmilRex",
