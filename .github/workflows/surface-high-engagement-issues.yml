@@ -11,9 +11,8 @@ on:
           default: '1'
 
 permissions:
-  contents: read
+  contents: write
   issues: write
-  pull-requests: read
 
 jobs:
   surface-high-engagement-issues:
