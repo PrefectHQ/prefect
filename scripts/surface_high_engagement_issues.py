@@ -258,11 +258,9 @@ def get_all_project_items(headers) -> list:
         )
         response.raise_for_status()
         data = response.json()
-        print(data)
-        print(data.get("data"))
-        print(data["data"].get("node"))
-        print(data["data"]["node"].get("items"))
-        print(data["data"]["node"]["items"].get("nodes"))
+        if data is None or "errors" in data:
+            print(f"Failed to retrieve project items: {data}")
+            return []
 
         items = data["data"]["node"]["items"]["nodes"]
         all_items.extend(items)
@@ -382,12 +380,19 @@ def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_day
     }
 
     high_engagement_issues = get_high_engagement_issues(headers)
+
+    num_issues_with_new_comments = 0
+    issues_with_new_comment = []
     for issue in high_engagement_issues:
         issue_number = issue["number"]
         if issue_has_new_comment(
             issue, new_comment_interval_days, headers
         ) and not prioritized_recently(issue_number, headers):
             # Issue id is a globally unique identifier
+
+            num_issues_with_new_comments += 1
+            issues_with_new_comment.append(issue_number)
+
             issue_id = get_issue_id(issue_number, headers)
             project_item_id = get_project_item_id(issue_id, headers)
             if project_item_id is None:
@@ -399,6 +404,15 @@ def set_needs_priority_status_on_high_engagement_issues(new_comment_interval_day
                 print(
                     f'Added "needs:attention" label to issue #{issue_number} in the project.'
                 )
+    if num_issues_with_new_comments == 0:
+        print(
+            f"No high engagement issues with new comments within the last {new_comment_interval_days} days."
+        )
+    else:
+        print(
+            f"Added 'Needs Priority' status to {num_issues_with_new_comments} high engagement issues with new comments."
+        )
+        print(f"Issues: {issues_with_new_comment}")
 
 
 if __name__ == "__main__":
