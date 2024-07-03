@@ -258,7 +258,6 @@ def get_all_project_items(headers) -> list:
         )
         response.raise_for_status()
         data = response.json()
-        breakpoint()
         print(data)
         print(data.get("data"))
         print(data["data"].get("node"))
