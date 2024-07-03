@@ -13,8 +13,6 @@ on:
 permissions:
   contents: read
   issues: read
-  metadata: read
-  projects: read
   pull-requests: read
   # Adding `read:org` if accessing organizational projects
   organization: read
