@@ -32,6 +32,7 @@ from typing_extensions import Self
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
+from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
@@ -608,3 +609,8 @@ def root_settings_context():
 
 
 GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
+
+
+# 2024-07-02: This surfaces an actionable error message for removed objects
+# in Prefect 3.0 upgrade.
+__getattr__ = getattr_migration(__name__)
