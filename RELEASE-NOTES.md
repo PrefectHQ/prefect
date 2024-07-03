@@ -12,7 +12,7 @@
 ### Fixes
 - Remove terminal warning when deploying with triggers with `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/14307
 - Fix `prefect deploy` breaks using a trigger with `within` — https://github.com/PrefectHQ/prefect/pull/14338
-- allow passing custom timeout exception type to disambiguate — https://github.com/PrefectHQ/prefect/pull/14352
+- Allow passing custom timeout exception type to disambiguate — https://github.com/PrefectHQ/prefect/pull/14352
 - Fix flow run timeline event dots not being interactive — https://github.com/PrefectHQ/prefect/pull/14357
 - Fix error when returning from task and flows with `cache_result_in_memory=False` — https://github.com/PrefectHQ/prefect/pull/14359
 - Handle multi-line dynamic flow names — https://github.com/PrefectHQ/prefect/pull/14380
