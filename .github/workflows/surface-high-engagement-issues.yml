@@ -10,6 +10,8 @@ on:
           required: true
           default: '1'
 
+permissions: read-all
+
 jobs:
   surface-high-engagement-issues:
     runs-on: ubuntu-latest
