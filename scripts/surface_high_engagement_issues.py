@@ -226,12 +226,13 @@ def get_all_project_items(headers) -> list:
     all_items = []
     cursor = None
     has_next_page = True
+    project_id = "PVT_kwDOAlc6B84ARWAz"
 
     while has_next_page:
         query = """
-        query($organization: String!, $projectNumber: Int!, $after: String) {
-          organization(login: $organization) {
-            projectV2(number: $projectNumber) {
+        query($projectId: ID!, $after: String) {
+          node(id: $projectId) {
+            ... on ProjectV2 {
               items(first: 100, after: $after) {
                 nodes {
                   id
@@ -250,24 +251,24 @@ def get_all_project_items(headers) -> list:
           }
         }
         """
-        variables = {"organization": "PrefectHQ", "projectNumber": 35, "after": cursor}
+        variables = {"projectId": project_id, "after": cursor}
         url = "https://api.github.com/graphql"
         response = httpx.post(
             url, headers=headers, json={"query": query, "variables": variables}
         )
         response.raise_for_status()
         data = response.json()
+        breakpoint()
         print(data)
         print(data.get("data"))
-        print(data["data"].get("organization"))
-        print(data["data"]["organization"].get("projectV2"))
-        print(data["data"]["organization"]["projectV2"].get("items"))
-        print(data["data"]["organization"]["projectV2"]["items"].get("nodes"))
+        print(data["data"].get("node"))
+        print(data["data"]["node"].get("items"))
+        print(data["data"]["node"]["items"].get("nodes"))
 
-        items = data["data"]["organization"]["projectV2"]["items"]["nodes"]
+        items = data["data"]["node"]["items"]["nodes"]
         all_items.extend(items)
 
-        page_info = data["data"]["organization"]["projectV2"]["items"]["pageInfo"]
+        page_info = data["data"]["node"]["items"]["pageInfo"]
         has_next_page = page_info["hasNextPage"]
         cursor = page_info["endCursor"]
 
