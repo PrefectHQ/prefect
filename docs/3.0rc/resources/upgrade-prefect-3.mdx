@@ -217,19 +217,19 @@ If a particular task cannot be made idempotent, you can disable this behavior by
 This caching behavior only takes effect when result persistence is enabled.
 See the [caching documentation](/3.0rc/develop/task-caching) for more information.
 
-## Type enforcement for custom blocks
-
-If you have registered custom blocks with a self-hosted Prefect Server, type enforcement for those block schemas must be upgraded from Pydantic V1 to Pydantic V2 to work with Prefect 3. 
-This upgrade does not require changes for any built-in Prefect interfaces or supported integrations. 
-See the [Pydantic migration guide](https://docs.pydantic.dev/latest/migration/) for more information.
-
 ## Workers replace agents
 
 A deprecation warning was applied to Prefect interfaces related to agent-based deployments in Prefect’s [2.16.4 release](https://github.com/PrefectHQ/prefect/releases/tag/2.16.4), including infrastructure blocks and `prefect deployment` commands. 
 Agents will continue to be supported in Prefect 2 until September 2024, but are not included in Prefect 3. 
 If you are using agents, learn how to [upgrade from agents to workers](/3.0rc/resources/upgrade-agents-to-workers).
 
-## Variables can be any JSON-compatible type
+## Type enforcement for custom blocks
+
+If you have registered custom blocks with a self-hosted Prefect Server, type enforcement for those block schemas must be upgraded from Pydantic V1 to Pydantic V2 to work with Prefect 3. 
+This upgrade does not require changes for any built-in Prefect interfaces or supported integrations. 
+See the [Pydantic migration guide](https://docs.pydantic.dev/latest/migration/) for more information.
+
+## Variables can be typed with JSON
 
 In Prefect 2, variables are strings. 
 To store and retrieve *typed* values in Prefect 2, you have to use certain single-value blocks, including JSON, Date Time, and String blocks.
@@ -239,7 +239,7 @@ Single-value blocks created in Prefect 2 are still accessible in Prefect 3, but 
 
 See the [set and get variables](/3.0rc/develop/variables) page for more information.
 
-## Self-hosted Prefect server database upgrade
+## Self-hosted server database upgrade
 
 If you are [self-hosting a Prefect server instance](/3.0rc/manage/self-host), run the following code to update your database for Prefect 3:
 
