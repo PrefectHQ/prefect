@@ -27,13 +27,14 @@ jobs:
         done
 
         if [ "$LABEL_FOUND" = false ]; then
-          echo "##[error]This pull request must have one of the following labels:"
+          echo "##[error]This pull request must have one of the following labels to help with sorting for release notes:"
           echo " - docs"
+          echo " - maintenance"
+          echo " - deprecation"
           echo " - integrations"
           echo " - fix"
           echo " - enhancement"
           echo " - feature"
-          echo " - maintenance"
           exit 1
         fi
 
