@@ -223,10 +223,9 @@ A deprecation warning was applied to Prefect interfaces related to agent-based d
 Agents will continue to be supported in Prefect 2 until September 2024, but are not included in Prefect 3. 
 If you are using agents, learn how to [upgrade from agents to workers](/3.0rc/resources/upgrade-agents-to-workers).
 
-## Type enforcement for custom blocks
+## Type enforcement via Pydantic 
 
-If you have registered custom blocks with a self-hosted Prefect Server, type enforcement for those block schemas must be upgraded from Pydantic V1 to Pydantic V2 to work with Prefect 3. 
-This upgrade does not require changes for any built-in Prefect interfaces or supported integrations. 
+If you use Pydantic V1 models for data validation and type enforcement, particularly for flow parameters and custom blocks, you must upgrade those models to Pydantic V2 to work with Prefect 3. 
 See the [Pydantic migration guide](https://docs.pydantic.dev/latest/migration/) for more information.
 
 ## Variables can be typed with JSON
