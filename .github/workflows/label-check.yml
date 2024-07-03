@@ -27,7 +27,13 @@ jobs:
         done
 
         if [ "$LABEL_FOUND" = false ]; then
-          echo "This pull request must have one of the following labels: ${REQUIRED_LABELS[*]}"
+          echo "##[error]This pull request must have one of the following labels:"
+          echo " - docs"
+          echo " - integrations"
+          echo " - fix"
+          echo " - enhancement"
+          echo " - feature"
+          echo " - maintenance"
           exit 1
         fi
 
