@@ -338,7 +338,7 @@ def add_issue_to_project(issue_id: str, project_id: str, headers: dict):
         item_id = data["data"]["addProjectV2ItemById"]["item"]["id"]
         print(f"Added issue to project with item ID: {item_id}")
     except Exception:
-        print(f"Failed to add issue to project: {data}")
+        raise Exception(f"Failed to add issue to project: {data}")
     return item_id
 
 
