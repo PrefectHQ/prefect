@@ -1,0 +1,43 @@
+# For automated releases, we should ensure we don't have PRs in the Uncategorized section. 
+# Uncategorized PRs can be prevented by adding the necessary label.
+
+name: Ensure PR Label
+
+on:
+  pull_request:
+    types: [opened, edited, labeled, unlabeled]
+
+jobs:
+  ensure-label:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check for required labels
+      id: label-check
+      run: |
+        LABELS=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH")
+        REQUIRED_LABELS=("docs" "integrations" "fix" "enhancement" "feature" "maintenance")
+        LABEL_FOUND=false
+
+        for label in "${REQUIRED_LABELS[@]}"; do
+          if echo "$LABELS" | grep -q "$label"; then
+            LABEL_FOUND=true
+            break
+          fi
+        done
+
+        if [ "$LABEL_FOUND" = false ]; then
+          echo "##[error]This pull request must have one of the following labels to help with sorting for release notes:"
+          echo " - docs"
+          echo " - maintenance"
+          echo " - deprecation"
+          echo " - integrations"
+          echo " - fix"
+          echo " - enhancement"
+          echo " - feature"
+          exit 1
+        fi
+
+    - name: Fail the PR if no required label is found
+      if: steps.label-check.outputs.LABEL_FOUND == 'false'
+      run: exit 1
