@@ -14,8 +14,6 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-  # Adding `read:org` if accessing organizational projects
-  organization: read
 
 jobs:
   surface-high-engagement-issues:
