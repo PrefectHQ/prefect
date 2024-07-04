@@ -346,7 +346,8 @@ def sync_compatible(
     def coroutine_wrapper(
         *args: Any, _sync: Optional[bool] = None, **kwargs: Any
     ) -> Union[R, Coroutine[Any, Any, R]]:
-        from prefect.context import MissingContextError, get_run_context
+        from prefect.context import get_run_context
+        from prefect.exceptions import MissingContextError
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
         )
