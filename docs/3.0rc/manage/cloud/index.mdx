@@ -5,26 +5,27 @@ description: Observe and orchestrate workflow applications with the Prefect Clou
 
 Prefect Cloud is a hosted workflow application platform with all the capabilities of an open source Prefect server instance plus additional features, such as:
 
-- [Workspaces](/3.0rc/manage/cloud/workspaces/) are isolated environments for organizing all Prefect activity including flows, tasks, and automations.
+- [Workspaces](/3.0rc/manage/cloud/workspaces/) are isolated environments for organizing all Prefect activity.
 - [User accounts](/3.0rc/manage/cloud/manage-users/) are personal accounts for working in Prefect Cloud.
-- [Service accounts](/3.0rc/manage/cloud/manage-users/service-accounts/) <span class="badge pro"></span> <span class="badge enterprise"></span> let you configure API access for running workers or executing flow runs on remote infrastructure through API keys that are not associated with a user account.
-- [Teams](3.0rc/manage/cloud/manage-users/manage-teams/)  <span class="badge enterprise"></span> are groups of users that can be managed together.
-- [Role-based access controls (RBAC)](/3.0rc/manage/cloud/manage-users/manage-roles/) are granular permissions to perform certain activities within an account or a workspace. Custom roles can be created with specific permissions in Pro and Enterprise plans.
-- [API keys](/3.0rc/manage/cloud/manage-users/api-keys/) are used to access Prefect Cloud from a local execution environment.
-- [Single Sign-on (SSO)](/3.0rc/manage/cloud/manage-users/configure-sso/) <span class="badge enterprise"></span> authentication integration with your team's identity provider. SSO integration can be set up with identity providers that support OIDC and SAML. Directory Sync and SCIM provisioning is also available with Enterprise plans.
-- [Audit Logs](/3.0rc/manage/cloud/manage-users/audit-logs/) <span class="badge pro"></span> <span class="badge enterprise"></span> provide a record of user activities to monitor for security and compliance.
-- Object Access Control Lists (ACLs)](/3.0rc/manage/cloud/manage-users/object-access-control-lists/) <span class="badge enterprise"></span> allow administrators to restrict block and deployment access to individual actors within a workspace.
+- [Service accounts](/3.0rc/manage/cloud/manage-users/service-accounts/) let you configure API access for running workers or executing flow runs on remote infrastructure through API keys that are not associated with a user account. <span class="badge pro"></span> <span class="badge enterprise"></span>
+
+- [Teams](3.0rc/manage/cloud/manage-users/manage-teams/) are groups of users that can be managed together. <span class="badge enterprise"></span>
+- [Role-based access controls (RBAC)](/3.0rc/manage/cloud/manage-users/manage-roles/) are granular permissions to perform certain activities within an account or a workspace. Enterprise plans allow for custom roles with specific permissions. 
+- [API keys](/3.0rc/manage/cloud/manage-users/api-keys/) grant access to Prefect Cloud from a local execution environment.
+- [Single Sign-on (SSO)](/3.0rc/manage/cloud/manage-users/configure-sso/) authentication integration is supported identity providers with OIDC and SAML. Directory Sync and SCIM provisioning is also available. <span class="badge enterprise"></span>
+- [Audit Logs](/3.0rc/manage/cloud/manage-users/audit-logs/) provide a record of user activities to monitor for security and compliance. <span class="badge pro"></span> <span class="badge enterprise"></span>
+- [Object Access Control Lists (ACLs)](/3.0rc/manage/cloud/manage-users/object-access-control-lists/) allow administrators to restrict block and deployment access to individual actors within a workspace. <span class="badge enterprise"></span> 
 
 - [Push work pools](/3.0rc/deploy/infrastructure-examples/serverless/) allow you to run flows on your serverless infrastructure without running a worker.
 - [Managed work pools](/3.0rc/deploy/infrastructure-examples/managed/) allow you to run flows on Prefect's infrastructure without running a worker.
 - [Webhooks](/3.0rc/automate/events/webhook-triggers/) .
-- [Incidents](/3.0rc/automate/incidents/) <span class="badge enterprise></span> are a way to track and manage issues that arise during flow runs.
+- [Incidents](/3.0rc/automate/incidents/) are a way to track and manage issues that arise during flow runs. <span class="badge enterprise"></span> 
 
 - Error summaries (enabled by Marvin AI) distill the error logs of `Failed` and `Crashed` flow runs into actionable information. To enable this feature visit the **Settings** page for your account.
 
 ## Try Prefect Cloud
 
-To try Prefect Cloud, create a free account at [https://app.prefect.cloud/](https://app.prefect.cloud/).
+To try Prefect Cloud, create a free account at [app.prefect.cloud](https://app.prefect.cloud/).
 Follow the steps in the UI to create and run your first workflow. 
 
 See the [Prefect Quickstart](/3.0rc/get-started/quickstart/) for more information.
