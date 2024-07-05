@@ -140,7 +140,7 @@
           ]
         },
         {
-          "group": "Infrastructure specific examples",
+          "group": "Infrastructure-specific examples",
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/infrastructure-examples/managed",
