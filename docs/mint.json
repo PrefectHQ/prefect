@@ -167,6 +167,7 @@
       "group": "Cloud and Server",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/manage/manage-overview",
         {
           "group": "Use Prefect Cloud",
           "version": "3.0rc",
