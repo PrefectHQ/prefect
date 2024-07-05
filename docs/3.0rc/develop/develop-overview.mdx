@@ -3,38 +3,38 @@ title: Develop overview
 description: Learn how to write code with Prefect objects for workflows you can trust.
 ---
 
-This section explains how to develop Prefect workflows. 
+These pages explains how to develop Prefect workflows. 
 
 The **Write and run workflows** section contains information for getting started with Prefect's core objects.
 
-- [Write and run flows](/write-flows/) introduces the most central Prefect object, the `flow`. 
-- [Write and run tasks](/write-tasks/) shows you how to create `task` decorated functions that represent a discrete unit of work in a Prefect workflow.
-- [Run tasks in the background](/develop/task-runners/) explains how to use tasks to execute small, discrete units of work quickly.
-- [Log run activity](/develop/logging/) shows you how to capture fine-grained information about flows and tasks for monitoring, troubleshooting, and auditing.
+- [Write and run flows](/3.0rc/write-flows/) introduces the most central Prefect object, the `flow`. 
+- [Write and run tasks](/3.0rc/write-tasks/) shows you how to create `task` decorated functions that represent a discrete unit of work in a Prefect workflow.
+- [Run tasks in the background](/3.0rc/develop/task-runners/) explains how to use tasks to execute small, discrete units of work quickly.
+- [Log run activity](/3.0rc/develop/logging/) shows you how to capture fine-grained information about flows and tasks for monitoring, troubleshooting, and auditing.
 
 The **Configure runtime behavior** section introduces advanced features for interacting with running workflows and automatically taking actions based on workflow state.
 
-- [Configure task caching](/develop/task-caching/) explores how to cache task results to save money and time.
-- [Write transactions](/develop/transactions/) shows how to group tasks together to ensure they run atomically.
-- [Execute code on state changes](/develop/state-hooks/) shows how to run code when a task or flow changes state.
-- [Pause and resume flow runs](/develop/pause-resume/) explains how to halt flow runs for input.
-- [Send and receive flow run inputs](/develop/inputs/) highlights how to run Human-in-the-Loop workflows with Prefect.
-- [Access runtime context](/develop/runtime-context/) shows how to access information about the current run.
+- [Configure task caching](/3.0rc/develop/task-caching/) explores how to cache task results to save money and time.
+- [Write transactions](/3.0rc/develop/transactions/) shows how to group tasks together to ensure they run atomically.
+- [Execute code on state changes](/3.0rc/develop/state-hooks/) shows how to run code when a task or flow changes state.
+- [Pause and resume flow runs](/3.0rc/develop/pause-resume/) explains how to halt flow runs for input.
+- [Send and receive flow run inputs](/3.0rc/develop/inputs/) highlights how to run Human-in-the-Loop workflows with Prefect.
+- [Access runtime context](/3.0rc/develop/runtime-context/) shows how to access information about the current run.
 
 The **Manage state and configuration** section explores how to manage data and configuration in Prefect.
 
-- [Manage results](/develop/results/) explains how to store and retrieve task results.
-- [Manage states](/develop/manage-states/) discusses how to learn about a workflow through task and flow states.
-- [Create run artifacts](/develop/artifacts/) demonstrates how to create artifacts for human consumption in the UI.
-- [Set and get variables](/develop/variables/) shows how to store and retrieve configuration values from API.
-- [Connect to external systems](/develop/blocks/) discusses how Prefect blocks can help you connect to external systems.
-- [Manage cloud-hosted data](/develop/interact-with-data/) shows convieniences for moving data to and from cloud storage providers.
+- [Manage results](/3.0rc/develop/results/) explains how to store and retrieve task results.
+- [Manage states](/3.0rc/develop/manage-states/) discusses how to learn about a workflow through task and flow states.
+- [Create run artifacts](/3.0rc/develop/artifacts/) demonstrates how to create artifacts for human consumption in the UI.
+- [Set and get variables](/3.0rc/develop/variables/) shows how to store and retrieve configuration values from API.
+- [Connect to external systems](/3.0rc/develop/blocks/) discusses how Prefect blocks can help you connect to external systems.
+- [Manage cloud-hosted data](/3.0rc/develop/interact-with-data/) shows convieniences for moving data to and from cloud storage providers.
 
 
 The **Manage concurrency** section discusses speeding up your workflows with task runners and limiting them with concurrency.
 
-- [Run tasks concurrently or in parallel](/develop/task-runners/) explains how to run tasks concurrently or in parallel with Dask or Ray.
-- [Limit concurrent task runs](/develop/task-run-limits/) shows how to prevent too many tasks from running simultaneously.
-- [Apply concurrency and rate limits](/develop/global-concurrency-limits/) demonstrates how to control concurrency and apply rate limits using Prefect's provided utilities.
+- [Run tasks concurrently or in parallel](/3.0rc/develop/task-runners/) explains how to run tasks concurrently or in parallel with Dask or Ray.
+- [Limit concurrent task runs](/3.0rc/develop/task-run-limits/) shows how to prevent too many tasks from running simultaneously.
+- [Apply concurrency and rate limits](/3.0rc/develop/global-concurrency-limits/) demonstrates how to control concurrency and apply rate limits using Prefect's provided utilities.
 
-Finally, [Test workflows](/develop/test-workflows/) discusses tools for testing workflows.
+Finally, [Test workflows](/3.0rc/develop/test-workflows/) discusses tools for testing workflows.
