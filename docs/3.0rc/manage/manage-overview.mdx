@@ -3,41 +3,10 @@ title: Overview
 description: Learn how to interact with Prefect Cloud or self-host a Prefect server instance.
 ---
 
-The **Cloud and Server** docs show how to get the most out of Prefect Cloud or a self-hosted Prefect server instance.
-
-- [Upgrade to Prefect 3](/3.0rc/resources/upgrade-prefect-3/) discusses how to migrate from Prefect 2 to Prefect 3.
-
 The **Use Prefect Cloud** section covers how to interact with Prefect Cloud.
+See the [Prefect Cloud overview](/3.0rc/manage/cloud/) for a discussion of the pages in this section.
 
-- [Prefect Cloud overview](/3.0rc/manage/cloud/) introduces Prefect Cloud.
-- [Connect to Prefect Cloud](/3.0rc/manage/cloud/connect-to-cloud/) shows how to configure a local execution environment to access Prefect Cloud.
-- [Manage workspaces](/3.0rc/manage/cloud/workspaces/) explains how to organize and compartmentalize your workflows with workspaces.
 
-- The **Manage accounts** subsection covers aspects of Prefect Cloud accounts.
-
-- [Manage user accounts](/3.0rc/manage/cloud/manage-users/) 
-- [Manage service accounts](/3.0rc/manage//) 
-- [Manage teams](/3.0rc/manage//) 
-- [Manage account roles](/3.0rc/manage//) 
-- [Manage API keys](/3.0rc/manage//) 
-- [Configure single sign-on](/3.0rc/manage//) 
-- [Audit Cloud activity](/3.0rc/manage//) 
-- [Object Access Control Lists](/3.0rc/manage//) 
-
-The remaining Prefect Cloud pages:
-- [Rate limits and data retention](/3.0rc/manage/cloud/rate-limits/) discusses rate limits and data retention for Prefect Cloud.
-- [Terraform provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started) links to the Prefect Cloud Terraform provider docs.
-- [Troubleshoot Prefect Cloud](/3.0rc/manage/cloud/troubleshoot-cloud/) contains common solutions for troubleshooting Prefect Cloud.
-
-- [Host Prefect server](/3.0rc/manage//) 
-- [Configure settings and profiles](/3.0rc/manage//) 
-- [Manage run metadata in Python](/3.0rc/manage//) 
-
-The [Prefect REST API](/3.0rc/api-ref/rest-api/) is used to send and receive data for orchestration and monitoring between Prefect clients and Prefect Cloud or a self-hosted Prefect server instance.
-This API is mainly consumed by Prefect clients such as the Prefect Python Client or the Prefect UI.
-
-<Info> 
-**Prefect Cloud REST API interactive documentation**
-
-Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
-</Info>
+- [Host Prefect server](/3.0rc/manage/self-host/) explains how to self-host a Prefect server instance.
+- [Configure settings and profiles](/3.0rc/manage/server/) shows how to conigure API interactions through environment variables or Prefect profiles.
+- [Manage run metadata in Python](/3.0rc/manage/server/) demonstrates how to interact with the API in Python through the `PrefectClient`.
