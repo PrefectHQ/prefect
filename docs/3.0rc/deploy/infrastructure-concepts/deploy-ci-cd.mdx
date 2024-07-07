@@ -157,7 +157,7 @@ For reference, the examples below live in their respective branches of
 
     ```yaml
     name: cicd-example
-    prefect-version: 2.14.11
+    prefect-version: 3.0.0
 
     build:
       - prefect_docker.deployments.steps.build_docker_image:
@@ -321,8 +321,8 @@ so Python packages do not have to be downloaded on repeat workflow runs.
 ```
 
 ```
-Using cached prefect-2.16.1-py3-none-any.whl (2.9 MB)
-Using cached prefect_aws-0.4.10-py3-none-any.whl (61 kB)
+Using cached prefect-3.0.0-py3-none-any.whl (2.9 MB)
+Using cached prefect_aws-0.4.18-py3-none-any.whl (61 kB)
 ```
 
 The `build-push-action` for building Docker images also offers
