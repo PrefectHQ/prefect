@@ -155,6 +155,7 @@
       "group": "Automate",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/automate/automate-overview",
         "3.0rc/automate/add-schedules",
         "3.0rc/automate/events/events",
         "3.0rc/automate/events/automations-triggers",
