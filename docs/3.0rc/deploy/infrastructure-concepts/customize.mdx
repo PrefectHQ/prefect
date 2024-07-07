@@ -155,7 +155,7 @@ if __name__ == "__main__":
         entrypoint="src/demo_project/demo_flow.py:some_work"
     ).deploy(
         name="demo-deployment",
-        work_pool_name="local", # can only .deploy() to a local work pool in prefect>=2.15.1
+        work_pool_name="local", 
         job_variables={
             "env": {
                 "EXECUTION_ENVIRONMENT": os.environ.get("EXECUTION_ENVIRONMENT", "local"),
