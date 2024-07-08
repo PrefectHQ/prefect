@@ -205,7 +205,6 @@
       "group": "Resources",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/resources/resources-overview",
         "3.0rc/resources/upgrade-prefect-3",
         "3.0rc/resources/upgrade-agents-to-workers",
         "3.0rc/resources/cancel",
