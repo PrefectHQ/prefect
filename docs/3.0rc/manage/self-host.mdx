@@ -10,19 +10,9 @@ To host a Prefect server instance on Kubernetes, check out the prefect-server [H
 After installing Prefect, you have a Python SDK client that can communicate with 
 either [Prefect Cloud](/3.0rc/manage/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
 
-Prefect Cloud and a self-hosted Prefect server instance share a common set of capabilities. Prefect Cloud has these additional features:
-
-- [Workspaces](/3.0rc/manage/cloud/workspaces/): isolated environments to organize your flows, deployments, and flow runs
-- [Automations](/3.0rc/automate/events/automations-triggers/): configure triggers, actions, and 
-notifications in response to real-time monitoring events
-- [Email notifications](/3.0rc/automate/events/automations-triggers/): send email alerts from Prefect's 
-servers based on automation triggers
-- [Service accounts](/3.0rc/manage/cloud/manage-users/service-accounts/): configure API access for running workers or 
-executing flow runs on remote infrastructure
-- [Custom role-based access controls (RBAC)](/3.0rc/manage/cloud/manage-users/manage-roles/): assign users granular 
-permissions to perform activities within an account or workspace
-- [Single Sign-on (SSO)](/3.0rc/manage/cloud/manage-users/configure-sso/): authentication using your identity provider
-- [Audit Logs](/3.0rc/manage/cloud/manage-users/audit-logs/): a record of user activities to monitor security and compliance
+Prefect Cloud and self-hosted Prefect server share a common set of capabilities. 
+Prefect Cloud provides the additional features required by organizations such as RBAC, Audit logs, and SSO. 
+See the [Prefect Cloud overview](/3.0rc/manage/cloud/) for more information.
 
 ## Prefect server installation notes
 
