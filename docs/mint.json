@@ -75,6 +75,7 @@
       "group": "Develop",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/develop/develop-overview",
         {
           "group": "Write and run workflows",
           "version": "3.0rc",
