@@ -306,14 +306,16 @@ class ExecutionV2(BaseModel):
         """
         return self.completionTime is None
 
-    def succeeded(self) -> bool:
-        """
-        Return whether the execution succeeded.
+    def succeeded(self):
+        """Whether or not the Execution completed is a successful state."""
+        completed_condition = self.condition_after_completion()
+        if (
+            completed_condition
+            and completed_condition["state"] == "CONDITION_SUCCEEDED"
+        ):
+            return True
 
-        Returns:
-            Whether the execution succeeded.
-        """
-        return True if self.condition_after_completion() else False
+        return False
 
     def condition_after_completion(self) -> Dict:
         """
@@ -324,13 +326,8 @@ class ExecutionV2(BaseModel):
         """
         if isinstance(self.conditions, List):
             for condition in self.conditions:
-                if (
-                    condition["state"] == "CONDITION_SUCCEEDED"
-                    and condition["type"] == "Completed"
-                ):
+                if condition["type"] == "Completed":
                     return condition
-
-        return {}
 
     @classmethod
     def get(
@@ -381,7 +378,3 @@ class ExecutionV2(BaseModel):
             satisfiesPzs=response.get("satisfiesPzs", False),
             etag=response["etag"],
         )
-
-
-class CloudRunJobV2Result:
-    """Result from a Cloud Run Job."""

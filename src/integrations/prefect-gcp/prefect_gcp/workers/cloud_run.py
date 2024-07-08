@@ -79,7 +79,6 @@ Read more about configuring work pools
                 }
             },
         },
-        "timeout": "{{ timeout }}",
         "keep_job": "{{ keep_job }}"
     }
     ```
@@ -272,7 +271,9 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         region: The region where the Cloud Run Job resides.
         credentials: The GCP Credentials used to connect to Cloud Run.
         job_body: The job body used to create the Cloud Run Job.
-        timeout: The length of time that Prefect will wait for a Cloud Run Job.
+        timeout: Max allowed duration the job may be active before Cloud Run
+            will actively try to mark it failed and kill associated containers
+            (maximum of 3600 seconds, 1 hour).
         keep_job: Whether to delete the Cloud Run Job after it completes.
     """
 
@@ -295,8 +296,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         le=3600,
         title="Job Timeout",
         description=(
-            "The length of time that Prefect will wait for a Cloud Run Job to complete "
-            "before raising an exception."
+            "Max allowed duration the Job may be active before Cloud Run will "
+            "actively try to mark it failed and kill associated containers (maximum of 3600 seconds, 1 hour)."
         ),
     )
     keep_job: Optional[bool] = Field(
@@ -520,7 +521,8 @@ class CloudRunWorkerVariables(BaseVariables):
         gt=0,
         le=3600,
         description=(
-            "The length of time that Prefect will wait for Cloud Run Job state changes."
+            "Max allowed duration the Job may be active before Cloud Run will "
+            "actively try to mark it failed and kill associated containers (maximum of 3600 seconds, 1 hour)."
         ),
     )
 
@@ -721,7 +723,6 @@ class CloudRunWorker(BaseWorker):
             job_execution = self._watch_job_execution(
                 client=client,
                 job_execution=execution,
-                timeout=configuration.timeout,
                 poll_interval=poll_interval,
             )
         except Exception:
@@ -738,7 +739,7 @@ class CloudRunWorker(BaseWorker):
             status_code = 1
             error_msg = job_execution.condition_after_completion()["message"]
             logger.error(
-                "Job Run {configuration.job_name} did not complete successfully. "
+                f"Job Run {configuration.job_name} did not complete successfully. "
                 f"{error_msg}"
             )
 
@@ -766,25 +767,17 @@ class CloudRunWorker(BaseWorker):
         )
 
     def _watch_job_execution(
-        self, client, job_execution: Execution, timeout: int, poll_interval: int = 5
+        self, client, job_execution: Execution, poll_interval: int = 5
     ):
         """
-        Update job_execution status until it is no longer running or timeout is reached.
+        Update job_execution status until it is no longer running.
         """
-        t0 = time.time()
         while job_execution.is_running():
             job_execution = Execution.get(
                 client=client,
                 namespace=job_execution.namespace,
                 execution_name=job_execution.name,
             )
-
-            elapsed_time = time.time() - t0
-            if timeout is not None and elapsed_time > timeout:
-                raise RuntimeError(
-                    f"Timed out after {elapsed_time}s while waiting for Cloud Run Job "
-                    "execution to complete. Your job may still be running on GCP."
-                )
 
             time.sleep(poll_interval)
 
@@ -804,7 +797,6 @@ class CloudRunWorker(BaseWorker):
             job_name=configuration.job_name,
         )
 
-        t0 = time.time()
         while not job.is_ready():
             ready_condition = (
                 job.ready_condition
@@ -817,16 +809,6 @@ class CloudRunWorker(BaseWorker):
                 namespace=configuration.project,
                 job_name=configuration.job_name,
             )
-
-            elapsed_time = time.time() - t0
-            if (
-                configuration.timeout is not None
-                and elapsed_time > configuration.timeout
-            ):
-                raise RuntimeError(
-                    f"Timed out after {elapsed_time}s while waiting for Cloud Run Job "
-                    "execution to complete. Your job may still be running on GCP."
-                )
 
             time.sleep(poll_interval)
 
