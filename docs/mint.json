@@ -141,7 +141,7 @@
           ]
         },
         {
-          "group": "Infrastructure specific examples",
+          "group": "Infrastructure-specific examples",
           "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/infrastructure-examples/managed",
@@ -169,6 +169,7 @@
       "group": "Cloud and Server",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/manage/manage-overview",
         {
           "group": "Use Prefect Cloud",
           "version": "3.0rc",
@@ -204,6 +205,7 @@
       "group": "Resources",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/resources/resources-overview",
         "3.0rc/resources/upgrade-prefect-3",
         "3.0rc/resources/upgrade-agents-to-workers",
         "3.0rc/resources/cancel",
