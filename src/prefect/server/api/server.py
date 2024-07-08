@@ -504,7 +504,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
 
 
 def create_app(
-    settings: prefect.settings.Settings = None,
+    settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
     ignore_cache: bool = False,
 ) -> FastAPI:
@@ -521,6 +521,10 @@ def create_app(
     """
     settings = settings or prefect.settings.get_current_settings()
     cache_key = (settings.hash_key(), ephemeral)
+
+    from prefect.logging.configuration import setup_logging
+
+    setup_logging()
 
     if cache_key in APP_CACHE and not ignore_cache:
         return APP_CACHE[cache_key]
