@@ -103,7 +103,7 @@ following as a log event:
 The default flow run log formatter uses the flow run name for log messages.
 
 <Note>
-Starting in 2.7.11, if you use a logger that sends logs to the API outside of a flow or task run, a warning is 
+If you use a logger that sends logs to the API outside of a flow or task run, a warning is 
 displayed instead of an error. Silence this warning by setting `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore` or 
 have the logger raise an error by setting the value to `error`.
 </Note>

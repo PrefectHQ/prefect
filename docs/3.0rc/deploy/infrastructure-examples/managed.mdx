@@ -1,8 +1,10 @@
 ---
-title: Run flows on Prefect Managed infra
-description: Learn how Prefect will run your deployment on our infrastructure.
+title: Run flows on Prefect Managed infrastructure
+description: Learn how Prefect runs deployments on Prefect's infrastructure.
 ---
-Prefect Cloud can run your flows on your behalf with Prefect Managed work pools.
+
+<span class="badge cloud"></span> Prefect Cloud can run your flows on your behalf with Prefect Managed work pools.
+
 Flows that run with this work pool do not require a worker or cloud provider 
 account—Prefect handles the infrastructure and code execution for you.
 
@@ -67,8 +69,6 @@ Alternatively, you can create a `requirements.txt` file and reference it in your
 
 ## Limitations
 
-Managed execution requires Prefect 2.14.4 or newer.
-
 ### Concurrency and work pools
 
 Free tier accounts are limited to:
@@ -95,7 +95,7 @@ Remote block-based storage is also supported, so S3, GCS, and Azure Blob are add
 
 ### Resources
 
-Memory is limited to 2GB of RAM, which includes all operations such as dependency installation. 
+Memory is limited to 2 GB of RAM, which includes all operations such as dependency installation. 
 Maximum job run time is 24 hours.
 
 ## Usage limits
