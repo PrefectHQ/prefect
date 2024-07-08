@@ -83,3 +83,4 @@ swap:
     infra: infrastructure
     Prefect cloud: Prefect Cloud
     prefect cloud: Prefect Cloud
+    Prefect Server: Prefect server
