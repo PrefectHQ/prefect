@@ -553,33 +553,43 @@ def create_app(
         service_instances = []
 
         if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
-            service_instances.append(services.scheduler.Scheduler())
-            service_instances.append(services.scheduler.RecentDeploymentsScheduler())
+            service_instances.append(services.scheduler.Scheduler(handle_signals=False))
+            service_instances.append(
+                services.scheduler.RecentDeploymentsScheduler(handle_signals=False)
+            )
 
         if prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value():
-            service_instances.append(services.late_runs.MarkLateRuns())
+            service_instances.append(
+                services.late_runs.MarkLateRuns(handle_signals=False)
+            )
 
         if prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
-            service_instances.append(services.pause_expirations.FailExpiredPauses())
+            service_instances.append(
+                services.pause_expirations.FailExpiredPauses(handle_signals=False)
+            )
 
         if prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
             service_instances.append(
-                services.cancellation_cleanup.CancellationCleanup()
+                services.cancellation_cleanup.CancellationCleanup(handle_signals=False)
             )
 
         if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
-            service_instances.append(services.telemetry.Telemetry())
+            service_instances.append(services.telemetry.Telemetry(handle_signals=False))
 
         if prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value():
             service_instances.append(
-                services.flow_run_notifications.FlowRunNotifications()
+                services.flow_run_notifications.FlowRunNotifications(
+                    handle_signals=False
+                )
             )
 
         if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
-            service_instances.append(services.foreman.Foreman())
+            service_instances.append(services.foreman.Foreman(handle_signals=False))
 
         if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
+            service_instances.append(
+                services.task_scheduling.TaskSchedulingTimeouts(handle_signals=False)
+            )
 
         if (
             prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
@@ -592,7 +602,7 @@ def create_app(
             and prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value()
         ):
             service_instances.append(ReactiveTriggers())
-            service_instances.append(ProactiveTriggers())
+            service_instances.append(ProactiveTriggers(handle_signals=False))
             service_instances.append(Actions())
 
         if (

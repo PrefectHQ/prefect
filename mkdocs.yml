@@ -1,7 +1,7 @@
 site_name: Prefect Docs
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
-edit_uri: edit/main/docs
+edit_uri: edit/2.x/docs
 extra_css:
     - stylesheets/theme.css
     - stylesheets/admonitions.css
@@ -322,7 +322,7 @@ nav:
                       - Deployment Steps: integrations/prefect-gcp/deployments/steps.md
                       - Workers:
                             - Cloud Run: integrations/prefect-gcp/cloud_run_worker.md
-                            - Cloud Run V2: cintegrations/prefect-gcp/loud_run_worker_v2.md
+                            - Cloud Run V2: integrations/prefect-gcp/cloud_run_worker_v2.md
                             - Vertex AI: integrations/prefect-gcp/vertex_worker.md
                 - GitHub:
                       - integrations/prefect-github/index.md

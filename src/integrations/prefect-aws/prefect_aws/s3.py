@@ -18,9 +18,9 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.filesystem import filter_files
 
 if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
+    from pydantic.v1 import Field, root_validator
 else:
-    from pydantic import Field
+    from pydantic import Field, root_validator
 
 from prefect_aws import AwsCredentials, MinIOCredentials
 from prefect_aws.client_parameters import AwsClientParameters
@@ -425,6 +425,22 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
             "for reading and writing objects."
         ),
     )
+
+    @root_validator
+    def validate_credentials(cls, values):
+        creds = values["credentials"]
+        if isinstance(creds, AwsCredentials) and isinstance(
+            creds.aws_client_parameters, dict
+        ):
+            # There's an issue with pydantic and nested blocks in a Union
+            # that is causing `aws_client_parameters` to be a dict in some
+            # cases instead of an `AwsClientParameters` object. Here we
+            # convert it to the correct type.
+            creds.aws_client_parameters = AwsClientParameters(
+                **creds.aws_client_parameters
+            )
+
+        return values
 
     # Property to maintain compatibility with storage block based deployments
     @property

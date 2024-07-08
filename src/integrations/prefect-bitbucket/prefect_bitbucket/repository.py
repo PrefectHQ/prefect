@@ -36,7 +36,7 @@ private_bitbucket_block.save(name="my-private-bitbucket-block")
 """
 
 import io
-from distutils.dir_util import copy_tree
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional, Tuple, Union
@@ -197,4 +197,6 @@ class BitBucketRepository(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            copy_tree(src=content_source, dst=content_destination)
+            shutil.copytree(
+                src=content_source, dst=content_destination, dirs_exist_ok=True
+            )
