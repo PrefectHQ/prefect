@@ -357,7 +357,12 @@
       "version": "3.0rc",
       "pages": [
         "3.0rc/api-ref/rest-api/index",
-        "3.0rc/api-ref/rest-api/cloud-rest-api-reference"
+        {
+          "group": "Cloud API",
+          "pages": [
+            "3.0rc/api-ref/rest-api/cloud-rest-api-reference"
+          ]
+        }
       ]
     },
     {
