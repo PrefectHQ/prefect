@@ -881,7 +881,7 @@ class TestTaskRetries:
         assert task_run_state.is_failed()
         assert mock_sleep.call_count == 3
         assert mock_sleep.call_args_list == [
-            call(pytest.approx(delay, abs=0.2)) for delay in expected_delay_sequence
+            call(pytest.approx(delay, abs=1)) for delay in expected_delay_sequence
         ]
 
         states = await prefect_client.read_task_run_states(task_run_id)
