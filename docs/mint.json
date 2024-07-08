@@ -75,6 +75,7 @@
       "group": "Develop",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/develop/develop-overview",
         {
           "group": "Write and run workflows",
           "version": "3.0rc",
@@ -155,6 +156,7 @@
       "group": "Automate",
       "version": "3.0rc",
       "pages": [
+        "3.0rc/automate/automate-overview",
         "3.0rc/automate/add-schedules",
         "3.0rc/automate/events/events",
         "3.0rc/automate/events/automations-triggers",

@@ -4,6 +4,7 @@ description: Learn how Prefect runs deployments on Prefect's infrastructure.
 ---
 
 <span class="badge cloud"></span> Prefect Cloud can run your flows on your behalf with Prefect Managed work pools.
+
 Flows that run with this work pool do not require a worker or cloud provider 
 account—Prefect handles the infrastructure and code execution for you.
 
@@ -67,8 +68,6 @@ if __name__ == "__main__":
 Alternatively, you can create a `requirements.txt` file and reference it in your `prefect.yaml` `pull_step`.
 
 ## Limitations
-
-Managed execution requires Prefect 2.14.4 or newer.
 
 ### Concurrency and work pools
 
