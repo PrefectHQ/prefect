@@ -184,6 +184,7 @@ async def start(
     server_env["PREFECT_SERVER_ANALYTICS_ENABLED"] = str(analytics)
     server_env["PREFECT_API_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
     server_env["PREFECT_API_SERVICES_UI"] = str(ui)
+    server_env["PREFECT_UI_ENABLED"] = str(ui)
     server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
 
     base_url = f"http://{host}:{port}"
