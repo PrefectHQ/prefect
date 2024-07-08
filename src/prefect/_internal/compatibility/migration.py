@@ -5,11 +5,41 @@ The `getattr_migration` function is used to handle imports for moved or removed 
 It is used in the `__getattr__` attribute of modules that have moved or removed objects.
 
 Usage:
-```python
-from prefect._internal.compatibility.migration import getattr_migration
 
-__getattr__ = getattr_migration(__name__)
-```
+Moved objects:
+1. Add the old and new path to the `MOVED_IN_V3` dictionary, e.g. `MOVED_IN_V3 = {"old_path": "new_path"}`
+2. In the module where the object was moved from, add the following lines:
+    ```python
+    # at top
+    from prefect._internal.compatibility.migration import getattr_migration
+
+    # at bottom
+    __getattr__ = getattr_migration(__name__)
+    ```
+
+    Example at src/prefect/engine.py
+
+Removed objects:
+1. Add the old path and error message to the `REMOVED_IN_V3` dictionary, e.g. `REMOVED_IN_V3 = {"old_path": "error_message"}`
+2. In the module where the object was removed, add the following lines:
+    ```python
+    # at top
+    from prefect._internal.compatibility.migration import getattr_migration
+
+    # at bottom
+    __getattr__ = getattr_migration(__name__)
+
+    ```
+    If the entire old module was removed, add a stub for the module with the following lines:
+    ```python
+    # at top
+    from prefect._internal.compatibility.migration import getattr_migration
+    
+    # at bottom
+    __getattr__ = getattr_migration(__name__)
+    ```
+
+    Example at src/prefect/infrastructure/base.py
 """
 
 import sys
@@ -34,6 +64,7 @@ upgrade_guide_msg = "Refer to the upgrade guide for more information: https://do
 
 REMOVED_IN_V3 = {
     "prefect.client.schemas.objects:MinimalDeploymentSchedule": "Use `prefect.client.schemas.actions.DeploymentScheduleCreate` instead.",
+    "prefect.context:PrefectObjectRegistry": upgrade_guide_msg,
     "prefect.deployments.deployments:Deployment": "Use `flow.serve()`, `flow.deploy()`, or `prefect deploy` instead.",
     "prefect.deployments:Deployment": "Use `flow.serve()`, `flow.deploy()`, or `prefect deploy` instead.",
     "prefect.filesystems:GCS": "Use `prefect_gcp.GcsBucket` instead.",
