@@ -1,5 +1,151 @@
 # Prefect Release Notes
 
+## Release 3.0.0rc10
+
+### Enhancements
+- Prompt user to set `PREFECT_API_URL` when starting server if not set — https://github.com/PrefectHQ/prefect/pull/14294
+- Emit task run urls when creating/submitting background tasks — https://github.com/PrefectHQ/prefect/pull/14407
+- Support nested tasks in flow run graph — https://github.com/PrefectHQ/prefect/pull/14271
+- Infer task result persistence from other settings — https://github.com/PrefectHQ/prefect/pull/14336
+- Improve cancellation of submitted task runs in interactive flow runs — https://github.com/PrefectHQ/prefect/pull/14383
+
+### Fixes
+- Remove terminal warning when deploying with triggers with `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/14307
+- Fix `prefect deploy` breaks using a trigger with `within` — https://github.com/PrefectHQ/prefect/pull/14338
+- Allow passing custom timeout exception type to disambiguate — https://github.com/PrefectHQ/prefect/pull/14352
+- Fix flow run timeline event dots not being interactive — https://github.com/PrefectHQ/prefect/pull/14357
+- Fix error when returning from task and flows with `cache_result_in_memory=False` — https://github.com/PrefectHQ/prefect/pull/14359
+- Handle multi-line dynamic flow names — https://github.com/PrefectHQ/prefect/pull/14380
+- Change default for BitBucketCredentials  URL  field — https://github.com/PrefectHQ/prefect/pull/13302
+- Fixes bug where assignments inside functions are evaluated when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/14405
+- Handle join edge case in `ParameterTypeError.from_validation_error` — https://github.com/PrefectHQ/prefect/pull/14419
+- Fix error in `flow-run` CLI log printing and escape special characters — https://github.com/PrefectHQ/prefect/pull/14469
+- Save absolute paths with no block IDs by default — https://github.com/PrefectHQ/prefect/pull/14355
+- Resolve two log injection security alerts — https://github.com/PrefectHQ/prefect/pull/14373
+- Remove unnecessary fields on result schemas — https://github.com/PrefectHQ/prefect/pull/14362
+- Correct our Cloud UI URL inference for Prefect development environments — https://github.com/PrefectHQ/prefect/pull/14367
+- Fix clicking "parent flow run" from a flow run with a grandparent navigates to the grandparent — https://github.com/PrefectHQ/prefect/pull/14471
+
+### Documentation
+- Improve formatting of output and update links — https://github.com/PrefectHQ/prefect/pull/14335
+- Fix broken links and removes extra divs — https://github.com/PrefectHQ/prefect/pull/14342
+- Update button in docs to Enterprise from Custom — https://github.com/PrefectHQ/prefect/pull/14344
+- Update workspaces docs — https://github.com/PrefectHQ/prefect/pull/14350
+- Fix indentation and invalid trigger spec. — https://github.com/PrefectHQ/prefect/pull/14351
+- Update screenshots for Cloud docs other than workspaces — https://github.com/PrefectHQ/prefect/pull/14354
+- Point to `main` for migration script in upgrade doc — https://github.com/PrefectHQ/prefect/pull/14365
+- Refactor and reorganize the 3.0 docs in the Deploy section — https://github.com/PrefectHQ/prefect/pull/14313
+- Add more direct recommendations to worker upgrade guide — https://github.com/PrefectHQ/prefect/pull/14395
+- Minor edits to "upgrade to Prefect 3" doc — https://github.com/PrefectHQ/prefect/pull/14411
+- Update import path for for run_deployment in docs code examples — https://github.com/PrefectHQ/prefect/pull/14424
+- Refresh `Deployment` overview and add note on `run_deployment` sdk use — https://github.com/PrefectHQ/prefect/pull/14425
+- Add vale style guide for manual linting and updates docs to remove style guide errors — https://github.com/PrefectHQ/prefect/pull/14421
+- Update deferred tasks example — https://github.com/PrefectHQ/prefect/pull/14436
+- Update result documentation — https://github.com/PrefectHQ/prefect/pull/14394
+- Add more docs style improvements from Vale — https://github.com/PrefectHQ/prefect/pull/14454
+- Update Prefect 3 upgrade page to include database migration — https://github.com/PrefectHQ/prefect/pull/14468
+- Update validator usage for pydantic 2 in `RunInput` examples — https://github.com/PrefectHQ/prefect/pull/14473
+- Add upgrade to Prefect 3 Guide — https://github.com/PrefectHQ/prefect/pull/14237
+- Remove unnecessary code group from upgrade guide — https://github.com/PrefectHQ/prefect/pull/14314
+- Simplify schedules page — https://github.com/PrefectHQ/prefect/pull/14315
+- Finalize results doc — https://github.com/PrefectHQ/prefect/pull/14460
+- Cleanup contribution docs — https://github.com/PrefectHQ/prefect/pull/14398
+- Cleanup audit logs page — https://github.com/PrefectHQ/prefect/pull/14372
+- Improve manage accounts documentation titles — https://github.com/PrefectHQ/prefect/pull/14381
+- Update README — https://github.com/PrefectHQ/prefect/pull/14326
+- Improve landing page documentation — https://github.com/PrefectHQ/prefect/pull/14316
+- Update logged example flow to use wait on future not on task — https://github.com/PrefectHQ/prefect/pull/14317
+- Update configuring profiles and settings documentation — https://github.com/PrefectHQ/prefect/pull/14339
+
+### UI
+- Fix logs not displaying property when the message includes html like text — https://github.com/PrefectHQ/prefect-ui-library/pull/2569
+- Fix the flow run popover text wrap and allow breaking words — https://github.com/PrefectHQ/prefect-ui-library/pull/2570
+- Fix "This run didn't generate logs" being displayed when logs exist — https://github.com/PrefectHQ/prefect-ui-library/pull/2571
+- Fix run deployment form state shared by row index — https://github.com/PrefectHQ/prefect-ui-library/pull/2573
+- Remove global pause/resume from deployments list — https://github.com/PrefectHQ/prefect-ui-library/pull/2579
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/3.0.0rc9...3.0.0rc10
+
+## Release 3.0.0rc3
+
+### Exciting New Features 🎉
+- Add events to the flow run graph — https://github.com/PrefectHQ/prefect/pull/13875
+- Add support for decorating instance/class/static methods with `@task` and `@flow` — https://github.com/PrefectHQ/prefect/pull/13944
+
+### Enhancements
+- Update flow runs on Runs page to use pagination rather than infinite scrolling — https://github.com/PrefectHQ/prefect/pull/13839
+- Raise helpful error when `task_worker` runs against ephemeral server — https://github.com/PrefectHQ/prefect/pull/13848
+- Add new flows pagination endpoint — https://github.com/PrefectHQ/prefect/pull/13846
+- Add better task retry logging — https://github.com/PrefectHQ/prefect/pull/13870
+- Expose arg for max workers on `ThreadPoolTaskRunner` — https://github.com/PrefectHQ/prefect/pull/13866
+- Remove dynamic key from non-flow task run name — https://github.com/PrefectHQ/prefect/pull/13902
+- Add `not_any_` filters to flow run state name/type — https://github.com/PrefectHQ/prefect/pull/13920
+- Surface failed action `error_detail` for validation errors — https://github.com/PrefectHQ/prefect/pull/13940
+- Add default store for transactions — https://github.com/PrefectHQ/prefect/pull/13983
+- Prevent duplicate run creation from double button presses — https://github.com/PrefectHQ/prefect/pull/13986
+- Add support for composite triggers — https://github.com/PrefectHQ/prefect/pull/13975
+- Add transaction record expirations — https://github.com/PrefectHQ/prefect/pull/14035
+- Add a `url_for` utility for generating URLs for Prefect objects — https://github.com/PrefectHQ/prefect/pull/13885
+- Add synchronous client method for creating artifacts — https://github.com/PrefectHQ/prefect/pull/13931
+- Add message for submitted tasks that are not waited — https://github.com/PrefectHQ/prefect/pull/13845
+
+### Fixes
+- Add `shield` when re-enqueuing task runs — https://github.com/PrefectHQ/prefect/pull/13883
+- Remove the limit and page from the history request — https://github.com/PrefectHQ/prefect/pull/13901
+- Add circuit breaker when a task depends on itself — https://github.com/PrefectHQ/prefect/pull/13882
+- Fix flow run retries for deployment flow runs — https://github.com/PrefectHQ/prefect/pull/13884
+- Fix `ThreadPoolTaskRunner` concurrency by copying `max_workers` on duplication — https://github.com/PrefectHQ/prefect/pull/13943
+- Fix `prefect deploy` with dynamic @flow decorator args — https://github.com/PrefectHQ/prefect/pull/13967
+- Fix bug crashing task runs with remote storage — https://github.com/PrefectHQ/prefect/pull/13990
+- Fix variables schema dump for work pool base job templates — https://github.com/PrefectHQ/prefect/pull/13971
+- Prevent execution of code in `if __name__ == "__main__":` blocks when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/13922
+- Fix typing on `GlobalConcurrencyLimitUpdate` — https://github.com/PrefectHQ/prefect/pull/14005
+- Bump `TaskRunWaiter` cache size and expiration time and pin task worker thread pool workers to passed `limit` — https://github.com/PrefectHQ/prefect/pull/14030
+- Fix Kubernetes guide to avoid suggesting you need cloud — https://github.com/PrefectHQ/prefect/pull/14040
+- Require a `PREFECT_API_URL` to start a worker — https://github.com/PrefectHQ/prefect/pull/13942
+- Remove `LiteralResult` and handle singleton values the same — https://github.com/PrefectHQ/prefect/pull/13905
+- Resolve an infinite loop distributing events to a websocket subscriber — https://github.com/PrefectHQ/prefect/pull/13877
+
+### Documentation
+- Remove gerunds and redundant prefixes from CLI command help text — https://github.com/PrefectHQ/prefect/pull/13788
+- Remove script tag — https://github.com/PrefectHQ/prefect/pull/13852
+- Quickstart 3.0rc polish — https://github.com/PrefectHQ/prefect/pull/13879
+- Update `pydantic` syntax in docs — https://github.com/PrefectHQ/prefect/pull/13888
+- Improves integrations docs formatting  — https://github.com/PrefectHQ/prefect/pull/13934
+- Simplifies integration docs  — https://github.com/PrefectHQ/prefect/pull/13926
+- Fix code block formatting in automations concepts docs — https://github.com/PrefectHQ/prefect/pull/13959
+- Add react docs — https://github.com/PrefectHQ/prefect/pull/13965
+- Update Quickstart install instructions for 3.0 — https://github.com/PrefectHQ/prefect/pull/13988
+- Fix docs formatting in integrations page — https://github.com/PrefectHQ/prefect/pull/13999
+- Removed references to SequentialTaskRunner — https://github.com/PrefectHQ/prefect/pull/13996
+- Removes extraneous docs files — https://github.com/PrefectHQ/prefect/pull/14016
+- Remove extra arrow in top button — https://github.com/PrefectHQ/prefect/pull/14052
+- Adds cards showing all integration libraries to the integrations page — https://github.com/PrefectHQ/prefect/pull/14051
+- Update contribute section of the docs — https://github.com/PrefectHQ/prefect/pull/14055
+- Add documentation about supported function types — https://github.com/PrefectHQ/prefect/pull/14060
+
+### Breaking Changes
+- Remove unused attributes from `EngineContext` — https://github.com/PrefectHQ/prefect/pull/13917
+
+### Integrations
+
+#### prefect-dbt
+
+- Add back logging of dbt commands — https://github.com/PrefectHQ/prefect/pull/13853
+
+#### prefect-databricks
+
+- Support job parameters for Databricks jobs — https://github.com/PrefectHQ/prefect/pull/13642
+- Restore `jobs_runs_submit_by_id_and_wait_for_completion` — https://github.com/PrefectHQ/prefect/pull/13958
+
+## Contributors
+- @LarryUllman
+- @Waiwait
+- @padbk
+- @stellardave
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/3.0.0rc2...3.0.0rc3
+
 ## Release 3.0.0rc1
 
 We're excited to announce the release candidate of Prefect 3.0. It's the most flexible, powerful, fastest version of Prefect yet. Prefect 3.0 includes several exciting new features. Install it by running `pip install prefect==3.0.0rc1` and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).

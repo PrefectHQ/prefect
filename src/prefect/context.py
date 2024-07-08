@@ -9,49 +9,39 @@ For more user-accessible information about the current run, see [`prefect.runtim
 import os
 import sys
 import warnings
-from collections import defaultdict
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar, Token
-from functools import update_wrapper
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    ContextManager,
     Dict,
     Generator,
-    List,
     Optional,
     Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
 )
 
-import anyio
-import anyio._backends._asyncio
-import anyio.abc
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from pydantic_extra_types.pendulum_dt import DateTime
-from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import Self
 
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
+from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")
 
@@ -94,19 +84,12 @@ def hydrated_context(
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))
             # Set up parent flow run context
-            # TODO: This task group isn't necessary in the new engine. Remove the background tasks
-            # attribute from FlowRunContext.
             client = client or get_client(sync_client=True)
             if flow_run_context := serialized_context.get("flow_run_context"):
-                try:
-                    task_group = anyio.create_task_group()
-                except AsyncLibraryNotFoundError:
-                    task_group = anyio._backends._asyncio.TaskGroup()
                 flow = flow_run_context["flow"]
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
-                    background_tasks=task_group,
                     result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
                     task_runner=flow.task_runner.duplicate(),
                     detached=True,
@@ -190,86 +173,6 @@ class ContextModel(BaseModel):
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
         return self.model_dump(exclude_unset=True)
-
-
-class PrefectObjectRegistry(ContextModel):
-    """
-    A context that acts as a registry for all Prefect objects that are
-    registered during load and execution.
-
-    Attributes:
-        start_time: The time the object registry was created.
-        block_code_execution: If set, flow calls will be ignored.
-        capture_failures: If set, failures during __init__ will be silenced and tracked.
-    """
-
-    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
-
-    _instance_registry: Dict[Type[T], List[T]] = PrivateAttr(
-        default_factory=lambda: defaultdict(list)
-    )
-
-    # Failures will be a tuple of (exception, instance, args, kwargs)
-    _instance_init_failures: Dict[
-        Type[T], List[Tuple[Exception, T, Tuple, Dict]]
-    ] = PrivateAttr(default_factory=lambda: defaultdict(list))
-
-    block_code_execution: bool = False
-    capture_failures: bool = False
-
-    __var__ = ContextVar("object_registry")
-
-    def get_instances(self, type_: Type[T]) -> List[T]:
-        instances = []
-        for registered_type, type_instances in self._instance_registry.items():
-            if type_ in registered_type.mro():
-                instances.extend(type_instances)
-        return instances
-
-    def get_instance_failures(
-        self, type_: Type[T]
-    ) -> List[Tuple[Exception, T, Tuple, Dict]]:
-        failures = []
-        for type__ in type_.mro():
-            failures.extend(self._instance_init_failures[type__])
-        return failures
-
-    def register_instance(self, object):
-        # TODO: Consider using a 'Set' to avoid duplicate entries
-        self._instance_registry[type(object)].append(object)
-
-    def register_init_failure(
-        self, exc: Exception, object: Any, init_args: Tuple, init_kwargs: Dict
-    ):
-        self._instance_init_failures[type(object)].append(
-            (exc, object, init_args, init_kwargs)
-        )
-
-    @classmethod
-    def register_instances(cls, type_: Type[T]) -> Type[T]:
-        """
-        Decorator for a class that adds registration to the `PrefectObjectRegistry`
-        on initialization of instances.
-        """
-        original_init = type_.__init__
-
-        def __register_init__(__self__: T, *args: Any, **kwargs: Any) -> None:
-            registry = cls.get()
-            try:
-                original_init(__self__, *args, **kwargs)
-            except Exception as exc:
-                if not registry or not registry.capture_failures:
-                    raise
-                else:
-                    registry.register_init_failure(exc, __self__, args, kwargs)
-            else:
-                if registry:
-                    registry.register_instance(__self__)
-
-        update_wrapper(__register_init__, original_init)
-
-        type_.__init__ = __register_init__
-        return type_
 
 
 class ClientContext(ContextModel):
@@ -367,13 +270,10 @@ class EngineContext(RunContext):
         task_run_states: A list of states for task runs created within this flow run
         task_run_results: A mapping of result ids to task run states for this flow run
         flow_run_states: A list of states for flow runs created within this flow run
-        sync_portal: A blocking portal for sync task/flow runs in an async flow
-        timeout_scope: The cancellation scope for flow level timeouts
     """
 
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
-    autonomous_task_run: Optional[TaskRun] = None
     task_runner: TaskRunner
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
@@ -391,19 +291,8 @@ class EngineContext(RunContext):
     # Counter for flow pauses
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
-    # Tracking for objects created by this flow run
-    task_run_futures: List[PrefectFuture] = Field(default_factory=list)
-    task_run_states: List[State] = Field(default_factory=list)
+    # Tracking for result from task runs in this flow run
     task_run_results: Dict[int, State] = Field(default_factory=dict)
-    flow_run_states: List[State] = Field(default_factory=list)
-
-    # The synchronous portal is only created for async flows for creating engine calls
-    # from synchronous task and subflow calls
-    sync_portal: Optional[anyio.abc.BlockingPortal] = None
-    timeout_scope: Optional[anyio.abc.CancelScope] = None
-
-    # Task group that can be used for background tasks during the flow run
-    background_tasks: anyio.abc.TaskGroup
 
     # Events worker to emit events to Prefect Cloud
     events: Optional[EventsWorker] = None
@@ -620,23 +509,6 @@ def tags(*new_tags: str) -> Generator[Set[str], None, None]:
         yield new_tags
 
 
-def registry_from_script(
-    path: str,
-    block_code_execution: bool = True,
-    capture_failures: bool = True,
-) -> PrefectObjectRegistry:
-    """
-    Return a fresh registry with instances populated from execution of a script.
-    """
-    with PrefectObjectRegistry(
-        block_code_execution=block_code_execution,
-        capture_failures=capture_failures,
-    ) as registry:
-        load_script_as_module(path)
-
-    return registry
-
-
 @contextmanager
 def use_profile(
     profile: Union[Profile, str],
@@ -737,14 +609,8 @@ def root_settings_context():
 
 
 GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
-GLOBAL_OBJECT_REGISTRY: Optional[ContextManager[PrefectObjectRegistry]] = None
 
 
-def initialize_object_registry():
-    global GLOBAL_OBJECT_REGISTRY
-
-    if GLOBAL_OBJECT_REGISTRY:
-        return
-
-    GLOBAL_OBJECT_REGISTRY = PrefectObjectRegistry()
-    GLOBAL_OBJECT_REGISTRY.__enter__()
+# 2024-07-02: This surfaces an actionable error message for removed objects
+# in Prefect 3.0 upgrade.
+__getattr__ = getattr_migration(__name__)

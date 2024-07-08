@@ -81,8 +81,7 @@ if __name__ == "__main__":
 
 ```python
 # with minikube / docker desktop & a valid ~/.kube/config this should ~just work~
-from prefect.blocks.kubernetes import KubernetesClusterConfig
-from prefect_kubernetes.credentials import KubernetesCredentials
+from prefect_kubernetes.credentials import KubernetesCredentials, KubernetesClusterConfig
 
 k8s_config = KubernetesClusterConfig.from_file('~/.kube/config')
 

@@ -26,7 +26,6 @@ dependencies = [
   "prefect>=3.0.0rc1",
   "docker>=6.1.1",
   "exceptiongroup",
-  "requests<2.30.0",
 ]
 dynamic = ["version"]
 
@@ -43,6 +42,7 @@ dev = [
   "pre-commit",
   "pytest-asyncio",
   "pytest",
+  "pytest-env",
   "pytest-xdist",
 ]
 
@@ -75,3 +75,7 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = ["PREFECT_TEST_MODE=1"]
+filterwarnings = [
+  "ignore:Skipped unsupported reflection of expression-based index.*:sqlalchemy.exc.SAWarning",
+]

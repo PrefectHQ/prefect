@@ -35,6 +35,9 @@ class TaskSchedulingTimeouts(LoopService):
         """
         Periodically reschedules pending task runs that have been pending for too long.
         """
+        if not PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT:
+            return
+
         async with db.session_context(begin_transaction=True) as session:
             if self._first_run:
                 await self.restore_scheduled_tasks_if_necessary(session)
@@ -122,4 +125,4 @@ class TaskSchedulingTimeouts(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(TaskSchedulingTimeouts().start())
+    asyncio.run(TaskSchedulingTimeouts(handle_signals=True).start())

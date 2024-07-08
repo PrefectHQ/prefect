@@ -677,7 +677,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             if blob_path[-1] == "/":
                 # object is a folder and will be created if it contains any objects
                 continue
-            local_file_path = os.path.join(local_path, blob_path)
+            relative_blob_path = os.path.relpath(blob_path, from_path)
+            local_file_path = os.path.join(local_path, relative_blob_path)
             os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
             with disable_run_logger():
@@ -739,7 +740,13 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                     PurePosixPath(to_path, local_file_path.relative_to(local_path))
                 )
                 local_file_content = local_file_path.read_bytes()
-                await self.write_path(remote_file_path, content=local_file_content)
+                with disable_run_logger():
+                    await cloud_storage_upload_blob_from_string.fn(
+                        data=local_file_content,
+                        bucket=self.bucket,
+                        blob=remote_file_path,
+                        gcp_credentials=self.gcp_credentials,
+                    )
                 uploaded_file_count += 1
 
         return uploaded_file_count
@@ -1288,7 +1295,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         ] = DataFrameSerializationFormat.CSV_GZIP,
         **upload_kwargs: Dict[str, Any],
     ) -> str:
-        """Upload a Pandas DataFrame to Google Cloud Storage in various formats.
+        """
+        Upload a Pandas DataFrame to Google Cloud Storage in various formats.
 
         This function uploads the data in a Pandas DataFrame to Google Cloud Storage
         in a specified format, such as .csv, .csv.gz, .parquet,
@@ -1302,7 +1310,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 'csv', 'csv_gzip',  'parquet', 'parquet_snappy', 'parquet_gzip'.
                 Defaults to `DataFrameSerializationFormat.CSV_GZIP`.
             **upload_kwargs: Additional keyword arguments to pass to the underlying
-            `Blob.upload_from_dataframe` method.
+                `upload_from_dataframe` method.
 
         Returns:
             The path that the object was uploaded to.

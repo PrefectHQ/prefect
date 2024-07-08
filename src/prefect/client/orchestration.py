@@ -270,8 +270,8 @@ class PrefectClient:
         self,
         api: Union[str, ASGIApp],
         *,
-        api_key: str = None,
-        api_version: str = None,
+        api_key: Optional[str] = None,
+        api_version: Optional[str] = None,
         httpx_settings: Optional[Dict[str, Any]] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
@@ -506,7 +506,7 @@ class PrefectClient:
         work_pool_filter: WorkPoolFilter = None,
         work_queue_filter: WorkQueueFilter = None,
         sort: FlowSort = None,
-        limit: int = None,
+        limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[Flow]:
         """
@@ -576,12 +576,12 @@ class PrefectClient:
         *,
         parameters: Optional[Dict[str, Any]] = None,
         context: Optional[Dict[str, Any]] = None,
-        state: prefect.states.State = None,
-        name: str = None,
-        tags: Iterable[str] = None,
-        idempotency_key: str = None,
-        parent_task_run_id: UUID = None,
-        work_queue_name: str = None,
+        state: Optional[prefect.states.State] = None,
+        name: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
+        idempotency_key: Optional[str] = None,
+        parent_task_run_id: Optional[UUID] = None,
+        work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
     ) -> FlowRun:
         """
@@ -1601,7 +1601,6 @@ class PrefectClient:
         work_pool_name: Optional[str] = None,
         tags: Optional[List[str]] = None,
         storage_document_id: Optional[UUID] = None,
-        manifest_path: Optional[str] = None,
         path: Optional[str] = None,
         entrypoint: Optional[str] = None,
         infrastructure_document_id: Optional[UUID] = None,
@@ -1650,7 +1649,6 @@ class PrefectClient:
             storage_document_id=storage_document_id,
             path=path,
             entrypoint=entrypoint,
-            manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
             job_variables=dict(job_variables or {}),
             parameter_openapi_schema=parameter_openapi_schema,
@@ -1710,7 +1708,7 @@ class PrefectClient:
         self,
         deployment: Deployment,
         schedule: SCHEDULE_TYPES = None,
-        is_schedule_active: bool = None,
+        is_schedule_active: Optional[bool] = None,
     ):
         deployment_update = DeploymentUpdate(
             version=deployment.version,
@@ -1723,7 +1721,6 @@ class PrefectClient:
             description=deployment.description,
             work_queue_name=deployment.work_queue_name,
             tags=deployment.tags,
-            manifest_path=deployment.manifest_path,
             path=deployment.path,
             entrypoint=deployment.entrypoint,
             parameters=deployment.parameters,
@@ -2060,7 +2057,7 @@ class PrefectClient:
         work_pool_filter: WorkPoolFilter = None,
         work_queue_filter: WorkQueueFilter = None,
         sort: FlowRunSort = None,
-        limit: int = None,
+        limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[FlowRun]:
         """
@@ -2267,7 +2264,7 @@ class PrefectClient:
         task_run_filter: TaskRunFilter = None,
         deployment_filter: DeploymentFilter = None,
         sort: TaskRunSort = None,
-        limit: int = None,
+        limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[TaskRun]:
         """
@@ -2531,8 +2528,8 @@ class PrefectClient:
     async def read_logs(
         self,
         log_filter: LogFilter = None,
-        limit: int = None,
-        offset: int = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
         sort: LogSort = LogSort.TIMESTAMP_ASC,
     ) -> List[Log]:
         """
@@ -2863,7 +2860,7 @@ class PrefectClient:
         flow_run_filter: FlowRunFilter = None,
         task_run_filter: TaskRunFilter = None,
         sort: ArtifactSort = None,
-        limit: int = None,
+        limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[Artifact]:
         """
@@ -2903,7 +2900,7 @@ class PrefectClient:
         flow_run_filter: FlowRunFilter = None,
         task_run_filter: TaskRunFilter = None,
         sort: ArtifactCollectionSort = None,
-        limit: int = None,
+        limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[ArtifactCollection]:
         """
@@ -3003,7 +3000,7 @@ class PrefectClient:
             else:
                 raise
 
-    async def read_variables(self, limit: int = None) -> List[Variable]:
+    async def read_variables(self, limit: Optional[int] = None) -> List[Variable]:
         """Reads all variables."""
         response = await self._client.post("/variables/filter", json={"limit": limit})
         return pydantic.TypeAdapter(List[Variable]).validate_python(response.json())
@@ -3370,8 +3367,8 @@ class SyncPrefectClient:
         self,
         api: Union[str, ASGIApp],
         *,
-        api_key: str = None,
-        api_version: str = None,
+        api_key: Optional[str] = None,
+        api_version: Optional[str] = None,
         httpx_settings: Optional[Dict[str, Any]] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
@@ -3752,7 +3749,7 @@ class SyncPrefectClient:
         work_pool_filter: WorkPoolFilter = None,
         work_queue_filter: WorkQueueFilter = None,
         sort: FlowRunSort = None,
-        limit: int = None,
+        limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[FlowRun]:
         """
@@ -3944,7 +3941,7 @@ class SyncPrefectClient:
         task_run_filter: TaskRunFilter = None,
         deployment_filter: DeploymentFilter = None,
         sort: TaskRunSort = None,
-        limit: int = None,
+        limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[TaskRun]:
         """
@@ -4048,3 +4045,23 @@ class SyncPrefectClient:
             else:
                 raise
         return DeploymentResponse.model_validate(response.json())
+
+    def create_artifact(
+        self,
+        artifact: ArtifactCreate,
+    ) -> Artifact:
+        """
+        Creates an artifact with the provided configuration.
+
+        Args:
+            artifact: Desired configuration for the new artifact.
+        Returns:
+            Information about the newly created artifact.
+        """
+
+        response = self._client.post(
+            "/artifacts/",
+            json=artifact.model_dump_json(exclude_unset=True),
+        )
+
+        return Artifact.model_validate(response.json())

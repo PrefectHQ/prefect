@@ -6,7 +6,7 @@ title: prefect-slack
 
 `prefect-slack` is a collection of prebuilt Prefect tasks that can be used to quickly construct Prefect flows.
 
-## Getting Started
+## Getting started
 
 ### Python setup
 
@@ -14,23 +14,35 @@ Requires an installation of Python 3.9+
 
 We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
 
-These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
+These tasks are designed to work with Prefect 3. 
 
 ### Installation
 
 Install `prefect-slack`
 
-```bash
-pip install prefect-slack
-```
+
+Install or update to the latest version of the prefect-slack library and dependencies.
+
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-slack
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-slack
+    ```
+    </Tab>
+</Tabs>
 
 ### Slack setup
 
-In order to use tasks in the collection, you'll first need to create an Slack app and install it in your Slack workspace. You can create a Slack app by navigating to the [apps page](https://api.slack.com/apps) for your Slack account and selecting 'Create New App'.
+To use tasks in the package, create a Slack app and install it in your Slack workspace. You can create a Slack app by navigating to the [apps page](https://api.slack.com/apps) for your Slack account and selecting 'Create New App'.
 
-For tasks that require a Bot user OAuth token, you can get a token for your app by navigating to your apps __OAuth & Permissions__ page.
+For tasks that require a Bot user OAuth token, you can get a token for your app by navigating to your app's __OAuth & Permissions__ page.
 
-For tasks that require and Webhook URL, you get generate new Webhook URLs by navigating to you apps __Incoming Webhooks__ page.
+For tasks that require a Webhook URL, you can generate a new Webhook URL by navigating to you apps __Incoming Webhooks__ page.
 
 Slack's [Basic app setup](https://api.slack.com/authentication/basics) guide provides additional details on setting up a Slack app.
 
@@ -47,7 +59,7 @@ from prefect_slack.messages import send_chat_message
 def example_send_message_flow():
    context = get_run_context()
 
-   # Run other tasks and subflows here
+   # Run other tasks or flows here
 
    token = "xoxb-your-bot-token-here"
    send_chat_message(
@@ -56,5 +68,6 @@ def example_send_message_flow():
          text=f"Flow run {context.flow_run.name} completed :tada:"
    )
 
-example_send_message_flow()
+if __name__ == "__main__":
+    example_send_message_flow()
 ```

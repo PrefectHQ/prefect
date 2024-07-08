@@ -1,6 +1,11 @@
 name: Static analysis
 
-on: [pull_request]
+# on PR and push to main
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 permissions:
   contents: read
@@ -33,7 +38,7 @@ jobs:
         uses: actions/setup-python@v5
         id: setup_python
         with:
-          python-version: 3.9
+          python-version: "3.9.18"
 
       - name: UV Cache
         # Manually cache the uv cache directory

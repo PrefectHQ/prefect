@@ -4,6 +4,7 @@ import sys
 import warnings
 from pathlib import Path
 from textwrap import dedent
+from typing import Optional
 from unittest.mock import ANY, call
 
 import pytest
@@ -149,6 +150,41 @@ class TestRunStep:
         )  # once before and once after installation
         subprocess.check_call.assert_called_once_with(
             [sys.executable, "-m", "pip", "install", "test-package>=1.0.0"]
+        )
+
+    @pytest.mark.parametrize(
+        "package,expected",
+        [
+            ("prefect-aws", "prefect[aws]"),
+            ("prefect-gcp", "prefect[gcp]"),
+            ("prefect-azure", "prefect[azure]"),
+            ("prefect-docker", "prefect[docker]"),
+            ("prefect-kubernetes", "prefect[kubernetes]"),
+        ],
+    )
+    async def test_requirement_installation_uses_prefect_extras(
+        self, monkeypatch, package, expected
+    ):
+        import_module_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module", import_module_mock
+        )
+
+        monkeypatch.setattr(subprocess, "check_call", MagicMock())
+
+        import_object_mock = MagicMock(side_effect=[ImportError, lambda x: x])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", import_object_mock
+        )
+
+        await run_step({"test_module.test_function": {"requires": package, "x": 1}})
+
+        import_module_mock.assert_called_once_with(package.replace("-", "_"))
+        assert (
+            import_object_mock.call_count == 2
+        )  # once before and once after installation
+        subprocess.check_call.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", expected]
         )
 
     async def test_install_multiple_requirements(self, monkeypatch):
@@ -347,7 +383,9 @@ class TestRunSteps:
 
 
 class MockCredentials:
-    def __init__(self, token: str, username: str = None, password: str = None):
+    def __init__(
+        self, token: str, username: Optional[str] = None, password: Optional[str] = None
+    ):
         self.token = token
         self.username = username
         self.password = password

@@ -29,7 +29,6 @@ from prefect.settings import (
     PREFECT_TEST_SETTING,
     PREFECT_UI_API_URL,
     PREFECT_UI_URL,
-    REMOVED_EXPERIMENTAL_FLAGS,
     SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
@@ -425,10 +424,31 @@ class TestSettingAccess:
     @pytest.mark.parametrize(
         "api_url,ui_url",
         [
+            # We'll infer that app. and api. subdomains go together for prefect domains
             (
                 "https://api.prefect.cloud/api",
                 "https://app.prefect.cloud",
             ),
+            (
+                "https://api.theoretical.prefect.bonkers/api",
+                "https://app.theoretical.prefect.bonkers",
+            ),
+            (
+                "https://api.prefect.banooners/api",
+                "https://app.prefect.banooners",
+            ),
+            # We'll leave URLs with non-prefect TLDs alone
+            (
+                "https://api.theoretical.prefect.customer.com/api",
+                "https://api.theoretical.prefect.customer.com",
+            ),
+            # Some day, some day...
+            (
+                "https://api.prefect/api",
+                "https://api.prefect",
+            ),
+            # We'll leave all other URLs alone
+            ("http://prefect/api", "http://prefect"),
             ("http://my-cloud/api", "http://my-cloud"),
             ("https://api.foo.bar", "https://api.foo.bar"),
         ],
@@ -627,28 +647,6 @@ class TestLoadProfiles:
             )
         )
         with pytest.warns(UserWarning, match="Setting 'test' is not recognized"):
-            load_profile("foo")
-
-    @pytest.mark.parametrize("removed_flag", sorted(REMOVED_EXPERIMENTAL_FLAGS))
-    def test_removed_experimental_flags(self, temporary_profiles_path, removed_flag):
-        assert removed_flag in REMOVED_EXPERIMENTAL_FLAGS
-
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                f"""
-                [profiles.foo]
-                {removed_flag} = "False"
-                """
-            )
-        )
-
-        with pytest.warns(
-            UserWarning,
-            match=(
-                f"Experimental flag '{removed_flag}' "
-                "has been removed, please update your 'foo' profile."
-            ),
-        ):
             load_profile("foo")
 
 

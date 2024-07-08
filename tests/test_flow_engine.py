@@ -3,10 +3,12 @@ import logging
 import time
 import warnings
 from textwrap import dedent
+from typing import Optional
 from unittest.mock import MagicMock
 from uuid import UUID
 
 import anyio
+import pydantic
 import pytest
 
 from prefect import Flow, flow, task
@@ -16,7 +18,12 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
-from prefect.exceptions import CrashedRun, FailedRun, ParameterTypeError, Pause
+from prefect.exceptions import (
+    CrashedRun,
+    FlowPauseTimeout,
+    ParameterTypeError,
+    Pause,
+)
 from prefect.flow_engine import (
     FlowRunEngine,
     load_flow_and_flow_run,
@@ -57,7 +64,7 @@ class TestFlowRunEngine:
 
     async def test_client_attr_returns_client_after_starting(self):
         engine = FlowRunEngine(flow=foo)
-        with engine.start():
+        with engine.initialize_run():
             client = engine.client
             assert isinstance(client, SyncPrefectClient)
 
@@ -92,7 +99,7 @@ class TestStartFlowRunEngine:
         flow_run = await prefect_client.create_flow_run(flow_with_retries)
 
         engine = FlowRunEngine(flow=flow_with_retries, flow_run=flow_run)
-        with engine.start() as engine:
+        with engine.start():
             assert engine.flow_run.empirical_policy.retries == 3
             assert engine.flow_run.empirical_policy.retry_delay == 10
 
@@ -112,13 +119,30 @@ class TestFlowRunsAsync:
 
     async def test_with_params(self):
         @flow
-        async def bar(x: int, y: str = None):
+        async def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
         result = await run_flow(bar, parameters=parameters)
 
         assert result == (42, "nate")
+
+    async def test_with_default_pydantic_model_dict_params(
+        self, prefect_client: PrefectClient
+    ):
+        class TheModel(pydantic.BaseModel):
+            x: int
+            y: str
+
+        @flow
+        async def bar(required: str, model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
+            return required, model.x, model.y
+
+        flow_run = await prefect_client.create_flow_run(
+            bar, parameters={"required": "hello"}
+        )
+        result = await run_flow(flow=bar, flow_run=flow_run)
+        assert result == ("hello", 42, "nate")
 
     async def test_with_param_validation(self):
         @flow
@@ -265,13 +289,30 @@ class TestFlowRunsSync:
 
     async def test_with_params(self):
         @flow
-        def bar(x: int, y: str = None):
+        def bar(x: int, y: Optional[str] = None):
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
         result = run_flow_sync(bar, parameters=parameters)
 
         assert result == (42, "nate")
+
+    async def test_with_default_pydantic_model_dict_params(
+        self, prefect_client: PrefectClient
+    ):
+        class TheModel(pydantic.BaseModel):
+            x: int
+            y: str
+
+        @flow
+        def bar(required: str, model: TheModel = {"x": 42, "y": "nate"}):  # type: ignore
+            return required, model.x, model.y
+
+        flow_run = await prefect_client.create_flow_run(
+            bar, parameters={"required": "hello"}
+        )
+        result = run_flow(flow=bar, flow_run=flow_run)
+        assert result == ("hello", 42, "nate")
 
     async def test_with_param_validation(self):
         @flow
@@ -411,13 +452,13 @@ class TestFlowRetries:
         task_run_count = 0
         flow_run_count = 0
 
-        @task
+        @task(persist_result=True)
         async def my_task():
             nonlocal task_run_count
             task_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         async def foo():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -571,13 +612,13 @@ class TestFlowRetries:
         child_run_count = 0
         flow_run_count = 0
 
-        @flow
+        @flow(persist_result=True)
         async def child_flow():
             nonlocal child_run_count
             child_run_count += 1
             return "hello"
 
-        @flow(retries=1)
+        @flow(retries=1, persist_result=True)
         async def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
@@ -918,7 +959,7 @@ class TestPauseFlowRun:
             await pause_flow_run(timeout=0.1)
             await doesnt_pause()
 
-        with pytest.raises(FailedRun):
+        with pytest.raises(FlowPauseTimeout):
             await pausing_flow()
 
     def test_paused_flows_block_execution_in_sync_flows(self, prefect_client):
@@ -989,7 +1030,7 @@ class TestPauseFlowRun:
         class FlowInput(RunInput):
             x: int
 
-        @flow
+        @flow(persist_result=False)
         async def pausing_flow():
             nonlocal flow_run_id
             context = FlowRunContext.get()
@@ -1272,7 +1313,7 @@ class TestSuspendFlowRun:
         class FlowInput(RunInput):
             x: int
 
-        @flow()
+        @flow(persist_result=False)
         async def suspending_flow():
             nonlocal flow_run_id
             context = get_run_context()
@@ -1370,3 +1411,322 @@ class TestSuspendFlowRun:
         )
 
         assert age == 42
+
+
+class TestGenerators:
+    async def test_generator_flow(self):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @flow
+        def g():
+            yield 1
+            yield 2
+
+        gen = g()
+        assert next(gen) == 1
+        assert next(gen) == 2
+        with pytest.raises(StopIteration):
+            next(gen)
+
+    async def test_generator_flow_requires_return_type_result(self):
+        @flow
+        def g():
+            yield 1
+
+        with pytest.raises(
+            ValueError, match="The return_type for a generator flow must be 'result'"
+        ):
+            for i in g(return_state=True):
+                pass
+
+    async def test_generator_flow_states(self, prefect_client: PrefectClient):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @flow
+        def g():
+            yield FlowRunContext.get().flow_run.id
+            yield 2
+
+        gen = g()
+        tr_id = next(gen)
+        tr = await prefect_client.read_flow_run(tr_id)
+        assert tr.state.is_running()
+
+        # exhaust the generator
+        for _ in gen:
+            pass
+
+        tr = await prefect_client.read_flow_run(tr_id)
+        assert tr.state.is_completed()
+
+    async def test_generator_flow_with_return(self):
+        """
+        If a generator returns, the return value is trapped
+        in its StopIteration error
+        """
+
+        @flow
+        def g():
+            yield 1
+            return 2
+
+        gen = g()
+        assert next(gen) == 1
+        with pytest.raises(StopIteration) as exc_info:
+            next(gen)
+        assert exc_info.value.value == 2
+
+    async def test_generator_flow_with_exception(self):
+        @flow
+        def g():
+            yield 1
+            raise ValueError("xyz")
+
+        gen = g()
+        assert next(gen) == 1
+        with pytest.raises(ValueError, match="xyz"):
+            next(gen)
+
+    async def test_generator_flow_with_exception_is_failed(
+        self, prefect_client: PrefectClient
+    ):
+        @task
+        def g():
+            yield TaskRunContext.get().task_run.id
+            raise ValueError("xyz")
+
+        gen = g()
+        tr_id = next(gen)
+        with pytest.raises(ValueError, match="xyz"):
+            next(gen)
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_failed()
+
+    async def test_generator_retries(self):
+        """
+        Test that a generator can retry and will re-emit its events
+        """
+
+        @flow(retries=2)
+        def g():
+            yield 1
+            yield 2
+            raise ValueError()
+
+        values = []
+        try:
+            for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2, 1, 2, 1, 2]
+
+    async def test_generator_timeout(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @flow(timeout_seconds=0.1)
+        def g():
+            yield 1
+            time.sleep(2)
+            yield 2
+
+        values = []
+        with pytest.raises(TimeoutError):
+            for v in g():
+                values.append(v)
+        assert values == [1]
+
+    async def test_generator_doesnt_retry_on_generator_exception(self):
+        """
+        Test that a generator doesn't retry for normal generator exceptions like StopIteration
+        """
+
+        @flow(retries=2)
+        def g():
+            yield 1
+            yield 2
+
+        values = []
+        try:
+            for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2]
+
+    async def test_with_default_pydantic_model_dict_params(self):
+        class TheModel(pydantic.BaseModel):
+            x: list[int]
+
+        @flow
+        async def g(required: str, model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+            for i in model.x:
+                yield i
+
+        assert [i async for i in g("hello")] == [1, 2, 3]
+
+
+class TestAsyncGenerators:
+    async def test_generator_flow(self):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @flow
+        async def g():
+            yield 1
+            yield 2
+
+        counter = 0
+        async for val in g():
+            if counter == 0:
+                assert val == 1
+            if counter == 1:
+                assert val == 2
+            assert counter <= 1
+            counter += 1
+
+    async def test_generator_flow_requires_return_type_result(self):
+        @flow
+        async def g():
+            yield 1
+
+        with pytest.raises(
+            ValueError, match="The return_type for a generator flow must be 'result'"
+        ):
+            async for i in g(return_state=True):
+                pass
+
+    async def test_generator_flow_states(self, prefect_client: PrefectClient):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @flow
+        async def g():
+            yield FlowRunContext.get().flow_run.id
+
+        async for val in g():
+            tr_id = val
+            tr = await prefect_client.read_flow_run(tr_id)
+            assert tr.state.is_running()
+
+        tr = await prefect_client.read_flow_run(tr_id)
+        assert tr.state.is_completed()
+
+    async def test_generator_flow_with_exception(self):
+        @flow
+        async def g():
+            yield 1
+            raise ValueError("xyz")
+
+        with pytest.raises(ValueError, match="xyz"):
+            async for val in g():
+                assert val == 1
+
+    async def test_generator_flow_with_exception_is_failed(
+        self, prefect_client: PrefectClient
+    ):
+        @flow
+        async def g():
+            yield FlowRunContext.get().flow_run.id
+            raise ValueError("xyz")
+
+        with pytest.raises(ValueError, match="xyz"):
+            async for val in g():
+                tr_id = val
+
+        tr = await prefect_client.read_flow_run(tr_id)
+        assert tr.state.is_failed()
+
+    async def test_generator_retries(self):
+        """
+        Test that a generator can retry and will re-emit its events
+        """
+
+        @flow(retries=2)
+        async def g():
+            yield 1
+            yield 2
+            raise ValueError()
+
+        values = []
+        try:
+            async for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2, 1, 2, 1, 2]
+
+    @pytest.mark.xfail(
+        reason="Synchronous sleep in an async flow is not interruptible by async timeout"
+    )
+    async def test_generator_timeout_with_sync_sleep(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @flow(timeout_seconds=0.1)
+        async def g():
+            yield 1
+            time.sleep(2)
+            yield 2
+
+        values = []
+        with pytest.raises(TimeoutError):
+            async for v in g():
+                values.append(v)
+        assert values == [1]
+
+    async def test_generator_timeout_with_async_sleep(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @flow(timeout_seconds=0.1)
+        async def g():
+            yield 1
+            await asyncio.sleep(2)
+            yield 2
+
+        values = []
+        with pytest.raises(TimeoutError):
+            async for v in g():
+                values.append(v)
+        assert values == [1]
+
+    async def test_generator_doesnt_retry_on_generator_exception(self):
+        """
+        Test that a generator doesn't retry for normal generator exceptions like StopIteration
+        """
+
+        @flow(retries=2)
+        async def g():
+            yield 1
+            yield 2
+
+        values = []
+        try:
+            async for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2]
+
+    async def test_with_default_pydantic_model_dict_params(self):
+        class TheModel(pydantic.BaseModel):
+            x: list[int]
+
+        @flow
+        def g(required: str, model: TheModel = {"x": [1, 2, 3]}):  # type: ignore
+            yield required
+            for i in model.x:
+                yield i
+
+        assert [i for i in g("hello")] == ["hello", 1, 2, 3]

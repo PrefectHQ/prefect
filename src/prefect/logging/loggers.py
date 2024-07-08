@@ -69,7 +69,7 @@ class PrefectLogAdapter(logging.LoggerAdapter):
 
 
 @lru_cache()
-def get_logger(name: str = None) -> logging.Logger:
+def get_logger(name: Optional[str] = None) -> logging.Logger:
     """
     Get a `prefect` logger. These loggers are intended for internal use within the
     `prefect` package.
@@ -97,7 +97,7 @@ def get_logger(name: str = None) -> logging.Logger:
 
 
 def get_run_logger(
-    context: "RunContext" = None, **kwargs: str
+    context: Optional["RunContext"] = None, **kwargs: str
 ) -> Union[logging.Logger, logging.LoggerAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
@@ -115,7 +115,7 @@ def get_run_logger(
             addition to the run metadata
 
     Raises:
-        RuntimeError: If no context can be found
+        MissingContextError: If no context can be found
     """
     # Check for existing contexts
     task_run_context = prefect.context.TaskRunContext.get()

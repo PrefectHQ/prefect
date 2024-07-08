@@ -165,7 +165,7 @@ ACRManagedIdentity is required for your flow code containers to be pulled from A
 
 ### Subscription ID and resource group name
 
-Both the subscription ID and resource group name can be found in in the `RG_SCOPE` environment variable created earlier in the guide. View their values by running `echo $RG_SCOPE`:
+Both the subscription ID and resource group name can be found in the `RG_SCOPE` environment variable created earlier in the guide. View their values by running `echo $RG_SCOPE`:
 
 ```
 /subscriptions/<subscription-id>/resourceGroups/<resource-group-name>
@@ -201,7 +201,7 @@ Create and run the following script to deploy your flow. Be sure to replace `<re
 ```python
 from prefect import flow
 from prefect.logging import get_run_logger
-from prefect.deployments import DeploymentImage
+from prefect.docker import DockerImage
 
 @flow
 def my_flow():
@@ -211,7 +211,7 @@ def my_flow():
 if __name__ == "__main__":
     my_flow.deploy(
         name="aci-deployment",
-        image=DeploymentImage(
+        image=DockerImage(
             name="<registry-name>.azurecr.io/example:latest",
             platform="linux/amd64",
         ),

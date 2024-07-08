@@ -1,20 +1,18 @@
 ---
-title: Orchestrate shell commands with Prefect
+title: Execute shell commands as flows
 description: Learn how to use the Prefect CLI for executing shell commands as flows.
 ---
 
-Use the Prefect CLI you to execute and schedule shell commands as Prefect flows. 
-This guide explains how to use the `watch` and `serve` commands with the CLI for automation tasks, 
-including how to:
+This page explains how to use the `watch` and `serve` Prefect CLI commands to execute 
+and schedule shell commands as Prefect flows, including how to:
 
 - run a shell command as a Prefect flow on-demand with `watch`
 - schedule a shell command as a recurring Prefect flow using `serve`
-- understand the benefits of embedding these commands into your automation workflows
 
 ## Prerequisites
 Before you begin, ensure you have:
 
-- A basic understanding of Prefect flows. Start with the [Getting Started](/3.0rc/get-started/quickstart/) 
+- A basic understanding of Prefect flows. Start with the [Getting started](/3.0rc/get-started/quickstart/) 
 guide if necessary.
 - A recent version of Prefect installed in your command line environment. 
 Follow these [instructions](/3.0rc/get-started/install/) if you have any issues.
@@ -42,7 +40,7 @@ shell tasks.
 
 ## Deploy with `serve`
 To run shell commands on a schedule, the `serve` command creates a Prefect 
-[deployment](/3.0rc/deploy/serve-workflows/) for regular execution. 
+[deployment](/3.0rc/deploy/infrastructure-examples/docker/) for regular execution. 
 This is a quick way to create a deployment served by Prefect.
 
 ### Example usage
@@ -64,5 +62,5 @@ ensuring critical updates are generated and available on time.
 - **Centralized workflow management:** Manage and monitor your scheduled shell commands 
 inside Prefect for a unified workflow overview.
 - **Configurable execution:** Customize execution frequency, 
-[concurrency limits](/3.0rc/develop/control-workflows/global-concurrency-limits/), 
+[concurrency limits](/3.0rc/develop/global-concurrency-limits/), 
 and other parameters to suit your project's needs and resources.

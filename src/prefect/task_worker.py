@@ -7,15 +7,20 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import AsyncExitStack
 from contextvars import copy_context
-from typing import List, Optional
+from typing import Optional
+from uuid import UUID
 
 import anyio
 import anyio.abc
+import pendulum
+import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
+from fastapi import FastAPI
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
+from prefect.cache_policies import DEFAULT, NONE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
@@ -28,9 +33,11 @@ from prefect.settings import (
 )
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
+from prefect.utilities.urls import url_for
 
 logger = get_logger("task_worker")
 
@@ -72,9 +79,19 @@ class TaskWorker:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks: List[Task] = list(tasks)
+        self.tasks = []
+        for t in tasks:
+            if isinstance(t, Task):
+                if t.cache_policy in [None, NONE, NotSet]:
+                    self.tasks.append(
+                        t.with_options(persist_result=True, cache_policy=DEFAULT)
+                    )
+                else:
+                    self.tasks.append(t.with_options(persist_result=True))
 
-        self.started: bool = False
+        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
+
+        self._started_at: Optional[pendulum.DateTime] = None
         self.stopping: bool = False
 
         self._client = get_client()
@@ -86,12 +103,43 @@ class TaskWorker:
             )
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._executor = ThreadPoolExecutor()
+        self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
+        self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
+            task_key: {} for task_key in self.task_keys
+        }
+        self.finished_task_runs: dict[str, int] = {
+            task_key: 0 for task_key in self.task_keys
+        }
+
     @property
-    def _client_id(self) -> str:
+    def client_id(self) -> str:
         return f"{socket.gethostname()}-{os.getpid()}"
+
+    @property
+    def started_at(self) -> Optional[pendulum.DateTime]:
+        return self._started_at
+
+    @property
+    def started(self) -> bool:
+        return self._started_at is not None
+
+    @property
+    def limit(self) -> Optional[int]:
+        return int(self._limiter.total_tokens) if self._limiter else None
+
+    @property
+    def current_tasks(self) -> Optional[int]:
+        return (
+            int(self._limiter.borrowed_tokens)
+            if self._limiter
+            else sum(len(runs) for runs in self.in_flight_task_runs.values())
+        )
+
+    @property
+    def available_tasks(self) -> Optional[int]:
+        return int(self._limiter.available_tokens) if self._limiter else None
 
     def handle_sigterm(self, signum, frame):
         """
@@ -133,10 +181,30 @@ class TaskWorker:
                 " calling .start()"
             )
 
-        self.started = False
+        self._started_at = None
         self.stopping = True
 
         raise StopTaskWorker
+
+    async def _acquire_token(self, task_run_id: UUID) -> bool:
+        try:
+            if self._limiter:
+                await self._limiter.acquire_on_behalf_of(task_run_id)
+        except RuntimeError:
+            logger.debug(f"Token already acquired for task run: {task_run_id!r}")
+            return False
+
+        return True
+
+    def _release_token(self, task_run_id: UUID) -> bool:
+        try:
+            if self._limiter:
+                self._limiter.release_on_behalf_of(task_run_id)
+        except RuntimeError:
+            logger.debug(f"No token to release for task run: {task_run_id!r}")
+            return False
+
+        return True
 
     async def _subscribe_to_task_scheduling(self):
         base_url = PREFECT_API_URL.value()
@@ -146,20 +214,37 @@ class TaskWorker:
                 "Task workers are not compatible with the ephemeral API."
             )
         task_keys_repr = " | ".join(
-            t.task_key.split(".")[-1].split("-")[0] for t in self.tasks
+            task_key.split(".")[-1].split("-")[0] for task_key in sorted(self.task_keys)
         )
         logger.info(f"Subscribing to runs of task(s): {task_keys_repr}")
         async for task_run in Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
-            keys=[task.task_key for task in self.tasks],
-            client_id=self._client_id,
+            keys=self.task_keys,
+            client_id=self.client_id,
             base_url=base_url,
         ):
-            if self._limiter:
-                await self._limiter.acquire_on_behalf_of(task_run.id)
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
-            self._runs_task_group.start_soon(self._submit_scheduled_task_run, task_run)
+
+            token_acquired = await self._acquire_token(task_run.id)
+            if token_acquired:
+                self._runs_task_group.start_soon(
+                    self._safe_submit_scheduled_task_run, task_run
+                )
+
+    async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
+        self.in_flight_task_runs[task_run.task_key][task_run.id] = pendulum.now()
+        try:
+            await self._submit_scheduled_task_run(task_run)
+        except BaseException as exc:
+            logger.exception(
+                f"Failed to submit task run {task_run.id!r}",
+                exc_info=exc,
+            )
+        finally:
+            self.in_flight_task_runs[task_run.task_key].pop(task_run.id, None)
+            self.finished_task_runs[task_run.task_key] += 1
+            self._release_token(task_run.id)
 
     async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
@@ -204,10 +289,6 @@ class TaskWorker:
                     await self._client._client.delete(f"/task_runs/{task_run.id}")
                 return
 
-        logger.debug(
-            f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
-        )
-
         try:
             new_state = Pending()
             new_state.state_details.deferred = True
@@ -242,6 +323,11 @@ class TaskWorker:
             validated_state=state,
         )
 
+        if task_run_url := url_for(task_run):
+            logger.info(
+                f"Submitting task run {task_run.name!r} to engine. View run in the UI at {task_run_url!r}"
+            )
+
         if task.isasync:
             await run_task_async(
                 task=task,
@@ -266,15 +352,13 @@ class TaskWorker:
                 context=run_context,
             )
             await asyncio.wrap_future(future)
-        if self._limiter:
-            self._limiter.release_on_behalf_of(task_run.id)
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task worker."""
         async with self if not self.started else asyncnullcontext():
-            if self._limiter:
-                await self._limiter.acquire_on_behalf_of(task_run.id)
-            await self._submit_scheduled_task_run(task_run)
+            token_acquired = await self._acquire_token(task_run.id)
+            if token_acquired:
+                await self._safe_submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
         logger.debug("Starting task worker...")
@@ -286,17 +370,42 @@ class TaskWorker:
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
 
-        self.started = True
+        self._started_at = pendulum.now()
         return self
 
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task worker...")
-        self.started = False
+        self._started_at = None
         await self._exit_stack.__aexit__(*exc_info)
 
 
+def create_status_server(task_worker: TaskWorker) -> FastAPI:
+    status_app = FastAPI()
+
+    @status_app.get("/status")
+    def status():
+        return {
+            "client_id": task_worker.client_id,
+            "started_at": task_worker.started_at.isoformat(),
+            "stopping": task_worker.stopping,
+            "limit": task_worker.limit,
+            "current": task_worker.current_tasks,
+            "available": task_worker.available_tasks,
+            "tasks": sorted(task_worker.task_keys),
+            "finished": task_worker.finished_task_runs,
+            "in_flight": {
+                key: {str(run): start.isoformat() for run, start in tasks.items()}
+                for key, tasks in task_worker.in_flight_task_runs.items()
+            },
+        }
+
+    return status_app
+
+
 @sync_compatible
-async def serve(*tasks: Task, limit: Optional[int] = 10):
+async def serve(
+    *tasks: Task, limit: Optional[int] = 10, status_server_port: Optional[int] = None
+):
     """Serve the provided tasks so that their runs may be submitted to and executed.
     in the engine. Tasks do not need to be within a flow run context to be submitted.
     You must `.submit` the same task object that you pass to `serve`.
@@ -306,6 +415,9 @@ async def serve(*tasks: Task, limit: Optional[int] = 10):
             given task, the task run will be submitted to the engine for execution.
         - limit: The maximum number of tasks that can be run concurrently. Defaults to 10.
             Pass `None` to remove the limit.
+        - status_server_port: An optional port on which to start an HTTP server
+            exposing status information about the task worker. If not provided, no
+            status server will run.
 
     Example:
         ```python
@@ -327,6 +439,20 @@ async def serve(*tasks: Task, limit: Optional[int] = 10):
     """
     task_worker = TaskWorker(*tasks, limit=limit)
 
+    status_server_task = None
+    if status_server_port is not None:
+        server = uvicorn.Server(
+            uvicorn.Config(
+                app=create_status_server(task_worker),
+                host="127.0.0.1",
+                port=status_server_port,
+                access_log=False,
+                log_level="warning",
+            )
+        )
+        loop = asyncio.get_event_loop()
+        status_server_task = loop.create_task(server.serve())
+
     try:
         await task_worker.start()
 
@@ -343,3 +469,11 @@ async def serve(*tasks: Task, limit: Optional[int] = 10):
 
     except (asyncio.CancelledError, KeyboardInterrupt):
         logger.info("Task worker interrupted, stopping...")
+
+    finally:
+        if status_server_task:
+            status_server_task.cancel()
+            try:
+                await status_server_task
+            except asyncio.CancelledError:
+                pass

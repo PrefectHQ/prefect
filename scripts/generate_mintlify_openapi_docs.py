@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any, Union
 
-from pkg_resources import parse_version
+from packaging.version import Version
 
 import prefect
 from prefect.server.api.server import create_app
@@ -14,6 +14,8 @@ Mint = dict[str, Any]
 Navigation = list[dict[str, Any]]
 SinglePage = str
 PageGroup = dict[str, Any]
+
+MINTLIFY_SCRAPE = ["npx", "--yes", "@mintlify/scraping@3.0.123"]
 
 
 def docs_path() -> Path:
@@ -25,12 +27,12 @@ def current_version() -> str:
     Return a high-level version string for the current Prefect version, like "3.1" or
     "3.1rc".
     """
-    version = parse_version(prefect.__version__)
+    version = Version(prefect.__version__)
     return f"{version.major}.{version.minor}{version.pre[0] if version.pre else ''}"
 
 
 def main():
-    ensure_mintlify_installed()
+    ensure_npx_environment()
 
     version = current_version()
     server_docs_path = docs_path() / f"{version}/api-ref/server/"
@@ -50,22 +52,15 @@ def main():
     write_mint(mint_json)
 
 
-def ensure_mintlify_installed():
-    result = subprocess.run(["which", "mintlify-scrape"], capture_output=True)
-    if result.returncode == 0:
-        return
-
-    result = subprocess.run(["which", "npm"], capture_output=True)
+def ensure_npx_environment():
+    result = subprocess.run(["which", "npx"], capture_output=True)
     if result.returncode != 0:
         print(
-            "Neither `@mintlify/scraping` nor `npm` are installed.  Please make sure "
-            "you have a working `npm` installation before generating API docs.",
+            "`npx` is not installed.  Please make sure you have a working `npm` "
+            "installation before generating API docs.",
             file=sys.stderr,
         )
         sys.exit(1)
-
-    print("@mintlify/scraping is not installed. Installing...")
-    subprocess.check_call(["npm", "install", "-g", "@mintlify/scraping"])
 
 
 def generate_schema_documentation(version: str, server_docs_path: Path) -> Navigation:
@@ -80,8 +75,8 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
         f.flush()
 
     result = subprocess.run(
-        [
-            "mintlify-scrape",
+        MINTLIFY_SCRAPE
+        + [
             "openapi-file",
             schema_path,
             "-o",
@@ -96,7 +91,12 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
     # mintlify-scrape will output a list of suggestions for navigation objects, prefixed
     # with a header "navigation object suggestion:"
     output = result.stdout.replace("navigation object suggestion:\n", "")
-    suggestions = json.loads(output)
+    try:
+        suggestions = json.loads(output)
+    except Exception:
+        print("Couldn't understand the output of mintlify-scrape:", file=sys.stderr)
+        print(output, file=sys.stderr)
+        raise
     return suggestions
 
 

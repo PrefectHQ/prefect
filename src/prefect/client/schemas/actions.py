@@ -173,7 +173,6 @@ class DeploymentCreate(ActionBaseModel):
     tags: List[str] = Field(default_factory=list)
     pull_steps: Optional[List[dict]] = Field(None)
 
-    manifest_path: Optional[str] = Field(None)
     work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
@@ -246,7 +245,6 @@ class DeploymentUpdate(ActionBaseModel):
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
     entrypoint: Optional[str] = Field(None)
-    manifest_path: Optional[str] = Field(None)
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
     enforce_parameter_schema: Optional[bool] = Field(
@@ -788,6 +786,6 @@ class GlobalConcurrencyLimitUpdate(ActionBaseModel):
 
     name: Optional[Name] = Field(None)
     limit: Optional[NonNegativeInteger] = Field(None)
-    active: Optional[NonNegativeInteger] = Field(None)
+    active: Optional[bool] = Field(None)
     active_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)

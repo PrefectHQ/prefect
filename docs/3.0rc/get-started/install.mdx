@@ -2,31 +2,11 @@
 title: Install Prefect 
 ---
 
+import Installation from '/snippets/installation.mdx'
+
 Prefect is published as a Python package, which requires Python 3.9 or newer. We recommend installing Prefect in a Python virtual environment. 
 
-You also need an API server, either
-
-* [Prefect Cloud](/3.0rc/cloud/), a managed solution that provides strong scaling, performance, and security (view [pricing](https://www.prefect.io/pricing))
-
-or 
-
-* Your own hosted [Prefect server instance](/3.0rc/cloud/self-host/)
-
-## Install with pip
-
-To install Prefect's 3.0 release candidate, run:
-
-```bash
-pip install -U "prefect==3.0.0rc2"
-```
-
-This command also upgrades existing Python dependencies.
-
-See available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
-
-See our [Contributing guide](/3.0rc/community/index) for instructions on installing Prefect for development.
-
-## Check your installation
+<Installation />
 
 To confirm that Prefect was installed successfully, run:
 
@@ -50,7 +30,7 @@ Server:
   SQLite version:    3.45.2
 ```
 
-## Windows installation notes
+## Windows installation
 
 You can install and run Prefect via Windows PowerShell, the Windows Command Prompt, or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). After installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
 
@@ -66,7 +46,7 @@ Review the `pip install` output messages for the `Scripts` folder path on your s
 
 The `prefect-client` library is a minimal installation of Prefect designed for interacting with Prefect Cloud or a remote self-hosted server instance.
 
-`prefect-client` enables a subset of Prefect's functionality with a smaller installation size, making it ideal for use in lightweight, resource-constrained, or ephemeral environments.
+`prefect-client` enables a subset of Prefect's capabilities with a smaller installation size, making it ideal for use in lightweight, resource-constrained, or ephemeral environments.
 It omits all CLI and server components found in the `prefect` library.
 
 To install the latest release of `prefect-client`, run:
@@ -77,4 +57,13 @@ pip install -U prefect-client
 
 ## Next steps
 
+You also need an API server, either:
+
+* [Prefect Cloud](/3.0rc/manage/cloud/), a managed solution that provides strong scaling, performance, and security, or
+* Your own hosted [Prefect server instance](/3.0rc/manage/self-host/)
+
 Now that you have Prefect installed, go through the [quickstart](/3.0rc/get-started/quickstart/) to try it out.
+
+Learn more about release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
+
+See our [Contributing guide](/contribute/dev-contribute/) for instructions on installing Prefect for development.

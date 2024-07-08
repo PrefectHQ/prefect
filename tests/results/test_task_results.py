@@ -21,7 +21,7 @@ async def test_task_persisted_result_due_to_flow_feature(prefect_client, options
     def foo():
         return bar(return_state=True)
 
-    @task
+    @task(persist_result=True)
     def bar():
         return 1
 
@@ -41,7 +41,7 @@ async def test_task_persisted_result_due_to_task_feature(prefect_client, options
     def foo():
         return bar(return_state=True)
 
-    @task(**options)
+    @task(**options, persist_result=True)
     def bar():
         return 1
 
@@ -183,16 +183,19 @@ async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
 async def test_task_result_serializer(
     prefect_client, source, serializer, tmp_path: Path
 ):
+    storage = LocalFileSystem(basepath=tmp_path)
+    await storage.save("tmp-test")
+
     @flow(
         result_serializer=serializer if source == "parent" else None,
-        result_storage=LocalFileSystem(basepath=str(tmp_path)),
+        result_storage=storage,
     )
     def foo():
         return bar(return_state=True)
 
     @task(
         result_serializer=serializer if source == "child" else None,
-        result_storage=LocalFileSystem(basepath=str(tmp_path)),
+        result_storage=storage,
         persist_result=True,
     )
     def bar():
@@ -213,6 +216,7 @@ async def test_task_result_serializer(
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_task_result_storage(prefect_client, source):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+    await storage.save("tmp-test-storage")
 
     @flow(result_storage=storage if source == "parent" else None)
     def foo():
@@ -236,6 +240,7 @@ async def test_task_result_storage(prefect_client, source):
 
 async def test_task_result_static_storage_key(prefect_client, tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
+    await storage.save("tmp-test-storage")
 
     @flow
     def foo():
@@ -259,6 +264,7 @@ async def test_task_result_static_storage_key(prefect_client, tmp_path):
 
 async def test_task_result_parameter_formatted_storage_key(prefect_client, tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
+    await storage.save("tmp-test-storage-again")
 
     @flow
     def foo():
@@ -286,6 +292,7 @@ async def test_task_result_parameter_formatted_storage_key(prefect_client, tmp_p
 
 async def test_task_result_flow_run_formatted_storage_key(prefect_client, tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
+    await storage.save("tmp-test-storage-again")
 
     @flow
     def foo():
@@ -311,12 +318,12 @@ async def test_task_result_flow_run_formatted_storage_key(prefect_client, tmp_pa
     assert task_state.data.storage_key == "foo__bar"
 
 
-async def test_task_result_missing_with_null_return(prefect_client):
+async def test_task_result_with_null_return(prefect_client):
     @flow
     def foo():
         return bar(return_state=True)
 
-    @task
+    @task(persist_result=True)
     def bar():
         return None
 
@@ -327,8 +334,7 @@ async def test_task_result_missing_with_null_return(prefect_client):
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
-    with pytest.raises(MissingResult):
-        await api_state.result()
+    assert await api_state.result() is None
 
 
 @pytest.mark.parametrize("value", [True, False, None])
@@ -340,7 +346,6 @@ async def test_task_literal_result_is_handled_the_same(prefect_client, value):
     @task(
         persist_result=True,
         result_serializer="pickle",
-        result_storage=LocalFileSystem(basepath=PREFECT_HOME.value()),
     )
     def bar():
         return value

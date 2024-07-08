@@ -2,17 +2,35 @@
 title: prefect-snowflake
 ---
 
-<p align="left">
-  <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
-    <img src="https://img.shields.io/pypi/pyversions/prefect?color=0052FF&labelColor=090422" />
-  </a>
-</p>
 
 ## Welcome!
 
 The prefect-snowflake collection makes it easy to connect to a Snowflake database in your Prefect flows. Check out the examples below to get started!
 
-## Getting Started
+## Getting started
+
+### Prerequisites
+
+- [Prefect installed](/3.0rc/get-started/install/).
+
+### Install prefect-snowflake
+
+
+Install or update to the latest version of the prefect-snowflake library and dependencies.
+
+<Tabs>
+    <Tab title="Prefect 2">
+    ```bash
+    pip install -U prefect-snowflake
+    ```
+    </Tab>
+    <Tab title="Prefect 3">
+    ```bash
+    pip install -U -pre prefect-snowflake
+    ```
+    </Tab>
+</Tabs>
+
 
 ### Integrate with Prefect flows
 
@@ -151,44 +169,41 @@ def snowflake_write_pandas_flow():
         )
 ```
 
-## Resources
 
-For more tips on how to use tasks and flows in an integration, check out [Using Collections](https://docs.prefect.io/integrations/usage/)!
 
 ### Installation
 
 Install `prefect-snowflake` with `pip`:
 
-<div class="terminal">
 ```bash
 pip install prefect-snowflake
 ```
-</div>
+
 
 ### Registering blocks
 Register blocks in this module to make them available for use.
 
-<div class="terminal">
+
 ```bash
-prefect block register -m prefect_aws
+prefect block register -m prefect_snowflake
 ```
-</div>
+
 
 ### Saving credentials to block
 
-Note, to use the `load` method on a block, you must already have a block document [saved through code](https://docs.prefect.io/develop/connect-third-party/#saving-blocks) or saved through the UI.
+Note, to use the `load` method on a block, you must already have a block saved through code or saved through the UI.
 
 Below is a walkthrough on saving a `SnowflakeCredentials` block through code.
 
 1. Head over to https://app.snowflake.com/.
-2. Login to your Snowflake account, e.g. nh12345.us-east-2.aws, with your username and password.
+2. Login to your Snowflake account, for example: nh12345.us-east-2.snowflake, with your username and password.
 3. Use those credentials to fill replace the placeholders below.
 
 ```python
 from prefect_snowflake import SnowflakeCredentials
 
 credentials = SnowflakeCredentials(
-    account="ACCOUNT-PLACEHOLDER",  # resembles nh12345.us-east-2.aws
+    account="ACCOUNT-PLACEHOLDER",  # resembles nh12345.us-east-2.snowflake
     user="USER-PLACEHOLDER",
     password="PASSWORD-PLACEHOLDER"
 )
@@ -228,7 +243,7 @@ SnowflakeConnector.load("CONNECTOR-BLOCK-NAME-PLACEHOLDER")
 <Info>
 **Registering blocks**
 
-Register blocks in this module to [view and edit them](https://docs.prefect.io/ui/blocks/) on Prefect Cloud:
+Register blocks in this module to view and edit them on Prefect Cloud:
 
 ```bash
 prefect block register -m prefect_snowflake
@@ -242,7 +257,3 @@ A list of available blocks in `prefect-snowflake` and their setup instructions c
 If you encounter any bugs while using `prefect-snowflake`, feel free to open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
 
 If you have any questions or issues while using `prefect-snowflake`, you can find help in the [Prefect Slack community](https://prefect.io/slack).
-
-### Contributing
-
-If you'd like to help contribute to fix an issue or add a feature to `prefect-snowflake`, please [propose changes through a pull request from a fork of the Prefect repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).

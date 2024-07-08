@@ -55,9 +55,7 @@ from prefect.settings import (
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
-    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
-    PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_INTERNAL_LEVEL,
@@ -483,17 +481,6 @@ def test_database_connection_url(generate_test_database_connection_url):
 
 
 @pytest.fixture(autouse=True)
-def reset_object_registry():
-    """
-    Ensures each test has a clean object registry.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry():
-        yield
-
-
-@pytest.fixture(autouse=True)
 def reset_registered_blocks():
     """
     Ensures each test only has types that were registered at module initialization.
@@ -527,22 +514,6 @@ def caplog(caplog):
 @pytest.fixture(autouse=True)
 def disable_csrf_protection():
     with temporary_settings({PREFECT_SERVER_CSRF_PROTECTION_ENABLED: False}):
-        yield
-
-
-@pytest.fixture
-def enable_workers():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1, PREFECT_EXPERIMENTAL_WARN_WORKERS: 0}
-    ):
-        yield
-
-
-@pytest.fixture
-def disable_workers():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 0, PREFECT_EXPERIMENTAL_WARN_WORKERS: 1}
-    ):
         yield
 
 

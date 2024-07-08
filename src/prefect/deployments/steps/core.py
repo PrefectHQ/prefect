@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
+from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.importtools import import_object
@@ -84,6 +85,11 @@ def _get_function_for_step(
             raise
 
     try:
+        packages = [
+            KNOWN_EXTRAS_FOR_PACKAGES.get(package, package)
+            for package in packages
+            if package
+        ]
         subprocess.check_call([sys.executable, "-m", "pip", "install", *packages])
     except subprocess.CalledProcessError:
         get_logger("deployments.steps.core").warning(

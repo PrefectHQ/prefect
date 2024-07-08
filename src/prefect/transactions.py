@@ -1,3 +1,4 @@
+import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import (
@@ -7,16 +8,25 @@ from typing import (
     List,
     Optional,
     Type,
-    TypeVar,
+    Union,
 )
 
 from pydantic import Field
+from typing_extensions import Self
 
-from prefect.context import ContextModel
+from prefect.context import ContextModel, FlowRunContext, TaskRunContext
+from prefect.exceptions import MissingContextError
+from prefect.logging.loggers import PrefectLogAdapter, get_logger, get_run_logger
 from prefect.records import RecordStore
+from prefect.records.result_store import ResultFactoryStore
+from prefect.results import (
+    BaseResult,
+    ResultFactory,
+    get_default_result_storage,
+)
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
-
-T = TypeVar("T")
+from prefect.utilities.engine import _get_hook_name
 
 
 class IsolationLevel(AutoEnum):
@@ -53,8 +63,9 @@ class Transaction(ContextModel):
         default_factory=list
     )
     overwrite: bool = False
+    logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
     _staged_value: Any = None
-    __var__ = ContextVar("transaction")
+    __var__: ContextVar = ContextVar("transaction")
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED
@@ -84,7 +95,7 @@ class Transaction(ContextModel):
             if parent:
                 self.commit_mode = parent.commit_mode
             else:
-                self.commit_mode = CommitMode.EAGER
+                self.commit_mode = CommitMode.LAZY
 
         # this needs to go before begin, which could set the state to committed
         self.state = TransactionState.ACTIVE
@@ -92,7 +103,8 @@ class Transaction(ContextModel):
         self._token = self.__var__.set(self)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, *exc_info):
+        exc_type, exc_val, _ = exc_info
         if not self._token:
             raise RuntimeError(
                 "Asymmetric use of context. Context exit called without an enter."
@@ -123,11 +135,19 @@ class Transaction(ContextModel):
     def begin(self):
         # currently we only support READ_COMMITTED isolation
         # i.e., no locking behavior
-        if not self.overwrite and self.store and self.store.exists(key=self.key):
+        if (
+            not self.overwrite
+            and self.store
+            and self.key
+            and self.store.exists(key=self.key)
+        ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> dict:
-        return self.store.read(key=self.key)
+    def read(self) -> BaseResult:
+        if self.store and self.key:
+            return self.store.read(key=self.key)
+        else:
+            return {}  # TODO: Determine what this should be
 
     def reset(self) -> None:
         parent = self.get_parent()
@@ -136,8 +156,9 @@ class Transaction(ContextModel):
             # parent takes responsibility
             parent.add_child(self)
 
-        self.__var__.reset(self._token)
-        self._token = None
+        if self._token:
+            self.__var__.reset(self._token)
+            self._token = None
 
         # do this below reset so that get_transaction() returns the relevant txn
         if parent and self.state == TransactionState.ROLLED_BACK:
@@ -159,26 +180,48 @@ class Transaction(ContextModel):
             return False
 
         try:
+            hook_name = None
+
             for child in self.children:
                 child.commit()
 
             for hook in self.on_commit_hooks:
+                hook_name = _get_hook_name(hook)
                 hook(self)
 
-            if self.store:
+            if self.store and self.key:
                 self.store.write(key=self.key, value=self._staged_value)
             self.state = TransactionState.COMMITTED
             return True
         except Exception:
+            if self.logger:
+                if hook_name:
+                    msg = (
+                        f"An error was encountered while running commit hook {hook_name!r}",
+                    )
+                else:
+                    msg = (
+                        f"An error was encountered while committing transaction {self.key!r}",
+                    )
+                self.logger.exception(
+                    msg,
+                    exc_info=True,
+                )
             self.rollback()
             return False
 
     def stage(
-        self, value: dict, on_rollback_hooks: list, on_commit_hooks: list
+        self,
+        value: BaseResult,
+        on_rollback_hooks: Optional[List] = None,
+        on_commit_hooks: Optional[List] = None,
     ) -> None:
         """
         Stage a value to be committed later.
         """
+        on_commit_hooks = on_commit_hooks or []
+        on_rollback_hooks = on_rollback_hooks or []
+
         if self.state != TransactionState.COMMITTED:
             self._staged_value = value
             self.on_rollback_hooks += on_rollback_hooks
@@ -191,6 +234,7 @@ class Transaction(ContextModel):
 
         try:
             for hook in reversed(self.on_rollback_hooks):
+                hook_name = _get_hook_name(hook)
                 hook(self)
 
             self.state = TransactionState.ROLLED_BACK
@@ -200,14 +244,19 @@ class Transaction(ContextModel):
 
             return True
         except Exception:
+            if self.logger:
+                self.logger.exception(
+                    f"An error was encountered while running rollback hook {hook_name!r}",
+                    exc_info=True,
+                )
             return False
 
     @classmethod
-    def get_active(cls: Type[T]) -> Optional[T]:
+    def get_active(cls: Type[Self]) -> Optional[Self]:
         return cls.__var__.get(None)
 
 
-def get_transaction() -> Transaction:
+def get_transaction() -> Optional[Transaction]:
     return Transaction.get_active()
 
 
@@ -215,10 +264,69 @@ def get_transaction() -> Transaction:
 def transaction(
     key: Optional[str] = None,
     store: Optional[RecordStore] = None,
-    commit_mode: CommitMode = CommitMode.LAZY,
+    commit_mode: Optional[CommitMode] = None,
     overwrite: bool = False,
+    logger: Optional[PrefectLogAdapter] = None,
 ) -> Generator[Transaction, None, None]:
+    """
+    A context manager for opening and managing a transaction.
+
+    Args:
+        - key: An identifier to use for the transaction
+        - store: The store to use for persisting the transaction result. If not provided,
+            a default store will be used based on the current run context.
+        - commit_mode: The commit mode controlling when the transaction and
+            child transactions are committed
+        - overwrite: Whether to overwrite an existing transaction record in the store
+
+    Yields:
+        - Transaction: An object representing the transaction state
+    """
+    # if there is no key, we won't persist a record
+    if key and not store:
+        flow_run_context = FlowRunContext.get()
+        task_run_context = TaskRunContext.get()
+        existing_factory = getattr(task_run_context, "result_factory", None) or getattr(
+            flow_run_context, "result_factory", None
+        )
+
+        if existing_factory and existing_factory.storage_block_id:
+            new_factory = existing_factory.model_copy(
+                update={
+                    "persist_result": True,
+                }
+            )
+        else:
+            default_storage = get_default_result_storage(_sync=True)
+            if existing_factory:
+                new_factory = existing_factory.model_copy(
+                    update={
+                        "persist_result": True,
+                        "storage_block": default_storage,
+                        "storage_block_id": default_storage._block_document_id,
+                    }
+                )
+            else:
+                new_factory = run_coro_as_sync(
+                    ResultFactory.default_factory(
+                        persist_result=True,
+                        result_storage=default_storage,
+                    )
+                )
+        store = ResultFactoryStore(
+            result_factory=new_factory,
+        )
+
+    try:
+        logger = logger or get_run_logger()
+    except MissingContextError:
+        logger = get_logger("transactions")
+
     with Transaction(
-        key=key, store=store, commit_mode=commit_mode, overwrite=overwrite
+        key=key,
+        store=store,
+        commit_mode=commit_mode,
+        overwrite=overwrite,
+        logger=logger,
     ) as txn:
         yield txn

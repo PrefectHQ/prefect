@@ -8,7 +8,6 @@ from typing import (
     Generic,
     List,
     Optional,
-    TypeVar,
     Union,
     overload,
 )
@@ -26,8 +25,9 @@ from pydantic import (
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import Literal, Self
+from typing_extensions import Literal, Self, TypeVar
 
+from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import (
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from prefect.results import BaseResult
 
 
-R = TypeVar("R")
+R = TypeVar("R", default=Any)
 
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
@@ -179,7 +179,10 @@ class State(ObjectBaseModel, Generic[R]):
         ...
 
     def result(
-        self, raise_on_failure: bool = True, fetch: Optional[bool] = None
+        self,
+        raise_on_failure: bool = True,
+        fetch: Optional[bool] = None,
+        retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
         Retrieve the result attached to this state.
@@ -191,6 +194,8 @@ class State(ObjectBaseModel, Generic[R]):
                 results into data. For synchronous users, this defaults to `True`.
                 For asynchronous users, this defaults to `False` for backwards
                 compatibility.
+            retry_result_failure: a boolean specifying whether to retry on failures to
+                load the result from result storage
 
         Raises:
             TypeError: If the state is failed but the result is not an exception.
@@ -253,7 +258,12 @@ class State(ObjectBaseModel, Generic[R]):
         """
         from prefect.states import get_state_result
 
-        return get_state_result(self, raise_on_failure=raise_on_failure, fetch=fetch)
+        return get_state_result(
+            self,
+            raise_on_failure=raise_on_failure,
+            fetch=fetch,
+            retry_result_failure=retry_result_failure,
+        )
 
     def to_state_create(self):
         """
@@ -422,8 +432,11 @@ class FlowRunPolicy(PrefectBaseModel):
     )
 
     @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
-        return set_run_policy_deprecated_fields(values)
+    @classmethod
+    def populate_deprecated_fields(cls, values: Any):
+        if isinstance(values, dict):
+            return set_run_policy_deprecated_fields(values)
+        return values
 
 
 class FlowRun(ObjectBaseModel):
@@ -915,6 +928,7 @@ class BlockDocument(ObjectBaseModel):
     _validate_name_format = field_validator("name")(validate_block_document_name)
 
     @model_validator(mode="before")
+    @classmethod
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -1036,12 +1050,6 @@ class Deployment(ObjectBaseModel):
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    manifest_path: Optional[str] = Field(
-        default=None,
-        description=(
-            "The path to the flow's manifest file, relative to the chosen storage."
-        ),
-    )
     storage_document_id: Optional[UUID] = Field(
         default=None,
         description="The block document defining storage used for this flow.",
@@ -1146,8 +1154,11 @@ class BlockDocumentReference(ObjectBaseModel):
     )
 
     @model_validator(mode="before")
+    @classmethod
     def validate_parent_and_ref_are_different(cls, values):
-        return validate_parent_and_ref_diff(values)
+        if isinstance(values, dict):
+            return validate_parent_and_ref_diff(values)
+        return values
 
 
 class Configuration(ObjectBaseModel):
@@ -1593,3 +1604,6 @@ class CsrfToken(ObjectBaseModel):
     expiration: datetime.datetime = Field(
         default=..., description="The expiration time of the CSRF token"
     )
+
+
+__getattr__ = getattr_migration(__name__)

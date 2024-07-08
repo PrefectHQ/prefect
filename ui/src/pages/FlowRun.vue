@@ -1,30 +1,30 @@
 <template>
-  <p-layout-default class="flow-run">
+  <p-layout-default v-if="flowRun" :key="flowRun.id" class="flow-run">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToRuns" />
+      <PageHeadingFlowRun :flow-run-id="flowRun.id" @delete="goToRuns" />
     </template>
 
-    <FlowRunGraphs v-if="flowRun && !isPending" :flow-run="flowRun" />
+    <FlowRunGraphs v-if="!isPending" :flow-run="flowRun" />
 
     <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #details>
-        <FlowRunDetails v-if="flowRun" :flow-run="flowRun" />
+        <FlowRunDetails :flow-run="flowRun" />
       </template>
 
       <template #logs>
-        <FlowRunLogs v-if="flowRun" :flow-run="flowRun" />
+        <FlowRunLogs :flow-run="flowRun" />
       </template>
 
       <template #results>
-        <FlowRunResults v-if="flowRun" :flow-run="flowRun" />
+        <FlowRunResults :flow-run="flowRun" />
       </template>
 
       <template #artifacts>
-        <FlowRunArtifacts v-if="flowRun" :flow-run="flowRun" />
+        <FlowRunArtifacts :flow-run="flowRun" />
       </template>
 
       <template #task-runs>
-        <FlowRunTaskRuns v-if="flowRun" :flow-run-id="flowRun.id" />
+        <FlowRunTaskRuns :flow-run-id="flowRun.id" />
       </template>
 
       <template #subflow-runs>
@@ -32,13 +32,13 @@
       </template>
 
       <template #parameters>
-        <CopyableWrapper v-if="flowRun" :text-to-copy="parameters">
+        <CopyableWrapper :text-to-copy="parameters">
           <p-code-highlight lang="json" :text="parameters" class="flow-run__parameters" />
         </CopyableWrapper>
       </template>
 
       <template #job-variables>
-        <CopyableWrapper v-if="flowRun" :text-to-copy="jobVariables">
+        <CopyableWrapper :text-to-copy="jobVariables">
           <p-code-highlight lang="json" :text="jobVariables" class="flow-run__job-variables" />
         </CopyableWrapper>
       </template>
