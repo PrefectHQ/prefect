@@ -17,7 +17,7 @@ from prefect_docker.worker import (
     DockerWorkerJobConfiguration,
     VolumeStr,
 )
-from pydantic import BaseModel, ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from prefect.client.schemas import FlowRun
 from prefect.events import RelatedResource
@@ -264,10 +264,6 @@ async def test_uses_volumes_setting(
     assert "c:d" in call_volumes
 
 
-class VolumeModel(BaseModel):
-    volume: VolumeStr
-
-
 @pytest.mark.parametrize(
     "volume_str",
     [
@@ -281,7 +277,7 @@ class VolumeModel(BaseModel):
     ],
 )
 def test_valid_volume_strings(volume_str):
-    assert VolumeModel(volume=volume_str).volume == volume_str
+    assert TypeAdapter(VolumeStr).validate_python(volume_str) == volume_str
 
 
 @pytest.mark.parametrize(
@@ -300,7 +296,7 @@ def test_valid_volume_strings(volume_str):
 )
 def test_invalid_volume_strings(volume_str):
     with pytest.raises(ValidationError, match="Invalid volume"):
-        VolumeModel(volume=volume_str)
+        TypeAdapter(VolumeStr).validate_python(volume_str)
 
 
 async def test_uses_privileged_setting(
