@@ -97,7 +97,7 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
 
 
 def get_run_logger(
-    context: "RunContext" = None, **kwargs: str
+    context: Optional["RunContext"] = None, **kwargs: str
 ) -> Union[logging.Logger, logging.LoggerAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
