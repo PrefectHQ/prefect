@@ -74,7 +74,7 @@ def assert_volume_str(v: str) -> str:
     if not match:
         raise ValueError(f"Invalid volume string: {v!r}")
 
-    source, _, mode = match.groups()
+    _, _, mode = match.groups()
 
     # Check for empty parts
     if ":" not in v or v.startswith(":") or v.endswith(":"):
