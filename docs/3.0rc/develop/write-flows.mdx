@@ -222,8 +222,8 @@ However, asynchronous nested flows can run concurrently with [AnyIO task groups]
 [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
 The relationship between nested runs is recorded through a special task run in the parent flow run that represents the child flow run.
-The `state_details` feild of the task run representing the child flow run includes a `child_flow_run_id`. 
-The `state_details` feild of the nested flow run includes a `parent_task_run_id`.
+The `state_details` field of the task run representing the child flow run includes a `child_flow_run_id`.
+The `state_details` field of the nested flow run includes a `parent_task_run_id`.
 
 You can define multiple flows within the same file.
 Whether running locally or through a [deployment](/3.0rc/deploy/infrastructure-examples/docker/), you must indicate which flow is the entrypoint for a flow run.
