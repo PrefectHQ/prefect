@@ -81,3 +81,5 @@ swap:
     World Wide Web: web
     # Prefect additions
     infra: infrastructure
+    Prefect cloud: Prefect Cloud
+    prefect cloud: Prefect Cloud
