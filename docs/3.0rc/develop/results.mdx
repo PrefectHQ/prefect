@@ -3,8 +3,8 @@ title: Manage results
 description: Results represent the data returned by a flow or a task and enable features such as caching.
 ---
 
-Results are the bedrock of many Prefect features - most notably [transactions](transactions) 
-and [caching](task-caching) - and are foundational to the resilient execution paradigm that Prefect enables.
+Results are the bedrock of many Prefect features - most notably [transactions](/3.0rc/develop/transactions) 
+and [caching](/3.0rc/develop/task-caching) - and are foundational to the resilient execution paradigm that Prefect enables.
 Any return value from a task or a flow is a result.
 By default these results are not persisted and no reference to them is maintained in the API.
 
@@ -25,19 +25,19 @@ See [settings](/3.0rc/manage/settings-and-profiles) for more information on how 
 ## Configuring result persistence
 
 There are four categories of configuration for result persistence:
-- [whether to persist results at all](results#enabling-result-persistence): this is configured through
+- [whether to persist results at all](/3.0rc/develop/results#enabling-result-persistence): this is configured through
 various keyword arguments and the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting.
-- [what filesystem to persist results to](results#result-storage): this is configured through the `result_storage` 
+- [what filesystem to persist results to](/3.0rc/develop/results#result-storage): this is configured through the `result_storage` 
 keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
-- [how to serialize and deserialize results](results#result-serialization): this is configured through 
+- [how to serialize and deserialize results](/3.0rc/develop/results#result-serialization): this is configured through 
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
-- [what filename to use](results#result-filenames): this is configured through one of 
+- [what filename to use](/3.0rc/develop/results#result-filenames): this is configured through one of 
 `result_storage_key`, `cache_policy`, or `cache_key_fn`.
 
 ### Default persistence configuration
 
 Once result persistence is enabled - whether through the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting or 
-through any of the mechanisms [described below](results#enabling-result-persistence) - Prefect's default 
+through any of the mechanisms [described below](/3.0rc/develop/results#enabling-result-persistence) - Prefect's default 
 result storage configuration is activated.
 
 If you enable result persistence and don't specify a filesystem block, your results will be stored locally.
@@ -60,8 +60,8 @@ persistence for that task:
 specifies where results should be stored.
 - `result_storage_key`: a string that specifies the filename of the result within the task's result storage.
 - `result_serializer`: a string or serializer that configures how the data should be serialized and deserialized.
-- `cache_policy`: a [cache policy](task-caching#cache-policies) specifying the behavior of the task's cache.
-- `cache_key_fn`: [a function](task-caching#cache-key-functions) that configures a custom cache policy.
+- `cache_policy`: a [cache policy](/3.0rc/develop/task-caching#cache-policies) specifying the behavior of the task's cache.
+- `cache_key_fn`: [a function](/3.0rc/develop/task-caching#cache-key-functions) that configures a custom cache policy.
 
 Similarly, setting `persist_result=True`, `result_storage`, or `result_serializer` on a flow will enable
 persistence for that flow.
@@ -79,7 +79,7 @@ Any settings _explicitly_ set on a task take precedence over the flow settings.
 ### Result storage
 
 You can configure the system of record for your results through the `result_storage` keyword argument.
-This keyword accepts a [filesystem block](blocks) or a block document slug. 
+This keyword accepts a [filesystem block](/3.0rc/develop/blocks/) or a block document slug. 
 Note that if you want your tasks to share a common cache, your result storage should be accessible by 
 the infrastructure in which those tasks run. 
 For example, a common distributed filesystem for result storage is AWS S3.
@@ -142,7 +142,7 @@ You can configure the filename of the result file within result storage using ei
 - `result_storage_key`: a templated string that can use any of the fields within `prefect.runtime` and
 the task's individual parameter values. These templated values will be populated at runtime.
 - `cache_key_fn`: a function that accepts the task run context and its runtime parameters and returns
-a string. See [task caching documentation](task-caching#cache-key-functions) for more information.
+a string. See [task caching documentation](/3.0rc/develop/task-caching#cache-key-functions) for more information.
 
 <Warning>
 If both `result_storage_key` and `cache_key_fn` are provided, only the `result_storage_key` will be used.
@@ -167,7 +167,7 @@ def my_flow():
 ```
 
 If a result exists at a given storage key in the storage location, the task will load it without running.
-To learn more about caching mechanics in Prefect, see the [caching documentation](task-caching).
+To learn more about caching mechanics in Prefect, see the [caching documentation](/3.0rc/develop/task-caching).
 
 ### Result serialization
 
@@ -198,4 +198,3 @@ def foo():
 def bar():
     return "pretend this is biiiig data"
 ```
-
