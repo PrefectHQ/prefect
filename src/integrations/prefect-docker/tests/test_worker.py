@@ -15,7 +15,9 @@ from prefect_docker.worker import (
     CONTAINER_LABELS,
     DockerWorker,
     DockerWorkerJobConfiguration,
+    VolumeStr,
 )
+from pydantic import TypeAdapter, ValidationError
 
 from prefect.client.schemas import FlowRun
 from prefect.events import RelatedResource
@@ -260,6 +262,41 @@ async def test_uses_volumes_setting(
     call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
     assert "a:b" in call_volumes
     assert "c:d" in call_volumes
+
+
+@pytest.mark.parametrize(
+    "volume_str",
+    [
+        "a:b",
+        "/host/path:/container/path",
+        "named_volume:/app/data",
+        "/home/user:/home/docker:ro",
+        "/home/user:/home/docker:rw",
+        "C:\\path\\on\\windows:/path/in/container",
+        "\\\\host\\share:/path/in/container",
+    ],
+)
+def test_valid_volume_strings(volume_str):
+    assert TypeAdapter(VolumeStr).validate_python(volume_str) == volume_str
+
+
+@pytest.mark.parametrize(
+    "volume_str",
+    [
+        "invalid_volume",
+        ":missing_host",
+        "missing_container:",
+        "/double:/colon:/path",
+        "/path:/path:invalid_mode",
+        ":/:",
+        " : : ",
+        "/host:/container:rw:extra",
+        "",  # empty string
+    ],
+)
+def test_invalid_volume_strings(volume_str):
+    with pytest.raises(ValidationError, match="Invalid volume"):
+        TypeAdapter(VolumeStr).validate_python(volume_str)
 
 
 async def test_uses_privileged_setting(
