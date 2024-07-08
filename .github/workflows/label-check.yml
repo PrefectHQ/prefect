@@ -29,7 +29,7 @@ jobs:
         id: check-label
         run: |
           found=false
-          for required_label in $(yq -r '.changelog.categories[] | select(.title != "Uncategorized") | .labels[]' .github/release.yml); do
+          for required_label in $(yq -r '(.changelog.categories[] | select(.title != "Uncategorized") | .labels[]), (.changelog.exclude.labels[])' .github/release.yml); do
             for pr_label in $(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH"); do
               if [[ "$required_label" == "$pr_label" ]]; then
                 found=true
