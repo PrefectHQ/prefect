@@ -271,7 +271,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         region: The region where the Cloud Run Job resides.
         credentials: The GCP Credentials used to connect to Cloud Run.
         job_body: The job body used to create the Cloud Run Job.
-        timeout: Max allowed duration the Job may be active before Cloud Run
+        timeout: Max allowed duration the job may be active before Cloud Run
             will actively try to mark it failed and kill associated containers
             (maximum of 3600 seconds, 1 hour).
         keep_job: Whether to delete the Cloud Run Job after it completes.
