@@ -47,7 +47,7 @@ swap:
     curated roles: predefined roles
     data are: data is
     Developers Console: Google API Console|API Console
-    disabled?: turn off|off
+    # disabled?: turn off|off
     ephemeral IP address: ephemeral external IP address
     fewer data: less data
     file name: filename
@@ -69,7 +69,7 @@ swap:
     regex: regular expression
     SHA1: SHA-1|HAS-SHA1
     sign into: sign in to
-    sign-?on: single sign-on
+    # sign-?on: single sign-on
     static IP address: static external IP address
     stylesheet: style sheet
     synch: sync

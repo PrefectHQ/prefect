@@ -106,8 +106,6 @@ in your environment are virtually identical.
 If you host your agents in a Kubernetes cluster, you can use the [Prefect worker Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker) 
 to host workers in your cluster.
 </Tip>
-            
-
 
 ## Upgrade steps
 
@@ -126,6 +124,7 @@ create a work pool with the same configuration with this script:
 
 ```python
 from prefect.infrastructure import KubernetesJob
+
 
 KubernetesJob.load("my-k8s-job").publish_as_work_pool()
 ```
@@ -162,7 +161,7 @@ If you currently use `Deployment.build_from_flow`, we recommend using `flow.depl
 If you currently use `prefect deployment build` and `prefect deployment apply`, we recommend 
 using `prefect deploy`.
 
-### `flow.deploy`
+### Use `flow.deploy`
 
 If you have a Python script that uses `Deployment.build_from_flow` to create a deployment, you
 can replace it with `flow.deploy`.
@@ -187,9 +186,11 @@ Using agents and `Deployment.build_from_flow` to deploy a flow from a local file
 ```python
 from prefect import flow
 
+
 @flow(log_prints=True)
 def my_flow(name: str = "world"):
     print(f"Hello {name}! I'm a flow from a Python script!")
+
 
 if __name__ == "__main__":
     Deployment.build_from_flow(
@@ -205,9 +206,11 @@ When using workers, you can accomplish the same local-storage deployment with `f
 from pathlib import Path
 from prefect import flow
 
+
 @flow(log_prints=True)
 def my_flow(name: str = "world"):
     print(f"Hello {name}! I'm a flow from a Python script!")
+
 
 if __name__ == "__main__":
     my_flow.from_source(
@@ -239,9 +242,11 @@ If you currently use a storage block to load your flow code but no infrastructur
 from prefect import flow
 from prefect.storage import GitHub
 
+  
 @flow(log_prints=True)
 def my_flow(name: str = "world"):
     print(f"Hello {name}! I'm a flow from a GitHub repo!")
+
 
 if __name__ == "__main__":
     Deployment.build_from_flow(
@@ -259,6 +264,7 @@ create a deployment:
 from prefect import flow
 from prefect.storage import GitHub
 
+
 if __name__ == "__main__":
     flow.from_source(
         source=GitHub.load("demo-repo"),
@@ -270,7 +276,7 @@ if __name__ == "__main__":
     )
 ```
 
-#### Deploying using an infrastructure and storage block
+#### Deploy using an infrastructure block and a storage block
 
 For the code below, you need to create a work pool from your infrastructure block and pass it to 
 `flow.deploy` as the `work_pool_name` argument. You also need to pass your storage block to 
@@ -317,18 +323,15 @@ if __name__ == "__main__":
         parameters=dict(name="Marvin"),
     )
 ```
-<!-- vale Google.Spacing = NO -->
+
 <Note>
 When using `flow.from_source(...).deploy(...)` with a remote
 `source` (like a `GitHub` block or `str` URL like https://github.com/me/myrepo.git),
 the flow you're deploying does not need to be available locally before running your script.
 See the [SDK reference](https://prefect-python-sdk-docs.netlify.app/prefect/#prefect.Flow.from_source) for more info on `from_source`.
-
 </Note>
-<!-- vale Google.Spacing = YES -->
 
-
-#### Deploying via a Docker image
+#### Deploy via a Docker image
 
 If you currently bake your flow code into a Docker image before deploying, you can use the 
 `image` argument of `flow.deploy` to build a Docker image as part of your deployment process:
@@ -355,7 +358,7 @@ You can skip a `flow.from_source` call when building an image with `flow.deploy`
 keeps track of the flow's source code location in the image and loads it from that location when the 
 flow is executed.
 
-### Using `prefect deploy`
+### Use `prefect deploy`
 
 <Warning>
 **Always run `prefect deploy` commands from the `root` level of your repo!**
