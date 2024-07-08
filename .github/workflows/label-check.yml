@@ -25,7 +25,7 @@ jobs:
         run: |
           pip install yq
 
-      - name: Check for specific labels
+      - name: Ensure a required label is present
         id: check-label
         run: |
           found=false
