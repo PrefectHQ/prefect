@@ -5,7 +5,7 @@ name: Ensure PR Label
 
 on:
   pull_request:
-    types: [opened, edited, labeled, unlabeled]
+    types: [opened, edited, labeled, unlabeled, synchronize, reopened]
 
 jobs:
   ensure-label:
