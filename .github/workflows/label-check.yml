@@ -5,39 +5,43 @@ name: Ensure PR Label
 
 on:
   pull_request:
-    types: [opened, edited, labeled, unlabeled]
+    types: [opened, edited, labeled, unlabeled, synchronize, reopened]
 
 jobs:
   ensure-label:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Check for required labels
-      id: label-check
-      run: |
-        LABELS=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH")
-        REQUIRED_LABELS=("docs" "integrations" "fix" "enhancement" "feature" "maintenance")
-        LABEL_FOUND=false
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-        for label in "${REQUIRED_LABELS[@]}"; do
-          if echo "$LABELS" | grep -q "$label"; then
-            LABEL_FOUND=true
-            break
-          fi
-        done
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
 
-        if [ "$LABEL_FOUND" = false ]; then
-          echo "##[error]This pull request must have one of the following labels to help with sorting for release notes:"
-          echo " - docs"
-          echo " - maintenance"
-          echo " - deprecation"
-          echo " - integrations"
-          echo " - fix"
-          echo " - enhancement"
-          echo " - feature"
+      - name: Install yq
+        run: |
+          pip install yq
+
+      - name: Ensure a required label is present
+        id: check-label
+        run: |
+          found=false
+          for required_label in $(yq -r '(.changelog.categories[] | select(.title != "Uncategorized") | .labels[]), (.changelog.exclude.labels[])' .github/release.yml); do
+            for pr_label in $(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH"); do
+              if [[ "$required_label" == "$pr_label" ]]; then
+                found=true
+                break 2
+              fi
+            done
+          done
+
+          echo "label_exists=$found" >> $GITHUB_OUTPUT
+
+      - name: Fail if no required labels are found
+        if: steps.check-label.outputs.label_exists == 'false'
+        run: |
+          echo "None of the required labels are applied to the PR."
           exit 1
-        fi
-
-    - name: Fail the PR if no required label is found
-      if: steps.label-check.outputs.LABEL_FOUND == 'false'
-      run: exit 1
