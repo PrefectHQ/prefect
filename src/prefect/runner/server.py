@@ -202,7 +202,7 @@ def _build_generic_endpoint_for_flows(
 
         try:
             flow = load_flow_from_entrypoint(body.entrypoint)
-        except (MissingFlowError, ScriptError, ModuleNotFoundError):
+        except (FileNotFoundError, MissingFlowError, ScriptError, ModuleNotFoundError):
             return JSONResponse(
                 status_code=status.HTTP_404_NOT_FOUND,
                 content={"message": "Flow not found"},
