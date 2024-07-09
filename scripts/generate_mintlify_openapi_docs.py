@@ -44,12 +44,6 @@ def main():
 
     suggestions = generate_schema_documentation(version, server_docs_path)
 
-    # Add any additional pages that are not generated from the schema but that we
-    # definitely want to include, such as the main server docs index page
-    # keepers = {f"{version}/api-ref/rest-api/server/index"}
-
-    # merge_suggestions(current_navigation, suggestions, keepers)
-
     # Search for the "Server API" group and get its path and contents
     server_api_path, server_api_contents = search_group(mint_json, "Server API")
 
@@ -60,13 +54,11 @@ def main():
     ):
         server_api_path.append(("pages", server_api_contents["pages"]))
         server_api_contents["pages"][1:] = suggestions
-        set_value_at_path(mint_json, server_api_path, server_api_contents["pages"])
-        print(f"Replaced contents at 'Server API' section path: {server_api_path}")
-        print(
-            "\nNew contents of the 'Server API' section pages (excluding the first page):"
-        )
-        print(json.dumps(server_api_contents["pages"], indent=2))
 
+        # Replace the contents at the path with the new JSON
+        set_value_at_path(mint_json, server_api_path, server_api_contents["pages"])
+
+        # Write the updated mint.json file out
         write_mint(mint_json)
 
 
@@ -119,7 +111,7 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
 
 
 def search_group(json_obj, search_key, path=None):
-    """search for a specific group in JSON and return the path and contents"""
+    """Search for a specific group in JSON and return the path and contents"""
     if path is None:
         path = []
     if isinstance(json_obj, dict):
@@ -141,6 +133,7 @@ def search_group(json_obj, search_key, path=None):
 
 
 def set_value_at_path(json_obj, path, new_value):
+    """Set a value in a JSON object at a specific path"""
     for key, value in path[:-1]:
         if isinstance(key, int):
             json_obj = json_obj[key]
