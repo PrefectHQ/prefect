@@ -44,22 +44,20 @@ def main():
 
     suggestions = generate_schema_documentation(version, server_docs_path)
 
-    # Search for the "Server API" group and get its path and contents
-    server_api_path, server_api_contents = search_group(mint_json, "Server API")
+    # Find the "Server API" section and replace the "pages" content other than the index
+    for group in mint_json["navigation"]:
+        if group["group"] == "APIs & SDK" and group["version"] == version:
+            for sub_group in group["pages"]:
+                if isinstance(sub_group, dict) and sub_group["group"] == "REST API":
+                    for rest_group in sub_group["pages"]:
+                        if (
+                            isinstance(rest_group, dict)
+                            and rest_group["group"] == "Server API"
+                        ):
+                            rest_group["pages"][1:] = suggestions
 
-    if (
-        server_api_path
-        and "pages" in server_api_contents
-        and len(server_api_contents["pages"]) > 1
-    ):
-        server_api_path.append(("pages", server_api_contents["pages"]))
-        server_api_contents["pages"][1:] = suggestions
-
-        # Replace the contents at the path with the new JSON
-        # set_value_at_path(mint_json, server_api_path, server_api_contents["pages"])
-
-        # Write the updated mint.json file out
-        write_mint(mint_json)
+    # Write out the updated mint.json file
+    write_mint(mint_json)
 
 
 def ensure_npx_environment():
@@ -110,47 +108,10 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
     return suggestions
 
 
-def search_group(json_obj, search_key, path=None):
-    """Search for a specific group in JSON and return the path and contents"""
-    if path is None:
-        path = []
-    if isinstance(json_obj, dict):
-        if json_obj.get("group") == search_key:
-            return path, json_obj
-        for key, value in json_obj.items():
-            new_path = path + [(key, value)]
-            if isinstance(value, (dict, list)):
-                result = search_group(value, search_key, new_path)
-                if result[0]:
-                    return result
-    elif isinstance(json_obj, list):
-        for index, item in enumerate(json_obj):
-            new_path = path + [(index, item)]
-            result = search_group(item, search_key, new_path)
-            if result[0]:
-                return result
-    return None, None
-
-
-def set_value_at_path(json_obj, path, new_value):
-    """Set a value in a JSON object at a specific path"""
-    for key, value in path[:-1]:
-        if isinstance(key, int):
-            json_obj = json_obj[key]
-        else:
-            json_obj = json_obj[key]
-    last_key = path[-1][0]
-    if isinstance(last_key, int):
-        json_obj[last_key] = new_value
-    else:
-        json_obj[last_key] = new_value
-
-
-# Replace the contents at the path with the new JSON
-def write_mint(main_data):
+def write_mint(update_mint_json: Mint):
     """Write updated mint.json file out"""
     with open(docs_path() / "mint.json", "w") as f:
-        json.dump(main_data, f, indent=2, ensure_ascii=False)
+        json.dump(update_mint_json, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == "__main__":
