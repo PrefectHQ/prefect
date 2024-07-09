@@ -49,7 +49,10 @@ else:
 
 from prefect_kubernetes import KubernetesWorker
 from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
-from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
+from prefect_kubernetes.worker import (
+    KubernetesWorkerJobConfiguration,
+    _get_configured_kubernetes_client_cached,
+)
 
 FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
@@ -2031,6 +2034,7 @@ class TestKubernetesWorker:
         mock_cluster_config,
         mock_batch_client,
     ):
+        _get_configured_kubernetes_client_cached.cache_clear()
         mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
@@ -2048,12 +2052,35 @@ class TestKubernetesWorker:
         mock_cluster_config,
         mock_batch_client,
     ):
+        _get_configured_kubernetes_client_cached.cache_clear()
         mock_watch.stream = _mock_pods_stream_that_returns_running_pod
         mock_cluster_config.load_incluster_config.side_effect = ConfigException()
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, default_configuration)
 
             mock_cluster_config.new_client_from_config.assert_called_once()
+
+    async def test_get_configured_kubernetes_client_cached(
+        self,
+        flow_run,
+        default_configuration,
+        mock_core_client,
+        mock_watch,
+        mock_cluster_config,
+        mock_batch_client,
+    ):
+        _get_configured_kubernetes_client_cached.cache_clear()
+        mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+
+        assert _get_configured_kubernetes_client_cached.cache_info().hits == 0
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, default_configuration)
+            await k8s_worker.run(flow_run, default_configuration)
+            await k8s_worker.run(flow_run, default_configuration)
+
+        assert _get_configured_kubernetes_client_cached.cache_info().misses == 1
+        assert _get_configured_kubernetes_client_cached.cache_info().hits == 2
 
     @pytest.mark.parametrize("job_timeout", [24, 100])
     async def test_allows_configurable_timeouts_for_pod_and_job_watches(
