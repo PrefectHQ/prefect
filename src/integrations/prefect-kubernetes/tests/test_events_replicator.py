@@ -388,7 +388,7 @@ async def test_replicate_evicted_pod_events(replicator, mock_watch, evicted_pod_
 
     with patch("prefect_kubernetes.events.emit_event", side_effect=event) as mock_emit:
         async with replicator:
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.5)
 
     mock_emit.assert_has_calls(
         [
