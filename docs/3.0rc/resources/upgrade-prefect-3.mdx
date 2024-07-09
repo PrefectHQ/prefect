@@ -55,7 +55,7 @@ Here are some examples:
 ```python Prefect 2
 @task
 async def my_task():
-    ...
+    return some_value
 
 
 # Enclosing flow can be sync
@@ -71,10 +71,10 @@ if __name__ == "__main__":
 ```python Prefect 3
 @task
 async def my_task():
-    ...
+    return some_value
 
 
-# Enclosing flow must be async as well
+# The enclosing flow must be async as well
 @flow
 async def my_flow():
     return await my_task()
@@ -94,7 +94,7 @@ You do not need to use the `await` keyword in front of your `.submit` call:
 ```python Prefect 2
 @task
 async def my_task():
-    ...
+    return some_value
 
 
 @flow
@@ -107,7 +107,7 @@ async def my_flow():
 ```python Prefect 3
 @task
 async def my_task():
-    ...
+    return some_value
 
 
 @flow
@@ -129,7 +129,7 @@ Wait for the future to complete, then retrieve the state separately:
 ```python Prefect 2
 @task
 async def my_task():
-    ...
+    return some_value
 
 
 @flow
@@ -143,7 +143,7 @@ async def my_flow():
 ```python Prefect 3
 @task
 async def my_task():
-    ...
+    return some_value
 
 
 @flow
@@ -165,7 +165,7 @@ In Prefect 3, `PrefectFuture`s resulting from submitted task runs are not automa
 ```python Prefect 2
 @task
 def my_task():
-    ...
+    return some_value
 
 
 @flow
@@ -178,7 +178,7 @@ def my_flow():
 ```python Prefect 3
 @task
 def my_task():
-    ...
+    return some_value
 
 
 @flow
