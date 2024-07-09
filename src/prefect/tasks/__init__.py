@@ -1,6 +1,7 @@
 """
 Module containing the base workflow task class and decorator - for most use cases, using the [`@task` decorator][prefect.tasks.task] is preferred.
 """
+
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
@@ -36,6 +37,7 @@ from typing_extensions import Literal, ParamSpec
 from prefect._internal.compatibility.deprecated import (
     deprecated_async_method,
 )
+from .base import BaseTask
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -181,7 +183,7 @@ def _infer_parent_task_runs(
     return parents
 
 
-class Task(Generic[P, R]):
+class Task(BaseTask[P, R], Generic[P, R]):
     """
     A Prefect task definition.
 
@@ -608,14 +610,14 @@ class Task(Generic[P, R]):
             name=name or self.name,
             description=description or self.description,
             tags=tags or copy(self.tags),
-            cache_policy=cache_policy
-            if cache_policy is not NotSet
-            else self.cache_policy,
+            cache_policy=(
+                cache_policy if cache_policy is not NotSet else self.cache_policy
+            ),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
-            task_run_name=task_run_name
-            if task_run_name is not NotSet
-            else self.task_run_name,
+            task_run_name=(
+                task_run_name if task_run_name is not NotSet else self.task_run_name
+            ),
             retries=retries if retries is not NotSet else self.retries,
             retry_delay_seconds=(
                 retry_delay_seconds

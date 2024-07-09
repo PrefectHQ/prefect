@@ -2,7 +2,7 @@ import hashlib
 import sys
 from functools import partial
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import cloudpickle
 
@@ -48,7 +48,7 @@ def file_hash(path: str, hash_algo=_md5) -> str:
     return stable_hash(contents, hash_algo=hash_algo)
 
 
-def hash_objects(*args, hash_algo=_md5, **kwargs) -> Optional[str]:
+def hash_objects(*args: Any, hash_algo=_md5, **kwargs: Any) -> Optional[str]:
     """
     Attempt to hash objects by dumping to JSON or serializing with cloudpickle.
     On failure of both, `None` will be returned
