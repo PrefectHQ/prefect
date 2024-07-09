@@ -20,7 +20,7 @@ async def read_task_workers(
         None, description="The task worker filter"
     ),
 ) -> list[TaskWorkerResponse]:
-    """Read task workers for a workspace. Optionally filter by task keys."""
+    """Read active task workers. Optionally filter by task keys."""
 
     if task_worker_filter and task_worker_filter.task_keys:
         return await models.task_workers.get_workers_for_task_keys(

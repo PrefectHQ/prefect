@@ -6506,7 +6506,7 @@
                     "Task Workers"
                 ],
                 "summary": "Read Task Workers",
-                "description": "Read task workers for a workspace. Optionally filter by task keys.",
+                "description": "Read active task workers. Optionally filter by task keys.",
                 "operationId": "read_task_workers_task_workers_filter_post",
                 "parameters": [
                     {
