@@ -56,7 +56,7 @@ def main():
         server_api_contents["pages"][1:] = suggestions
 
         # Replace the contents at the path with the new JSON
-        set_value_at_path(mint_json, server_api_path, server_api_contents["pages"])
+        # set_value_at_path(mint_json, server_api_path, server_api_contents["pages"])
 
         # Write the updated mint.json file out
         write_mint(mint_json)
