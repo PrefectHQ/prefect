@@ -20756,13 +20756,6 @@
                         "type": "array",
                         "title": "Children"
                     },
-                    "encapsulating": {
-                        "items": {
-                            "$ref": "#/components/schemas/Edge"
-                        },
-                        "type": "array",
-                        "title": "Encapsulating"
-                    },
                     "artifacts": {
                         "items": {
                             "$ref": "#/components/schemas/GraphArtifact"
@@ -20781,7 +20774,6 @@
                     "end_time",
                     "parents",
                     "children",
-                    "encapsulating",
                     "artifacts"
                 ],
                 "title": "Node"
@@ -22167,6 +22159,16 @@
                         "title": "Prefect Api Max Flow Run Graph Artifacts",
                         "default": 10000
                     },
+                    "PREFECT_EXPERIMENTAL_ENABLE_WORKERS": {
+                        "type": "boolean",
+                        "title": "Prefect Experimental Enable Workers",
+                        "default": true
+                    },
+                    "PREFECT_EXPERIMENTAL_WARN_WORKERS": {
+                        "type": "boolean",
+                        "title": "Prefect Experimental Warn Workers",
+                        "default": false
+                    },
                     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION": {
                         "type": "boolean",
                         "title": "Prefect Experimental Enable Enhanced Cancellation",
@@ -22248,15 +22250,9 @@
                         "default": true
                     },
                     "PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Prefect Task Scheduling Default Storage Block"
+                        "type": "string",
+                        "title": "Prefect Task Scheduling Default Storage Block",
+                        "default": "local-file-system/prefect-task-scheduling"
                     },
                     "PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS": {
                         "type": "boolean",
