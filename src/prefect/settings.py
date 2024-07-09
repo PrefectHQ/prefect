@@ -42,7 +42,7 @@ dependent on the value of other settings or perform other dynamic effects.
 
 import logging
 import os
-import socket
+import re
 import string
 import warnings
 from contextlib import contextmanager
@@ -85,7 +85,6 @@ from prefect._internal.schemas.validators import validate_settings
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
-from prefect.utilities.slugify import slugify
 
 T = TypeVar("T")
 
@@ -404,18 +403,6 @@ def warn_on_misconfigured_api_url(values):
     return values
 
 
-def default_result_storage_block_name(
-    settings: Optional["Settings"] = None, value: Optional[str] = None
-):
-    """
-    `value_callback` for `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` that sets the default
-    value to the hostname of the machine.
-    """
-    if value is None:
-        return f"local-file-system/{slugify(socket.gethostname())}-storage"
-    return value
-
-
 def default_database_connection_url(settings, value):
     templater = template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD)
 
@@ -474,10 +461,8 @@ def default_cloud_ui_url(settings, value):
     # Otherwise, infer a value from the API URL
     ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
 
-    if api_url.startswith("https://api.prefect.cloud"):
-        ui_url = ui_url.replace(
-            "https://api.prefect.cloud", "https://app.prefect.cloud", 1
-        )
+    if re.match(r"^https://api[\.\w]*.prefect.[^\.]+/", api_url):
+        ui_url = ui_url.replace("https://api", "https://app", 1)
 
     if ui_url.endswith("/api"):
         ui_url = ui_url[:-4]
@@ -1323,15 +1308,6 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
 The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect workers.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect workers are used.
-"""
 
 PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
@@ -1423,10 +1399,7 @@ PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED = Setting(bool, default=True)
 Whether or not to start the task scheduling service in the server application.
 """
 
-PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
-    str,
-    default="local-file-system/prefect-task-scheduling",
-)
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(Optional[str], default=None)
 """The `block-type/block-document` slug of a block to use as the default storage
 for autonomous tasks."""
 
@@ -1479,7 +1452,8 @@ PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    Optional[str], default=None, value_callback=default_result_storage_block_name
+    Optional[str],
+    default=None,
 )
 """The `block-type/block-document` slug of a block to use as the default result storage."""
 

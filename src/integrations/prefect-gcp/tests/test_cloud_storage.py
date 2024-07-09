@@ -157,6 +157,8 @@ class TestGcsBucket:
         prefix = os.path.join(gcs_bucket.bucket_folder, from_path or "")
         if local_path is None:
             local_path = os.path.abspath(".")
+        else:
+            local_path = os.path.abspath(os.path.expanduser(local_path))
 
         if from_path is None:
             from_path = gcs_bucket.bucket_folder
@@ -165,17 +167,28 @@ class TestGcsBucket:
         for file_path in actual:
             assert os.path.isfile(file_path)
 
-        # blob.txt, base_folder/nested_blob.txt, base_folder/sub_folder/nested_blob.txt
+        # check that returned file paths are correct
         if not prefix:
-            assert len(actual) == 4
-        # base_folder/sub_folder/nested_blob.txt
+            expected = [
+                os.path.join(local_path, "blob.txt"),
+                os.path.join(local_path, "base_folder/nested_blob.txt"),
+                os.path.join(local_path, "base_folder/sub_folder/nested_blob.txt"),
+                os.path.join(local_path, "dotted.folder/nested_blob.txt"),
+            ]
         elif prefix == "base_folder/sub_folder":
-            assert len(actual) == 1
-        # base_folder/nested_blob.txt, base_folder/sub_folder/nested_blob.txt
+            # base_folder/sub_folder/nested_blob.txt
+            expected = [
+                os.path.join(local_path, "nested_blob.txt"),
+            ]
         elif prefix == "base_folder" or prefix == "base_folder/":
-            assert len(actual) == 2
+            # base_folder/nested_blob.txt, base_folder/sub_folder/nested_blob.txt
+            expected = [
+                os.path.join(local_path, "nested_blob.txt"),
+                os.path.join(local_path, "sub_folder/nested_blob.txt"),
+            ]
         else:
-            assert len(actual) == 0
+            expected = []
+        assert actual == expected
 
     @pytest.mark.parametrize("to_path", [None, "to_path"])
     @pytest.mark.parametrize("ignore", [True, False])

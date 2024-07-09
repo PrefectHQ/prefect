@@ -1,6 +1,8 @@
 import inspect
 import logging
+import threading
 import time
+from asyncio import CancelledError
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from textwrap import dedent
@@ -17,6 +19,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Type,
     TypeVar,
     Union,
 )
@@ -36,17 +39,18 @@ from prefect.context import (
     TaskRunContext,
     hydrated_context,
 )
-from prefect.events.schemas.events import Event
+from prefect.events.schemas.events import Event as PrefectEvent
 from prefect.exceptions import (
     Abort,
     Pause,
     PrefectException,
+    TerminationSignal,
     UpstreamTaskError,
 )
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.records.result_store import ResultFactoryStore
-from prefect.results import ResultFactory, _format_user_supplied_storage_key
+from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -63,6 +67,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.transactions import Transaction, transaction
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
@@ -80,6 +85,10 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+class TaskRunTimeoutError(TimeoutError):
+    """Raised when a task run exceeds its timeout."""
+
+
 @dataclass
 class TaskRunEngine(Generic[P, R]):
     task: Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]
@@ -89,11 +98,15 @@ class TaskRunEngine(Generic[P, R]):
     retries: int = 0
     wait_for: Optional[Iterable[PrefectFuture]] = None
     context: Optional[Dict[str, Any]] = None
+    # holds the return value from the user code
+    _return_value: Union[R, Type[NotSet]] = NotSet
+    # holds the exception raised by the user code, if any
+    _raised: Union[Exception, Type[NotSet]] = NotSet
     _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     _task_name_set: bool = False
-    _last_event: Optional[Event] = None
+    _last_event: Optional[PrefectEvent] = None
 
     def __post_init__(self):
         if self.parameters is None:
@@ -136,7 +149,16 @@ class TaskRunEngine(Generic[P, R]):
             )
             return False
 
-    def call_hooks(self, state: State = None) -> Iterable[Callable]:
+    def is_cancelled(self) -> bool:
+        if (
+            self.context
+            and "cancel_event" in self.context
+            and isinstance(self.context["cancel_event"], threading.Event)
+        ):
+            return self.context["cancel_event"].is_set()
+        return False
+
+    def call_hooks(self, state: Optional[State] = None):
         if state is None:
             state = self.state
         task = self.task
@@ -171,7 +193,7 @@ class TaskRunEngine(Generic[P, R]):
             else:
                 self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
-    def compute_transaction_key(self) -> str:
+    def compute_transaction_key(self) -> Optional[str]:
         key = None
         if self.task.cache_policy:
             flow_run_context = FlowRunContext.get()
@@ -304,12 +326,24 @@ class TaskRunEngine(Generic[P, R]):
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
-        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
-            _result = run_coro_as_sync(_result)
-        return _result
+        if self._return_value is not NotSet:
+            # if the return value is a BaseResult, we need to fetch it
+            if isinstance(self._return_value, BaseResult):
+                _result = self._return_value.get()
+                if inspect.isawaitable(_result):
+                    _result = run_coro_as_sync(_result)
+                return _result
+
+            # otherwise, return the value as is
+            return self._return_value
+
+        if self._raised is not NotSet:
+            # if the task raised an exception, raise it
+            if raise_on_failure:
+                raise self._raised
+
+            # otherwise, return the exception
+            return self._raised
 
     def handle_success(self, result: R, transaction: Transaction) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
@@ -339,6 +373,7 @@ class TaskRunEngine(Generic[P, R]):
         if transaction.is_committed():
             terminal_state.name = "Cached"
         self.set_state(terminal_state)
+        self._return_value = result
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
@@ -365,9 +400,11 @@ class TaskRunEngine(Generic[P, R]):
                 new_state = Retrying()
 
             self.logger.info(
-                f"Task run failed with exception {exc!r} - "
-                f"Retry {self.retries + 1}/{self.task.retries} will start "
-                f"{str(delay) + ' second(s) from now' if delay else 'immediately'}"
+                "Task run failed with exception: %r - " "Retry %s/%s will start %s",
+                exc,
+                self.retries + 1,
+                self.task.retries,
+                str(delay) + " second(s) from now" if delay else "immediately",
             )
 
             self.set_state(new_state, force=True)
@@ -375,7 +412,9 @@ class TaskRunEngine(Generic[P, R]):
             return True
         elif self.retries >= self.task.retries:
             self.logger.error(
-                f"Task run failed with exception {exc!r} - Retries are exhausted"
+                "Task run failed with exception: %r - Retries are exhausted",
+                exc,
+                exc_info=True,
             )
             return False
 
@@ -394,12 +433,14 @@ class TaskRunEngine(Generic[P, R]):
                 )
             )
             self.set_state(state)
+            self._raised = exc
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
-            message = (
-                f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
-            )
+            if isinstance(exc, TaskRunTimeoutError):
+                message = f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
+            else:
+                message = f"Task run failed due to timeout: {exc!r}"
             self.logger.error(message)
             state = Failed(
                 data=exc,
@@ -407,12 +448,14 @@ class TaskRunEngine(Generic[P, R]):
                 name="TimedOut",
             )
             self.set_state(state)
+            self._raised = exc
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
+        self._raised = exc
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
@@ -497,6 +540,11 @@ class TaskRunEngine(Generic[P, R]):
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
                         yield self
+
+                except TerminationSignal as exc:
+                    # TerminationSignals are caught and handled as crashes
+                    self.handle_crash(exc)
+                    raise exc
 
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -612,10 +660,16 @@ class TaskRunEngine(Generic[P, R]):
         # reenter the run context to ensure it is up to date for every run
         with self.setup_run_context():
             try:
-                with timeout_context(seconds=self.task.timeout_seconds):
+                with timeout_context(
+                    seconds=self.task.timeout_seconds,
+                    timeout_exc_type=TaskRunTimeoutError,
+                ):
                     self.logger.debug(
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
                     )
+                    if self.is_cancelled():
+                        raise CancelledError("Task run cancelled by the task runner")
+
                     yield self
             except TimeoutError as exc:
                 self.handle_timeout(exc)
@@ -638,6 +692,7 @@ class TaskRunEngine(Generic[P, R]):
                 else:
                     result = await call_with_parameters(self.task.fn, parameters)
                 self.handle_success(result, transaction=transaction)
+                return result
 
             return _call_task_fn()
         else:
@@ -646,6 +701,7 @@ class TaskRunEngine(Generic[P, R]):
             else:
                 result = call_with_parameters(self.task.fn, parameters)
             self.handle_success(result, transaction=transaction)
+            return result
 
 
 def run_task_sync(

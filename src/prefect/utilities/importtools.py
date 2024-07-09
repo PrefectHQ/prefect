@@ -422,7 +422,7 @@ def safe_load_namespace(source_code: str):
                 logger.debug("Failed to import from %s: %s", node.module, e)
 
     # Handle local definitions
-    for node in ast.walk(parsed_code):
+    for node in parsed_code.body:
         if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.Assign)):
             try:
                 # Compile and execute each class and function definition and assignment
