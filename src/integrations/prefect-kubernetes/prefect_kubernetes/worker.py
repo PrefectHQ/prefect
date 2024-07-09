@@ -587,6 +587,7 @@ class KubernetesWorker(BaseWorker):
             logger.info("Creating Kubernetes job...")
 
             job = await self._create_job(configuration, client)
+            logger.info(job)
             pid = await self._get_infrastructure_pid(job, client)
             # Indicate that the job has started
             if task_status is not None:
@@ -1119,15 +1120,16 @@ class KubernetesWorker(BaseWorker):
         client: "ApiClient",
     ) -> Optional["V1Job"]:
         """Get a Kubernetes job by id."""
-        async with self._get_batch_client(client) as batch_client:
-            try:
-                job = await batch_client.read_namespaced_job(
-                    name=job_id, namespace=configuration.namespace
-                )
-            except kubernetes_asyncio.client.exceptions.ApiException:
-                logger.error(f"Job {job_id!r} was removed.", exc_info=True)
-                return None
-            return job
+
+        try:
+            batch_client = BatchV1Api(client)
+            job = await batch_client.read_namespaced_job(
+                name=job_id, namespace=configuration.namespace
+            )
+        except kubernetes_asyncio.client.exceptions.ApiException:
+            logger.error(f"Job {job_id!r} was removed.", exc_info=True)
+            return None
+        return job
 
     async def _get_job_pod(
         self,
