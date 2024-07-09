@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import Body
 from pydantic import BaseModel
 
@@ -14,7 +16,7 @@ class TaskWorkerFilter(BaseModel):
 
 @router.post("/filter")
 async def read_task_workers(
-    task_worker_filter: TaskWorkerFilter | None = Body(
+    task_worker_filter: Optional[TaskWorkerFilter] = Body(
         None, description="The task worker filter"
     ),
 ) -> list[TaskWorkerResponse]:
