@@ -18,7 +18,7 @@ Blocks are instantiation of these classes with specific values.
 Configure blocks through Python code or through the UI. 
 Access blocks for use in Python code.
 
-Block values are stored in Prefect Cloud or your self-hosted Prefect server instance.
+Blocks are stored in your Prefect Cloud account or your self-hosted Prefect server instance.
 You can share blocks with other users in your Prefect Cloud workspace.
 
 To see block types available for configuration, use `prefect block type ls` 
@@ -444,7 +444,7 @@ class S3Bucket(Block):
     ...
 ```
 
-Then [register the updated block type](#register-blocks) with either Prefect Cloud or your self-hosted Prefect server instance.
+Then [register the updated block type](#register-blocks) with either your Prefect Cloud account or your self-hosted Prefect server instance.
 
 If you have any existing blocks of this type that were created before the update and 
 you'd prefer to not re-create them, migrate them to the new version of your block type by adding the missing values:
