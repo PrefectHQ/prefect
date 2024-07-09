@@ -617,9 +617,9 @@ class KubernetesWorker(BaseWorker):
         grace_seconds: int = 30,
     ):
         """
-        Stops a job for a cancelled flow run based on the provided infrastructure PID
-        and run configuration.
-        """
+                Stops a job for a cancelled flow run based on the provided infrastructure PID
+                and run configuration.
+        att"""
         await self._stop_job(infrastructure_pid, configuration, grace_seconds)
 
     async def teardown(self, *exc_info):
@@ -785,25 +785,26 @@ class KubernetesWorker(BaseWorker):
             await self._replace_api_key_with_secret(
                 configuration=configuration, client=client
             )
-        async with self._get_batch_client(client) as batch_client:
-            try:
-                batch_client = BatchV1Api(client)
-                job = await batch_client.create_namespaced_job(
-                    configuration.namespace,
-                    configuration.job_manifest,
-                )
-            except kubernetes_asyncio.client.exceptions.ApiException as exc:
-                # Parse the reason and message from the response if feasible
-                message = ""
-                if exc.reason:
-                    message += ": " + exc.reason
-                if exc.body and "message" in (body := json.loads(exc.body)):
-                    message += ": " + body["message"]
 
-                raise InfrastructureError(
-                    f"Unable to create Kubernetes job{message}"
-                ) from exc
-            return job
+        try:
+            batch_client = BatchV1Api(client)
+            job = await batch_client.create_namespaced_job(
+                configuration.namespace,
+                configuration.job_manifest,
+            )
+        except kubernetes_asyncio.client.exceptions.ApiException as exc:
+            # Parse the reason and message from the response if feasible
+            message = ""
+            if exc.reason:
+                message += ": " + exc.reason
+            if exc.body and "message" in (body := json.loads(exc.body)):
+                message += ": " + body["message"]
+
+            raise InfrastructureError(
+                f"Unable to create Kubernetes job{message}"
+            ) from exc
+
+        return job
 
     async def _upsert_secret(
         self, name: str, value: str, namespace: str, client: "ApiClient"
@@ -945,7 +946,7 @@ class KubernetesWorker(BaseWorker):
         """
         watch = kubernetes_asyncio.watch.Watch()
         resource_version = None
-        with watch:
+        async with watch:
             while True:
                 try:
                     async for event in watch.stream(
@@ -1142,7 +1143,7 @@ class KubernetesWorker(BaseWorker):
         last_phase = None
         last_pod_name: Optional[str] = None
         core_client = CoreV1Api(client)
-        with watch:
+        async with watch:
             async for event in watch.stream(
                 func=core_client.list_namespaced_pod,
                 namespace=configuration.namespace,

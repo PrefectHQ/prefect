@@ -1,6 +1,5 @@
 import asyncio
 import copy
-import time
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
@@ -300,7 +299,7 @@ async def test_replicate_failed_pod_events(replicator, mock_watch, failed_pod_st
 
     with patch("prefect_kubernetes.events.emit_event", side_effect=event) as mock_emit:
         async with replicator:
-            time.sleep(0.3)
+            await asyncio.sleep(0.5)
 
     mock_emit.assert_has_calls(
         [
