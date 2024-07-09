@@ -62,7 +62,32 @@ class ImagePullPolicy(enum.Enum):
     NEVER = "Never"
 
 
-VolumeStr = Annotated[str, AfterValidator(lambda v: ":" in v)]
+def assert_volume_str(v: str) -> str:
+    """Assert that a string is a valid Docker volume string."""
+    if not isinstance(v, str):
+        raise ValueError("Volume must be a string")
+
+    # Regex pattern for valid Docker volume strings, including Windows paths
+    pattern = r"^([a-zA-Z]:\\|/)?[^:]+:(/)?[^:]+(:ro|:rw)?$"
+
+    match = re.match(pattern, v)
+    if not match:
+        raise ValueError(f"Invalid volume string: {v!r}")
+
+    _, _, mode = match.groups()
+
+    # Check for empty parts
+    if ":" not in v or v.startswith(":") or v.endswith(":"):
+        raise ValueError(f"Volume string contains empty part: {v!r}")
+
+    # If there's a mode, it must be 'ro' or 'rw'
+    if mode and mode not in (":ro", ":rw"):
+        raise ValueError(f"Invalid volume mode: {mode!r}. Must be ':ro' or ':rw'")
+
+    return v
+
+
+VolumeStr = Annotated[str, AfterValidator(assert_volume_str)]
 
 
 class DockerWorkerJobConfiguration(BaseJobConfiguration):

@@ -84,7 +84,7 @@ state = lazy_flow(return_state=True)
 assert data == {"my_arg": "custom_value", "state": state}
 ```
 
-... or define your hook to accept arbitrary keyword arguments:
+Or define your hook to accept arbitrary keyword arguments:
 
 ```python
 from functools import partial

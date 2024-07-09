@@ -42,6 +42,7 @@ dependent on the value of other settings or perform other dynamic effects.
 
 import logging
 import os
+import re
 import string
 import warnings
 from contextlib import contextmanager
@@ -460,10 +461,8 @@ def default_cloud_ui_url(settings, value):
     # Otherwise, infer a value from the API URL
     ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
 
-    if api_url.startswith("https://api.prefect.cloud"):
-        ui_url = ui_url.replace(
-            "https://api.prefect.cloud", "https://app.prefect.cloud", 1
-        )
+    if re.match(r"^https://api[\.\w]*.prefect.[^\.]+/", api_url):
+        ui_url = ui_url.replace("https://api", "https://app", 1)
 
     if ui_url.endswith("/api"):
         ui_url = ui_url[:-4]
@@ -1309,15 +1308,6 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
 The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect workers.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect workers are used.
-"""
 
 PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
 """
