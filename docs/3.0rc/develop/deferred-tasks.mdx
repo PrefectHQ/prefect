@@ -133,13 +133,13 @@ conda activate python-tasks
 pip install -U prefect marvin fastapi==0.107
 ```
 
-#### Step 3: Connect to Prefect Cloud or a local Prefect server instance
+#### Step 3: Connect to Prefect Cloud or a self-hosted Prefect server
 
-You can use either Prefect Cloud or a local Prefect server instance for these examples (if not set already).
+Use either Prefect Cloud or a self-hosted Prefect server for these examples.
 
 You must have `PREFECT_API_URL` set to send tasks to task workers.
 
-If you're using a local Prefect server instance with a SQLite backing database (the default database), 
+If you're using a Prefect server with a SQLite backing database (the default database), 
 save this value to your active Prefect Profile with the following command:
 
 ```bash
@@ -149,12 +149,12 @@ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
 If using Prefect Cloud, set the `PREFECT_API_URL` value to the Prefect Cloud API URL and add your 
 [API key](https://docs.prefect.io/cloud/users/api-keys/).
 
-The examples that use docker (examples 4 and 5) use a local Prefect server instance by default.
+The examples that use docker (examples 4 and 5) use a Prefect server by default.
 You can switch to Prefect Cloud by changing the `PREFECT_API_URL` and adding a variable for your API key in the 
 `docker-compose.yaml`.
-Or use a local server instance backed by a PostgreSQL database by setting the `PREFECT_API_DATABASE_CONNECTION_URL`.
+Or use a Prefect server backed by a PostgreSQL database by setting the `PREFECT_API_DATABASE_CONNECTION_URL`.
 
-If using a local Prefect server instance instead of Prefect Cloud, start your server by running the following command:
+If using Prefect server instead of Prefect Cloud, start your server by running the following command:
 
 ```bash
 prefect server start 
