@@ -350,13 +350,7 @@
       "version": "3.0rc",
       "pages": [
         "3.0rc/api-ref/index",
-        {
-          "group": "Python SDK",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/api-ref/python/index"
-          ]
-        },
+        "3.0rc/api-ref/python/index",
         {
           "group": "REST API",
           "version": "3.0rc",
