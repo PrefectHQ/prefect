@@ -667,7 +667,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             if blob_path[-1] == "/":
                 # object is a folder and will be created if it contains any objects
                 continue
-            local_file_path = os.path.join(local_path, blob_path)
+            relative_blob_path = os.path.relpath(blob_path, from_path)
+            local_file_path = os.path.join(local_path, relative_blob_path)
             os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
             with disable_run_logger():
