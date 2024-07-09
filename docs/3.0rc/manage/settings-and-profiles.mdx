@@ -1,6 +1,6 @@
 ---
 title: Configure settings and profiles
-description: Prefect settings let you customize your workflow environment, including your Cloud profile and locally hosted Server
+description: Prefect settings let you customize your workflow environment, including your Cloud and self-hosted server preferences.
 ---
 
 Many of Prefect's features - especially interactions with the API - require configuration.
@@ -9,8 +9,8 @@ Configuration can be set through two mechanisms:
 is most useful when configuring the runtime environment of a workflow or when updating settings temporarily
 for a single session.
 - **Prefect profiles**: Prefect profiles store your preferred settings locally, and allow you to switch
-between common groups of configuration; for example, when switching between a locally hosted server and a
-Prefect Cloud instance.
+between common groups of configuration. For example, you can switch between a self-hosted Prefect server instance and a
+Prefect Cloud account.
 
 To view all available settings and their active values from the command line, run:
 
@@ -105,7 +105,7 @@ Read more about [managing API keys](/3.0rc/manage/cloud/manage-users/api-keys/).
 
 - **`PREFECT_HOME`**: the `PREFECT_HOME` value specifies the local Prefect directory for configuration files,
 profiles, and the location of the default Prefect SQLite database.
-- **`PREFECT_API_DATABASE_CONNECTION_URL`**: the database connection URL for a locally hosted Prefect instance.
+- **`PREFECT_API_DATABASE_CONNECTION_URL`**: the database connection URL for a self-hosted Prefect server instance.
 Must be provided in a SQLAlchemy-compatible format. Prefect currently supports SQLite and Postgres. 
 
 ## Security settings
@@ -113,7 +113,7 @@ Must be provided in a SQLAlchemy-compatible format. Prefect currently supports S
 ### Host the UI behind a reverse proxy
 
 When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a 
- hosted Prefect UI instance, you must also configure the Prefect server instance to connect to the API. 
+ hosted Prefect UI instance, you must also configure the self-hosted Prefect server instance to connect to the API. 
 The PREFECT_UI_API_URL should be set to the external proxy URL.
 
 For example, if your external URL is `https://prefect-server.example.com` then set 
@@ -124,7 +124,7 @@ This setting is a fallback if `PREFECT_UI_API_URL` is not set.
 
 ### CSRF protection settings
 
-If using a local Prefect server instance, you can configure CSRF protection settings.
+If using self-hosted Prefect server, you can configure CSRF protection settings.
 
 - **`PREFECT_SERVER_CSRF_PROTECTION_ENABLED`**: activates CSRF protection on the server, 
 requiring valid CSRF tokens for applicable requests. Recommended for production to prevent CSRF attacks. 
