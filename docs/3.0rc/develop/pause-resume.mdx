@@ -3,8 +3,6 @@ title: Pause and resume flow runs
 description: Learn the different ways to pause, suspend, and resume a flow run.
 ---
 
-## Pause or suspend a flow run
-
 Prefect allows you to halt a flow run with two functions that are similar, but slightly different.
 When a flow run is paused, code execution is stopped and the process continues to run.
 When a flow run is suspended, code execution is stopped and so is the process.
@@ -12,7 +10,7 @@ When a flow run is suspended, code execution is stopped and so is the process.
 ### Pause a flow run
 
 Prefect enables pausing an in-progress flow run for manual approval.
-Prefect exposes this functionality with the [`pause_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.pause_flow_run) 
+Prefect exposes this capability with the [`pause_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.pause_flow_run) 
 and [`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions.
 
 <Note>
@@ -68,12 +66,10 @@ def my_flow():
 
 Calling this flow blocks code execution after the first task and waits for resumption to deliver the punchline.
 
-<div class="terminal">
 ```bash
 await inspiring_joke()
 > "a raft of ducks walk into a bar..."
 ```
-</div>
 
 Resume paused flow runs by clicking **Resume** in the Prefect UI or 
 calling the `resume_flow_run` utility through client code.
@@ -84,11 +80,9 @@ resume_flow_run(FLOW_RUN_ID)
 
 The paused flow run then finishes.
 
-<div class="terminal">
 ```
 > "it's a wonder none of them ducked!"
 ```
-</div>
 
 ### Suspend a flow run
 
@@ -107,7 +101,7 @@ This means you can suspend flow runs to save costs instead of paying for long-ru
 However, when the flow run resumes, the flow code will execute again from the beginning of the flow. 
 We recommend using [tasks](/3.0rc/develop/write-tasks/) and [task caching](/3.0rc/develop/task-caching) to avoid recomputing expensive operations.
 
-Prefect exposes this functionality through the [`suspend_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.suspend_flow_run) and 
+Prefect exposes this capability through the [`suspend_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.suspend_flow_run) and 
 [`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
 When called inside of a flow, `suspend_flow_run` immediately suspends execution of the flow run.
@@ -211,4 +205,4 @@ After successful validation, the flow run resumes, and the return value of the `
 is an instance of the `UserNameInput` model containing the provided data.
 
 For more information on receiving input from users when pausing and suspending flow runs, 
-see [Create interactive workflows](/3.0rc/develop/inputs/).
+see [Send and receive flow run inputs](/3.0rc/develop/inputs/).

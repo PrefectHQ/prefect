@@ -21,21 +21,19 @@ In the CLI, install the Prefect integration library for your cloud provider:
 
     [prefect-aws](/integrations/prefect-aws/) provides blocks for interacting with AWS services.
 
-    <div class="terminal">
     ```bash
     pip install -U prefect-aws
     ```
-    </div>
+
   </Tab>
   <Tab title="Azure">
 
     [prefect-azure](/integrations/prefect-azure/) provides blocks for interacting with Azure services.
 
-    <div class="terminal">
     ```bash
      pip install -U prefect-azure
     ```
-    </div>
+
   </Tab>
   <Tab title="GCP">
 
@@ -47,9 +45,10 @@ In the CLI, install the Prefect integration library for your cloud provider:
 
   </Tab>
 </Tabs>
+
 ## Register the block types
 
-Register the new block types with Prefect Cloud (or with your self-hosted Prefect server instance):
+Register the new block types with your Prefect Cloud account (or with your self-hosted Prefect server instance):
 
 <Tabs>
   <Tab title="AWS">
@@ -159,7 +158,7 @@ This example uses Python code.
   <Tab title="AWS">
 
     Note that the `S3Bucket` block is not the same as the `S3` block that ships with Prefect. 
-    The `S3Bucket` block used in this example is part of the `prefect-aws` library and provides additional functionality. 
+    The `S3Bucket` block used in this example is part of the `prefect-aws` library and provides additional capabilities. 
 
     Next, reference the credentials block created above.
 
@@ -177,14 +176,14 @@ This example uses Python code.
   <Tab title="Azure">
 
     Note that the `AzureBlobStorageCredentials` block is not the same as the Azure block that ships with Prefect. 
-    The `AzureBlobStorageCredentials` block used in this example is part of the `prefect-azure` library and provides additional functionality. 
+    The `AzureBlobStorageCredentials` block used in this example is part of the `prefect-azure` library and provides additional capabilities. 
 
     Azure blob storage doesn't require a separate block. The connection string used in the `AzureBlobStorageCredentials` block can encode the information needed. 
   </Tab>
   <Tab title="GCP">
 
     Note that the `GcsBucket` block is not the same as the `GCS` block that ships with Prefect. 
-    The `GcsBucket` block is part of the `prefect-gcp` library and provides additional functionality.
+    The `GcsBucket` block is part of the `prefect-gcp` library and provides additional capabilities.
 
     Next, reference the credentials block created above.
 
@@ -348,7 +347,7 @@ Use your block to read data from your cloud provider inside a flow.
 
 ## Next steps
 
-Check out the [`prefect-aws`](/ntegrations/prefect-aws/), [`prefect-azure`](/integrations/prefect-azure/), and [`prefect-gcp`](/integrations/prefect-gcp/) docs to see additional methods for interacting with cloud storage providers.
+Check out the [`prefect-aws`](/integrations/prefect-aws/), [`prefect-azure`](/integrations/prefect-azure/), and [`prefect-gcp`](/integrations/prefect-gcp/) docs to see additional methods for interacting with cloud storage providers.
 Each library also contains blocks for interacting with other cloud-provider services.
 
 

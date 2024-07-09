@@ -3,9 +3,7 @@ title: Cancel flow runs
 description: Learn the different ways to cancel a flow run.
 ---
 
-## Cancel a flow run
-
-You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client.
+You can cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client.
 
 When requesting cancellation, the flow run moves to a "Cancelling" state.
 If the deployment is a work pool-based deployment with a worker, then the worker monitors 
@@ -15,12 +13,13 @@ If the run does not terminate after a grace period (default of 30 seconds), the 
 
 <Warning>
 **A deployment is required**
+
 Flow run cancellation requires that the flow run is associated with a deployment.
 A monitoring process must be running to enforce the cancellation.
 
 Inline nested flow runs (those created without `run_deployment`), cannot be cancelled without cancelling the parent flow run.
 To cancel a nested flow run independent of its parent flow run, we recommend deploying it separately 
-and starting it using the [run_deployment](/3.0rc/deploy/serve-flows/deploy-a-flow) 
+and starting it using the [run_deployment](/3.0rc/deploy/index) 
 function.
 </Warning>
 
@@ -56,11 +55,9 @@ depending on where the error occurred. The worker will try again to cancel the f
 From the command line in your execution environment, you can cancel a flow run by using the 
 `prefect flow-run cancel` CLI command, passing the ID of the flow run.
 
-<div class="terminal">
 ```bash
 prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 ```
-</div>
 
 ### Cancel through the UI
 
