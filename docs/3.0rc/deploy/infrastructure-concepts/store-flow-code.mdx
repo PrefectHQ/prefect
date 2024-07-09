@@ -33,7 +33,7 @@ Select "y" to be prompted to confirm the URL of your git repository and the bran
 ```bash
 ? Your Prefect workers will need access to this flow's code to run it. 
 Would you like your workers to pull your flow code from its remote repository when running this flow? [y/n] (y): 
-? Is https://github.com/my_username/my_repo.git the correct URL to pull your flow code from? [y/n] (y): 
+? Is https://github.com/some_username/some_repo.git the correct URL to pull your flow code from? [y/n] (y): 
 ? Is main the correct branch to pull your flow code from? [y/n] (y): 
 ? Is this a private repository? [y/n]: y
 ```
@@ -47,11 +47,11 @@ This token is saved to an encrypted Prefect Secret block.
 
 ```bash
 ? Please enter a token that can be used to access your private repository. 
-This token will be saved as a Secret block via the Prefect API: "123_abc_this_is_my_token"
+This token will be saved as a Secret block via the Prefect API: "123_abc_this_is_some_token"
 ```
 
 Verify that you have a new Secret block in your active workspace named in the format 
-"deployment-my-deployment-my-flow-name-repo-token".
+"deployment-some-deployment-some-flow-name-repo-token".
 
 Creating access tokens differs for each provider.
 
@@ -73,7 +73,7 @@ Creating access tokens differs for each provider.
     You can create a Repository Access Token with Scopes -> Repositories -> Read.
 
     Bitbucket requires you prepend the token string with `x-token-auth:` The full string looks like 
-    `x-token-auth:abc_123_this_is_my_token`. 
+    `x-token-auth:abc_123_this_is_a_token`. 
   </Tab>
   <Tab title="GitLab">
 
@@ -90,8 +90,8 @@ reference it in your `prefect.yaml` file.
 
 pull:
     - prefect.deployments.steps.git_clone:
-        repository: https://gitlab.com/org/my-private-repo.git
-        access_token: "{{ prefect.blocks.secret.my-block-name }}"
+        repository: https://gitlab.com/org/some-private-repo.git
+        access_token: "{{ prefect.blocks.secret.some-block-name }}"
 ```
 
 Alternatively, you can create a Credentials block ahead of time and reference it in the `prefect.yaml` pull step.
@@ -107,8 +107,8 @@ Alternatively, you can create a Credentials block ahead of time and reference it
 
     pull:
         - prefect.deployments.steps.git_clone:
-            repository: https://github.com/org/my-private-repo.git
-            credentials: "{{ prefect.blocks.github-credentials.my-block-name }}"
+            repository: https://github.com/org/some-private-repo.git
+            credentials: "{{ prefect.blocks.github-credentials.some-block-name }}"
     ```
   </Tab>  
   <Tab title="Bitbucket">
@@ -122,8 +122,8 @@ Alternatively, you can create a Credentials block ahead of time and reference it
 
     pull:
         - prefect.deployments.steps.git_clone:
-            repository: https://bitbucket.org/org/my-private-repo.git
-            credentials: "{{ prefect.blocks.bitbucket-credentials.my-block-name }}"
+            repository: https://bitbucket.org/org/some-private-repo.git
+            credentials: "{{ prefect.blocks.bitbucket-credentials.some-block-name }}"
     ```
   </Tab>
 <Tab title="GitLab">
@@ -136,8 +136,8 @@ Alternatively, you can create a Credentials block ahead of time and reference it
 
     pull:
         - prefect.deployments.steps.git_clone:
-            repository: https://gitlab.com/org/my-private-repo.git
-            credentials: "{{ prefect.blocks.gitlab-credentials.my-block-name }}"
+            repository: https://gitlab.com/org/some-private-repo.git
+            credentials: "{{ prefect.blocks.gitlab-credentials.some-block-name }}"
     ```
   </Tab>
 </Tabs>
@@ -189,9 +189,9 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
     - prefect_aws.deployments.steps.push_to_s3:
         id: push_code
         requires: prefect-aws>=0.3.4
-        bucket: my-bucket
-        folder: my-folder
-        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
+        bucket: some-bucket
+        folder: some-folder
+        credentials: "{{ prefect.blocks.aws-credentials.some-credentials-block }}" # if private
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -200,7 +200,7 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
         requires: prefect-aws>=0.3.4
         bucket: '{{ push_code.bucket }}'
         folder: '{{ push_code.folder }}'
-        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private 
+        credentials: "{{ prefect.blocks.aws-credentials.some-credentials-block }}" # if private 
     ``` 
 
     If the bucket requires authentication to access it, you can do the following:
@@ -225,9 +225,9 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
     - prefect_azure.deployments.steps.push_to_azure_blob_storage:
         id: push_code
         requires: prefect-azure>=0.2.8
-        container: my-prefect-azure-container
-        folder: my-folder
-        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if private
+        container: some-prefect-azure-container
+        folder: some-folder
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.some-credentials-block }}" # if private
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -236,7 +236,7 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
         requires: prefect-azure>=0.2.8
         container: '{{ push_code.container }}'
         folder: '{{ push_code.folder }}'
-        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if private
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.some-credentials-block }}" # if private
     ```
     If the blob requires authentication to access it, follow these steps:
 
@@ -260,9 +260,9 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
     - prefect_gcp.deployment.steps.push_to_gcs:
         id: push_code
         requires: prefect-gcp>=0.4.3
-        bucket: my-bucket
-        folder: my-folder
-        credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if private 
+        bucket: some-bucket
+        folder: some-folder
+        credentials: "{{ prefect.blocks.gcp-credentials.some-credentials-block }}" # if private 
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -271,7 +271,7 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
         requires: prefect-gcp>=0.4.3
         bucket: '{{ push_code.bucket }}'
         folder: '{{ pull_code.folder }}'
-        credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if private 
+        credentials: "{{ prefect.blocks.gcp-credentials.some-credentials-block }}" # if private 
     ```
     
     If the bucket requires authentication to access it, follow these steps:
@@ -301,7 +301,7 @@ Alternatively, you can inject environment variables into your deployment. See th
     - prefect_gcp.deployment.steps.push_to_gcs:
         id: push_code
         requires: prefect-gcp>=0.4.3
-        bucket: my-bucket
+        bucket: some-bucket
         folder: '{{ $CUSTOM_FOLDER }}'
 ```
 
