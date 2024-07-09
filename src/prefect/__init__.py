@@ -25,25 +25,13 @@ __ui_static_path__ = __module_path__ / "server" / "ui"
 del _version, pathlib
 
 if TYPE_CHECKING:
-    from .main import (
-        allow_failure,
-        flow,
-        Flow,
-        get_client,
-        get_run_logger,
-        Manifest,
-        State,
-        tags,
-        task,
-        Task,
-        Transaction,
-        unmapped,
-        serve,
-        deploy,
-        pause_flow_run,
-        resume_flow_run,
-        suspend_flow_run,
-    )
+    from .logging import get_run_logger
+    from .utilities.annotations import allow_failure, unmapped
+    from .client.orchestration import get_client
+    from .main import Flow, flow, State, tags, Task, task, Transaction, serve
+    from .deployments import deploy
+    from .manifests import Manifest
+    from .flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 
 _slots: dict[str, Any] = {
     "__version_info__": __version_info__,
@@ -55,23 +43,23 @@ _slots: dict[str, Any] = {
 }
 
 _public_api: dict[str, tuple[str, str]] = {
-    "allow_failure": (__spec__.parent, ".main"),
+    "allow_failure": (__spec__.parent, ".utilities.annotations"),
     "flow": (__spec__.parent, ".main"),
     "Flow": (__spec__.parent, ".main"),
-    "get_client": (__spec__.parent, ".main"),
-    "get_run_logger": (__spec__.parent, ".main"),
-    "Manifest": (__spec__.parent, ".main"),
+    "get_client": (__spec__.parent, ".client.orchestration"),
+    "get_run_logger": (__spec__.parent, ".logging"),
+    "Manifest": (__spec__.parent, ".manifests"),
     "State": (__spec__.parent, ".main"),
     "tags": (__spec__.parent, ".main"),
     "task": (__spec__.parent, ".main"),
     "Task": (__spec__.parent, ".main"),
     "Transaction": (__spec__.parent, ".main"),
-    "unmapped": (__spec__.parent, ".main"),
+    "unmapped": (__spec__.parent, ".utilities.annotations"),
     "serve": (__spec__.parent, ".main"),
-    "deploy": (__spec__.parent, ".main"),
-    "pause_flow_run": (__spec__.parent, ".main"),
-    "resume_flow_run": (__spec__.parent, ".main"),
-    "suspend_flow_run": (__spec__.parent, ".main"),
+    "deploy": (__spec__.parent, ".deployments"),
+    "pause_flow_run": (__spec__.parent, ".flow_runs"),
+    "resume_flow_run": (__spec__.parent, ".flow_runs"),
+    "suspend_flow_run": (__spec__.parent, ".flow_runs"),
 }
 
 # Declare API for type-checkers
