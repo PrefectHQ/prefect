@@ -1,0 +1,29 @@
+from fastapi import Body
+from pydantic import BaseModel
+
+from prefect.server import models
+from prefect.server.models.task_workers import TaskWorkerResponse
+from prefect.server.utilities.server import PrefectRouter
+
+router = PrefectRouter(prefix="/task_workers", tags=["Task Workers"])
+
+
+class TaskWorkerFilter(BaseModel):
+    task_keys: list[str]
+
+
+@router.post("/filter")
+async def read_task_workers(
+    task_worker_filter: TaskWorkerFilter | None = Body(
+        None, description="The task worker filter"
+    ),
+) -> list[TaskWorkerResponse]:
+    """Read task workers for a workspace. Optionally filter by task keys."""
+
+    if task_worker_filter and task_worker_filter.task_keys:
+        return await models.task_workers.get_workers_for_task_keys(
+            task_keys=task_worker_filter.task_keys,
+        )
+
+    else:
+        return await models.task_workers.get_all_workers()
