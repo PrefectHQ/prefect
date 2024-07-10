@@ -83,5 +83,4 @@ jobs:
             benches/bench_tasks.py 
             --codspeed
             --numprocesses auto
-            --maxprocesses 8
-            --dist worksteal
+            --maxprocesses 6
