@@ -155,10 +155,10 @@ def get_prefect_integrations() -> Dict[str, str]:
 
     integrations = {}
     for dist in distributions():
-        if dist.metadata["Name"].startswith(
-            "prefect-"
-        ) and "prefect.io" in dist.metadata.get("Author-email", ""):
-            integrations[dist.metadata["Name"]] = dist.version
+        if dist.metadata["Name"].startswith("prefect-"):
+            author_email = dist.metadata.get("Author-email", "").strip()
+            if author_email.endswith("@prefect.io>"):
+                integrations[dist.metadata["Name"]] = dist.version
 
     return integrations
 
