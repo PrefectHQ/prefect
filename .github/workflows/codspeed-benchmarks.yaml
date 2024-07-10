@@ -77,10 +77,7 @@ jobs:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
           run: >
-            pytest 
-            benches/bench_cli.py 
-            benches/bench_import.py 
-            benches/bench_tasks.py 
+            pytest benches
             --codspeed
             --numprocesses auto
             --maxprocesses 6
