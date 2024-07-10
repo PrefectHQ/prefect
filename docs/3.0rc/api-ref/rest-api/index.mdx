@@ -1,6 +1,6 @@
 ---
-title: Cloud API Overview
-description: Prefect REST API for interacting with the orchestration engine and Prefect Cloud.
+title: REST API overview
+description: Prefect REST API for interacting with Prefect Cloud & self-hosted Prefect server.
 ---
 
 The Prefect API is organized around REST. It is used for communicating data from clients to a self-hosted Prefect server instance so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
@@ -17,7 +17,7 @@ Prefect Cloud and self-hosted Prefect server each provide a REST API.
 
 You can interact with the Prefect REST API in several ways:
 
-- Create an instance of [`PrefectClient`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
+- Create an instance of [`PrefectClient`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient), which is part of the [Prefect Python SDK](/3.0rc/api-ref/python/).
 - Use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
 - Use an HTTP library in your language of choice
 - Use [curl](https://curl.se/) from the command line 
