@@ -1,5 +1,5 @@
-name: 🐞 Report a bug in Prefect 2.x
-description: Errors and regression reports with complete reproducing test cases and/or stack traces.
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in Prefect
 labels: ["needs:triage", "bug"]
 body:
   - type: markdown
@@ -28,7 +28,7 @@ body:
         3. The **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
 
         4. Additional details that may help us reproduce your issue.
-  
+
   - type: checkboxes
     id: checks
     attributes:
@@ -66,9 +66,8 @@ body:
     attributes:
       label: Error
       description: >
-        Provide the full exception tracebacks.
-        If the message is a warning, run your program with the ``-Werror`` flag:   ``python -Werror my_flow.py``
-      placeholder: "# Copy complete stack trace and error message here, including log output if applicable."
+        Provide the full exception traceback or console error.
+      placeholder: "# Copy complete stack trace and error message here, including log or console output if applicable."
       render: python3
     validations:
       required: false
@@ -88,7 +87,7 @@ body:
   - type: textarea
     attributes:
       label: Additional context
-      description: Add any other context about the problem here.
+      description: Add any other context about the problem here, including screenshots for UI issues.
     validations:
       required: false
 
