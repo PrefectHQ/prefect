@@ -1,19 +1,23 @@
 import subprocess
 
-from pytest_benchmark.fixture import BenchmarkFixture
+import pytest
 
 
-def bench_prefect_help(benchmark: BenchmarkFixture):
-    benchmark(subprocess.check_call(["prefect", "--help"]))
+@pytest.mark.benchmark
+def bench_prefect_help():
+    subprocess.check_call(["prefect", "--help"])
 
 
-def bench_prefect_version(benchmark: BenchmarkFixture):
-    benchmark(subprocess.check_call(["prefect", "version"]))
+@pytest.mark.benchmark
+def bench_prefect_version():
+    subprocess.check_call(["prefect", "version"])
 
 
-def bench_prefect_short_version(benchmark: BenchmarkFixture):
-    benchmark(subprocess.check_call(["prefect", "--version"]))
+@pytest.mark.benchmark
+def bench_prefect_short_version():
+    subprocess.check_call(["prefect", "--version"])
 
 
-def bench_prefect_profile_ls(benchmark: BenchmarkFixture):
-    benchmark(subprocess.check_call(["prefect", "profile", "ls"]))
+@pytest.mark.benchmark
+def bench_prefect_profile_ls():
+    subprocess.check_call(["prefect", "profile", "ls"])

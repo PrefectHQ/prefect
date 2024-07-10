@@ -1,7 +1,8 @@
 import subprocess
 
-from pytest_benchmark.fixture import BenchmarkFixture
+import pytest
 
 
-def bench_import_prefect(benchmark: BenchmarkFixture):
-    benchmark(subprocess.check_call(["python", "-c", "import prefect"]))
+@pytest.mark.benchmark
+def bench_import_prefect():
+    subprocess.check_call(["python", "-c", "import prefect"])
