@@ -1,7 +1,6 @@
 import time
 from collections import defaultdict
 from typing import Dict, List, Set
-from venv import logger
 
 from cachetools import TTLCache
 from pydantic import BaseModel
@@ -70,7 +69,6 @@ class InMemoryTaskWorkerTracker:
 
     async def get_all_workers(self) -> List[TaskWorkerResponse]:
         all_workers = set(self.workers.keys()) | self.active_connections
-        logger.error(f"All workers: {all_workers}")
         return [self._create_worker_response(worker_id) for worker_id in all_workers]
 
     def _create_worker_response(self, worker_id: WorkerId) -> TaskWorkerResponse:

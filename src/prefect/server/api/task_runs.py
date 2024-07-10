@@ -276,7 +276,6 @@ async def set_task_run_state(
 
 @router.websocket("/subscriptions/scheduled")
 async def scheduled_task_subscription(websocket: WebSocket):
-    logger.error("Subscribing to scheduled task runs")
     websocket = await subscriptions.accept_prefect_socket(websocket)
     if not websocket:
         return
