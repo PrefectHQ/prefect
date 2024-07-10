@@ -58,7 +58,6 @@ jobs:
           path: ~/.cache/uv
           key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-
       - name: Install packages
         run: |
           python -m pip install -U uv
@@ -77,4 +76,8 @@ jobs:
         env:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
-          run: pytest benches/ --codspeed -n 6
+          run: >
+            pytest benches
+            --numprocesses auto
+            --maxprocesses 8
+            --dist worksteal
