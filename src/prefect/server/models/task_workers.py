@@ -27,9 +27,8 @@ class InMemoryTaskWorkerTracker:
         task_keys: List[TaskKey],
         worker_id: WorkerId,
     ) -> None:
-        now = time.monotonic()
         self.workers[worker_id] = self.workers.get(worker_id, set()) | set(task_keys)
-        self.worker_timestamps[worker_id] = now
+        self.worker_timestamps[worker_id] = time.monotonic()
 
         for task_key in task_keys:
             self.task_keys[task_key].add(worker_id)
