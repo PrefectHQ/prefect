@@ -1,4 +1,6 @@
 import asyncio
+import os
+import socket
 from collections import Counter
 from contextlib import contextmanager
 from typing import Generator, List
@@ -24,6 +26,11 @@ def reset_task_queues() -> Generator[None, None, None]:
     yield
 
     task_runs.TaskQueue.reset()
+
+
+@pytest.fixture
+def client_id() -> str:
+    return f"{socket.gethostname()}-{os.getpid()}"
 
 
 def auth_dance(socket: WebSocketTestSession):
@@ -66,8 +73,8 @@ def drain(
 
 
 @pytest.fixture
-async def taskA_run1(reset_task_queues) -> TaskRun:
-    queued = TaskRun(
+async def taskA_run1(reset_task_queues) -> ServerTaskRun:
+    queued = ServerTaskRun(
         id=uuid4(),
         flow_run_id=None,
         task_key="mytasks.taskA",
@@ -77,9 +84,11 @@ async def taskA_run1(reset_task_queues) -> TaskRun:
     return queued
 
 
-def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun):
+def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun, client_id: str):
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
+        socket.send_json(
+            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
+        )
 
         (received,) = drain(socket)
 
@@ -87,8 +96,8 @@ def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun):
 
 
 @pytest.fixture
-async def taskA_run2(reset_task_queues) -> TaskRun:
-    queued = TaskRun(
+async def taskA_run2(reset_task_queues) -> ServerTaskRun:
+    queued = ServerTaskRun(
         id=uuid4(),
         flow_run_id=None,
         task_key="mytasks.taskA",
@@ -99,10 +108,12 @@ async def taskA_run2(reset_task_queues) -> TaskRun:
 
 
 def test_acknowledging_between_each_run(
-    app: FastAPI, taskA_run1: TaskRun, taskA_run2: TaskRun
+    app: FastAPI, taskA_run1: TaskRun, taskA_run2: TaskRun, client_id: str
 ):
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
+        socket.send_json(
+            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
+        )
 
         (first, second) = drain(socket, 2)
 
@@ -114,7 +125,7 @@ def test_acknowledging_between_each_run(
 @pytest.fixture
 async def mixed_bag_of_tasks(reset_task_queues) -> None:
     await task_runs.TaskQueue.enqueue(
-        TaskRun(
+        TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
             task_key="mytasks.taskA",
@@ -123,7 +134,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
     )
 
     await task_runs.TaskQueue.enqueue(
-        TaskRun(
+        TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
             task_key="mytasks.taskA",
@@ -133,7 +144,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
 
     # this one should not be delivered
     await task_runs.TaskQueue.enqueue(
-        TaskRun(
+        TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
             task_key="nope.not.this.one",
@@ -142,7 +153,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
     )
 
     await task_runs.TaskQueue.enqueue(
-        TaskRun(
+        TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
             task_key="other_tasks.taskB",
@@ -153,11 +164,16 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
 
 def test_server_only_delivers_tasks_for_subscribed_keys(
     app: FastAPI,
-    mixed_bag_of_tasks,
+    mixed_bag_of_tasks: List[TaskRun],
+    client_id: str,
 ):
     with authenticated_socket(app) as socket:
         socket.send_json(
-            {"type": "subscribe", "keys": ["mytasks.taskA", "other_tasks.taskB"]}
+            {
+                "type": "subscribe",
+                "keys": ["mytasks.taskA", "other_tasks.taskB"],
+                "client_id": client_id,
+            }
         )
 
         received = drain(socket, 3)
@@ -169,10 +185,10 @@ def test_server_only_delivers_tasks_for_subscribed_keys(
 
 
 @pytest.fixture
-async def ten_task_A_runs(reset_task_queues) -> List[TaskRun]:
-    queued: List[TaskRun] = []
+async def ten_task_A_runs(reset_task_queues) -> List[ServerTaskRun]:
+    queued: List[ServerTaskRun] = []
     for _ in range(10):
-        run = TaskRun(
+        run = ServerTaskRun(
             id=uuid4(),
             flow_run_id=None,
             task_key="mytasks.taskA",
@@ -184,14 +200,18 @@ async def ten_task_A_runs(reset_task_queues) -> List[TaskRun]:
 
 
 def test_only_one_socket_gets_each_task_run(
-    app: FastAPI, ten_task_A_runs: List[TaskRun]
+    app: FastAPI, ten_task_A_runs: List[TaskRun], client_id: str
 ):
     received1: List[TaskRun] = []
     received2: List[TaskRun] = []
 
     with authenticated_socket(app) as first, authenticated_socket(app) as second:
-        first.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
-        second.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
+        first.send_json(
+            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
+        )
+        second.send_json(
+            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
+        )
 
         for i in range(5):
             received1 += drain(first, 1, quit=(i == 4))
@@ -216,9 +236,13 @@ def test_only_one_socket_gets_each_task_run(
     assert received_ids.issubset(queued_ids)
 
 
-def test_server_redelivers_unacknowledged_runs(app: FastAPI, taskA_run1: TaskRun):
+def test_server_redelivers_unacknowledged_runs(
+    app: FastAPI, taskA_run1: TaskRun, client_id: str
+):
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
+        socket.send_json(
+            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
+        )
 
         received = socket.receive_json()
         assert received["id"] == str(taskA_run1.id)
@@ -227,14 +251,18 @@ def test_server_redelivers_unacknowledged_runs(app: FastAPI, taskA_run1: TaskRun
         socket.close()
 
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
+        socket.send_json(
+            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
+        )
 
         (received,) = drain(socket)
         assert received.id == taskA_run1.id
 
 
 @pytest.fixture
-async def preexisting_runs(session: AsyncSession, reset_task_queues) -> List[TaskRun]:
+async def preexisting_runs(
+    session: AsyncSession, reset_task_queues
+) -> List[ServerTaskRun]:
     stored_runA = ServerTaskRun.model_validate(
         await models.task_runs.create_task_run(
             session,
@@ -267,9 +295,12 @@ async def preexisting_runs(session: AsyncSession, reset_task_queues) -> List[Tas
 def test_server_restores_scheduled_task_runs_at_startup(
     app: FastAPI,
     preexisting_runs: List[TaskRun],
+    client_id: str,
 ):
     with authenticated_socket(app) as socket:
-        socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})
+        socket.send_json(
+            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
+        )
 
         received = drain(socket, expecting=len(preexisting_runs))
 
@@ -288,7 +319,7 @@ class TestQueueLimit:
         queue = task_runs.TaskQueue.for_key(task_key)
 
         for _ in range(max_scheduled_size):
-            task_run = TaskRun(
+            task_run = ServerTaskRun(
                 id=uuid4(),
                 flow_run_id=None,
                 task_key=task_key,
@@ -299,7 +330,7 @@ class TestQueueLimit:
         with patch("asyncio.sleep", return_value=None), pytest.raises(
             asyncio.TimeoutError
         ):
-            extra_task_run = TaskRun(
+            extra_task_run = ServerTaskRun(
                 id=uuid4(),
                 flow_run_id=None,
                 task_key=task_key,
@@ -321,7 +352,7 @@ class TestQueueLimit:
 
         queue = task_runs.TaskQueue.for_key(task_key)
 
-        task_run = TaskRun(
+        task_run = ServerTaskRun(
             id=uuid4(), flow_run_id=None, task_key=task_key, dynamic_key=f"{task_key}-1"
         )
         await queue.retry(task_run)
@@ -329,7 +360,7 @@ class TestQueueLimit:
         with patch("asyncio.sleep", return_value=None), pytest.raises(
             asyncio.TimeoutError
         ):
-            extra_task_run = TaskRun(
+            extra_task_run = ServerTaskRun(
                 id=uuid4(),
                 flow_run_id=None,
                 task_key=task_key,

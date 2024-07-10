@@ -1,5 +1,7 @@
 import time
-from typing import Dict, List
+from collections import defaultdict
+from typing import Dict, List, Set
+from venv import logger
 
 from cachetools import TTLCache
 from pydantic import BaseModel
@@ -24,10 +26,12 @@ class InMemoryTaskWorkerTracker:
         maxsize: int = 1000,
         ttl: float = PREFECT_TASK_WORKER_ACTIVITY_TIMEOUT.value(),
     ):
-        self.workers: TTLCache[WorkerId, set[TaskKey]] = TTLCache(
+        self.workers: TTLCache[WorkerId, Set[TaskKey]] = TTLCache(
             maxsize=maxsize, ttl=ttl
         )
-        self.task_keys: Dict[TaskKey, Dict[WorkerId, float]] = {}
+        self.task_keys: Dict[TaskKey, Set[WorkerId]] = defaultdict(set)
+        self.worker_timestamps: Dict[WorkerId, float] = {}
+        self.active_connections: Set[WorkerId] = set()
 
     async def observe_worker(
         self,
@@ -35,71 +39,55 @@ class InMemoryTaskWorkerTracker:
         worker_id: WorkerId,
     ) -> None:
         now = time.monotonic()
-
-        if worker_id not in self.workers:
-            self.workers[worker_id] = set()
-        self.workers[worker_id].update(task_keys)
+        self.workers[worker_id] = self.workers.get(worker_id, set()) | set(task_keys)
+        self.worker_timestamps[worker_id] = now
+        self.active_connections.add(worker_id)
 
         for task_key in task_keys:
-            if task_key not in self.task_keys:
-                self.task_keys[task_key] = {}
-            self.task_keys[task_key][worker_id] = now
-
-        # Update the TTL for this worker
-        self.workers.__setitem__(worker_id, self.workers[worker_id])
+            self.task_keys[task_key].add(worker_id)
 
     async def forget_worker(
         self,
         worker_id: WorkerId,
     ) -> None:
         if worker_id in self.workers:
-            task_keys = self.workers[worker_id]
-            del self.workers[worker_id]
-
+            task_keys = self.workers.pop(worker_id)
+            self.worker_timestamps.pop(worker_id, None)
             for task_key in task_keys:
-                if task_key in self.task_keys:
-                    self.task_keys[task_key].pop(worker_id, None)
-
-    def _create_worker_response(
-        self, worker_id: WorkerId, task_keys: set[TaskKey]
-    ) -> TaskWorkerResponse:
-        return TaskWorkerResponse(
-            identifier=worker_id,
-            task_keys=list(task_keys),
-            timestamp=DateTime.utcnow(),
-        )
+                self.task_keys[task_key].discard(worker_id)
+                if not self.task_keys[task_key]:
+                    del self.task_keys[task_key]
+        self.active_connections.discard(worker_id)
 
     async def get_workers_for_task_keys(
         self,
         task_keys: List[TaskKey],
     ) -> List[TaskWorkerResponse]:
-        active_workers = set()
-
-        for task_key in task_keys:
-            if task_key in self.task_keys:
-                active_workers.update(
-                    worker_id
-                    for worker_id in self.task_keys[task_key]
-                    if worker_id in self.workers
-                )
-
-        return [
-            self._create_worker_response(worker_id, self.workers[worker_id])
-            for worker_id in active_workers
-        ]
+        active_workers = set.union(*(self.task_keys[key] for key in task_keys)) | set(
+            self.active_connections
+        )
+        return [self._create_worker_response(worker_id) for worker_id in active_workers]
 
     async def get_all_workers(self) -> List[TaskWorkerResponse]:
-        return [
-            self._create_worker_response(worker_id, task_keys)
-            for worker_id, task_keys in self.workers.items()
-        ]
+        all_workers = set(self.workers.keys()) | self.active_connections
+        logger.error(f"All workers: {all_workers}")
+        return [self._create_worker_response(worker_id) for worker_id in all_workers]
+
+    def _create_worker_response(self, worker_id: WorkerId) -> TaskWorkerResponse:
+        return TaskWorkerResponse(
+            identifier=worker_id,
+            task_keys=list(self.workers.get(worker_id, set())),
+            timestamp=DateTime.fromtimestamp(
+                self.worker_timestamps.get(worker_id, time.monotonic())
+            ),
+        )
 
 
 # Global instance of the task worker tracker
 task_worker_tracker = InMemoryTaskWorkerTracker()
 
 
-# API functions
+# main utilities to be used in the API layer
 async def observe_worker(
     task_keys: List[TaskKey],
     worker_id: WorkerId,

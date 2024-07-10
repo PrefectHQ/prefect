@@ -276,6 +276,7 @@ async def set_task_run_state(
 
 @router.websocket("/subscriptions/scheduled")
 async def scheduled_task_subscription(websocket: WebSocket):
+    logger.error("Subscribing to scheduled task runs")
     websocket = await subscriptions.accept_prefect_socket(websocket)
     if not websocket:
         return
@@ -303,41 +304,37 @@ async def scheduled_task_subscription(websocket: WebSocket):
             reason="Protocol violation: expected 'client_id' in subscribe message",
         )
 
-    # Observe the worker in our in-memory tracker
-    await models.task_workers.observe_worker(task_keys, client_id)
-
     subscribed_queue = MultiQueue(task_keys)
 
-    try:
-        while True:
-            try:
-                task_run = await asyncio.wait_for(subscribed_queue.get(), timeout=1)
-            except asyncio.TimeoutError:
-                if not await subscriptions.still_connected(websocket):
-                    return
-                continue
-
-            try:
-                await websocket.send_json(task_run.model_dump(mode="json"))
-
-                acknowledgement = await websocket.receive_json()
-                ack_type = acknowledgement.get("type")
-                if ack_type != "ack":
-                    if ack_type == "quit":
-                        return await websocket.close()
-
-                    raise WebSocketDisconnect(
-                        code=4001, reason="Protocol violation: expected 'ack' message"
-                    )
-
-                # Update the worker's activity in our in-memory tracker
-                await models.task_workers.observe_worker([task_run.task_key], client_id)
-
-            except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-                # If sending fails or pong fails, put the task back into the retry queue
-                await asyncio.shield(
-                    TaskQueue.for_key(task_run.task_key).retry(task_run)
-                )
+    while True:
+        try:
+            await models.task_workers.observe_worker(task_keys, client_id)
+            task_run = await asyncio.wait_for(subscribed_queue.get(), timeout=1)
+        except asyncio.TimeoutError:
+            if not await subscriptions.still_connected(websocket):
                 return
-    finally:
-        await models.task_workers.forget_worker(client_id)
+            continue
+        finally:
+            await models.task_workers.forget_worker(client_id)
+
+        try:
+            await websocket.send_json(task_run.model_dump(mode="json"))
+
+            acknowledgement = await websocket.receive_json()
+            ack_type = acknowledgement.get("type")
+            if ack_type != "ack":
+                if ack_type == "quit":
+                    return await websocket.close()
+
+                raise WebSocketDisconnect(
+                    code=4001, reason="Protocol violation: expected 'ack' message"
+                )
+
+            await models.task_workers.observe_worker([task_run.task_key], client_id)
+
+        except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+            # If sending fails or pong fails, put the task back into the retry queue
+            await asyncio.shield(TaskQueue.for_key(task_run.task_key).retry(task_run))
+            return
+        finally:
+            await models.task_workers.forget_worker(client_id)
