@@ -31,6 +31,6 @@ def bench_task_submit(benchmark: BenchmarkFixture, num_task_runs: int):
 
     @flow
     def benchmark_flow():
-        benchmark.pedantic(noop_task.submit, rounds=num_task_runs)
+        benchmark(noop_task.submit)
 
     benchmark_flow()

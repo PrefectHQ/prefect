@@ -77,4 +77,4 @@ jobs:
         env:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
-          run: pytest benches/ --codspeed
+          run: pytest benches/ --codspeed -n auto
