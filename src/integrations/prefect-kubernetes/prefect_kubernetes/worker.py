@@ -177,7 +177,7 @@ RETRY_MIN_DELAY_JITTER_SECONDS = 0
 RETRY_MAX_DELAY_JITTER_SECONDS = 3
 
 
-class HashableKubernetesClusterConfig(BaseModel):
+class HashableKubernetesClusterConfig(BaseModel, allow_mutation=False):
     """
     A hashable version of the KubernetesClusterConfig class.
     Used for caching.
@@ -189,15 +189,6 @@ class HashableKubernetesClusterConfig(BaseModel):
     context_name: str = Field(
         default=..., description="The name of the kubectl context to use."
     )
-
-    def __hash__(self):
-        """Make the config hashable."""
-        return hash(
-            (
-                hash_objects(self.config),
-                self.context_name,
-            )
-        )
 
 
 @lru_cache(maxsize=8, typed=True)
