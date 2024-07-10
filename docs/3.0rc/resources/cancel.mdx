@@ -5,11 +5,20 @@ description: Learn the different ways to cancel a flow run.
 
 You can cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client.
 
+{/*
+<!-- vale off -->
+*/}
+
 When requesting cancellation, the flow run moves to a "Cancelling" state.
 If the deployment is a work pool-based deployment with a worker, then the worker monitors 
 the state of flow runs and detects that cancellation is requested.
 The worker then sends a signal to the flow run infrastructure, requesting termination of the run.
 If the run does not terminate after a grace period (default of 30 seconds), the infrastructure is killed, ensuring the flow run exits.
+
+
+{/*
+<!-- vale on -->
+*/}
 
 <Warning>
 **A deployment is required**
@@ -31,8 +40,16 @@ Generally, this is composed of two parts:
 - Scope: identifying where the infrastructure is running.
 - ID: a unique identifier for the infrastructure within the scope.
 
+{/*
+<!-- vale off -->
+*/}
+
 The scope ensures that Prefect does not kill the wrong infrastructure.
 For example, workers running on multiple machines may have overlapping process IDs but should not have a matching scope.
+
+{/*
+<!-- vale on -->
+*/}
 
 The identifiers for infrastructure types are:
 

@@ -119,6 +119,10 @@ This new work pool replaces your infrastructure block.
 You can use the [`.publish_as_work_pool`](https://docs.prefect.io/2.19.2/api-ref/prefect/infrastructure/#prefect.infrastructure.Infrastructure.publish_as_work_pool) 
 method on any infrastructure block to create a work pool with the same configuration.
 
+{/*
+<!-- vale off -->
+*/}
+
 For example, if you have a `KubernetesJob` infrastructure block named 'my-k8s-job', you can 
 create a work pool with the same configuration with this script:
 
@@ -129,8 +133,12 @@ from prefect.infrastructure import KubernetesJob
 KubernetesJob.load("my-k8s-job").publish_as_work_pool()
 ```
 
-    Running this script creates a work pool named 'my-k8s-job' with the same configuration 
-    as your infrastructure block.
+Running this script creates a work pool named 'my-k8s-job' with the same configuration as your infrastructure block.
+
+{/*
+<!-- vale on -->
+*/}
+
 
 <Tip>
 **Serving flows**
@@ -323,13 +331,18 @@ if __name__ == "__main__":
         parameters=dict(name="Marvin"),
     )
 ```
+{/*
+<!-- vale off -->
+*/}
 
 <Note>
-When using `flow.from_source(...).deploy(...)` with a remote
-`source` (like a `GitHub` block or `str` URL like https://github.com/me/myrepo.git),
-the flow you're deploying does not need to be available locally before running your script.
+When using `flow.from_source().deploy()` with a remote `source`such as a `GitHub` block or `str` URL like https://github.com/me/myrepo.git), the flow you're deploying doesn't need to be available locally before running your script.
 See the [SDK reference](https://prefect-python-sdk-docs.netlify.app/prefect/#prefect.Flow.from_source) for more info on `from_source`.
 </Note>
+
+{/*
+<!-- vale on -->
+*/}
 
 #### Deploy via a Docker image
 

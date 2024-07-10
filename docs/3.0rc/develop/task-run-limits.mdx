@@ -13,11 +13,19 @@ If a task has multiple tags, it will run only if _all_ tags have available concu
 
 Tags without explicit limits are considered to have unlimited concurrency.
 
+{/*
+<!-- vale off -->
+*/}
+
 <Note>
 **0 concurrency limit aborts task runs**
 
 If the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will abort instead of delay.
 </Note>
+
+{/*
+<!-- vale on -->
+*/}
 
 ### Execution behavior
 
