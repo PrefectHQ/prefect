@@ -45,11 +45,12 @@ from prefect.exceptions import (
     InvalidNameError,
     ParameterTypeError,
     ReservedArgumentError,
+    ScriptError,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import (
     Flow,
-    load_flow_argument_from_entrypoint,
+    load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
 )
 from prefect.runtime import flow_run as flow_run_ctx
@@ -2295,6 +2296,30 @@ def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
     import_object_mock.assert_called_with("my.module.pretend_flow")
 
 
+def test_load_flow_from_entrypoint_script_error_loads_placeholder(tmp_path):
+    flow_code = """
+    from not_a_module import not_a_function
+    from prefect import flow
+    @flow(description="Says woof!")
+    def dog():
+        return "woof!"
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code))
+
+    flow = load_flow_from_entrypoint(f"{fpath}:dog")
+
+    # Since `not_a_module` isn't a real module, loading the flow as python
+    # should fail, and `load_flow_from_entrypoint` should fallback to
+    # returning a placeholder flow with the correct name, description, etc.
+    assert flow.name == "dog"
+    assert flow.description == "Says woof!"
+
+    # But if the flow is called, it should raise the ScriptError
+    with pytest.raises(ScriptError):
+        flow.fn()
+
+
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
@@ -3892,9 +3917,9 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_name_from_entrypoint(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow(name="My custom name")
         def flow_function(name: str) -> str:
             return name
@@ -3905,16 +3930,16 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+        result = load_flow_arguments_from_entrypoint(entrypoint)
 
-        assert result == "My custom name"
+        assert result["name"] == "My custom name"
 
     def test_load_flow_name_from_entrypoint_no_name(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow
         def flow_function(name: str) -> str:
             return name
@@ -3925,9 +3950,9 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+        result = load_flow_arguments_from_entrypoint(entrypoint)
 
-        assert result == "flow-function"
+        assert result["name"] == "flow-function"
 
     def test_load_async_flow_from_entrypoint_no_name(self, tmp_path: Path):
         flow_source = dedent(
@@ -3944,9 +3969,9 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+        result = load_flow_arguments_from_entrypoint(entrypoint)
 
-        assert result == "flow-function"
+        assert result["name"] == "flow-function"
 
     def test_load_flow_name_from_entrypoint_dynamic_name_fstring(self, tmp_path: Path):
         flow_source = dedent(
@@ -3963,9 +3988,9 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+        result = load_flow_arguments_from_entrypoint(entrypoint)
 
-        assert result == "flow-function-1.0"
+        assert result["name"] == "flow-function-1.0"
 
     def test_load_flow_name_from_entrypoint_dyanmic_name_function(self, tmp_path: Path):
         flow_source = dedent(
@@ -3983,9 +4008,9 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+        result = load_flow_arguments_from_entrypoint(entrypoint)
 
-        assert result == "from-a-function"
+        assert result["name"] == "from-a-function"
 
     def test_load_flow_name_from_entrypoint_dynamic_name_depends_on_missing_import(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -4004,17 +4029,17 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+        result = load_flow_arguments_from_entrypoint(entrypoint)
 
-        assert result == "flow-function"
+        assert result["name"] == "flow-function"
         assert "Failed to parse @flow argument: `name=get_name()`" in caplog.text
 
     def test_load_flow_description_from_entrypoint(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow(description="My custom description")
         def flow_function(name: str) -> str:
             return name
@@ -4025,16 +4050,16 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        result = load_flow_argument_from_entrypoint(entrypoint, "description")
+        result = load_flow_arguments_from_entrypoint(entrypoint)
 
-        assert result == "My custom description"
+        assert result["description"] == "My custom description"
 
     def test_load_flow_description_from_entrypoint_no_description(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow
         def flow_function(name: str) -> str:
             return name
@@ -4045,14 +4070,14 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        result = load_flow_argument_from_entrypoint(entrypoint, "description")
+        result = load_flow_arguments_from_entrypoint(entrypoint)
 
-        assert result is None
+        assert "description" not in result
 
     def test_load_no_flow(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
         """
         )
@@ -4062,4 +4087,4 @@ class TestLoadFlowArgumentFromEntrypoint:
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
         with pytest.raises(ValueError, match="Could not find flow"):
-            load_flow_argument_from_entrypoint(entrypoint, "name")
+            load_flow_arguments_from_entrypoint(entrypoint)
