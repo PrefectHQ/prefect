@@ -105,9 +105,13 @@ def prefect_test_harness():
 
     Examples:
         >>> from prefect import flow
+        >>> from prefect.testing.utilities import prefect_test_harness
+        >>>
+        >>>
         >>> @flow
         >>> def my_flow():
         >>>     return 'Done!'
+        >>>
         >>> with prefect_test_harness():
         >>>     assert my_flow() == 'Done!' # run against temporary db
     """
