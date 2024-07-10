@@ -39,6 +39,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
+    PREFECT_UI_URL,
     temporary_settings,
 )
 from prefect.states import State
@@ -486,6 +487,38 @@ class TestTaskCall:
                 @staticmethod
                 def bar():
                     pass
+
+    def test_returns_when_cache_result_in_memory_is_false_sync_task(self):
+        @task(cache_result_in_memory=False)
+        def my_task():
+            return 42
+
+        assert my_task() == 42
+
+    async def test_returns_when_cache_result_in_memory_is_false_async_task(self):
+        @task(cache_result_in_memory=False)
+        async def my_task():
+            return 42
+
+        assert await my_task() == 42
+
+    def test_raises_correct_error_when_cache_result_in_memory_is_false_sync_task(self):
+        @task(cache_result_in_memory=False)
+        def my_task():
+            raise ValueError("Test")
+
+        with pytest.raises(ValueError, match="Test"):
+            my_task()
+
+    async def test_raises_correct_error_when_cache_result_in_memory_is_false_async_task(
+        self,
+    ):
+        @task(cache_result_in_memory=False)
+        async def my_task():
+            raise ValueError("Test")
+
+        with pytest.raises(ValueError, match="Test"):
+            await my_task()
 
 
 class TestTaskRun:
@@ -4946,6 +4979,16 @@ class TestApplyAsync:
             "x": [TaskRunResult(id=task_run_id)],
             "y": [],
         }
+
+    def test_apply_async_emits_run_ui_url(self, caplog):
+        @task
+        def add(x, y):
+            return x + y
+
+        with temporary_settings({PREFECT_UI_URL: "http://test/api"}):
+            add.apply_async((42, 42))
+
+        assert "in the UI at 'http://test/api/runs/task-run/" in caplog.text
 
 
 class TestDelay:

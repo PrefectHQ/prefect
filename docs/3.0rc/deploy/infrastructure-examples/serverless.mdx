@@ -1,9 +1,9 @@
 ---
-title: Push work to serverless computing infrastructure
+title: Run flows on serverless compute
 description: Learn how to use Prefect push work pools to schedule work on serverless infrastructure without having to run a worker.
 ---
 
-Push [work pools](/3.0rc/deploy/control-runs/work-pools/) are a special type of work pool. They allow 
+Push [work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) are a special type of work pool. They allow 
 Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without requiring you to run a worker.
 Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, and Modal.
 
@@ -303,26 +303,26 @@ run this command for your particular cloud provider:
         While the default namespace is set, any images you build without specifying a registry or username/organization 
         are pushed to the registry.
 
-        To use this functionality, write your deploy scripts like this:
+        To use this capability, write your deploy scripts like this:
 
         ```python example_deploy_script.py
-        from prefect import flow                                                       
+        from prefect import flow
         from prefect.docker import DockerImage                                
 
 
         @flow(log_prints=True)                                                         
-        def my_flow(name: str = "world"):                                              
+        def my_flow(name: str = "world"):
             print(f"Hello {name}! I'm a flow running on an Azure Container Instance!") 
 
 
-        if __name__ == "__main__":                                                     
+        if __name__ == "__main__":
             my_flow.deploy(                                                            
                 name="my-deployment",
-                work_pool_name="my-work-pool",                                                
+                work_pool_name="my-work-pool",                                    
                 image=DockerImage(                                                 
-                    name="my-image:latest",                                            
+                    name="my-image:latest",                                       
                     platform="linux/amd64",                                            
-                )                                                                      
+                )                                                                 
             )       
         ```
 
@@ -330,89 +330,89 @@ run this command for your particular cloud provider:
   </Tab>
   <Tab title="Google Cloud Run">
 
-    ```bash
-    prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool 
-    ```
+```bash
+prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool 
+```
 
-    The `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically 
-    configures it to execute flows through Cloud Run.
-    In your GCP project, this command activates the Cloud Run API, creates a service account, and creates a key for the 
-    service account, (if they don't already exist).
-    In your Prefect workspace, this command creates a 
-    [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) to store the service account key.
+The `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically 
+configures it to execute flows through Cloud Run.
+In your GCP project, this command activates the Cloud Run API, creates a service account, and creates a key for the 
+service account, (if they don't already exist).
+In your Prefect workspace, this command creates a 
+[`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) to store the service account key.
 
-    Here's an abbreviated example output from running the command:
+Here's an abbreviated example output from running the command:
 
-    ```bash
-    ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-    │ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                           │
-    │                                                                                                          │
-    │     Updates in GCP project central-kit-405415 in region us-central1                                      │
-    │                                                                                                          │
-    │         - Activate the Cloud Run API for your project                                                    │
-    │         - Activate the Artifact Registry API for your project                                            │
-    │         - Create an Artifact Registry repository named prefect-images                                    │
-    │         - Create a service account for managing Cloud Run jobs: prefect-cloud-run                        │
-    │             - Service account will be granted the following roles:                                       │
-    │                 - Service Account User                                                                   │
-    │                 - Cloud Run Developer                                                                    │
-    │         - Create a key for service account prefect-cloud-run                                             │
-    │                                                                                                          │
-    │     Updates in Prefect workspace                                                                         │
-    │                                                                                                          │
-    │         - Create GCP credentials block my--pool-push-pool-credentials to store the service account key   │
-    │                                                                                                          │
-    ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    Proceed with infrastructure provisioning? [y/n]: y
-    Activating Cloud Run API
-    Activating Artifact Registry API
-    Creating Artifact Registry repository
-    Configuring authentication to Artifact Registry
-    Setting default Docker build namespace
-    Creating service account
-    Assigning roles to service account
-    Creating service account key
-    Creating GCP credentials block
-    Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
-    Infrastructure successfully provisioned!
-    Created work pool 'my-cloud-run-pool'!
-    ```
+```bash
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                           │
+│                                                                                                          │
+│     Updates in GCP project central-kit-405415 in region us-central1                                      │
+│                                                                                                          │
+│         - Activate the Cloud Run API for your project                                                    │
+│         - Activate the Artifact Registry API for your project                                            │
+│         - Create an Artifact Registry repository named prefect-images                                    │
+│         - Create a service account for managing Cloud Run jobs: prefect-cloud-run                        │
+│             - Service account will be granted the following roles:                                       │
+│                 - Service Account User                                                                   │
+│                 - Cloud Run Developer                                                                    │
+│         - Create a key for service account prefect-cloud-run                                             │
+│                                                                                                          │
+│     Updates in Prefect workspace                                                                         │
+│                                                                                                          │
+│         - Create GCP credentials block my--pool-push-pool-credentials to store the service account key   │
+│                                                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+Proceed with infrastructure provisioning? [y/n]: y
+Activating Cloud Run API
+Activating Artifact Registry API
+Creating Artifact Registry repository
+Configuring authentication to Artifact Registry
+Setting default Docker build namespace
+Creating service account
+Assigning roles to service account
+Creating service account key
+Creating GCP credentials block
+Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Infrastructure successfully provisioned!
+Created work pool 'my-cloud-run-pool'!
+```
 
-    <Tip>
-    **Default Docker build namespace**
+<Tip>
+**Default Docker build namespace**
 
-        After infrastructure provisioning completes, you are logged into your new Artifact Registry repository 
-        and the default Docker build namespace is set to the URL of the repository.
-    </Tip>
+    After infrastructure provisioning completes, you are logged into your new Artifact Registry repository 
+    and the default Docker build namespace is set to the URL of the repository.
+</Tip>
 
-        While the default namespace is set, any images you build without specifying a registry or username/organization 
-        are pushed to the repository.
+    While the default namespace is set, any images you build without specifying a registry or username/organization 
+    are pushed to the repository.
 
-        To use this functionality, write your deploy scripts like this:
+    To use this capability, write your deploy scripts like this:
 
-        ```python example_deploy_script.py
-        from prefect import flow                                                       
-        from prefect.docker import DockerImage                                
-
-
-        @flow(log_prints=True)
-        def my_flow(name: str = "world"):
-            print(f"Hello {name}! I'm a flow running on Cloud Run!")
+    ```python example_deploy_script.py
+    from prefect import flow                                                       
+    from prefect.docker import DockerImage                                
 
 
-        if __name__ == "__main__":                                                     
-            my_flow.deploy(                                                            
-                name="my-deployment",
-                work_pool_name="above-ground",
-                image=DockerImage(
-                    name="my-image:latest",
-                    platform="linux/amd64",
-                )
+    @flow(log_prints=True)
+    def my_flow(name: str = "world"):
+        print(f"Hello {name}! I'm a flow running on Cloud Run!")
+
+
+    if __name__ == "__main__":                                                     
+        my_flow.deploy(                                                            
+            name="my-deployment",
+            work_pool_name="above-ground",
+            image=DockerImage(
+                name="my-image:latest",
+                platform="linux/amd64",
             )
-        ```
+        )
+    ```
 
-        This builds an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` 
-        and pushes it to the repository.
+    This builds an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` 
+    and pushes it to the repository.
   </Tab>
   <Tab title="Modal">
 
@@ -617,7 +617,7 @@ Click **Create** to configure your push work pool by selecting a push option in 
   <Tab title="AWS ECS">
 
     Each step has several optional fields that are detailed in the
-     [work pools documentation](/3.0rc/deploy/control-runs/work-pools/). 
+     [work pools documentation](/3.0rc/deploy/infrastructure-concepts/work-pools/). 
     Select the block you created under the AWS Credentials field. 
     This allows Prefect Cloud to securely interact with your ECS cluster.
  </Tab>
@@ -628,15 +628,15 @@ Click **Create** to configure your push work pool by selecting a push option in 
  </Tab>
  <Tab title="Google Cloud Run">
 
-    Each step has several optional fields that are detailed in the 
-    [work pools guide](/3.0rc/deploy/control-runs/work-pools/). 
+    Each step has several optional fields that are detailed in
+    [Manage infrastructure with work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/). 
     Select the block you created under the GCP Credentials field. 
     This allows Prefect Cloud to securely interact with your GCP project.
  </Tab>
  <Tab title="Modal">
 
     Each step has several optional fields that are detailed in the 
-    [work pools documentation](/3.0rc/deploy/control-runs/work-pools/). 
+    [work pools documentation](/3.0rc/deploy/infrastructure-concepts/work-pools/). 
     Select the block you created under the Modal Credentials field. 
     This allows Prefect Cloud to securely interact with your Modal account.
  </Tab>
@@ -645,7 +645,7 @@ Create your pool to be ready to deploy flows to your Push work pool.
 
 ## Deployment
 
-You need to configure your [deployment](/3.0rc/deploy/serve-flows/) to send flow runs to your push work pool.
+You need to configure your [deployment](/3.0rc/deploy/infrastructure-examples/docker/) to send flow runs to your push work pool.
 For example, if you create a deployment through the interactive command line experience, 
 choose the work pool you just created. If you are deploying an existing `prefect.yaml` file, the deployment would contain:
 
@@ -673,7 +673,6 @@ to your serverless infrastructure, created a job, ran the job, and reported on i
 
 ## Next steps
 
-Learn more about [work pools](/3.0rc/deploy/control-runs/work-pools/) and [workers](/3.0rc/deploy/control-runs/workers/).
+Learn more about [work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) and [workers](/3.0rc/deploy/infrastructure-concepts/workers/).
 
-Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploying flows to work 
-pools and workers](/3.0rc/deploy/control-runs/prefect-deploy/#creating-work-pool-based-deployments-with-deploy) guide.
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/3.0rc/deploy/infrastructure-examples/docker#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.

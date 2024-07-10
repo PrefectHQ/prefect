@@ -971,6 +971,29 @@ class Flow(Generic[P, R]):
 
             my_flow()
             ```
+
+            Load a flow from a local directory:
+
+            ``` python
+            # from_local_source.py
+
+            from pathlib import Path
+            from prefect import flow
+
+            @flow(log_prints=True)
+            def my_flow(name: str = "world"):
+                print(f"Hello {name}! I'm a flow from a Python script!")
+
+            if __name__ == "__main__":
+                my_flow.from_source(
+                    source=str(Path(__file__).parent),
+                    entrypoint="from_local_source.py:my_flow",
+                ).deploy(
+                    name="my-deployment",
+                    parameters=dict(name="Marvin"),
+                    work_pool_name="local",
+                )
+            ```
         """
 
         from prefect.runner.storage import (
@@ -999,7 +1022,7 @@ class Flow(Generic[P, R]):
             await storage.pull_code()
 
             full_entrypoint = str(storage.destination / entrypoint)
-            flow: "Flow" = await from_async.wait_for_call_in_new_thread(
+            flow: Flow = await from_async.wait_for_call_in_new_thread(
                 create_call(load_flow_from_entrypoint, full_entrypoint)
             )
             flow._storage = storage
@@ -1126,7 +1149,13 @@ class Flow(Generic[P, R]):
                 )
             ```
         """
-        work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+        if not (
+            work_pool_name := work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+        ):
+            raise ValueError(
+                "No work pool name provided. Please provide a `work_pool_name` or set the"
+                " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
+            )
 
         try:
             async with get_client() as client:
@@ -1925,8 +1954,12 @@ def load_flow_argument_from_entrypoint(
                     literal_arg_value = ast.get_source_segment(
                         source_code, keyword.value
                     )
+                    cleaned_value = (
+                        literal_arg_value.replace("\n", "") if literal_arg_value else ""
+                    )
+
                     try:
-                        evaluated_value = eval(literal_arg_value, namespace)  # type: ignore
+                        evaluated_value = eval(cleaned_value, namespace)  # type: ignore
                     except Exception as e:
                         logger.info(
                             "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
