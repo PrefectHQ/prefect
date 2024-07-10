@@ -11,6 +11,7 @@ def bench_import_prefect(benchmark):
     # Clear importlib cache
     importlib.invalidate_caches()
 
-    @benchmark
     def import_prefect():
         import prefect  # noqa
+
+    benchmark(import_prefect)
