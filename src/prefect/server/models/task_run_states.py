@@ -8,14 +8,10 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import orm_models
 
 
-@inject_db
-async def read_task_run_state(
-    session: sa.orm.Session, task_run_state_id: UUID, db: PrefectDBInterface
-):
+async def read_task_run_state(session: sa.orm.Session, task_run_state_id: UUID):
     """
     Reads a task run state by id.
 
@@ -24,16 +20,13 @@ async def read_task_run_state(
         task_run_state_id: a task run state id
 
     Returns:
-        db.TaskRunState: the task state
+        orm_models.TaskRunState: the task state
     """
 
-    return await session.get(db.TaskRunState, task_run_state_id)
+    return await session.get(orm_models.TaskRunState, task_run_state_id)
 
 
-@inject_db
-async def read_task_run_states(
-    session: sa.orm.Session, task_run_id: UUID, db: PrefectDBInterface
-):
+async def read_task_run_states(session: sa.orm.Session, task_run_id: UUID):
     """
     Reads task runs states for a task run.
 
@@ -42,21 +35,20 @@ async def read_task_run_states(
         task_run_id: the task run id
 
     Returns:
-        List[db.TaskRunState]: the task run states
+        List[orm_models.TaskRunState]: the task run states
     """
 
     query = (
-        select(db.TaskRunState)
+        select(orm_models.TaskRunState)
         .filter_by(task_run_id=task_run_id)
-        .order_by(db.TaskRunState.timestamp)
+        .order_by(orm_models.TaskRunState.timestamp)
     )
     result = await session.execute(query)
     return result.scalars().unique().all()
 
 
-@inject_db
 async def delete_task_run_state(
-    session: sa.orm.Session, task_run_state_id: UUID, db: PrefectDBInterface
+    session: sa.orm.Session, task_run_state_id: UUID
 ) -> bool:
     """
     Delete a task run state by id.
@@ -70,6 +62,8 @@ async def delete_task_run_state(
     """
 
     result = await session.execute(
-        delete(db.TaskRunState).where(db.TaskRunState.id == task_run_state_id)
+        delete(orm_models.TaskRunState).where(
+            orm_models.TaskRunState.id == task_run_state_id
+        )
     )
     return result.rowcount > 0
