@@ -98,7 +98,6 @@ def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun, client_id: str):
 @pytest.fixture
 async def taskA_run2(reset_task_queues) -> ServerTaskRun:
     queued = ServerTaskRun(
-        id=uuid4(),
         flow_run_id=None,
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
@@ -371,3 +370,45 @@ class TestQueueLimit:
         assert (
             queue._retry_queue.qsize() == max_retry_size
         ), "Retry queue size should be at its configured limit"
+
+
+@pytest.fixture
+def reset_tracker():
+    models.task_workers.task_worker_tracker.reset()
+    yield
+    models.task_workers.task_worker_tracker.reset()
+
+
+class TestTaskWorkerTracking:
+    @pytest.mark.parametrize(
+        "num_connections,task_keys,expected_workers",
+        [
+            (2, ["taskA", "taskB"], 1),
+            (1, ["taskA", "taskB", "taskC"], 1),
+        ],
+        ids=["multiple_connections_single_worker", "single_connection_multiple_tasks"],
+    )
+    @pytest.mark.usefixtures("reset_tracker")
+    async def test_task_worker_basic_tracking(
+        self,
+        app,
+        num_connections,
+        task_keys,
+        expected_workers,
+        client_id,
+        prefect_client,
+    ):
+        for _ in range(num_connections):
+            with authenticated_socket(app) as socket:
+                socket.send_json(
+                    {"type": "subscribe", "keys": task_keys, "client_id": client_id}
+                )
+
+            response = await prefect_client._client.post("/task_workers/filter")
+            assert response.status_code == 200
+            tracked_workers = response.json()
+            assert len(tracked_workers) == expected_workers
+
+            for worker in tracked_workers:
+                assert worker["identifier"] == client_id
+                assert set(worker["task_keys"]) == set(task_keys)

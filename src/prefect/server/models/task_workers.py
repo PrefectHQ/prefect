@@ -50,9 +50,9 @@ class InMemoryTaskWorkerTracker:
         self,
         task_keys: List[TaskKey],
     ) -> List[TaskWorkerResponse]:
-        active_workers = set.union(*(self.task_keys[key] for key in task_keys)) | set(
-            self.worker_timestamps.keys()
-        )
+        if not task_keys:
+            return await self.get_all_workers()
+        active_workers = set().union(*(self.task_keys[key] for key in task_keys))
         return [self._create_worker_response(worker_id) for worker_id in active_workers]
 
     async def get_all_workers(self) -> List[TaskWorkerResponse]:
@@ -68,6 +68,12 @@ class InMemoryTaskWorkerTracker:
             task_keys=list(self.workers.get(worker_id, set())),
             timestamp=DateTime.utcnow().subtract(seconds=timestamp),
         )
+
+    def reset(self):
+        """Testing utility to reset the state of the task worker tracker"""
+        self.workers.clear()
+        self.task_keys.clear()
+        self.worker_timestamps.clear()
 
 
 # Global instance of the task worker tracker
