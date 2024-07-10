@@ -118,6 +118,11 @@ function loadAmplitude() {
     loadScript(url, init)
 }
 
+function loadReo() {
+    var e, t, n; e = "85cf6f7792f05b5", t = function () { Reo.init({ clientID: "85cf6f7792f05b5" }) }, (n = document.createElement("script")).src = "https://static.reo.dev/" + e + "/reo.js", n.async = !0, n.onload = t, document.head.appendChild(n)
+}
+
 
 loadCommonRoom()
 loadAmplitude()
+loadReo()
