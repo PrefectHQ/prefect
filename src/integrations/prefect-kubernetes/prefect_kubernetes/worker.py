@@ -587,7 +587,7 @@ class KubernetesWorker(BaseWorker):
             logger.info("Creating Kubernetes job...")
 
             job = await self._create_job(configuration, client)
-            logger.info(job)
+
             pid = await self._get_infrastructure_pid(job, client)
             # Indicate that the job has started
             if task_status is not None:
