@@ -20,6 +20,7 @@ runtime environment of the flow run.
 
 This example uses `env`, which is the only job variable that is configurable for all work pool types. 
 For example:
+
 ```json
 {
   "EXECUTION_ENV": "staging",
@@ -42,15 +43,17 @@ Here's an example repo structure:
 │   ├── daily_flow.py
 ```
 
-...with a `demo_flow.py` file like:
+With a `demo_flow.py` file like:
 
 ```python
 import os
 from prefect import flow, task
 
+
 @task
 def do_something_important(not_so_secret_value: str) -> None:
     print(f"Doing something important with {not_so_secret_value}!")
+
 
 @flow(log_prints=True)
 def some_work():
@@ -66,8 +69,10 @@ def some_work():
     do_something_important(not_so_secret_value)
 ```
 ### Use a `prefect.yaml` file
+
 Imagine you have the following deployment definition in a `prefect.yaml` file at the 
 root of your repository:
+
 ```yaml
 deployments:
 - name: demo-deployment
@@ -106,7 +111,7 @@ deployments:
   schedule: null
 ```
 
-... and then run `prefect deploy -n demo-deployment` to deploy the flow with these job variables.
+Then run `prefect deploy -n demo-deployment` to deploy the flow with these job variables.
 
 You should see the job variables in the `Configuration` tab of the deployment in the UI:
 
@@ -178,14 +183,13 @@ if __name__ == "__main__":
     - `demo_project/daily_flow.py` _already exists_ in the repository at the specified path
 </Note>
 
-Running this script with something like:
+Run the script to deploy the flow with the specified job variables. 
 
 ```bash
 python demo_project/daily_flow.py
 ```
 
-... will deploy the flow with the specified job variables. This should be visible in the UI under the 
-`Configuration` tab.
+The job variables should be visible in the UI under the `Configuration` tab.
 
 ![Job variables in the UI](/3.0rc/img/guides/job-variables.png)
 
