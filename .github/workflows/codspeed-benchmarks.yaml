@@ -1,4 +1,4 @@
-name: Benchmarks
+name: CodSpeed Benchmarks
 
 env:
   PY_COLORS: 1
@@ -16,6 +16,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -63,21 +64,6 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system -e .[dev]
 
-      - name: Prepare benchmark comparisons
-        # Note: We use a "cache" instead of artifacts because artifacts are not available
-        #       across workflow runs.
-        id: bench-cache
-        uses: actions/cache@v4
-        with:
-          path: ./.benchmarks
-          # Pushes benchmark results for this branch and sha, this will always be a cache miss
-          # and `restore-keys` will be used to get the benchmarks for comparison
-          key: ${{ runner.os }}-${{ github.head_ref || 'main' }}-${{ github.sha }}
-          # Pulls benchmark results for the base branch
-          restore-keys: |
-            ${{ runner.os }}-${{ github.base_ref }}-
-            ${{ runner.os }}-main-
-
       - name: Start server
         run: |
           prefect server start&
@@ -87,25 +73,8 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Run benchmarks
+        uses: CodSpeedHQ/action@v2
         env:
-          HEAD_REF: ${{ github.head_ref }}
-          GITHUB_SHA: ${{ github.sha }}
-        # Includes comparison to previous benchmarks if available
-        run: |
-          if [[ -z "$HEAD_REF" ]]; then
-            # HEAD_REF is unset or empty, use 'main' with the SHA
-            uniquename="main-$GITHUB_SHA"
-          else
-            # HEAD_REF is set, use the branch name directly
-            uniquename="$HEAD_REF"
-          fi
-
-          # Allow alphanumeric, underscores, and dashes, and replace other
-          # characters with an underscore
-          sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
-
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
-          python benches \
-          --timeout=180 \
-          --benchmark-save="${sanitized_uniquename}" \
-          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}
+          PREFECT_API_URL: "http://127.0.0.1:4200/api"
+        with:
+          run: pytest benches/bench_cli.py benches/bench_import.py --codspeed -n 6
