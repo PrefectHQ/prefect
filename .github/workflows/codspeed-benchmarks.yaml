@@ -46,10 +46,10 @@ jobs:
         with:
           driver-opts: image=moby/buildkit:v0.12.5
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: UV Cache
         uses: actions/cache@v4
