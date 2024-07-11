@@ -78,9 +78,9 @@ jobs:
         with:
           run: >
             pytest 
-            benches/bench_import.py 
             benches/bench_tasks.py 
             benches/bench_flows.py::bench_flow_decorator
             benches/bench_flows.py::bench_flow_call
+            benches/bench_import.py 
             --codspeed
             -vv
