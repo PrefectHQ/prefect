@@ -3,49 +3,50 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
+dependencies = [
+    "prefect>=2.13.5, < 3.0.0",
+    "kubernetes-asyncio>=29.0.0",
+    "tenacity>=8.2.3",
+    "pyopenssl>=24.1.0",
+
+]
 name = "prefect-kubernetes"
 description = "Prefect integrations for interacting with Kubernetes."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
-  "Natural Language :: English",
-  "Intended Audience :: Developers",
-  "Intended Audience :: System Administrators",
-  "License :: OSI Approved :: Apache Software License",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Topic :: Software Development :: Libraries",
-]
-dependencies = [
-  "prefect>=2.13.5, < 3.0.0",
-  "kubernetes>=24.2.0",
-  "tenacity>=8.2.3",
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-  "aiohttp",
-  "coverage",
-  "interrogate",
-  "mkdocs-gen-files",
-  "mkdocs-material",
-  "mkdocs",
-  "mkdocstrings[python]",
-  "mock; python_version < '3.8'",
-  "mypy",
-  "pillow",
-  "pre-commit",
-  "pytest-asyncio",
-  "pytest",
-  "pytest-xdist",
+    "aiohttp",
+    "coverage",
+    "interrogate",
+    "mkdocs-gen-files",
+    "mkdocs-material",
+    "mkdocs",
+    "mkdocstrings[python]",
+    "mypy",
+    "pillow",
+    "pre-commit",
+    "pytest-asyncio",
+    "pytest",
+    "pytest-env",
+    "pytest-xdist",
 ]
 
 [project.urls]
@@ -57,7 +58,7 @@ prefect_kubernetes = "prefect_kubernetes"
 [tool.setuptools_scm]
 version_file = "prefect_kubernetes/_version.py"
 root = "../../.."
-tag_regex = "^prefect-kubernetes-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-kubernetes-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-kubernetes-*[0-9]*"'
 
@@ -77,3 +78,4 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+env = ["PREFECT_TEST_MODE=1"]
