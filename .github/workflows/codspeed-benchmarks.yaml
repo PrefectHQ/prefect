@@ -8,8 +8,8 @@ on:
     paths:
       - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
-      - "src/prefect/**/*.py"
-      - benches/
+      - src/prefect/**/*.py
+      - benches/**/*.py
       - requirements.txt
       - requirements-dev.txt
       - setup.cfg
