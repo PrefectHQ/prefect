@@ -27,6 +27,13 @@ def bench_flow_call(benchmark: BenchmarkFixture, options):
     benchmark(noop_flow)
 
 
+# The benchmarks below this comment take too long to run with CodSpeed and are not included in the
+# CodSpeed benchmarks. They are included in the local benchmarks. These benchmarks could be improved
+# because we can only run the benchmarks with a large number of tasks once for each run which may
+# not be enough to get a good reading.
+# TODO: Find a way to measure these in CodSpeed.
+
+
 @pytest.mark.parametrize("num_tasks", [10, 50, 100])
 def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int):
     test_task = task(noop_function)
@@ -36,10 +43,7 @@ def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int)
         for _ in range(num_tasks):
             test_task.submit()
 
-    if num_tasks < 100:
-        benchmark(benchmark_flow)
-    else:
-        benchmark.pedantic(benchmark_flow)
+    benchmark(benchmark_flow)
 
 
 @pytest.mark.parametrize("num_tasks", [10, 50, 100, 250])
@@ -51,10 +55,7 @@ def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
         for _ in range(num_tasks):
             test_task()
 
-    if num_tasks < 100:
-        benchmark(benchmark_flow)
-    else:
-        benchmark.pedantic(benchmark_flow)
+    benchmark(benchmark_flow)
 
 
 @pytest.mark.parametrize("num_tasks", [10, 50, 100, 250])
@@ -67,27 +68,7 @@ def bench_async_flow_with_async_tasks(benchmark: BenchmarkFixture, num_tasks: in
             for _ in range(num_tasks):
                 tg.start_soon(test_task)
 
-    if num_tasks < 100:
-        benchmark(anyio.run, benchmark_flow)
-    else:
-        benchmark.pedantic(anyio.run, args=(benchmark_flow,))
-
-
-@pytest.mark.parametrize("num_tasks", [10, 50, 100])
-def bench_async_flow_with_submitted_sync_tasks(
-    benchmark: BenchmarkFixture, num_tasks: int
-):
-    test_task = task(noop_function)
-
-    @flow
-    async def benchmark_flow():
-        for _ in range(num_tasks):
-            test_task.submit()
-
-    if num_tasks < 100:
-        benchmark(anyio.run, benchmark_flow)
-    else:
-        benchmark.pedantic(anyio.run, args=(benchmark_flow,))
+    benchmark(anyio.run, benchmark_flow)
 
 
 @pytest.mark.parametrize("num_flows", [5, 10, 20])
