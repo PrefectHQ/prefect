@@ -83,6 +83,4 @@ jobs:
             benches/bench_flows.py::bench_flow_decorator
             benches/bench_flows.py::bench_flow_call
             --codspeed
-            --numprocesses auto
-            --dist worksteal
             -vv
