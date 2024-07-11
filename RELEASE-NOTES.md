@@ -17,9 +17,6 @@
 - Use correct paths in `GcsBucket.put/get_directory` — https://github.com/PrefectHQ/prefect/pull/14537
 - Cache Kubernetes client — https://github.com/PrefectHQ/prefect/pull/14535
 
-### UI
-- Remove old WorkQueue components. — https://github.com/PrefectHQ/prefect-ui-library/pull/2601
-
 ## New Contributors
 * @oaustegard made their first contribution in https://github.com/PrefectHQ/prefect/pull/14505
 
