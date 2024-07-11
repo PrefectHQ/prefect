@@ -4,7 +4,7 @@ import socket
 import sys
 from typing import Optional, TypeVar
 
-from kubernetes.client import ApiClient
+from kubernetes_asyncio.client import ApiClient
 from slugify import slugify
 
 # Note: `dict(str, str)` is the Kubernetes API convention for
