@@ -247,10 +247,10 @@ def run_coro_as_sync(
         runner.submit(call)
         try:
             return call.result()
-        except KeyboardInterrupt as exc:
+        except KeyboardInterrupt:
             call.cancel()
 
-            logger.debug(f"Coroutine cancelled due to {exc.__class__.__name__}.")
+            logger.debug("Coroutine cancelled due to KeyboardInterrupt.")
             raise
 
 
@@ -388,11 +388,11 @@ def sync_compatible(
             return result
 
         if _sync is True:
-            return run_coro_as_sync(ctx_call())  # 1
+            return run_coro_as_sync(ctx_call())
         elif _sync is False or RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
-            return run_coro_as_sync(ctx_call())  # 2
+            return run_coro_as_sync(ctx_call())
 
     if is_async_fn(async_fn):
         wrapper = coroutine_wrapper
