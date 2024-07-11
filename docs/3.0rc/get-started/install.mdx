@@ -44,7 +44,7 @@ Review the `pip install` output messages for the `Scripts` folder path on your s
 
 ## Minimal Prefect installation
 
-The `prefect-client` library is a minimal installation of Prefect designed for interacting with Prefect Cloud or a remote self-hosted server instance.
+The `prefect-client` library is a minimal installation of Prefect designed for interacting with Prefect Cloud or a remote self-hosted Prefect server instance.
 
 `prefect-client` enables a subset of Prefect's capabilities with a smaller installation size, making it ideal for use in lightweight, resource-constrained, or ephemeral environments.
 It omits all CLI and server components found in the `prefect` library.
@@ -60,10 +60,10 @@ pip install -U prefect-client
 You also need an API server, either:
 
 * [Prefect Cloud](/3.0rc/manage/cloud/), a managed solution that provides strong scaling, performance, and security, or
-* Your own hosted [Prefect server instance](/3.0rc/manage/self-host/)
+* [Self-hosted Prefect server](/3.0rc/manage/self-host/), an API server that you run on your own infrastructure where you are responsible for scaling and any authentication and authorization.
 
 Now that you have Prefect installed, go through the [quickstart](/3.0rc/get-started/quickstart/) to try it out.
 
-Learn more about release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
+Learn more about release versions in the [Prefect release notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
 
-See our [Contributing guide](/contribute/dev-contribute/) for instructions on installing Prefect for development.
+See our [Contributing docs](/contribute/dev-contribute/) for instructions on installing Prefect for development.
