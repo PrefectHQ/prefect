@@ -78,9 +78,10 @@ jobs:
         with:
           run: >
             pytest 
-            benches/bench_cli.py 
             benches/bench_import.py 
             benches/bench_tasks.py 
+            benches/bench_flows.py::bench_flow_decorator
+            benches/bench_flows.py::bench_flow_call
             --codspeed
             --numprocesses auto
             --dist worksteal
