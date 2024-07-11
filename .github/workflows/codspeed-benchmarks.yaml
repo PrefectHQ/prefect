@@ -1,0 +1,88 @@
+name: CodSpeed Benchmarks
+
+env:
+  PY_COLORS: 1
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/benchmarks.yaml
+      - .github/workflows/python-tests.yaml
+      - "src/prefect/**/*.py"
+      - requirements.txt
+      - requirements-dev.txt
+      - setup.cfg
+      - Dockerfile
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  run-benchmarks:
+    name: Benchmark
+    # Runs with ephemeral API and SQLite database right now
+
+    runs-on:
+      group: oss-larger-runners
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        if: ${{ matrix.build-docker-images }}
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:v0.12.5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: UV Cache
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+
+      - name: Install packages
+        run: |
+          python -m pip install -U uv
+          uv pip install --upgrade --system -e .[dev]
+
+      - name: Start server
+        run: |
+          prefect server start&
+          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+
+          # TODO: Replace `wait-for-server` with dedicated command
+          #       https://github.com/PrefectHQ/prefect/issues/6990
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v2
+        env:
+          PREFECT_API_URL: "http://127.0.0.1:4200/api"
+        with:
+          run: >
+            pytest 
+            benches/bench_import.py 
+            benches/bench_tasks.py 
+            benches/bench_flows.py::bench_flow_decorator
+            benches/bench_flows.py::bench_flow_call
+            --codspeed
+            --numprocesses auto
+            --dist worksteal
+            -vv
