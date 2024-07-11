@@ -247,9 +247,10 @@ def run_coro_as_sync(
         runner.submit(call)
         try:
             return call.result()
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as exc:
             call.cancel()
-            logger.debug("Coroutine cancelled due to KeyboardInterrupt.")
+
+            logger.debug(f"Coroutine cancelled due to {exc.__class__.__name__}.")
             raise
 
 
@@ -387,11 +388,11 @@ def sync_compatible(
             return result
 
         if _sync is True:
-            return run_coro_as_sync(ctx_call())
+            return run_coro_as_sync(ctx_call())  # 1
         elif _sync is False or RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
-            return run_coro_as_sync(ctx_call())
+            return run_coro_as_sync(ctx_call())  # 2
 
     if is_async_fn(async_fn):
         wrapper = coroutine_wrapper
@@ -578,3 +579,22 @@ class LazySemaphore:
         if self._semaphore is None:
             initial_value = self._initial_value_func()
             self._semaphore = asyncio.Semaphore(initial_value)
+
+
+def async_entrypoint(fn: Callable[P, Awaitable[R]]) -> Callable[P, R]:
+    @wraps(fn)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError as e:
+            if "no running event loop" in str(e):
+                loop = None
+            else:
+                raise
+
+        if loop:
+            return cast(R, loop.run_until_complete(fn(*args, **kwargs)))
+        else:
+            return cast(R, asyncio.run(fn(*args, **kwargs)))  # type: ignore
+
+    return wrapper

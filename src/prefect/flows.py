@@ -83,6 +83,7 @@ from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
+    async_entrypoint,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -781,7 +782,7 @@ class Flow(Generic[P, R]):
         self.on_failure_hooks.append(fn)
         return fn
 
-    @sync_compatible
+    @async_entrypoint
     async def serve(
         self,
         name: Optional[str] = None,
@@ -810,7 +811,7 @@ class Flow(Generic[P, R]):
         limit: Optional[int] = None,
         webserver: bool = False,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
-    ):
+    ) -> NoReturn:
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 

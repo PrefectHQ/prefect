@@ -693,8 +693,9 @@ class Runner:
         """
         self._logger.info("Pausing all deployments...")
         for deployment_id in self._deployment_ids:
-            self._logger.debug(f"Pausing deployment '{deployment_id}'")
             await self._client.set_deployment_paused_state(deployment_id, True)
+            self._logger.debug(f"Paused deployment '{deployment_id}'")
+
         self._logger.info("All deployments have been paused!")
 
     async def _get_and_submit_flow_runs(self):
