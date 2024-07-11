@@ -83,4 +83,5 @@ jobs:
             benches/bench_flows.py::bench_flow_call
             benches/bench_import.py 
             --codspeed
+            --timeout=180
             -vv
