@@ -6,8 +6,9 @@ def bench_import_prefect(benchmark):
     def import_prefect():
         # To get an accurate result, we want to import the module from scratch each time
         # Remove the module from sys.modules if it's there
-        if "prefect" in sys.modules:
-            del sys.modules["prefect"]
+        prefect_modules = [key for key in sys.modules if key.startswith("prefect")]
+        for module in prefect_modules:
+            del sys.modules[module]
 
         # Clear importlib cache
         importlib.invalidate_caches()
@@ -21,8 +22,9 @@ def bench_import_prefect_flow(benchmark):
     def import_prefect_flow():
         # To get an accurate result, we want to import the module from scratch each time
         # Remove the module from sys.modules if it's there
-        if "prefect" in sys.modules:
-            del sys.modules["prefect"]
+        prefect_modules = [key for key in sys.modules if key.startswith("prefect")]
+        for module in prefect_modules:
+            del sys.modules[module]
 
         # Clear importlib cache
         importlib.invalidate_caches()

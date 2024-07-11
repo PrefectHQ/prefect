@@ -64,20 +64,6 @@ def bench_async_flow_with_async_tasks(benchmark: BenchmarkFixture, num_tasks: in
     benchmark(anyio.run, benchmark_flow)
 
 
-@pytest.mark.parametrize("num_tasks", [10, 50, 100])
-def bench_async_flow_with_submitted_sync_tasks(
-    benchmark: BenchmarkFixture, num_tasks: int
-):
-    test_task = task(noop_function)
-
-    @flow
-    async def benchmark_flow():
-        for _ in range(num_tasks):
-            test_task.submit()
-
-    benchmark(anyio.run, benchmark_flow)
-
-
 @pytest.mark.parametrize("num_flows", [5, 10, 20])
 def bench_flow_with_subflows(benchmark: BenchmarkFixture, num_flows: int):
     test_flow = flow(noop_function)
