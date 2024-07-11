@@ -139,9 +139,9 @@ from kubernetes_asyncio.client.models import (
 from pydantic import VERSION as PYDANTIC_VERSION
 
 if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
+    from pydantic.v1 import BaseModel, Field, validator
 else:
-    from pydantic import Field, validator
+    from pydantic import BaseModel, Field, validator
 
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal
@@ -177,6 +177,20 @@ MAX_ATTEMPTS = 3
 RETRY_MIN_DELAY_SECONDS = 1
 RETRY_MIN_DELAY_JITTER_SECONDS = 0
 RETRY_MAX_DELAY_JITTER_SECONDS = 3
+
+
+class HashableKubernetesClusterConfig(BaseModel, allow_mutation=False):
+    """
+    A hashable version of the KubernetesClusterConfig class.
+    Used for caching.
+    """
+
+    config: dict = Field(
+        default=..., description="The entire contents of a kubectl config file."
+    )
+    context_name: str = Field(
+        default=..., description="The name of the kubectl context to use."
+    )
 
 
 def _get_default_job_manifest_template() -> Dict[str, Any]:

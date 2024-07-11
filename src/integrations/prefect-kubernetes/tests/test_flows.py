@@ -1,6 +1,6 @@
 import pytest
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
-from prefect_kubernetes.flows import run_namespaced_job, run_namespaced_job_async
+from prefect_kubernetes.flows import run_namespaced_job
 
 from prefect import flow
 
@@ -21,7 +21,7 @@ async def test_run_namespaced_job_timeout_respected(
     valid_kubernetes_job_block.timeout_seconds = 1
 
     with pytest.raises(KubernetesJobTimeoutError):
-        await run_namespaced_job_async(kubernetes_job=valid_kubernetes_job_block)
+        await run_namespaced_job(kubernetes_job=valid_kubernetes_job_block)
 
     assert mock_create_namespaced_job.call_count == 1
     assert mock_create_namespaced_job.call_args[1]["namespace"] == "default"
@@ -41,7 +41,7 @@ async def test_run_namespaced_job_successful(
     mock_list_namespaced_pod,
     read_pod_logs,
 ):
-    await run_namespaced_job_async(kubernetes_job=valid_kubernetes_job_block)
+    await run_namespaced_job(kubernetes_job=valid_kubernetes_job_block)
 
     assert mock_create_namespaced_job.call_count == 1
     assert mock_create_namespaced_job.call_args[1]["namespace"] == "default"
@@ -70,7 +70,7 @@ async def test_run_namespaced_job_successful_no_delete_after_completion(
 
     valid_kubernetes_job_block.delete_after_completion = False
 
-    await run_namespaced_job_async(kubernetes_job=valid_kubernetes_job_block)
+    await run_namespaced_job(kubernetes_job=valid_kubernetes_job_block)
 
     assert mock_create_namespaced_job.call_count == 1
     assert mock_create_namespaced_job.call_args[1]["namespace"] == "default"
@@ -96,7 +96,7 @@ async def test_run_namespaced_job_unsuccessful(
     mock_read_namespaced_job_status.return_value = unsuccessful_job_status
 
     with pytest.raises(RuntimeError, match=", check the Kubernetes pod logs"):
-        await run_namespaced_job_async(kubernetes_job=valid_kubernetes_job_block)
+        await run_namespaced_job(kubernetes_job=valid_kubernetes_job_block)
 
     assert mock_create_namespaced_job.call_count == 1
     assert mock_create_namespaced_job.call_args[1]["namespace"] == "default"
@@ -152,7 +152,7 @@ async def test_run_namespaced_job_successful_with_evictions(
     successful_job_status.status.failed = 1
     mock_read_namespaced_job_status.return_value = successful_job_status
 
-    await run_namespaced_job_async(kubernetes_job=valid_kubernetes_job_block)
+    await run_namespaced_job(kubernetes_job=valid_kubernetes_job_block)
 
     assert mock_create_namespaced_job.call_count == 1
     assert mock_create_namespaced_job.call_args[1]["namespace"] == "default"
