@@ -27,6 +27,13 @@ def bench_flow_call(benchmark: BenchmarkFixture, options):
     benchmark(noop_flow)
 
 
+# The benchmarks below this comment take too long to run with CodSpeed and are not included in the
+# CodSpeed benchmarks. They are included in the local benchmarks. These benchmarks could be improved
+# because we can only run the benchmarks with a large number of tasks once for each run which may
+# not be enough to get a good reading.
+# TODO: Find a way to measure these in CodSpeed.
+
+
 @pytest.mark.parametrize("num_tasks", [10, 50, 100])
 def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int):
     test_task = task(noop_function)
