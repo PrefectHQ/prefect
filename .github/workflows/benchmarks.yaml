@@ -107,7 +107,7 @@ jobs:
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           python benches \
-          --ignore benches/bench_import.py \
+          --ignore=benches/bench_import.py \
           --timeout=180 \
           --benchmark-save="${sanitized_uniquename}" \
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}
