@@ -16,7 +16,6 @@ from prefect.runner.utils import (
     inject_schemas_into_openapi,
 )
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_LOG_LEVEL,
@@ -261,29 +260,28 @@ async def build_server(runner: "Runner") -> FastAPI:
     router.add_api_route("/shutdown", shutdown(runner=runner), methods=["POST"])
     webserver.include_router(router)
 
-    if PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
-        deployments_router, deployment_schemas = await get_deployment_router(runner)
-        webserver.include_router(deployments_router)
+    deployments_router, deployment_schemas = await get_deployment_router(runner)
+    webserver.include_router(deployments_router)
 
-        subflow_schemas = await get_subflow_schemas(runner)
-        webserver.add_api_route(
-            "/flow/run",
-            _build_generic_endpoint_for_flows(runner=runner, schemas=subflow_schemas),
-            methods=["POST"],
-            name="Run flow in background",
-            description="Trigger any flow run as a background task on the runner.",
-            summary="Run flow",
-        )
+    subflow_schemas = await get_subflow_schemas(runner)
+    webserver.add_api_route(
+        "/flow/run",
+        _build_generic_endpoint_for_flows(runner=runner, schemas=subflow_schemas),
+        methods=["POST"],
+        name="Run flow in background",
+        description="Trigger any flow run as a background task on the runner.",
+        summary="Run flow",
+    )
 
-        def customize_openapi():
-            if webserver.openapi_schema:
-                return webserver.openapi_schema
-
-            openapi_schema = inject_schemas_into_openapi(webserver, deployment_schemas)
-            webserver.openapi_schema = openapi_schema
+    def customize_openapi():
+        if webserver.openapi_schema:
             return webserver.openapi_schema
 
-        webserver.openapi = customize_openapi
+        openapi_schema = inject_schemas_into_openapi(webserver, deployment_schemas)
+        webserver.openapi_schema = openapi_schema
+        return webserver.openapi_schema
+
+    webserver.openapi = customize_openapi
 
     return webserver
 

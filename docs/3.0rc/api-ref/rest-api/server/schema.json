@@ -22279,11 +22279,6 @@
                         "title": "Prefect Task Scheduling Pending Task Timeout",
                         "default": "PT0S"
                     },
-                    "PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Extra Runner Endpoints",
-                        "default": false
-                    },
                     "PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT": {
                         "type": "boolean",
                         "title": "Prefect Experimental Disable Sync Compat",

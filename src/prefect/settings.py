@@ -1437,11 +1437,6 @@ a task worker should move a task from PENDING to RUNNING very quickly, so runs s
 PENDING for a while is a sign that the task worker may have crashed.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
-"""
-Whether or not to enable experimental worker webserver endpoints.
-"""
-
 PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
 """
 Whether or not to disable the sync_compatible decorator utility.
