@@ -5,6 +5,9 @@ Base `prefect` command-line application
 import asyncio
 import platform
 import sys
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as import_version
+from typing import Any, Dict
 
 import pendulum
 import typer
@@ -92,10 +95,13 @@ def main(
 
 
 @app.command()
-async def version():
-    """Get the current Prefect version."""
+async def version(
+    omit_integrations: bool = typer.Option(
+        False, "--omit-integrations", help="Omit integration information"
+    ),
+):
+    """Get the current Prefect version and integration information."""
     import sqlite3
-    from importlib.metadata import PackageNotFoundError, version
 
     from prefect.server.utilities.database import get_dialect
     from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
@@ -125,27 +131,47 @@ async def version():
     version_info["Server type"] = server_type.lower()
 
     try:
-        pydantic_version = version("pydantic")
+        pydantic_version = import_version("pydantic")
     except PackageNotFoundError:
         pydantic_version = "Not installed"
 
     version_info["Pydantic version"] = pydantic_version
 
-    # TODO: Consider adding an API route to retrieve this information?
     if server_type == ServerType.EPHEMERAL.value:
         database = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name
         version_info["Server"] = {"Database": database}
         if database == "sqlite":
             version_info["Server"]["SQLite version"] = sqlite3.sqlite_version
 
-    def display(object: dict, nesting: int = 0):
-        # Recursive display of a dictionary with nesting
-        for key, value in object.items():
-            key += ":"
-            if isinstance(value, dict):
-                app.console.print(key)
-                return display(value, nesting + 2)
-            prefix = " " * nesting
-            app.console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
+    if not omit_integrations:
+        integrations = get_prefect_integrations()
+        if integrations:
+            version_info["Integrations"] = integrations
 
     display(version_info)
+
+
+def get_prefect_integrations() -> Dict[str, str]:
+    """Get information about installed Prefect integrations."""
+    from importlib.metadata import distributions
+
+    integrations = {}
+    for dist in distributions():
+        if dist.metadata["Name"].startswith("prefect-"):
+            author_email = dist.metadata.get("Author-email", "").strip()
+            if author_email.endswith("@prefect.io>"):
+                integrations[dist.metadata["Name"]] = dist.version
+
+    return integrations
+
+
+def display(object: Dict[str, Any], nesting: int = 0):
+    """Recursive display of a dictionary with nesting."""
+    for key, value in object.items():
+        key += ":"
+        if isinstance(value, dict):
+            app.console.print(" " * nesting + key)
+            display(value, nesting + 2)
+        else:
+            prefix = " " * nesting
+            app.console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
