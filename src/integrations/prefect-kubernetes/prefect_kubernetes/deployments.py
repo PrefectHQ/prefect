@@ -2,10 +2,13 @@
 
 from typing import Any, Dict, Optional
 
-from kubernetes.client.models import V1DeleteOptions, V1Deployment, V1DeploymentList
+from kubernetes_asyncio.client.models import (
+    V1DeleteOptions,
+    V1Deployment,
+    V1DeploymentList,
+)
 
 from prefect import task
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect_kubernetes.credentials import KubernetesCredentials
 
 
@@ -34,7 +37,7 @@ async def create_namespaced_deployment(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.deployments import create_namespaced_deployment
-        from kubernetes.client.models import V1Deployment
+        from kubernetes_asyncio.client.models import V1Deployment
 
         @flow
         def kubernetes_orchestrator():
@@ -44,9 +47,8 @@ async def create_namespaced_deployment(
             )
         ```
     """
-    with kubernetes_credentials.get_client("apps") as apps_v1_client:
-        return await run_sync_in_worker_thread(
-            apps_v1_client.create_namespaced_deployment,
+    async with kubernetes_credentials.get_client("apps") as apps_v1_client:
+        return await apps_v1_client.create_namespaced_deployment(
             namespace=namespace,
             body=new_deployment,
             **kube_kwargs,
@@ -80,7 +82,7 @@ async def delete_namespaced_deployment(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.deployments import delete_namespaced_deployment
-        from kubernetes.client.models import V1DeleteOptions
+        from kubernetes_asyncio.client.models import V1DeleteOptions
 
         @flow
         def kubernetes_orchestrator():
@@ -91,9 +93,8 @@ async def delete_namespaced_deployment(
             )
         ```
     """
-    with kubernetes_credentials.get_client("apps") as apps_v1_client:
-        return await run_sync_in_worker_thread(
-            apps_v1_client.delete_namespaced_deployment,
+    async with kubernetes_credentials.get_client("apps") as apps_v1_client:
+        return await apps_v1_client.delete_namespaced_deployment(
             deployment_name,
             body=delete_options,
             namespace=namespace,
@@ -132,9 +133,8 @@ async def list_namespaced_deployment(
             )
         ```
     """
-    with kubernetes_credentials.get_client("apps") as apps_v1_client:
-        return await run_sync_in_worker_thread(
-            apps_v1_client.list_namespaced_deployment,
+    async with kubernetes_credentials.get_client("apps") as apps_v1_client:
+        return await apps_v1_client.list_namespaced_deployment(
             namespace=namespace,
             **kube_kwargs,
         )
@@ -167,7 +167,7 @@ async def patch_namespaced_deployment(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.deployments import patch_namespaced_deployment
-        from kubernetes.client.models import V1Deployment
+        from kubernetes_asyncio.client.models import V1Deployment
 
         @flow
         def kubernetes_orchestrator():
@@ -178,9 +178,8 @@ async def patch_namespaced_deployment(
             )
         ```
     """
-    with kubernetes_credentials.get_client("apps") as apps_v1_client:
-        return await run_sync_in_worker_thread(
-            apps_v1_client.patch_namespaced_deployment,
+    async with kubernetes_credentials.get_client("apps") as apps_v1_client:
+        return await apps_v1_client.patch_namespaced_deployment(
             name=deployment_name,
             namespace=namespace,
             body=deployment_updates,
@@ -221,9 +220,8 @@ async def read_namespaced_deployment(
             )
         ```
     """
-    with kubernetes_credentials.get_client("apps") as apps_v1_client:
-        return await run_sync_in_worker_thread(
-            apps_v1_client.read_namespaced_deployment,
+    async with kubernetes_credentials.get_client("apps") as apps_v1_client:
+        return await apps_v1_client.read_namespaced_deployment(
             name=deployment_name,
             namespace=namespace,
             **kube_kwargs,
@@ -257,7 +255,7 @@ async def replace_namespaced_deployment(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.deployments import replace_namespaced_deployment
-        from kubernetes.client.models import V1Deployment
+        from kubernetes_asyncio.client.models import V1Deployment
 
         @flow
         def kubernetes_orchestrator():
@@ -268,9 +266,8 @@ async def replace_namespaced_deployment(
             )
         ```
     """
-    with kubernetes_credentials.get_client("apps") as apps_v1_client:
-        return await run_sync_in_worker_thread(
-            apps_v1_client.replace_namespaced_deployment,
+    async with kubernetes_credentials.get_client("apps") as apps_v1_client:
+        return await apps_v1_client.replace_namespaced_deployment(
             body=new_deployment,
             name=deployment_name,
             namespace=namespace,

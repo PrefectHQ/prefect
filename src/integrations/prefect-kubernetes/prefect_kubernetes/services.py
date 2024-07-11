@@ -2,10 +2,9 @@
 
 from typing import Any, Dict, Optional
 
-from kubernetes.client.models import V1DeleteOptions, V1Service, V1ServiceList
+from kubernetes_asyncio.client.models import V1DeleteOptions, V1Service, V1ServiceList
 
 from prefect import task
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect_kubernetes.credentials import KubernetesCredentials
 
 
@@ -34,7 +33,7 @@ async def create_namespaced_service(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.services import create_namespaced_service
-        from kubernetes.client.models import V1Service
+        from kubernetes_asyncio.client.models import V1Service
 
         @flow
         def create_service_flow():
@@ -44,9 +43,8 @@ async def create_namespaced_service(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.create_namespaced_service,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.create_namespaced_service(
             body=new_service,
             namespace=namespace,
             **kube_kwargs,
@@ -90,9 +88,8 @@ async def delete_namespaced_service(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.delete_namespaced_service,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.delete_namespaced_service(
             name=service_name,
             namespace=namespace,
             body=delete_options,
@@ -131,9 +128,8 @@ async def list_namespaced_service(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.list_namespaced_service,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.list_namespaced_service(
             namespace=namespace,
             **kube_kwargs,
         )
@@ -165,7 +161,7 @@ async def patch_namespaced_service(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.services import patch_namespaced_service
-        from kubernetes.client.models import V1Service
+        from kubernetes_asyncio.client.models import V1Service
 
         @flow
         def kubernetes_orchestrator():
@@ -177,9 +173,8 @@ async def patch_namespaced_service(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.patch_namespaced_service,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.patch_namespaced_service(
             name=service_name,
             body=service_updates,
             namespace=namespace,
@@ -221,9 +216,8 @@ async def read_namespaced_service(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.read_namespaced_service,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.read_namespaced_service(
             name=service_name,
             namespace=namespace,
             **kube_kwargs,
@@ -256,7 +250,7 @@ async def replace_namespaced_service(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.services import replace_namespaced_service
-        from kubernetes.client.models import V1Service
+        from kubernetes_asyncio.client.models import V1Service
 
         @flow
         def kubernetes_orchestrator():
@@ -268,9 +262,8 @@ async def replace_namespaced_service(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.replace_namespaced_service,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.replace_namespaced_service(
             name=service_name,
             body=new_service,
             namespace=namespace,

@@ -2,11 +2,10 @@
 
 from typing import Any, Callable, Dict, Optional, Union
 
-from kubernetes.client.models import V1DeleteOptions, V1Pod, V1PodList
-from kubernetes.watch import Watch
+from kubernetes_asyncio.client.models import V1DeleteOptions, V1Pod, V1PodList
+from kubernetes_asyncio.watch import Watch
 
 from prefect import task
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect_kubernetes.credentials import KubernetesCredentials
 
 
@@ -35,7 +34,7 @@ async def create_namespaced_pod(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.pods import create_namespaced_pod
-        from kubernetes.client.models import V1Pod
+        from kubernetes_asyncio.client.models import V1Pod
 
         @flow
         def kubernetes_orchestrator():
@@ -45,9 +44,8 @@ async def create_namespaced_pod(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.create_namespaced_pod,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.create_namespaced_pod(
             namespace=namespace,
             body=new_pod,
             **kube_kwargs,
@@ -81,7 +79,7 @@ async def delete_namespaced_pod(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.pods import delete_namespaced_pod
-        from kubernetes.client.models import V1DeleteOptions
+        from kubernetes_asyncio.client.models import V1DeleteOptions
 
         @flow
         def kubernetes_orchestrator():
@@ -92,9 +90,8 @@ async def delete_namespaced_pod(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.delete_namespaced_pod,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.delete_namespaced_pod(
             pod_name,
             body=delete_options,
             namespace=namespace,
@@ -133,9 +130,9 @@ async def list_namespaced_pod(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.list_namespaced_pod, namespace=namespace, **kube_kwargs
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.list_namespaced_pod(
+            namespace=namespace, **kube_kwargs
         )
 
 
@@ -166,7 +163,7 @@ async def patch_namespaced_pod(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.pods import patch_namespaced_pod
-        from kubernetes.client.models import V1Pod
+        from kubernetes_asyncio.client.models import V1Pod
 
         @flow
         def kubernetes_orchestrator():
@@ -177,9 +174,8 @@ async def patch_namespaced_pod(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.patch_namespaced_pod,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.patch_namespaced_pod(
             name=pod_name,
             namespace=namespace,
             body=pod_updates,
@@ -220,9 +216,8 @@ async def read_namespaced_pod(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.read_namespaced_pod,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.read_namespaced_pod(
             name=pod_name,
             namespace=namespace,
             **kube_kwargs,
@@ -277,20 +272,20 @@ async def read_namespaced_pod_log(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
         if print_func is not None:
             # should no longer need to manually refresh on ApiException.status == 410
             # as of https://github.com/kubernetes-client/python-base/pull/133
-            for log_line in Watch().stream(
-                core_v1_client.read_namespaced_pod_log,
-                name=pod_name,
-                namespace=namespace,
-                container=container,
-            ):
-                print_func(log_line)
+            async with Watch() as watch:
+                async for log_line in watch.stream(
+                    core_v1_client.read_namespaced_pod_log,
+                    name=pod_name,
+                    namespace=namespace,
+                    container=container,
+                ):
+                    print_func(log_line)
 
-        return await run_sync_in_worker_thread(
-            core_v1_client.read_namespaced_pod_log,
+        return await core_v1_client.read_namespaced_pod_log(
             name=pod_name,
             namespace=namespace,
             container=container,
@@ -325,7 +320,7 @@ async def replace_namespaced_pod(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.pods import replace_namespaced_pod
-        from kubernetes.client.models import V1Pod
+        from kubernetes_asyncio.client.models import V1Pod
 
         @flow
         def kubernetes_orchestrator():
@@ -336,9 +331,8 @@ async def replace_namespaced_pod(
             )
         ```
     """
-    with kubernetes_credentials.get_client("core") as core_v1_client:
-        return await run_sync_in_worker_thread(
-            core_v1_client.replace_namespaced_pod,
+    async with kubernetes_credentials.get_client("core") as core_v1_client:
+        return await core_v1_client.replace_namespaced_pod(
             body=new_pod,
             name=pod_name,
             namespace=namespace,

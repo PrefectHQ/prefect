@@ -1,6 +1,8 @@
+from pathlib import Path
+
 import pytest
-from kubernetes.client.exceptions import ApiValueError
-from kubernetes.client.models import V1Job
+from kubernetes_asyncio.client.exceptions import ApiValueError
+from kubernetes_asyncio.client.models import V1Job
 from prefect_kubernetes.jobs import (
     KubernetesJob,
     create_namespaced_job,
@@ -35,10 +37,13 @@ async def test_create_namespaced_job(kubernetes_credentials, _mock_api_batch_cli
         kubernetes_credentials=kubernetes_credentials,
     )
 
-    assert _mock_api_batch_client.create_namespaced_job.call_args[1][
+    assert _mock_api_batch_client.return_value.create_namespaced_job.call_args[1][
         "body"
     ].metadata == {"name": "test-job"}
-    assert _mock_api_batch_client.create_namespaced_job.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_batch_client.return_value.create_namespaced_job.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_delete_namespaced_job(kubernetes_credentials, _mock_api_batch_client):
@@ -48,9 +53,13 @@ async def test_delete_namespaced_job(kubernetes_credentials, _mock_api_batch_cli
         kubernetes_credentials=kubernetes_credentials,
     )
     assert (
-        _mock_api_batch_client.delete_namespaced_job.call_args[1]["name"] == "test-job"
+        _mock_api_batch_client.return_value.delete_namespaced_job.call_args[1]["name"]
+        == "test-job"
     )
-    assert _mock_api_batch_client.delete_namespaced_job.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_batch_client.return_value.delete_namespaced_job.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_list_namespaced_job(kubernetes_credentials, _mock_api_batch_client):
@@ -59,8 +68,16 @@ async def test_list_namespaced_job(kubernetes_credentials, _mock_api_batch_clien
         a="test",
         kubernetes_credentials=kubernetes_credentials,
     )
-    assert _mock_api_batch_client.list_namespaced_job.call_args[1]["namespace"] == "ns"
-    assert _mock_api_batch_client.list_namespaced_job.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_batch_client.return_value.list_namespaced_job.call_args[1][
+            "namespace"
+        ]
+        == "ns"
+    )
+    assert (
+        _mock_api_batch_client.return_value.list_namespaced_job.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_patch_namespaced_job(kubernetes_credentials, _mock_api_batch_client):
@@ -70,13 +87,17 @@ async def test_patch_namespaced_job(kubernetes_credentials, _mock_api_batch_clie
         a="test",
         kubernetes_credentials=kubernetes_credentials,
     )
-    assert _mock_api_batch_client.patch_namespaced_job.call_args[1][
+    assert _mock_api_batch_client.return_value.patch_namespaced_job.call_args[1][
         "body"
     ].metadata == {"name": "test-job"}
     assert (
-        _mock_api_batch_client.patch_namespaced_job.call_args[1]["name"] == "test-job"
+        _mock_api_batch_client.return_value.patch_namespaced_job.call_args[1]["name"]
+        == "test-job"
     )
-    assert _mock_api_batch_client.patch_namespaced_job.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_batch_client.return_value.patch_namespaced_job.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_read_namespaced_job(kubernetes_credentials, _mock_api_batch_client):
@@ -86,9 +107,20 @@ async def test_read_namespaced_job(kubernetes_credentials, _mock_api_batch_clien
         a="test",
         kubernetes_credentials=kubernetes_credentials,
     )
-    assert _mock_api_batch_client.read_namespaced_job.call_args[1]["name"] == "test-job"
-    assert _mock_api_batch_client.read_namespaced_job.call_args[1]["namespace"] == "ns"
-    assert _mock_api_batch_client.read_namespaced_job.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_batch_client.return_value.read_namespaced_job.call_args[1]["name"]
+        == "test-job"
+    )
+    assert (
+        _mock_api_batch_client.return_value.read_namespaced_job.call_args[1][
+            "namespace"
+        ]
+        == "ns"
+    )
+    assert (
+        _mock_api_batch_client.return_value.read_namespaced_job.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_replace_namespaced_job(kubernetes_credentials, _mock_api_batch_client):
@@ -100,15 +132,22 @@ async def test_replace_namespaced_job(kubernetes_credentials, _mock_api_batch_cl
         kubernetes_credentials=kubernetes_credentials,
     )
     assert (
-        _mock_api_batch_client.replace_namespaced_job.call_args[1]["name"] == "test-job"
+        _mock_api_batch_client.return_value.replace_namespaced_job.call_args[1]["name"]
+        == "test-job"
     )
     assert (
-        _mock_api_batch_client.replace_namespaced_job.call_args[1]["namespace"] == "ns"
+        _mock_api_batch_client.return_value.replace_namespaced_job.call_args[1][
+            "namespace"
+        ]
+        == "ns"
     )
-    assert _mock_api_batch_client.replace_namespaced_job.call_args[1][
+    assert _mock_api_batch_client.return_value.replace_namespaced_job.call_args[1][
         "body"
     ].metadata == {"name": "test-job"}
-    assert _mock_api_batch_client.replace_namespaced_job.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_batch_client.return_value.replace_namespaced_job.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_read_namespaced_job_status(
@@ -121,20 +160,40 @@ async def test_read_namespaced_job_status(
         kubernetes_credentials=kubernetes_credentials,
     )
     assert (
-        _mock_api_batch_client.read_namespaced_job_status.call_args[1]["name"]
+        _mock_api_batch_client.return_value.read_namespaced_job_status.call_args[1][
+            "name"
+        ]
         == "test-job"
     )
     assert (
-        _mock_api_batch_client.read_namespaced_job_status.call_args[1]["namespace"]
+        _mock_api_batch_client.return_value.read_namespaced_job_status.call_args[1][
+            "namespace"
+        ]
         == "ns"
     )
-    assert _mock_api_batch_client.read_namespaced_job_status.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_batch_client.return_value.read_namespaced_job_status.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_job_block_from_job_yaml(kubernetes_credentials):
+    DIR = (
+        (
+            Path.cwd()
+            / "src"
+            / "integrations"
+            / "prefect-kubernetes"
+            / "tests"
+            / "sample_k8s_resources"
+            / "sample_job.yaml"
+        )
+        if Path.cwd().name == "prefect"
+        else Path.cwd() / "tests" / "sample_k8s_resources" / "sample_job.yaml"
+    )
     job = KubernetesJob.from_yaml_file(
         credentials=kubernetes_credentials,
-        manifest_path="tests/sample_k8s_resources/sample_job.yaml",
+        manifest_path=DIR,
     )
     assert isinstance(job, KubernetesJob)
     assert job.v1_job["metadata"]["name"] == "pi"
