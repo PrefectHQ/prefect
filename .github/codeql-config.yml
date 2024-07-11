@@ -5,4 +5,3 @@ query-filters:
 
 paths-ignore:
   - tests/**/test_*.py
-  - docs/**/search.js
