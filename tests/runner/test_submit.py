@@ -9,7 +9,6 @@ from prefect import flow
 from prefect.client.schemas.objects import FlowRun
 from prefect.runner import submit_to_runner
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_SERVER_ENABLE,
     temporary_settings,
 )
@@ -61,24 +60,9 @@ def runner_settings():
     with temporary_settings(
         {
             PREFECT_RUNNER_SERVER_ENABLE: True,
-            PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS: True,
         }
     ):
         yield
-
-
-async def test_submission_raises_if_extra_endpoints_not_enabled(mock_webserver):
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS: False}
-    ):
-        with pytest.raises(
-            ValueError,
-            match=(
-                "The `submit_to_runner` utility requires the `Runner` webserver to be"
-                " running and built with extra endpoints enabled."
-            ),
-        ):
-            await submit_to_runner(identity, {"whatever": 42})
 
 
 @pytest.mark.parametrize("prefect_callable", [identity, async_identity])

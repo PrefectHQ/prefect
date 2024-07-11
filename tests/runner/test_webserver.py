@@ -12,7 +12,6 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.runner import Runner
 from prefect.runner.server import build_server
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_PORT,
     temporary_settings,
@@ -48,7 +47,6 @@ def a_non_flow_function():
 def tmp_runner_settings():
     with temporary_settings(
         updates={
-            PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS: True,
             PREFECT_RUNNER_SERVER_HOST: "0.0.0.0",
             PREFECT_RUNNER_SERVER_PORT: 0,
         }
@@ -82,21 +80,6 @@ class TestWebserverSettings:
 
 
 class TestWebserverDeploymentRoutes:
-    async def test_deployment_router_not_added_if_experimental_flag_is_false(
-        self,
-        runner: Runner,
-    ):
-        with temporary_settings(
-            updates={PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS: False}
-        ):
-            webserver = await build_server(runner)
-            deployment_routes = [
-                r
-                for r in webserver.routes
-                if r.path.startswith("/deployment") and r.path.endswith("/run")
-            ]
-            assert len(deployment_routes) == 0
-
     async def test_runners_deployment_run_routes_exist(self, runner: Runner):
         deployment_ids = [
             await create_deployment(runner, simple_flow) for _ in range(3)
@@ -176,17 +159,6 @@ class TestWebserverDeploymentRoutes:
 
 
 class TestWebserverFlowRoutes:
-    async def test_flow_router_not_added_if_experimental_flag_is_false(
-        self,
-        runner: Runner,
-    ):
-        with temporary_settings(
-            updates={PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS: False}
-        ):
-            webserver = await build_server(runner)
-            flow_routes = [r for r in webserver.routes if r.path == "/flow/run"]
-            assert len(flow_routes) == 0
-
     async def test_flow_router_runs_managed_flow(self, runner: Runner):
         await create_deployment(runner, simple_flow)
         webserver = await build_server(runner)

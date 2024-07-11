@@ -14,7 +14,6 @@ from prefect.context import FlowRunContext
 from prefect.flows import Flow
 from prefect.logging import get_logger
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_PORT,
@@ -129,13 +128,6 @@ async def submit_to_runner(
     if not isinstance(prefect_callable, (Flow, Task)):
         raise TypeError(
             "The `submit_to_runner` utility only supports submitting flows and tasks."
-        )
-
-    if not PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS.value():
-        raise ValueError(
-            "The `submit_to_runner` utility requires the `Runner` webserver to be"
-            " running and built with extra endpoints enabled. To enable this, set the"
-            " `PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS` setting to `True`."
         )
 
     parameters = parameters or {}
