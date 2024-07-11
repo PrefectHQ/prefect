@@ -1,6 +1,8 @@
 import importlib
 import sys
 
+import pytest
+
 
 def bench_import_prefect(benchmark):
     def import_prefect():
@@ -18,6 +20,7 @@ def bench_import_prefect(benchmark):
     benchmark(import_prefect)
 
 
+@pytest.mark.timeout(600)
 def bench_import_prefect_flow(benchmark):
     def import_prefect_flow():
         # To get an accurate result, we want to import the module from scratch each time
