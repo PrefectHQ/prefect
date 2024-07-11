@@ -1,5 +1,5 @@
-name: 🚀 Propose a feature enhancement
-description: Propose a new feature or an enhancement to an existing feature.
+name: 🚀 Enhancement
+description: Suggest an idea or improvement for Prefect
 labels: ["needs:triage", "enhancement"]
 body:
   - type: checkboxes
@@ -14,18 +14,6 @@ body:
           required: true
         - label: I searched the Prefect documentation for this feature.
           required: true
-
-  - type: dropdown
-    id: version
-    attributes:
-      label: Prefect Version
-      description: Which version of Prefect is this enhancement for?
-      options:
-        - 3.x
-        - 2.x
-        - 1.x
-    validations:
-      required: true
 
   - type: textarea
     attributes:

@@ -3,12 +3,12 @@ title: Create run artifacts
 description: Prefect artifacts are persisted outputs designed for human consumption and available in the UI.
 ---
 
-Artifacts:
+Prefect artifacts:
 
 - are visually rich annotations on flow and task runs
 - are human-readable visual metadata produced in code
 - come in standardized formats such as tables, progress indicators, images, Markdown, or links
-- are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI
+- are stored in Prefect Cloud or Prefect server and rendered in the Prefect UI
 - make it easy to visualize outputs or side effects that your runs produce, and capture updates over time
 
 ![Markdown artifact sales report screenshot](/3.0rc/img/ui/md-artifact-info.png)
@@ -100,7 +100,7 @@ links to the relevant data.
 You can also view information about your artifact such as:
 
 - its associated flow run or task run id
-- previous and future versions of the artifact (multiple artifacts can have the same key in order to show lineage) 
+- previous and future versions of the artifact (multiple artifacts can have the same key to show lineage) 
 - the data you've stored (in this case a Markdown-rendered link)
 - an optional Markdown description
 - when the artifact was created or updated
@@ -248,8 +248,7 @@ After running the above flow, you should see your "gtm-report" artifact in the A
 
 ![Markdown sales report screenshot](/3.0rc/img/ui/md-artifact-info.png)
 
-You can view the associated flow run or task run id, previous and future versions of the artifact, 
-your rendered Markdown data, and your optional Markdown description.
+You can view the associated flow run id or task run id, previous versions of the artifact, the rendered Markdown data, and the optional Markdown description.
 
 ### Create table artifacts
 
