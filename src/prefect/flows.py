@@ -46,7 +46,9 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.compatibility.deprecated import (
+    deprecated_parameter,
+)
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
