@@ -9,6 +9,7 @@ on:
       - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
+      - benches/
       - requirements.txt
       - requirements-dev.txt
       - setup.cfg
