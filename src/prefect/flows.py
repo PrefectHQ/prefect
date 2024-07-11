@@ -1189,9 +1189,9 @@ class Flow(Generic[P, R]):
             entrypoint_type=entrypoint_type,
         )
 
-        from prefect.deployments import runner
+        from prefect.deployments.runner import deploy
 
-        deployment_ids = await runner.deploy(
+        deployment_ids = await deploy(
             deployment,
             work_pool_name=work_pool_name,
             image=image,
