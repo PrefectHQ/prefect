@@ -32,6 +32,13 @@ jobs:
 
     runs-on:
       group: oss-larger-runners
+    strategy:
+      matrix:
+        bench-subset:
+          - benches/bench_tasks.py benches/bench_flows.py::bench_flow_decorator benches/bench_flows.py::bench_flow_call
+          - benches/bench_import.py
+      fail-fast: false
+
     timeout-minutes: 20
 
     steps:
@@ -39,12 +46,6 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-
-      - name: Set up Docker Buildx
-        if: ${{ matrix.build-docker-images }}
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: image=moby/buildkit:v0.12.5
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -76,11 +77,4 @@ jobs:
         env:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
-          run: >
-            pytest 
-            benches/bench_tasks.py 
-            benches/bench_flows.py::bench_flow_decorator
-            benches/bench_flows.py::bench_flow_call
-            benches/bench_import.py 
-            --codspeed
-            -vv
+          run: pytest ${{ matrix.bench-subset }} --codspeed -vv
