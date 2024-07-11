@@ -71,10 +71,6 @@ from prefect.client.schemas.objects import (
     StateType,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.deployments.runner import (
-    EntrypointType,
-    RunnerDeployment,
-)
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, load_flow_from_flow_run
@@ -88,6 +84,7 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
@@ -99,6 +96,7 @@ from prefect.utilities.services import critical_service_loop
 
 if TYPE_CHECKING:
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
+    from prefect.deployments.runner import RunnerDeployment
 
 __all__ = ["Runner"]
 
@@ -189,7 +187,7 @@ class Runner:
     @sync_compatible
     async def add_deployment(
         self,
-        deployment: RunnerDeployment,
+        deployment: "RunnerDeployment",
     ) -> UUID:
         """
         Registers the deployment with the Prefect API and will monitor for work once
