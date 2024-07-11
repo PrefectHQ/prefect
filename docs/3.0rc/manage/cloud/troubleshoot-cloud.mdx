@@ -1,6 +1,6 @@
 ---
 title: Troubleshoot Prefect Cloud
-description: Learn tips and tricks and common solutions for troubleshooting Prefect Cloud.
+description: Learn how to identify and resolve common issues with Prefect Cloud.
 ---
 
 ## Prefect Cloud and proxies
@@ -73,7 +73,7 @@ or will provide more information when sharing your case to the support channel.
 
 - Are you logging into Prefect Cloud 3? Prefect Cloud 1, Prefect Cloud 2, and Prefect Cloud 3 use separate accounts. 
 Make sure to use the right Prefect Cloud 3 URL: \<https://app.prefect.cloud/>
-- Do you already have a Prefect Cloud account? If you’re having difficulty accepting an invitation, 
+- Do you already have a Prefect Cloud account? If you're having difficulty accepting an invitation, 
 try creating an account first using the email associated with the invitation, then accept the invitation.
 - Are you using a single sign-on (SSO) provider, social authentication (Google, Microsoft, or GitHub) or just using an emailed link?
 
@@ -211,12 +211,12 @@ Ensure that your work pool and work queue have a subscribed worker.
 
 Local and remote execution can also differ in their treatment of relative imports. 
 If switching from local to remote execution results in local import errors, try replicating the 
-behavior by executing the flow locally with the `-m` flag (i.e. `python -m flow` instead of `python flow.py`). 
+behavior by executing the flow locally with the `-m` flag (For example, `python -m flow` instead of `python flow.py`). 
 Read more about `-m` in this [Stack Overflow post](https://stackoverflow.com/a/62923810).
 
 ## API tests return an unexpected 307 Redirected
 
-**Summary:** Requests require a trailing `/` in the request URL.
+**Summary:** requests require a trailing `/` in the request URL.
 
 If you write a test that does not include a trailing `/` when making a request to a specific endpoint:
 
@@ -271,7 +271,6 @@ E               ResourceWarning: unclosed <ssl.SSLSocket fd=10, family=AddressFa
 .../_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning
 
 ```
-
 
 This error states that your test suite (or the `prefect` library code) opened a
 connection to something (like a Docker daemon or a Kubernetes cluster) and didn't close

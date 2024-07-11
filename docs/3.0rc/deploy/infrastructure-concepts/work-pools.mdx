@@ -3,10 +3,12 @@ title: Manage infrastructure with work pools
 description: Prefect work pools route deployment flow runs to workers.
 ---
 
-Work pools organize work for execution. Work pools have types corresponding to the infrastructure to execute the flow code, 
-as well as the delivery method of work to that environment. Pull work pools require workers to poll the work 
-pool for flow runs to execute. [Push work pools](/3.0rc/deploy/infrastructure-examples/serverless) submit runs directly to your 
-serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
+Work pools organize work for execution. Work pools have types corresponding to the infrastructure to execute the flow code, as well as the delivery method of work to that environment. 
+
+Pull work pools require workers to poll the work pool for flow runs to execute. 
+
+[Push work pools](/3.0rc/deploy/infrastructure-examples/serverless) submit runs directly to your serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
+
 [Managed work pools](/3.0rc/deploy/infrastructure-examples/managed) are administered by Prefect and handle the submission and execution of code on your behalf.
 
 <Tip>
@@ -140,7 +142,7 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
     | Modal - Push                         | Execute flow runs on Modal. Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker.  |
     | Prefect Managed                      | Execute flow runs within containers on Prefect managed infrastructure.                                                      |
   </Tab>
-  <Tab title="Prefect server instance">
+  <Tab title="Self-hosted Prefect server">
 
     | Infrastructure Type           | Description              |
     | ----------------------------  | ------------------------ |
@@ -336,7 +338,7 @@ Learn more about [overriding job variables](/3.0rc/deploy/infrastructure-concept
     Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. 
     In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors. 
     Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which are useful for restricting 
-    functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template  
+    capabilities in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template  
     to configure the manifest that workers use to create jobs for flow execution.
 
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
@@ -765,7 +767,7 @@ build namespace is set to the URL of the repository.
 While the default namespace is set, any images you build without specifying a registry or username/organization 
 are pushed to the repository.
 
-To use this functionality, write your deploy script like this:
+To use this capability, write your deploy script like this:
 
 ```python example_deploy_script.py
 from prefect import flow                                                       

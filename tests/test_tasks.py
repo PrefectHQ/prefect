@@ -854,13 +854,17 @@ class TestTaskSubmit:
         """
 
         @task
-        def foo():
-            pass
+        def find_palindromes():
+            """This is a computationally expensive task that never ends,
+            allowing the flow to exit before the task is completed."""
+            num = 10
+            while True:
+                _ = str(num) == str(num)[::-1]
+                num += 1
 
         @flow
         def test_flow():
-            for _ in range(100):
-                foo.submit()
+            find_palindromes.submit()
 
         test_flow()
         assert (

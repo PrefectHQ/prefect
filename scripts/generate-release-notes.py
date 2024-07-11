@@ -45,7 +45,7 @@ DEFAULT_TAG = "preview"
 TOKEN_REGEX = re.compile(r"\s* Token:\s(.*)")
 ENTRY_REGEX = re.compile(r"^\* (.*) by @(.*) in (.*)$", re.MULTILINE)
 
-
+# TODO: Make this dynamic
 PREFECTIONISTS = {
     "aaazzam",
     "abrookins",
@@ -55,8 +55,11 @@ PREFECTIONISTS = {
     "billpalombi",
     "bunchesofdonald",
     "chrisguidry",
+    "cicdw",
     "collincchoy",
+    "daniel-prefect",
     "desertaxle",
+    "djsauble",
     "discdiver",
     "dylanbhughes",
     "EmilRex",
@@ -66,6 +69,7 @@ PREFECTIONISTS = {
     "jimid27",
     "jlowin",
     "justin-prefect",
+    "LarryUllman",
     "kevingrismore",
     "marvin-robot",
     "masonmenges",
@@ -78,7 +82,6 @@ PREFECTIONISTS = {
     "sarahbanana09",
     "sarahmk125",
     "seanpwlms",
-    "serinamarie",
     "SMPrefect",
     "taylor-curran",
     "tess-dicker",
@@ -252,7 +255,7 @@ def generate_release_notes(
         parts = prefect_release_notes.split("### Contributors")
         # ensure that Integrations section is before Contributors
         # Print all accumulated non-Prefect changes under "Integrations"
-        integrations_heading = "### Integrations" + "\n".join(integrations_section)
+        integrations_heading = "### Integrations\n" + "\n".join(integrations_section)
 
         prefect_release_notes = (
             parts[0] + integrations_heading + "\n\n### Contributors" + parts[1]
