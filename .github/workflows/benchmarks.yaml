@@ -57,7 +57,6 @@ jobs:
           path: ~/.cache/uv
           key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
 
-
       - name: Install packages
         run: |
           python -m pip install -U uv
@@ -91,6 +90,8 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           GITHUB_SHA: ${{ github.sha }}
         # Includes comparison to previous benchmarks if available
+        # Import benchmark is ignored because because we run those
+        # benchmarks via CodSpeed
         run: |
           if [[ -z "$HEAD_REF" ]]; then
             # HEAD_REF is unset or empty, use 'main' with the SHA
@@ -106,6 +107,7 @@ jobs:
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           python benches \
+          --ignore=benches/bench_import.py \
           --timeout=180 \
           --benchmark-save="${sanitized_uniquename}" \
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}
