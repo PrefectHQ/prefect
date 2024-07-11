@@ -10,16 +10,19 @@
 - Respect `--ui/--no-ui` flag on `prefect server start` — https://github.com/PrefectHQ/prefect/pull/14520
 - Append task run futures only when entering task run engine from flow run context — https://github.com/PrefectHQ/prefect/pull/14439
 
-## New Contributors
-* @oaustegard made their first contribution in https://github.com/PrefectHQ/prefect/pull/14505
-
 ### Integrations
 - Depend on Cloud Run Execution state for timeout enforcement 2.x — https://github.com/PrefectHQ/prefect/pull/14554
 - Handle case where `AwsClientParameters` is a `dict` — https://github.com/PrefectHQ/prefect/pull/14438
 - Added `print_func` for `run_namespaced_job` — https://github.com/PrefectHQ/prefect/pull/14463
 - Use correct paths in `GcsBucket.put/get_directory` — https://github.com/PrefectHQ/prefect/pull/14537
 - Cache Kubernetes client — https://github.com/PrefectHQ/prefect/pull/14535
-- Remove old WorkQueue components — https://github.com/PrefectHQ/prefect-ui-library/pull/2601
+
+### UI
+- Remove old WorkQueue components. — https://github.com/PrefectHQ/prefect-ui-library/pull/2601
+
+## New Contributors
+* @oaustegard made their first contribution in https://github.com/PrefectHQ/prefect/pull/14505
+
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.7...2.19.8
 
