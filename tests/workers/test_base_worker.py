@@ -2143,3 +2143,59 @@ async def test_worker_last_polled_health_check(
 
             # cleanup mock
             pendulum.set_test_now()
+
+
+class TestBaseWorkerStart:
+    async def test_start_syncs_with_the_server(self, work_pool):
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        assert worker._work_pool is None
+
+        await worker.start(run_once=True)
+
+        assert worker._work_pool is not None
+        assert worker._work_pool.base_job_template == work_pool.base_job_template
+
+    async def test_start_executes_flow_runs(
+        self, prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+    ):
+        @flow
+        def test_flow():
+            pass
+
+        def create_run_with_deployment(state):
+            return prefect_client.create_flow_run_from_deployment(
+                worker_deployment_wq1.id, state=state
+            )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1)),
+        )
+
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        worker.run = AsyncMock()
+        await worker.start(run_once=True)
+
+        worker.run.assert_awaited_once()
+        assert worker.run.call_args[1]["flow_run"].id == flow_run.id
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_start_cancels_flow_runs(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        work_pool,
+        cancelling_constructor,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        worker.cancel_run = AsyncMock()
+        await worker.start(run_once=True)
+
+        worker.cancel_run.assert_awaited_once_with(flow_run)
