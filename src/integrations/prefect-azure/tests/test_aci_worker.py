@@ -1102,3 +1102,55 @@ async def test_kill_infrastructure_raises_exception_if_container_group_missing(
     # Kill_infrastructure should not attempt to delete the container group if it
     # does not exist
     mock_deletion_call.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "flow_name",
+    [
+        "Short Flow",
+        "Refresh PBI",
+        "Keyvault Notification",
+        "Extremely Long Flow Name That Exceeds The Maximum Length Allowed",
+    ],
+)
+async def test_consistent_container_group_naming(
+    mock_prefect_client,
+    worker_flow_run,
+    job_configuration,
+    mock_aci_client,
+    mock_resource_client,
+    monkeypatch,
+    flow_name,
+):
+    max_length = 64
+
+    flow = Flow(id=worker_flow_run.flow_id, name=flow_name)
+    mock_prefect_client.read_flow.return_value = flow
+
+    flow_run = FlowRun(flow_id=flow.id, name=f"{flow_name} run")
+
+    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
+        monkeypatch.setattr(aci_worker, "_provisioning_succeeded", lambda *args: True)
+
+        try:
+            await aci_worker.run(flow_run, job_configuration)
+        except Exception:
+            pass
+
+    calls = mock_resource_client.deployments.begin_create_or_update.call_args_list
+    assert len(calls) > 0
+
+    last_call = calls[-1]
+    container_group_name = last_call[1]["deployment_name"]
+
+    assert " " not in container_group_name
+    assert all(c.isalnum() or c in ("-", "_") for c in container_group_name)
+    assert container_group_name.startswith("prefect-")
+    assert container_group_name.endswith(str(flow_run.id))
+
+    name_without_prefix_and_id = container_group_name[8:-37]
+    assert name_without_prefix_and_id.replace("-", " ").lower() in flow_name.lower()
+
+    assert (
+        len(container_group_name) <= max_length
+    ), f"Length: {len(container_group_name)}, Max: {max_length}"
