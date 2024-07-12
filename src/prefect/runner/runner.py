@@ -164,9 +164,6 @@ class Runner:
         self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
         self._prefetch_seconds = prefetch_seconds
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-
         self._limiter: Optional[anyio.CapacityLimiter] = anyio.CapacityLimiter(
             self.limit
         )
@@ -1162,6 +1159,10 @@ class Runner:
         self._logger.debug("Starting runner...")
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
+
+        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 

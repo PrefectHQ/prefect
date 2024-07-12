@@ -327,7 +327,9 @@ def sync_compatible(
 
 
 def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+    async_fn: Callable[..., Coroutine[Any, Any, R]],
+    force_sync: bool = False,
+    sync_version: Optional[Callable[..., R]] = None,
 ) -> Callable[..., Union[R, Coroutine[Any, Any, R]]]:
     """
     Converts an async function into a dual async and sync function.
@@ -335,6 +337,7 @@ def sync_compatible(
     When the returned function is called, we will attempt to determine the best way
     to enter the async function.
 
+    - If a sync_version is provided and we're in a sync context, we'll use that.
     - If in a thread with a running event loop, we will return the coroutine for the
         caller to await. This is normal async behavior.
     - If in a blocking worker thread with access to an event loop in another thread, we
@@ -387,12 +390,18 @@ def sync_compatible(
                 RUNNING_ASYNC_FLAG.reset(token)
             return result
 
-        if _sync is True:
+        if sync_version and (_sync is True or (not is_async and _sync is None)):
+            return sync_version(*args, **kwargs)
+        elif _sync is True:
             return run_coro_as_sync(ctx_call())
         elif _sync is False or RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
-            return run_coro_as_sync(ctx_call())
+            try:
+                loop = asyncio.get_running_loop()
+                return cast(R, loop.run_until_complete(async_fn(*args, **kwargs)))
+            except RuntimeError:
+                return cast(R, asyncio.run(async_fn(*args, **kwargs)))
 
     if is_async_fn(async_fn):
         wrapper = coroutine_wrapper
@@ -579,22 +588,3 @@ class LazySemaphore:
         if self._semaphore is None:
             initial_value = self._initial_value_func()
             self._semaphore = asyncio.Semaphore(initial_value)
-
-
-def async_entrypoint(fn: Callable[P, Awaitable[R]]) -> Callable[P, R]:
-    @wraps(fn)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError as e:
-            if "no running event loop" in str(e):
-                loop = None
-            else:
-                raise
-
-        if loop:
-            return cast(R, loop.run_until_complete(fn(*args, **kwargs)))
-        else:
-            return cast(R, asyncio.run(fn(*args, **kwargs)))  # type: ignore
-
-    return wrapper
