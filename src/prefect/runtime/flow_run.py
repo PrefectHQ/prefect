@@ -21,7 +21,6 @@ Available attributes:
 
 import os
 from typing import Any, Dict, List, Optional
-from uuid import UUID
 
 import pendulum
 
