@@ -3,11 +3,12 @@ Functions for interacting with concurrency limit ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Sequence, Union
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
@@ -18,9 +19,9 @@ from prefect.server.database.interface import PrefectDBInterface
 @db_injector
 async def create_concurrency_limit(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit: schemas.core.ConcurrencyLimit,
-):
+) -> orm_models.ConcurrencyLimit:
     insert_values = concurrency_limit.model_dump_for_orm(exclude_unset=False)
     insert_values.pop("created")
     insert_values.pop("updated")
@@ -29,7 +30,7 @@ async def create_concurrency_limit(
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    concurrency_limit.updated = pendulum.now("UTC")
+    concurrency_limit.updated = pendulum.now("UTC")  # type: ignore[assignment]
 
     insert_stmt = (
         db.insert(orm_models.ConcurrencyLimit)
@@ -51,13 +52,13 @@ async def create_concurrency_limit(
     )
 
     result = await session.execute(query)
-    return result.scalar()
+    return result.scalar_one()
 
 
 async def read_concurrency_limit(
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit_id: UUID,
-):
+) -> Union[orm_models.ConcurrencyLimit, None]:
     """
     Reads a concurrency limit by id. If used for orchestration, simultaneous read race
     conditions might allow the concurrency limit to be temporarily exceeded.
@@ -72,9 +73,9 @@ async def read_concurrency_limit(
 
 
 async def read_concurrency_limit_by_tag(
-    session: sa.orm.Session,
+    session: AsyncSession,
     tag: str,
-):
+) -> Union[orm_models.ConcurrencyLimit, None]:
     """
     Reads a concurrency limit by tag. If used for orchestration, simultaneous read race
     conditions might allow the concurrency limit to be temporarily exceeded.
@@ -89,10 +90,10 @@ async def read_concurrency_limit_by_tag(
 
 
 async def reset_concurrency_limit_by_tag(
-    session: sa.orm.Session,
+    session: AsyncSession,
     tag: str,
     slot_override: Optional[List[UUID]] = None,
-):
+) -> Union[orm_models.ConcurrencyLimit, None]:
     """
     Resets a concurrency limit by tag.
     """
@@ -110,9 +111,9 @@ async def reset_concurrency_limit_by_tag(
 
 
 async def filter_concurrency_limits_for_orchestration(
-    session: sa.orm.Session,
+    session: AsyncSession,
     tags: List[str],
-):
+) -> Sequence[orm_models.ConcurrencyLimit]:
     """
     Filters concurrency limits by tag. This will apply a "select for update" lock on
     these rows to prevent simultaneous read race conditions from enabling the
@@ -130,7 +131,7 @@ async def filter_concurrency_limits_for_orchestration(
 
 
 async def delete_concurrency_limit(
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit_id: UUID,
 ) -> bool:
     query = sa.delete(orm_models.ConcurrencyLimit).where(
@@ -142,7 +143,7 @@ async def delete_concurrency_limit(
 
 
 async def delete_concurrency_limit_by_tag(
-    session: sa.orm.Session,
+    session: AsyncSession,
     tag: str,
 ) -> bool:
     query = sa.delete(orm_models.ConcurrencyLimit).where(
@@ -154,10 +155,10 @@ async def delete_concurrency_limit_by_tag(
 
 
 async def read_concurrency_limits(
-    session: sa.orm.Session,
+    session: AsyncSession,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
-):
+) -> Sequence[orm_models.ConcurrencyLimit]:
     """
     Reads a concurrency limits. If used for orchestration, simultaneous read race
     conditions might allow the concurrency limit to be temporarily exceeded.
