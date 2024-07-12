@@ -93,6 +93,15 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
         yield work_pool
 
 
+@pytest.fixture
+def mock_worker(monkeypatch):
+    mock_worker_start = AsyncMock()
+    mock_worker = MagicMock()
+    mock_worker.return_value.start = mock_worker_start
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+    return mock_worker
+
+
 @pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_run_once_with_name():
     invoke_and_assert(
@@ -184,9 +193,7 @@ async def test_start_worker_creates_work_pool_with_base_config(
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
-    mock_worker = MagicMock()
-    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+def test_start_worker_with_work_queue_names(mock_worker, process_work_pool):
     invoke_and_assert(
         command=[
             "worker",
@@ -210,13 +217,13 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         heartbeat_interval_seconds=30,
         base_job_template=None,
     )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-def test_start_worker_with_specified_work_queues_paused(monkeypatch, process_work_pool):
-    mock_worker = MagicMock()
-    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
-
+def test_start_worker_with_specified_work_queues_paused(mock_worker, process_work_pool):
     invoke_and_assert(
         command=[
             "work-queue",
@@ -256,13 +263,13 @@ def test_start_worker_with_specified_work_queues_paused(monkeypatch, process_wor
         heartbeat_interval_seconds=30,
         base_job_template=None,
     )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-def test_start_worker_with_all_work_queues_paused(monkeypatch, process_work_pool):
-    mock_worker = MagicMock()
-    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
-
+def test_start_worker_with_all_work_queues_paused(mock_worker, process_work_pool):
     invoke_and_assert(
         command=[
             "work-queue",
@@ -294,12 +301,13 @@ def test_start_worker_with_all_work_queues_paused(monkeypatch, process_work_pool
         heartbeat_interval_seconds=30,
         base_job_template=None,
     )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-def test_start_worker_with_prefetch_seconds(monkeypatch):
-    mock_worker = MagicMock()
-    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+def test_start_worker_with_prefetch_seconds(mock_worker):
     invoke_and_assert(
         command=[
             "worker",
@@ -323,12 +331,13 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
         heartbeat_interval_seconds=30,
         base_job_template=None,
     )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch):
-    mock_worker = MagicMock()
-    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+def test_start_worker_with_prefetch_seconds_from_setting_by_default(mock_worker):
     with temporary_settings({PREFECT_WORKER_PREFETCH_SECONDS: 100}):
         invoke_and_assert(
             command=[
@@ -351,12 +360,13 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         heartbeat_interval_seconds=30,
         base_job_template=None,
     )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-def test_start_worker_with_limit(monkeypatch):
-    mock_worker = MagicMock()
-    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+def test_start_worker_with_limit(mock_worker):
     invoke_and_assert(
         command=[
             "worker",
@@ -379,6 +389,9 @@ def test_start_worker_with_limit(monkeypatch):
         limit=5,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+    )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
     )
 
 
