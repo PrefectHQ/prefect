@@ -1,9 +1,11 @@
-from typing import Optional
+from typing import Optional, Sequence, TypeVar, Union
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
@@ -11,14 +13,16 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import actions, filters, sorting
 from prefect.server.schemas.core import Artifact
 
+T = TypeVar("T", bound=tuple)
+
 
 @db_injector
 async def _insert_into_artifact_collection(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     artifact: Artifact,
-    now: pendulum.DateTime = None,
-):
+    now: Optional[pendulum.DateTime] = None,
+) -> orm_models.ArtifactCollection:
     """
     Inserts a new artifact into the artifact_collection table or updates it.
     """
@@ -72,10 +76,10 @@ async def _insert_into_artifact_collection(
 @db_injector
 async def _insert_into_artifact(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     artifact: Artifact,
-    now: pendulum.DateTime = None,
-) -> Artifact:
+    now: Optional[pendulum.DateTime] = None,
+) -> orm_models.Artifact:
     """
     Inserts a new artifact into the artifact table.
     """
@@ -95,15 +99,13 @@ async def _insert_into_artifact(
     )
 
     result = await session.execute(query)
-    model = result.scalar()
-
-    return model
+    return result.scalar_one()
 
 
 async def create_artifact(
-    session: sa.orm.Session,
+    session: AsyncSession,
     artifact: Artifact,
-):
+) -> orm_models.Artifact:
     now = pendulum.now("UTC")
 
     if artifact.key is not None:
@@ -121,9 +123,9 @@ async def create_artifact(
 
 
 async def read_latest_artifact(
-    session: sa.orm.Session,
+    session: AsyncSession,
     key: str,
-):
+) -> Union[orm_models.ArtifactCollection, None]:
     """
     Reads the latest artifact by key.
     Args:
@@ -140,9 +142,9 @@ async def read_latest_artifact(
 
 
 async def read_artifact(
-    session: sa.orm.Session,
+    session: AsyncSession,
     artifact_id: UUID,
-):
+) -> Union[orm_models.Artifact, None]:
     """
     Reads an artifact by id.
     """
@@ -154,95 +156,103 @@ async def read_artifact(
 
 
 async def _apply_artifact_filters(
-    query,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    artifact_filter: filters.ArtifactFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
-):
+    query: Select[T],
+    flow_run_filter: Optional[filters.FlowRunFilter] = None,
+    task_run_filter: Optional[filters.TaskRunFilter] = None,
+    artifact_filter: Optional[filters.ArtifactFilter] = None,
+    deployment_filter: Optional[filters.DeploymentFilter] = None,
+    flow_filter: Optional[filters.FlowFilter] = None,
+) -> Select[T]:
     """Applies filters to an artifact query as a combination of EXISTS subqueries."""
     if artifact_filter:
         query = query.where(artifact_filter.as_sql_filter())
 
     if flow_filter or flow_run_filter or deployment_filter:
-        exists_clause = select(orm_models.FlowRun).where(
+        flow_run_exists_clause = select(orm_models.FlowRun).where(
             orm_models.Artifact.flow_run_id == orm_models.FlowRun.id
         )
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            flow_run_exists_clause = flow_run_exists_clause.where(
+                flow_run_filter.as_sql_filter()
+            )
 
         if flow_filter:
-            exists_clause = exists_clause.join(
+            flow_run_exists_clause = flow_run_exists_clause.join(
                 orm_models.Flow,
                 orm_models.Flow.id == orm_models.FlowRun.flow_id,
             ).where(flow_filter.as_sql_filter())
 
         if deployment_filter:
-            exists_clause = exists_clause.join(
+            flow_run_exists_clause = flow_run_exists_clause.join(
                 orm_models.Deployment,
                 orm_models.Deployment.id == orm_models.FlowRun.deployment_id,
             ).where(deployment_filter.as_sql_filter())
 
-        query = query.where(exists_clause.exists())
+        query = query.where(flow_run_exists_clause.exists())
 
     if task_run_filter:
-        exists_clause = select(orm_models.TaskRun).where(
+        task_run_exists_clause = select(orm_models.TaskRun).where(
             orm_models.Artifact.task_run_id == orm_models.TaskRun.id
         )
-        exists_clause = exists_clause.where(task_run_filter.as_sql_filter())
+        task_run_exists_clause = task_run_exists_clause.where(
+            task_run_filter.as_sql_filter()
+        )
 
-        query = query.where(exists_clause.exists())
+        query = query.where(task_run_exists_clause.exists())
 
     return query
 
 
 async def _apply_artifact_collection_filters(
-    query,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    artifact_filter: filters.ArtifactCollectionFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
-):
+    query: Select[T],
+    flow_run_filter: Optional[filters.FlowRunFilter] = None,
+    task_run_filter: Optional[filters.TaskRunFilter] = None,
+    artifact_filter: Optional[filters.ArtifactCollectionFilter] = None,
+    deployment_filter: Optional[filters.DeploymentFilter] = None,
+    flow_filter: Optional[filters.FlowFilter] = None,
+) -> Select[T]:
     """Applies filters to an artifact collection query as a combination of EXISTS subqueries."""
     if artifact_filter:
         query = query.where(artifact_filter.as_sql_filter())
 
     if flow_filter or flow_run_filter or deployment_filter:
-        exists_clause = select(orm_models.FlowRun).where(
+        flow_run_exists_clause = select(orm_models.FlowRun).where(
             orm_models.ArtifactCollection.flow_run_id == orm_models.FlowRun.id
         )
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            flow_run_exists_clause = flow_run_exists_clause.where(
+                flow_run_filter.as_sql_filter()
+            )
 
         if flow_filter:
-            exists_clause = exists_clause.join(
+            flow_run_exists_clause = flow_run_exists_clause.join(
                 orm_models.Flow,
                 orm_models.Flow.id == orm_models.FlowRun.flow_id,
             ).where(flow_filter.as_sql_filter())
 
         if deployment_filter:
-            exists_clause = exists_clause.join(
+            flow_run_exists_clause = flow_run_exists_clause.join(
                 orm_models.Deployment,
                 orm_models.Deployment.id == orm_models.FlowRun.deployment_id,
             ).where(deployment_filter.as_sql_filter())
 
-        query = query.where(exists_clause.exists())
+        query = query.where(flow_run_exists_clause.exists())
 
     if task_run_filter:
-        exists_clause = select(orm_models.TaskRun).where(
+        task_run_exists_clause = select(orm_models.TaskRun).where(
             orm_models.ArtifactCollection.task_run_id == orm_models.TaskRun.id
         )
-        exists_clause = exists_clause.where(task_run_filter.as_sql_filter())
+        task_run_exists_clause = task_run_exists_clause.where(
+            task_run_filter.as_sql_filter()
+        )
 
-        query = query.where(exists_clause.exists())
+        query = query.where(task_run_exists_clause.exists())
 
     return query
 
 
 async def read_artifacts(
-    session: sa.orm.Session,
+    session: AsyncSession,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     artifact_filter: Optional[filters.ArtifactFilter] = None,
@@ -251,7 +261,7 @@ async def read_artifacts(
     deployment_filter: Optional[filters.DeploymentFilter] = None,
     flow_filter: Optional[filters.FlowFilter] = None,
     sort: sorting.ArtifactSort = sorting.ArtifactSort.ID_DESC,
-):
+) -> Sequence[orm_models.Artifact]:
     """
     Reads artifacts.
 
@@ -287,16 +297,16 @@ async def read_artifacts(
 
 
 async def read_latest_artifacts(
-    session: sa.orm.Session,
+    session: AsyncSession,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-    artifact_filter: filters.ArtifactCollectionFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    artifact_filter: Optional[filters.ArtifactCollectionFilter] = None,
+    flow_run_filter: Optional[filters.FlowRunFilter] = None,
+    task_run_filter: Optional[filters.TaskRunFilter] = None,
+    deployment_filter: Optional[filters.DeploymentFilter] = None,
+    flow_filter: Optional[filters.FlowFilter] = None,
     sort: sorting.ArtifactCollectionSort = sorting.ArtifactCollectionSort.ID_DESC,
-):
+) -> Sequence[orm_models.ArtifactCollection]:
     """
     Reads artifacts.
 
@@ -331,12 +341,12 @@ async def read_latest_artifacts(
 
 
 async def count_artifacts(
-    session: sa.orm.Session,
-    artifact_filter: filters.ArtifactFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    session: AsyncSession,
+    artifact_filter: Optional[filters.ArtifactFilter] = None,
+    flow_run_filter: Optional[filters.FlowRunFilter] = None,
+    task_run_filter: Optional[filters.TaskRunFilter] = None,
+    deployment_filter: Optional[filters.DeploymentFilter] = None,
+    flow_filter: Optional[filters.FlowFilter] = None,
 ) -> int:
     """
     Counts artifacts.
@@ -362,12 +372,12 @@ async def count_artifacts(
 
 
 async def count_latest_artifacts(
-    session: sa.orm.Session,
-    artifact_filter: filters.ArtifactCollectionFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    session: AsyncSession,
+    artifact_filter: Optional[filters.ArtifactCollectionFilter] = None,
+    flow_run_filter: Optional[filters.FlowRunFilter] = None,
+    task_run_filter: Optional[filters.TaskRunFilter] = None,
+    deployment_filter: Optional[filters.DeploymentFilter] = None,
+    flow_filter: Optional[filters.FlowFilter] = None,
 ) -> int:
     """
     Counts artifacts.
@@ -393,7 +403,7 @@ async def count_latest_artifacts(
 
 
 async def update_artifact(
-    session: sa.orm.Session,
+    session: AsyncSession,
     artifact_id: UUID,
     artifact: actions.ArtifactUpdate,
 ) -> bool:
@@ -430,7 +440,7 @@ async def update_artifact(
 
 
 async def delete_artifact(
-    session: sa.orm.Session,
+    session: AsyncSession,
     artifact_id: UUID,
 ) -> bool:
     """
