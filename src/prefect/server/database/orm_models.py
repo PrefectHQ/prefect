@@ -954,7 +954,9 @@ class Log(Base):
 class ConcurrencyLimit(Base):
     tag = sa.Column(sa.String, nullable=False)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
-    active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    active_slots: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=list, nullable=False
+    )
 
     __table_args__ = (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
 
