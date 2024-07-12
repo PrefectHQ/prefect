@@ -6,7 +6,7 @@ import os
 import shutil
 from datetime import timedelta
 from getpass import GetPassWarning
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import readchar
 from rich.console import Console, Group
@@ -97,7 +97,7 @@ def prompt_select_from_table(
     selected_row = None
     table_kwargs = table_kwargs or {}
 
-    def build_table() -> Table:
+    def build_table() -> Union[Table, Group]:
         """
         Generate a table of options. The `current_idx` will be highlighted.
         """
