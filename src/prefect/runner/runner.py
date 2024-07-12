@@ -1160,10 +1160,10 @@ class Runner:
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
 
-        if not hasattr(self, "_runs_task_group"):
+        if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
             self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
-        if not hasattr(self, "_loops_task_group"):
+        if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
         await self._client.__aenter__()

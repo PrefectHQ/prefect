@@ -404,16 +404,6 @@ def sync_compatible(
     wrapper.aio = async_fn  # type: ignore
     return wrapper
 
-    if is_async_fn(async_fn):
-        wrapper = coroutine_wrapper
-    elif is_async_gen_fn(async_fn):
-        raise ValueError("Async generators cannot yet be marked as `sync_compatible`")
-    else:
-        raise TypeError("The decorated function must be async.")
-
-    wrapper.aio = async_fn  # type: ignore
-    return wrapper
-
 
 @asynccontextmanager
 async def asyncnullcontext(value=None):
