@@ -1,6 +1,7 @@
 from typing import Union
 
 import uvicorn
+import uvicorn.server
 from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
 
@@ -12,19 +13,19 @@ from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 
 
-def start_healthcheck_server(
+def build_healthcheck_server(
     worker: Union[BaseWorker, ProcessWorker],
-    query_interval_seconds: int,
+    query_interval_seconds: float,
     log_level: str = "error",
-) -> None:
+):
     """
-    Run a healthcheck FastAPI server for a worker.
+    Build a healthcheck FastAPI server for a worker.
 
     Args:
         worker (BaseWorker | ProcessWorker): the worker whose health we will check
-        log_level (str): the log level to use for the server
+        log_level (str): the log
     """
-    webserver = FastAPI()
+    app = FastAPI()
     router = APIRouter()
 
     def perform_health_check():
@@ -41,11 +42,28 @@ def start_healthcheck_server(
 
     router.add_api_route("/health", perform_health_check, methods=["GET"])
 
-    webserver.include_router(router)
+    app.include_router(router)
 
-    uvicorn.run(
-        webserver,
+    config = uvicorn.Config(
+        app=app,
         host=PREFECT_WORKER_WEBSERVER_HOST.value(),
         port=PREFECT_WORKER_WEBSERVER_PORT.value(),
         log_level=log_level,
     )
+    return uvicorn.Server(config=config)
+
+
+def start_healthcheck_server(
+    worker: Union[BaseWorker, ProcessWorker],
+    query_interval_seconds: float,
+    log_level: str = "error",
+) -> None:
+    """
+    Run a healthcheck FastAPI server for a worker.
+
+    Args:
+        worker (BaseWorker | ProcessWorker): the worker whose health we will check
+        log_level (str): the log level to use for the server
+    """
+    server = build_healthcheck_server(worker, query_interval_seconds, log_level)
+    server.run()
