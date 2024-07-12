@@ -327,9 +327,7 @@ def sync_compatible(
 
 
 def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, R]],
-    force_sync: bool = False,
-    sync_version: Optional[Callable[..., R]] = None,
+    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
 ) -> Callable[..., Union[R, Coroutine[Any, Any, R]]]:
     """
     Converts an async function into a dual async and sync function.
@@ -337,7 +335,6 @@ def sync_compatible(
     When the returned function is called, we will attempt to determine the best way
     to enter the async function.
 
-    - If a sync_version is provided and we're in a sync context, we'll use that.
     - If in a thread with a running event loop, we will return the coroutine for the
         caller to await. This is normal async behavior.
     - If in a blocking worker thread with access to an event loop in another thread, we
@@ -390,18 +387,22 @@ def sync_compatible(
                 RUNNING_ASYNC_FLAG.reset(token)
             return result
 
-        if sync_version and (_sync is True or (not is_async and _sync is None)):
-            return sync_version(*args, **kwargs)
-        elif _sync is True:
+        if _sync is True:
             return run_coro_as_sync(ctx_call())
         elif _sync is False or RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
-            try:
-                loop = asyncio.get_running_loop()
-                return cast(R, loop.run_until_complete(async_fn(*args, **kwargs)))
-            except RuntimeError:
-                return cast(R, asyncio.run(async_fn(*args, **kwargs)))
+            return run_coro_as_sync(ctx_call())
+
+    if is_async_fn(async_fn):
+        wrapper = coroutine_wrapper
+    elif is_async_gen_fn(async_fn):
+        raise ValueError("Async generators cannot yet be marked as `sync_compatible`")
+    else:
+        raise TypeError("The decorated function must be async.")
+
+    wrapper.aio = async_fn  # type: ignore
+    return wrapper
 
     if is_async_fn(async_fn):
         wrapper = coroutine_wrapper
