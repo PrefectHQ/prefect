@@ -64,7 +64,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         names=self.concurrency_limit_names,
                         slots=slots,
                         mode=mode,
-                        active=active,
+                        create_if_missing=active,
                     )
                 except Exception as exc:
                     if (

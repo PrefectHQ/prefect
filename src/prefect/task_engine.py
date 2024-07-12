@@ -52,6 +52,7 @@ from prefect.records.result_store import ResultFactoryStore
 from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY,
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
@@ -672,9 +673,16 @@ class TaskRunEngine(Generic[P, R]):
                 if transaction.is_committed():
                     result = transaction.read()
                 else:
-                    async with aconcurrency(
-                        list(self.task.tags), occupy=1, active=True
-                    ):
+                    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY.value():
+                        # Acquire a concurrency slot for each tag, but only if a limit
+                        # matching the tag already exists.
+                        async with aconcurrency(
+                            list(self.task.tags), occupy=1, create_if_missing=False
+                        ):
+                            result = await call_with_parameters(
+                                self.task.fn, parameters
+                            )
+                    else:
                         result = await call_with_parameters(self.task.fn, parameters)
                 self.handle_success(result, transaction=transaction)
                 return result
@@ -684,7 +692,14 @@ class TaskRunEngine(Generic[P, R]):
             if transaction.is_committed():
                 result = transaction.read()
             else:
-                with concurrency(list(self.task.tags), occupy=1, active=True):
+                if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY.value():
+                    # Acquire a concurrency slot for each tag, but only if a limit
+                    # matching the tag already exists.
+                    with concurrency(
+                        list(self.task.tags), occupy=1, create_if_missing=False
+                    ):
+                        result = call_with_parameters(self.task.fn, parameters)
+                else:
                     result = call_with_parameters(self.task.fn, parameters)
             self.handle_success(result, transaction=transaction)
             return result

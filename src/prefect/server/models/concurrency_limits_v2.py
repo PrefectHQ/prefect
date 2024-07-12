@@ -185,7 +185,7 @@ async def delete_concurrency_limit(
 async def bulk_read_or_create_concurrency_limits(
     session: AsyncSession,
     names: List[str],
-    active: Optional[bool] = False,
+    create_if_missing: Optional[bool] = True,
 ):
     # Get all existing concurrency limits in `names`.
     existing_query = sa.select(orm_models.ConcurrencyLimitV2).where(
@@ -193,15 +193,14 @@ async def bulk_read_or_create_concurrency_limits(
     )
     existing_limits = list((await session.execute(existing_query)).scalars().all())
 
-    # If any limits aren't present in the database, create them as inactive.
+    # If any limits aren't present in the database, create them as inactive,
+    # unless we've been told not to.
     missing_names = set(names) - {str(limit.name) for limit in existing_limits}
 
-    if missing_names:
+    if missing_names and create_if_missing:
         new_limits = [
             orm_models.ConcurrencyLimitV2(
-                **schemas.core.ConcurrencyLimitV2(
-                    name=name, limit=1, active=active
-                ).model_dump()
+                **schemas.core.ConcurrencyLimitV2(name=name, limit=1).model_dump()
             )
             for name in missing_names
         ]
