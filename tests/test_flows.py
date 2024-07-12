@@ -3879,8 +3879,8 @@ class TestFlowServe:
         monkeypatch.setattr("prefect.cli.flow.Runner.start", mock)
         return mock
 
-    async def test_serve_prints_message(self, capsys):
-        await self.flow.serve("test")
+    def test_serve_prints_message(self, capsys):
+        self.flow.serve("test")
 
         captured = capsys.readouterr()
 
@@ -3890,8 +3890,8 @@ class TestFlowServe:
         )
         assert "$ prefect deployment run 'test-flow/test'" in captured.out
 
-    async def test_serve_creates_deployment(self, prefect_client: PrefectClient):
-        await self.flow.serve(
+    def test_serve_creates_deployment(self, prefect_client: PrefectClient):
+        self.flow.serve(
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
@@ -3901,7 +3901,9 @@ class TestFlowServe:
             paused=True,
         )
 
-        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+        deployment = asyncio.run(
+            prefect_client.read_deployment_by_name(name="test-flow/test")
+        )
 
         assert deployment is not None
         # Flow.serve should created deployments without a work queue or work pool
@@ -3916,53 +3918,61 @@ class TestFlowServe:
         assert deployment.paused
         assert not deployment.is_schedule_active
 
-    async def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
-        deployment = await self.flow.serve(
+    def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
+        deployment = self.flow.serve(
             name="test", entrypoint_type=EntrypointType.MODULE_PATH
         )
-        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+        deployment = asyncio.run(
+            prefect_client.read_deployment_by_name(name="test-flow/test")
+        )
 
         assert deployment.entrypoint == f"{self.flow.__module__}.{self.flow.__name__}"
 
-    async def test_serve_handles__file__(self, prefect_client: PrefectClient):
-        await self.flow.serve(__file__)
+    def test_serve_handles__file__(self, prefect_client: PrefectClient):
+        self.flow.serve(__file__)
 
-        deployment = await prefect_client.read_deployment_by_name(
-            name="test-flow/test_flows"
+        deployment = asyncio.run(
+            prefect_client.read_deployment_by_name(name="test-flow/test_flows")
         )
 
         assert deployment.name == "test_flows"
 
-    async def test_serve_creates_deployment_with_interval_schedule(
+    def test_serve_creates_deployment_with_interval_schedule(
         self, prefect_client: PrefectClient
     ):
-        await self.flow.serve(
+        self.flow.serve(
             "test",
             interval=3600,
         )
 
-        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+        deployment = asyncio.run(
+            prefect_client.read_deployment_by_name(name="test-flow/test")
+        )
 
         assert deployment is not None
         assert isinstance(deployment.schedule, IntervalSchedule)
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
 
-    async def test_serve_creates_deployment_with_cron_schedule(
+    def test_serve_creates_deployment_with_cron_schedule(
         self, prefect_client: PrefectClient
     ):
-        await self.flow.serve("test", cron="* * * * *")
+        self.flow.serve("test", cron="* * * * *")
 
-        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+        deployment = asyncio.run(
+            prefect_client.read_deployment_by_name(name="test-flow/test")
+        )
 
         assert deployment is not None
         assert deployment.schedule == CronSchedule(cron="* * * * *")
 
-    async def test_serve_creates_deployment_with_rrule_schedule(
+    def test_serve_creates_deployment_with_rrule_schedule(
         self, prefect_client: PrefectClient
     ):
-        await self.flow.serve("test", rrule="FREQ=MINUTELY")
+        self.flow.serve("test", rrule="FREQ=MINUTELY")
 
-        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+        deployment = asyncio.run(
+            prefect_client.read_deployment_by_name(name="test-flow/test")
+        )
 
         assert deployment is not None
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
@@ -3982,29 +3992,29 @@ class TestFlowServe:
             )
         ],
     )
-    async def test_serve_raises_on_multiple_schedules(self, kwargs):
+    def test_serve_raises_on_multiple_schedules(self, kwargs):
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
             expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             with pytest.raises(ValueError, match=expected_message):
-                await self.flow.serve(__file__, **kwargs)
+                self.flow.serve(__file__, **kwargs)
 
-    async def test_serve_starts_a_runner(self, mock_runner_start):
+    def test_serve_starts_a_runner(self, mock_runner_start):
         """
         This test only makes sure Runner.start() is called. The actual
         functionality of the runner is tested in test_runner.py
         """
-        await self.flow.serve("test")
+        self.flow.serve("test")
 
         mock_runner_start.assert_awaited_once()
 
-    async def test_serve_passes_limit_specification_to_runner(self, monkeypatch):
+    def test_serve_passes_limit_specification_to_runner(self, monkeypatch):
         runner_mock = MagicMock(return_value=AsyncMock())
         monkeypatch.setattr("prefect.runner.Runner", runner_mock)
 
         limit = 42
-        await self.flow.serve("test", limit=limit)
+        self.flow.serve("test", limit=limit)
 
         runner_mock.assert_called_once_with(
             name="test", pause_on_shutdown=ANY, limit=limit

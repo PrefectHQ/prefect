@@ -128,6 +128,7 @@ class Runner:
         Examples:
             Set up a Runner to manage the execute of scheduled flow runs for two flows:
                 ```python
+                import asyncio
                 from prefect import flow, Runner
 
                 @flow
@@ -147,7 +148,7 @@ class Runner:
                     # Run on a cron schedule
                     runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-                    runner.start()
+                    asyncio.run(runner.start())
                 ```
         """
         if name and ("/" in name or "%" in name):
@@ -164,9 +165,6 @@ class Runner:
         self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
         self._prefetch_seconds = prefetch_seconds
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-
         self._limiter: Optional[anyio.CapacityLimiter] = anyio.CapacityLimiter(
             self.limit
         )
@@ -182,7 +180,8 @@ class Runner:
         )
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
-        self._loop = asyncio.get_event_loop()
+
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     @sync_compatible
     async def add_deployment(
@@ -322,7 +321,6 @@ class Runner:
 
         sys.exit(0)
 
-    @sync_compatible
     async def start(
         self, run_once: bool = False, webserver: Optional[bool] = None
     ) -> None:
@@ -340,6 +338,7 @@ class Runner:
             Initialize a Runner, add two flows, and serve them by starting the Runner:
 
             ```python
+            import asyncio
             from prefect import flow, Runner
 
             @flow
@@ -359,7 +358,7 @@ class Runner:
                 # Run on a cron schedule
                 runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-                runner.start()
+                asyncio.run(runner.start())
             ```
         """
         from prefect.runner.server import start_webserver
@@ -693,8 +692,9 @@ class Runner:
         """
         self._logger.info("Pausing all deployments...")
         for deployment_id in self._deployment_ids:
-            self._logger.debug(f"Pausing deployment '{deployment_id}'")
             await self._client.set_deployment_paused_state(deployment_id, True)
+            self._logger.debug(f"Paused deployment '{deployment_id}'")
+
         self._logger.info("All deployments have been paused!")
 
     async def _get_and_submit_flow_runs(self):
@@ -1161,6 +1161,16 @@ class Runner:
         self._logger.debug("Starting runner...")
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
+
+        if not hasattr(self, "_loop") or not self._loop:
+            self._loop = asyncio.get_event_loop()
+
+        if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
+            self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+
+        if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
+            self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
