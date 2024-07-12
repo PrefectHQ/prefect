@@ -107,8 +107,7 @@ class Base(DeclarativeBase):
         """
         return camel_to_snake.sub("_", cls.__name__).lower()
 
-    id = sa.Column(
-        UUID(),
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
         server_default=GenerateUUID(),
         default=uuid.uuid4,
@@ -874,7 +873,9 @@ class Deployment(Base):
         order_by=sa.desc(sa.text("updated")),
     )
 
-    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    tags: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=list, nullable=False
+    )
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     pull_steps = sa.Column(JSON, default=list, nullable=True)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
