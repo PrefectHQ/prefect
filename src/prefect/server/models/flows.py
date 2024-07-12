@@ -135,42 +135,44 @@ async def _apply_flow_filters(
         query = query.where(flow_filter.as_sql_filter())
 
     if deployment_filter or work_pool_filter:
-        exists_clause = select(orm_models.Deployment).where(
+        deployment_exists_clause = select(orm_models.Deployment).where(
             orm_models.Deployment.flow_id == orm_models.Flow.id
         )
 
         if deployment_filter:
-            exists_clause = exists_clause.where(
+            deployment_exists_clause = deployment_exists_clause.where(
                 deployment_filter.as_sql_filter(),
             )
 
         if work_pool_filter:
-            exists_clause = exists_clause.join(
+            deployment_exists_clause = deployment_exists_clause.join(
                 orm_models.WorkQueue,
                 orm_models.WorkQueue.id == orm_models.Deployment.work_queue_id,
             )
-            exists_clause = exists_clause.join(
+            deployment_exists_clause = deployment_exists_clause.join(
                 orm_models.WorkPool,
                 orm_models.WorkPool.id == orm_models.WorkQueue.work_pool_id,
             ).where(work_pool_filter.as_sql_filter())
 
-        query = query.where(exists_clause.exists())
+        query = query.where(deployment_exists_clause.exists())
 
     if flow_run_filter or task_run_filter:
-        exists_clause = select(orm_models.FlowRun).where(
+        flow_run_exists_clause = select(orm_models.FlowRun).where(
             orm_models.FlowRun.flow_id == orm_models.Flow.id
         )
 
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            flow_run_exists_clause = flow_run_exists_clause.where(
+                flow_run_filter.as_sql_filter()
+            )
 
         if task_run_filter:
-            exists_clause = exists_clause.join(
+            flow_run_exists_clause = flow_run_exists_clause.join(
                 orm_models.TaskRun,
                 orm_models.TaskRun.flow_run_id == orm_models.FlowRun.id,
             ).where(task_run_filter.as_sql_filter())
 
-        query = query.where(exists_clause.exists())
+        query = query.where(flow_run_exists_clause.exists())
 
     return query
 

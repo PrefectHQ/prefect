@@ -10,7 +10,9 @@ from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
+    Mapped,
     declared_attr,
+    mapped_column,
     registry,
     synonym,
 )
@@ -338,7 +340,7 @@ class ArtifactCollection(Base):
         nullable=False,
     )
 
-    latest_id = sa.Column(UUID(), nullable=False)
+    latest_id: Mapped[UUID] = mapped_column(UUID(), nullable=False)
 
     task_run_id = sa.Column(
         UUID(),

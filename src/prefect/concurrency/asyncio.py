@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import List, Literal, Optional, Union, cast
+from typing import AsyncGenerator, List, Literal, Optional, Union, cast
 
 import httpx
 import pendulum
@@ -34,7 +34,7 @@ async def concurrency(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
-):
+) -> AsyncGenerator[None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
 
@@ -77,7 +77,7 @@ async def concurrency(
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
-async def rate_limit(names: Union[str, List[str]], occupy: int = 1):
+async def rate_limit(names: Union[str, List[str]], occupy: int = 1) -> None:
     """Block execution until an `occupy` number of slots of the concurrency
     limits given in `names` are acquired. Requires that all given concurrency
     limits have a slot decay.
