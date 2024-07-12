@@ -137,7 +137,6 @@ async def start(
             ),
             style="yellow",
         )
-
     worker_cls = await _get_worker_class(worker_type, work_pool_name, install_policy)
 
     if worker_cls is None:
@@ -155,19 +154,21 @@ async def start(
     if base_job_template is not None:
         template_contents = json.load(fp=base_job_template)
 
+    worker = worker_cls(
+        name=worker_name,
+        work_pool_name=work_pool_name,
+        work_queues=work_queues,
+        limit=limit,
+        prefetch_seconds=prefetch_seconds,
+        heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
+        base_job_template=template_contents,
+    )
     try:
-        async with worker_cls(
-            name=worker_name,
-            work_pool_name=work_pool_name,
-            work_queues=work_queues,
-            limit=limit,
-            prefetch_seconds=prefetch_seconds,
-            heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
-            base_job_template=template_contents,
-        ) as worker:
-            app.console.print(f"Worker {worker.name!r} started!", style="green")
-
-        app.console.print(f"Worker {worker.name!r} stopped!")
+        await worker.start(
+            run_once=run_once,
+            with_healthcheck=with_healthcheck,
+            printer=app.console.print,
+        )
     except asyncio.CancelledError:
         app.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
 
