@@ -22,7 +22,7 @@ swap:
     "tap (?:&|and) hold": touch & hold
     "un(?:check|select)": clear
     # above: preceding
-    account name: username
+    # account name: username
     action bar: app bar
     admin: administrator
     Ajax: AJAX
@@ -30,7 +30,7 @@ swap:
     Android device: Android-powered device
     android: Android
     API explorer: APIs Explorer
-    app: application
+    # application: app
     approx\.: approximately
     authN: authentication
     authZ: authorization
@@ -43,11 +43,11 @@ swap:
     # click on: click|click in
     #  Cloud: Google Cloud Platform|GCP
     Container Engine: Kubernetes Engine
-    content type: media type
+    # content type: media type
     curated roles: predefined roles
     data are: data is
     Developers Console: Google API Console|API Console
-    disabled?: turn off|off
+    # disabled?: turn off|off
     ephemeral IP address: ephemeral external IP address
     fewer data: less data
     file name: filename
@@ -69,7 +69,7 @@ swap:
     regex: regular expression
     SHA1: SHA-1|HAS-SHA1
     sign into: sign in to
-    sign-?on: single sign-on
+    # sign-?on: single sign-on
     static IP address: static external IP address
     stylesheet: style sheet
     synch: sync
@@ -81,3 +81,5 @@ swap:
     World Wide Web: web
     # Prefect additions
     infra: infrastructure
+    Prefect cloud: Prefect Cloud
+    Prefect Server: Prefect server

@@ -3,7 +3,7 @@ title: Run flows on serverless compute
 description: Learn how to use Prefect push work pools to schedule work on serverless infrastructure without having to run a worker.
 ---
 
-Push [work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) are a special type of work pool. They allow 
+<span class="badge cloud"></span> Push [work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) are a special type of work pool. They allow 
 Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without requiring you to run a worker.
 Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, and Modal.
 
@@ -14,11 +14,19 @@ Google Cloud Run, or Modal
 - Deploy a flow to that work pool
 - Execute a flow without having to run a worker process to poll for flow runs
 
+{/*
+<!-- vale off -->
+*/}
+
 <Note>
 You can automatically provision infrastructure and create your push work pool using the `prefect work-pool create` 
 CLI command with the `--provision-infra` flag.
 This approach greatly simplifies the setup process.
 </Note>
+
+{/*
+<!-- vale on -->
+*/}
 
 First, you will set up automatic infrastructure provisioning for push work pools. Then you will learn how to manually 
 set up your push work pool.
@@ -47,8 +55,7 @@ To use automatic infrastructure provisioning, you need:
     [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html), 
     and [set a default region](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods).
 
-    If you already have the AWS CLI installed, be sure to 
-    [update to the latest version](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions). 
+    If you already have the AWS CLI installed, be sure to [update to the latest version](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions). 
 
     You will need the following permissions in your authenticated AWS account:
 

@@ -5,6 +5,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 import ast
+import asyncio
 import datetime
 import importlib.util
 import inspect
@@ -28,6 +29,8 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -44,7 +47,9 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.compatibility.deprecated import (
+    deprecated_parameter,
+)
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
@@ -60,6 +65,7 @@ from prefect.exceptions import (
     MissingFlowError,
     ObjectNotFound,
     ParameterTypeError,
+    ScriptError,
     UnspecifiedFlowError,
 )
 from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
@@ -778,8 +784,7 @@ class Flow(Generic[P, R]):
         self.on_failure_hooks.append(fn)
         return fn
 
-    @sync_compatible
-    async def serve(
+    def serve(
         self,
         name: Optional[str] = None,
         interval: Optional[
@@ -884,7 +889,7 @@ class Flow(Generic[P, R]):
             name = Path(name).stem
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
-        deployment_id = await runner.add_flow(
+        deployment_id = runner.add_flow(
             self,
             name=name,
             triggers=triggers,
@@ -917,15 +922,27 @@ class Flow(Generic[P, R]):
 
             console = Console()
             console.print(help_message, soft_wrap=True)
-        await runner.start(webserver=webserver)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError as exc:
+            if "no running event loop" in str(exc):
+                loop = None
+            else:
+                raise
+
+        if loop is not None:
+            loop.run_until_complete(runner.start(webserver=webserver))
+        else:
+            asyncio.run(runner.start(webserver=webserver))
 
     @classmethod
     @sync_compatible
     async def from_source(
-        cls: Type[F],
+        cls: Type["Flow[P, R]"],
         source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
-    ) -> F:
+    ) -> "Flow[P, R]":
         """
         Loads a flow from a remote source.
 
@@ -1003,7 +1020,9 @@ class Flow(Generic[P, R]):
             create_storage_from_source,
         )
 
-        if isinstance(source, str):
+        if isinstance(source, (Path, str)):
+            if isinstance(source, Path):
+                source = str(source)
             storage = create_storage_from_source(source)
         elif isinstance(source, RunnerStorage):
             storage = source
@@ -1186,9 +1205,9 @@ class Flow(Generic[P, R]):
             entrypoint_type=entrypoint_type,
         )
 
-        from prefect.deployments import runner
+        from prefect.deployments.runner import deploy
 
-        deployment_ids = await runner.deploy(
+        deployment_ids = await deploy(
             deployment,
             work_pool_name=work_pool_name,
             image=image,
@@ -1712,6 +1731,14 @@ def load_flow_from_entrypoint(
         raise MissingFlowError(
             f"Flow function with name {func_name!r} not found in {path!r}. "
         ) from exc
+    except ScriptError as exc:
+        # If the flow has dependencies that are not installed in the current
+        # environment, fallback to loading the flow via AST parsing. The
+        # drawback of this approach is that we're unable to actually load the
+        # function, so we create a placeholder flow that will re-raise this
+        # exception when called.
+
+        flow = load_placeholder_flow(entrypoint=entrypoint, raises=exc)
 
     if not isinstance(flow, Flow):
         raise MissingFlowError(
@@ -1722,14 +1749,13 @@ def load_flow_from_entrypoint(
     return flow
 
 
-@sync_compatible
-async def serve(
+def serve(
     *args: "RunnerDeployment",
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs,
-) -> NoReturn:
+):
     """
     Serve the provided list of deployments.
 
@@ -1779,7 +1805,7 @@ async def serve(
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
-        await runner.add_deployment(deployment)
+        runner.add_deployment(deployment)
 
     if print_starting_message:
         help_message_top = (
@@ -1810,7 +1836,18 @@ async def serve(
             Group(help_message_top, table, help_message_bottom), soft_wrap=True
         )
 
-    await runner.start()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError as exc:
+        if "no running event loop" in str(exc):
+            loop = None
+        else:
+            raise
+
+    if loop is not None:
+        loop.run_until_complete(runner.start())
+    else:
+        asyncio.run(runner.start())
 
 
 @client_injector
@@ -1892,24 +1929,138 @@ async def load_flow_from_flow_run(
     return flow
 
 
-def load_flow_argument_from_entrypoint(
-    entrypoint: str, arg: str = "name"
-) -> Optional[str]:
+def load_placeholder_flow(entrypoint: str, raises: Exception):
     """
-    Extract a flow argument from an entrypoint string.
+    Load a placeholder flow that is initialized with the same arguments as the
+    flow specified in the entrypoint. If called the flow will raise `raises`.
 
-    Loads the source code of the entrypoint and extracts the flow argument from the
-    `flow` decorator.
+    This is useful when a flow can't be loaded due to missing dependencies or
+    other issues but the base metadata defining the flow is still needed.
 
     Args:
-        entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
-            to a flow function
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+          or a module path to a flow function
+        raises: an exception to raise when the flow is called
+    """
+
+    def _base_placeholder():
+        raise raises
+
+    def sync_placeholder_flow(*args, **kwargs):
+        _base_placeholder()
+
+    async def async_placeholder_flow(*args, **kwargs):
+        _base_placeholder()
+
+    placeholder_flow = (
+        async_placeholder_flow
+        if is_entrypoint_async(entrypoint)
+        else sync_placeholder_flow
+    )
+
+    arguments = load_flow_arguments_from_entrypoint(entrypoint)
+    arguments["fn"] = placeholder_flow
+
+    return Flow(**arguments)
+
+
+def load_flow_arguments_from_entrypoint(
+    entrypoint: str, arguments: Optional[Union[List[str], Set[str]]] = None
+) -> dict[str, Any]:
+    """
+    Extract flow arguments from an entrypoint string.
+
+    Loads the source code of the entrypoint and extracts the flow arguments
+    from the `flow` decorator.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+          or a module path to a flow function
+    """
+
+    func_def, source_code = _entrypoint_definition_and_source(entrypoint)
+
+    if arguments is None:
+        # If no arguments are provided default to known arguments that are of
+        # built-in types.
+        arguments = {
+            "name",
+            "version",
+            "retries",
+            "retry_delay_seconds",
+            "description",
+            "timeout_seconds",
+            "validate_parameters",
+            "persist_result",
+            "cache_result_in_memory",
+            "log_prints",
+        }
+
+    result = {}
+
+    for decorator in func_def.decorator_list:
+        if (
+            isinstance(decorator, ast.Call)
+            and getattr(decorator.func, "id", "") == "flow"
+        ):
+            for keyword in decorator.keywords:
+                if keyword.arg not in arguments:
+                    continue
+
+                if isinstance(keyword.value, ast.Constant):
+                    # Use the string value of the argument
+                    result[keyword.arg] = str(keyword.value.value)
+                    continue
+
+                # if the arg value is not a raw str (i.e. a variable or expression),
+                # then attempt to evaluate it
+                namespace = safe_load_namespace(source_code)
+                literal_arg_value = ast.get_source_segment(source_code, keyword.value)
+                cleaned_value = (
+                    literal_arg_value.replace("\n", "") if literal_arg_value else ""
+                )
+
+                try:
+                    evaluated_value = eval(cleaned_value, namespace)  # type: ignore
+                    result[keyword.arg] = str(evaluated_value)
+                except Exception as e:
+                    logger.info(
+                        "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
+                        keyword.arg,
+                        literal_arg_value,
+                        exc_info=e,
+                    )
+                    # ignore the decorator arg and fallback to default behavior
+                    continue
+
+    if "name" in arguments and "name" not in result:
+        # If no matching decorator or keyword argument for `name' is found
+        # fallback to the function name.
+        result["name"] = func_def.name.replace("_", "-")
+
+    return result
+
+
+def is_entrypoint_async(entrypoint: str) -> bool:
+    """
+    Determine if the function specified in the entrypoint is asynchronous.
+
+    Args:
+        entrypoint: A string in the format `<path_to_script>:<func_name>` or
+          a module path to a function.
 
     Returns:
-        The flow argument value
+        True if the function is asynchronous, False otherwise.
     """
+    func_def, _ = _entrypoint_definition_and_source(entrypoint)
+    return isinstance(func_def, ast.AsyncFunctionDef)
+
+
+def _entrypoint_definition_and_source(
+    entrypoint: str,
+) -> Tuple[Union[ast.FunctionDef, ast.AsyncFunctionDef], str]:
     if ":" in entrypoint:
-        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        # Split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
         path, func_name = entrypoint.rsplit(":", maxsplit=1)
         source_code = Path(path).read_text()
     else:
@@ -1918,6 +2069,7 @@ def load_flow_argument_from_entrypoint(
         if not spec or not spec.origin:
             raise ValueError(f"Could not find module {path!r}")
         source_code = Path(spec.origin).read_text()
+
     parsed_code = ast.parse(source_code)
     func_def = next(
         (
@@ -1934,46 +2086,8 @@ def load_flow_argument_from_entrypoint(
         ),
         None,
     )
+
     if not func_def:
         raise ValueError(f"Could not find flow {func_name!r} in {path!r}")
-    for decorator in func_def.decorator_list:
-        if (
-            isinstance(decorator, ast.Call)
-            and getattr(decorator.func, "id", "") == "flow"
-        ):
-            for keyword in decorator.keywords:
-                if keyword.arg == arg:
-                    if isinstance(keyword.value, ast.Constant):
-                        return (
-                            keyword.value.value
-                        )  # Return the string value of the argument
 
-                    # if the arg value is not a raw str (i.e. a variable or expression),
-                    # then attempt to evaluate it
-                    namespace = safe_load_namespace(source_code)
-                    literal_arg_value = ast.get_source_segment(
-                        source_code, keyword.value
-                    )
-                    cleaned_value = (
-                        literal_arg_value.replace("\n", "") if literal_arg_value else ""
-                    )
-
-                    try:
-                        evaluated_value = eval(cleaned_value, namespace)  # type: ignore
-                    except Exception as e:
-                        logger.info(
-                            "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
-                            arg,
-                            literal_arg_value,
-                            exc_info=e,
-                        )
-                        # ignore the decorator arg and fallback to default behavior
-                        break
-                    return str(evaluated_value)
-
-    if arg == "name":
-        return func_name.replace(
-            "_", "-"
-        )  # If no matching decorator or keyword argument is found
-
-    return None
+    return func_def, source_code

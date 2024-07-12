@@ -3,10 +3,12 @@ title: Manage infrastructure with work pools
 description: Prefect work pools route deployment flow runs to workers.
 ---
 
-Work pools organize work for execution. Work pools have types corresponding to the infrastructure to execute the flow code, 
-as well as the delivery method of work to that environment. Pull work pools require workers to poll the work 
-pool for flow runs to execute. [Push work pools](/3.0rc/deploy/infrastructure-examples/serverless) submit runs directly to your 
-serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
+Work pools organize work for execution. Work pools have types corresponding to the infrastructure to execute the flow code, as well as the delivery method of work to that environment. 
+
+Pull work pools require workers to poll the work pool for flow runs to execute. 
+
+[Push work pools](/3.0rc/deploy/infrastructure-examples/serverless) submit runs directly to your serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
+
 [Managed work pools](/3.0rc/deploy/infrastructure-examples/managed) are administered by Prefect and handle the submission and execution of code on your behalf.
 
 <Tip>
@@ -140,7 +142,7 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
     | Modal - Push                         | Execute flow runs on Modal. Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker.  |
     | Prefect Managed                      | Execute flow runs within containers on Prefect managed infrastructure.                                                      |
   </Tab>
-  <Tab title="Prefect server instance">
+  <Tab title="Self-hosted Prefect server">
 
     | Infrastructure Type           | Description              |
     | ----------------------------  | ------------------------ |

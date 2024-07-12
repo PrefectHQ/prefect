@@ -1,5 +1,15 @@
 from contextlib import contextmanager
-from typing import List, Optional, Union, cast
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Generator,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import pendulum
 
@@ -22,6 +32,8 @@ from .events import (
     _emit_concurrency_release_events,
 )
 
+T = TypeVar("T")
+
 
 @contextmanager
 def concurrency(
@@ -29,7 +41,7 @@ def concurrency(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
-):
+) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
 
@@ -86,7 +98,7 @@ def rate_limit(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
-):
+) -> None:
     """Block execution until an `occupy` number of slots of the concurrency
     limits given in `names` are acquired. Requires that all given concurrency
     limits have a slot decay.
@@ -110,11 +122,13 @@ def rate_limit(
     _emit_concurrency_acquisition_events(limits, occupy)
 
 
-def _call_async_function_from_sync(fn, *args, **kwargs):
+def _call_async_function_from_sync(
+    fn: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any
+) -> T:
     loop = get_running_loop()
     call = create_call(fn, *args, **kwargs)
 
     if loop is not None:
         return from_sync.call_soon_in_loop_thread(call).result()
     else:
-        return call()
+        return call()  # type: ignore [return-value]

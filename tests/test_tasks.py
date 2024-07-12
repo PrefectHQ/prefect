@@ -854,13 +854,17 @@ class TestTaskSubmit:
         """
 
         @task
-        def foo():
-            pass
+        def find_palindromes():
+            """This is a computationally expensive task that never ends,
+            allowing the flow to exit before the task is completed."""
+            num = 10
+            while True:
+                _ = str(num) == str(num)[::-1]
+                num += 1
 
         @flow
         def test_flow():
-            for _ in range(100):
-                foo.submit()
+            find_palindromes.submit()
 
         test_flow()
         assert (
@@ -5109,6 +5113,26 @@ def test_rollback_errors_are_logged(caplog):
     assert "whoops!" in caplog.text
 
 
+def test_rollback_hook_execution_and_completion_are_logged(caplog):
+    @task
+    def foo():
+        pass
+
+    @foo.on_rollback
+    def rollback(txn):
+        pass
+
+    @flow
+    def txn_flow():
+        with transaction():
+            foo()
+            raise ValueError("txn failed")
+
+    txn_flow(return_state=True)
+    assert "Running rollback hook 'rollback'" in caplog.text
+    assert "Rollback hook 'rollback' finished running successfully" in caplog.text
+
+
 def test_commit_errors_are_logged(caplog):
     @task
     def foo():
@@ -5127,3 +5151,22 @@ def test_commit_errors_are_logged(caplog):
     assert "An error was encountered while running commit hook" in caplog.text
     assert "RuntimeError" in caplog.text
     assert "whoops!" in caplog.text
+
+
+def test_commit_hook_execution_and_completion_are_logged(caplog):
+    @task
+    def foo():
+        pass
+
+    @foo.on_commit
+    def commit(txn):
+        pass
+
+    @flow
+    def txn_flow():
+        with transaction():
+            foo()
+
+    txn_flow(return_state=True)
+    assert "Running commit hook 'commit'" in caplog.text
+    assert "Commit hook 'commit' finished running successfully" in caplog.text

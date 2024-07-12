@@ -4,25 +4,15 @@ description: Learn how to self-host your own Prefect server instance.
 ---
 
 <Note>
-To host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
+To self-host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
 </Note>
 
 After installing Prefect, you have a Python SDK client that can communicate with 
 either [Prefect Cloud](/3.0rc/manage/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
 
-Prefect Cloud and a self-hosted Prefect server instance share a common set of capabilities. Prefect Cloud has these additional features:
-
-- [Workspaces](/3.0rc/manage/cloud/workspaces/): isolated environments to organize your flows, deployments, and flow runs
-- [Automations](/3.0rc/automate/events/automations-triggers/): configure triggers, actions, and 
-notifications in response to real-time monitoring events
-- [Email notifications](/3.0rc/automate/events/automations-triggers/): send email alerts from Prefect's 
-servers based on automation triggers
-- [Service accounts](/3.0rc/manage/cloud/manage-users/service-accounts/): configure API access for running workers or 
-executing flow runs on remote infrastructure
-- [Custom role-based access controls (RBAC)](/3.0rc/manage/cloud/manage-users/manage-roles/): assign users granular 
-permissions to perform activities within an account or workspace
-- [Single Sign-on (SSO)](/3.0rc/manage/cloud/manage-users/configure-sso/): authentication using your identity provider
-- [Audit Logs](/3.0rc/manage/cloud/manage-users/audit-logs/): a record of user activities to monitor security and compliance
+Prefect Cloud and self-hosted Prefect server share a common set of capabilities. 
+Prefect Cloud provides the additional features required by organizations such as RBAC, Audit logs, and SSO. 
+See the [Prefect Cloud overview](/3.0rc/manage/cloud/) for more information.
 
 ## Prefect server installation notes
 
@@ -32,7 +22,7 @@ Your self-hosted server must meet the following requirements and configuration s
 
 SQLite is not packaged with the Prefect installation. But most systems already have SQLite installed, and it is typically bundled with Python.
 
-If you host your own Prefect server instance with a SQLite database, certain Linux versions of SQLite can be problematic.
+If you self-host a Prefect server instance with a SQLite database, certain Linux versions of SQLite can be problematic.
 Compatible versions include Ubuntu 22.04 LTS and Ubuntu 20.04 LTS.
 
 To confirm SQLite is installed, run:
@@ -57,8 +47,9 @@ Disabling certificate validation is insecure and only suggested as an option for
 ### Proxies
 
 Prefect supports communicating with proxies through environment variables.
-Whether you are using Prefect Cloud or hosting your own Prefect server instance, set `HTTPS_PROXY` and 
-`SSL_CERT_FILE` in your environment, and the underlying network libraries route Prefect’s requests appropriately.
+Whether you use a Prefect Cloud account or self-host a Prefect server instance, set `HTTPS_PROXY` and 
+`SSL_CERT_FILE` in your environment. 
+Then the underlying network libraries will route Prefect's requests appropriately.
 
 Alternatively, the Prefect library connects to the API through any proxies you have listed in the `HTTP_PROXY` or 
 `ALL_PROXY` environment variables.
@@ -66,9 +57,9 @@ You may also use the `NO_PROXY` environment variable to specify which hosts shou
 
 For more information about these environment variables, see the [cURL documentation](https://everything.curl.dev/usingcurl/proxies/env).
 
-## Run a local Prefect server
+## Self-host a Prefect server
 
-1. Spin up a local Prefect server UI with the `prefect server start` CLI command in the terminal:
+1. Spin up a self-hosted Prefect server instance UI with the `prefect server start` CLI command in the terminal:
 
 ```bash
 prefect server start
@@ -80,9 +71,9 @@ prefect server start
 
 3. Shut down the Prefect server with ctrl  +  c in the terminal.
 
-### Configure a Prefect server instance
+### Configure self-hosted Prefect server
 
-Go to your terminal session and run this command to set the API URL to point to a Prefect server instance:
+Go to your terminal session and run this command to set the API URL to point to a sefl-hosted Prefect server instance:
 
 ```bash
 prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"

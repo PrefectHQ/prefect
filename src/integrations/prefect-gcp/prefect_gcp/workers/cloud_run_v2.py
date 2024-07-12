@@ -25,7 +25,7 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_gcp.credentials import GcpCredentials
-from prefect_gcp.models.cloud_run_v2 import CloudRunJobV2Result, ExecutionV2, JobV2
+from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2
 from prefect_gcp.utilities import slugify_name
 
 if TYPE_CHECKING:
@@ -119,8 +119,8 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         gt=0,
         le=86400,
         description=(
-            "The length of time that Prefect will wait for a Cloud Run Job to "
-            "complete before raising an exception."
+            "Max allowed duration the Job may be active before Cloud Run will "
+            "actively try to mark it failed and kill associated containers (maximum of 86400 seconds, 1 day)."
         ),
     )
     _job_name: str = PrivateAttr(default=None)
@@ -376,8 +376,8 @@ class CloudRunWorkerV2Variables(BaseVariables):
         le=86400,
         title="Job Timeout",
         description=(
-            "The length of time that Prefect will wait for a Cloud Run Job to "
-            "complete before raising an exception (maximum of 86400 seconds, 1 day)."
+            "Max allowed time duration the Job may be active before Cloud Run will "
+            " actively try to mark it failed and kill associated containers (maximum of 86400 seconds, 1 day)."
         ),
     )
     vpc_connector_name: Optional[str] = Field(
@@ -421,7 +421,7 @@ class CloudRunWorkerV2(BaseWorker):
         flow_run: "FlowRun",
         configuration: CloudRunWorkerJobV2Configuration,
         task_status: Optional[TaskStatus] = None,
-    ) -> CloudRunJobV2Result:
+    ) -> CloudRunWorkerV2Result:
         """
         Runs the flow run on Cloud Run and waits for it to complete.
 
@@ -600,8 +600,6 @@ class CloudRunWorkerV2(BaseWorker):
             job_name=configuration.job_name,
         )
 
-        t0 = time.time()
-
         while not job.is_ready():
             if not (ready_condition := job.get_ready_condition()):
                 ready_condition = "waiting for condition update"
@@ -614,15 +612,6 @@ class CloudRunWorkerV2(BaseWorker):
                 location=configuration.region,
                 job_name=configuration.job_name,
             )
-
-            elapsed_time = time.time() - t0
-
-            if elapsed_time > configuration.timeout:
-                raise RuntimeError(
-                    f"Timeout of {configuration.timeout} seconds reached while "
-                    f"waiting for Cloud Run Job V2 {configuration.job_name} to be "
-                    "created."
-                )
 
             time.sleep(poll_interval)
 
@@ -706,7 +695,7 @@ class CloudRunWorkerV2(BaseWorker):
         execution: ExecutionV2,
         logger: PrefectLogAdapter,
         poll_interval: int = 5,
-    ) -> CloudRunJobV2Result:
+    ) -> CloudRunWorkerV2Result:
         """
         Watch the job execution and get the result.
 
@@ -768,7 +757,7 @@ class CloudRunWorkerV2(BaseWorker):
                     f"- {configuration.job_name} - {exc}"
                 )
 
-        return CloudRunJobV2Result(
+        return CloudRunWorkerV2Result(
             identifier=configuration.job_name,
             status_code=status_code,
         )
@@ -782,7 +771,7 @@ class CloudRunWorkerV2(BaseWorker):
         poll_interval: int,
     ) -> ExecutionV2:
         """
-        Update execution status until it is no longer running or timeout is reached.
+        Update execution status until it is no longer running.
 
         Args:
             cr_client (Resource): The base client needed for interacting with GCP
@@ -795,22 +784,11 @@ class CloudRunWorkerV2(BaseWorker):
         Returns:
             The execution.
         """
-        t0 = time.time()
-
         while execution.is_running():
             execution = ExecutionV2.get(
                 cr_client=cr_client,
                 execution_id=execution.name,
             )
-
-            elapsed_time = time.time() - t0
-
-            if elapsed_time > configuration.timeout:
-                raise RuntimeError(
-                    f"Timeout of {configuration.timeout} seconds reached while "
-                    f"waiting for Cloud Run Job V2 {configuration.job_name} to "
-                    "complete."
-                )
 
             time.sleep(poll_interval)
 
