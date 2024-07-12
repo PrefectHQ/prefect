@@ -5,6 +5,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 import ast
+import asyncio
 import datetime
 import importlib.util
 import inspect
@@ -46,7 +47,9 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.compatibility.deprecated import (
+    deprecated_parameter,
+)
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
@@ -781,8 +784,7 @@ class Flow(Generic[P, R]):
         self.on_failure_hooks.append(fn)
         return fn
 
-    @sync_compatible
-    async def serve(
+    def serve(
         self,
         name: Optional[str] = None,
         interval: Optional[
@@ -887,7 +889,7 @@ class Flow(Generic[P, R]):
             name = Path(name).stem
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
-        deployment_id = await runner.add_flow(
+        deployment_id = runner.add_flow(
             self,
             name=name,
             triggers=triggers,
@@ -920,15 +922,27 @@ class Flow(Generic[P, R]):
 
             console = Console()
             console.print(help_message, soft_wrap=True)
-        await runner.start(webserver=webserver)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError as exc:
+            if "no running event loop" in str(exc):
+                loop = None
+            else:
+                raise
+
+        if loop is not None:
+            loop.run_until_complete(runner.start(webserver=webserver))
+        else:
+            asyncio.run(runner.start(webserver=webserver))
 
     @classmethod
     @sync_compatible
     async def from_source(
-        cls: Type[F],
+        cls: Type["Flow[P, R]"],
         source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
-    ) -> F:
+    ) -> "Flow[P, R]":
         """
         Loads a flow from a remote source.
 
@@ -1006,7 +1020,9 @@ class Flow(Generic[P, R]):
             create_storage_from_source,
         )
 
-        if isinstance(source, str):
+        if isinstance(source, (Path, str)):
+            if isinstance(source, Path):
+                source = str(source)
             storage = create_storage_from_source(source)
         elif isinstance(source, RunnerStorage):
             storage = source
@@ -1733,14 +1749,13 @@ def load_flow_from_entrypoint(
     return flow
 
 
-@sync_compatible
-async def serve(
+def serve(
     *args: "RunnerDeployment",
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs,
-) -> NoReturn:
+):
     """
     Serve the provided list of deployments.
 
@@ -1790,7 +1805,7 @@ async def serve(
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
-        await runner.add_deployment(deployment)
+        runner.add_deployment(deployment)
 
     if print_starting_message:
         help_message_top = (
@@ -1821,7 +1836,18 @@ async def serve(
             Group(help_message_top, table, help_message_bottom), soft_wrap=True
         )
 
-    await runner.start()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError as exc:
+        if "no running event loop" in str(exc):
+            loop = None
+        else:
+            raise
+
+    if loop is not None:
+        loop.run_until_complete(runner.start())
+    else:
+        asyncio.run(runner.start())
 
 
 @client_injector
