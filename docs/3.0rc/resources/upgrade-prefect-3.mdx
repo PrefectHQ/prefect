@@ -55,7 +55,7 @@ Here are some examples:
 ```python Prefect 2
 @task
 async def my_task():
-    ...
+    return my_value
 
 
 # Enclosing flow can be sync
@@ -71,10 +71,10 @@ if __name__ == "__main__":
 ```python Prefect 3
 @task
 async def my_task():
-    ...
+    return my_value
 
 
-# Enclosing flow must be async as well
+# The enclosing flow must be async as well
 @flow
 async def my_flow():
     return await my_task()
@@ -94,7 +94,7 @@ You do not need to use the `await` keyword in front of your `.submit` call:
 ```python Prefect 2
 @task
 async def my_task():
-    ...
+    return my_value
 
 
 @flow
@@ -107,7 +107,7 @@ async def my_flow():
 ```python Prefect 3
 @task
 async def my_task():
-    ...
+    return my_value
 
 
 @flow
@@ -129,7 +129,7 @@ Wait for the future to complete, then retrieve the state separately:
 ```python Prefect 2
 @task
 async def my_task():
-    ...
+    return my_value
 
 
 @flow
@@ -143,7 +143,7 @@ async def my_flow():
 ```python Prefect 3
 @task
 async def my_task():
-    ...
+    return my_value
 
 
 @flow
@@ -159,13 +159,13 @@ async def my_flow():
 
 If you do not first wait for the future to complete, the run may raise an `AttributeError: coroutine object has no attribute get` exception. 
 
-In Prefect 3, `PrefectFuture`s resulting from submitted task runs are not automatically awaited or resolved before exiting a flow, unless they’re a dependency of other flows or tasks. You must wait for a task’s `PrefectFuture` resolution before the end of a flow:
+In Prefect 3, `PrefectFuture`s resulting from submitted task runs are not automatically awaited or resolved before exiting a flow, unless they're a dependency of other flows or tasks. You must wait for a task's `PrefectFuture` resolution before the end of a flow:
 
 <CodeGroup>
 ```python Prefect 2
 @task
 def my_task():
-    ...
+    return my_value
 
 
 @flow
@@ -178,7 +178,7 @@ def my_flow():
 ```python Prefect 3
 @task
 def my_task():
-    ...
+    return my_value
 
 
 @flow
@@ -219,7 +219,7 @@ See the [caching documentation](/3.0rc/develop/task-caching) for more informatio
 
 ## Workers replace agents
 
-A deprecation warning was applied to Prefect interfaces related to agent-based deployments in Prefect’s [2.16.4 release](https://github.com/PrefectHQ/prefect/releases/tag/2.16.4), including infrastructure blocks and `prefect deployment` commands. 
+A deprecation warning was applied to Prefect interfaces related to agent-based deployments in Prefect's [2.16.4 release](https://github.com/PrefectHQ/prefect/releases/tag/2.16.4), including infrastructure blocks and `prefect deployment` commands. 
 Agents will continue to be supported in Prefect 2 until September 2024, but are not included in Prefect 3. 
 If you are using agents, learn how to [upgrade from agents to workers](/3.0rc/resources/upgrade-agents-to-workers).
 
