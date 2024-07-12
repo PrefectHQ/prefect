@@ -4,13 +4,14 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
@@ -28,12 +29,14 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 
+T = TypeVar("T", bound=tuple)
+
 
 async def _delete_scheduled_runs(
     session: AsyncSession,
     deployment_id: UUID,
     auto_scheduled_only: bool = False,
-):
+) -> None:
     """
     This utility function deletes all of a deployment's scheduled runs that are
     still in a Scheduled state It should be run any time a deployment is created or
@@ -76,7 +79,7 @@ async def create_deployment(
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    deployment.updated = pendulum.now("UTC")
+    deployment.updated = pendulum.now("UTC")  # type: ignore[assignment]
 
     schedules = deployment.schedules
     insert_values = deployment.model_dump_for_orm(
@@ -155,8 +158,8 @@ async def create_deployment(
         )
         .execution_options(populate_existing=True)
     )
-    result = await session.execute(query)
-    return result.scalar()
+    refreshed_result = await session.execute(query)
+    return refreshed_result.scalar()
 
 
 async def update_deployment(
@@ -304,14 +307,14 @@ async def read_deployment_by_name(
 
 
 async def _apply_deployment_filters(
-    query,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
-):
+    query: Select[T],
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
+) -> Select[T]:
     """
     Applies filters to a deployment query as a combination of EXISTS subqueries.
     """
@@ -320,43 +323,47 @@ async def _apply_deployment_filters(
         query = query.where(deployment_filter.as_sql_filter())
 
     if flow_filter:
-        exists_clause = select(orm_models.Deployment.id).where(
+        flow_exists_clause = select(orm_models.Deployment.id).where(
             orm_models.Deployment.flow_id == orm_models.Flow.id,
             flow_filter.as_sql_filter(),
         )
 
-        query = query.where(exists_clause.exists())
+        query = query.where(flow_exists_clause.exists())
 
     if flow_run_filter or task_run_filter:
-        exists_clause = select(orm_models.FlowRun).where(
+        flow_run_exists_clause = select(orm_models.FlowRun).where(
             orm_models.Deployment.id == orm_models.FlowRun.deployment_id
         )
 
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            flow_run_exists_clause = flow_run_exists_clause.where(
+                flow_run_filter.as_sql_filter()
+            )
         if task_run_filter:
-            exists_clause = exists_clause.join(
+            flow_run_exists_clause = flow_run_exists_clause.join(
                 orm_models.TaskRun,
                 orm_models.TaskRun.flow_run_id == orm_models.FlowRun.id,
             ).where(task_run_filter.as_sql_filter())
 
-        query = query.where(exists_clause.exists())
+        query = query.where(flow_run_exists_clause.exists())
 
     if work_pool_filter or work_queue_filter:
-        exists_clause = select(orm_models.WorkQueue).where(
+        work_pool_exists_clause = select(orm_models.WorkQueue).where(
             orm_models.Deployment.work_queue_id == orm_models.WorkQueue.id
         )
 
         if work_queue_filter:
-            exists_clause = exists_clause.where(work_queue_filter.as_sql_filter())
+            work_pool_exists_clause = work_pool_exists_clause.where(
+                work_queue_filter.as_sql_filter()
+            )
 
         if work_pool_filter:
-            exists_clause = exists_clause.join(
+            work_pool_exists_clause = work_pool_exists_clause.join(
                 orm_models.WorkPool,
                 orm_models.WorkPool.id == orm_models.WorkQueue.work_pool_id,
             ).where(work_pool_filter.as_sql_filter())
 
-        query = query.where(exists_clause.exists())
+        query = query.where(work_pool_exists_clause.exists())
 
     return query
 
@@ -365,12 +372,12 @@ async def read_deployments(
     session: AsyncSession,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
     sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
 ) -> Sequence[orm_models.Deployment]:
     """
@@ -415,12 +422,12 @@ async def read_deployments(
 
 async def count_deployments(
     session: AsyncSession,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
 ) -> int:
     """
     Count deployments.
@@ -451,7 +458,7 @@ async def count_deployments(
     )
 
     result = await session.execute(query)
-    return result.scalar()
+    return result.scalar_one()
 
 
 async def delete_deployment(session: AsyncSession, deployment_id: UUID) -> bool:
@@ -480,13 +487,13 @@ async def delete_deployment(session: AsyncSession, deployment_id: UUID) -> bool:
 async def schedule_runs(
     session: AsyncSession,
     deployment_id: UUID,
-    start_time: datetime.datetime = None,
-    end_time: datetime.datetime = None,
-    min_time: datetime.timedelta = None,
+    start_time: Optional[datetime.datetime] = None,
+    end_time: Optional[datetime.datetime] = None,
+    min_time: Optional[datetime.timedelta] = None,
     min_runs: Optional[int] = None,
     max_runs: Optional[int] = None,
     auto_scheduled: bool = True,
-) -> List[UUID]:
+) -> Sequence[UUID]:
     """
     Schedule flow runs for a deployment
 
@@ -698,7 +705,8 @@ async def _insert_scheduled_flow_runs(
         # this syntax (insert statement, values to insert) is most efficient
         # because it uses a single bind parameter
         await session.execute(
-            orm_models.FlowRunState.__table__.insert(), insert_flow_run_states
+            orm_models.FlowRunState.__table__.insert(),  # type: ignore[attr-defined]
+            insert_flow_run_states,
         )
 
         # set the `state_id` on the newly inserted runs
@@ -714,7 +722,7 @@ async def _insert_scheduled_flow_runs(
 
 async def check_work_queues_for_deployment(
     session: AsyncSession, deployment_id: UUID
-) -> List[schemas.core.WorkQueue]:
+) -> Sequence[orm_models.WorkQueue]:
     """
     Get work queues that can pick up the specified deployment.
 
@@ -915,7 +923,7 @@ async def mark_deployments_ready(
     db: PrefectDBInterface,
     deployment_ids: Optional[Iterable[UUID]] = None,
     work_queue_ids: Optional[Iterable[UUID]] = None,
-):
+) -> None:
     deployment_ids = deployment_ids or []
     work_queue_ids = work_queue_ids or []
 
@@ -969,7 +977,7 @@ async def mark_deployments_not_ready(
     db: PrefectDBInterface,
     deployment_ids: Optional[Iterable[UUID]] = None,
     work_queue_ids: Optional[Iterable[UUID]] = None,
-):
+) -> None:
     deployment_ids = deployment_ids or []
     work_queue_ids = work_queue_ids or []
 
