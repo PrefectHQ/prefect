@@ -5,6 +5,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 import ast
+import asyncio
 import datetime
 import importlib.util
 import inspect
@@ -921,7 +922,19 @@ class Flow(Generic[P, R]):
 
             console = Console()
             console.print(help_message, soft_wrap=True)
-        runner.start(webserver=webserver)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError as exc:
+            if "no running event loop" in str(exc):
+                loop = None
+            else:
+                raise
+
+        if loop is not None:
+            loop.run_until_complete(runner.start(webserver=webserver))
+        else:
+            asyncio.run(runner.start(webserver=webserver))
 
     @classmethod
     @sync_compatible
