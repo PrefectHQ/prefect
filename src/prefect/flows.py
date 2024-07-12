@@ -1747,14 +1747,13 @@ def load_flow_from_entrypoint(
     return flow
 
 
-@sync_compatible
-async def serve(
+def serve(
     *args: "RunnerDeployment",
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs,
-) -> NoReturn:
+):
     """
     Serve the provided list of deployments.
 
@@ -1804,7 +1803,7 @@ async def serve(
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
-        await runner.add_deployment(deployment)
+        runner.add_deployment(deployment)
 
     if print_starting_message:
         help_message_top = (
@@ -1835,7 +1834,18 @@ async def serve(
             Group(help_message_top, table, help_message_bottom), soft_wrap=True
         )
 
-    await runner.start()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError as exc:
+        if "no running event loop" in str(exc):
+            loop = None
+        else:
+            raise
+
+    if loop is not None:
+        loop.run_until_complete(runner.start())
+    else:
+        asyncio.run(runner.start())
 
 
 @client_injector
