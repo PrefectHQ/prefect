@@ -877,7 +877,7 @@ class PrefectClient:
 
     async def reset_concurrency_limit_by_tag(
         self,
-        tag,
+        tag: str,
         slot_override: Optional[List[Union[UUID, str]]] = None,
     ):
         """
