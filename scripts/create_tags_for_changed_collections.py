@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from gh_util.functions import create_repo_tag
+from gh_util.types import GitHubTagger
 from packaging.version import Version
 
 INTEGRATIONS_BASEPATH = "src/integrations"
@@ -61,12 +62,26 @@ async def create_tags(changed_integrations: Dict[str, str], dry_run: bool = Fals
         if dry_run:
             print(f"Would create tag {tag_name} for integration {integration_name}")
             continue
+
+        github_actor = os.environ.get("GITHUB_ACTOR", "github-bot")
+
         await create_repo_tag(
             owner=OWNER,
             repo=REPO,
             tag_name=tag_name,
             commit_sha=os.environ.get("CURRENT_COMMIT", ""),
             message=f"Release {integration_name} {version}",
+            # we need to pass a specific tagger here, because
+            # the underlying function tries to use the inferred GITHUB_TOKEN
+            # to pull user metadata via GET /user - this is returning
+            # a 403, as Automatic Token users don't have the ability
+            # to be assigned the `user` scope
+            # https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-the-authenticated-user
+            # https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+            tagger=GitHubTagger(
+                name=github_actor,
+                email=f"{github_actor}@users.noreply.github.com",
+            ),
         )
 
 
