@@ -2,8 +2,6 @@ import asyncio
 import os
 import subprocess
 import sys
-
-# from datetime import UTC, datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -83,7 +81,6 @@ async def create_tags(changed_integrations: Dict[str, str], dry_run: bool = Fals
             tagger=GitHubTagger(
                 name=github_actor,
                 email=f"{github_actor}@users.noreply.github.com",
-                # date=datetime.now(UTC),
             ),
         )
 
