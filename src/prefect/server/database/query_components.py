@@ -8,7 +8,6 @@ from typing import (
     List,
     Optional,
     Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -49,7 +48,7 @@ class BaseQueryComponents(ABC):
 
     CONFIGURATION_CACHE = TTLCache(maxsize=100, ttl=ONE_HOUR)
 
-    def _unique_key(self) -> Tuple[Hashable, ...]:
+    def _unique_key(self) -> tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """
@@ -163,7 +162,7 @@ class BaseQueryComponents(ABC):
     def get_scheduled_flow_runs_from_work_queues(
         self,
         limit_per_queue: Optional[int] = None,
-        work_queue_ids: Optional[List[UUID]] = None,
+        work_queue_ids: Optional[list[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
     ):
         """
@@ -304,12 +303,12 @@ class BaseQueryComponents(ABC):
         limit: Optional[int] = None,
         worker_limit: Optional[int] = None,
         queue_limit: Optional[int] = None,
-        work_pool_ids: Optional[List[UUID]] = None,
-        work_queue_ids: Optional[List[UUID]] = None,
+        work_pool_ids: Optional[list[UUID]] = None,
+        work_queue_ids: Optional[list[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
         scheduled_after: Optional[datetime.datetime] = None,
         respect_queue_priorities: bool = False,
-    ) -> List[schemas.responses.WorkerFlowRunResponse]:
+    ) -> list[schemas.responses.WorkerFlowRunResponse]:
         template = jinja_env.get_template(
             self._get_scheduled_flow_runs_from_work_pool_template_path
         )
@@ -928,8 +927,8 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         )
         graph_states = await self._get_flow_run_graph_states(session, flow_run_id)
 
-        nodes: List[Tuple[UUID, Node]] = []
-        root_node_ids: List[UUID] = []
+        nodes: list[tuple[UUID, Node]] = []
+        root_node_ids: list[UUID] = []
 
         for row in results:
             if not row.parent_ids:
@@ -1386,8 +1385,8 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         )
         graph_states = await self._get_flow_run_graph_states(session, flow_run_id)
 
-        nodes: List[Tuple[UUID, Node]] = []
-        root_node_ids: List[UUID] = []
+        nodes: list[tuple[UUID, Node]] = []
+        root_node_ids: list[UUID] = []
 
         for row in results:
             if not row.parent_ids:
@@ -1399,7 +1398,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
             def edges(
                 value: Union[str, Sequence[UUID], Sequence[str], None],
-            ) -> List[UUID]:
+            ) -> list[UUID]:
                 if not value:
                     return []
                 if isinstance(value, str):

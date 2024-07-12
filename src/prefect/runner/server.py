@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 import pendulum
 import uvicorn
@@ -38,7 +38,7 @@ RunnableEndpoint = Literal["deployment", "flow", "task"]
 
 class RunnerGenericFlowRunRequest(BaseModel):
     entrypoint: str
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[dict[str, Any]] = None
     parent_task_run_id: Optional[uuid.UUID] = None
 
 
@@ -83,7 +83,7 @@ async def _build_endpoint_for_deployment(
     deployment: "DeploymentResponse", runner: "Runner"
 ) -> Callable:
     async def _create_flow_run_for_deployment(
-        body: Optional[Dict[Any, Any]] = None,
+        body: Optional[dict[Any, Any]] = None,
     ) -> JSONResponse:
         body = body or {}
         if deployment.enforce_parameter_schema and deployment.parameter_openapi_schema:
@@ -116,7 +116,7 @@ async def _build_endpoint_for_deployment(
 
 async def get_deployment_router(
     runner: "Runner",
-) -> Tuple[APIRouter, Dict[str, Dict]]:
+) -> tuple[APIRouter, dict[str, Dict]]:
     router = APIRouter()
     schemas = {}
     async with get_client() as client:
@@ -142,7 +142,7 @@ async def get_deployment_router(
     return router, schemas
 
 
-async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
+async def get_subflow_schemas(runner: "Runner") -> dict[str, Dict]:
     """
     Load available subflow schemas by filtering for only those subflows in the
     deployment entrypoint's import space.
@@ -165,7 +165,7 @@ async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
     return schemas
 
 
-def _flow_in_schemas(flow: Flow, schemas: Dict[str, Dict]) -> bool:
+def _flow_in_schemas(flow: Flow, schemas: dict[str, Dict]) -> bool:
     """
     Check if a flow is in the schemas dict, either by name or by name with
     dashes replaced with underscores.
@@ -174,7 +174,7 @@ def _flow_in_schemas(flow: Flow, schemas: Dict[str, Dict]) -> bool:
     return flow.name in schemas or flow_name_with_dashes in schemas
 
 
-def _flow_schema_changed(flow: Flow, schemas: Dict[str, Dict]) -> bool:
+def _flow_schema_changed(flow: Flow, schemas: dict[str, Dict]) -> bool:
     """
     Check if a flow's schemas have changed, either by bame of by name with
     dashes replaced with underscores.
@@ -188,7 +188,7 @@ def _flow_schema_changed(flow: Flow, schemas: Dict[str, Dict]) -> bool:
 
 
 def _build_generic_endpoint_for_flows(
-    runner: "Runner", schemas: Dict[str, Dict]
+    runner: "Runner", schemas: dict[str, Dict]
 ) -> Callable:
     async def _create_flow_run_for_flow_from_fqn(
         body: RunnerGenericFlowRunRequest,

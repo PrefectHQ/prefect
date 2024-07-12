@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Iterable, Iterator, Optional
 
 from pydantic import RootModel
 
@@ -19,15 +19,15 @@ class LabelDiver:
     """
 
     _value: str
-    _divers: Dict[str, "LabelDiver"]
-    _labels: Dict[str, str]
+    _divers: dict[str, "LabelDiver"]
+    _labels: dict[str, str]
 
-    def __init__(self, labels: Dict[str, str], value: str = ""):
+    def __init__(self, labels: dict[str, str], value: str = ""):
         self._labels = labels.copy()
         self._value = value
 
-        divers: Dict[str, Dict[str, str]] = {}
-        values: Dict[str, str] = {}
+        divers: dict[str, dict[str, str]] = {}
+        values: dict[str, str] = {}
 
         for key, value in labels.items():
             head, _, tail = key.partition(".")
@@ -40,7 +40,7 @@ class LabelDiver:
                 values[head] = value
 
         # start with keys that had sub-divers...
-        self._divers: Dict[str, LabelDiver] = {
+        self._divers: dict[str, LabelDiver] = {
             k: LabelDiver(v, value=values.pop(k, "")) for k, v in divers.items()
         }
         # ...then mix in any remaining keys that _only_ had values
@@ -55,7 +55,7 @@ class LabelDiver:
     def __len__(self) -> int:
         return len(self._labels)
 
-    def __iter__(self) -> Iterator[Tuple[str, str]]:
+    def __iter__(self) -> Iterator[tuple[str, str]]:
         return iter(self._labels.items())
 
     def __getitem__(self, key: str) -> str:
@@ -71,11 +71,11 @@ class LabelDiver:
             raise AttributeError
 
 
-class Labelled(RootModel[Dict[str, str]]):
+class Labelled(RootModel[dict[str, str]]):
     def keys(self) -> Iterable[str]:
         return self.root.keys()
 
-    def items(self) -> Iterable[Tuple[str, str]]:
+    def items(self) -> Iterable[tuple[str, str]]:
         return self.root.items()
 
     def __getitem__(self, label: str) -> str:
@@ -91,12 +91,12 @@ class Labelled(RootModel[Dict[str, str]]):
     def get(self, label: str, default: Optional[str] = None) -> Optional[str]:
         return self.root.get(label, default)
 
-    def as_label_value_array(self) -> List[Dict[str, str]]:
+    def as_label_value_array(self) -> list[dict[str, str]]:
         return [{"label": label, "value": value} for label, value in self.items()]
 
     @property
     def labels(self) -> LabelDiver:
         return LabelDiver(self.root)
 
-    def has_all_labels(self, labels: Dict[str, str]) -> bool:
+    def has_all_labels(self, labels: dict[str, str]) -> bool:
         return all(self.root.get(label) == value for label, value in labels.items())

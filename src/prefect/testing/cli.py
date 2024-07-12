@@ -1,7 +1,7 @@
 import contextlib
 import re
 import textwrap
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, Union
 
 import readchar
 from typer.testing import CliRunner, Result  # type: ignore
@@ -46,9 +46,9 @@ def check_contains(cli_result: Result, content: str, should_contain: bool):
 
 
 def invoke_and_assert(
-    command: Union[str, List[str]],
+    command: Union[str, list[str]],
     user_input: Union[str, None] = None,
-    prompts_and_responses: List[Union[Tuple[str, str], Tuple[str, str, str]]] = [],
+    prompts_and_responses: list[Union[tuple[str, str], tuple[str, str, str]]] = [],
     expected_output: Union[str, None] = None,
     expected_output_contains: Union[str, Iterable[str], None] = None,
     expected_output_does_not_contain: Union[str, Iterable[str], None] = None,

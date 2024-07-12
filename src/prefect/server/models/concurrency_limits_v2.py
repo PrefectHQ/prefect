@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Optional, Union
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -184,7 +184,7 @@ async def delete_concurrency_limit(
 
 async def bulk_read_or_create_concurrency_limits(
     session: AsyncSession,
-    names: List[str],
+    names: list[str],
 ):
     # Get all existing concurrency limits in `names`.
     existing_query = sa.select(orm_models.ConcurrencyLimitV2).where(
@@ -216,7 +216,7 @@ async def bulk_read_or_create_concurrency_limits(
 async def bulk_increment_active_slots(
     db: PrefectDBInterface,
     session: AsyncSession,
-    concurrency_limit_ids: List[UUID],
+    concurrency_limit_ids: list[UUID],
     slots: int,
 ) -> bool:
     active_slots = active_slots_after_decay(db)
@@ -245,7 +245,7 @@ async def bulk_increment_active_slots(
 async def bulk_decrement_active_slots(
     db: PrefectDBInterface,
     session: AsyncSession,
-    concurrency_limit_ids: List[UUID],
+    concurrency_limit_ids: list[UUID],
     slots: int,
     occupancy_seconds: Optional[float] = None,
 ) -> bool:
@@ -296,7 +296,7 @@ async def bulk_decrement_active_slots(
 async def bulk_update_denied_slots(
     db: PrefectDBInterface,
     session: AsyncSession,
-    concurrency_limit_ids: List[UUID],
+    concurrency_limit_ids: list[UUID],
     slots: int,
 ):
     query = (

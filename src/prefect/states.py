@@ -5,7 +5,7 @@ import traceback
 import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import Any, Dict, Iterable, Optional, Type
+from typing import Any, Iterable, Optional, Type
 
 import anyio
 import httpx
@@ -520,7 +520,7 @@ class StateGroup:
         return ", ".join(count_messages)
 
     @staticmethod
-    def _get_type_counts(states: Iterable[State]) -> Dict[StateType, int]:
+    def _get_type_counts(states: Iterable[State]) -> dict[StateType, int]:
         return Counter(state.type for state in states)
 
     def __repr__(self) -> str:

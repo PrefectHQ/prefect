@@ -4,7 +4,7 @@ Command line interface for working with flow runs
 
 import logging
 import os
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 import httpx
@@ -56,10 +56,10 @@ async def inspect(id: UUID):
 
 @flow_run_app.command()
 async def ls(
-    flow_name: List[str] = typer.Option(None, help="Name of the flow"),
+    flow_name: list[str] = typer.Option(None, help="Name of the flow"),
     limit: int = typer.Option(15, help="Maximum number of flow runs to list"),
-    state: List[str] = typer.Option(None, help="Name of the flow run's state"),
-    state_type: List[str] = typer.Option(None, help="Type of the flow run's state"),
+    state: list[str] = typer.Option(None, help="Name of the flow run's state"),
+    state_type: list[str] = typer.Option(None, help="Type of the flow run's state"),
 ):
     """
     View recent flow runs or flow runs for specific flows.
@@ -86,7 +86,7 @@ async def ls(
     """
 
     # Handling `state` and `state_type` argument validity in the function instead of by specifying
-    # List[StateType] and List[StateName] in the type hints, allows users to provide
+    # list[StateType] and list[StateName] in the type hints, allows users to provide
     # case-insensitive arguments for `state` and `state_type`.
 
     prefect_state_names = {

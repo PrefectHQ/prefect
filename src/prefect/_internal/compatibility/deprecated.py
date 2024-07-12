@@ -13,7 +13,7 @@ e.g. Jan 2023.
 import functools
 import sys
 import warnings
-from typing import Any, Callable, List, Optional, Type, TypeVar
+from typing import Any, Callable, Optional, Type, TypeVar
 
 import pendulum
 import wrapt
@@ -39,7 +39,7 @@ DEPRECATED_MOVED_WARNING = (
     "path after {end_date}. {help}"
 )
 DEPRECATED_DATEFMT = "MMM YYYY"  # e.g. Feb 2023
-DEPRECATED_MODULE_ALIASES: List[AliasedModuleDefinition] = []
+DEPRECATED_MODULE_ALIASES: list[AliasedModuleDefinition] = []
 
 
 class PrefectDeprecationWarning(DeprecationWarning):

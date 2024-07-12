@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 from anyio import Path
@@ -24,7 +24,7 @@ KNOWN_VIEWS = {
 
 
 @router.get("/views/{view}")
-async def read_view_content(view: str) -> Dict[str, Any]:
+async def read_view_content(view: str) -> dict[str, Any]:
     """Reads the content of a view from the prefect-collection-registry."""
     try:
         return await get_collection_view(view)

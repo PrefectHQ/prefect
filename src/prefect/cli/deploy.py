@@ -7,7 +7,7 @@ from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 from uuid import UUID
 
 import pydantic
@@ -82,7 +82,7 @@ if TYPE_CHECKING:
 async def init(
     name: Optional[str] = None,
     recipe: Optional[str] = None,
-    fields: Optional[List[str]] = typer.Option(
+    fields: Optional[list[str]] = typer.Option(
         None,
         "-f",
         "--field",
@@ -204,7 +204,7 @@ async def deploy(
             " `./path/to/file.py:flow_func_name`"
         ),
     ),
-    names: List[str] = typer.Option(
+    names: list[str] = typer.Option(
         None,
         "--name",
         "-n",
@@ -226,7 +226,7 @@ async def deploy(
     version: str = typer.Option(
         None, "--version", help="A version to give the deployment."
     ),
-    tags: List[str] = typer.Option(
+    tags: list[str] = typer.Option(
         None,
         "-t",
         "--tag",
@@ -251,13 +251,13 @@ async def deploy(
             "It will be created if it doesn't already exist. Defaults to `None`."
         ),
     ),
-    variables: List[str] = typer.Option(
+    variables: list[str] = typer.Option(
         None,
         "-v",
         "--variable",
         help=("DEPRECATED: Please use --jv/--job-variable for similar functionality "),
     ),
-    job_variables: List[str] = typer.Option(
+    job_variables: list[str] = typer.Option(
         None,
         "-jv",
         "--job-variable",
@@ -266,12 +266,12 @@ async def deploy(
             " format of key=value string or a JSON object"
         ),
     ),
-    cron: List[str] = typer.Option(
+    cron: list[str] = typer.Option(
         None,
         "--cron",
         help="A cron string that will be used to set a CronSchedule on the deployment.",
     ),
-    interval: List[int] = typer.Option(
+    interval: list[int] = typer.Option(
         None,
         "--interval",
         help=(
@@ -282,7 +282,7 @@ async def deploy(
     interval_anchor: Optional[str] = typer.Option(
         None, "--anchor-date", help="The anchor date for all interval schedules"
     ),
-    rrule: List[str] = typer.Option(
+    rrule: list[str] = typer.Option(
         None,
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
@@ -292,7 +292,7 @@ async def deploy(
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
-    trigger: List[str] = typer.Option(
+    trigger: list[str] = typer.Option(
         None,
         "--trigger",
         help=(
@@ -301,7 +301,7 @@ async def deploy(
             " multiple times."
         ),
     ),
-    param: List[str] = typer.Option(
+    param: list[str] = typer.Option(
         None,
         "--param",
         help=(
@@ -784,9 +784,9 @@ async def _run_single_deploy(
 
 
 async def _run_multi_deploy(
-    deploy_configs: List[Dict],
+    deploy_configs: list[Dict],
     actions: Dict,
-    names: Optional[List[str]] = None,
+    names: Optional[list[str]] = None,
     deploy_all: bool = False,
     prefect_file: Path = Path("prefect.yaml"),
 ):
@@ -824,7 +824,7 @@ async def _run_multi_deploy(
 
 def _construct_schedules(
     deploy_config: Dict,
-) -> List[DeploymentScheduleCreate]:
+) -> list[DeploymentScheduleCreate]:
     """
     Constructs a schedule from a deployment configuration.
 
@@ -1048,8 +1048,8 @@ async def _generate_pull_step_for_build_docker_image(
 
 
 async def _check_for_build_docker_image_step(
-    build_action: List[Dict],
-) -> Optional[Dict[str, Any]]:
+    build_action: list[Dict],
+) -> Optional[dict[str, Any]]:
     if not build_action:
         return None
 
@@ -1065,8 +1065,8 @@ async def _check_for_build_docker_image_step(
 
 
 async def _generate_actions_for_remote_flow_storage(
-    console: Console, deploy_config: dict, actions: List[Dict]
-) -> Dict[str, List[Dict[str, Any]]]:
+    console: Console, deploy_config: dict, actions: list[Dict]
+) -> dict[str, list[dict[str, Any]]]:
     storage_provider_to_collection = {
         "s3": "prefect_aws",
         "gcs": "prefect_gcp",
@@ -1123,7 +1123,7 @@ async def _generate_actions_for_remote_flow_storage(
 async def _generate_default_pull_action(
     console: Console,
     deploy_config: Dict,
-    actions: List[Dict],
+    actions: list[Dict],
 ):
     build_docker_image_step = await _check_for_build_docker_image_step(
         deploy_config.get("build") or actions["build"]
@@ -1166,12 +1166,12 @@ async def _generate_default_pull_action(
 
 def _load_deploy_configs_and_actions(
     prefect_file: Path,
-) -> Tuple[List[Dict], Dict]:
+) -> tuple[list[Dict], Dict]:
     """
     Load deploy configs and actions from a deployment configuration YAML file.
 
     Returns:
-        Tuple[List[Dict], Dict]: a tuple of deployment configurations and actions
+        tuple[list[Dict], Dict]: a tuple of deployment configurations and actions
     """
     try:
         with prefect_file.open("r") as f:
@@ -1285,7 +1285,7 @@ def _parse_name_from_pattern(deploy_configs, name_pattern):
         name: A pattern to match against the deploy configs
 
     Returns:
-        List[str]: a list of deployment names that match the given pattern
+        list[str]: a list of deployment names that match the given pattern
     """
     parsed_names = []
 
@@ -1378,7 +1378,7 @@ def _pick_deploy_configs(
         deploy_all: Whether to use all deploy configs
 
     Returns:
-        List[Dict]: a list of deploy configs to deploy
+        list[Dict]: a list of deploy configs to deploy
     """
     if not deploy_configs:
         return []
@@ -1414,7 +1414,7 @@ def _pick_deploy_configs(
         return []
 
 
-def _extract_variable(variable: str) -> Dict[str, Any]:
+def _extract_variable(variable: str) -> dict[str, Any]:
     """
     Extracts a variable from a string. Variables can be in the format
     key=value or a JSON object.
@@ -1582,8 +1582,8 @@ def _check_if_identical_deployment_in_prefect_file(
 
 
 def _initialize_deployment_triggers(
-    deployment_name: str, triggers_spec: List[Dict[str, Any]]
-) -> List[DeploymentTriggerTypes]:
+    deployment_name: str, triggers_spec: list[dict[str, Any]]
+) -> list[DeploymentTriggerTypes]:
     triggers = []
     for i, spec in enumerate(triggers_spec, start=1):
         spec.setdefault("name", f"{deployment_name}__automation_{i}")
@@ -1597,7 +1597,7 @@ def _initialize_deployment_triggers(
 async def _create_deployment_triggers(
     client: "PrefectClient",
     deployment_id: UUID,
-    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]],
+    triggers: list[Union[DeploymentTriggerTypes, TriggerTypes]],
 ):
     try:
         # The triggers defined in the deployment spec are, essentially,
@@ -1621,8 +1621,8 @@ async def _create_deployment_triggers(
 
 
 def _gather_deployment_trigger_definitions(
-    trigger_flags: List[str], existing_triggers: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    trigger_flags: list[str], existing_triggers: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Parses trigger flags from CLI and existing deployment config in `prefect.yaml`.
 
     Args:

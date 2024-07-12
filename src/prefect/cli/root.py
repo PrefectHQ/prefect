@@ -7,7 +7,7 @@ import platform
 import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as import_version
-from typing import Any, Dict
+from typing import Any
 
 import pendulum
 import typer
@@ -151,7 +151,7 @@ async def version(
     display(version_info)
 
 
-def get_prefect_integrations() -> Dict[str, str]:
+def get_prefect_integrations() -> dict[str, str]:
     """Get information about installed Prefect integrations."""
     from importlib.metadata import distributions
 
@@ -165,7 +165,7 @@ def get_prefect_integrations() -> Dict[str, str]:
     return integrations
 
 
-def display(object: Dict[str, Any], nesting: int = 0):
+def display(object: dict[str, Any], nesting: int = 0):
     """Recursive display of a dictionary with nesting."""
     for key, value in object.items():
         key += ":"

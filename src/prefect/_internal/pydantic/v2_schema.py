@@ -56,9 +56,9 @@ def process_v2_params(
     param: inspect.Parameter,
     *,
     position: int,
-    docstrings: t.Dict[str, str],
+    docstrings: t.dict[str, str],
     aliases: t.Dict,
-) -> t.Tuple[str, t.Any, "pydantic.Field"]:
+) -> t.tuple[str, t.Any, "pydantic.Field"]:
     """
     Generate a sanitized name, type, and pydantic.Field for a given parameter.
 

@@ -9,7 +9,7 @@ import sys
 from copy import deepcopy
 from functools import partial
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import anyio
 from anyio import run_process
@@ -102,7 +102,7 @@ class IamPolicyResource:
         self._requires_provisioning = True
         return True
 
-    async def get_planned_actions(self) -> List[str]:
+    async def get_planned_actions(self) -> list[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -119,7 +119,7 @@ class IamPolicyResource:
 
     async def provision(
         self,
-        policy_document: Dict[str, Any],
+        policy_document: dict[str, Any],
         advance: Callable[[], None],
     ):
         """
@@ -197,7 +197,7 @@ class IamUserResource:
 
         return self._requires_provisioning
 
-    async def get_planned_actions(self) -> List[str]:
+    async def get_planned_actions(self) -> list[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -265,7 +265,7 @@ class CredentialsBlockResource:
                 self._requires_provisioning = True
         return self._requires_provisioning
 
-    async def get_planned_actions(self) -> List[str]:
+    async def get_planned_actions(self) -> list[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -280,7 +280,7 @@ class CredentialsBlockResource:
     @inject_client
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
         client: Optional["PrefectClient"] = None,
     ):
@@ -445,7 +445,7 @@ class AuthenticationResource:
             [await resource.requires_provisioning() for resource in self.resources]
         )
 
-    async def get_planned_actions(self) -> List[str]:
+    async def get_planned_actions(self) -> list[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -461,7 +461,7 @@ class AuthenticationResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
     ):
         """
@@ -549,7 +549,7 @@ class ClusterResource:
                 self._requires_provisioning = True
         return self._requires_provisioning
 
-    async def get_planned_actions(self) -> List[str]:
+    async def get_planned_actions(self) -> list[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -566,7 +566,7 @@ class ClusterResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
     ):
         """
@@ -690,7 +690,7 @@ class VpcResource:
         self._requires_provisioning = True
         return True
 
-    async def get_planned_actions(self) -> List[str]:
+    async def get_planned_actions(self) -> list[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -708,7 +708,7 @@ class VpcResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
     ):
         """
@@ -878,7 +878,7 @@ class ContainerRepositoryResource:
         self._requires_provisioning = True
         return True
 
-    async def get_planned_actions(self) -> List[str]:
+    async def get_planned_actions(self) -> list[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -895,7 +895,7 @@ class ContainerRepositoryResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
     ):
         """
@@ -1029,7 +1029,7 @@ class ExecutionRoleResource:
 
         return self._requires_provisioning
 
-    async def get_planned_actions(self) -> List[str]:
+    async def get_planned_actions(self) -> list[str]:
         """
         Returns a description of the planned actions for provisioning this resource.
 
@@ -1046,7 +1046,7 @@ class ExecutionRoleResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
     ):
         """
@@ -1158,7 +1158,7 @@ class ElasticContainerServicePushProvisioner:
         self,
         work_pool_name: str,
         base_job_template: dict,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Provisions the infrastructure for an ECS push work pool.
 

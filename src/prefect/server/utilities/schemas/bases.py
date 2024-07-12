@@ -4,9 +4,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Dict,
     Optional,
-    Set,
     Type,
     TypeVar,
 )
@@ -57,7 +55,7 @@ class PrefectBaseModel(BaseModel):
     subtle unintentional testing errors.
     """
 
-    _reset_fields: ClassVar[Set[str]] = set()
+    _reset_fields: ClassVar[set[str]] = set()
     model_config = ConfigDict(
         ser_json_timedelta="float",
         extra=(
@@ -123,7 +121,7 @@ class PrefectBaseModel(BaseModel):
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Prefect extension to `BaseModel.model_dump`.  Generate a Python dictionary
         representation of the model suitable for passing to SQLAlchemy model
@@ -176,7 +174,7 @@ class IDBaseModel(PrefectBaseModel):
     The ID is reset on copy() and not included in equality comparisons.
     """
 
-    _reset_fields: ClassVar[Set[str]] = {"id"}
+    _reset_fields: ClassVar[set[str]] = {"id"}
     id: UUID = Field(default_factory=uuid4)
 
 
@@ -189,7 +187,7 @@ class ORMBaseModel(IDBaseModel):
     equality comparisons.
     """
 
-    _reset_fields: ClassVar[Set[str]] = {"id", "created", "updated"}
+    _reset_fields: ClassVar[set[str]] = {"id", "created", "updated"}
 
     model_config = ConfigDict(from_attributes=True)
 

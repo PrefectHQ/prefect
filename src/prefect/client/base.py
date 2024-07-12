@@ -15,7 +15,6 @@ from typing import (
     MutableMapping,
     Optional,
     Protocol,
-    Set,
     Tuple,
     Type,
     runtime_checkable,
@@ -43,11 +42,11 @@ from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_int
 
 # Datastores for lifespan management, keys should be a tuple of thread and app
 # identities.
-APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
-APP_LIFESPANS_REF_COUNTS: Dict[Tuple[int, int], int] = {}
+APP_LIFESPANS: dict[tuple[int, int], LifespanManager] = {}
+APP_LIFESPANS_REF_COUNTS: dict[tuple[int, int], int] = {}
 # Blocks concurrent access to the above dicts per thread. The index should be the thread
 # identity.
-APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
+APP_LIFESPANS_LOCKS: dict[int, anyio.Lock] = defaultdict(anyio.Lock)
 
 
 logger = get_logger("client")
@@ -221,8 +220,8 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         send: Callable[[Request], Awaitable[Response]],
         send_args: Tuple,
         send_kwargs: Dict,
-        retry_codes: Set[int] = set(),
-        retry_exceptions: Tuple[Exception, ...] = tuple(),
+        retry_codes: set[int] = set(),
+        retry_exceptions: tuple[Exception, ...] = tuple(),
     ):
         """
         Send a request and retry it if it fails.
@@ -435,8 +434,8 @@ class PrefectHttpxSyncClient(httpx.Client):
         send: Callable[[Request], Response],
         send_args: Tuple,
         send_kwargs: Dict,
-        retry_codes: Set[int] = set(),
-        retry_exceptions: Tuple[Exception, ...] = tuple(),
+        retry_codes: set[int] = set(),
+        retry_exceptions: tuple[Exception, ...] = tuple(),
     ):
         """
         Send a request and retry it if it fails.

@@ -10,7 +10,7 @@ import inspect
 import queue
 import threading
 from collections import deque
-from typing import Awaitable, Generic, List, Optional, TypeVar, Union
+from typing import Awaitable, Generic, Optional, TypeVar, Union
 from weakref import WeakKeyDictionary
 
 import anyio
@@ -160,7 +160,7 @@ class AsyncWaiter(Waiter[T]):
         # Delay instantiating loop and queue as there may not be a loop present yet
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._queue: Optional[asyncio.Queue] = None
-        self._early_submissions: List[Call] = []
+        self._early_submissions: list[Call] = []
         self._done_callbacks = []
         self._done_event = Event()
         self._done_waiting = False

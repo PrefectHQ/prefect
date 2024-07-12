@@ -4,7 +4,7 @@ Utilities for querying flow and task run history.
 
 import datetime
 import json
-from typing import List, Optional
+from typing import Optional
 
 import pydantic
 import sqlalchemy as sa
@@ -34,7 +34,7 @@ async def run_history(
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-) -> List[schemas.responses.HistoryResponse]:
+) -> list[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state
     """
@@ -161,5 +161,5 @@ async def run_history(
             r["states"] = json.loads(r["states"])
 
     return pydantic.TypeAdapter(
-        List[schemas.responses.HistoryResponse]
+        list[schemas.responses.HistoryResponse]
     ).validate_python(records)

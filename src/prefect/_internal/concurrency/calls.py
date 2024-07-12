@@ -18,7 +18,7 @@ from concurrent.futures._base import (
     FINISHED,
     RUNNING,
 )
-from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -219,7 +219,7 @@ class Call(Generic[T]):
     future: Future
     fn: Callable[..., T]
     args: Tuple
-    kwargs: Dict[str, Any]
+    kwargs: dict[str, Any]
     context: contextvars.Context
     timeout: float
     runner: Optional["Portal"] = None

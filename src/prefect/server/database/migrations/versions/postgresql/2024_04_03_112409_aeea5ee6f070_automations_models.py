@@ -6,7 +6,6 @@ Create Date: 2024-04-03 11:24:09.599513
 
 """
 
-from typing import List
 
 import sqlalchemy as sa
 from alembic import op
@@ -37,18 +36,18 @@ def upgrade():
         ),
         sa.Column(
             "actions",
-            prefect.server.utilities.database.Pydantic(List[ActionTypes]),
+            prefect.server.utilities.database.Pydantic(list[ActionTypes]),
             nullable=False,
         ),
         sa.Column(
             "actions_on_trigger",
-            prefect.server.utilities.database.Pydantic(List[ActionTypes]),
+            prefect.server.utilities.database.Pydantic(list[ActionTypes]),
             server_default="[]",
             nullable=False,
         ),
         sa.Column(
             "actions_on_resolve",
-            prefect.server.utilities.database.Pydantic(List[ActionTypes]),
+            prefect.server.utilities.database.Pydantic(list[ActionTypes]),
             server_default="[]",
             nullable=False,
         ),

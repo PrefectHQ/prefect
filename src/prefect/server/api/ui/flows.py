@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -42,9 +42,9 @@ class SimpleNextFlowRun(PrefectBaseModel):
 
 @router.post("/count-deployments")
 async def count_deployments_by_flow(
-    flow_ids: List[UUID] = Body(default=..., embed=True, max_items=200),
+    flow_ids: list[UUID] = Body(default=..., embed=True, max_items=200),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> Dict[UUID, int]:
+) -> dict[UUID, int]:
     """
     Get deployment counts by flow id.
     """
@@ -69,7 +69,7 @@ async def count_deployments_by_flow(
         }
 
 
-def _get_postgres_next_runs_query(flow_ids: List[UUID]):
+def _get_postgres_next_runs_query(flow_ids: list[UUID]):
     # Here we use the raw query because CROSS LATERAL JOINS are very
     # difficult to express correctly in sqlalchemy.
     raw_query = sa.text(
@@ -104,7 +104,7 @@ def _get_postgres_next_runs_query(flow_ids: List[UUID]):
     return query
 
 
-def _get_sqlite_next_runs_query(flow_ids: List[UUID]):
+def _get_sqlite_next_runs_query(flow_ids: list[UUID]):
     raw_query = sa.text(
         """
         WITH min_times AS (
@@ -137,9 +137,9 @@ def _get_sqlite_next_runs_query(flow_ids: List[UUID]):
 
 @router.post("/next-runs")
 async def next_runs_by_flow(
-    flow_ids: List[UUID] = Body(default=..., embed=True, max_items=200),
+    flow_ids: list[UUID] = Body(default=..., embed=True, max_items=200),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> Dict[UUID, Optional[SimpleNextFlowRun]]:
+) -> dict[UUID, Optional[SimpleNextFlowRun]]:
     """
     Get the next flow run by flow id.
     """

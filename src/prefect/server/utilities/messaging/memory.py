@@ -5,8 +5,6 @@ from datetime import timedelta
 from typing import (
     Any,
     AsyncGenerator,
-    Dict,
-    List,
     MutableMapping,
     Optional,
     TypeVar,
@@ -28,7 +26,7 @@ logger = get_logger(__name__)
 @dataclass
 class MemoryMessage:
     data: Union[bytes, str]
-    attributes: Dict[str, Any]
+    attributes: dict[str, Any]
 
 
 class Subscription:
@@ -54,10 +52,10 @@ class Subscription:
 
 
 class Topic:
-    _topics: Dict[str, "Topic"] = {}
+    _topics: dict[str, "Topic"] = {}
 
     name: str
-    _subscriptions: List[Subscription]
+    _subscriptions: list[Subscription]
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -121,7 +119,7 @@ class Cache(_Cache):
     async def clear_recently_seen_messages(self) -> None:
         self._recently_seen_messages.clear()
 
-    async def without_duplicates(self, attribute: str, messages: List[M]) -> List[M]:
+    async def without_duplicates(self, attribute: str, messages: list[M]) -> list[M]:
         messages_with_attribute = []
         messages_without_attribute = []
 
@@ -143,7 +141,7 @@ class Cache(_Cache):
 
         return messages_with_attribute + messages_without_attribute
 
-    async def forget_duplicates(self, attribute: str, messages: List[M]) -> None:
+    async def forget_duplicates(self, attribute: str, messages: list[M]) -> None:
         for m in messages:
             if m.attributes is None or attribute not in m.attributes:
                 logger.warning(
@@ -167,7 +165,7 @@ class Publisher(_Publisher):
     async def __aexit__(self, exc_type, exc_value, traceback):
         return None
 
-    async def publish_data(self, data: bytes, attributes: Dict[str, str]):
+    async def publish_data(self, data: bytes, attributes: dict[str, str]):
         to_publish = [MemoryMessage(data, attributes)]
         if self.deduplicate_by:
             to_publish = await self._cache.without_duplicates(
@@ -205,7 +203,7 @@ class Consumer(_Consumer):
 
 
 @asynccontextmanager
-async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], None]:
+async def ephemeral_subscription(topic: str) -> AsyncGenerator[dict[str, Any], None]:
     subscription = Topic.by_name(topic).subscribe()
     try:
         yield {"topic": topic, "subscription": subscription}

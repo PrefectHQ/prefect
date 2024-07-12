@@ -13,9 +13,7 @@ from typing import (
     ClassVar,
     Dict,
     FrozenSet,
-    List,
     Optional,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -70,7 +68,7 @@ if TYPE_CHECKING:
 R = TypeVar("R")
 P = ParamSpec("P")
 
-ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
+ResourceTuple = tuple[dict[str, Any], list[dict[str, Any]]]
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -133,7 +131,7 @@ def _is_subclass(cls, parent_cls) -> bool:
 
 
 def _collect_secret_fields(
-    name: str, type_: Type[BaseModel], secrets: List[str]
+    name: str, type_: Type[BaseModel], secrets: list[str]
 ) -> None:
     """
     Recursively collects all secret fields from a given type and adds them to the
@@ -206,7 +204,7 @@ class BlockNotSavedError(RuntimeError):
     pass
 
 
-def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
+def schema_extra(schema: dict[str, Any], model: Type["Block"]):
     """
     Customizes Pydantic's schema generation feature to add blocks related information.
     """
@@ -305,7 +303,7 @@ class Block(BaseModel, ABC):
     _code_example: ClassVar[Optional[str]] = None
     _block_type_id: ClassVar[Optional[UUID]] = None
     _block_schema_id: ClassVar[Optional[UUID]] = None
-    _block_schema_capabilities: ClassVar[Optional[List[str]]] = None
+    _block_schema_capabilities: ClassVar[Optional[list[str]]] = None
     _block_schema_version: ClassVar[Optional[str]] = None
 
     # -- private instance variables
@@ -401,7 +399,7 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def _calculate_schema_checksum(
-        cls, block_schema_fields: Optional[Dict[str, Any]] = None
+        cls, block_schema_fields: Optional[dict[str, Any]] = None
     ):
         """
         Generates a unique hash for the underlying schema of block.
@@ -539,7 +537,7 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def _parse_docstring(cls) -> List[DocstringSection]:
+    def _parse_docstring(cls) -> list[DocstringSection]:
         """
         Parses the docstring into list of DocstringSection objects.
         Helper method used primarily to suppress irrelevant logs, e.g.
@@ -738,7 +736,7 @@ class Block(BaseModel, ABC):
         return lookup_type(cls, key)
 
     def _define_metadata_on_nested_blocks(
-        self, block_document_references: Dict[str, Dict[str, Any]]
+        self, block_document_references: dict[str, dict[str, Any]]
     ):
         """
         Recursively populates metadata fields on nested blocks based on the
@@ -1124,7 +1122,7 @@ class Block(BaseModel, ABC):
         ref_template: str = "#/definitions/{model}",
         schema_generator: Type[GenerateJsonSchema] = GenerateJsonSchema,
         mode: Literal["validation", "serialization"] = "validation",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """TODO: stop overriding this method - use GenerateSchema in ConfigDict instead?"""
         schema = super().model_json_schema(
             by_alias, ref_template, schema_generator, mode
@@ -1151,7 +1149,7 @@ class Block(BaseModel, ABC):
         *,
         strict: Optional[bool] = None,
         from_attributes: Optional[bool] = None,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
     ) -> Self:
         if isinstance(obj, dict):
             extra_serializer_fields = {
@@ -1172,7 +1170,7 @@ class Block(BaseModel, ABC):
         mode: Union[Literal["json", "python"], str] = "python",
         include: "IncEx" = None,
         exclude: "IncEx" = None,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         by_alias: bool = False,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
@@ -1180,7 +1178,7 @@ class Block(BaseModel, ABC):
         round_trip: bool = False,
         warnings: Union[bool, Literal["none", "warn", "error"]] = True,
         serialize_as_any: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         d = super().model_dump(
             mode=mode,
             include=include,

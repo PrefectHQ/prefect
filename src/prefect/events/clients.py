@@ -5,8 +5,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Dict,
-    List,
     MutableMapping,
     Optional,
     Tuple,
@@ -121,11 +119,11 @@ class AssertingEventsClient(EventsClient):
     tests."""
 
     last: ClassVar["Optional[AssertingEventsClient]"] = None
-    all: ClassVar[List["AssertingEventsClient"]] = []
+    all: ClassVar[list["AssertingEventsClient"]] = []
 
     args: Tuple
-    kwargs: Dict[str, Any]
-    events: List[Event]
+    kwargs: dict[str, Any]
+    events: list[Event]
 
     def __init__(self, *args, **kwargs):
         AssertingEventsClient.last = self
@@ -151,7 +149,7 @@ class AssertingEventsClient(EventsClient):
 
 def _get_api_url_and_key(
     api_url: Optional[str], api_key: Optional[str]
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     api_url = api_url or PREFECT_API_URL.value()
     api_key = api_key or PREFECT_API_KEY.value()
 
@@ -208,7 +206,7 @@ class PrefectEventsClient(EventsClient):
     """A Prefect Events client that streams events to a Prefect server"""
 
     _websocket: Optional[WebSocketClientProtocol]
-    _unconfirmed_events: List[Event]
+    _unconfirmed_events: list[Event]
 
     def __init__(
         self,
@@ -446,7 +444,7 @@ class PrefectEventSubscriber:
         )
 
         try:
-            message: Dict[str, Any] = orjson.loads(await self._websocket.recv())
+            message: dict[str, Any] = orjson.loads(await self._websocket.recv())
             logger.debug("  auth result %s", message)
             assert message["type"] == "auth_success", message.get("reason", "")
         except AssertionError as e:

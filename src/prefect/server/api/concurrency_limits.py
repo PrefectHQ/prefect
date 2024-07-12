@@ -2,7 +2,7 @@
 Routes for interacting with concurrency limit objects.
 """
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -93,7 +93,7 @@ async def read_concurrency_limits(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.ConcurrencyLimit]:
+) -> list[schemas.core.ConcurrencyLimit]:
     """
     Query for concurrency limits.
 
@@ -111,7 +111,7 @@ async def read_concurrency_limits(
 @router.post("/tag/{tag}/reset")
 async def reset_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
-    slot_override: Optional[List[UUID]] = Body(
+    slot_override: Optional[list[UUID]] = Body(
         None,
         embed=True,
         description="Manual override for active concurrency limit slots.",

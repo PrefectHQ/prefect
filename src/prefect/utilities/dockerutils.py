@@ -12,10 +12,8 @@ from typing import (
     Any,
     Generator,
     Iterable,
-    List,
     Optional,
     TextIO,
-    Tuple,
     Type,
     Union,
 )
@@ -206,7 +204,7 @@ class ImageBuilder:
     base_directory: Path
     context: Optional[Path]
     platform: Optional[str]
-    dockerfile_lines: List[str]
+    dockerfile_lines: list[str]
 
     def __init__(
         self,
@@ -456,7 +454,7 @@ def push_image(
     return f"{repository}:{tag}"
 
 
-def to_run_command(command: List[str]) -> str:
+def to_run_command(command: list[str]) -> str:
     """
     Convert a process-style list of command arguments to a single Dockerfile RUN
     instruction.
@@ -480,7 +478,7 @@ def to_run_command(command: List[str]) -> str:
     return run_command
 
 
-def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
+def parse_image_tag(name: str) -> tuple[str, Optional[str]]:
     """
     Parse Docker Image String
 
@@ -518,7 +516,7 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     return image_name, tag
 
 
-def split_repository_path(repository_path: str) -> Tuple[Optional[str], str]:
+def split_repository_path(repository_path: str) -> tuple[Optional[str], str]:
     """
     Splits a Docker repository path into its namespace and repository components.
 
@@ -526,7 +524,7 @@ def split_repository_path(repository_path: str) -> Tuple[Optional[str], str]:
         repository_path: The Docker repository path to split.
 
     Returns:
-        Tuple[Optional[str], str]: A tuple containing the namespace and repository components.
+        tuple[Optional[str], str]: A tuple containing the namespace and repository components.
             - namespace (Optional[str]): The Docker namespace, combining the registry and organization. None if not present.
             - repository (Optionals[str]): The repository name.
     """

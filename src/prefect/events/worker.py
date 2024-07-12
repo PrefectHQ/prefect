@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from contextvars import Context, copy_context
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any, Optional, Type
 from uuid import UUID
 
 from typing_extensions import Self
@@ -50,13 +50,13 @@ def should_emit_events_to_ephemeral_server() -> bool:
 
 class EventsWorker(QueueService[Event]):
     def __init__(
-        self, client_type: Type[EventsClient], client_options: Tuple[Tuple[str, Any]]
+        self, client_type: Type[EventsClient], client_options: tuple[tuple[str, Any]]
     ):
         super().__init__(client_type, client_options)
         self.client_type = client_type
         self.client_options = client_options
         self._client: EventsClient
-        self._context_cache: Dict[UUID, Context] = {}
+        self._context_cache: dict[UUID, Context] = {}
 
     @asynccontextmanager
     async def _lifespan(self):

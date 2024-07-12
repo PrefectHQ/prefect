@@ -11,14 +11,12 @@ from typing import (
     AsyncGenerator,
     Callable,
     Coroutine,
-    Dict,
     Generator,
     Generic,
     Iterable,
     Literal,
     Optional,
     Sequence,
-    Set,
     Type,
     TypeVar,
     Union,
@@ -93,11 +91,11 @@ class TaskRunTimeoutError(TimeoutError):
 class TaskRunEngine(Generic[P, R]):
     task: Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
     wait_for: Optional[Iterable[PrefectFuture]] = None
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[dict[str, Any]] = None
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
@@ -506,7 +504,7 @@ class TaskRunEngine(Generic[P, R]):
     def initialize_run(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     ) -> Generator["TaskRunEngine", Any, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -627,7 +625,7 @@ class TaskRunEngine(Generic[P, R]):
     def start(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
             self.begin_run()
@@ -708,11 +706,11 @@ def run_task_sync(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
         task=task,
@@ -735,11 +733,11 @@ async def run_task_async(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
         task=task,
@@ -762,11 +760,11 @@ def run_generator_task_sync(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Generator[R, None, None]:
     if return_type != "result":
         raise ValueError("The return_type for a generator task must be 'result'")
@@ -817,11 +815,11 @@ async def run_generator_task_async(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> AsyncGenerator[R, None]:
     if return_type != "result":
         raise ValueError("The return_type for a generator task must be 'result'")
@@ -873,11 +871,11 @@ def run_task(
     task: Task[P, Union[R, Coroutine[Any, Any, R]]],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]:
     """
     Runs the provided task.

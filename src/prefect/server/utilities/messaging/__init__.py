@@ -31,7 +31,7 @@ class Message(Protocol):
     """
 
     data: Union[bytes, str]
-    attributes: Dict[str, Any]
+    attributes: dict[str, Any]
 
 
 M = TypeVar("M", bound=Message)
@@ -43,11 +43,11 @@ class Cache(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def without_duplicates(self, attribute: str, messages: List[M]) -> List[M]:
+    async def without_duplicates(self, attribute: str, messages: list[M]) -> list[M]:
         ...
 
     @abc.abstractmethod
-    async def forget_duplicates(self, attribute: str, messages: List[M]) -> None:
+    async def forget_duplicates(self, attribute: str, messages: list[M]) -> None:
         ...
 
 
@@ -61,18 +61,18 @@ class Publisher(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def publish_data(self, data: bytes, attributes: Dict[str, str]):
+    async def publish_data(self, data: bytes, attributes: dict[str, str]):
         ...
 
 
 @dataclass
 class CapturedMessage:
     data: bytes
-    attributes: Dict[str, str]
+    attributes: dict[str, str]
 
 
 class CapturingPublisher(Publisher):
-    messages: List[CapturedMessage] = []
+    messages: list[CapturedMessage] = []
     deduplicate_by: Optional[str]
 
     def __init__(
@@ -91,7 +91,7 @@ class CapturingPublisher(Publisher):
     async def __aexit__(self, exc_type, exc_value, traceback):
         pass
 
-    async def publish_data(self, data: bytes, attributes: Dict[str, str]):
+    async def publish_data(self, data: bytes, attributes: dict[str, str]):
         to_publish = [CapturedMessage(data, attributes)]
 
         if self.deduplicate_by:
@@ -146,7 +146,7 @@ def create_cache() -> Cache:
 class BrokerModule(Protocol):
     Publisher: Type[Publisher]
     Consumer: Type[Consumer]
-    ephemeral_subscription: Callable[[str], AsyncGenerator[Dict[str, Any], None]]
+    ephemeral_subscription: Callable[[str], AsyncGenerator[dict[str, Any], None]]
 
     # Used for testing: a context manager that breaks the topic in a way that raises
     # a ValueError("oops") when attempting to publish a message.
@@ -171,7 +171,7 @@ def create_publisher(
 
 
 @asynccontextmanager
-async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], None]:
+async def ephemeral_subscription(topic: str) -> AsyncGenerator[dict[str, Any], None]:
     """
     Creates an ephemeral subscription to the given source, removing it when the context
     exits.

@@ -16,7 +16,7 @@ Available attributes:
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from prefect.context import TaskRunContext
 
@@ -68,7 +68,7 @@ def __getattr__(name: str) -> Any:
         return real_value
 
 
-def __dir__() -> List[str]:
+def __dir__() -> list[str]:
     return sorted(__all__)
 
 
@@ -78,7 +78,7 @@ def get_id() -> str:
         return str(task_run_ctx.task_run.id)
 
 
-def get_tags() -> List[str]:
+def get_tags() -> list[str]:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is None:
         return []
@@ -110,7 +110,7 @@ def get_task_name() -> Optional[str]:
         return task_run_ctx.task.name
 
 
-def get_parameters() -> Dict[str, Any]:
+def get_parameters() -> dict[str, Any]:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is not None:
         return task_run_ctx.parameters

@@ -7,7 +7,7 @@ from prefect.client.orchestration import ServerType, get_client
 
 
 class CollectionsMetadataClient(Protocol):
-    async def read_worker_metadata(self) -> Dict[str, Any]:
+    async def read_worker_metadata(self) -> dict[str, Any]:
         ...
 
     async def __aenter__(self) -> "CollectionsMetadataClient":

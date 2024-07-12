@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, cast
+from typing import Optional, cast
 from uuid import UUID
 
 import pendulum
@@ -23,7 +23,7 @@ class AutomationFilterCreated(PrefectBaseModel):
 class AutomationFilterName(PrefectBaseModel):
     """Filter by `Automation.created`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="Only include automations with names that match any of these strings",
     )
@@ -43,8 +43,8 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-ar
 
     _top_level_filter: Optional["EventFilter"] = PrivateAttr(None)
 
-    def get_filters(self) -> List["EventDataFilter"]:
-        filters: List["EventDataFilter"] = [
+    def get_filters(self) -> list["EventDataFilter"]:
+        filters: list["EventDataFilter"] = [
             filter
             for filter in [
                 getattr(self, name) for name, field in self.model_fields.items()
@@ -82,17 +82,17 @@ class EventOccurredFilter(EventDataFilter):
 
 
 class EventNameFilter(EventDataFilter):
-    prefix: Optional[List[str]] = Field(
+    prefix: Optional[list[str]] = Field(
         None, description="Only include events matching one of these prefixes"
     )
-    exclude_prefix: Optional[List[str]] = Field(
+    exclude_prefix: Optional[list[str]] = Field(
         None, description="Exclude events matching one of these prefixes"
     )
 
-    name: Optional[List[str]] = Field(
+    name: Optional[list[str]] = Field(
         None, description="Only include events matching one of these names exactly"
     )
-    exclude_name: Optional[List[str]] = Field(
+    exclude_name: Optional[list[str]] = Field(
         None, description="Exclude events matching one of these names exactly"
     )
 
@@ -117,10 +117,10 @@ class EventNameFilter(EventDataFilter):
 
 
 class EventResourceFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
+    id: Optional[list[str]] = Field(
         None, description="Only include events for resources with these IDs"
     )
-    id_prefix: Optional[List[str]] = Field(
+    id_prefix: Optional[list[str]] = Field(
         None,
         description=(
             "Only include events for resources with IDs starting with these prefixes."
@@ -153,13 +153,13 @@ class EventResourceFilter(EventDataFilter):
 
 
 class EventRelatedFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
+    id: Optional[list[str]] = Field(
         None, description="Only include events for related resources with these IDs"
     )
-    role: Optional[List[str]] = Field(
+    role: Optional[list[str]] = Field(
         None, description="Only include events for related resources in these roles"
     )
-    resources_in_roles: Optional[List[Tuple[str, str]]] = Field(
+    resources_in_roles: Optional[list[tuple[str, str]]] = Field(
         None,
         description=(
             "Only include events with specific related resources in specific roles"
@@ -171,10 +171,10 @@ class EventRelatedFilter(EventDataFilter):
 
 
 class EventAnyResourceFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
+    id: Optional[list[str]] = Field(
         None, description="Only include events for resources with these IDs"
     )
-    id_prefix: Optional[List[str]] = Field(
+    id_prefix: Optional[list[str]] = Field(
         None,
         description=(
             "Only include events for resources with IDs starting with these prefixes"
@@ -207,7 +207,7 @@ class EventAnyResourceFilter(EventDataFilter):
 
 
 class EventIDFilter(EventDataFilter):
-    id: Optional[List[UUID]] = Field(
+    id: Optional[list[UUID]] = Field(
         None, description="Only include events with one of these IDs"
     )
 

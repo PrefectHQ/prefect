@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import anyio
 import httpx
@@ -56,7 +56,7 @@ class CloudClient:
         self,
         host: str,
         api_key: str,
-        httpx_settings: Optional[Dict[str, Any]] = None,
+        httpx_settings: Optional[dict[str, Any]] = None,
     ) -> None:
         httpx_settings = httpx_settings or dict()
         httpx_settings.setdefault("headers", dict())
@@ -79,13 +79,13 @@ class CloudClient:
         with anyio.fail_after(10):
             await self.read_workspaces()
 
-    async def read_workspaces(self) -> List[Workspace]:
-        workspaces = pydantic.TypeAdapter(List[Workspace]).validate_python(
+    async def read_workspaces(self) -> list[Workspace]:
+        workspaces = pydantic.TypeAdapter(list[Workspace]).validate_python(
             await self.get("/me/workspaces")
         )
         return workspaces
 
-    async def read_worker_metadata(self) -> Dict[str, Any]:
+    async def read_worker_metadata(self) -> dict[str, Any]:
         configured_url = prefect.settings.PREFECT_API_URL.value()
         account_id, workspace_id = re.findall(PARSE_API_URL_REGEX, configured_url)[0]
         return await self.get(

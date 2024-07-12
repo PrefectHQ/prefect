@@ -55,11 +55,8 @@ from typing import (
     Generator,
     Generic,
     Iterable,
-    List,
     Mapping,
     Optional,
-    Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -241,7 +238,7 @@ class Setting(Generic[T]):
 # Callbacks and validators
 
 
-def get_extra_loggers(_: "Settings", value: str) -> List[str]:
+def get_extra_loggers(_: "Settings", value: str) -> list[str]:
     """
     `value_callback` for `PREFECT_LOGGING_EXTRA_LOGGERS`that parses the CSV string into a
     list and trims whitespace from logger names.
@@ -754,7 +751,7 @@ This value does not overwrite individually set retry delay seconds
 """
 
 PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
-    Union[float, int, List[float]], default=0
+    Union[float, int, list[float]], default=0
 )
 """
 This value sets the default retry delay seconds for all tasks.
@@ -1587,7 +1584,7 @@ The page size for the queries to backfill events for websocket subscribers
 
 # Collect all defined settings ---------------------------------------------------------
 
-SETTING_VARIABLES: Dict[str, Any] = {
+SETTING_VARIABLES: dict[str, Any] = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
 }
 
@@ -1734,7 +1731,7 @@ class Settings(SettingsFieldsMixin):
 
     def to_environment_variables(
         self, include: Optional[Iterable[Setting]] = None, exclude_unset: bool = False
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Convert the settings object to environment variables.
 
@@ -1781,7 +1778,7 @@ class Settings(SettingsFieldsMixin):
 # Functions to instantiate `Settings` instances
 
 _DEFAULTS_CACHE: Optional[Settings] = None
-_FROM_ENV_CACHE: Dict[int, Settings] = {}
+_FROM_ENV_CACHE: dict[int, Settings] = {}
 
 
 def get_current_settings() -> Settings:
@@ -1806,7 +1803,7 @@ def get_settings_from_env() -> Settings:
     Calls with the same environment return a cached object instead of reconstructing
     to avoid validation overhead.
     """
-    # Since os.environ is a Dict[str, str] we can safely hash it by contents, but we
+    # Since os.environ is a dict[str, str] we can safely hash it by contents, but we
     # must be careful to avoid hashing a generator instead of a tuple
     cache_key = hash(tuple((key, value) for key, value in os.environ.items()))
 
@@ -1886,7 +1883,7 @@ class Profile(BaseModel):
     """
 
     name: str
-    settings: Dict[Setting, Any] = Field(default_factory=dict)
+    settings: dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path] = None
     model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
@@ -1907,7 +1904,7 @@ class Profile(BaseModel):
         # path for constructing settings with a profile. See `use_profile` instead.
         Settings(**{setting.name: value for setting, value in self.settings.items()})
 
-    def convert_deprecated_renamed_settings(self) -> List[Tuple[Setting, Setting]]:
+    def convert_deprecated_renamed_settings(self) -> list[tuple[Setting, Setting]]:
         """
         Update settings in place to replace deprecated settings with new settings when
         renamed.
@@ -1944,7 +1941,7 @@ class ProfilesCollection:
         self.active_name = active
 
     @property
-    def names(self) -> Set[str]:
+    def names(self) -> set[str]:
         """
         Return a set of profile names in this collection.
         """
@@ -2177,7 +2174,7 @@ def load_profile(name: str) -> Profile:
         raise ValueError(f"Profile {name!r} not found.")
 
 
-def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
+def update_current_profile(settings: dict[Union[str, Setting], Any]) -> Profile:
     """
     Update the persisted data for the profile currently in-use.
 

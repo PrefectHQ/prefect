@@ -2,7 +2,7 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Hashable, List, Tuple, Union, cast
+from typing import Hashable, Union, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -687,9 +687,9 @@ class TaskRun(Run):
     )
     task_inputs = sa.Column(
         Pydantic(
-            Dict[
+            dict[
                 str,
-                List[
+                list[
                     Union[
                         schemas.core.TaskRunResult,
                         schemas.core.Parameter,
@@ -1306,12 +1306,12 @@ class Automation(Base):
 
     trigger = sa.Column(Pydantic(TriggerTypes), nullable=False)
 
-    actions = sa.Column(Pydantic(List[ActionTypes]), nullable=False)
+    actions = sa.Column(Pydantic(list[ActionTypes]), nullable=False)
     actions_on_trigger = sa.Column(
-        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+        Pydantic(list[ActionTypes]), server_default="[]", default=list, nullable=False
     )
     actions_on_resolve = sa.Column(
-        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+        Pydantic(list[ActionTypes]), server_default="[]", default=list, nullable=False
     )
 
     related_resources = sa.orm.relationship(
@@ -1524,7 +1524,7 @@ class BaseORMConfiguration(ABC):
     Use with caution.
     """
 
-    def _unique_key(self) -> Tuple[Hashable, ...]:
+    def _unique_key(self) -> tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """

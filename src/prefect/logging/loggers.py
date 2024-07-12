@@ -6,7 +6,7 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LoggerAdapter, LogRecord
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from typing_extensions import Self
 
@@ -54,7 +54,7 @@ class PrefectLogAdapter(logging.LoggerAdapter):
         return (msg, kwargs)
 
     def getChild(
-        self, suffix: str, extra: Optional[Dict[str, str]] = None
+        self, suffix: str, extra: Optional[dict[str, str]] = None
     ) -> "PrefectLogAdapter":
         if extra is None:
             extra = {}
@@ -319,7 +319,7 @@ class LogEavesdropper(logging.Handler):
     """
 
     _target_logger: logging.Logger
-    _lines: List[str]
+    _lines: list[str]
 
     def __init__(self, eavesdrop_on: str, level: int = logging.NOTSET):
         """

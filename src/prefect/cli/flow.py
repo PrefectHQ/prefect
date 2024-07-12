@@ -2,7 +2,7 @@
 Command line interface for working with flows.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from rich.table import Table
@@ -78,7 +78,7 @@ async def serve(
     version: Optional[str] = typer.Option(
         None, "-v", "--version", help="A version to give the created deployment."
     ),
-    tags: Optional[List[str]] = typer.Option(
+    tags: Optional[list[str]] = typer.Option(
         None,
         "-t",
         "--tag",

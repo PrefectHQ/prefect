@@ -74,7 +74,7 @@ async def read_agents(
         limit(int): Query limit
 
     Returns:
-        List[orm_models.Agent]: Agents
+        list[orm_models.Agent]: Agents
     """
 
     query = select(orm_models.Agent).order_by(orm_models.Agent.name)

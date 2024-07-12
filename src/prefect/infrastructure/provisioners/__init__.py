@@ -30,9 +30,9 @@ class Provisioner(Protocol):
     async def provision(
         self,
         work_pool_name: str,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         client: Optional["PrefectClient"] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         ...
 
 

@@ -13,7 +13,7 @@ import urllib.parse
 import warnings
 from copy import copy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
 import jsonschema
 import pendulum
@@ -128,7 +128,7 @@ def validate_values_conform_to_schema(
 
 
 def infrastructure_must_have_capabilities(
-    value: Union[Dict[str, Any], "Block", None],
+    value: Union[dict[str, Any], "Block", None],
 ) -> Optional["Block"]:
     """
     Ensure that the provided value is an infrastructure block with the required capabilities.
@@ -154,7 +154,7 @@ def infrastructure_must_have_capabilities(
 
 
 def storage_must_have_capabilities(
-    value: Union[Dict[str, Any], "Block", None],
+    value: Union[dict[str, Any], "Block", None],
 ) -> Optional["Block"]:
     """
     Ensure that the provided value is a storage block with the required capabilities.
@@ -210,7 +210,7 @@ def return_none_schedule(v: Optional[Union[str, dict]]) -> Optional[Union[str, d
     return v
 
 
-def convert_to_strings(value: Union[Any, List[Any]]) -> Union[str, List[str]]:
+def convert_to_strings(value: Union[Any, list[Any]]) -> Union[str, list[str]]:
     if isiterable(value):
         return [str(item) for item in value]
     return str(value)
@@ -369,7 +369,7 @@ def default_anchor_date(v: DateTime) -> DateTime:
     return pendulum.instance(v)
 
 
-def get_valid_timezones(v: Optional[str]) -> Tuple[str, ...]:
+def get_valid_timezones(v: Optional[str]) -> tuple[str, ...]:
     # pendulum.tz.timezones is a callable in 3.0 and above
     # https://github.com/PrefectHQ/prefect/issues/11619
     if callable(pendulum.tz.timezones):
@@ -378,7 +378,7 @@ def get_valid_timezones(v: Optional[str]) -> Tuple[str, ...]:
         return pendulum.tz.timezones
 
 
-def validate_timezone(v: str, timezones: Tuple[str, ...]) -> str:
+def validate_timezone(v: str, timezones: tuple[str, ...]) -> str:
     if v and v not in timezones:
         raise ValueError(
             f'Invalid timezone: "{v}" (specify in IANA tzdata format, for example,'
@@ -449,7 +449,7 @@ def validate_rrule_string(v: str) -> str:
 ### INFRASTRUCTURE SCHEMA VALIDATORS ###
 
 
-def validate_k8s_job_required_components(cls, value: Dict[str, Any]):
+def validate_k8s_job_required_components(cls, value: dict[str, Any]):
     """
     Validate that a Kubernetes job manifest has all required components.
     """
@@ -465,7 +465,7 @@ def validate_k8s_job_required_components(cls, value: Dict[str, Any]):
     return value
 
 
-def validate_k8s_job_compatible_values(cls, value: Dict[str, Any]):
+def validate_k8s_job_compatible_values(cls, value: dict[str, Any]):
     """
     Validate that the provided job values are compatible with the job type.
     """
@@ -488,7 +488,7 @@ def validate_k8s_job_compatible_values(cls, value: Dict[str, Any]):
 
 
 def cast_k8s_job_customizations(
-    cls, value: Union[JsonPatch, str, List[Dict[str, Any]]]
+    cls, value: Union[JsonPatch, str, list[dict[str, Any]]]
 ):
     if isinstance(value, list):
         return JsonPatch(value)
@@ -717,7 +717,7 @@ def validate_compressionlib(value: str) -> str:
 
 
 # TODO: if we use this elsewhere we can change the error message to be more generic
-def list_length_50_or_less(v: Optional[List[float]]) -> Optional[List[float]]:
+def list_length_50_or_less(v: Optional[list[float]]) -> Optional[list[float]]:
     if isinstance(v, list) and (len(v) > 50):
         raise ValueError("Can not configure more than 50 retry delays per task.")
     return v
@@ -752,8 +752,8 @@ def validate_default_queue_id_not_none(v: Optional[str]) -> Optional[str]:
 
 
 def validate_max_metadata_length(
-    v: Optional[Dict[str, Any]],
-) -> Optional[Dict[str, Any]]:
+    v: Optional[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
     max_metadata_length = 500
     if not isinstance(v, dict):
         return v
@@ -773,7 +773,7 @@ def validate_registry_url(value: Optional[str]) -> Optional[str]:
     return value
 
 
-def convert_labels_to_docker_format(labels: Dict[str, str]) -> Dict[str, str]:
+def convert_labels_to_docker_format(labels: dict[str, str]) -> dict[str, str]:
     labels = labels or {}
     new_labels = {}
     for name, value in labels.items():
@@ -786,7 +786,7 @@ def convert_labels_to_docker_format(labels: Dict[str, str]) -> Dict[str, str]:
     return new_labels
 
 
-def check_volume_format(volumes: List[str]) -> List[str]:
+def check_volume_format(volumes: list[str]) -> list[str]:
     for volume in volumes:
         if ":" not in volume:
             raise ValueError(

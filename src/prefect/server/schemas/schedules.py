@@ -3,7 +3,7 @@ Schedule schemas
 """
 
 import datetime
-from typing import Annotated, Any, Generator, List, Optional, Tuple, Union
+from typing import Annotated, Any, Generator, Optional, Union
 
 import dateutil
 import dateutil.rrule
@@ -27,7 +27,7 @@ MAX_ITERATIONS = 1000
 
 def _prepare_scheduling_start_and_end(
     start: Any, end: Any, timezone: str
-) -> Tuple[pendulum.datetime, Optional[pendulum.datetime]]:
+) -> tuple[pendulum.datetime, Optional[pendulum.datetime]]:
     """Uniformly prepares the start and end dates for any Schedule's get_dates call,
     coercing the arguments into timezone-aware pendulum datetimes."""
     timezone = timezone or "UTC"
@@ -89,7 +89,7 @@ class IntervalSchedule(PrefectBaseModel):
         n: Optional[int] = None,
         start: Optional[datetime.datetime] = None,
         end: Optional[datetime.datetime] = None,
-    ) -> List[pendulum.DateTime]:
+    ) -> list[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -103,7 +103,7 @@ class IntervalSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: A list of dates
+            list[pendulum.DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
@@ -126,7 +126,7 @@ class IntervalSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            list[pendulum.DateTime]: a list of dates
         """
         if n is None:
             # if an end was supplied, we do our best to supply all matching dates (up to
@@ -234,7 +234,7 @@ class CronSchedule(PrefectBaseModel):
         n: Optional[int] = None,
         start: Optional[datetime.datetime] = None,
         end: Optional[datetime.datetime] = None,
-    ) -> List[pendulum.DateTime]:
+    ) -> list[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -248,7 +248,7 @@ class CronSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: A list of dates
+            list[pendulum.DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
@@ -271,7 +271,7 @@ class CronSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            list[pendulum.DateTime]: a list of dates
         """
         if start is None:
             start = pendulum.now("UTC")
@@ -480,7 +480,7 @@ class RRuleSchedule(PrefectBaseModel):
         n: Optional[int] = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[pendulum.DateTime]:
+    ) -> list[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -494,7 +494,7 @@ class RRuleSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: A list of dates
+            list[pendulum.DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
@@ -517,7 +517,7 @@ class RRuleSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            list[pendulum.DateTime]: a list of dates
         """
         if start is None:
             start = pendulum.now("UTC")

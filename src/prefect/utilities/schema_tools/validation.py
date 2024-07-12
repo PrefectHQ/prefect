@@ -1,6 +1,6 @@
 from collections import defaultdict, deque
 from copy import deepcopy
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import jsonschema
 from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
@@ -68,7 +68,7 @@ def validate(
     preprocess: bool = True,
     ignore_required: bool = False,
     allow_none_with_default: bool = False,
-) -> List[JSONSchemaValidationError]:
+) -> list[JSONSchemaValidationError]:
     if preprocess:
         schema = preprocess_schema(schema, allow_none_with_default)
 
@@ -129,8 +129,8 @@ def prioritize_placeholder_errors(errors):
     return filtered_errors
 
 
-def build_error_obj(errors: List[JSONSchemaValidationError]) -> Dict:
-    error_response: Dict[str, Any] = {"errors": []}
+def build_error_obj(errors: list[JSONSchemaValidationError]) -> Dict:
+    error_response: dict[str, Any] = {"errors": []}
 
     # If multiple errors are present for the same path and one of them
     # is a placeholder error, we want only want to use the placeholder error.
@@ -191,7 +191,7 @@ def build_error_obj(errors: List[JSONSchemaValidationError]) -> Dict:
 def _fix_null_typing(
     key: str,
     schema: Dict,
-    required_fields: List[str],
+    required_fields: list[str],
     allow_none_with_default: bool = False,
 ):
     """
@@ -222,7 +222,7 @@ def _fix_tuple_items(schema: Dict):
 
 def process_properties(
     properties: Dict,
-    required_fields: List[str],
+    required_fields: list[str],
     allow_none_with_default: bool = False,
 ):
     for key, schema in properties.items():

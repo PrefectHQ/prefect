@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import List, Literal, Optional, Union, cast
+from typing import Literal, Optional, Union, cast
 
 import httpx
 import pendulum
@@ -31,7 +31,7 @@ class AcquireConcurrencySlotTimeoutError(TimeoutError):
 
 @asynccontextmanager
 async def concurrency(
-    names: Union[str, List[str]],
+    names: Union[str, list[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
 ):
@@ -77,7 +77,7 @@ async def concurrency(
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
-async def rate_limit(names: Union[str, List[str]], occupy: int = 1):
+async def rate_limit(names: Union[str, list[str]], occupy: int = 1):
     """Block execution until an `occupy` number of slots of the concurrency
     limits given in `names` are acquired. Requires that all given concurrency
     limits have a slot decay.
@@ -92,11 +92,11 @@ async def rate_limit(names: Union[str, List[str]], occupy: int = 1):
 
 
 async def _acquire_concurrency_slots(
-    names: List[str],
+    names: list[str],
     slots: int,
     mode: Union[Literal["concurrency"], Literal["rate_limit"]] = "concurrency",
     timeout_seconds: Optional[float] = None,
-) -> List[MinimalConcurrencyLimitResponse]:
+) -> list[MinimalConcurrencyLimitResponse]:
     service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
     future = service.send((slots, mode, timeout_seconds))
     response_or_exception = await asyncio.wrap_future(future)
@@ -115,8 +115,8 @@ async def _acquire_concurrency_slots(
 
 
 async def _release_concurrency_slots(
-    names: List[str], slots: int, occupancy_seconds: float
-) -> List[MinimalConcurrencyLimitResponse]:
+    names: list[str], slots: int, occupancy_seconds: float
+) -> list[MinimalConcurrencyLimitResponse]:
     async with get_client() as client:
         response = await client.release_concurrency_slots(
             names=names, slots=slots, occupancy_seconds=occupancy_seconds
@@ -126,7 +126,7 @@ async def _release_concurrency_slots(
 
 def _response_to_minimal_concurrency_limit_response(
     response: httpx.Response,
-) -> List[MinimalConcurrencyLimitResponse]:
+) -> list[MinimalConcurrencyLimitResponse]:
     return [
         MinimalConcurrencyLimitResponse.model_validate(obj_) for obj_ in response.json()
     ]

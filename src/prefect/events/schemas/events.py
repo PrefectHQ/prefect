@@ -2,13 +2,10 @@ import copy
 from collections import defaultdict
 from typing import (
     Any,
-    Dict,
     Iterable,
-    List,
     Mapping,
     Optional,
     Sequence,
-    Tuple,
     Union,
 )
 from uuid import UUID, uuid4
@@ -95,11 +92,11 @@ class Event(PrefectBaseModel):
     resource: Resource = Field(
         description="The primary Resource this event concerns",
     )
-    related: List[RelatedResource] = Field(
+    related: list[RelatedResource] = Field(
         default_factory=list,
         description="A list of additional Resources involved in this event",
     )
-    payload: Dict[str, Any] = Field(
+    payload: dict[str, Any] = Field(
         default_factory=dict,
         description="An open-ended set of data describing what happened",
     )
@@ -129,14 +126,14 @@ class Event(PrefectBaseModel):
     @property
     def resources_in_role(self) -> Mapping[str, Sequence[RelatedResource]]:
         """Returns a mapping of roles to related resources in that role"""
-        resources: Dict[str, List[RelatedResource]] = defaultdict(list)
+        resources: dict[str, list[RelatedResource]] = defaultdict(list)
         for related in self.related:
             resources[related.role].append(related)
         return resources
 
     @field_validator("related")
     @classmethod
-    def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
+    def enforce_maximum_related_resources(cls, value: list[RelatedResource]):
         if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
             raise ValueError(
                 "The maximum number of related resources "
@@ -190,7 +187,7 @@ def matches(expected: str, value: Optional[str]) -> bool:
     return match if positive else not match
 
 
-class ResourceSpecification(RootModel[Dict[str, Union[str, List[str]]]]):
+class ResourceSpecification(RootModel[dict[str, Union[str, list[str]]]]):
     def matches_every_resource(self) -> bool:
         return len(self.root) == 0
 
@@ -219,7 +216,7 @@ class ResourceSpecification(RootModel[Dict[str, Union[str, List[str]]]]):
                 return False
         return True
 
-    def items(self) -> Iterable[Tuple[str, List[str]]]:
+    def items(self) -> Iterable[tuple[str, list[str]]]:
         return [
             (label, [value] if isinstance(value, str) else value)
             for label, value in self.root.items()
@@ -228,7 +225,7 @@ class ResourceSpecification(RootModel[Dict[str, Union[str, List[str]]]]):
     def __contains__(self, key: str) -> bool:
         return key in self.root
 
-    def __getitem__(self, key: str) -> List[str]:
+    def __getitem__(self, key: str) -> list[str]:
         value = self.root[key]
         if not value:
             return []
@@ -237,8 +234,8 @@ class ResourceSpecification(RootModel[Dict[str, Union[str, List[str]]]]):
         return value
 
     def pop(
-        self, key: str, default: Optional[Union[str, List[str]]] = None
-    ) -> Optional[List[str]]:
+        self, key: str, default: Optional[Union[str, list[str]]] = None
+    ) -> Optional[list[str]]:
         value = self.root.pop(key, default)
         if not value:
             return []
@@ -247,8 +244,8 @@ class ResourceSpecification(RootModel[Dict[str, Union[str, List[str]]]]):
         return value
 
     def get(
-        self, key: str, default: Optional[Union[str, List[str]]] = None
-    ) -> Optional[List[str]]:
+        self, key: str, default: Optional[Union[str, list[str]]] = None
+    ) -> Optional[list[str]]:
         value = self.root.get(key, default)
         if not value:
             return []

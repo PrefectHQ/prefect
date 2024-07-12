@@ -2,7 +2,6 @@
 Routes for interacting with task run state objects.
 """
 
-from typing import List
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Path, status
@@ -41,7 +40,7 @@ async def read_task_run_state(
 async def read_task_run_states(
     task_run_id: UUID,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.states.State]:
+) -> list[schemas.states.State]:
     """
     Get states associated with a task run.
     """

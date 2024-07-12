@@ -59,8 +59,8 @@ VariableValue = Union[
     StrictBool,
     StrictFloat,
     None,
-    Dict[str, Any],
-    List[Any],
+    dict[str, Any],
+    list[Any],
 ]
 
 
@@ -82,7 +82,7 @@ StrictVariableValue = Annotated[VariableValue, BeforeValidator(check_variable_va
 LaxUrl = Annotated[str, BeforeValidator(lambda x: str(x).strip())]
 
 
-class SecretDict(pydantic.Secret[Dict[str, Any]]):
+class SecretDict(pydantic.Secret[dict[str, Any]]):
     pass
 
 

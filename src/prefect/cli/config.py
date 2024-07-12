@@ -3,7 +3,7 @@ Command line interface for working with profiles
 """
 
 import os
-from typing import List, Optional
+from typing import Optional
 
 import pydantic
 import typer
@@ -23,7 +23,7 @@ app.add_typer(config_app)
 
 
 @config_app.command("set")
-def set_(settings: List[str]):
+def set_(settings: list[str]):
     """
     Change the value for a setting by setting the value in the current profile.
     """
@@ -98,7 +98,7 @@ def validate():
 
 
 @config_app.command()
-def unset(settings: List[str], confirm: bool = typer.Option(False, "--yes", "-y")):
+def unset(settings: list[str], confirm: bool = typer.Option(False, "--yes", "-y")):
     """
     Restore the default value for a setting.
 

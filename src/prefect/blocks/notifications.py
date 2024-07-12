@@ -1,6 +1,6 @@
 import logging
 from abc import ABC
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
@@ -220,7 +220,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         description="Associate the notification status via a represented icon.",
     )
 
-    custom_details: Optional[Dict[str, str]] = Field(
+    custom_details: Optional[dict[str, str]] = Field(
         default=None,
         description="Additional details to include as part of the payload.",
         examples=['{"disk_space_left": "145GB"}'],
@@ -292,7 +292,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
         examples=["18001234567"],
     )
 
-    to_phone_numbers: List[str] = Field(
+    to_phone_numbers: list[str] = Field(
         default=...,
         description="A list of valid Twilio phone number(s) to send the message to.",
         # not wrapped in brackets because of the way UI displays examples; in code should be ["18004242424"]
@@ -395,7 +395,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
         default=None, description="The entity to associate with the message."
     )
 
-    details: Optional[Dict[str, str]] = Field(
+    details: Optional[dict[str, str]] = Field(
         default=None,
         description="Additional details composed of key/values pairs.",
         examples=['{"key1": "value1", "key2": "value2"}'],
@@ -474,7 +474,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         description="The name of the bot that will send the message.",
     )
 
-    channels: Optional[List[str]] = Field(
+    channels: Optional[list[str]] = Field(
         default=None,
         description="The channel(s) you wish to notify.",
     )
@@ -649,7 +649,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         default="POST", description="The webhook request method. Defaults to `POST`."
     )
 
-    params: Optional[Dict[str, str]] = Field(
+    params: Optional[dict[str, str]] = Field(
         default=None, title="Query Params", description="Custom query params."
     )
     json_data: Optional[dict] = Field(
@@ -661,7 +661,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
             ' "{{tokenFromSecrets}}"}'
         ],
     )
-    form_data: Optional[Dict[str, str]] = Field(
+    form_data: Optional[dict[str, str]] = Field(
         default=None,
         title="Form Data",
         description=(
@@ -673,8 +673,8 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         ],
     )
 
-    headers: Optional[Dict[str, str]] = Field(None, description="Custom headers.")
-    cookies: Optional[Dict[str, str]] = Field(None, description="Custom cookies.")
+    headers: Optional[dict[str, str]] = Field(None, description="Custom headers.")
+    cookies: Optional[dict[str, str]] = Field(None, description="Custom cookies.")
 
     timeout: float = Field(
         default=10, description="Request timeout in seconds. Defaults to 10."
@@ -780,7 +780,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         examples=["test-support@gmail.com"],
     )
 
-    to_emails: List[str] = Field(
+    to_emails: list[str] = Field(
         default=...,
         title="Recipient emails",
         description="Email ids of all recipients.",

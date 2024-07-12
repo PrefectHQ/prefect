@@ -13,7 +13,7 @@ Some experimental features require opt-in to enable any usage. These require the
 
 import functools
 import warnings
-from typing import Any, Callable, Optional, Set, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 import pydantic
 
@@ -184,7 +184,7 @@ def experimental_parameter(
     return decorator
 
 
-def enabled_experiments() -> Set[str]:
+def enabled_experiments() -> set[str]:
     """
     Return the set of all enabled experiments.
     """

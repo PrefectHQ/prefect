@@ -10,7 +10,7 @@ from importlib.machinery import ModuleSpec
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from types import ModuleType
-from typing import Any, Callable, Dict, Iterable, NamedTuple, Optional, Union
+from typing import Any, Callable, Iterable, NamedTuple, Optional, Union
 
 import fsspec
 
@@ -70,7 +70,7 @@ def from_qualified_name(name: str) -> Any:
     return getattr(module, attr_name)
 
 
-def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, Any]:
+def objects_from_script(path: str, text: Union[str, bytes] = None) -> dict[str, Any]:
     """
     Run a python script and return all the global variables
 

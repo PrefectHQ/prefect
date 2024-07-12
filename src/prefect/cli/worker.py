@@ -4,7 +4,7 @@ import os
 import threading
 from enum import Enum
 from functools import partial
-from typing import List, Optional, Type
+from typing import Optional, Type
 
 import anyio
 import typer
@@ -63,7 +63,7 @@ async def start(
         help="The work pool the started worker should poll.",
         prompt=True,
     ),
-    work_queues: List[str] = typer.Option(
+    work_queues: list[str] = typer.Option(
         None,
         "-q",
         "--work-queue",
@@ -244,7 +244,7 @@ async def _check_work_pool_paused(work_pool_name: str) -> bool:
 
 
 async def _check_work_queues_paused(
-    work_pool_name: str, work_queues: Optional[List[str]]
+    work_pool_name: str, work_queues: Optional[list[str]]
 ) -> bool:
     """
     Check if all work queues in the work pool are paused. If work queues are specified,
@@ -252,7 +252,7 @@ async def _check_work_queues_paused(
 
     Args:
         - work_pool_name (str): the name of the work pool to check
-        - work_queues (Optional[List[str]]): the names of the work queues to check
+        - work_queues (Optional[list[str]]): the names of the work queues to check
 
     Returns:
         - bool: True if work queues are paused, False otherwise

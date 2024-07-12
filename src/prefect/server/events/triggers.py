@@ -10,11 +10,8 @@ from typing import (
     TYPE_CHECKING,
     AsyncGenerator,
     Collection,
-    Dict,
-    List,
     MutableMapping,
     Optional,
-    Tuple,
 )
 from uuid import UUID
 
@@ -295,7 +292,7 @@ async def act(firing: Firing):
     (if there was one), publish an action for the `actions` service to process."""
     automation = firing.trigger.automation
 
-    state_change_events: Dict[TriggerState, ReceivedEvent] = {
+    state_change_events: dict[TriggerState, ReceivedEvent] = {
         trigger_state: firing.trigger.create_automation_state_change_event(
             firing=firing,
             trigger_state=trigger_state,
@@ -305,7 +302,7 @@ async def act(firing: Firing):
     await messaging.publish(state_change_events.values())
 
     # By default, all `automation.actions` are fired
-    source_actions: List[Tuple[Optional[ReceivedEvent], ActionTypes]] = [
+    source_actions: list[tuple[Optional[ReceivedEvent], ActionTypes]] = [
         (firing.triggering_event, action) for action in automation.actions
     ]
 
@@ -546,9 +543,9 @@ async def evaluate_periodically(periodic_granularity: timedelta):
 
 # The currently loaded automations for this shard, organized both by ID and by
 # account and workspace
-automations_by_id: Dict[UUID, Automation] = {}
-triggers: Dict[TriggerID, EventTrigger] = {}
-next_proactive_runs: Dict[TriggerID, DateTime] = {}
+automations_by_id: dict[UUID, Automation] = {}
+triggers: dict[TriggerID, EventTrigger] = {}
+next_proactive_runs: dict[TriggerID, DateTime] = {}
 
 # This lock governs any changes to the set of loaded automations; any routine that will
 # add/remove automations must be holding this lock when it does so.  It's best to use
@@ -678,7 +675,7 @@ async def read_bucket(
     db: PrefectDBInterface,
     session: AsyncSession,
     trigger: Trigger,
-    bucketing_key: Tuple[str, ...],
+    bucketing_key: tuple[str, ...],
 ) -> Optional["ORMAutomationBucket"]:
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
@@ -696,7 +693,7 @@ async def read_bucket_by_trigger_id(
     session: AsyncSession,
     automation_id: UUID,
     trigger_id: UUID,
-    bucketing_key: Tuple[str, ...],
+    bucketing_key: tuple[str, ...],
 ) -> Optional["ORMAutomationBucket"]:
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
@@ -762,7 +759,7 @@ async def start_new_bucket(
     db: PrefectDBInterface,
     session: AsyncSession,
     trigger: EventTrigger,
-    bucketing_key: Tuple[str, ...],
+    bucketing_key: tuple[str, ...],
     start: DateTime,
     end: DateTime,
     count: int,
@@ -814,7 +811,7 @@ async def ensure_bucket(
     db: PrefectDBInterface,
     session: AsyncSession,
     trigger: EventTrigger,
-    bucketing_key: Tuple[str, ...],
+    bucketing_key: tuple[str, ...],
     start: DateTime,
     end: DateTime,
     last_event: Optional[ReceivedEvent],
@@ -1010,7 +1007,7 @@ async def forget_follower(db: PrefectDBInterface, follower: ReceivedEvent):
 @db_injector
 async def get_followers(
     db: PrefectDBInterface, leader: ReceivedEvent
-) -> List[ReceivedEvent]:
+) -> list[ReceivedEvent]:
     """Returns events that were waiting on this leader event to arrive"""
     async with db.session_context() as session:
         query = sa.select(db.AutomationEventFollower.follower).where(
@@ -1022,7 +1019,7 @@ async def get_followers(
 
 
 @db_injector
-async def get_lost_followers(db: PrefectDBInterface) -> List[ReceivedEvent]:
+async def get_lost_followers(db: PrefectDBInterface) -> list[ReceivedEvent]:
     """Returns events that were waiting on a leader event that never arrived"""
     earlier = pendulum.now("UTC") - PRECEDING_EVENT_LOOKBACK
 

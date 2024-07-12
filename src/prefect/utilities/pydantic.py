@@ -2,7 +2,6 @@ from functools import partial
 from typing import (
     Any,
     Callable,
-    Dict,
     Generic,
     Optional,
     Type,
@@ -289,7 +288,7 @@ class JsonPatch(JsonPatchBase):
 
 
 def custom_pydantic_encoder(
-    type_encoders: Optional[Dict[Any, Callable[[Type[Any]], Any]]], obj: Any
+    type_encoders: Optional[dict[Any, Callable[[Type[Any]], Any]]], obj: Any
 ) -> Any:
     # Check the class type and its superclasses for a matching encoder
     for base in obj.__class__.__mro__[:-1]:

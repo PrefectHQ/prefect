@@ -1,6 +1,6 @@
 import inspect
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 from prefect.context import TaskRunContext
 from prefect.utilities.hashing import hash_objects
@@ -14,7 +14,7 @@ class CachePolicy:
 
     @classmethod
     def from_cache_key_fn(
-        cls, cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+        cls, cache_key_fn: Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
     ) -> "CacheKeyFnPolicy":
         """
         Given a function generates a key policy.
@@ -24,8 +24,8 @@ class CachePolicy:
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
         raise NotImplementedError
@@ -70,14 +70,14 @@ class CacheKeyFnPolicy(CachePolicy):
 
     # making it optional for tests
     cache_key_fn: Optional[
-        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
     ] = None
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
         if self.cache_key_fn:
@@ -98,8 +98,8 @@ class CompoundCachePolicy(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
         keys = []
@@ -127,8 +127,8 @@ class _None(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
         return None
@@ -143,8 +143,8 @@ class TaskSource(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
         if not task_ctx:
@@ -166,8 +166,8 @@ class FlowParameters(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
         if not flow_parameters:
@@ -185,8 +185,8 @@ class RunId(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
         if not task_ctx:
@@ -208,8 +208,8 @@ class Inputs(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs,
     ) -> Optional[str]:
         hashed_inputs = {}

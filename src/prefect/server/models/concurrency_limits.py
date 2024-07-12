@@ -3,7 +3,7 @@ Functions for interacting with concurrency limit ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -91,7 +91,7 @@ async def read_concurrency_limit_by_tag(
 async def reset_concurrency_limit_by_tag(
     session: sa.orm.Session,
     tag: str,
-    slot_override: Optional[List[UUID]] = None,
+    slot_override: Optional[list[UUID]] = None,
 ):
     """
     Resets a concurrency limit by tag.
@@ -111,7 +111,7 @@ async def reset_concurrency_limit_by_tag(
 
 async def filter_concurrency_limits_for_orchestration(
     session: sa.orm.Session,
-    tags: List[str],
+    tags: list[str],
 ):
     """
     Filters concurrency limits by tag. This will apply a "select for update" lock on
@@ -168,7 +168,7 @@ async def read_concurrency_limits(
         limit: Query limit
 
     Returns:
-        List[orm_models.ConcurrencyLimit]: concurrency limits
+        list[orm_models.ConcurrencyLimit]: concurrency limits
     """
 
     query = sa.select(orm_models.ConcurrencyLimit).order_by(

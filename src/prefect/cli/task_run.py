@@ -3,7 +3,6 @@ Command line interface for working with task runs
 """
 
 import logging
-from typing import List
 from uuid import UUID
 
 import httpx
@@ -48,10 +47,10 @@ async def inspect(id: UUID):
 
 @task_run_app.command()
 async def ls(
-    task_run_name: List[str] = typer.Option(None, help="Name of the task"),
+    task_run_name: list[str] = typer.Option(None, help="Name of the task"),
     limit: int = typer.Option(15, help="Maximum number of task runs to list"),
-    state: List[str] = typer.Option(None, help="Name of the task run's state"),
-    state_type: List[StateType] = typer.Option(
+    state: list[str] = typer.Option(None, help="Name of the task run's state"),
+    state_type: list[StateType] = typer.Option(
         None, help="Type of the task run's state"
     ),
 ):

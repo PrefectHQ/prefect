@@ -5,12 +5,9 @@ from pathlib import Path
 from typing import (
     Any,
     BinaryIO,
-    Dict,
     Generator,
     Generic,
-    List,
     Optional,
-    Tuple,
     TypeVar,
     Union,
 )
@@ -220,7 +217,7 @@ class DatabaseBlock(Block, ABC):
     @abstractmethod
     async def fetch_one(
         self, operation, parameters=None, **execution_kwargs
-    ) -> Tuple[Any]:
+    ) -> tuple[Any]:
         """
         Fetch a single result from the database.
 
@@ -237,7 +234,7 @@ class DatabaseBlock(Block, ABC):
     @abstractmethod
     async def fetch_many(
         self, operation, parameters=None, size=None, **execution_kwargs
-    ) -> List[Tuple[Any]]:
+    ) -> list[tuple[Any]]:
         """
         Fetch a limited number of results from the database.
 
@@ -255,7 +252,7 @@ class DatabaseBlock(Block, ABC):
     @abstractmethod
     async def fetch_all(
         self, operation, parameters=None, **execution_kwargs
-    ) -> List[Tuple[Any]]:
+    ) -> list[tuple[Any]]:
         """
         Fetch all results from the database.
 
@@ -357,7 +354,7 @@ class ObjectStorageBlock(Block, ABC):
         self,
         from_path: str,
         to_path: Union[str, Path],
-        **download_kwargs: Dict[str, Any],
+        **download_kwargs: dict[str, Any],
     ) -> Path:
         """
         Downloads an object from the object storage service to a path.
@@ -376,7 +373,7 @@ class ObjectStorageBlock(Block, ABC):
         self,
         from_path: str,
         to_file_object: BinaryIO,
-        **download_kwargs: Dict[str, Any],
+        **download_kwargs: dict[str, Any],
     ) -> BinaryIO:
         """
         Downloads an object from the object storage service to a file-like object,
@@ -396,7 +393,7 @@ class ObjectStorageBlock(Block, ABC):
         self,
         from_folder: str,
         to_folder: Union[str, Path],
-        **download_kwargs: Dict[str, Any],
+        **download_kwargs: dict[str, Any],
     ) -> Path:
         """
         Downloads a folder from the object storage service to a path.
@@ -412,7 +409,7 @@ class ObjectStorageBlock(Block, ABC):
 
     @abstractmethod
     async def upload_from_path(
-        self, from_path: Union[str, Path], to_path: str, **upload_kwargs: Dict[str, Any]
+        self, from_path: Union[str, Path], to_path: str, **upload_kwargs: dict[str, Any]
     ) -> str:
         """
         Uploads an object from a path to the object storage service.
@@ -428,7 +425,7 @@ class ObjectStorageBlock(Block, ABC):
 
     @abstractmethod
     async def upload_from_file_object(
-        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]
+        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: dict[str, Any]
     ) -> str:
         """
         Uploads an object to the object storage service from a file-like object,
@@ -448,7 +445,7 @@ class ObjectStorageBlock(Block, ABC):
         self,
         from_folder: Union[str, Path],
         to_folder: str,
-        **upload_kwargs: Dict[str, Any],
+        **upload_kwargs: dict[str, Any],
     ) -> str:
         """
         Uploads a folder to the object storage service from a path.

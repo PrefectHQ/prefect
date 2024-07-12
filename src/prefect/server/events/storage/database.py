@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Generator, Optional, Sequence
 
 import pydantic
 import sqlalchemy as sa
@@ -30,8 +30,8 @@ logger = get_logger(__name__)
 def build_distinct_queries(
     db: PrefectDBInterface,
     events_filter: EventFilter,
-) -> List[sa.Column["ORMEvent"]]:
-    distinct_fields: List[str] = []
+) -> list[sa.Column["ORMEvent"]]:
+    distinct_fields: list[str] = []
     if events_filter.resource and events_filter.resource.distinct:
         distinct_fields.append("resource_id")
     if distinct_fields:
@@ -43,7 +43,7 @@ async def query_events(
     session: AsyncSession,
     filter: EventFilter,
     page_size: int = INTERACTIVE_PAGE_SIZE,
-) -> Tuple[List[ReceivedEvent], int, Optional[str]]:
+) -> tuple[list[ReceivedEvent], int, Optional[str]]:
     assert isinstance(session, AsyncSession)
     count = await raw_count_events(session, filter)
     page = await read_events(session, filter, limit=page_size, offset=0)
@@ -55,7 +55,7 @@ async def query_events(
 async def query_next_page(
     session: AsyncSession,
     page_token: str,
-) -> Tuple[List[ReceivedEvent], int, Optional[str]]:
+) -> tuple[list[ReceivedEvent], int, Optional[str]]:
     assert isinstance(session, AsyncSession)
     filter, count, page_size, offset = from_page_token(page_token)
     page = await read_events(session, filter, limit=page_size, offset=offset)
@@ -70,7 +70,7 @@ async def count_events(
     countable: Countable,
     time_unit: TimeUnit,
     time_interval: float,
-) -> List[EventCount]:
+) -> list[EventCount]:
     time_unit.validate_buckets(
         filter.occurred.since, filter.occurred.until, time_interval
     )
@@ -78,7 +78,7 @@ async def count_events(
         countable.get_database_query(filter, time_unit, time_interval)
     )
 
-    counts = pydantic.TypeAdapter(List[EventCount]).validate_python(
+    counts = pydantic.TypeAdapter(list[EventCount]).validate_python(
         results.mappings().all()
     )
 
@@ -192,7 +192,7 @@ async def read_events(
     return select_events_query_result.scalars().unique().all()
 
 
-async def write_events(session: AsyncSession, events: List[ReceivedEvent]) -> None:
+async def write_events(session: AsyncSession, events: list[ReceivedEvent]) -> None:
     """
     Write events to the database.
 
@@ -210,7 +210,7 @@ async def write_events(session: AsyncSession, events: List[ReceivedEvent]) -> No
 
 @db_injector
 async def _write_sqlite_events(
-    db: PrefectDBInterface, session: AsyncSession, events: List[ReceivedEvent]
+    db: PrefectDBInterface, session: AsyncSession, events: list[ReceivedEvent]
 ) -> None:
     """
     Write events to the SQLite database.
@@ -234,7 +234,7 @@ async def _write_sqlite_events(
         event_rows = [event.as_database_row() for event in events_to_insert]
         await session.execute(db.insert(db.Event).values(event_rows))
 
-        resource_rows: List[Dict[str, Any]] = []
+        resource_rows: list[dict[str, Any]] = []
         for event in events_to_insert:
             resource_rows.extend(event.as_database_resource_rows())
 
@@ -246,7 +246,7 @@ async def _write_sqlite_events(
 
 @db_injector
 async def _write_postgres_events(
-    db: PrefectDBInterface, session: AsyncSession, events: List[ReceivedEvent]
+    db: PrefectDBInterface, session: AsyncSession, events: list[ReceivedEvent]
 ) -> None:
     """
     Write events to the Postgres database.
@@ -265,7 +265,7 @@ async def _write_postgres_events(
         )
         inserted_event_ids = set(result.all())
 
-        resource_rows: List[Dict[str, Any]] = []
+        resource_rows: list[dict[str, Any]] = []
         for event in batch:
             if event.id not in inserted_event_ids:
                 # if the event wasn't inserted, this means the event was a duplicate, so
@@ -299,8 +299,8 @@ def get_number_of_resource_fields():
 
 
 def _in_safe_batches(
-    events: List[ReceivedEvent],
-) -> Generator[List[ReceivedEvent], None, None]:
+    events: list[ReceivedEvent],
+) -> Generator[list[ReceivedEvent], None, None]:
     batch = []
     parameters_used = 0
     max_query_parameters = get_max_query_parameters()

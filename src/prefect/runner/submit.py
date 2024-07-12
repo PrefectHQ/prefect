@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import uuid
-from typing import Any, Dict, List, Optional, Union, overload
+from typing import Any, List, Optional, Union, overload
 
 import anyio
 import httpx
@@ -27,7 +27,7 @@ logger = get_logger("webserver")
 
 async def _submit_flow_to_runner(
     flow: Flow,
-    parameters: Dict[str, Any],
+    parameters: dict[str, Any],
     retry_failed_submissions: bool = True,
 ) -> FlowRun:
     """
@@ -95,7 +95,7 @@ async def _submit_flow_to_runner(
 @overload
 def submit_to_runner(
     prefect_callable: Union[Flow, Task],
-    parameters: Dict[str, Any],
+    parameters: dict[str, Any],
     retry_failed_submissions: bool = True,
 ) -> FlowRun:
     ...
@@ -104,18 +104,18 @@ def submit_to_runner(
 @overload
 def submit_to_runner(
     prefect_callable: Union[Flow, Task],
-    parameters: List[Dict[str, Any]],
+    parameters: list[dict[str, Any]],
     retry_failed_submissions: bool = True,
-) -> List[FlowRun]:
+) -> list[FlowRun]:
     ...
 
 
 @sync_compatible
 async def submit_to_runner(
     prefect_callable: Union[Flow, Task],
-    parameters: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+    parameters: Optional[Union[dict[str, Any], list[dict[str, Any]]]] = None,
     retry_failed_submissions: bool = True,
-) -> Union[FlowRun, List[FlowRun]]:
+) -> Union[FlowRun, list[FlowRun]]:
     """
     Submit a callable in the background via the runner webserver one or more times.
 

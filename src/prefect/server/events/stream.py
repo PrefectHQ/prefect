@@ -1,7 +1,7 @@
 import asyncio
 from asyncio import Queue
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, AsyncIterable, Dict, Optional, Set
+from typing import AsyncGenerator, AsyncIterable, Optional
 
 from prefect.logging import get_logger
 from prefect.server.events.filters import EventFilter
@@ -10,8 +10,8 @@ from prefect.server.utilities import messaging
 
 logger = get_logger(__name__)
 
-subscribers: Set["Queue[ReceivedEvent]"] = set()
-filters: Dict["Queue[ReceivedEvent]", EventFilter] = {}
+subscribers: set["Queue[ReceivedEvent]"] = set()
+filters: dict["Queue[ReceivedEvent]", EventFilter] = {}
 
 # The maximum number of message that can be waiting for one subscriber, after which
 # new messages will be dropped

@@ -8,7 +8,7 @@ import logging
 import subprocess
 import sys
 import threading
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from typing_extensions import Annotated
@@ -136,7 +136,7 @@ async def watch(
     flow_name: str = typer.Option("Shell Command", help="Name of the flow."),
     stream_stdout: bool = typer.Option(True, help="Stream the output of the command."),
     tag: Annotated[
-        Optional[List[str]], typer.Option(help="Optional tags for the flow run.")
+        Optional[list[str]], typer.Option(help="Optional tags for the flow run.")
     ] = None,
 ):
     """
@@ -147,7 +147,7 @@ async def watch(
         log_output (bool, optional): If True, logs the command's output. Defaults to True.
         flow_run_name (str, optional): An optional name for the flow run.
         flow_name (str, optional): An optional name for the flow. Useful for identification in the Prefect UI.
-        tag (List[str], optional): An optional list of tags for categorizing and filtering flows in the Prefect UI.
+        tag (list[str], optional): An optional list of tags for categorizing and filtering flows in the Prefect UI.
     """
     tag = (tag or []) + ["shell"]
 
@@ -168,7 +168,7 @@ async def serve(
     deployment_name: str = typer.Option(
         "CLI Runner Deployment", help="Name of the deployment"
     ),
-    deployment_tags: List[str] = typer.Option(
+    deployment_tags: list[str] = typer.Option(
         None, "--tag", help="Tag for the deployment (can be provided multiple times)"
     ),
     log_output: bool = typer.Option(
@@ -197,7 +197,7 @@ async def serve(
     Args:
         command (str): The shell command the flow will execute.
         name (str): The name assigned to the flow. This is required..
-        deployment_tags (List[str], optional): Optional tags for the deployment to facilitate filtering and organization.
+        deployment_tags (list[str], optional): Optional tags for the deployment to facilitate filtering and organization.
         log_output (bool, optional): If True, streams the output of the shell command to the Prefect logs. Defaults to True.
         cron_schedule (str, optional): A cron expression that defines when the flow will run. If not provided, the flow can be triggered manually.
         timezone (str, optional): The timezone for the cron schedule. This is important if the schedule should align with local time.

@@ -1,6 +1,6 @@
 from copy import deepcopy
 from logging import getLogger
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from prefect.client.collections import get_collections_metadata_client
 from prefect.logging.loggers import get_logger
@@ -8,7 +8,7 @@ from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.workers.base import BaseWorker
 
 
-async def get_available_work_pool_types() -> List[str]:
+async def get_available_work_pool_types() -> list[str]:
     work_pool_types = set(BaseWorker.get_all_available_worker_types())
 
     async with get_collections_metadata_client() as collections_client:
@@ -31,7 +31,7 @@ async def get_available_work_pool_types() -> List[str]:
 
 async def get_default_base_job_template_for_infrastructure_type(
     infra_type: str,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[dict[str, Any]]:
     # Attempt to get the default base job template for the worker type
     # from the local type registry first.
     worker_cls = BaseWorker.get_worker_class_from_type(infra_type)

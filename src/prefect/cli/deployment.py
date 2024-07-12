@@ -7,7 +7,7 @@ import sys
 import textwrap
 import warnings
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -580,7 +580,7 @@ async def clear_schedules(
 
 
 @deployment_app.command()
-async def ls(flow_name: Optional[List[str]] = None, by_created: bool = False):
+async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
     """
@@ -628,7 +628,7 @@ async def run(
         "--id",
         help=("A deployment id to search for if no name is given"),
     ),
-    job_variables: List[str] = typer.Option(
+    job_variables: list[str] = typer.Option(
         None,
         "-jv",
         "--job-variable",
@@ -638,7 +638,7 @@ async def run(
             " job variable values."
         ),
     ),
-    params: List[str] = typer.Option(
+    params: list[str] = typer.Option(
         None,
         "-p",
         "--param",
@@ -672,7 +672,7 @@ async def run(
             " 'at 5:30pm', 'at 2022-08-01 17:30', 'at 2022-08-01 17:30:00'."
         ),
     ),
-    tags: List[str] = typer.Option(
+    tags: list[str] = typer.Option(
         None,
         "--tag",
         help=("Tag(s) to be applied to flow run."),
@@ -905,8 +905,8 @@ async def delete(
 
 
 def _load_json_key_values(
-    cli_input: List[str], display_name: str
-) -> Dict[str, Union[dict, str, int]]:
+    cli_input: list[str], display_name: str
+) -> dict[str, Union[dict, str, int]]:
     """
     Parse a list of strings formatted as "key=value" where the value is loaded as JSON.
 

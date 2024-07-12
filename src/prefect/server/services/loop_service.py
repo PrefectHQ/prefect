@@ -4,7 +4,7 @@ The base class for all Prefect REST API loop services.
 
 import asyncio
 import signal
-from typing import List, Optional
+from typing import Optional
 
 import anyio
 import pendulum
@@ -180,7 +180,7 @@ class LoopService:
         raise NotImplementedError("LoopService subclasses must implement this method.")
 
 
-async def run_multiple_services(loop_services: List[LoopService]):
+async def run_multiple_services(loop_services: list[LoopService]):
     """
     Only one signal handler can be active at a time, so this function takes a list
     of loop services and runs all of them with a global signal handler.

@@ -7,7 +7,7 @@ import logging
 import queue
 import sys
 import threading
-from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import Awaitable, Generic, Optional, Type, TypeVar, Union
 
 from typing_extensions import Self
 
@@ -21,7 +21,7 @@ T = TypeVar("T")
 
 
 class QueueService(abc.ABC, Generic[T]):
-    _instances: Dict[int, Self] = {}
+    _instances: dict[int, Self] = {}
     _instance_lock = threading.Lock()
 
     def __init__(self, *args) -> None:
@@ -334,7 +334,7 @@ class BatchedQueueService(QueueService[T]):
                 )
 
     @abc.abstractmethod
-    async def _handle_batch(self, items: List[T]):
+    async def _handle_batch(self, items: list[T]):
         """
         Process a batch of items sent to the service.
         """

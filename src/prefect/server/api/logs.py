@@ -2,7 +2,6 @@
 Routes for interacting with log objects.
 """
 
-from typing import List
 
 from fastapi import Body, Depends, status
 
@@ -18,7 +17,7 @@ router = PrefectRouter(prefix="/logs", tags=["Logs"])
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_logs(
-    logs: List[schemas.actions.LogCreate],
+    logs: list[schemas.actions.LogCreate],
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """Create new logs from the provided schema."""
@@ -34,7 +33,7 @@ async def read_logs(
     logs: schemas.filters.LogFilter = None,
     sort: schemas.sorting.LogSort = Body(schemas.sorting.LogSort.TIMESTAMP_ASC),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.Log]:
+) -> list[schemas.core.Log]:
     """
     Query for logs.
     """

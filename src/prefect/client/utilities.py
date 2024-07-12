@@ -13,7 +13,6 @@ from typing import (
     Callable,
     Coroutine,
     Optional,
-    Tuple,
     TypeVar,
     cast,
 )
@@ -29,7 +28,7 @@ R = TypeVar("R")
 
 def get_or_create_client(
     client: Optional["PrefectClient"] = None,
-) -> Tuple["PrefectClient", bool]:
+) -> tuple["PrefectClient", bool]:
     """
     Returns provided client, infers a client from context if available, or creates a new client.
 

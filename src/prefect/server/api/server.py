@@ -10,7 +10,7 @@ import sqlite3
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
-from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Awaitable, Callable, Mapping, Optional
 
 import anyio
 import asyncpg
@@ -269,10 +269,10 @@ async def prefect_object_not_found_exception_handler(
 
 def create_api_app(
     router_prefix: Optional[str] = "",
-    dependencies: Optional[List[Depends]] = None,
+    dependencies: Optional[list[Depends]] = None,
     health_check_path: str = "/health",
     version_check_path: str = "/version",
-    fast_api_app_kwargs: Optional[Dict[str, Any]] = None,
+    fast_api_app_kwargs: Optional[dict[str, Any]] = None,
     router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
     """
@@ -424,7 +424,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     return ui_app
 
 
-APP_CACHE: Dict[Tuple[prefect.settings.Settings, bool], FastAPI] = {}
+APP_CACHE: dict[tuple[prefect.settings.Settings, bool], FastAPI] = {}
 
 
 def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):

@@ -22,7 +22,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import anyio
 import anyio.abc
@@ -53,7 +53,7 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
     return f"{hostname}:{process.pid}"
 
 
-def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
+def _parse_infrastructure_pid(infrastructure_pid: str) -> tuple[str, int]:
     hostname, pid = infrastructure_pid.split(":")
     return hostname, int(pid)
 
@@ -143,7 +143,7 @@ class ProcessWorker(BaseWorker):
         # We must add creationflags to a dict so it is only passed as a function
         # parameter on Windows, because the presence of creationflags causes
         # errors on Unix even if set to None
-        kwargs: Dict[str, object] = {}
+        kwargs: dict[str, object] = {}
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 

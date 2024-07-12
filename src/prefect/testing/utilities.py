@@ -7,7 +7,7 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import TYPE_CHECKING, Union
 
 import prefect.context
 import prefect.settings
@@ -43,8 +43,8 @@ from unittest.mock import MagicMock  # noqa
 
 
 def kubernetes_environments_equal(
-    actual: List[Dict[str, str]],
-    expected: Union[List[Dict[str, str]], Dict[str, str]],
+    actual: list[dict[str, str]],
+    expected: Union[list[dict[str, str]], dict[str, str]],
 ):
     # Convert to a required format and sort by name
     if isinstance(expected, dict):
@@ -56,7 +56,7 @@ def kubernetes_environments_equal(
     if isinstance(actual, dict):
         raise TypeError(
             "Unexpected type 'dict' for 'actual' kubernetes environment. "
-            "Expected 'List[dict]'. Did you pass your arguments in the wrong order?"
+            "Expected 'list[dict]'. Did you pass your arguments in the wrong order?"
         )
 
     actual = list(sorted(actual, key=lambda item: item["name"]))

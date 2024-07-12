@@ -5,7 +5,7 @@ Custom Prefect CLI types
 import asyncio
 import functools
 import sys
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -96,7 +96,7 @@ class PrefectTyper(typer.Typer):
         typer_instance: "PrefectTyper",
         *args,
         no_args_is_help: bool = True,
-        aliases: List[str] = None,
+        aliases: list[str] = None,
         **kwargs,
     ) -> None:
         """
@@ -121,7 +121,7 @@ class PrefectTyper(typer.Typer):
         self,
         name: Optional[str] = None,
         *args,
-        aliases: List[str] = None,
+        aliases: list[str] = None,
         deprecated: bool = False,
         deprecated_start_date: Optional[str] = None,
         deprecated_help: str = "",

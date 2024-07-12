@@ -9,13 +9,11 @@ from typing import (
     AsyncGenerator,
     Callable,
     Coroutine,
-    Dict,
     Generator,
     Generic,
     Iterable,
     Literal,
     Optional,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -84,7 +82,7 @@ class FlowRunTimeoutError(TimeoutError):
     """Raised when a flow run exceeds its defined timeout."""
 
 
-def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
+def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow]:
     ## TODO: add error handling to update state and log tracebacks
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
@@ -102,7 +100,7 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
 @dataclass
 class FlowRunEngine(Generic[P, R]):
     flow: Union[Flow[P, R], Flow[P, Coroutine[Any, Any, R]]]
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[dict[str, Any]] = None
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
@@ -659,7 +657,7 @@ class FlowRunEngine(Generic[P, R]):
 def run_flow_sync(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
@@ -681,7 +679,7 @@ def run_flow_sync(
 async def run_flow_async(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
@@ -700,7 +698,7 @@ async def run_flow_async(
 def run_generator_flow_sync(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Generator[R, None, None]:
@@ -736,7 +734,7 @@ def run_generator_flow_sync(
 async def run_generator_flow_async(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> AsyncGenerator[R, None]:
@@ -774,7 +772,7 @@ async def run_generator_flow_async(
 def run_flow(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
@@ -799,8 +797,8 @@ def run_flow(
 
 
 def _flow_parameters(
-    flow: Flow[P, R], flow_run: Optional[FlowRun], parameters: Optional[Dict[str, Any]]
-) -> Dict[str, Any]:
+    flow: Flow[P, R], flow_run: Optional[FlowRun], parameters: Optional[dict[str, Any]]
+) -> dict[str, Any]:
     if parameters:
         # This path is taken when a flow is being called directly with
         # parameters, in that case just return the parameters as-is.

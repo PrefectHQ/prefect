@@ -3,14 +3,14 @@ Utilities for the Prefect REST API server.
 """
 
 from contextlib import AsyncExitStack
-from typing import Any, Callable, Coroutine, Sequence, Set, get_type_hints
+from typing import Any, Callable, Coroutine, Sequence, get_type_hints
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute, BaseRoute
 from starlette.routing import Route as StarletteRoute
 
 
-def method_paths_from_routes(routes: Sequence[BaseRoute]) -> Set[str]:
+def method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]:
     """
     Generate a set of strings describing the given routes in the format: <method> <path>
 

@@ -2,7 +2,7 @@
 Routes for interacting with block schema objects.
 """
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import (
@@ -100,7 +100,7 @@ async def read_block_schemas(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.BlockSchema]:
+) -> list[schemas.core.BlockSchema]:
     """
     Read all block schemas, optionally filtered by type
     """

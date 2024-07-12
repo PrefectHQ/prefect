@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.schemas.actions import VariableCreate as VariableRequest
@@ -27,7 +27,7 @@ class Variable(VariableRequest):
         cls,
         name: str,
         value: StrictVariableValue,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         overwrite: bool = False,
         as_object: bool = False,
     ):

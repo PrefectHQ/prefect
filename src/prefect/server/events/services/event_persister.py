@@ -6,7 +6,7 @@ storage as fast as it can.  Never gets tired.
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, Optional
 
 import pendulum
 import sqlalchemy as sa
@@ -96,7 +96,7 @@ async def create_handler(
     async def flush() -> None:
         logger.debug(f"Persisting {queue.qsize()} events...")
 
-        batch: List[ReceivedEvent] = []
+        batch: list[ReceivedEvent] = []
 
         while queue.qsize() > 0:
             batch.append(await queue.get())

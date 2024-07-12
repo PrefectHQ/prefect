@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import pendulum
 import typer
@@ -101,7 +101,7 @@ async def get(
 
 def parse_value(
     value: str,
-) -> Union[str, int, float, bool, None, Dict[str, Any], List[str]]:
+) -> Union[str, int, float, bool, None, dict[str, Any], list[str]]:
     try:
         parsed_value = json.loads(value)
     except json.JSONDecodeError:
@@ -119,7 +119,7 @@ async def _set(
         help="Overwrite the variable if it already exists.",
     ),
     tag: Annotated[
-        Optional[List[str]], typer.Option(help="Tag to associate with the variable.")
+        Optional[list[str]], typer.Option(help="Tag to associate with the variable.")
     ] = None,
 ):
     """

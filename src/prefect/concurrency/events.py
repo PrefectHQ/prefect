@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 from uuid import UUID
 
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
@@ -8,11 +8,11 @@ from prefect.events import Event, RelatedResource, emit_event
 def _emit_concurrency_event(
     phase: Union[Literal["acquired"], Literal["released"]],
     primary_limit: MinimalConcurrencyLimitResponse,
-    related_limits: List[MinimalConcurrencyLimitResponse],
+    related_limits: list[MinimalConcurrencyLimitResponse],
     slots: int,
     follows: Union[Event, None] = None,
 ) -> Union[Event, None]:
-    resource: Dict[str, str] = {
+    resource: dict[str, str] = {
         "prefect.resource.id": f"prefect.concurrency-limit.{primary_limit.id}",
         "prefect.resource.name": primary_limit.name,
         "slots-acquired": str(slots),
@@ -39,9 +39,9 @@ def _emit_concurrency_event(
 
 
 def _emit_concurrency_acquisition_events(
-    limits: List[MinimalConcurrencyLimitResponse],
+    limits: list[MinimalConcurrencyLimitResponse],
     occupy: int,
-) -> Dict[UUID, Optional[Event]]:
+) -> dict[UUID, Optional[Event]]:
     events = {}
     for limit in limits:
         event = _emit_concurrency_event("acquired", limit, limits, occupy)
@@ -51,9 +51,9 @@ def _emit_concurrency_acquisition_events(
 
 
 def _emit_concurrency_release_events(
-    limits: List[MinimalConcurrencyLimitResponse],
+    limits: list[MinimalConcurrencyLimitResponse],
     occupy: int,
-    events: Dict[UUID, Optional[Event]],
+    events: dict[UUID, Optional[Event]],
 ):
     for limit in limits:
         _emit_concurrency_event("released", limit, limits, occupy, events[limit.id])

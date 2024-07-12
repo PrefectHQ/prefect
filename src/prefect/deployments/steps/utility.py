@@ -26,7 +26,7 @@ import shlex
 import string
 import subprocess
 import sys
-from typing import Dict, Optional
+from typing import Optional
 
 from anyio import create_task_group
 from anyio.streams.text import TextReceiveStream
@@ -76,7 +76,7 @@ class RunShellScriptResult(TypedDict):
 async def run_shell_script(
     script: str,
     directory: Optional[str] = None,
-    env: Optional[Dict[str, str]] = None,
+    env: Optional[dict[str, str]] = None,
     stream_output: bool = True,
     expand_env_vars: bool = False,
 ) -> RunShellScriptResult:

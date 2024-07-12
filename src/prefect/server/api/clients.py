@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 from urllib.parse import quote
 from uuid import UUID
 
@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 class BaseClient:
     _http_client: PrefectHttpxAsyncClient
 
-    def __init__(self, additional_headers: Dict[str, str] = {}):
+    def __init__(self, additional_headers: dict[str, str] = {}):
         from prefect.server.api.server import create_app
 
         # create_app caches application instances, and invoking it with no arguments
@@ -120,7 +120,7 @@ class OrchestrationClient(BaseClient):
         response = await self.read_work_pool_raw(work_pool_id)
         response.raise_for_status()
 
-        pools = pydantic.TypeAdapter(List[WorkPool]).validate_python(response.json())
+        pools = pydantic.TypeAdapter(list[WorkPool]).validate_python(response.json())
         return pools[0] if pools else None
 
     async def read_work_queue_raw(self, work_queue_id: UUID) -> Response:
@@ -155,9 +155,9 @@ class OrchestrationClient(BaseClient):
     MAX_VARIABLES_PER_WORKSPACE = 1000
 
     async def read_workspace_variables(
-        self, names: Optional[List[str]] = None
-    ) -> Dict[str, StrictVariableValue]:
-        variables: Dict[str, StrictVariableValue] = {}
+        self, names: Optional[list[str]] = None
+    ) -> dict[str, StrictVariableValue]:
+        variables: dict[str, StrictVariableValue] = {}
 
         offset = 0
 

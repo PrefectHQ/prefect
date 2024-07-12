@@ -2,7 +2,6 @@
 Routes for interacting with saved search objects.
 """
 
-from typing import List
 from uuid import UUID
 
 import pendulum
@@ -70,7 +69,7 @@ async def read_saved_searches(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.SavedSearch]:
+) -> list[schemas.core.SavedSearch]:
     """
     Query for saved searches.
     """

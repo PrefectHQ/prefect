@@ -1,12 +1,7 @@
 import asyncio
 import concurrent.futures
 from contextlib import asynccontextmanager
-from typing import (
-    TYPE_CHECKING,
-    FrozenSet,
-    Optional,
-    Tuple,
-)
+from typing import TYPE_CHECKING, FrozenSet, Optional
 
 import httpx
 from starlette import status
@@ -33,7 +28,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
             yield
 
     async def _handle(
-        self, item: Tuple[int, str, Optional[float], concurrent.futures.Future]
+        self, item: tuple[int, str, Optional[float], concurrent.futures.Future]
     ):
         occupy, mode, timeout_seconds, future = item
         try:
@@ -68,7 +63,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                 else:
                     return response
 
-    def send(self, item: Tuple[int, str, Optional[float]]) -> concurrent.futures.Future:
+    def send(self, item: tuple[int, str, Optional[float]]) -> concurrent.futures.Future:
         with self._lock:
             if self._stopped:
                 raise RuntimeError("Cannot put items in a stopped service instance.")

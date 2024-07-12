@@ -7,8 +7,6 @@ import datetime
 from typing import (
     Awaitable,
     Callable,
-    Dict,
-    List,
     Optional,
     Sequence,
 )
@@ -140,7 +138,7 @@ async def read_work_pools(
         offset: Query offset
         limit: Query limit
     Returns:
-        List[orm_models.WorkPool]: worker configs
+        list[orm_models.WorkPool]: worker configs
     """
 
     query = select(orm_models.WorkPool).order_by(orm_models.WorkPool.name)
@@ -287,8 +285,8 @@ async def delete_work_pool(session: AsyncSession, work_pool_id: UUID) -> bool:
 async def get_scheduled_flow_runs(
     db: PrefectDBInterface,
     session: AsyncSession,
-    work_pool_ids: List[UUID] = None,
-    work_queue_ids: List[UUID] = None,
+    work_pool_ids: list[UUID] = None,
+    work_queue_ids: list[UUID] = None,
     scheduled_before: datetime.datetime = None,
     scheduled_after: datetime.datetime = None,
     limit: Optional[int] = None,
@@ -299,8 +297,8 @@ async def get_scheduled_flow_runs(
 
     Args:
         session (AsyncSession): a database session
-        work_pool_ids (List[UUID]): a list of work pool ids
-        work_queue_ids (List[UUID]): a list of work pool queue ids
+        work_pool_ids (list[UUID]): a list of work pool ids
+        work_queue_ids (list[UUID]): a list of work pool queue ids
         scheduled_before (datetime.datetime): a datetime to filter runs scheduled before
         scheduled_after (datetime.datetime): a datetime to filter runs scheduled after
         respect_queue_priorities (bool): whether or not to respect queue priorities
@@ -308,7 +306,7 @@ async def get_scheduled_flow_runs(
         db: a database interface
 
     Returns:
-        List[WorkerFlowRunResponse]: the runs, as well as related work pool details
+        list[WorkerFlowRunResponse]: the runs, as well as related work pool details
 
     """
 
@@ -393,7 +391,7 @@ async def create_work_queue(
 async def bulk_update_work_queue_priorities(
     session: AsyncSession,
     work_pool_id: UUID,
-    new_priorities: Dict[UUID, int],
+    new_priorities: dict[UUID, int],
 ) -> None:
     """
     This is a brute force update of all work pool queue priorities for a given work
@@ -473,7 +471,7 @@ async def read_work_queues(
 
 
     Returns:
-        List[orm_models.WorkQueue]: the WorkQueues
+        list[orm_models.WorkQueue]: the WorkQueues
 
     """
     query = (

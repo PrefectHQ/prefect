@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import Body, Depends, HTTPException, status
 
@@ -22,8 +22,8 @@ logger = get_logger("server.api.ui.schemas")
 
 @router.post("/validate")
 async def validate_obj(
-    json_schema: Dict[str, Any] = Body(..., embed=True, alias="schema"),
-    values: Dict[str, Any] = Body(..., embed=True),
+    json_schema: dict[str, Any] = Body(..., embed=True, alias="schema"),
+    values: dict[str, Any] = Body(..., embed=True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     schema = preprocess_schema(json_schema)

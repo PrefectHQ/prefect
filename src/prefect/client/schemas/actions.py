@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -62,7 +62,7 @@ class FlowCreate(ActionBaseModel):
     name: str = Field(
         default=..., description="The name of the flow", examples=["my-flow"]
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
@@ -72,7 +72,7 @@ class FlowCreate(ActionBaseModel):
 class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
 
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
@@ -155,7 +155,7 @@ class DeploymentCreate(ActionBaseModel):
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     is_schedule_active: Optional[bool] = Field(None)
     paused: Optional[bool] = Field(None)
-    schedules: List[DeploymentScheduleCreate] = Field(
+    schedules: list[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
@@ -165,13 +165,13 @@ class DeploymentCreate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    parameters: Dict[str, Any] = Field(
+    parameter_openapi_schema: Optional[dict[str, Any]] = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = Field(default_factory=list)
-    pull_steps: Optional[List[dict]] = Field(None)
+    tags: list[str] = Field(default_factory=list)
+    pull_steps: Optional[list[dict]] = Field(None)
 
     work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
@@ -186,7 +186,7 @@ class DeploymentCreate(ActionBaseModel):
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
     entrypoint: Optional[str] = Field(None)
-    job_variables: Dict[str, Any] = Field(
+    job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
@@ -228,11 +228,11 @@ class DeploymentUpdate(ActionBaseModel):
     schedule: Optional[SCHEDULE_TYPES] = Field(None)
     description: Optional[str] = Field(None)
     is_schedule_active: bool = Field(None)
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: Optional[dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
@@ -240,7 +240,7 @@ class DeploymentUpdate(ActionBaseModel):
         examples=["my-work-pool"],
     )
     path: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[dict[str, Any]] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
@@ -280,13 +280,13 @@ class FlowRunUpdate(ActionBaseModel):
 
     name: Optional[str] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    parameters: Optional[dict[str, Any]] = Field(default_factory=dict)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     infrastructure_pid: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(None)
+    job_variables: Optional[dict[str, Any]] = Field(None)
 
 
 class TaskRunCreate(ActionBaseModel):
@@ -319,10 +319,10 @@ class TaskRunCreate(ActionBaseModel):
     empirical_policy: objects.TaskRunPolicy = Field(
         default_factory=objects.TaskRunPolicy,
     )
-    tags: List[str] = Field(default_factory=list)
-    task_inputs: Dict[
+    tags: list[str] = Field(default_factory=list)
+    task_inputs: dict[
         str,
-        List[
+        list[
             Union[
                 objects.TaskRunResult,
                 objects.Parameter,
@@ -350,10 +350,10 @@ class FlowRunCreate(ActionBaseModel):
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     deployment_id: Optional[UUID] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
     parent_task_run_id: Optional[UUID] = Field(None)
@@ -361,7 +361,7 @@ class FlowRunCreate(ActionBaseModel):
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     idempotency_key: Optional[str] = Field(None)
 
 
@@ -374,17 +374,17 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     )
 
     name: Optional[str] = Field(default=None, description="The name of the flow run.")
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
     infrastructure_document_id: Optional[UUID] = Field(None)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     idempotency_key: Optional[str] = Field(None)
     parent_task_run_id: Optional[UUID] = Field(None)
     work_queue_name: Optional[str] = Field(None)
@@ -395,7 +395,7 @@ class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
     name: str = Field(default=..., description="The name of the saved search.")
-    filters: List[objects.SavedSearchFilter] = Field(
+    filters: list[objects.SavedSearchFilter] = Field(
         default_factory=list, description="The filter set for the saved search."
     )
 
@@ -480,11 +480,11 @@ class BlockTypeUpdate(ActionBaseModel):
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: Dict[str, Any] = Field(
+    fields: dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(None)
-    capabilities: List[str] = Field(
+    capabilities: list[str] = Field(
         default_factory=list,
         description="A list of Block capabilities",
     )
@@ -500,7 +500,7 @@ class BlockDocumentCreate(ActionBaseModel):
     name: Optional[Name] = Field(
         default=None, description="The name of the block document"
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     block_schema_id: UUID = Field(
@@ -530,7 +530,7 @@ class BlockDocumentUpdate(ActionBaseModel):
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     merge_existing_data: bool = Field(
@@ -575,7 +575,7 @@ class WorkPoolCreate(ActionBaseModel):
     type: str = Field(
         description="The work pool type.", default="prefect-agent"
     )  # TODO: change default
-    base_job_template: Dict[str, Any] = Field(
+    base_job_template: dict[str, Any] = Field(
         default_factory=dict,
         description="The base job template for the work pool.",
     )
@@ -593,7 +593,7 @@ class WorkPoolUpdate(ActionBaseModel):
 
     description: Optional[str] = Field(None)
     is_paused: Optional[bool] = Field(None)
-    base_job_template: Optional[Dict[str, Any]] = Field(None)
+    base_job_template: Optional[dict[str, Any]] = Field(None)
     concurrency_limit: Optional[int] = Field(None)
 
 
@@ -653,10 +653,10 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
     is_active: bool = Field(
         default=True, description="Whether the policy is currently active"
     )
-    state_names: List[str] = Field(
+    state_names: list[str] = Field(
         default=..., description="The flow run states that trigger notifications"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default=...,
         description="The flow run tags that trigger notifications (set [] to disable)",
     )
@@ -686,8 +686,8 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run notification policy."""
 
     is_active: Optional[bool] = Field(None)
-    state_names: Optional[List[str]] = Field(None)
-    tags: Optional[List[str]] = Field(None)
+    state_names: Optional[list[str]] = Field(None)
+    tags: Optional[list[str]] = Field(None)
     block_document_id: Optional[UUID] = Field(None)
     message_template: Optional[str] = Field(None)
 
@@ -698,8 +698,8 @@ class ArtifactCreate(ActionBaseModel):
     key: Optional[str] = Field(None)
     type: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
-    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
-    metadata_: Optional[Dict[str, str]] = Field(None)
+    data: Optional[Union[dict[str, Any], Any]] = Field(None)
+    metadata_: Optional[dict[str, str]] = Field(None)
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
 
@@ -709,9 +709,9 @@ class ArtifactCreate(ActionBaseModel):
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
+    data: Optional[Union[dict[str, Any], Any]] = Field(None)
     description: Optional[str] = Field(None)
-    metadata_: Optional[Dict[str, str]] = Field(None)
+    metadata_: Optional[dict[str, str]] = Field(None)
 
 
 class VariableCreate(ActionBaseModel):
@@ -728,7 +728,7 @@ class VariableCreate(ActionBaseModel):
         description="The value of the variable",
         examples=["my-value"],
     )
-    tags: Optional[List[str]] = Field(default=None)
+    tags: Optional[list[str]] = Field(default=None)
 
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)
@@ -748,7 +748,7 @@ class VariableUpdate(ActionBaseModel):
         description="The value of the variable",
         examples=["my-value"],
     )
-    tags: Optional[List[str]] = Field(default=None)
+    tags: Optional[list[str]] = Field(default=None)
 
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)

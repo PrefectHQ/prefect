@@ -4,7 +4,7 @@ import inspect
 import uuid
 from collections.abc import Iterator
 from functools import partial
-from typing import Any, Generic, List, Optional, Set, Union, cast
+from typing import Any, Generic, List, Optional, Union, cast
 
 from typing_extensions import TypeVar
 
@@ -307,7 +307,7 @@ def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
-    futures: Set[PrefectFuture] = set()
+    futures: set[PrefectFuture] = set()
 
     def _collect_futures(futures, expr, context):
         # Expressions inside quotes should not be traversed

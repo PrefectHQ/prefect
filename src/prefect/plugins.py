@@ -9,13 +9,13 @@ Currently supported entrypoints:
 """
 
 from types import ModuleType
-from typing import Any, Dict, Union
+from typing import Any, Union
 
 import prefect.settings
 from prefect.utilities.compat import EntryPoints, entry_points
 
 
-def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception, Any]]:
+def safe_load_entrypoints(entrypoints: EntryPoints) -> dict[str, Union[Exception, Any]]:
     """
     Load entry points for a group capturing any exceptions that occur.
     """
@@ -38,7 +38,7 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception
     return results
 
 
-def load_prefect_collections() -> Dict[str, ModuleType]:
+def load_prefect_collections() -> dict[str, ModuleType]:
     """
     Load all Prefect collections that define an entrypoint in the group
     `prefect.collections`.

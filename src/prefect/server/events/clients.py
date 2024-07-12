@@ -1,7 +1,7 @@
 import abc
 from textwrap import dedent
 from types import TracebackType
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, ClassVar, Optional, Tuple, Type, Union
 from uuid import UUID
 
 import httpx
@@ -18,7 +18,7 @@ from prefect.server.events.schemas.events import (
 
 logger = get_logger(__name__)
 
-LabelValue: TypeAlias = Union[str, List[str]]
+LabelValue: TypeAlias = Union[str, list[str]]
 
 
 class EventsClient(abc.ABC):
@@ -52,11 +52,11 @@ class AssertingEventsClient(EventsClient):
     to it for inspection during tests."""
 
     last: ClassVar[Optional["AssertingEventsClient"]] = None
-    all: ClassVar[List["AssertingEventsClient"]] = []
+    all: ClassVar[list["AssertingEventsClient"]] = []
 
     args: Tuple
-    kwargs: Dict[str, Any]
-    events: List[Event]
+    kwargs: dict[str, Any]
+    events: list[Event]
 
     def __init__(self, *args, **kwargs):
         AssertingEventsClient.last = self
@@ -108,9 +108,9 @@ class AssertingEventsClient(EventsClient):
     def assert_emitted_event_with(
         cls,
         event: Optional[str] = None,
-        resource: Optional[Dict[str, LabelValue]] = None,
-        related: Optional[List[Dict[str, LabelValue]]] = None,
-        payload: Optional[Dict[str, Any]] = None,
+        resource: Optional[dict[str, LabelValue]] = None,
+        related: Optional[list[dict[str, LabelValue]]] = None,
+        payload: Optional[dict[str, Any]] = None,
     ):
         """Assert that an event was emitted containing the given properties."""
         assert cls.last is not None and cls.all, "No event client was created"
@@ -131,7 +131,7 @@ class AssertingEventsClient(EventsClient):
             else None
         )
 
-        mismatch_reasons: List[Tuple[str, str]] = []
+        mismatch_reasons: list[tuple[str, str]] = []
 
         def event_matches(emitted_event: Event) -> bool:
             if event is not None and emitted_event.event != event:
@@ -182,9 +182,9 @@ class AssertingEventsClient(EventsClient):
     def assert_no_emitted_event_with(
         cls,
         event: Optional[str] = None,
-        resource: Optional[Dict[str, LabelValue]] = None,
-        related: Optional[List[Dict[str, LabelValue]]] = None,
-        payload: Optional[Dict[str, Any]] = None,
+        resource: Optional[dict[str, LabelValue]] = None,
+        related: Optional[list[dict[str, LabelValue]]] = None,
+        payload: Optional[dict[str, Any]] = None,
     ):
         try:
             cls.assert_emitted_event_with(event, resource, related, payload)
@@ -225,7 +225,7 @@ class PrefectServerEventsClient(EventsClient):
 class PrefectServerEventsAPIClient:
     _http_client: PrefectHttpxAsyncClient
 
-    def __init__(self, additional_headers: Dict[str, str] = {}):
+    def __init__(self, additional_headers: dict[str, str] = {}):
         from prefect.server.api.server import create_app
 
         # create_app caches application instances, and invoking it with no arguments

@@ -7,10 +7,8 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Dict,
     Generic,
     Optional,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -61,7 +59,7 @@ logger = get_logger("results")
 P = ParamSpec("P")
 R = TypeVar("R")
 
-_default_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
+_default_storages: dict[tuple[str, str], WritableFileSystem] = {}
 
 
 async def _get_or_create_default_storage(block_document_slug: str) -> ResultStorage:
@@ -330,7 +328,7 @@ class ResultFactory(BaseModel):
         result_storage: ResultStorage,
         client: "PrefectClient",
         persist_result: bool = True,
-    ) -> Tuple[Optional[uuid.UUID], WritableFileSystem]:
+    ) -> tuple[Optional[uuid.UUID], WritableFileSystem]:
         """
         Resolve one of the valid `ResultStorage` input types into a saved block
         document id and an instance of the block.
@@ -414,7 +412,7 @@ class ResultFactory(BaseModel):
         )
 
     @sync_compatible
-    async def store_parameters(self, identifier: UUID, parameters: Dict[str, Any]):
+    async def store_parameters(self, identifier: UUID, parameters: dict[str, Any]):
         data = self.serializer.dumps(parameters)
         blob = PersistedResultBlob(serializer=self.serializer, data=data)
         await self.storage_block.write_path(
@@ -422,7 +420,7 @@ class ResultFactory(BaseModel):
         )
 
     @sync_compatible
-    async def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
+    async def read_parameters(self, identifier: UUID) -> dict[str, Any]:
         blob = PersistedResultBlob.model_validate_json(
             await self.storage_block.read_path(f"parameters/{identifier}")
         )

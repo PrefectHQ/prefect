@@ -3,7 +3,7 @@ Schemas for special responses from the Prefect REST API.
 """
 
 import datetime
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
@@ -129,7 +129,7 @@ class HistoryResponse(PrefectBaseModel):
     interval_end: DateTime = Field(
         default=..., description="The end date of the interval."
     )
-    states: List[HistoryResponseState] = Field(
+    states: list[HistoryResponseState] = Field(
         default=..., description="A list of state histories during the interval."
     )
 
@@ -206,7 +206,7 @@ class FlowRunResponse(ORMBaseModel):
         description="The version of the flow executed in this flow run.",
         examples=["1.0"],
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -216,7 +216,7 @@ class FlowRunResponse(ORMBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
         examples=[{"my_var": "my_val"}],
@@ -224,7 +224,7 @@ class FlowRunResponse(ORMBaseModel):
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
@@ -302,7 +302,7 @@ class FlowRunResponse(ORMBaseModel):
     state: Optional[schemas.states.State] = Field(
         default=None, description="The current state of the flow run."
     )
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[dict[str, Any]] = Field(
         default=None,
         description="Variables used as overrides in the base job template",
     )
@@ -363,18 +363,18 @@ class DeploymentResponse(ORMBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[schemas.core.DeploymentSchedule] = Field(
+    schedules: list[schemas.core.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    job_variables: Dict[str, Any] = Field(
+    job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
@@ -390,7 +390,7 @@ class DeploymentResponse(ORMBaseModel):
         default=None,
         description="The last time the deployment was polled for status updates.",
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+    parameter_openapi_schema: Optional[dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
     )
@@ -401,7 +401,7 @@ class DeploymentResponse(ORMBaseModel):
             " storage or an absolute path."
         ),
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict]] = Field(
         default=None, description="Pull steps for cloning and running this deployment."
     )
     entrypoint: Optional[str] = Field(

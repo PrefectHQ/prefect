@@ -26,7 +26,7 @@ Available attributes:
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
@@ -84,7 +84,7 @@ def __getattr__(name: str) -> Any:
         return real_value
 
 
-def __dir__() -> List[str]:
+def __dir__() -> list[str]:
     return sorted(__all__)
 
 

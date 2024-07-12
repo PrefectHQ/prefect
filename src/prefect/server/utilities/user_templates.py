@@ -1,6 +1,6 @@
 """Utilities to support safely rendering user-supplied templates"""
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 import jinja2.sandbox
 from jinja2 import ChainableUndefined, nodes
@@ -46,7 +46,7 @@ class TemplateSecurityError(Exception):
         super().__init__(message)
 
 
-def register_user_template_filters(filters: Dict[str, Any]):
+def register_user_template_filters(filters: dict[str, Any]):
     """Register additional filters that will be available to user templates"""
     _template_environment.filters.update(filters)
 
@@ -89,7 +89,7 @@ def _nested_loop_depth(node: nodes.Node, depth: int = 0) -> int:
     return max(_nested_loop_depth(child, depth) for child in children)
 
 
-def matching_types_in_templates(templates: List[str], types: Set[str]) -> List[str]:
+def matching_types_in_templates(templates: list[str], types: set[str]) -> list[str]:
     found = set()
 
     for template in templates:
@@ -105,7 +105,7 @@ def maybe_template(possible: str) -> bool:
     return "{{" in possible or "{%" in possible
 
 
-async def render_user_template(template: str, context: Dict[str, Any]) -> str:
+async def render_user_template(template: str, context: dict[str, Any]) -> str:
     if not maybe_template(template):
         return template
 
@@ -120,7 +120,7 @@ async def render_user_template(template: str, context: Dict[str, Any]) -> str:
         ) + template
 
 
-def render_user_template_sync(template: str, context: Dict[str, Any]) -> str:
+def render_user_template_sync(template: str, context: dict[str, Any]) -> str:
     if not maybe_template(template):
         return template
 

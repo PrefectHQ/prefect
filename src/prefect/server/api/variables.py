@@ -2,7 +2,7 @@
 Routes for interacting with variable objects
 """
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
@@ -86,7 +86,7 @@ async def read_variables(
     variables: Optional[filters.VariableFilter] = None,
     sort: sorting.VariableSort = Body(sorting.VariableSort.NAME_ASC),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[core.Variable]:
+) -> list[core.Variable]:
     async with db.session_context() as session:
         return await models.variables.read_variables(
             session=session,

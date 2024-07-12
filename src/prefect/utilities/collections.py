@@ -19,10 +19,8 @@ from typing import (
     Hashable,
     Iterable,
     Iterator,
-    List,
     Optional,
     Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -75,8 +73,8 @@ VT = TypeVar("VT")
 
 
 def dict_to_flatdict(
-    dct: Dict[KT, Union[Any, Dict[KT, Any]]], _parent: Tuple[KT, ...] = None
-) -> Dict[Tuple[KT, ...], Any]:
+    dct: dict[KT, Union[Any, dict[KT, Any]]], _parent: tuple[KT, ...] = None
+) -> dict[tuple[KT, ...], Any]:
     """Converts a (nested) dictionary to a flattened representation.
 
     Each key of the flat dict will be a CompoundKey tuple containing the "chain of keys"
@@ -89,8 +87,8 @@ def dict_to_flatdict(
     Returns:
         A flattened dict of the same type as dct
     """
-    typ = cast(Type[Dict[Tuple[KT, ...], Any]], type(dct))
-    items: List[Tuple[Tuple[KT, ...], Any]] = []
+    typ = cast(Type[dict[tuple[KT, ...], Any]], type(dct))
+    items: list[tuple[tuple[KT, ...], Any]] = []
     parent = _parent or tuple()
 
     for k, v in dct.items():
@@ -104,8 +102,8 @@ def dict_to_flatdict(
 
 
 def flatdict_to_dict(
-    dct: Dict[Tuple[KT, ...], VT],
-) -> Dict[KT, Union[VT, Dict[KT, VT]]]:
+    dct: dict[tuple[KT, ...], VT],
+) -> dict[KT, Union[VT, dict[KT, VT]]]:
     """Converts a flattened dictionary back to a nested dictionary.
 
     Args:
@@ -116,7 +114,7 @@ def flatdict_to_dict(
         A nested dict of the same type as dct
     """
     typ = type(dct)
-    result = cast(Dict[KT, Union[VT, Dict[KT, VT]]], typ())
+    result = cast(dict[KT, Union[VT, dict[KT, VT]]], typ())
     for key_tuple, value in dct.items():
         current_dict = result
         for prefix_key in key_tuple[:-1]:
@@ -162,8 +160,8 @@ def listrepr(objs: Iterable[Any], sep: str = " ") -> str:
 
 def extract_instances(
     objects: Iterable,
-    types: Union[Type[T], Tuple[Type[T], ...]] = object,
-) -> Union[List[T], Dict[Type[T], T]]:
+    types: Union[Type[T], tuple[Type[T], ...]] = object,
+) -> Union[list[T], dict[Type[T], T]]:
     """
     Extract objects from a file and returns a dict of type -> instances
 
@@ -192,7 +190,7 @@ def extract_instances(
     return ret
 
 
-def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]]:
+def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[tuple[T, ...]]:
     """
     Yield batches of a certain size from an iterable
 
@@ -227,7 +225,7 @@ def visit_collection(
     max_depth: int = -1,
     context: Optional[dict] = None,
     remove_annotations: bool = False,
-    _seen: Optional[Set[int]] = None,
+    _seen: Optional[set[int]] = None,
 ) -> Any:
     """
     Visits and potentially transforms every element of an arbitrary Python collection.
@@ -278,7 +276,7 @@ def visit_collection(
             pass `context={}` and will not be activated by default.
         remove_annotations (bool): If set, annotations will be replaced by their contents. By
             default, annotations are preserved but their contents are visited.
-        _seen (Optional[Set[int]]): A set of object ids that have already been visited. This
+        _seen (Optional[set[int]]): A set of object ids that have already been visited. This
             prevents infinite recursion when visiting recursive data structures.
 
     Returns:
@@ -434,7 +432,7 @@ def visit_collection(
         return result
 
 
-def remove_nested_keys(keys_to_remove: List[Hashable], obj):
+def remove_nested_keys(keys_to_remove: list[Hashable], obj):
     """
     Recurses a dictionary returns a copy without all keys that match an entry in
     `key_to_remove`. Return `obj` unchanged if not a dictionary.
@@ -468,7 +466,7 @@ def distinct(
         yield item
 
 
-def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -> Any:
+def get_from_dict(dct: Dict, keys: Union[str, list[str]], default: Any = None) -> Any:
     """
     Fetch a value from a nested dictionary or list using a sequence of keys.
 

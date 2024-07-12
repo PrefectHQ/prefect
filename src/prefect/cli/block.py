@@ -6,7 +6,7 @@ import inspect
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import List, Optional, Type
+from typing import Optional, Type
 
 import typer
 import yaml
@@ -120,7 +120,7 @@ def display_block_schema_extra_definitions(block_schema_definitions):
     return extra_definitions_table
 
 
-async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
+async def _register_blocks_in_module(module: ModuleType) -> list[Type[Block]]:
     registered_blocks = []
     for _, cls in inspect.getmembers(module):
         if Block.is_block_class(cls):
@@ -133,7 +133,7 @@ async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
     return registered_blocks
 
 
-def _build_registered_blocks_table(registered_blocks: List[Type[Block]]):
+def _build_registered_blocks_table(registered_blocks: list[Type[Block]]):
     table = Table("Registered Blocks")
     for block in registered_blocks:
         table.add_row(block.get_block_type_name())

@@ -2,7 +2,7 @@
 Routes for interacting with work queue objects.
 """
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 import pendulum
@@ -221,7 +221,7 @@ async def read_work_pools(
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkPool]:
+) -> list[schemas.core.WorkPool]:
     """
     Read multiple work pools
     """
@@ -321,7 +321,7 @@ async def delete_work_pool(
 async def get_scheduled_flow_runs(
     background_tasks: BackgroundTasks,
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
-    work_queue_names: List[str] = Body(
+    work_queue_names: list[str] = Body(
         None, description="The names of work pool queues"
     ),
     scheduled_before: DateTime = Body(
@@ -333,7 +333,7 @@ async def get_scheduled_flow_runs(
     limit: int = dependencies.LimitBody(),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.WorkerFlowRunResponse]:
+) -> list[schemas.responses.WorkerFlowRunResponse]:
     """
     Load scheduled runs for a worker
     """
@@ -474,7 +474,7 @@ async def read_work_queues(
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.WorkQueueResponse]:
+) -> list[schemas.responses.WorkQueueResponse]:
     """
     Read all work pool queues
     """
@@ -612,7 +612,7 @@ async def read_workers(
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.WorkerResponse]:
+) -> list[schemas.responses.WorkerResponse]:
     """
     Read all worker processes
     """

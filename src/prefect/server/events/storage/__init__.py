@@ -34,7 +34,7 @@ def to_page_token(
     ).decode()
 
 
-def from_page_token(page_token: str) -> Tuple["EventFilter", int, int, int]:
+def from_page_token(page_token: str) -> tuple["EventFilter", int, int, int]:
     from prefect.server.events.filters import EventFilter
 
     try:
@@ -57,8 +57,8 @@ def process_time_based_counts(
     filter: "EventFilter",
     time_unit: TimeUnit,
     time_interval: float,
-    counts: List[EventCount],
-) -> List[EventCount]:
+    counts: list[EventCount],
+) -> list[EventCount]:
     """
     Common logic for processing time-based counts across different event backends.
 

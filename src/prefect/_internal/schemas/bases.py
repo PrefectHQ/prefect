@@ -4,7 +4,7 @@ Utilities for creating and working with Prefect REST API schemas.
 
 import datetime
 import os
-from typing import Any, ClassVar, Optional, Set, TypeVar
+from typing import Any, ClassVar, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
@@ -31,7 +31,7 @@ class PrefectBaseModel(BaseModel):
     subtle unintentional testing errors.
     """
 
-    _reset_fields: ClassVar[Set[str]] = set()
+    _reset_fields: ClassVar[set[str]] = set()
 
     model_config = ConfigDict(
         ser_json_timedelta="float",
@@ -97,7 +97,7 @@ class IDBaseModel(PrefectBaseModel):
     The ID is reset on copy() and not included in equality comparisons.
     """
 
-    _reset_fields: ClassVar[Set[str]] = {"id"}
+    _reset_fields: ClassVar[set[str]] = {"id"}
     id: UUID = Field(default_factory=uuid4)
 
 
@@ -110,7 +110,7 @@ class ObjectBaseModel(IDBaseModel):
     equality comparisons.
     """
 
-    _reset_fields: ClassVar[Set[str]] = {"id", "created", "updated"}
+    _reset_fields: ClassVar[set[str]] = {"id", "created", "updated"}
     model_config = ConfigDict(from_attributes=True)
 
     created: Optional[DateTime] = Field(default=None, repr=False)

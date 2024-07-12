@@ -3,7 +3,7 @@ Functions for interacting with log ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,7 @@ def split_logs_into_batches(logs):
 
 @db_injector
 async def create_logs(
-    db: PrefectDBInterface, session: AsyncSession, logs: List[schemas.core.Log]
+    db: PrefectDBInterface, session: AsyncSession, logs: list[schemas.core.Log]
 ):
     """
     Creates new logs
@@ -79,7 +79,7 @@ async def read_logs(
         sort: Query sort
 
     Returns:
-        List[orm_models.Log]: the matching logs
+        list[orm_models.Log]: the matching logs
     """
     query = (
         select(orm_models.Log).order_by(sort.as_sql_sort()).offset(offset).limit(limit)

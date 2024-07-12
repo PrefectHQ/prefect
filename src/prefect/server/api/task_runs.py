@@ -4,7 +4,7 @@ Routes for interacting with task run objects.
 
 import asyncio
 import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 import pendulum
@@ -45,7 +45,7 @@ async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    orchestration_parameters: Dict[str, Any] = Depends(
+    orchestration_parameters: dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> schemas.core.TaskRun:
@@ -139,7 +139,7 @@ async def task_run_history(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.HistoryResponse]:
+) -> list[schemas.responses.HistoryResponse]:
     """
     Query for task run history data across a given range and interval.
     """
@@ -193,7 +193,7 @@ async def read_task_runs(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.TaskRun]:
+) -> list[schemas.core.TaskRun]:
     """
     Query for task runs.
     """
@@ -242,7 +242,7 @@ async def set_task_run_state(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
-    orchestration_parameters: Dict[str, Any] = Depends(
+    orchestration_parameters: dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> OrchestrationResult:

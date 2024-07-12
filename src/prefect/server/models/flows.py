@@ -200,7 +200,7 @@ async def read_flows(
         limit: Query limit
 
     Returns:
-        List[orm_models.Flow]: flows
+        list[orm_models.Flow]: flows
     """
 
     query = select(orm_models.Flow).order_by(sort.as_sql_sort())

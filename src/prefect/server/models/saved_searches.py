@@ -106,7 +106,7 @@ async def read_saved_searches(
         limit(int): Query limit
 
     Returns:
-        List[orm_models.SavedSearch]: SavedSearches
+        list[orm_models.SavedSearch]: SavedSearches
     """
 
     query = select(orm_models.SavedSearch).order_by(orm_models.SavedSearch.name)

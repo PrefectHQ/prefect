@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json  # noqa: I001
 import math
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
@@ -100,17 +100,17 @@ class Artifact(ArtifactRequest):
         cls,
         key: Optional[str] = None,
         description: Optional[str] = None,
-        data: Optional[Union[Dict[str, Any], Any]] = None,
+        data: Optional[Union[dict[str, Any], Any]] = None,
         client: Optional["PrefectClient"] = None,
         **kwargs: Any,
-    ) -> Tuple["ArtifactResponse", bool]:
+    ) -> tuple["ArtifactResponse", bool]:
         """
         A method to get or create an artifact.
 
         Arguments:
             key (str, optional): The key of the artifact to get or create.
             description (str, optional): The description of the artifact to create.
-            data (Union[Dict[str, Any], Any], optional): The data of the artifact to create.
+            data (Union[dict[str, Any], Any], optional): The data of the artifact to create.
             client (PrefectClient, optional): The PrefectClient
 
         Returns:
@@ -127,7 +127,7 @@ class Artifact(ArtifactRequest):
                 True,
             )
 
-    async def format(self) -> Optional[Union[Dict[str, Any], Any]]:
+    async def format(self) -> Optional[Union[dict[str, Any], Any]]:
         return json.dumps(self.data)
 
 
@@ -153,13 +153,13 @@ class MarkdownArtifact(Artifact):
 
 
 class TableArtifact(Artifact):
-    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]]
+    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]]
     type: Optional[str] = "table"
 
     @classmethod
     def _sanitize(
-        cls, item: Union[Dict[str, Any], List[Any], float]
-    ) -> Union[Dict[str, Any], List[Any], int, float, None]:
+        cls, item: Union[dict[str, Any], list[Any], float]
+    ) -> Union[dict[str, Any], list[Any], int, float, None]:
         """
         Sanitize NaN values in a given item.
         The item can be a dict, list or float.
@@ -223,7 +223,7 @@ async def _create_artifact(
     type: str,
     key: Optional[str] = None,
     description: Optional[str] = None,
-    data: Optional[Union[Dict[str, Any], Any]] = None,
+    data: Optional[Union[dict[str, Any], Any]] = None,
     client: Optional["PrefectClient"] = None,
 ) -> UUID:
     """
@@ -314,7 +314,7 @@ async def create_markdown_artifact(
 
 @sync_compatible
 async def create_table_artifact(
-    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]],
+    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]],
     key: Optional[str] = None,
     description: Optional[str] = None,
 ) -> UUID:

@@ -19,7 +19,7 @@ import subprocess
 import time
 from copy import deepcopy
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from anyio import run_process
@@ -662,7 +662,7 @@ class ContainerInstancePushProvisioner:
             )
 
     async def _assign_acr_pull_role(
-        self, identity: Dict[str, Any], registry: Dict[str, Any], subscription_id: str
+        self, identity: dict[str, Any], registry: dict[str, Any], subscription_id: str
     ) -> None:
         """
         Assigns the AcrPull role to the specified identity for the given registry.
@@ -855,19 +855,19 @@ class ContainerInstancePushProvisioner:
     async def provision(
         self,
         work_pool_name: str,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         client: Optional["PrefectClient"] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Orchestrates the provisioning of Azure resources and setup for the push work pool.
 
         Args:
             work_pool_name (str): The name of the work pool.
-            base_job_template (Dict[str, Any]): The base template for job creation.
+            base_job_template (dict[str, Any]): The base template for job creation.
             client (Optional[PrefectClient]): An instance of PrefectClient. If None, it will be injected.
 
         Returns:
-            Dict[str, Any]: The updated job template with necessary references and configurations.
+            dict[str, Any]: The updated job template with necessary references and configurations.
 
         Raises:
             RuntimeError: If client injection fails or the Azure CLI command execution fails.

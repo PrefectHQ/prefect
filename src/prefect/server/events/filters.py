@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple, cast
+from typing import TYPE_CHECKING, List, Optional, Sequence, cast
 from uuid import UUID
 
 import pendulum
@@ -43,7 +43,7 @@ class AutomationFilterCreated(PrefectFilterBaseModel):
 class AutomationFilterName(PrefectFilterBaseModel):
     """Filter by `Automation.created`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="Only include automations with names that match any of these strings",
     )
@@ -79,8 +79,8 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
     _top_level_filter: Optional["EventFilter"] = PrivateAttr(None)
 
-    def get_filters(self) -> List["EventDataFilter"]:
-        filters: List[EventDataFilter] = [
+    def get_filters(self) -> list["EventDataFilter"]:
+        filters: list[EventDataFilter] = [
             filter
             for filter in [
                 getattr(self, name) for name, field in self.model_fields.items()
@@ -101,7 +101,7 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
     def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         """Convert the criteria to a WHERE clause."""
-        clauses: List["ColumnExpressionArgument[bool]"] = []
+        clauses: list["ColumnExpressionArgument[bool]"] = []
         for filter in self.get_filters():
             clauses.extend(filter.build_where_clauses())
         return clauses
@@ -129,7 +129,7 @@ class EventOccurredFilter(EventDataFilter):
         return self.since <= event.occurred <= self.until
 
     def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         filters.append(orm_models.Event.occurred >= self.since)
         filters.append(orm_models.Event.occurred <= self.until)
@@ -138,17 +138,17 @@ class EventOccurredFilter(EventDataFilter):
 
 
 class EventNameFilter(EventDataFilter):
-    prefix: Optional[List[str]] = Field(
+    prefix: Optional[list[str]] = Field(
         None, description="Only include events matching one of these prefixes"
     )
-    exclude_prefix: Optional[List[str]] = Field(
+    exclude_prefix: Optional[list[str]] = Field(
         None, description="Exclude events matching one of these prefixes"
     )
 
-    name: Optional[List[str]] = Field(
+    name: Optional[list[str]] = Field(
         None, description="Only include events matching one of these names exactly"
     )
-    exclude_name: Optional[List[str]] = Field(
+    exclude_name: Optional[list[str]] = Field(
         None, description="Exclude events matching one of these names exactly"
     )
 
@@ -172,7 +172,7 @@ class EventNameFilter(EventDataFilter):
         return True
 
     def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         if self.prefix:
             filters.append(
@@ -205,13 +205,13 @@ class EventNameFilter(EventDataFilter):
 
 @dataclass
 class LabelSet:
-    simple: List[str] = field(default_factory=list)
-    prefixes: List[str] = field(default_factory=list)
+    simple: list[str] = field(default_factory=list)
+    prefixes: list[str] = field(default_factory=list)
 
 
 @dataclass
 class LabelOperations:
-    values: List[str]
+    values: list[str]
     positive: LabelSet = field(default_factory=LabelSet)
     negative: LabelSet = field(default_factory=LabelSet)
 
@@ -229,10 +229,10 @@ class LabelOperations:
 
 
 class EventResourceFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
+    id: Optional[list[str]] = Field(
         None, description="Only include events for resources with these IDs"
     )
-    id_prefix: Optional[List[str]] = Field(
+    id_prefix: Optional[list[str]] = Field(
         None,
         description=(
             "Only include events for resources with IDs starting with these prefixes."
@@ -264,7 +264,7 @@ class EventResourceFilter(EventDataFilter):
         return True
 
     def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         # If we're doing an exact or prefix search on resource_id, this is efficient
         # enough to do on the events table without going to the event_resources table
@@ -339,13 +339,13 @@ class EventResourceFilter(EventDataFilter):
 
 
 class EventRelatedFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
+    id: Optional[list[str]] = Field(
         None, description="Only include events for related resources with these IDs"
     )
-    role: Optional[List[str]] = Field(
+    role: Optional[list[str]] = Field(
         None, description="Only include events for related resources in these roles"
     )
-    resources_in_roles: Optional[List[Tuple[str, str]]] = Field(
+    resources_in_roles: Optional[list[tuple[str, str]]] = Field(
         None,
         description=(
             "Only include events with specific related resources in specific roles"
@@ -356,7 +356,7 @@ class EventRelatedFilter(EventDataFilter):
     )
 
     def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(orm_models.EventResource.resource_id.in_(self.id))
@@ -378,7 +378,7 @@ class EventRelatedFilter(EventDataFilter):
             )
 
         if self.labels:
-            label_filters: List[ColumnElement[bool]] = []
+            label_filters: list[ColumnElement[bool]] = []
             labels = self.labels.deepcopy()
 
             # On the event_resources table, resource_id and resource_role are unpacked
@@ -441,10 +441,10 @@ class EventRelatedFilter(EventDataFilter):
 
 
 class EventAnyResourceFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
+    id: Optional[list[str]] = Field(
         None, description="Only include events for resources with these IDs"
     )
-    id_prefix: Optional[List[str]] = Field(
+    id_prefix: Optional[list[str]] = Field(
         None,
         description=(
             "Only include events for resources with IDs starting with these prefixes"
@@ -476,7 +476,7 @@ class EventAnyResourceFilter(EventDataFilter):
         return True
 
     def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(orm_models.EventResource.resource_id.in_(self.id))
@@ -492,7 +492,7 @@ class EventAnyResourceFilter(EventDataFilter):
             )
 
         if self.labels:
-            label_filters: List[ColumnElement[bool]] = []
+            label_filters: list[ColumnElement[bool]] = []
             labels = self.labels.deepcopy()
 
             # On the event_resources table, resource_id and resource_role are unpacked
@@ -548,7 +548,7 @@ class EventAnyResourceFilter(EventDataFilter):
 
 
 class EventIDFilter(EventDataFilter):
-    id: Optional[List[UUID]] = Field(
+    id: Optional[list[UUID]] = Field(
         None, description="Only include events with one of these IDs"
     )
 
@@ -560,7 +560,7 @@ class EventIDFilter(EventDataFilter):
         return True
 
     def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(orm_models.Event.id.in_(self.id))

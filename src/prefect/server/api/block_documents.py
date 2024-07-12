@@ -2,7 +2,7 @@
 Routes for interacting with block objects.
 """
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, Query, status
@@ -58,7 +58,7 @@ async def read_block_documents(
     ),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.BlockDocument]:
+) -> list[schemas.core.BlockDocument]:
     """
     Query for block documents.
     """

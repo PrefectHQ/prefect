@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Literal, Optional, Tuple
+from typing import Any, Literal, Optional
 from uuid import UUID
 
 from prefect.server.schemas.states import StateType
@@ -33,16 +33,16 @@ class Node(PrefectBaseModel):
     state_type: StateType
     start_time: datetime
     end_time: Optional[datetime]
-    parents: List[Edge]
-    children: List[Edge]
-    encapsulating: List[Edge]
-    artifacts: List[GraphArtifact]
+    parents: list[Edge]
+    children: list[Edge]
+    encapsulating: list[Edge]
+    artifacts: list[GraphArtifact]
 
 
 class Graph(PrefectBaseModel):
     start_time: datetime
     end_time: Optional[datetime]
-    root_node_ids: List[UUID]
-    nodes: List[Tuple[UUID, Node]]
-    artifacts: List[GraphArtifact]
-    states: List[GraphState]
+    root_node_ids: list[UUID]
+    nodes: list[tuple[UUID, Node]]
+    artifacts: list[GraphArtifact]
+    states: list[GraphState]

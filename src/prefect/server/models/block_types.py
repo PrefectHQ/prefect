@@ -126,7 +126,7 @@ async def read_block_types(
     Args:
 
     Returns:
-        List[BlockType]: List of
+        list[BlockType]: List of
     """
     query = sa.select(BlockType).order_by(BlockType.name)
 

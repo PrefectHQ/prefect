@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, MutableMapping, Optional, Set, Union
+from typing import Any, MutableMapping, Optional, Union
 from uuid import UUID, uuid4
 
 import pendulum
@@ -23,8 +23,8 @@ from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL
 from prefect.utilities.text import truncated_to
 
-ResourceData = Dict[str, Dict[str, Any]]
-RelatedResourceList = List[Dict[str, str]]
+ResourceData = dict[str, dict[str, Any]]
+RelatedResourceList = list[dict[str, str]]
 
 
 # Some users use state messages to convey error messages and large results; let's
@@ -190,10 +190,10 @@ def _as_resource_data(
 
 def _resource_data_as_related_resources(
     resource_data: ResourceData,
-    excluded_kinds: Optional[List[str]] = None,
+    excluded_kinds: Optional[list[str]] = None,
 ) -> RelatedResourceList:
     related = []
-    tags: Set[str] = set()
+    tags: set[str] = set()
 
     if excluded_kinds is None:
         excluded_kinds = []
@@ -253,12 +253,12 @@ def _state_type(
     return str(state.type.value) if state else None
 
 
-def state_payload(state: Optional[schemas.states.State]) -> Optional[Dict[str, str]]:
+def state_payload(state: Optional[schemas.states.State]) -> Optional[dict[str, str]]:
     """Given a State, return the essential string parts of it for use in an
     event payload"""
     if not state:
         return None
-    payload: Dict[str, str] = {"type": state.type.value}
+    payload: dict[str, str] = {"type": state.type.value}
     if state.name:
         payload["name"] = state.name
     if state.message:
@@ -360,7 +360,7 @@ async def work_queue_status_event(
     work_queue: "ORMWorkQueue",
     occurred: pendulum.DateTime,
 ) -> Event:
-    related_work_pool_info: List[Dict[str, Any]] = []
+    related_work_pool_info: list[dict[str, Any]] = []
 
     if work_queue.work_pool_id:
         work_pool = await models.workers.read_work_pool(

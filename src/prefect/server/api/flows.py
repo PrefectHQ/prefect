@@ -2,7 +2,7 @@
 Routes for interacting with flow objects.
 """
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -129,7 +129,7 @@ async def read_flows(
     work_pools: schemas.filters.WorkPoolFilter = None,
     sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.Flow]:
+) -> list[schemas.core.Flow]:
     """
     Query for flows.
     """

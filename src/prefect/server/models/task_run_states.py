@@ -35,7 +35,7 @@ async def read_task_run_states(session: sa.orm.Session, task_run_id: UUID):
         task_run_id: the task run id
 
     Returns:
-        List[orm_models.TaskRunState]: the task run states
+        list[orm_models.TaskRunState]: the task run states
     """
 
     query = (

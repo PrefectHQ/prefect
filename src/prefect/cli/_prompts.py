@@ -6,7 +6,7 @@ import os
 import shutil
 from datetime import timedelta
 from getpass import GetPassWarning
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import readchar
 from rich.console import Console, Group
@@ -71,8 +71,8 @@ def confirm(message, **kwargs):
 def prompt_select_from_table(
     console,
     prompt: str,
-    columns: List[Dict],
-    data: List[Dict],
+    columns: list[Dict],
+    data: list[Dict],
     table_kwargs: Optional[Dict] = None,
     opt_out_message: Optional[str] = None,
     opt_out_response: Any = None,
@@ -365,7 +365,7 @@ def prompt_schedule_type(console):
     return selection["type"]
 
 
-def prompt_schedules(console) -> List[DeploymentScheduleCreate]:
+def prompt_schedules(console) -> list[DeploymentScheduleCreate]:
     """
     Prompt the user to configure schedules for a deployment.
     """

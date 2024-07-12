@@ -45,7 +45,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Callable, Iterable, Optional, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -174,14 +174,14 @@ class Runner:
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
-        self._deployment_ids: Set[UUID] = set()
+        self._deployment_ids: set[UUID] = set()
         self._flow_run_process_map = dict()
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
         )
-        self._storage_objs: List[RunnerStorage] = []
-        self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
+        self._storage_objs: list[RunnerStorage] = []
+        self._deployment_storage_map: dict[UUID, RunnerStorage] = {}
         self._loop = asyncio.get_event_loop()
 
     @sync_compatible
@@ -225,9 +225,9 @@ class Runner:
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
@@ -540,7 +540,7 @@ class Runner:
         # We must add creationflags to a dict so it is only passed as a function
         # parameter on Windows, because the presence of creationflags causes
         # errors on Unix even if set to None
-        kwargs: Dict[str, object] = {}
+        kwargs: dict[str, object] = {}
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
@@ -820,7 +820,7 @@ class Runner:
 
     async def _get_scheduled_flow_runs(
         self,
-    ) -> List["FlowRun"]:
+    ) -> list["FlowRun"]:
         """
         Retrieve scheduled flow runs for this runner.
         """
@@ -889,9 +889,9 @@ class Runner:
 
     async def _submit_scheduled_flow_runs(
         self,
-        flow_run_response: List["FlowRun"],
-        entrypoints: Optional[List[str]] = None,
-    ) -> List["FlowRun"]:
+        flow_run_response: list["FlowRun"],
+        entrypoints: Optional[list[str]] = None,
+    ) -> list["FlowRun"]:
         """
         Takes a list of FlowRuns and submits the referenced flow runs
         for execution by the runner.
@@ -1190,7 +1190,7 @@ if sys.platform == "win32":
 
 
 async def _run_hooks(
-    hooks: List[Callable[[Flow, "FlowRun", State], None]], flow_run, flow, state
+    hooks: list[Callable[[Flow, "FlowRun", State], None]], flow_run, flow, state
 ):
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:

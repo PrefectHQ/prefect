@@ -11,12 +11,10 @@ from typing import (
     IO,
     Any,
     Callable,
-    List,
     Mapping,
     Optional,
     Sequence,
     TextIO,
-    Tuple,
     Union,
 )
 
@@ -179,7 +177,7 @@ if sys.platform == "win32":
 
 
 @asynccontextmanager
-async def open_process(command: List[str], **kwargs):
+async def open_process(command: list[str], **kwargs):
     """
     Like `anyio.open_process` but with:
     - Support for Windows command joining
@@ -237,8 +235,8 @@ async def open_process(command: List[str], **kwargs):
 
 
 async def run_process(
-    command: List[str],
-    stream_output: Union[bool, Tuple[Optional[TextSink], Optional[TextSink]]] = False,
+    command: list[str],
+    stream_output: Union[bool, tuple[Optional[TextSink], Optional[TextSink]]] = False,
     task_status: Optional[anyio.abc.TaskStatus] = None,
     task_status_handler: Optional[Callable[[anyio.abc.Process], Any]] = None,
     **kwargs,

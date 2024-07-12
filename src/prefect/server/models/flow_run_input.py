@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,8 +24,8 @@ async def filter_flow_run_input(
     flow_run_id: uuid.UUID,
     prefix: str,
     limit: int,
-    exclude_keys: List[str],
-) -> List[schemas.core.FlowRunInput]:
+    exclude_keys: list[str],
+) -> list[schemas.core.FlowRunInput]:
     query = (
         sa.select(orm_models.FlowRunInput)
         .where(

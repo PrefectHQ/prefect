@@ -7,7 +7,7 @@ import linecache
 import sys
 import threading
 from types import FrameType
-from typing import List, Optional
+from typing import Optional
 
 """
 The following functions are derived from dask/distributed which is licensed under the
@@ -72,7 +72,7 @@ def repr_frame(frame: FrameType) -> str:
     return text + "\n\t" + line
 
 
-def call_stack(frame: FrameType) -> List[str]:
+def call_stack(frame: FrameType) -> list[str]:
     """Create a call text stack from a frame"""
     L = []
     cur_frame: Optional[FrameType] = frame
@@ -82,7 +82,7 @@ def call_stack(frame: FrameType) -> List[str]:
     return L[::-1]
 
 
-def stack_for_threads(*threads: threading.Thread) -> List[str]:
+def stack_for_threads(*threads: threading.Thread) -> list[str]:
     frames = sys._current_frames()
     try:
         lines = []

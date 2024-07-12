@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 import jinja2
 from pydantic import BaseModel, Field
@@ -15,14 +15,14 @@ from prefect.types import StrictVariableValue
 
 
 class HydrationContext(BaseModel):
-    workspace_variables: Dict[
+    workspace_variables: dict[
         str,
         StrictVariableValue,
     ] = Field(default_factory=dict)
     render_workspace_variables: bool = Field(default=False)
     raise_on_error: bool = Field(default=False)
     render_jinja: bool = Field(default=False)
-    jinja_context: Dict[str, Any] = Field(default_factory=dict)
+    jinja_context: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     async def build(
@@ -54,7 +54,7 @@ class HydrationContext(BaseModel):
 Handler: TypeAlias = Callable[[dict, HydrationContext], Any]
 PrefectKind: TypeAlias = Optional[str]
 
-_handlers: Dict[PrefectKind, Handler] = {}
+_handlers: dict[PrefectKind, Handler] = {}
 
 
 class Placeholder:

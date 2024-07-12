@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -83,7 +83,7 @@ async def read_block_types(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.BlockType]:
+) -> list[schemas.core.BlockType]:
     """
     Gets all block types. Optionally limit return with limit and offset.
     """
@@ -158,7 +158,7 @@ async def read_block_documents_for_block_type(
     include_secrets: bool = Query(
         False, description="Whether to include sensitive values in the block document."
     ),
-) -> List[schemas.core.BlockDocument]:
+) -> list[schemas.core.BlockDocument]:
     async with db.session_context() as session:
         block_type = await models.block_types.read_block_type_by_slug(
             session=session, block_type_slug=block_type_slug

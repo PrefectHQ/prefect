@@ -2,15 +2,15 @@ import logging.handlers
 import sys
 import traceback
 from types import TracebackType
-from typing import Optional, Tuple, Type, Union
+from typing import Optional, Type, Union
 
 import orjson
 
 from prefect.serializers import JSONSerializer
 
 ExceptionInfoType = Union[
-    Tuple[Type[BaseException], BaseException, Optional[TracebackType]],
-    Tuple[None, None, None],
+    tuple[Type[BaseException], BaseException, Optional[TracebackType]],
+    tuple[None, None, None],
 ]
 
 

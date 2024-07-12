@@ -68,7 +68,7 @@ class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
 class FlowFilterId(PrefectFilterBaseModel):
     """Filter by `Flow.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow ids to include"
     )
 
@@ -110,7 +110,7 @@ class FlowFilterDeployment(PrefectOperatorFilterBaseModel):
 class FlowFilterName(PrefectFilterBaseModel):
     """Filter by `Flow.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="A list of flow names to include",
         examples=[["my-flow-1", "my-flow-2"]],
@@ -138,7 +138,7 @@ class FlowFilterName(PrefectFilterBaseModel):
 class FlowFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Flow.tags`."""
 
-    all_: Optional[List[str]] = Field(
+    all_: Optional[list[str]] = Field(
         default=None,
         examples=[["tag-1", "tag-2"]],
         description=(
@@ -199,10 +199,10 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
 class FlowRunFilterId(PrefectFilterBaseModel):
     """Filter by `FlowRun.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow run ids to include"
     )
-    not_any_: Optional[List[UUID]] = Field(
+    not_any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow run ids to exclude"
     )
 
@@ -218,7 +218,7 @@ class FlowRunFilterId(PrefectFilterBaseModel):
 class FlowRunFilterName(PrefectFilterBaseModel):
     """Filter by `FlowRun.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="A list of flow run names to include",
         examples=[["my-flow-run-1", "my-flow-run-2"]],
@@ -246,7 +246,7 @@ class FlowRunFilterName(PrefectFilterBaseModel):
 class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.tags`."""
 
-    all_: Optional[List[str]] = Field(
+    all_: Optional[list[str]] = Field(
         default=None,
         examples=[["tag-1", "tag-2"]],
         description=(
@@ -276,7 +276,7 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
 class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.deployment_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow run deployment ids to include"
     )
     is_null_: Optional[bool] = Field(
@@ -300,7 +300,7 @@ class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
 class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.work_queue_name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="A list of work queue names to include",
         examples=[["work_queue_1", "work_queue_2"]],
@@ -326,10 +326,10 @@ class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
 class FlowRunFilterStateType(PrefectFilterBaseModel):
     """Filter by `FlowRun.state_type`."""
 
-    any_: Optional[List[schemas.states.StateType]] = Field(
+    any_: Optional[list[schemas.states.StateType]] = Field(
         default=None, description="A list of flow run state types to include"
     )
-    not_any_: Optional[List[schemas.states.StateType]] = Field(
+    not_any_: Optional[list[schemas.states.StateType]] = Field(
         default=None, description="A list of flow run state types to exclude"
     )
 
@@ -345,10 +345,10 @@ class FlowRunFilterStateType(PrefectFilterBaseModel):
 class FlowRunFilterStateName(PrefectFilterBaseModel):
     """Filter by `FlowRun.state_name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of flow run state names to include"
     )
-    not_any_: Optional[List[str]] = Field(
+    not_any_: Optional[list[str]] = Field(
         default=None, description="A list of flow run state names to exclude"
     )
 
@@ -383,7 +383,7 @@ class FlowRunFilterState(PrefectOperatorFilterBaseModel):
 class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
     """Filter by `FlowRun.flow_version`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of flow run flow_versions to include"
     )
 
@@ -475,7 +475,7 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
 class FlowRunFilterParentFlowRunId(PrefectOperatorFilterBaseModel):
     """Filter for subflows of a given flow run"""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of parent flow run ids to include"
     )
 
@@ -501,7 +501,7 @@ class FlowRunFilterParentFlowRunId(PrefectOperatorFilterBaseModel):
 class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.parent_task_run_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow run parent_task_run_ids to include"
     )
     is_null_: Optional[bool] = Field(
@@ -525,10 +525,10 @@ class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
 class FlowRunFilterIdempotencyKey(PrefectFilterBaseModel):
     """Filter by FlowRun.idempotency_key."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of flow run idempotency keys to include"
     )
-    not_any_: Optional[List[str]] = Field(
+    not_any_: Optional[list[str]] = Field(
         default=None, description="A list of flow run idempotency keys to exclude"
     )
 
@@ -639,7 +639,7 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
 class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
     """Filter by `TaskRun.flow_run_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of task run flow run ids to include"
     )
 
@@ -662,7 +662,7 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
 class TaskRunFilterId(PrefectFilterBaseModel):
     """Filter by `TaskRun.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of task run ids to include"
     )
 
@@ -676,7 +676,7 @@ class TaskRunFilterId(PrefectFilterBaseModel):
 class TaskRunFilterName(PrefectFilterBaseModel):
     """Filter by `TaskRun.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="A list of task run names to include",
         examples=[["my-task-run-1", "my-task-run-2"]],
@@ -704,7 +704,7 @@ class TaskRunFilterName(PrefectFilterBaseModel):
 class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `TaskRun.tags`."""
 
-    all_: Optional[List[str]] = Field(
+    all_: Optional[list[str]] = Field(
         default=None,
         examples=[["tag-1", "tag-2"]],
         description=(
@@ -734,7 +734,7 @@ class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
 class TaskRunFilterStateType(PrefectFilterBaseModel):
     """Filter by `TaskRun.state_type`."""
 
-    any_: Optional[List[schemas.states.StateType]] = Field(
+    any_: Optional[list[schemas.states.StateType]] = Field(
         default=None, description="A list of task run state types to include"
     )
 
@@ -748,7 +748,7 @@ class TaskRunFilterStateType(PrefectFilterBaseModel):
 class TaskRunFilterStateName(PrefectFilterBaseModel):
     """Filter by `TaskRun.state_name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of task run state names to include"
     )
 
@@ -903,7 +903,7 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
 class DeploymentFilterId(PrefectFilterBaseModel):
     """Filter by `Deployment.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of deployment ids to include"
     )
 
@@ -917,7 +917,7 @@ class DeploymentFilterId(PrefectFilterBaseModel):
 class DeploymentFilterName(PrefectFilterBaseModel):
     """Filter by `Deployment.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="A list of deployment names to include",
         examples=[["my-deployment-1", "my-deployment-2"]],
@@ -983,7 +983,7 @@ class DeploymentFilterPaused(PrefectFilterBaseModel):
 class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
     """Filter by `Deployment.work_queue_name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="A list of work queue names to include",
         examples=[["work_queue_1", "work_queue_2"]],
@@ -1015,7 +1015,7 @@ class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
 class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Deployment.tags`."""
 
-    all_: Optional[List[str]] = Field(
+    all_: Optional[list[str]] = Field(
         default=None,
         examples=[["tag-1", "tag-2"]],
         description=(
@@ -1122,7 +1122,7 @@ class DeploymentScheduleFilter(PrefectOperatorFilterBaseModel):
 class LogFilterName(PrefectFilterBaseModel):
     """Filter by `Log.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="A list of log names to include",
         examples=[["prefect.logger.flow_runs", "prefect.logger.task_runs"]],
@@ -1183,7 +1183,7 @@ class LogFilterTimestamp(PrefectFilterBaseModel):
 class LogFilterFlowRunId(PrefectFilterBaseModel):
     """Filter by `Log.flow_run_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow run IDs to include"
     )
 
@@ -1197,7 +1197,7 @@ class LogFilterFlowRunId(PrefectFilterBaseModel):
 class LogFilterTaskRunId(PrefectFilterBaseModel):
     """Filter by `Log.task_run_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of task run IDs to include"
     )
 
@@ -1280,7 +1280,7 @@ class BlockTypeFilterName(PrefectFilterBaseModel):
 class BlockTypeFilterSlug(PrefectFilterBaseModel):
     """Filter by `BlockType.slug`"""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of slugs to match"
     )
 
@@ -1317,7 +1317,7 @@ class BlockTypeFilter(PrefectFilterBaseModel):
 class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
     """Filter by `BlockSchema.block_type_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of block type ids to include"
     )
 
@@ -1331,7 +1331,7 @@ class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
 class BlockSchemaFilterId(PrefectFilterBaseModel):
     """Filter by BlockSchema.id"""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of IDs to include"
     )
 
@@ -1345,7 +1345,7 @@ class BlockSchemaFilterId(PrefectFilterBaseModel):
 class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     """Filter by `BlockSchema.capabilities`"""
 
-    all_: Optional[List[str]] = Field(
+    all_: Optional[list[str]] = Field(
         default=None,
         examples=[["write-storage", "read-storage"]],
         description=(
@@ -1368,7 +1368,7 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
 class BlockSchemaFilterVersion(PrefectFilterBaseModel):
     """Filter by `BlockSchema.capabilities`"""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         examples=[["2.0.0", "2.1.0"]],
         description="A list of block schema versions.",
@@ -1434,7 +1434,7 @@ class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
 class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
     """Filter by `BlockDocument.block_type_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of block type ids to include"
     )
 
@@ -1448,7 +1448,7 @@ class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
 class BlockDocumentFilterId(PrefectFilterBaseModel):
     """Filter by `BlockDocument.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of block ids to include"
     )
 
@@ -1462,7 +1462,7 @@ class BlockDocumentFilterId(PrefectFilterBaseModel):
 class BlockDocumentFilterName(PrefectFilterBaseModel):
     """Filter by `BlockDocument.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of block names to include"
     )
     like_: Optional[str] = Field(
@@ -1553,7 +1553,7 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
 class WorkQueueFilterId(PrefectFilterBaseModel):
     """Filter by `WorkQueue.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None,
         description="A list of work queue ids to include",
     )
@@ -1568,13 +1568,13 @@ class WorkQueueFilterId(PrefectFilterBaseModel):
 class WorkQueueFilterName(PrefectFilterBaseModel):
     """Filter by `WorkQueue.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="A list of work queue names to include",
         examples=[["wq-1", "wq-2"]],
     )
 
-    startswith_: Optional[List[str]] = Field(
+    startswith_: Optional[list[str]] = Field(
         default=None,
         description=(
             "A list of case-insensitive starts-with matches. For example, "
@@ -1626,7 +1626,7 @@ class WorkQueueFilter(PrefectOperatorFilterBaseModel):
 class WorkPoolFilterId(PrefectFilterBaseModel):
     """Filter by `WorkPool.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of work pool ids to include"
     )
 
@@ -1640,7 +1640,7 @@ class WorkPoolFilterId(PrefectFilterBaseModel):
 class WorkPoolFilterName(PrefectFilterBaseModel):
     """Filter by `WorkPool.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of work pool names to include"
     )
 
@@ -1654,7 +1654,7 @@ class WorkPoolFilterName(PrefectFilterBaseModel):
 class WorkPoolFilterType(PrefectFilterBaseModel):
     """Filter by `WorkPool.type`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of work pool types to include"
     )
 
@@ -1694,7 +1694,7 @@ class WorkPoolFilter(PrefectOperatorFilterBaseModel):
 class WorkerFilterWorkPoolId(PrefectFilterBaseModel):
     """Filter by `Worker.worker_config_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of work pool ids to include"
     )
 
@@ -1708,10 +1708,10 @@ class WorkerFilterWorkPoolId(PrefectFilterBaseModel):
 class WorkerFilterStatus(PrefectFilterBaseModel):
     """Filter by `Worker.status`."""
 
-    any_: Optional[List[schemas.statuses.WorkerStatus]] = Field(
+    any_: Optional[list[schemas.statuses.WorkerStatus]] = Field(
         default=None, description="A list of worker statuses to include"
     )
-    not_any_: Optional[List[schemas.statuses.WorkerStatus]] = Field(
+    not_any_: Optional[list[schemas.statuses.WorkerStatus]] = Field(
         default=None, description="A list of worker statuses to exclude"
     )
 
@@ -1777,7 +1777,7 @@ class WorkerFilter(PrefectOperatorFilterBaseModel):
 class ArtifactFilterId(PrefectFilterBaseModel):
     """Filter by `Artifact.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of artifact ids to include"
     )
 
@@ -1791,7 +1791,7 @@ class ArtifactFilterId(PrefectFilterBaseModel):
 class ArtifactFilterKey(PrefectFilterBaseModel):
     """Filter by `Artifact.key`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of artifact keys to include"
     )
 
@@ -1830,7 +1830,7 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
 class ArtifactFilterFlowRunId(PrefectFilterBaseModel):
     """Filter by `Artifact.flow_run_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow run IDs to include"
     )
 
@@ -1844,7 +1844,7 @@ class ArtifactFilterFlowRunId(PrefectFilterBaseModel):
 class ArtifactFilterTaskRunId(PrefectFilterBaseModel):
     """Filter by `Artifact.task_run_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of task run IDs to include"
     )
 
@@ -1858,10 +1858,10 @@ class ArtifactFilterTaskRunId(PrefectFilterBaseModel):
 class ArtifactFilterType(PrefectFilterBaseModel):
     """Filter by `Artifact.type`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of artifact types to include"
     )
-    not_any_: Optional[List[str]] = Field(
+    not_any_: Optional[list[str]] = Field(
         default=None, description="A list of artifact types to exclude"
     )
 
@@ -1913,7 +1913,7 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
 class ArtifactCollectionFilterLatestId(PrefectFilterBaseModel):
     """Filter by `ArtifactCollection.latest_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of artifact ids to include"
     )
 
@@ -1927,7 +1927,7 @@ class ArtifactCollectionFilterLatestId(PrefectFilterBaseModel):
 class ArtifactCollectionFilterKey(PrefectFilterBaseModel):
     """Filter by `ArtifactCollection.key`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of artifact keys to include"
     )
 
@@ -1967,7 +1967,7 @@ class ArtifactCollectionFilterKey(PrefectFilterBaseModel):
 class ArtifactCollectionFilterFlowRunId(PrefectFilterBaseModel):
     """Filter by `ArtifactCollection.flow_run_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow run IDs to include"
     )
 
@@ -1981,7 +1981,7 @@ class ArtifactCollectionFilterFlowRunId(PrefectFilterBaseModel):
 class ArtifactCollectionFilterTaskRunId(PrefectFilterBaseModel):
     """Filter by `ArtifactCollection.task_run_id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of task run IDs to include"
     )
 
@@ -1995,10 +1995,10 @@ class ArtifactCollectionFilterTaskRunId(PrefectFilterBaseModel):
 class ArtifactCollectionFilterType(PrefectFilterBaseModel):
     """Filter by `ArtifactCollection.type`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of artifact types to include"
     )
-    not_any_: Optional[List[str]] = Field(
+    not_any_: Optional[list[str]] = Field(
         default=None, description="A list of artifact types to exclude"
     )
 
@@ -2050,7 +2050,7 @@ class ArtifactCollectionFilter(PrefectOperatorFilterBaseModel):
 class VariableFilterId(PrefectFilterBaseModel):
     """Filter by `Variable.id`."""
 
-    any_: Optional[List[UUID]] = Field(
+    any_: Optional[list[UUID]] = Field(
         default=None, description="A list of variable ids to include"
     )
 
@@ -2064,7 +2064,7 @@ class VariableFilterId(PrefectFilterBaseModel):
 class VariableFilterName(PrefectFilterBaseModel):
     """Filter by `Variable.name`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None, description="A list of variables names to include"
     )
     like_: Optional[str] = Field(
@@ -2088,7 +2088,7 @@ class VariableFilterName(PrefectFilterBaseModel):
 class VariableFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Variable.tags`."""
 
-    all_: Optional[List[str]] = Field(
+    all_: Optional[list[str]] = Field(
         default=None,
         examples=[["tag-1", "tag-2"]],
         description=(

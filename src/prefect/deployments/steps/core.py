@@ -18,7 +18,7 @@ import sys
 import warnings
 from copy import deepcopy
 from importlib import import_module
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Union
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
@@ -63,7 +63,7 @@ def _strip_version(requirement: str) -> str:
 
 
 def _get_function_for_step(
-    fully_qualified_name: str, requires: Union[str, List[str], None] = None
+    fully_qualified_name: str, requires: Union[str, list[str], None] = None
 ):
     if not isinstance(requires, list):
         packages = [requires] if requires else []
@@ -136,8 +136,8 @@ async def run_step(step: Dict, upstream_outputs: Optional[Dict] = None) -> Dict:
 
 
 async def run_steps(
-    steps: List[Dict[str, Any]],
-    upstream_outputs: Optional[Dict[str, Any]] = None,
+    steps: list[dict[str, Any]],
+    upstream_outputs: Optional[dict[str, Any]] = None,
     print_function: Any = print,
 ):
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
@@ -190,6 +190,6 @@ async def run_steps(
     return upstream_outputs
 
 
-def _get_step_fully_qualified_name_and_inputs(step: Dict) -> Tuple[str, Dict]:
+def _get_step_fully_qualified_name_and_inputs(step: Dict) -> tuple[str, Dict]:
     step = deepcopy(step)
     return step.popitem()

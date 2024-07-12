@@ -2,7 +2,6 @@
 Routes for interacting with flow run notification policy objects.
 """
 
-from typing import List
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
@@ -86,7 +85,7 @@ async def read_flow_run_notification_policies(
     flow_run_notification_policy_filter: schemas.filters.FlowRunNotificationPolicyFilter = None,
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.FlowRunNotificationPolicy]:
+) -> list[schemas.core.FlowRunNotificationPolicy]:
     """
     Query for flow run notification policies.
     """

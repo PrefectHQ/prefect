@@ -1,6 +1,6 @@
 import sys
 from datetime import datetime, timezone
-from typing import List, Optional, cast
+from typing import Optional, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -77,7 +77,7 @@ async def read_dashboard_task_run_counts(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[TaskRunCount]:
+) -> list[TaskRunCount]:
     if task_runs.start_time is None or task_runs.start_time.after_ is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

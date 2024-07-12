@@ -6,7 +6,7 @@ Intended for internal use by the Prefect REST API.
 import contextlib
 import datetime
 from itertools import chain
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -272,7 +272,7 @@ async def read_flow_runs(
         sort: Query sort
 
     Returns:
-        List[orm_models.FlowRun]: flow runs
+        list[orm_models.FlowRun]: flow runs
     """
     query = (
         select(orm_models.FlowRun)
@@ -310,7 +310,7 @@ async def read_flow_runs(
 class DependencyResult(PrefectBaseModel):
     id: UUID
     name: str
-    upstream_dependencies: List[TaskRunResult]
+    upstream_dependencies: list[TaskRunResult]
     state: State
     expected_start_time: Optional[datetime.datetime]
     start_time: Optional[datetime.datetime]
@@ -323,7 +323,7 @@ class DependencyResult(PrefectBaseModel):
 async def read_task_run_dependencies(
     session: AsyncSession,
     flow_run_id: UUID,
-) -> List[DependencyResult]:
+) -> list[DependencyResult]:
     """
     Get a task run dependency map for a given flow run.
     """
@@ -430,7 +430,7 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
-    orchestration_parameters: Optional[Dict[str, Any]] = None,
+    orchestration_parameters: Optional[dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated flow run state.

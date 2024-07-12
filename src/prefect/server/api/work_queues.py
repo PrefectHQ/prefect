@@ -2,7 +2,7 @@
 Routes for interacting with work queue objects.
 """
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -149,7 +149,7 @@ async def read_work_queue_runs(
         description="A header to indicate this request came from the Prefect UI.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.FlowRunResponse]:
+) -> list[schemas.responses.FlowRunResponse]:
     """
     Get flow runs from the work queue.
     """
@@ -207,7 +207,7 @@ async def read_work_queues(
     offset: int = Body(0, ge=0),
     work_queues: schemas.filters.WorkQueueFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.WorkQueueResponse]:
+) -> list[schemas.responses.WorkQueueResponse]:
     """
     Query for work queues.
     """

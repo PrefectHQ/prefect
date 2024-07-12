@@ -3,7 +3,7 @@ Implements an in-memory task queue for delivering background task runs to TaskWo
 """
 
 import asyncio
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from typing_extensions import Self
 
@@ -15,14 +15,14 @@ from prefect.settings import (
 
 
 class TaskQueue:
-    _task_queues: Dict[str, Self] = {}
+    _task_queues: dict[str, Self] = {}
 
     default_scheduled_max_size: int = (
         PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE.value()
     )
     default_retry_max_size: int = PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE.value()
 
-    _queue_size_configs: Dict[str, Tuple[int, int]] = {}
+    _queue_size_configs: dict[str, tuple[int, int]] = {}
 
     task_key: str
     _scheduled_queue: asyncio.Queue
@@ -87,9 +87,9 @@ class TaskQueue:
 class MultiQueue:
     """A queue that can pull tasks from from any of a number of task queues"""
 
-    _queues: List[TaskQueue]
+    _queues: list[TaskQueue]
 
-    def __init__(self, task_keys: List[str]):
+    def __init__(self, task_keys: list[str]):
         self._queues = [TaskQueue.for_key(task_key) for task_key in task_keys]
 
     async def get(self) -> schemas.core.TaskRun:

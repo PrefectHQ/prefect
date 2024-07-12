@@ -64,11 +64,9 @@ from inspect import isclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     Generic,
     Literal,
     Optional,
-    Set,
     Type,
     TypeVar,
     Union,
@@ -99,7 +97,7 @@ from prefect._internal.pydantic.v2_schema import create_v2_schema, is_v2_model
 R = TypeVar("R", bound="RunInput")
 T = TypeVar("T", bound="object")
 
-Keyset = Dict[
+Keyset = dict[
     Union[Literal["description"], Literal["response"], Literal["schema"]], str
 ]
 
@@ -128,7 +126,7 @@ def keyset_from_base_key(base_key: str) -> Keyset:
         - base_key (str): the base key to get the keyset for
 
     Returns:
-        - Dict[str, str]: the keyset
+        - dict[str, str]: the keyset
     """
     return {
         "description": f"{base_key}-description",
@@ -235,7 +233,7 @@ class RunInput(pydantic.BaseModel):
                 a flow run that requires input
             - kwargs (Any): the initial data to populate the subclass
         """
-        fields: Dict[str, Any] = {}
+        fields: dict[str, Any] = {}
         for key, value in kwargs.items():
             fields[key] = (type(value), value)
         model = pydantic.create_model(cls.__name__, **fields, __base__=cls)
@@ -289,7 +287,7 @@ class RunInput(pydantic.BaseModel):
         timeout: Optional[float] = 3600,
         poll_interval: float = 10,
         raise_timeout_error: bool = False,
-        exclude_keys: Optional[Set[str]] = None,
+        exclude_keys: Optional[set[str]] = None,
         key_prefix: Optional[str] = None,
         flow_run_id: Optional[UUID] = None,
     ):
@@ -344,9 +342,9 @@ class AutomaticRunInput(RunInput, Generic[T]):
 
         This method uses the type's name as a key prefix to identify related
         flow run inputs. This helps in ensuring that values saved under a type
-        (like List[int]) are retrievable under the generic type name (like "list").
+        (like list[int]) are retrievable under the generic type name (like "list").
         """
-        fields: Dict[str, Any] = {"value": (_type, ...)}
+        fields: dict[str, Any] = {"value": (_type, ...)}
 
         # Explanation for using getattr for type name extraction:
         # - "__name__": This is the usual attribute for getting the name of
@@ -411,7 +409,7 @@ class GetInputHandler(Generic[R]):
         timeout: Optional[float] = 3600,
         poll_interval: float = 10,
         raise_timeout_error: bool = False,
-        exclude_keys: Optional[Set[str]] = None,
+        exclude_keys: Optional[set[str]] = None,
         flow_run_id: Optional[UUID] = None,
     ):
         self.run_input_cls = run_input_cls
@@ -545,7 +543,7 @@ def receive_input(  # type: ignore[overload-overlap]
     timeout: Optional[float] = 3600,
     poll_interval: float = 10,
     raise_timeout_error: bool = False,
-    exclude_keys: Optional[Set[str]] = None,
+    exclude_keys: Optional[set[str]] = None,
     key_prefix: Optional[str] = None,
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,
@@ -559,7 +557,7 @@ def receive_input(
     timeout: Optional[float] = 3600,
     poll_interval: float = 10,
     raise_timeout_error: bool = False,
-    exclude_keys: Optional[Set[str]] = None,
+    exclude_keys: Optional[set[str]] = None,
     key_prefix: Optional[str] = None,
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,
@@ -572,7 +570,7 @@ def receive_input(
     timeout: Optional[float] = 3600,
     poll_interval: float = 10,
     raise_timeout_error: bool = False,
-    exclude_keys: Optional[Set[str]] = None,
+    exclude_keys: Optional[set[str]] = None,
     key_prefix: Optional[str] = None,
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,

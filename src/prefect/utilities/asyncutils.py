@@ -15,8 +15,6 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Dict,
-    List,
     Optional,
     TypeVar,
     Union,
@@ -497,7 +495,7 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
     """
 
     def __init__(self, task_group: anyio.abc.TaskGroup):
-        self._results: Dict[UUID, Any] = {}
+        self._results: dict[UUID, Any] = {}
         # The concrete task group implementation to use
         self._task_group: anyio.abc.TaskGroup = task_group
 
@@ -547,7 +545,7 @@ def create_gather_task_group() -> GatherTaskGroup:
     return GatherTaskGroup(anyio.create_task_group())
 
 
-async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
+async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> list[T]:
     """
     Run calls concurrently and gather their results.
 

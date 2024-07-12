@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Set
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 import orjson
@@ -84,7 +84,7 @@ async def filter_flow_run_input(
     client: "PrefectClient",
     key_prefix: str,
     limit: int = 1,
-    exclude_keys: Optional[Set[str]] = None,
+    exclude_keys: Optional[set[str]] = None,
     flow_run_id: Optional[UUID] = None,
 ):
     if exclude_keys is None:

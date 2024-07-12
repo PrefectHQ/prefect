@@ -13,7 +13,7 @@ bytes to an object respectively.
 
 import abc
 import base64
-from typing import Any, Dict, Generic, Optional, Type
+from typing import Any, Generic, Optional, Type
 
 from pydantic import (
     BaseModel,
@@ -171,8 +171,8 @@ class JSONSerializer(Serializer):
             "by our default `object_encoder`."
         ),
     )
-    dumps_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    loads_kwargs: Dict[str, Any] = Field(default_factory=dict)
+    dumps_kwargs: dict[str, Any] = Field(default_factory=dict)
+    loads_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("dumps_kwargs")
     def dumps_kwargs_cannot_contain_default(cls, value):

@@ -2,7 +2,7 @@ import asyncio
 import atexit
 import threading
 import uuid
-from typing import Dict, Optional
+from typing import Optional
 
 import anyio
 from cachetools import TTLCache
@@ -73,7 +73,7 @@ class TaskRunWaiter:
         self._observed_completed_task_runs: TTLCache[uuid.UUID, bool] = TTLCache(
             maxsize=10000, ttl=600
         )
-        self._completion_events: Dict[uuid.UUID, asyncio.Event] = {}
+        self._completion_events: dict[uuid.UUID, asyncio.Event] = {}
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._observed_completed_task_runs_lock = threading.Lock()
         self._completion_events_lock = threading.Lock()

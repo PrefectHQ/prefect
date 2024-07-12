@@ -33,7 +33,7 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Union
 from uuid import UUID
 
 from pydantic import (
@@ -136,11 +136,11 @@ class RunnerDeployment(BaseModel):
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
+    schedules: Optional[list[DeploymentScheduleCreate]] = Field(
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
@@ -151,14 +151,14 @@ class RunnerDeployment(BaseModel):
     is_schedule_active: Optional[bool] = Field(
         default=None, description="DEPRECATED: Whether or not the schedule is active."
     )
-    parameters: Dict[str, Any] = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(default_factory=dict)
     entrypoint: Optional[str] = Field(
         default=None,
         description=(
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]] = Field(
+    triggers: list[Union[DeploymentTriggerTypes, TriggerTypes]] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -189,7 +189,7 @@ class RunnerDeployment(BaseModel):
             " the deployment is registered with a built runner."
         ),
     )
-    job_variables: Dict[str, Any] = Field(
+    job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description=(
             "Job variables used to override the default values of a work pool"
@@ -345,7 +345,7 @@ class RunnerDeployment(BaseModel):
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-    ) -> Union[List[DeploymentScheduleCreate], "FlexibleScheduleList"]:
+    ) -> Union[list[DeploymentScheduleCreate], "FlexibleScheduleList"]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -440,14 +440,14 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
@@ -576,14 +576,14 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -674,14 +674,14 @@ class RunnerDeployment(BaseModel):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
     ):
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -776,7 +776,7 @@ async def deploy(
     push: bool = True,
     print_next_steps_message: bool = True,
     ignore_warnings: bool = False,
-) -> List[UUID]:
+) -> list[UUID]:
     """
     Deploy the provided list of deployments to dynamic infrastructure via a
     work pool.

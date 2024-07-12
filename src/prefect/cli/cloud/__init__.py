@@ -156,7 +156,7 @@ def get_current_workspace(workspaces: Iterable[Workspace]) -> Optional[Workspace
 
 
 def prompt_select_from_list(
-    console, prompt: str, options: Union[List[str], List[Tuple[Hashable, str]]]
+    console, prompt: str, options: Union[list[str], list[tuple[Hashable, str]]]
 ) -> str:
     """
     Given a list of options, display the values to user in a table and prompt them
@@ -296,11 +296,11 @@ async def check_key_is_valid_for_login(key: str):
 
 
 async def _prompt_for_account_and_workspace(
-    workspaces: List[Workspace],
-) -> Tuple[Optional[Workspace], bool]:
+    workspaces: list[Workspace],
+) -> tuple[Optional[Workspace], bool]:
     if len(workspaces) > 10:
         # Group workspaces by account_id
-        workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
+        workspace_by_account: dict[uuid.UUID, list[Workspace]] = {}
         for workspace in workspaces:
             workspace_by_account.setdefault(workspace.account_id, []).append(workspace)
 

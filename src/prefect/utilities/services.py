@@ -2,7 +2,7 @@ import sys
 from collections import deque
 from traceback import format_exception
 from types import TracebackType
-from typing import Callable, Coroutine, Deque, Optional, Tuple
+from typing import Callable, Coroutine, Deque, Optional
 
 import anyio
 import httpx
@@ -48,7 +48,7 @@ async def critical_service_loop(
     """
 
     track_record: Deque[bool] = deque([True] * consecutive, maxlen=consecutive)
-    failures: Deque[Tuple[Exception, TracebackType]] = deque(maxlen=memory)
+    failures: Deque[tuple[Exception, TracebackType]] = deque(maxlen=memory)
     backoff_count = 0
 
     while True:

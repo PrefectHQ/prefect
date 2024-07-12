@@ -19,7 +19,7 @@ single line of user code.
 
 import contextlib
 from types import TracebackType
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Iterable, Optional, Type, Union
 
 import sqlalchemy as sa
 from pydantic import ConfigDict, Field
@@ -95,12 +95,12 @@ class OrchestrationContext(PrefectBaseModel):
     initial_state: Optional[states.State] = ...
     proposed_state: Optional[states.State] = ...
     validated_state: Optional[states.State] = Field(default=None)
-    rule_signature: List[str] = Field(default_factory=list)
-    finalization_signature: List[str] = Field(default_factory=list)
+    rule_signature: list[str] = Field(default_factory=list)
+    finalization_signature: list[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
     orchestration_error: Optional[Exception] = Field(default=None)
-    parameters: Dict[Any, Any] = Field(default_factory=dict)
+    parameters: dict[Any, Any] = Field(default_factory=dict)
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:

@@ -13,7 +13,7 @@ import subprocess
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, Optional, cast
 
 import anyio
 import yaml
@@ -29,7 +29,7 @@ from prefect.utilities.templating import apply_values
 
 
 def create_default_prefect_yaml(
-    path: str, name: Optional[str] = None, contents: Optional[Dict[str, Any]] = None
+    path: str, name: Optional[str] = None, contents: Optional[dict[str, Any]] = None
 ) -> bool:
     """
     Creates default `prefect.yaml` file in the provided path if one does not already exist;
@@ -178,8 +178,8 @@ def _get_git_branch() -> Optional[str]:
 def initialize_project(
     name: Optional[str] = None,
     recipe: Optional[str] = None,
-    inputs: Optional[Dict[str, Any]] = None,
-) -> List[str]:
+    inputs: Optional[dict[str, Any]] = None,
+) -> list[str]:
     """
     Initializes a basic project structure with base files.  If no name is provided, the name
     of the current directory is used.  If no recipe is provided, one is inferred.
@@ -190,7 +190,7 @@ def initialize_project(
         inputs (dict, optional): a dictionary of inputs to use when formatting the recipe
 
     Returns:
-        List[str]: a list of files / directories that were created
+        list[str]: a list of files / directories that were created
     """
     # determine if in git repo or use directory name as a default
     is_git_based = False
@@ -270,7 +270,7 @@ def _format_deployment_for_saving_to_prefect_file(
     if deployment.get("schedules"):
         schedules = []
         for deployment_schedule in cast(
-            List[DeploymentScheduleCreate], deployment["schedules"]
+            list[DeploymentScheduleCreate], deployment["schedules"]
         ):
             if isinstance(deployment_schedule.schedule, IntervalSchedule):
                 schedule_config = _interval_schedule_to_dict(
@@ -308,10 +308,10 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
 
 def _save_deployment_to_prefect_file(
     deployment: Dict,
-    build_steps: Optional[List[Dict]] = None,
-    push_steps: Optional[List[Dict]] = None,
-    pull_steps: Optional[List[Dict]] = None,
-    triggers: Optional[List[Dict]] = None,
+    build_steps: Optional[list[Dict]] = None,
+    push_steps: Optional[list[Dict]] = None,
+    pull_steps: Optional[list[Dict]] = None,
+    triggers: Optional[list[Dict]] = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     """
@@ -379,7 +379,7 @@ def _save_deployment_to_prefect_file(
 OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0.5))
 
 
-async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
+async def _find_flow_functions_in_file(filename: str) -> list[Dict]:
     decorator_name = "flow"
     decorator_module = "prefect"
     decorated_functions = []
@@ -460,13 +460,13 @@ async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
     return decorated_functions
 
 
-async def _search_for_flow_functions(directory: str = ".") -> List[Dict]:
+async def _search_for_flow_functions(directory: str = ".") -> list[Dict]:
     """
     Search for flow functions in the provided directory. If no directory is provided,
     the current working directory is used.
 
     Returns:
-        List[Dict]: the flow name, function name, and filepath of all flow functions found
+        list[Dict]: the flow name, function name, and filepath of all flow functions found
     """
     path = anyio.Path(directory)
     coros = []

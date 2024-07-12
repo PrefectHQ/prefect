@@ -9,10 +9,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterable,
     Optional,
-    Set,
     TypeVar,
     Union,
 )
@@ -75,7 +73,7 @@ engine_logger = get_logger("engine")
 T = TypeVar("T")
 
 
-async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
+async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -123,7 +121,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
 
 def collect_task_run_inputs_sync(
     expr: Any, future_cls: Any = NewPrefectFuture, max_depth: int = -1
-) -> Set[TaskRunInput]:
+) -> set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -242,8 +240,8 @@ def capture_sigterm():
 
 
 async def resolve_inputs(
-    parameters: Dict[str, Any], return_data: bool = True, max_depth: int = -1
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1
+) -> dict[str, Any]:
     """
     Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
     data.
@@ -654,7 +652,7 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
     return flow_or_task.log_prints
 
 
-def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
+def _resolve_custom_flow_run_name(flow: Flow, parameters: dict[str, Any]) -> str:
     if callable(flow.flow_run_name):
         flow_run_name = flow.flow_run_name()
         if not isinstance(flow_run_name, str):
@@ -673,7 +671,7 @@ def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str
     return flow_run_name
 
 
-def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
+def _resolve_custom_task_run_name(task: Task, parameters: dict[str, Any]) -> str:
     if callable(task.task_run_name):
         task_run_name = task.task_run_name()
         if not isinstance(task_run_name, str):
@@ -828,8 +826,8 @@ def resolve_to_final_result(expr, context):
 
 
 def resolve_inputs_sync(
-    parameters: Dict[str, Any], return_data: bool = True, max_depth: int = -1
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1
+) -> dict[str, Any]:
     """
     Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
     data.

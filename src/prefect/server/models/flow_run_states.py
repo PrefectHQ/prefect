@@ -35,7 +35,7 @@ async def read_flow_run_states(session: sa.orm.Session, flow_run_id: UUID):
         flow_run_id: the flow run id
 
     Returns:
-        List[orm_models.FlowRunState]: the flow run states
+        list[orm_models.FlowRunState]: the flow run states
     """
 
     query = (

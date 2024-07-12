@@ -22,14 +22,10 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Dict,
     Generic,
     Iterable,
-    List,
     NoReturn,
     Optional,
-    Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -195,14 +191,14 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
         on_completion: Optional[
-            List[Callable[[FlowSchema, FlowRun, State], None]]
+            list[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_failure: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
         on_cancellation: Optional[
-            List[Callable[[FlowSchema, FlowRun, State], None]]
+            list[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-        on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_crashed: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_running: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
         if name is not None and not isinstance(name, str):
             raise TypeError(
@@ -410,14 +406,14 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: Optional[bool] = None,
         log_prints: Optional[bool] = NotSet,  # type: ignore
         on_completion: Optional[
-            List[Callable[[FlowSchema, FlowRun, State], None]]
+            list[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_failure: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
         on_cancellation: Optional[
-            List[Callable[[FlowSchema, FlowRun, State], None]]
+            list[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-        on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_crashed: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_running: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ) -> Self:
         """
         Create a new flow from the current object, updating provided options.
@@ -521,7 +517,7 @@ class Flow(Generic[P, R]):
         new_flow._entrypoint = self._entrypoint
         return new_flow
 
-    def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
         """
         Validate parameters for compatibility with the flow by attempting to cast the inputs to the
         associated types specified by the function's type annotations.
@@ -583,7 +579,7 @@ class Flow(Generic[P, R]):
         }
         return cast_parameters
 
-    def serialize_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    def serialize_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
         """
         Convert parameters to a serializable form.
 
@@ -634,18 +630,18 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List["FlexibleScheduleList"]] = None,
+        schedules: Optional[list["FlexibleScheduleList"]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
@@ -796,13 +792,13 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List["FlexibleScheduleList"]] = None,
+        schedules: Optional[list["FlexibleScheduleList"]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         pause_on_shutdown: bool = True,
@@ -1047,13 +1043,13 @@ class Flow(Generic[P, R]):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        schedules: Optional[list[DeploymentScheduleCreate]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
@@ -1416,16 +1412,16 @@ def flow(
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
     on_completion: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+        list[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
     ] = None,
     on_failure: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+        list[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
     ] = None,
     on_cancellation: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], None]]
+        list[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
-    on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_crashed: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_running: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -1448,16 +1444,16 @@ def flow(
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
     on_completion: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+        list[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
     ] = None,
     on_failure: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+        list[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
     ] = None,
     on_cancellation: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], None]]
+        list[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
-    on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_crashed: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_running: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -1939,7 +1935,7 @@ def load_placeholder_flow(entrypoint: str, raises: Exception):
 
 
 def load_flow_arguments_from_entrypoint(
-    entrypoint: str, arguments: Optional[Union[List[str], Set[str]]] = None
+    entrypoint: str, arguments: Optional[Union[list[str], set[str]]] = None
 ) -> dict[str, Any]:
     """
     Extract flow arguments from an entrypoint string.
@@ -2032,7 +2028,7 @@ def is_entrypoint_async(entrypoint: str) -> bool:
 
 def _entrypoint_definition_and_source(
     entrypoint: str,
-) -> Tuple[Union[ast.FunctionDef, ast.AsyncFunctionDef], str]:
+) -> tuple[Union[ast.FunctionDef, ast.AsyncFunctionDef], str]:
     if ":" in entrypoint:
         # Split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
         path, func_name = entrypoint.rsplit(":", maxsplit=1)

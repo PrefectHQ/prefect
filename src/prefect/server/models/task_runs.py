@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 import pendulum
@@ -36,7 +36,7 @@ async def create_task_run(
     db: PrefectDBInterface,
     session: AsyncSession,
     task_run: schemas.core.TaskRun,
-    orchestration_parameters: Optional[Dict[str, Any]] = None,
+    orchestration_parameters: Optional[dict[str, Any]] = None,
 ):
     """
     Creates a new task run.
@@ -265,7 +265,7 @@ async def read_task_runs(
         sort: Query sort
 
     Returns:
-        List[orm_models.TaskRun]: the task runs
+        list[orm_models.TaskRun]: the task runs
     """
 
     query = select(orm_models.TaskRun).order_by(sort.as_sql_sort())
@@ -394,7 +394,7 @@ async def set_task_run_state(
     state: schemas.states.State,
     force: bool = False,
     task_policy: BaseOrchestrationPolicy = None,
-    orchestration_parameters: Optional[Dict[str, Any]] = None,
+    orchestration_parameters: Optional[dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated task run state.

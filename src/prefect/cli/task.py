@@ -1,5 +1,3 @@
-from typing import List
-
 import typer
 
 from prefect.cli._types import PrefectTyper
@@ -14,7 +12,7 @@ app.add_typer(task_app, aliases=["task"])
 
 @task_app.command()
 async def serve(
-    entrypoints: List[str] = typer.Argument(
+    entrypoints: list[str] = typer.Argument(
         ...,
         help="The paths to one or more tasks, in the form of `./path/to/file.py:task_func_name`.",
     ),

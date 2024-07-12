@@ -16,12 +16,9 @@ from typing import (
     Callable,
     ClassVar,
     Coroutine,
-    Dict,
-    List,
     Literal,
     MutableMapping,
     Optional,
-    Tuple,
     Type,
     Union,
     cast,
@@ -109,8 +106,8 @@ class Action(PrefectBaseModel, abc.ABC):
 
     # Captures any additional information about the result of the action we'd like to
     # make available in the payload of the executed or failed events
-    _result_details: Dict[str, Any] = PrivateAttr(default_factory=dict)
-    _resulting_related_resources: List[RelatedResource] = PrivateAttr(
+    _result_details: dict[str, Any] = PrivateAttr(default_factory=dict)
+    _resulting_related_resources: list[RelatedResource] = PrivateAttr(
         default_factory=list
     )
 
@@ -188,7 +185,7 @@ class Action(PrefectBaseModel, abc.ABC):
         async with PrefectServerEventsClient() as events:
             await events.emit(event)
 
-    def logging_context(self, triggered_action: "TriggeredAction") -> Dict[str, Any]:
+    def logging_context(self, triggered_action: "TriggeredAction") -> dict[str, Any]:
         """Common logging context for all actions"""
         return {
             "automation": str(triggered_action.automation.id),
@@ -290,7 +287,7 @@ def _first_resource_of_kind(event: "Event", expected_kind: str) -> Optional["Res
     return None
 
 
-def _kind_and_id_from_resource(resource) -> Union[Tuple[str, UUID], Tuple[None, None]]:
+def _kind_and_id_from_resource(resource) -> Union[tuple[str, UUID], tuple[None, None]]:
     kind, _, id = resource.id.rpartition(".")
 
     try:
@@ -319,7 +316,7 @@ def _id_of_first_resource_of_kind(event: "Event", expected_kind: str) -> Optiona
     return None
 
 
-WorkspaceVariables: TypeAlias = Dict[str, StrictVariableValue]
+WorkspaceVariables: TypeAlias = dict[str, StrictVariableValue]
 TemplateContextObject: TypeAlias = Union[PrefectBaseModel, WorkspaceVariables, None]
 
 
@@ -328,7 +325,7 @@ class JinjaTemplateAction(ExternalDataAction):
     are rendered with a context containing data from the triggered action,
     and the orchestration API."""
 
-    _object_cache: Dict[str, TemplateContextObject] = PrivateAttr(default_factory=dict)
+    _object_cache: dict[str, TemplateContextObject] = PrivateAttr(default_factory=dict)
 
     _registered_filters: ClassVar[bool] = False
 
@@ -354,10 +351,10 @@ class JinjaTemplateAction(ExternalDataAction):
 
     @classmethod
     def templates_in_dictionary(
-        cls, dict_: Dict[Any, Any]
-    ) -> List[Tuple[Dict[Any, Any], Dict[Any, str]]]:
+        cls, dict_: dict[Any, Any]
+    ) -> list[tuple[dict[Any, Any], dict[Any, str]]]:
         to_traverse = []
-        templates_at_layer: Dict[Any, str] = {}
+        templates_at_layer: dict[Any, str] = {}
         for key, value in dict_.items():
             if isinstance(value, str) and maybe_template(value):
                 templates_at_layer[key] = value
@@ -377,7 +374,7 @@ class JinjaTemplateAction(ExternalDataAction):
     def instantiate_object(
         self,
         model: Type[PrefectBaseModel],
-        data: Dict[str, Any],
+        data: dict[str, Any],
         triggered_action: "TriggeredAction",
         resource: Optional["Resource"] = None,
     ) -> PrefectBaseModel:
@@ -429,11 +426,11 @@ class JinjaTemplateAction(ExternalDataAction):
         if not obj_id:
             return None
 
-        kind_to_model_and_methods: Dict[
+        kind_to_model_and_methods: dict[
             str,
-            Tuple[
+            tuple[
                 Type[PrefectBaseModel],
-                List[Callable[..., Coroutine[Any, Any, Response]]],
+                list[Callable[..., Coroutine[Any, Any, Response]]],
             ],
         ] = {
             "prefect.deployment": (
@@ -492,8 +489,8 @@ class JinjaTemplateAction(ExternalDataAction):
         )
 
     async def _relevant_native_objects(
-        self, templates: List[str], triggered_action: "TriggeredAction"
-    ) -> Dict[str, TemplateContextObject]:
+        self, templates: list[str], triggered_action: "TriggeredAction"
+    ) -> dict[str, TemplateContextObject]:
         if not triggered_action.triggering_event:
             return {}
 
@@ -517,7 +514,7 @@ class JinjaTemplateAction(ExternalDataAction):
         needed_types = list(set(types) - set(self._object_cache.keys()))
 
         async with await self.orchestration_client(triggered_action) as orchestration:
-            calls: List[Awaitable[TemplateContextObject]] = []
+            calls: list[Awaitable[TemplateContextObject]] = []
             for type_ in needed_types:
                 if type_ in orchestration_types:
                     calls.append(
@@ -540,8 +537,8 @@ class JinjaTemplateAction(ExternalDataAction):
         return self._object_cache
 
     async def _template_context(
-        self, templates: List[str], triggered_action: "TriggeredAction"
-    ) -> Dict[str, Any]:
+        self, templates: list[str], triggered_action: "TriggeredAction"
+    ) -> dict[str, Any]:
         context = {
             "automation": triggered_action.automation,
             "event": triggered_action.triggering_event,
@@ -554,8 +551,8 @@ class JinjaTemplateAction(ExternalDataAction):
         return context
 
     async def _render(
-        self, templates: List[str], triggered_action: "TriggeredAction"
-    ) -> List[str]:
+        self, templates: list[str], triggered_action: "TriggeredAction"
+    ) -> list[str]:
         self._register_filters_if_needed()
 
         context = await self._template_context(templates, triggered_action)
@@ -659,14 +656,14 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
     type: Literal["run-deployment"] = "run-deployment"
 
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: Optional[dict[str, Any]] = Field(
         None,
         description=(
             "The parameters to pass to the deployment, or None to use the "
             "deployment's default parameters"
         ),
     )
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[dict[str, Any]] = Field(
         None,
         description=(
             "The job variables to pass to the created flow run, or None "
@@ -732,8 +729,8 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
     @field_validator("parameters")
     def validate_parameters(
-        cls, value: Optional[Dict[str, Any]], field
-    ) -> Optional[Dict[str, Any]]:
+        cls, value: Optional[dict[str, Any]], field
+    ) -> Optional[dict[str, Any]]:
         if not value:
             return value
 
@@ -762,9 +759,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
     @classmethod
     def _collect_errors(
-        cls, hydrated: Union[Dict[str, Any], Placeholder], prefix: str = ""
-    ) -> Dict[str, HydrationError]:
-        problems: Dict[str, HydrationError] = {}
+        cls, hydrated: Union[dict[str, Any], Placeholder], prefix: str = ""
+    ) -> dict[str, HydrationError]:
+        problems: dict[str, HydrationError] = {}
 
         if isinstance(hydrated, HydrationError):
             problems[prefix] = hydrated
@@ -790,7 +787,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
     async def render_parameters(
         self, triggered_action: "TriggeredAction"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         parameters = copy.deepcopy(self.parameters) or {}
 
         # pre-process the parameters to upgrade any v1-style template values to v2
@@ -817,7 +814,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         variable_names = [
             p.variable_name for p in placeholders if isinstance(p, WorkspaceVariable)
         ]
-        workspace_variables: Dict[str, StrictVariableValue] = {}
+        workspace_variables: dict[str, StrictVariableValue] = {}
         if variable_names:
             async with await self.orchestration_client(triggered_action) as client:
                 workspace_variables = await client.read_workspace_variables(
@@ -839,7 +836,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         return parameters
 
     @classmethod
-    def _upgrade_v1_templates(cls, parameters: Dict[str, Any]):
+    def _upgrade_v1_templates(cls, parameters: dict[str, Any]):
         """
         Upgrades all v1-style template values from the parameters dictionary, changing
         the values in the given dictionary.  v1-style templates are any plain strings
@@ -861,8 +858,8 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                 parameters[key] = {"__prefect_kind": "jinja", "template": value}
 
     def _collect_placeholders(
-        self, parameters: Union[Dict[str, Any], Placeholder]
-    ) -> List[Placeholder]:
+        self, parameters: Union[dict[str, Any], Placeholder]
+    ) -> list[Placeholder]:
         """
         Recursively collects all placeholder values embedded within the parameters
         dictionary, including templates and workspace variables
@@ -1051,7 +1048,7 @@ class CallWebhook(JinjaTemplateAction):
     @field_validator("payload", mode="before")
     @classmethod
     def ensure_payload_is_a_string(
-        cls, value: Union[str, Dict[str, Any], None]
+        cls, value: Union[str, dict[str, Any], None]
     ) -> Optional[str]:
         """Temporary measure while we migrate payloads from being a dictionary to
         a string template.  This covers both reading from the database where values
@@ -1198,7 +1195,7 @@ class SendNotification(JinjaTemplateAction):
                 self._result_details["notification_log"] = e.log
                 raise ActionFailed("Notification failed")
 
-    async def render(self, triggered_action: "TriggeredAction") -> List[str]:
+    async def render(self, triggered_action: "TriggeredAction") -> list[str]:
         return await self._render([self.subject, self.body], triggered_action)
 
 

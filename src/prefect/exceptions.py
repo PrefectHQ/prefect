@@ -214,7 +214,7 @@ class SignatureMismatchError(PrefectException, TypeError):
         super().__init__(msg)
 
     @classmethod
-    def from_bad_params(cls, expected_params: List[str], provided_params: List[str]):
+    def from_bad_params(cls, expected_params: list[str], provided_params: list[str]):
         msg = (
             f"Function expects parameters {expected_params} but was provided with"
             f" parameters {provided_params}"

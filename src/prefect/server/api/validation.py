@@ -35,7 +35,7 @@ Note some important details:
    allow None values, the Pydantic model will fail to validate at runtime.
 """
 
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import pydantic
@@ -63,10 +63,10 @@ async def _get_base_config_defaults(
     session: AsyncSession,
     base_config: dict,
     ignore_invalid_defaults: bool = True,
-) -> Tuple[dict, bool]:
+) -> tuple[dict, bool]:
     variables_schema = base_config.get("variables", {})
     fields_schema: dict = variables_schema.get("properties", {})
-    defaults: Dict[str, Any] = dict()
+    defaults: dict[str, Any] = dict()
     has_invalid_defaults = False
 
     if not fields_schema:
@@ -106,7 +106,7 @@ async def _get_base_config_defaults(
 
 
 async def _resolve_default_reference(
-    variable: Dict[str, Any], session: AsyncSession
+    variable: dict[str, Any], session: AsyncSession
 ) -> Optional[Any]:
     """
     Resolve a reference to a block. The input variable should have a format of:
@@ -154,8 +154,8 @@ async def _resolve_default_reference(
 async def _validate_work_pool_job_variables(
     session: AsyncSession,
     work_pool_name: str,
-    base_job_template: Dict[str, Any],
-    *job_vars: Dict[str, Any],
+    base_job_template: dict[str, Any],
+    *job_vars: dict[str, Any],
     ignore_required: bool = True,
     ignore_invalid_defaults: bool = True,
     raise_on_error=True,
@@ -297,7 +297,7 @@ async def validate_job_variables_for_deployment(
 async def validate_job_variable_defaults_for_work_pool(
     session: AsyncSession,
     work_pool_name: str,
-    base_job_template: Dict[str, Any],
+    base_job_template: dict[str, Any],
 ) -> None:
     """
     Validate the default job variables for a work pool.

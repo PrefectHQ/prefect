@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -19,10 +19,10 @@ TIGHT_TIMING = timedelta(minutes=5)
 
 def emit_event(
     event: str,
-    resource: Dict[str, str],
+    resource: dict[str, str],
     occurred: Optional[DateTime] = None,
-    related: Optional[Union[List[Dict[str, str]], List[RelatedResource]]] = None,
-    payload: Optional[Dict[str, Any]] = None,
+    related: Optional[Union[list[dict[str, str]], list[RelatedResource]]] = None,
+    payload: Optional[dict[str, Any]] = None,
     id: Optional[UUID] = None,
     follows: Optional[Event] = None,
 ) -> Optional[Event]:
@@ -60,7 +60,7 @@ def emit_event(
     if worker_instance.client_type not in operational_clients:
         return None
 
-    event_kwargs: Dict[str, Any] = {
+    event_kwargs: dict[str, Any] = {
         "event": event,
         "resource": resource,
     }

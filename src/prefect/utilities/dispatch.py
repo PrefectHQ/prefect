@@ -23,14 +23,14 @@ lookup_type(Base, key) # Foo
 import abc
 import inspect
 import warnings
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Optional, Type, TypeVar
 
 T = TypeVar("T", bound=Type)
 
-_TYPE_REGISTRIES: Dict[Type, Dict[str, Type]] = {}
+_TYPE_REGISTRIES: dict[Type, dict[str, Type]] = {}
 
 
-def get_registry_for_type(cls: T) -> Optional[Dict[str, T]]:
+def get_registry_for_type(cls: T) -> Optional[dict[str, T]]:
     """
     Get the first matching registry for a class or any of its base classes.
 

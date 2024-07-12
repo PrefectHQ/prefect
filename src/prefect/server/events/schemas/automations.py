@@ -6,13 +6,9 @@ import weakref
 from datetime import timedelta
 from typing import (
     Any,
-    Dict,
-    List,
     Literal,
     Optional,
     Sequence,
-    Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -115,7 +111,7 @@ class CompositeTrigger(Trigger, abc.ABC):
     """
 
     type: Literal["compound", "sequence"]
-    triggers: List["TriggerTypes"]
+    triggers: list["TriggerTypes"]
     within: Optional[timedelta]
 
     def create_automation_state_change_event(
@@ -162,7 +158,7 @@ class CompositeTrigger(Trigger, abc.ABC):
         return [self] + [t for child in self.triggers for t in child.all_triggers()]
 
     @property
-    def child_trigger_ids(self) -> List[UUID]:
+    def child_trigger_ids(self) -> list[UUID]:
         return [trigger.id for trigger in self.triggers]
 
     @property
@@ -213,7 +209,7 @@ class SequenceTrigger(CompositeTrigger):
     type: Literal["sequence"] = "sequence"
 
     @property
-    def expected_firing_order(self) -> List[UUID]:
+    def expected_firing_order(self) -> list[UUID]:
         return [trigger.id for trigger in self.triggers]
 
     def ready_to_fire(self, firings: Sequence["Firing"]) -> bool:
@@ -259,7 +255,7 @@ class EventTrigger(ResourceTrigger):
 
     type: Literal["event"] = "event"
 
-    after: Set[str] = Field(
+    after: set[str] = Field(
         default_factory=set,
         description=(
             "The event(s) which must first been seen to fire this trigger.  If "
@@ -267,7 +263,7 @@ class EventTrigger(ResourceTrigger):
             "trailing wildcards, like `prefect.flow-run.*`"
         ),
     )
-    expect: Set[str] = Field(
+    expect: set[str] = Field(
         default_factory=set,
         description=(
             "The event(s) this trigger is expecting to see.  If empty, this "
@@ -276,7 +272,7 @@ class EventTrigger(ResourceTrigger):
         ),
     )
 
-    for_each: Set[str] = Field(
+    for_each: set[str] = Field(
         default_factory=set,
         description=(
             "Evaluate the trigger separately for each distinct value of these labels "
@@ -317,8 +313,8 @@ class EventTrigger(ResourceTrigger):
     @model_validator(mode="before")
     @classmethod
     def enforce_minimum_within_for_proactive_triggers(
-        cls, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        cls, data: dict[str, Any]
+    ) -> dict[str, Any]:
         if not isinstance(data, dict):
             return data
 
@@ -400,7 +396,7 @@ class EventTrigger(ResourceTrigger):
                 return True
         return False
 
-    def bucketing_key(self, event: ReceivedEvent) -> Tuple[str, ...]:
+    def bucketing_key(self, event: ReceivedEvent) -> tuple[str, ...]:
         return tuple(
             event.find_resource_label(label) or "" for label in sorted(self.for_each)
         )
@@ -479,17 +475,17 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
         ),
     )
 
-    actions: List[ActionTypes] = Field(
+    actions: list[ActionTypes] = Field(
         ...,
         description="The actions to perform when this Automation triggers",
     )
 
-    actions_on_trigger: List[ActionTypes] = Field(
+    actions_on_trigger: list[ActionTypes] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a triggered state",
     )
 
-    actions_on_resolve: List[ActionTypes] = Field(
+    actions_on_resolve: list[ActionTypes] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a resolving state",
     )
@@ -626,7 +622,7 @@ class Firing(PrefectBaseModel):
     id: UUID = Field(default_factory=uuid4)
 
     trigger: TriggerTypes = Field(..., description="The trigger that is firing")
-    trigger_states: Set[TriggerState] = Field(
+    trigger_states: set[TriggerState] = Field(
         ...,
         description="The state changes represented by this Firing",
     )
@@ -638,7 +634,7 @@ class Firing(PrefectBaseModel):
             "be slightly delayed)."
         ),
     )
-    triggering_labels: Dict[str, str] = Field(
+    triggering_labels: dict[str, str] = Field(
         default_factory=dict,
         description=(
             "The labels associated with this Firing, derived from the underlying "
@@ -646,7 +642,7 @@ class Firing(PrefectBaseModel):
             "of EventTriggers."
         ),
     )
-    triggering_firings: List[Firing] = Field(
+    triggering_firings: list[Firing] = Field(
         default_factory=list,
         description=(
             "The firings of the triggers that caused this trigger to fire.  Only used "
@@ -673,7 +669,7 @@ class Firing(PrefectBaseModel):
 
     @field_validator("trigger_states")
     @classmethod
-    def validate_trigger_states(cls, value: Set[TriggerState]):
+    def validate_trigger_states(cls, value: set[TriggerState]):
         if not value:
             raise ValueError("At least one trigger state must be provided")
         return value
@@ -705,7 +701,7 @@ class TriggeredAction(PrefectBaseModel):
     firing: Firing = Field(None, description="The Firing that prompted this action")
 
     triggered: DateTime = Field(..., description="When this action was triggered")
-    triggering_labels: Dict[str, str] = Field(
+    triggering_labels: dict[str, str] = Field(
         ...,
         description=(
             "The subset of labels of the Event that triggered this action, "

@@ -3,7 +3,7 @@ import os
 import socket
 import sys
 from contextlib import contextmanager
-from typing import AsyncGenerator, Generator, List, Optional, Union
+from typing import AsyncGenerator, Generator, Optional, Union
 from unittest import mock
 from uuid import UUID
 
@@ -211,7 +211,7 @@ def mock_anyio_sleep(monkeypatch):
 class Recorder:
     connections: int
     path: Optional[str]
-    events: List[Event]
+    events: list[Event]
     token: Optional[str]
     filter: Optional[EventFilter]
 
@@ -228,7 +228,7 @@ class Puppeteer:
     refuse_any_further_connections: bool
     hard_disconnect_after: Optional[UUID]
 
-    outgoing_events: List[Event]
+    outgoing_events: list[Event]
 
     def __init__(self):
         self.hard_auth_failure = False

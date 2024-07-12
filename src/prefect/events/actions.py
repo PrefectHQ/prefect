@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -60,14 +60,14 @@ class RunDeployment(DeploymentAction):
 
     type: Literal["run-deployment"] = "run-deployment"
 
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: Optional[dict[str, Any]] = Field(
         None,
         description=(
             "The parameters to pass to the deployment, or None to use the "
             "deployment's default parameters"
         ),
     )
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[dict[str, Any]] = Field(
         None,
         description=(
             "The job variables to pass to the created flow run, or None "

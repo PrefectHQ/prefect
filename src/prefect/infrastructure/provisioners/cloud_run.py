@@ -5,7 +5,7 @@ import tempfile
 from copy import deepcopy
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from anyio import run_process
@@ -300,7 +300,7 @@ class CloudRunPushProvisioner:
         work_pool_name: str,
         base_job_template: dict,
         client: Optional["PrefectClient"] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         assert client, "Client injection failed"
         await self._verify_gcloud_ready()
         self._project = await self._get_project()

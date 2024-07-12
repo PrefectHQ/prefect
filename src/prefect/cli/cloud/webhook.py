@@ -2,7 +2,6 @@
 Command line interface for working with webhooks
 """
 
-from typing import Dict, List
 from uuid import UUID
 
 import typer
@@ -20,7 +19,7 @@ webhook_app = PrefectTyper(name="webhook", help="Manage Prefect Cloud Webhooks")
 cloud_app.add_typer(webhook_app, aliases=["webhooks"])
 
 
-def _render_webhooks_into_table(webhooks: List[Dict[str, str]]) -> Table:
+def _render_webhooks_into_table(webhooks: list[dict[str, str]]) -> Table:
     display_table = Table(show_lines=True)
     for field in ["webhook id", "url slug", "name", "enabled?", "template"]:
         # overflow=fold allows the entire table value to display in the terminal

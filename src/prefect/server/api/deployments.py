@@ -3,7 +3,7 @@ Routes for interacting with Deployment objects.
 """
 
 import datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 import jsonschema.exceptions
@@ -364,7 +364,7 @@ async def read_deployments(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.DeploymentResponse]:
+) -> list[schemas.responses.DeploymentResponse]:
     """
     Query for deployments.
     """
@@ -452,7 +452,7 @@ async def paginate_deployments(
 @router.post("/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs_for_deployments(
     background_tasks: BackgroundTasks,
-    deployment_ids: List[UUID] = Body(
+    deployment_ids: list[UUID] = Body(
         default=..., description="The deployment IDs to get scheduled runs for"
     ),
     scheduled_before: DateTime = Body(
@@ -460,7 +460,7 @@ async def get_scheduled_flow_runs_for_deployments(
     ),
     limit: int = dependencies.LimitBody(),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.FlowRunResponse]:
+) -> list[schemas.responses.FlowRunResponse]:
     """
     Get scheduled runs for a set of deployments. Used by a runner to poll for work.
     """
@@ -794,7 +794,7 @@ async def create_flow_run_from_deployment(
 async def work_queue_check_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkQueue]:
+) -> list[schemas.core.WorkQueue]:
     """
     Get list of work-queues that are able to pick up the specified deployment.
 
@@ -820,7 +820,7 @@ async def work_queue_check_for_deployment(
 async def read_deployment_schedules(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.DeploymentSchedule]:
+) -> list[schemas.core.DeploymentSchedule]:
     async with db.session_context() as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
@@ -840,11 +840,11 @@ async def read_deployment_schedules(
 @router.post("/{id}/schedules", status_code=status.HTTP_201_CREATED)
 async def create_deployment_schedules(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    schedules: List[schemas.actions.DeploymentScheduleCreate] = Body(
+    schedules: list[schemas.actions.DeploymentScheduleCreate] = Body(
         default=..., description="The schedules to create"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.DeploymentSchedule]:
+) -> list[schemas.core.DeploymentSchedule]:
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id

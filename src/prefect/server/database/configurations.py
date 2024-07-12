@@ -5,7 +5,7 @@ from asyncio import AbstractEventLoop, get_running_loop
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from functools import partial
-from typing import Dict, Hashable, Optional, Tuple
+from typing import Hashable, Optional
 
 import sqlalchemy as sa
 
@@ -34,16 +34,16 @@ SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
     "SQLITE_BEGIN_MODE", default=None
 )
 
-ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
+ENGINES: dict[tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
 
 
 class ConnectionTracker:
     """A test utility which tracks the connections given out by a connection pool, to
     make it easy to see which connections are currently checked out and open."""
 
-    all_connections: Dict[AdaptedConnection, str]
-    open_connections: Dict[AdaptedConnection, str]
-    left_field_closes: Dict[AdaptedConnection, str]
+    all_connections: dict[AdaptedConnection, str]
+    open_connections: dict[AdaptedConnection, str]
+    left_field_closes: dict[AdaptedConnection, str]
     connects: int
     closes: int
     active: bool
@@ -132,7 +132,7 @@ class BaseDatabaseConfiguration(ABC):
             sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
         )
 
-    def _unique_key(self) -> Tuple[Hashable, ...]:
+    def _unique_key(self) -> tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """

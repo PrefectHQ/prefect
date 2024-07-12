@@ -4,11 +4,8 @@ from datetime import timedelta
 from enum import Enum
 from typing import (
     Any,
-    Dict,
-    List,
     Literal,
     Optional,
-    Set,
     Union,
     cast,
 )
@@ -58,7 +55,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-a
     def owner_resource(self) -> Optional[str]:
         return f"prefect.deployment.{self._deployment_id}"
 
-    def actions(self) -> List[ActionTypes]:
+    def actions(self) -> list[ActionTypes]:
         assert self._deployment_id
         return [
             RunDeployment(
@@ -117,7 +114,7 @@ class EventTrigger(ResourceTrigger):
 
     type: Literal["event"] = "event"
 
-    after: Set[str] = Field(
+    after: set[str] = Field(
         default_factory=set,
         description=(
             "The event(s) which must first been seen to fire this trigger.  If "
@@ -125,7 +122,7 @@ class EventTrigger(ResourceTrigger):
             "trailing wildcards, like `prefect.flow-run.*`"
         ),
     )
-    expect: Set[str] = Field(
+    expect: set[str] = Field(
         default_factory=set,
         description=(
             "The event(s) this trigger is expecting to see.  If empty, this "
@@ -134,7 +131,7 @@ class EventTrigger(ResourceTrigger):
         ),
     )
 
-    for_each: Set[str] = Field(
+    for_each: set[str] = Field(
         default_factory=set,
         description=(
             "Evaluate the trigger separately for each distinct value of these labels "
@@ -175,8 +172,8 @@ class EventTrigger(ResourceTrigger):
     @model_validator(mode="before")
     @classmethod
     def enforce_minimum_within_for_proactive_triggers(
-        cls, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        cls, data: dict[str, Any]
+    ) -> dict[str, Any]:
         if not isinstance(data, dict):
             return data
 
@@ -319,7 +316,7 @@ class CompositeTrigger(Trigger, abc.ABC):
     """
 
     type: Literal["compound", "sequence"]
-    triggers: List["TriggerTypes"]
+    triggers: list["TriggerTypes"]
     within: Optional[timedelta] = Field(
         None,
         description=(
@@ -417,17 +414,17 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
         ),
     )
 
-    actions: List[ActionTypes] = Field(
+    actions: list[ActionTypes] = Field(
         ...,
         description="The actions to perform when this Automation triggers",
     )
 
-    actions_on_trigger: List[ActionTypes] = Field(
+    actions_on_trigger: list[ActionTypes] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a triggered state",
     )
 
-    actions_on_resolve: List[ActionTypes] = Field(
+    actions_on_resolve: list[ActionTypes] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a resolving state",
     )

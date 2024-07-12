@@ -3,7 +3,7 @@ Full schemas of Prefect REST API objects.
 """
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
@@ -78,7 +78,7 @@ class Flow(ORMBaseModel):
     name: Name = Field(
         default=..., description="The name of the flow", examples=["my-flow"]
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
@@ -179,7 +179,7 @@ class FlowRun(ORMBaseModel):
         description="The version of the flow executed in this flow run.",
         examples=["1.0"],
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -189,7 +189,7 @@ class FlowRun(ORMBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
         examples=[{"my_var": "my_value"}],
@@ -197,7 +197,7 @@ class FlowRun(ORMBaseModel):
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
@@ -270,13 +270,13 @@ class FlowRun(ORMBaseModel):
 
     # relationships
     # flow: Flow = None
-    # task_runs: List["TaskRun"] = Field(default_factory=list)
+    # task_runs: list["TaskRun"] = Field(default_factory=list)
     state: Optional[states.State] = Field(
         default=None, description="The current state of the flow run."
     )
     # parent_task_run: "TaskRun" = None
 
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[dict[str, Any]] = Field(
         default=None,
         description="Variables used as overrides in the base job template",
     )
@@ -321,7 +321,7 @@ class TaskRunPolicy(PrefectBaseModel):
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
-    retry_delay: Union[None, int, List[int]] = Field(
+    retry_delay: Union[None, int, list[int]] = Field(
         default=None,
         description="A delay time or list of delay times between retries, in seconds.",
     )
@@ -412,7 +412,7 @@ class TaskRun(ORMBaseModel):
     empirical_policy: TaskRunPolicy = Field(
         default_factory=TaskRunPolicy,
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
@@ -420,7 +420,7 @@ class TaskRun(ORMBaseModel):
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
     )
-    task_inputs: Dict[str, List[Union[TaskRunResult, Parameter, Constant]]] = Field(
+    task_inputs: dict[str, list[Union[TaskRunResult, Parameter, Constant]]] = Field(
         default_factory=dict,
         description=(
             "Tracks the source of inputs to a task run. Used for internal bookkeeping."
@@ -477,7 +477,7 @@ class TaskRun(ORMBaseModel):
 
     # relationships
     # flow_run: FlowRun = None
-    # subflow_runs: List[FlowRun] = Field(default_factory=list)
+    # subflow_runs: list[FlowRun] = Field(default_factory=list)
     state: Optional[states.State] = Field(
         default=None, description="The current task run state."
     )
@@ -549,22 +549,22 @@ class Deployment(ORMBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[DeploymentSchedule] = Field(
+    schedules: list[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    job_variables: Dict[str, Any] = Field(
+    job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict]] = Field(
         default=None,
         description="Pull steps for cloning and running this deployment.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
@@ -580,7 +580,7 @@ class Deployment(ORMBaseModel):
         default=None,
         description="The last time the deployment was polled for status updates.",
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+    parameter_openapi_schema: Optional[dict[str, Any]] = Field(
         default_factory=dict,
         description="The parameter schema of the flow, including defaults.",
     )
@@ -634,7 +634,7 @@ class ConcurrencyLimit(ORMBaseModel):
         default=..., description="A tag the concurrency limit is applied to."
     )
     concurrency_limit: int = Field(default=..., description="The concurrency limit.")
-    active_slots: List[UUID] = Field(
+    active_slots: list[UUID] = Field(
         default_factory=list,
         description="A list of active run ids using a concurrency slot",
     )
@@ -687,14 +687,14 @@ class BlockSchema(ORMBaseModel):
     """An ORM representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: Dict[str, Any] = Field(
+    fields: dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
-    capabilities: List[str] = Field(
+    capabilities: list[str] = Field(
         default_factory=list,
         description="A list of Block capabilities",
     )
@@ -733,7 +733,7 @@ class BlockDocument(ORMBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
@@ -747,7 +747,7 @@ class BlockDocument(ORMBaseModel):
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
-    block_document_references: Dict[str, Dict[str, Any]] = Field(
+    block_document_references: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
     is_anonymous: bool = Field(
@@ -838,7 +838,7 @@ class Configuration(ORMBaseModel):
     """An ORM representation of account info."""
 
     key: str = Field(default=..., description="Account info key")
-    value: Dict[str, Any] = Field(default=..., description="Account info")
+    value: dict[str, Any] = Field(default=..., description="Account info")
 
 
 class SavedSearchFilter(PrefectBaseModel):
@@ -862,7 +862,7 @@ class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
     name: str = Field(default=..., description="The name of the saved search.")
-    filters: List[SavedSearchFilter] = Field(
+    filters: list[SavedSearchFilter] = Field(
         default_factory=list, description="The filter set for the saved search."
     )
 
@@ -885,11 +885,11 @@ class Log(ORMBaseModel):
 class QueueFilter(PrefectBaseModel):
     """Filter criteria definition for a work queue."""
 
-    tags: Optional[List[str]] = Field(
+    tags: Optional[list[str]] = Field(
         default=None,
         description="Only include flow runs with these tags in the work queue.",
     )
-    deployment_ids: Optional[List[UUID]] = Field(
+    deployment_ids: Optional[list[UUID]] = Field(
         default=None,
         description="Only include flow runs from these deployments in the work queue.",
     )
@@ -997,10 +997,10 @@ class FlowRunNotificationPolicy(ORMBaseModel):
     is_active: bool = Field(
         default=True, description="Whether the policy is currently active"
     )
-    state_names: List[str] = Field(
+    state_names: list[str] = Field(
         default=..., description="The flow run states that trigger notifications"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default=...,
         description="The flow run tags that trigger notifications (set [] to disable)",
     )
@@ -1054,7 +1054,7 @@ class WorkPool(ORMBaseModel):
         default=None, description="A description of the work pool."
     )
     type: str = Field(description="The work pool type.")
-    base_job_template: Dict[str, Any] = Field(
+    base_job_template: dict[str, Any] = Field(
         default_factory=dict, description="The work pool's base job template."
     )
     is_paused: bool = Field(
@@ -1133,14 +1133,14 @@ class Artifact(ORMBaseModel):
         default=None, description="A markdown-enabled description of the artifact."
     )
     # data will eventually be typed as `Optional[Union[Result, Any]]`
-    data: Optional[Union[Dict[str, Any], Any]] = Field(
+    data: Optional[Union[dict[str, Any], Any]] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result.; structure depends on"
             " the artifact type."
         ),
     )
-    metadata_: Optional[Dict[str, str]] = Field(
+    metadata_: Optional[dict[str, str]] = Field(
         default=None,
         description=(
             "User-defined artifact metadata. Content must be string key and value"
@@ -1193,14 +1193,14 @@ class ArtifactCollection(ORMBaseModel):
     description: Optional[str] = Field(
         default=None, description="A markdown-enabled description of the artifact."
     )
-    data: Optional[Union[Dict[str, Any], Any]] = Field(
+    data: Optional[Union[dict[str, Any], Any]] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result.; structure depends on"
             " the artifact type."
         ),
     )
-    metadata_: Optional[Dict[str, str]] = Field(
+    metadata_: Optional[dict[str, str]] = Field(
         default=None,
         description=(
             "User-defined artifact metadata. Content must be string key and value"
@@ -1227,7 +1227,7 @@ class Variable(ORMBaseModel):
         description="The value of the variable",
         examples=["my-value"],
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of variable tags",
         examples=[["tag-1", "tag-2"]],

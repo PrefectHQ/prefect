@@ -5,7 +5,7 @@ Intended for internal use by the Prefect REST API.
 
 import json
 from copy import copy
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Optional, Union
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -151,7 +151,7 @@ async def create_block_schema(
 async def _register_nested_block_schemas(
     session: AsyncSession,
     parent_block_schema_id: UUID,
-    block_schema_references: Dict[str, Union[Dict[str, str], List[Dict[str, str]]]],
+    block_schema_references: dict[str, Union[dict[str, str], list[dict[str, str]]]],
     base_fields: Dict,
     definitions: Optional[Dict],
     override: bool = False,
@@ -357,8 +357,8 @@ async def read_block_schema(
 
 
 def _construct_full_block_schema(
-    block_schemas_with_references: List[
-        Tuple[BlockSchema, Optional[str], Optional[UUID]]
+    block_schemas_with_references: list[
+        tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
     root_block_schema: Optional[BlockSchema] = None,
 ) -> Optional[BlockSchema]:
@@ -406,8 +406,8 @@ def _construct_full_block_schema(
 
 
 def _find_root_block_schema(
-    block_schemas_with_references: List[
-        Tuple[BlockSchema, Optional[str], Optional[UUID]]
+    block_schemas_with_references: list[
+        tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
 ):
     """
@@ -431,8 +431,8 @@ def _find_root_block_schema(
 
 def _construct_block_schema_spec_definitions(
     root_block_schema,
-    block_schemas_with_references: List[
-        Tuple[BlockSchema, Optional[str], Optional[UUID]]
+    block_schemas_with_references: list[
+        tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
 ):
     """
@@ -466,8 +466,8 @@ def _construct_block_schema_spec_definitions(
 
 
 def _find_block_schema_via_checksum(
-    block_schemas_with_references: List[
-        Tuple[BlockSchema, Optional[str], Optional[UUID]]
+    block_schemas_with_references: list[
+        tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
     checksum: str,
 ) -> Optional[BlockSchema]:
@@ -505,8 +505,8 @@ def _add_block_schemas_fields_to_definitions(
 
 def _construct_block_schema_fields_with_block_references(
     parent_block_schema: BlockSchema,
-    block_schemas_with_references: List[
-        Tuple[BlockSchema, Optional[str], Optional[UUID]]
+    block_schemas_with_references: list[
+        tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
 ):
     """
@@ -586,7 +586,7 @@ async def read_block_schemas(
         offset (int): query offset
 
     Returns:
-        List[orm_models.BlockSchema]: the block_schemas
+        list[orm_models.BlockSchema]: the block_schemas
     """
     # schemas are ordered by `created DESC` to get the most recently created
     # ones first (and to facilitate getting the newest one with `limit=1`).
@@ -764,7 +764,7 @@ async def read_block_schema_by_checksum(
 async def read_available_block_capabilities(
     db: PrefectDBInterface,
     session: AsyncSession,
-) -> List[str]:
+) -> list[str]:
     """
     Retrieves a list of all available block capabilities.
 
@@ -772,7 +772,7 @@ async def read_available_block_capabilities(
         session: A database session.
 
     Returns:
-        List[str]: List of all available block capabilities.
+        list[str]: List of all available block capabilities.
     """
     query = sa.select(
         db.json_arr_agg(db.cast_to_json(orm_models.BlockSchema.capabilities.distinct()))

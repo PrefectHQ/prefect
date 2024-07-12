@@ -2,7 +2,6 @@
 Routes for interacting with artifact objects.
 """
 
-from typing import List
 from uuid import UUID
 
 import pendulum
@@ -92,7 +91,7 @@ async def read_artifacts(
     flows: filters.FlowFilter = None,
     deployments: filters.DeploymentFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[core.Artifact]:
+) -> list[core.Artifact]:
     """
     Retrieve artifacts from the database.
     """
@@ -121,7 +120,7 @@ async def read_latest_artifacts(
     flows: filters.FlowFilter = None,
     deployments: filters.DeploymentFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[core.ArtifactCollection]:
+) -> list[core.ArtifactCollection]:
     """
     Retrieve artifacts from the database.
     """

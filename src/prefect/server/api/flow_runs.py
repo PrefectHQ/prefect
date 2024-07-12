@@ -3,7 +3,7 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 import orjson
@@ -56,7 +56,7 @@ async def create_flow_run(
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
     created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
-    orchestration_parameters: Dict[str, Any] = Depends(
+    orchestration_parameters: dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -252,7 +252,7 @@ async def flow_run_history(
     work_pools: schemas.filters.WorkPoolFilter = None,
     work_queues: schemas.filters.WorkQueueFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.HistoryResponse]:
+) -> list[schemas.responses.HistoryResponse]:
     """
     Query for flow run history data across a given range and interval.
     """
@@ -304,7 +304,7 @@ async def read_flow_run(
 async def read_flow_run_graph_v1(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[DependencyResult]:
+) -> list[DependencyResult]:
     """
     Get a task run dependency map for a given flow run.
     """
@@ -352,7 +352,7 @@ async def resume_flow_run(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
-    orchestration_parameters: Dict[str, Any] = Depends(
+    orchestration_parameters: dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -499,7 +499,7 @@ async def read_flow_runs(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.FlowRunResponse]:
+) -> list[schemas.responses.FlowRunResponse]:
     """
     Query for flow runs.
     """
@@ -564,7 +564,7 @@ async def set_flow_run_state(
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
-    orchestration_parameters: Dict[str, Any] = Depends(
+    orchestration_parameters: dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -642,11 +642,11 @@ async def filter_flow_run_input(
     limit: int = Body(
         1, description="The maximum number of results to return", embed=True
     ),
-    exclude_keys: List[str] = Body(
+    exclude_keys: list[str] = Body(
         [], description="Exclude inputs with these keys", embed=True
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.FlowRunInput]:
+) -> list[schemas.core.FlowRunInput]:
     """
     Filter flow run inputs by key prefix
     """

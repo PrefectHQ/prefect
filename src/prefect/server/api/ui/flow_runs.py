@@ -1,5 +1,4 @@
 import datetime
-from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -54,7 +53,7 @@ async def read_flow_run_history(
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[SimpleFlowRun]:
+) -> list[SimpleFlowRun]:
     columns = [
         db.FlowRun.id,
         db.FlowRun.state_type,

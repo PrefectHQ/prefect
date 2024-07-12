@@ -3,7 +3,7 @@ Utilities for working with Flow.visualize()
 """
 
 from functools import partial
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import graphviz
 
@@ -85,7 +85,7 @@ class VizTask:
     def __init__(
         self,
         name: str,
-        upstream_tasks: Optional[List["VizTask"]] = None,
+        upstream_tasks: Optional[list["VizTask"]] = None,
     ):
         self.name = name
         self.upstream_tasks = upstream_tasks if upstream_tasks else []

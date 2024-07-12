@@ -20,7 +20,7 @@ Available attributes:
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import pendulum
 
@@ -98,7 +98,7 @@ def __getattr__(name: str) -> Any:
         return real_value
 
 
-def __dir__() -> List[str]:
+def __dir__() -> list[str]:
     return sorted(__all__)
 
 
@@ -129,7 +129,7 @@ def get_id() -> str:
         return os.getenv("PREFECT__FLOW_RUN_ID")
 
 
-def get_tags() -> List[str]:
+def get_tags() -> list[str]:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
@@ -204,7 +204,7 @@ def get_scheduled_start_time() -> pendulum.DateTime:
         return flow_run_ctx.flow_run.expected_start_time
 
 
-def get_parameters() -> Dict[str, Any]:
+def get_parameters() -> dict[str, Any]:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is not None:
@@ -241,7 +241,7 @@ def get_parent_flow_run_id() -> Optional[str]:
     return None
 
 
-def get_parent_deployment_id() -> Dict[str, Any]:
+def get_parent_deployment_id() -> dict[str, Any]:
     parent_flow_run_id = get_parent_flow_run_id()
     if parent_flow_run_id is None:
         return None

@@ -4,10 +4,8 @@ import re
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     NamedTuple,
     Optional,
-    Set,
     Type,
     TypeVar,
     Union,
@@ -62,7 +60,7 @@ def determine_placeholder_type(name: str) -> PlaceholderType:
         return PlaceholderType.STANDARD
 
 
-def find_placeholders(template: T) -> Set[Placeholder]:
+def find_placeholders(template: T) -> set[Placeholder]:
     """
     Finds all placeholders in a template.
 
@@ -91,7 +89,7 @@ def find_placeholders(template: T) -> Set[Placeholder]:
 
 
 def apply_values(
-    template: T, values: Dict[str, Any], remove_notset: bool = True
+    template: T, values: dict[str, Any], remove_notset: bool = True
 ) -> Union[T, Type[NotSet]]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
@@ -178,7 +176,7 @@ def apply_values(
 @inject_client
 async def resolve_block_document_references(
     template: T, client: "PrefectClient" = None
-) -> Union[T, Dict[str, Any]]:
+) -> Union[T, dict[str, Any]]:
     """
     Resolve block document references in a template by replacing each reference with
     the data of the block document.

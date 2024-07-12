@@ -88,7 +88,7 @@ async def read_flow_run_notification_policies(
         limit(int): Query limit
 
     Returns:
-        List[db.FlowRunNotificationPolicy]: Notification policies
+        list[db.FlowRunNotificationPolicy]: Notification policies
     """
 
     query = select(orm_models.FlowRunNotificationPolicy).order_by(

@@ -10,7 +10,6 @@ from typing import (
     Iterable,
     Optional,
     Sequence,
-    Tuple,
 )
 from uuid import UUID
 
@@ -294,7 +293,7 @@ async def get_runs_in_work_queue(
     work_queue_id: UUID,
     limit: Optional[int] = None,
     scheduled_before: datetime.datetime = None,
-) -> Tuple[orm_models.WorkQueue, Sequence[orm_models.FlowRun]]:
+) -> tuple[orm_models.WorkQueue, Sequence[orm_models.FlowRun]]:
     """
     Get runs from a work queue.
 

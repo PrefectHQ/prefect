@@ -6,7 +6,7 @@ Create Date: 2022-01-20 11:52:36.295433
 
 """
 
-from typing import Dict, List, Union
+from typing import Union
 
 import sqlalchemy as sa
 from alembic import op
@@ -692,9 +692,9 @@ def upgrade():
         sa.Column(
             "task_inputs",
             prefect.server.utilities.database.Pydantic(
-                Dict[
+                dict[
                     str,
-                    List[
+                    list[
                         Union[
                             prefect.server.schemas.core.TaskRunResult,
                             prefect.server.schemas.core.Parameter,

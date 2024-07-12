@@ -6,7 +6,7 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Type, Union
+from typing import Any, List, Type, Union
 
 import pendulum
 from rich.console import Console
@@ -36,7 +36,7 @@ from prefect.settings import (
 )
 
 
-class APILogWorker(BatchedQueueService[Dict[str, Any]]):
+class APILogWorker(BatchedQueueService[dict[str, Any]]):
     @property
     def _max_batch_size(self):
         return max(
@@ -78,7 +78,7 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
         # Ensure a unique worker is retrieved per relevant logging settings
         return super().instance(*settings)
 
-    def _get_size(self, item: Dict[str, Any]) -> int:
+    def _get_size(self, item: dict[str, Any]) -> int:
         return item.pop("__payload_size__", None) or len(json.dumps(item).encode())
 
 
@@ -167,7 +167,7 @@ class APILogHandler(logging.Handler):
         # Display a longer traceback for other errors
         return super().handleError(record)
 
-    def prepare(self, record: logging.LogRecord) -> Dict[str, Any]:
+    def prepare(self, record: logging.LogRecord) -> dict[str, Any]:
         """
         Convert a `logging.LogRecord` to the API `LogCreate` schema and serialize.
 
@@ -232,7 +232,7 @@ class APILogHandler(logging.Handler):
 
         return log
 
-    def _get_payload_size(self, log: Dict[str, Any]) -> int:
+    def _get_payload_size(self, log: dict[str, Any]) -> int:
         return len(json.dumps(log).encode())
 
 
@@ -241,7 +241,7 @@ class PrefectConsoleHandler(logging.StreamHandler):
         self,
         stream=None,
         highlighter: Highlighter = PrefectConsoleHighlighter,
-        styles: Dict[str, str] = None,
+        styles: dict[str, str] = None,
         level: Union[int, str] = logging.NOTSET,
     ):
         """

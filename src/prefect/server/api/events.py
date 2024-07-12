@@ -1,5 +1,5 @@
 import base64
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import Response, WebSocket, status
 from fastapi.exceptions import HTTPException
@@ -42,7 +42,7 @@ router = PrefectRouter(prefix="/events", tags=["Events"])
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def create_events(
-    events: List[Event],
+    events: list[Event],
     ephemeral_request: bool = Depends(is_ephemeral_request),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
@@ -270,7 +270,7 @@ async def count_account_events(
     time_unit: TimeUnit = Body(default=TimeUnit.day),
     time_interval: float = Body(default=1.0, ge=0.01),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[EventCount]:
+) -> list[EventCount]:
     """
     Returns distinct objects and the count of events associated with them.  Objects
     that can be counted include the day the event occurred, the type of event, or
@@ -292,7 +292,7 @@ async def handle_event_count_request(
     countable: Countable,
     time_unit: TimeUnit,
     time_interval: float,
-) -> List[EventCount]:
+) -> list[EventCount]:
     try:
         return await database.count_events(
             session=session,

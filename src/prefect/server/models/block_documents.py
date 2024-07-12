@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 from copy import copy
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
@@ -92,7 +92,7 @@ async def block_document_with_unique_values_exists(
 
 def _separate_block_references_from_data(
     block_document_data: Dict,
-) -> Tuple[Dict, List[Tuple[str, UUID]]]:
+) -> tuple[Dict, list[tuple[str, UUID]]]:
     """
     Separates block document references from block document data so that a block
     document can be saved without references and the corresponding block document
@@ -146,8 +146,8 @@ async def read_block_document_by_id(
 
 async def _construct_full_block_document(
     session: AsyncSession,
-    block_documents_with_references: List[
-        Tuple[orm_models.ORMBlockDocument, Optional[str], Optional[UUID]]
+    block_documents_with_references: list[
+        tuple[orm_models.ORMBlockDocument, Optional[str], Optional[UUID]]
     ],
     parent_block_document: Optional[BlockDocument] = None,
     include_secrets: bool = False,
@@ -591,7 +591,7 @@ async def update_block_document(
 
 
 def _find_block_document_reference(
-    block_document_references: List[BlockDocumentReference],
+    block_document_references: list[BlockDocumentReference],
     name: str,
     reference_block_document_id: UUID,
 ) -> Optional[BlockDocumentReference]:

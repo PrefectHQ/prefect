@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
@@ -63,7 +63,7 @@ async def read_all_concurrency_limits_v2(
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.GlobalConcurrencyLimitResponse]:
+) -> list[schemas.responses.GlobalConcurrencyLimitResponse]:
     async with db.session_context() as session:
         concurrency_limits = (
             await models.concurrency_limits_v2.read_all_concurrency_limits(
@@ -148,10 +148,10 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
 @router.post("/increment", status_code=status.HTTP_200_OK)
 async def bulk_increment_active_slots(
     slots: int = Body(..., gt=0),
-    names: List[str] = Body(..., min_items=1),
+    names: list[str] = Body(..., min_items=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[MinimalConcurrencyLimitResponse]:
+) -> list[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
         limits = [
             schemas.core.ConcurrencyLimitV2.model_validate(limit)
@@ -237,10 +237,10 @@ async def bulk_increment_active_slots(
 @router.post("/decrement", status_code=status.HTTP_200_OK)
 async def bulk_decrement_active_slots(
     slots: int = Body(..., gt=0),
-    names: List[str] = Body(..., min_items=1),
+    names: list[str] = Body(..., min_items=1),
     occupancy_seconds: Optional[float] = Body(None, gt=0.0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[MinimalConcurrencyLimitResponse]:
+) -> list[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
         limits = (
             await models.concurrency_limits_v2.bulk_read_or_create_concurrency_limits(

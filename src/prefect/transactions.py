@@ -55,11 +55,11 @@ class Transaction(ContextModel):
 
     store: Optional[RecordStore] = None
     key: Optional[str] = None
-    children: List["Transaction"] = Field(default_factory=list)
+    children: list["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
     state: TransactionState = TransactionState.PENDING
-    on_commit_hooks: List[Callable[["Transaction"], None]] = Field(default_factory=list)
-    on_rollback_hooks: List[Callable[["Transaction"], None]] = Field(
+    on_commit_hooks: list[Callable[["Transaction"], None]] = Field(default_factory=list)
+    on_rollback_hooks: list[Callable[["Transaction"], None]] = Field(
         default_factory=list
     )
     overwrite: bool = False

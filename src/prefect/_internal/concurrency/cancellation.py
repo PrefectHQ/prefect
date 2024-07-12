@@ -12,14 +12,14 @@ import signal
 import sys
 import threading
 import time
-from typing import Callable, Dict, Optional, Type
+from typing import Callable, Optional, Type
 
 import anyio
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.event_loop import get_running_loop
 
-_THREAD_SHIELDS: Dict[threading.Thread, "ThreadShield"] = {}
+_THREAD_SHIELDS: dict[threading.Thread, "ThreadShield"] = {}
 _THREAD_SHIELDS_LOCK = threading.Lock()
 
 

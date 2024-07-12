@@ -2,7 +2,7 @@ import importlib
 import shlex
 import sys
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from anyio import run_process
 from rich.console import Console
@@ -71,7 +71,7 @@ class ModalPushProvisioner:
             modal = importlib.import_module("modal")
             progress.advance(task)
 
-    async def _get_modal_token_id_and_secret(self) -> Tuple[str, str]:
+    async def _get_modal_token_id_and_secret(self) -> tuple[str, str]:
         """
         Gets a Model API token ID and secret from the current Modal configuration.
         """
@@ -144,9 +144,9 @@ class ModalPushProvisioner:
     async def provision(
         self,
         work_pool_name: str,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         client: Optional["PrefectClient"] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Provisions resources necessary for a Modal push work pool.
 

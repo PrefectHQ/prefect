@@ -13,7 +13,6 @@ import abc
 from typing import (
     Any,
     ClassVar,
-    Dict,
     Optional,
     Type,
     Union,
@@ -49,14 +48,14 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type:
 
     # Fields from the RunDeployment action
 
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: Optional[dict[str, Any]] = Field(
         None,
         description=(
             "The parameters to pass to the deployment, or None to use the "
             "deployment's default parameters"
         ),
     )
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Optional[dict[str, Any]] = Field(
         None,
         description=(
             "Job variables to pass to the deployment, or None to use the "

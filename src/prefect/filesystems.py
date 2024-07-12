@@ -1,7 +1,7 @@
 import abc
 import urllib.parse
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import anyio
 import fsspec
@@ -268,7 +268,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         description="Default path for this block to write to.",
         examples=["s3://my-bucket/my-folder/"],
     )
-    settings: Dict[str, Any] = Field(
+    settings: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional settings to pass through to fsspec.",
     )

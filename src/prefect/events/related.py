@@ -4,12 +4,8 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Dict,
     Iterable,
-    List,
     Optional,
-    Set,
-    Tuple,
     Union,
 )
 from uuid import UUID
@@ -22,14 +18,14 @@ from .schemas.events import RelatedResource
 if TYPE_CHECKING:
     from prefect._internal.schemas.bases import ObjectBaseModel
 
-ResourceCacheEntry = Dict[str, Union[str, "ObjectBaseModel", None]]
-RelatedResourceCache = Dict[str, Tuple[ResourceCacheEntry, DateTime]]
+ResourceCacheEntry = dict[str, Union[str, "ObjectBaseModel", None]]
+RelatedResourceCache = dict[str, tuple[ResourceCacheEntry, DateTime]]
 
 MAX_CACHE_SIZE = 100
 RESOURCE_CACHE: RelatedResourceCache = {}
 
 
-def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
+def tags_as_related_resources(tags: Iterable[str]) -> list[RelatedResource]:
     return [
         RelatedResource.model_validate(
             {
@@ -54,8 +50,8 @@ def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedReso
 
 
 async def related_resources_from_run_context(
-    exclude: Optional[Set[str]] = None,
-) -> List[RelatedResource]:
+    exclude: Optional[set[str]] = None,
+) -> list[RelatedResource]:
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.objects import FlowRun
     from prefect.context import FlowRunContext, TaskRunContext
@@ -75,7 +71,7 @@ async def related_resources_from_run_context(
     if flow_run_id is None:
         return []
 
-    related_objects: List[ResourceCacheEntry] = []
+    related_objects: list[ResourceCacheEntry] = []
 
     async with get_client() as client:
 
