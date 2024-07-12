@@ -525,6 +525,23 @@ class BaseWorker(abc.ABC):
         with_healthcheck: bool = False,
         printer: Callable[..., None] = print,
     ):
+        """
+        Starts the worker and runs the main worker loops.
+
+        By default, the worker will run loops to poll for scheduled/cancelled flow
+        runs and sync with the Prefect API server.
+
+        If `run_once` is set, the worker will only run each loop once and then return.
+
+        If `with_healthcheck` is set, the worker will start a healthcheck server which
+        can be used to determine if the worker is still polling for flow runs and restart
+        the worker if necessary.
+
+        Args:
+            run_once: If set, the worker will only run each loop once then return.
+            with_healthcheck: If set, the worker will start a healthcheck server.
+            printer: A `print`-like function where logs will be reported.
+        """
         async with self as worker:
             # wait for an initial heartbeat to configure the worker
             await worker.sync_with_backend()
