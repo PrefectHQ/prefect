@@ -40,7 +40,6 @@ from prefect.cli._utilities import (
     exit_with_error,
 )
 from prefect.cli.root import app, is_interactive
-from prefect.client.orchestration import ServerType
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -58,7 +57,7 @@ from prefect.deployments.base import (
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
-from prefect.flows import load_flow_argument_from_entrypoint
+from prefect.flows import load_flow_arguments_from_entrypoint
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -437,7 +436,7 @@ async def _run_single_deploy(
     deploy_config: Dict,
     actions: Dict,
     options: Optional[Dict] = None,
-    client: "PrefectClient" = None,
+    client: Optional["PrefectClient"] = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
@@ -472,9 +471,11 @@ async def _run_single_deploy(
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
 
-    deploy_config["flow_name"] = load_flow_argument_from_entrypoint(
-        deploy_config["entrypoint"], arg="name"
+    flow_decorator_arguments = load_flow_arguments_from_entrypoint(
+        deploy_config["entrypoint"], arguments={"name", "description"}
     )
+
+    deploy_config["flow_name"] = flow_decorator_arguments["name"]
 
     deployment_name = deploy_config.get("name")
     if not deployment_name:
@@ -615,17 +616,6 @@ async def _run_single_deploy(
         options.get("triggers"), deploy_config.get("triggers")
     ):
         triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
-        if client.server_type != ServerType.CLOUD:
-            app.console.print(
-                Panel(
-                    (
-                        "Deployment triggers are only supported on "
-                        "Prefect Cloud. Any triggers defined for the deployment will "
-                        "not be created."
-                    ),
-                ),
-                style="yellow",
-            )
     else:
         triggers = []
 
@@ -664,9 +654,8 @@ async def _run_single_deploy(
         deploy_config["work_pool"]["job_variables"]["image"] = "{{ build-image.image }}"
 
     if not deploy_config.get("description"):
-        deploy_config["description"] = load_flow_argument_from_entrypoint(
-            deploy_config["entrypoint"], arg="description"
-        )
+        deploy_config["description"] = flow_decorator_arguments.get("description")
+
     # save deploy_config before templating
     deploy_config_before_templating = deepcopy(deploy_config)
     ## apply templating from build and push steps to the final deployment spec

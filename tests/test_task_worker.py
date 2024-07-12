@@ -2,6 +2,7 @@ import asyncio
 import signal
 import uuid
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
@@ -9,10 +10,9 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow, task
-from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
-from prefect.settings import PREFECT_API_URL, temporary_settings
+from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
 from prefect.states import Running
 from prefect.task_worker import TaskWorker, serve
 from prefect.tasks import task_input_hash
@@ -188,6 +188,20 @@ async def test_task_worker_stays_running_on_errors(monkeypatch):
         await task_worker.start()
 
 
+async def test_task_worker_emits_run_ui_url_upon_submission(
+    foo_task, prefect_client, caplog
+):
+    task_worker = TaskWorker(foo_task)
+
+    task_run_future = foo_task.apply_async((42,))
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+
+    with temporary_settings({PREFECT_UI_URL: "http://test/api"}):
+        await task_worker.execute_task_run(task_run)
+
+    assert "in the UI at 'http://test/api/runs/task-run/" in caplog.text
+
+
 @pytest.mark.usefixtures("mock_task_worker_start")
 class TestServe:
     async def test_serve_basic_sync_task(self, foo_task, mock_task_worker_start):
@@ -317,11 +331,8 @@ class TestTaskWorkerTaskRunRetries:
 
 
 class TestTaskWorkerTaskResults:
-    @pytest.mark.parametrize("persist_result", [True, False], ids=["persisted", "not"])
-    async def test_task_run_via_task_worker_respects_persist_result(
-        self, persist_result, prefect_client
-    ):
-        @task(persist_result=persist_result)
+    async def test_task_run_via_task_worker_persists_result(self, prefect_client):
+        @task
         def some_task():
             return 42
 
@@ -338,14 +349,7 @@ class TestTaskWorkerTaskResults:
 
         assert updated_task_run.state.is_completed()
 
-        if persist_result:
-            assert await updated_task_run.state.result() == 42
-        else:
-            with pytest.raises(
-                MissingResult,
-                match="The result was not persisted|State data is missing",
-            ):
-                await updated_task_run.state.result()
+        assert await updated_task_run.state.result() == 42
 
     @pytest.mark.parametrize(
         "storage_key",
@@ -380,9 +384,9 @@ class TestTaskWorkerTaskResults:
         assert await updated_task_run.state.result() == x
 
         if "foo" in storage_key:
-            assert updated_task_run.state.data.storage_key == storage_key
+            assert Path(updated_task_run.state.data.storage_key).name == storage_key
         else:
-            assert updated_task_run.state.data.storage_key == x
+            assert Path(updated_task_run.state.data.storage_key).name == x
 
     async def test_task_run_via_task_worker_with_complex_result_type(
         self, prefect_client

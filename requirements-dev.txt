@@ -4,11 +4,6 @@ codespell>=2.2.6
 ddtrace
 ipython
 jinja2
-mkdocs
-mkdocs-gen-files
-mkdocs-material
-mkdocstrings-python
-mike
 moto >= 5
 mypy >= 1.9.0
 numpy
@@ -17,16 +12,17 @@ pre-commit
 pluggy >= 1.4.0
 pytest > 7, < 8 # Datadog's ddtrace does not support pytest 8 yet. See https://github.com/DataDog/dd-trace-py/issues/8220
 pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0 # Cannot override event loop in 0.23.0. See https://github.com/pytest-dev/pytest-asyncio/issues/706 for more details.
-pytest-cov
 pytest-benchmark
+pytest-codspeed
+pytest-cov
 pytest-env
 pytest-flakefinder
 pytest-timeout
 pytest-xdist >= 3.6.1
-pytkdocs >= 0.14.2
 pyyaml
 redis>=5.0.1
 setuptools
+vale
 vermin
 virtualenv
 watchfiles
@@ -40,3 +36,4 @@ types-PyYAML
 mkdocs
 mkdocs-material
 mkdocstrings[python]
+mkdocs-gen-files

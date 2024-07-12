@@ -1,0 +1,48 @@
+name: 🚀 Enhancement
+description: Suggest an idea or improvement for Prefect
+labels: ["needs:triage", "enhancement"]
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First check
+      description: Please confirm and check all the following options.
+      options:
+        - label: I added a descriptive title to this issue.
+          required: true
+        - label: I used the GitHub search to find a similar request and didn't find it.
+          required: true
+        - label: I searched the Prefect documentation for this feature.
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Describe the current behavior
+      description: A clear and concise description of what Prefect currently does
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Describe the proposed behavior
+      description: A clear and concise description of what new feature or behavior you would like to see
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Example Use
+      description: Provide an example of how end users could leverage that functionality
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Provide additional context about the use case here.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "**Happy engineering!**"

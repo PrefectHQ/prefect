@@ -133,7 +133,7 @@ class CancellationCleanup(LoopService):
 
     async def _cancel_subflow(
         self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
-    ) -> None:
+    ) -> Optional[bool]:
         if not flow_run.parent_task_run_id:
             return False
 
@@ -174,4 +174,4 @@ class CancellationCleanup(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(CancellationCleanup().start())
+    asyncio.run(CancellationCleanup(handle_signals=True).start())

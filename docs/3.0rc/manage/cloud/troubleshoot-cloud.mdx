@@ -1,6 +1,6 @@
 ---
 title: Troubleshoot Prefect Cloud
-description: Learn tips and tricks and common solutions for troubleshooting Prefect Cloud.
+description: Learn how to identify and resolve common issues with Prefect Cloud.
 ---
 
 ## Prefect Cloud and proxies
@@ -36,14 +36,12 @@ running flows, or observing flow run results in Prefect Cloud.
 Use the `prefect config view` CLI command to make sure your execution environment is correctly configured 
 to access Prefect Cloud:
 
-<div class="terminal">
 ```bash
 $ prefect config view
 PREFECT_PROFILE='cloud'
 PREFECT_API_KEY='pnu_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' (from profile)
 PREFECT_API_URL='https://api.prefect.cloud/api/accounts/...' (from profile)
 ```
-</div>
 
 Make sure `PREFECT_API_URL` is configured to use `https://api.prefect.cloud/api/...`.
 
@@ -51,18 +49,19 @@ Make sure `PREFECT_API_KEY` is configured to use a valid API key.
 
 You can use the `prefect cloud workspace ls` CLI command to view or set the active workspace.
 
-<div class="terminal">
 ```bash
-$ prefect cloud workspace ls
+prefect cloud workspace ls
+```
+
+```shell
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃   Available Workspaces: ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
 │   g-gadflow/g-workspace │
 │    * prefect/workinonit │
-└─────────────────────────┘
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
     * active workspace
 ```
-</div>
 
 You can also check that the account and workspace IDs specified in the URL for `PREFECT_API_URL` 
 match those shown in the URL for your Prefect Cloud workspace.
@@ -74,7 +73,7 @@ or will provide more information when sharing your case to the support channel.
 
 - Are you logging into Prefect Cloud 3? Prefect Cloud 1, Prefect Cloud 2, and Prefect Cloud 3 use separate accounts. 
 Make sure to use the right Prefect Cloud 3 URL: \<https://app.prefect.cloud/>
-- Do you already have a Prefect Cloud account? If you’re having difficulty accepting an invitation, 
+- Do you already have a Prefect Cloud account? If you're having difficulty accepting an invitation, 
 try creating an account first using the email associated with the invitation, then accept the invitation.
 - Are you using a single sign-on (SSO) provider, social authentication (Google, Microsoft, or GitHub) or just using an emailed link?
 
@@ -148,7 +147,7 @@ If your flow and task logs are empty, there may have been an infrastructure issu
 Check your worker logs for more details.
 
 If there is no clear indication of what went wrong, try updating the logging level from the default `INFO` level 
-to the `DEBUG` level. [Settings](/3.0rc/api-ref/prefect/settings/) such as the logging level are propagated 
+to the `DEBUG` level. [Settings](https://prefect-python-sdk-docs.netlify.app/prefect/settings/) such as the logging level are propagated 
 from the worker environment to the flow run environment. Set them with environment variables or the `prefect config set` CLI:
 
 ```bash
@@ -203,7 +202,7 @@ Insufficient permissions result in an error. For example, starting a worker with
 
 The user can execute flows locally, or remotely by a worker. Local execution generally means that you, the user, 
 run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow 
-through a [deployment](/3.0rc/deploy/serve-flows/) (optionally on different infrastructure).
+through a [deployment](/3.0rc/deploy/infrastructure-examples/docker/) (optionally on different infrastructure).
 
 With remote execution, the creation of your flow run happens separately from its execution. 
 Flow runs are assigned to a work pool and a work queue. For flow runs to execute, a worker must be subscribed 
@@ -212,12 +211,12 @@ Ensure that your work pool and work queue have a subscribed worker.
 
 Local and remote execution can also differ in their treatment of relative imports. 
 If switching from local to remote execution results in local import errors, try replicating the 
-behavior by executing the flow locally with the `-m` flag (i.e. `python -m flow` instead of `python flow.py`). 
+behavior by executing the flow locally with the `-m` flag (For example, `python -m flow` instead of `python flow.py`). 
 Read more about `-m` in this [Stack Overflow post](https://stackoverflow.com/a/62923810).
 
 ## API tests return an unexpected 307 Redirected
 
-**Summary:** Requests require a trailing `/` in the request URL.
+**Summary:** requests require a trailing `/` in the request URL.
 
 If you write a test that does not include a trailing `/` when making a request to a specific endpoint:
 
@@ -229,12 +228,10 @@ async def test_example(client):
 
 You'll see a failure like:
 
-<div class="terminal">
 ```bash
 E       assert 307 == 201
 E        +  where 307 = <Response [307 Temporary Redirect]>.status_code
 ```
-</div>
 
 To resolve this, include the trailing `/`:
 
@@ -263,7 +260,6 @@ async def test_nested_example(client):
 As you're working with one of the `FlowRunner` implementations, you may get an
 error like this:
 
-<div class="terminal">
 ```bash
 E               pytest.PytestUnraisableExceptionWarning: Exception ignored in: <ssl.SSLSocket fd=-1, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0>
 E
@@ -275,7 +271,6 @@ E               ResourceWarning: unclosed <ssl.SSLSocket fd=10, family=AddressFa
 .../_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning
 
 ```
-</div>
 
 This error states that your test suite (or the `prefect` library code) opened a
 connection to something (like a Docker daemon or a Kubernetes cluster) and didn't close

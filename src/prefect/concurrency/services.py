@@ -3,6 +3,7 @@ import concurrent.futures
 from contextlib import asynccontextmanager
 from typing import (
     TYPE_CHECKING,
+    AsyncGenerator,
     FrozenSet,
     Optional,
     Tuple,
@@ -27,14 +28,14 @@ class ConcurrencySlotAcquisitionService(QueueService):
         self.concurrency_limit_names = sorted(list(concurrency_limit_names))
 
     @asynccontextmanager
-    async def _lifespan(self):
+    async def _lifespan(self) -> AsyncGenerator[None, None]:
         async with get_client() as client:
             self._client = client
             yield
 
     async def _handle(
         self, item: Tuple[int, str, Optional[float], concurrent.futures.Future]
-    ):
+    ) -> None:
         occupy, mode, timeout_seconds, future = item
         try:
             response = await self.acquire_slots(occupy, mode, timeout_seconds)

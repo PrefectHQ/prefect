@@ -1,14 +1,12 @@
 import asyncio
 import json
 import os
-import threading
 from enum import Enum
-from functools import partial
 from typing import List, Optional, Type
 
-import anyio
 import typer
 
+from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.cli._prompts import confirm
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
@@ -21,7 +19,6 @@ from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    PREFECT_WORKER_QUERY_SECONDS,
 )
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.processutils import (
@@ -29,9 +26,7 @@ from prefect.utilities.processutils import (
     run_process,
     setup_signal_handlers_worker,
 )
-from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
-from prefect.workers.server import start_healthcheck_server
 
 worker_app = PrefectTyper(name="worker", help="Start and interact with workers.")
 app.add_typer(worker_app)
@@ -142,7 +137,6 @@ async def start(
             ),
             style="yellow",
         )
-
     worker_cls = await _get_worker_class(worker_type, work_pool_name, install_policy)
 
     if worker_cls is None:
@@ -160,75 +154,21 @@ async def start(
     if base_job_template is not None:
         template_contents = json.load(fp=base_job_template)
 
+    worker = worker_cls(
+        name=worker_name,
+        work_pool_name=work_pool_name,
+        work_queues=work_queues,
+        limit=limit,
+        prefetch_seconds=prefetch_seconds,
+        heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
+        base_job_template=template_contents,
+    )
     try:
-        async with worker_cls(
-            name=worker_name,
-            work_pool_name=work_pool_name,
-            work_queues=work_queues,
-            limit=limit,
-            prefetch_seconds=prefetch_seconds,
-            heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
-            base_job_template=template_contents,
-        ) as worker:
-            app.console.print(f"Worker {worker.name!r} started!", style="green")
-            async with anyio.create_task_group() as tg:
-                # wait for an initial heartbeat to configure the worker
-                await worker.sync_with_backend()
-                # schedule the scheduled flow run polling loop
-                tg.start_soon(
-                    partial(
-                        critical_service_loop,
-                        workload=worker.get_and_submit_flow_runs,
-                        interval=PREFECT_WORKER_QUERY_SECONDS.value(),
-                        run_once=run_once,
-                        printer=app.console.print,
-                        jitter_range=0.3,
-                        backoff=4,  # Up to ~1 minute interval during backoff
-                    )
-                )
-                # schedule the sync loop
-                tg.start_soon(
-                    partial(
-                        critical_service_loop,
-                        workload=worker.sync_with_backend,
-                        interval=worker.heartbeat_interval_seconds,
-                        run_once=run_once,
-                        printer=app.console.print,
-                        jitter_range=0.3,
-                        backoff=4,
-                    )
-                )
-                tg.start_soon(
-                    partial(
-                        critical_service_loop,
-                        workload=worker.check_for_cancelled_flow_runs,
-                        interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
-                        run_once=run_once,
-                        printer=app.console.print,
-                        jitter_range=0.3,
-                        backoff=4,
-                    )
-                )
-
-                started_event = await worker._emit_worker_started_event()
-
-                # if --with-healthcheck was passed, start the healthcheck server
-                if with_healthcheck:
-                    # we'll start the ASGI server in a separate thread so that
-                    # uvicorn does not block the main thread
-                    webserver_thread = threading.Thread(
-                        name="healthcheck-server-thread",
-                        target=partial(
-                            start_healthcheck_server,
-                            worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
-                        ),
-                        daemon=True,
-                    )
-                    webserver_thread.start()
-
-        await worker._emit_worker_stopped_event(started_event)
-        app.console.print(f"Worker {worker.name!r} stopped!")
+        await worker.start(
+            run_once=run_once,
+            with_healthcheck=with_healthcheck,
+            printer=app.console.print,
+        )
     except asyncio.CancelledError:
         app.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
 
@@ -312,7 +252,8 @@ async def _install_package(
     package: str, upgrade: bool = False
 ) -> Optional[Type[BaseWorker]]:
     app.console.print(f"Installing {package}...")
-    command = [get_sys_executable(), "-m", "pip", "install", package]
+    install_package = KNOWN_EXTRAS_FOR_PACKAGES.get(package, package)
+    command = [get_sys_executable(), "-m", "pip", "install", install_package]
     if upgrade:
         command.append("--upgrade")
     await run_process(command, stream_output=True)

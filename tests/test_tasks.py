@@ -17,7 +17,7 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
-from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE
+from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE, CachePolicy
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
@@ -39,6 +39,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
+    PREFECT_UI_URL,
     temporary_settings,
 )
 from prefect.states import State
@@ -487,6 +488,38 @@ class TestTaskCall:
                 def bar():
                     pass
 
+    def test_returns_when_cache_result_in_memory_is_false_sync_task(self):
+        @task(cache_result_in_memory=False)
+        def my_task():
+            return 42
+
+        assert my_task() == 42
+
+    async def test_returns_when_cache_result_in_memory_is_false_async_task(self):
+        @task(cache_result_in_memory=False)
+        async def my_task():
+            return 42
+
+        assert await my_task() == 42
+
+    def test_raises_correct_error_when_cache_result_in_memory_is_false_sync_task(self):
+        @task(cache_result_in_memory=False)
+        def my_task():
+            raise ValueError("Test")
+
+        with pytest.raises(ValueError, match="Test"):
+            my_task()
+
+    async def test_raises_correct_error_when_cache_result_in_memory_is_false_async_task(
+        self,
+    ):
+        @task(cache_result_in_memory=False)
+        async def my_task():
+            raise ValueError("Test")
+
+        with pytest.raises(ValueError, match="Test"):
+            await my_task()
+
 
 class TestTaskRun:
     async def test_sync_task_run_inside_sync_flow(self):
@@ -821,13 +854,17 @@ class TestTaskSubmit:
         """
 
         @task
-        def foo():
-            pass
+        def find_palindromes():
+            """This is a computationally expensive task that never ends,
+            allowing the flow to exit before the task is completed."""
+            num = 10
+            while True:
+                _ = str(num) == str(num)[::-1]
+                num += 1
 
         @flow
         def test_flow():
-            for _ in range(10):
-                foo.submit()
+            find_palindromes.submit()
 
         test_flow()
         assert (
@@ -1020,7 +1057,7 @@ class TestTaskFutures:
         async def my_flow():
             future = foo.submit()
             result = future.result(raise_on_failure=False)
-            assert exceptions_equal(result, ValueError("Test"))
+            assert isinstance(result, ValueError) and str(result) == "Test"
             return True  # Ignore failed tasks
 
         await my_flow()
@@ -1185,9 +1222,103 @@ class TestTaskRetries:
             assert mock.call_count == 2
 
 
+class TestResultPersistence:
+    @pytest.mark.parametrize("persist_result", [True, False])
+    def test_persist_result_set_to_bool(self, persist_result):
+        @task(persist_result=persist_result)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(persist_result=persist_result)
+
+        assert my_task.persist_result is persist_result
+        assert new_task.persist_result is persist_result
+
+    @pytest.mark.parametrize(
+        "cache_policy",
+        [policy for policy in CachePolicy.__subclasses__() if policy != NONE],
+    )
+    def test_setting_cache_policy_sets_persist_result_to_true(self, cache_policy):
+        @task(cache_policy=cache_policy)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(cache_policy=cache_policy)
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_cache_key_fn_sets_persist_result_to_true(self):
+        @task(cache_key_fn=lambda *_: "test-key")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(cache_key_fn=lambda *_: "test-key")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_storage_sets_persist_result_to_true(self, tmpdir):
+        block = LocalFileSystem(basepath=str(tmpdir))
+        block.save("test-name", _sync=True)
+
+        @task(result_storage=block)
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage=block)
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_serializer_sets_persist_result_to_true(self):
+        @task(result_serializer="json")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_serializer="json")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_setting_result_storage_key_sets_persist_result_to_true(self):
+        @task(result_storage_key="test-key")
+        def my_task():
+            pass
+
+        @task
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage_key="test-key")
+
+        assert my_task.persist_result is True
+        assert new_task.persist_result is True
+
+
 class TestTaskCaching:
     async def test_repeated_task_call_within_flow_is_cached_by_default(self):
-        @task
+        @task(persist_result=True)
         def foo(x):
             return x
 
@@ -1201,7 +1332,7 @@ class TestTaskCaching:
         assert await second_state.result() == await first_state.result()
 
     async def test_cache_hits_within_flows_are_cached(self):
-        @task(cache_key_fn=lambda *_: "cache_hit-1")
+        @task(cache_key_fn=lambda *_: "cache_hit-1", persist_result=True)
         def foo(x):
             return x
 
@@ -1215,7 +1346,7 @@ class TestTaskCaching:
         assert await second_state.result() == await first_state.result()
 
     def test_many_repeated_cache_hits_within_flows_cached(self):
-        @task(cache_key_fn=lambda *_: "cache_hit-2")
+        @task(cache_key_fn=lambda *_: "cache_hit-2", persist_result=True)
         def foo(x):
             return x
 
@@ -1228,7 +1359,7 @@ class TestTaskCaching:
         assert all(state.name == "Cached" for state in states), states
 
     async def test_cache_hits_between_flows_are_cached(self):
-        @task(cache_key_fn=lambda *_: "cache_hit-3")
+        @task(cache_key_fn=lambda *_: "cache_hit-3", persist_result=True)
         def foo(x):
             return x
 
@@ -1248,7 +1379,7 @@ class TestTaskCaching:
             tally.append("x")
             return "call tally:" + "".join(tally)
 
-        @task(cache_key_fn=mutating_key)
+        @task(cache_key_fn=mutating_key, persist_result=True)
         def foo(x):
             return x
 
@@ -1264,7 +1395,7 @@ class TestTaskCaching:
         def get_flow_run_id(context, args):
             return str(context.task_run.flow_run_id)
 
-        @task(cache_key_fn=get_flow_run_id)
+        @task(cache_key_fn=get_flow_run_id, persist_result=True)
         def foo(x):
             return x
 
@@ -1297,7 +1428,7 @@ class TestTaskCaching:
         def foo(x):
             return x
 
-        @task(cache_key_fn=check_args)
+        @task(cache_key_fn=check_args, persist_result=True)
         def bar(x):
             return x
 
@@ -1318,7 +1449,7 @@ class TestTaskCaching:
         def stringed_inputs(context, args):
             return str(args)
 
-        @task(cache_key_fn=stringed_inputs)
+        @task(cache_key_fn=stringed_inputs, persist_result=True)
         def foo(a, b, c=3):
             return a + b + c
 
@@ -1344,6 +1475,7 @@ class TestTaskCaching:
         @task(
             cache_key_fn=lambda *_: "cache-hit-4",
             cache_expiration=datetime.timedelta(seconds=5),
+            persist_result=True,
         )
         def foo(x):
             return x
@@ -1361,6 +1493,7 @@ class TestTaskCaching:
         @task(
             cache_key_fn=lambda *_: "cache-hit-5",
             cache_expiration=datetime.timedelta(seconds=-5),
+            persist_result=True,
         )
         def foo(x):
             return x
@@ -1375,7 +1508,11 @@ class TestTaskCaching:
         assert await second_state.result() != await first_state.result()
 
     async def test_cache_misses_w_refresh_cache(self):
-        @task(cache_key_fn=lambda *_: "cache-hit-6", refresh_cache=True)
+        @task(
+            cache_key_fn=lambda *_: "cache-hit-6",
+            refresh_cache=True,
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1389,7 +1526,11 @@ class TestTaskCaching:
         assert await second_state.result() != await first_state.result()
 
     async def test_cache_hits_wo_refresh_cache(self):
-        @task(cache_key_fn=lambda *_: "cache-hit-7", refresh_cache=False)
+        @task(
+            cache_key_fn=lambda *_: "cache-hit-7",
+            refresh_cache=False,
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1403,15 +1544,23 @@ class TestTaskCaching:
         assert await second_state.result() == await first_state.result()
 
     async def test_tasks_refresh_cache_setting(self):
-        @task(cache_key_fn=lambda *_: "cache-hit-8")
+        @task(cache_key_fn=lambda *_: "cache-hit-8", persist_result=True)
         def foo(x):
             return x
 
-        @task(cache_key_fn=lambda *_: "cache-hit-8", refresh_cache=True)
+        @task(
+            cache_key_fn=lambda *_: "cache-hit-8",
+            refresh_cache=True,
+            persist_result=True,
+        )
         def refresh_task(x):
             return x
 
-        @task(cache_key_fn=lambda *_: "cache-hit-8", refresh_cache=False)
+        @task(
+            cache_key_fn=lambda *_: "cache-hit-8",
+            refresh_cache=False,
+            persist_result=True,
+        )
         def not_refresh_task(x):
             return x
 
@@ -1450,7 +1599,7 @@ class TestTaskCaching:
             def __init__(self, x):
                 self.x = x
 
-            @task(cache_key_fn=stringed_inputs)
+            @task(cache_key_fn=stringed_inputs, persist_result=True)
             def add(self, a):
                 return a + self.x
 
@@ -1502,7 +1651,7 @@ class TestTaskCaching:
             def __init__(self, x):
                 self.x = x
 
-            @task(cache_key_fn=stringed_inputs)
+            @task(cache_key_fn=stringed_inputs, persist_result=True)
             def add(self, a):
                 return a + self.x
 
@@ -1536,12 +1685,13 @@ class TestTaskCaching:
     ):
         block = LocalFileSystem(basepath=str(tmpdir))
 
-        block.save("test-cache-key-fn-takes-precedence-over-cache-policy")
+        await block.save("test-cache-key-fn-takes-precedence-over-cache-policy")
 
         @task(
             cache_key_fn=lambda *_: "cache-hit-9",
             cache_policy=INPUTS,
             result_storage=block,
+            persist_result=True,
         )
         def foo(x):
             return x
@@ -1554,7 +1704,11 @@ class TestTaskCaching:
         assert "`cache_key_fn` will be used" in caplog.text
 
     async def test_changing_result_storage_key_busts_cache(self):
-        @task(cache_key_fn=lambda *_: "cache-hit-10", result_storage_key="before")
+        @task(
+            cache_key_fn=lambda *_: "cache-hit-10",
+            result_storage_key="before",
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1607,7 +1761,7 @@ class TestTaskCaching:
 
 class TestCacheFunctionBuiltins:
     async def test_task_input_hash_within_flows(self):
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(x):
             return x
 
@@ -1629,7 +1783,7 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == 1
 
     async def test_task_input_hash_between_flows(self):
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(x):
             return x
 
@@ -1663,7 +1817,7 @@ class TestCacheFunctionBuiltins:
             def __eq__(self, other) -> bool:
                 return type(self) == type(other) and self.x == other.x
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(x):
             return TestClass(x)
 
@@ -1691,7 +1845,7 @@ class TestCacheFunctionBuiltins:
             def __eq__(self, other) -> bool:
                 return type(self) == type(other) and self.x == other.x
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(instance):
             return instance.x
 
@@ -1717,7 +1871,7 @@ class TestCacheFunctionBuiltins:
             y: int
             z: int
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(instance):
             return instance.x
 
@@ -1738,7 +1892,7 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result() == 1
 
     async def test_task_input_hash_depends_on_task_key_and_code(self):
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(x):
             return x
 
@@ -1748,7 +1902,7 @@ class TestCacheFunctionBuiltins:
         def foo_same_code(x):
             return x
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def bar(x):
             return x
 
@@ -1786,7 +1940,7 @@ class TestCacheFunctionBuiltins:
             y: int
             z: bytes
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(instance):
             return instance.x
 
@@ -2270,8 +2424,7 @@ class TestTaskInputs:
         @flow
         def test_flow():
             upstream_future = upstream.submit(257)
-            upstream_result = upstream_future.result()
-            downstream_state = downstream(upstream_result, return_state=True)
+            downstream_state = downstream(upstream_future, return_state=True)
             upstream_future.wait()
             upstream_state = upstream_future.state
             return upstream_state, downstream_state
@@ -2889,6 +3042,9 @@ class TestTaskWithOptions:
         def second_cache_key_fn(*_):
             return "second cache hit"
 
+        block = LocalFileSystem(basepath="foo")
+        block.save("foo-test", _sync=True)
+
         @task(
             name="Initial task",
             description="Task before with options",
@@ -2899,7 +3055,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=5,
             persist_result=True,
             result_serializer="pickle",
-            result_storage=LocalFileSystem(basepath="foo"),
+            result_storage=block,
             cache_result_in_memory=False,
             timeout_seconds=None,
             refresh_cache=False,
@@ -2907,6 +3063,9 @@ class TestTaskWithOptions:
         )
         def initial_task():
             pass
+
+        new_block = LocalFileSystem(basepath="bar")
+        new_block.save("bar-test", _sync=True)
 
         task_with_options = initial_task.with_options(
             name="Copied task",
@@ -2918,7 +3077,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=10,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(basepath="bar"),
+            result_storage=new_block,
             cache_result_in_memory=True,
             timeout_seconds=42,
             refresh_cache=True,
@@ -2934,7 +3093,7 @@ class TestTaskWithOptions:
         assert task_with_options.retry_delay_seconds == 10
         assert task_with_options.persist_result is False
         assert task_with_options.result_serializer == "json"
-        assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
+        assert task_with_options.result_storage == new_block
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
@@ -2945,6 +3104,7 @@ class TestTaskWithOptions:
             return "cache hit"
 
         storage = LocalFileSystem(basepath=tmp_path)
+        storage.save("another-passthrough", _sync=True)
 
         @task(
             name="Initial task",
@@ -2987,10 +3147,12 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage_key == "test"
 
     def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
+        result_storage = LocalFileSystem(basepath=tmp_path)
+        result_storage.save("test-yet-again", _sync=True)
+
         @task(
-            persist_result=True,
             result_serializer="json",
-            result_storage=LocalFileSystem(basepath=tmp_path),
+            result_storage=result_storage,
             refresh_cache=True,
             result_storage_key="test",
         )
@@ -2998,13 +3160,11 @@ class TestTaskWithOptions:
             pass
 
         task_with_options = initial_task.with_options(
-            persist_result=None,
             result_serializer=None,
             result_storage=None,
             refresh_cache=None,
             result_storage_key=None,
         )
-        assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
         assert task_with_options.refresh_cache is None
@@ -3047,7 +3207,7 @@ class TestTaskWithOptions:
         assert task_with_options.retry_delay_seconds == 0
 
     async def test_with_options_refresh_cache(self):
-        @task(cache_key_fn=lambda *_: "cache hit")
+        @task(cache_key_fn=lambda *_: "cache hit", persist_result=True)
         def foo(x):
             return x
 
@@ -3349,12 +3509,12 @@ class TestTaskMap:
                 [[x1, x2], [x1, x2]], y=[[3], [4]]
             )
 
-        echo_futures, add_task_states = my_flow()
+        echo_futures, add_task_futures = my_flow()
         dependency_ids = await self.get_dependency_ids(
             session, echo_futures[0].state_details.flow_run_id
         )
 
-        assert [await a.result() for a in add_task_states] == [[1, 2, 3], [1, 2, 4]]
+        assert [await a.result() for a in add_task_futures] == [[1, 2, 3], [1, 2, 4]]
 
         assert all(
             dependency_ids[e.state_details.task_run_id] == [] for e in echo_futures
@@ -3363,7 +3523,7 @@ class TestTaskMap:
             set(dependency_ids[a.state_details.task_run_id])
             == {e.state_details.task_run_id for e in echo_futures}
             and len(dependency_ids[a.state_details.task_run_id]) == 2
-            for a in add_task_states
+            for a in add_task_futures
         )
 
     async def test_map_can_take_flow_state_as_input(self):
@@ -3583,6 +3743,33 @@ class TestTaskMap:
                 )
 
         await test_flow()
+
+    async def test_wait_mapped_tasks(self):
+        @task
+        def add_one(x):
+            return x + 1
+
+        @flow
+        def my_flow():
+            futures = add_one.map([1, 2, 3])
+            futures.wait()
+            for future in futures:
+                assert future.state.is_completed()
+
+        my_flow()
+
+    async def test_get_results_all_mapped_tasks(self):
+        @task
+        def add_one(x):
+            return x + 1
+
+        @flow
+        def my_flow():
+            futures = add_one.map([1, 2, 3])
+            results = futures.result()
+            assert results == [2, 3, 4]
+
+        my_flow()
 
 
 class TestTaskConstructorValidation:
@@ -4366,10 +4553,11 @@ class TestNestedTasks:
         assert await my_flow() == 10
 
     async def test_nested_cache_key_fn(self):
+        @task
         def inner_task(x):
             return x * 2
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def outer_task(x):
             return inner_task(x)
 
@@ -4393,7 +4581,7 @@ class TestNestedTasks:
         async def inner_task(x):
             return x * 2
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         async def outer_task(x):
             return await inner_task(x)
 
@@ -4452,7 +4640,7 @@ class TestNestedTasks:
         This behavior can be modified by using a transaction context manager.
         """
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         def inner_task(x):
             return x * 2
 
@@ -4519,7 +4707,7 @@ class TestNestedTasks:
         This behavior can be modified by using a transaction context manager.
         """
 
-        @task(cache_key_fn=task_input_hash)
+        @task(cache_key_fn=task_input_hash, persist_result=True)
         async def inner_task(x):
             return x * 2
 
@@ -4602,15 +4790,22 @@ class TestNestedTasks:
 
 
 class TestCachePolicies:
-    def test_cache_policy_init_to_default(self):
-        @task
+    def test_cache_policy_init_to_none_when_not_persisting_results(self):
+        @task(persist_result=False)
+        def my_task():
+            pass
+
+        assert my_task.cache_policy is NONE
+
+    def test_cache_policy_init_to_default_when_persisting_results(self):
+        @task(persist_result=True)
         def my_task():
             pass
 
         assert my_task.cache_policy is DEFAULT
 
     def test_cache_policy_init_to_none_if_result_storage_key(self):
-        @task(result_storage_key="foo")
+        @task(result_storage_key="foo", persist_result=True)
         def my_task():
             pass
 
@@ -4618,7 +4813,7 @@ class TestCachePolicies:
         assert my_task.result_storage_key == "foo"
 
     def test_cache_policy_inits_as_expected(self):
-        @task(cache_policy=TASK_SOURCE)
+        @task(cache_policy=TASK_SOURCE, persist_result=True)
         def my_task():
             pass
 
@@ -4789,6 +4984,16 @@ class TestApplyAsync:
             "y": [],
         }
 
+    def test_apply_async_emits_run_ui_url(self, caplog):
+        @task
+        def add(x, y):
+            return x + y
+
+        with temporary_settings({PREFECT_UI_URL: "http://test/api"}):
+            add.apply_async((42, 42))
+
+        assert "in the UI at 'http://test/api/runs/task-run/" in caplog.text
+
 
 class TestDelay:
     @pytest.mark.parametrize(
@@ -4885,3 +5090,44 @@ class TestDelay:
         assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
+
+
+def test_rollback_errors_are_logged(caplog):
+    @task
+    def foo():
+        pass
+
+    @foo.on_rollback
+    def rollback(txn):
+        raise RuntimeError("whoops!")
+
+    @flow
+    def txn_flow():
+        with transaction():
+            foo()
+            raise ValueError("txn failed")
+
+    txn_flow(return_state=True)
+    assert "An error was encountered while running rollback hook" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "whoops!" in caplog.text
+
+
+def test_commit_errors_are_logged(caplog):
+    @task
+    def foo():
+        pass
+
+    @foo.on_commit
+    def rollback(txn):
+        raise RuntimeError("whoops!")
+
+    @flow
+    def txn_flow():
+        with transaction():
+            foo()
+
+    txn_flow(return_state=True)
+    assert "An error was encountered while running commit hook" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "whoops!" in caplog.text

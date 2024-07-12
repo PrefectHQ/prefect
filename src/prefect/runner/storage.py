@@ -559,8 +559,70 @@ class BlockStorageAdapter:
         return False
 
 
-def create_storage_from_url(
-    url: str, pull_interval: Optional[int] = 60
+class LocalStorage:
+    """
+    Sets the working directory in the local filesystem.
+    Parameters:
+        Path: Local file path to set the working directory for the flow
+    Examples:
+        Sets the working directory for the local path to the flow:
+        ```python
+        from prefect.runner.storage import Localstorage
+        storage = LocalStorage(
+            path="/path/to/local/flow_directory",
+        )
+        ```
+    """
+
+    def __init__(
+        self,
+        path: str,
+        pull_interval: Optional[int] = None,
+    ):
+        self._path = Path(path).resolve()
+        self._logger = get_logger("runner.storage.local-storage")
+        self._storage_base_path = Path.cwd()
+        self._pull_interval = pull_interval
+
+    @property
+    def destination(self) -> Path:
+        return self._path
+
+    def set_base_path(self, path: Path):
+        self._storage_base_path = path
+
+    @property
+    def pull_interval(self) -> Optional[int]:
+        return self._pull_interval
+
+    async def pull_code(self):
+        # Local storage assumes the code already exists on the local filesystem
+        # and does not need to be pulled from a remote location
+        pass
+
+    def to_pull_step(self) -> dict:
+        """
+        Returns a dictionary representation of the storage object that can be
+        used as a deployment pull step.
+        """
+        step = {
+            "prefect.deployments.steps.set_working_directory": {
+                "directory": str(self.destination)
+            }
+        }
+        return step
+
+    def __eq__(self, __value) -> bool:
+        if isinstance(__value, LocalStorage):
+            return self._path == __value._path
+        return False
+
+    def __repr__(self) -> str:
+        return f"LocalStorage(path={self._path!r})"
+
+
+def create_storage_from_source(
+    source: str, pull_interval: Optional[int] = 60
 ) -> RunnerStorage:
     """
     Creates a storage object from a URL.
@@ -574,11 +636,18 @@ def create_storage_from_url(
     Returns:
         RunnerStorage: A runner storage compatible object
     """
-    parsed_url = urlparse(url)
-    if parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
-        return GitRepository(url=url, pull_interval=pull_interval)
+    logger = get_logger("runner.storage")
+    parsed_source = urlparse(source)
+    if parsed_source.scheme == "git" or parsed_source.path.endswith(".git"):
+        return GitRepository(url=source, pull_interval=pull_interval)
+    elif parsed_source.scheme in ("file", "local"):
+        source_path = source.split("://", 1)[-1]
+        return LocalStorage(path=source_path, pull_interval=pull_interval)
+    elif parsed_source.scheme in fsspec.available_protocols():
+        return RemoteStorage(url=source, pull_interval=pull_interval)
     else:
-        return RemoteStorage(url=url, pull_interval=pull_interval)
+        logger.debug("No valid fsspec protocol found for URL, assuming local storage.")
+        return LocalStorage(path=source, pull_interval=pull_interval)
 
 
 def _format_token_from_credentials(netloc: str, credentials: dict) -> str:

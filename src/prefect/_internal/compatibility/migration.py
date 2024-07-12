@@ -5,11 +5,41 @@ The `getattr_migration` function is used to handle imports for moved or removed 
 It is used in the `__getattr__` attribute of modules that have moved or removed objects.
 
 Usage:
-```python
-from prefect._internal.compatibility.migration import getattr_migration
 
-__getattr__ = getattr_migration(__name__)
-```
+Moved objects:
+1. Add the old and new path to the `MOVED_IN_V3` dictionary, e.g. `MOVED_IN_V3 = {"old_path": "new_path"}`
+2. In the module where the object was moved from, add the following lines:
+    ```python
+    # at top
+    from prefect._internal.compatibility.migration import getattr_migration
+
+    # at bottom
+    __getattr__ = getattr_migration(__name__)
+    ```
+
+    Example at src/prefect/engine.py
+
+Removed objects:
+1. Add the old path and error message to the `REMOVED_IN_V3` dictionary, e.g. `REMOVED_IN_V3 = {"old_path": "error_message"}`
+2. In the module where the object was removed, add the following lines:
+    ```python
+    # at top
+    from prefect._internal.compatibility.migration import getattr_migration
+
+    # at bottom
+    __getattr__ = getattr_migration(__name__)
+
+    ```
+    If the entire old module was removed, add a stub for the module with the following lines:
+    ```python
+    # at top
+    from prefect._internal.compatibility.migration import getattr_migration
+    
+    # at bottom
+    __getattr__ = getattr_migration(__name__)
+    ```
+
+    Example at src/prefect/infrastructure/base.py
 """
 
 import sys
@@ -27,15 +57,27 @@ MOVED_IN_V3 = {
     "prefect.engine:resume_flow_run": "prefect.flow_runs:resume_flow_run",
     "prefect.engine:suspend_flow_run": "prefect.flow_runs:suspend_flow_run",
     "prefect.engine:_in_process_pause": "prefect.flow_runs:_in_process_pause",
+    "prefect.client:get_client": "prefect.client.orchestration:get_client",
 }
 
+upgrade_guide_msg = "Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/."
+
 REMOVED_IN_V3 = {
-    "prefect.deployments.deployments:Deployment": "Use 'flow.serve()' or `prefect deploy` instead.",
-    "prefect.deployments:Deployment": "Use 'flow.serve()' or `prefect deploy` instead.",
-    "prefect.filesystems:GCS": "Use 'prefect_gcp' instead.",
-    "prefect.filesystems:Azure": "Use 'prefect_azure' instead.",
-    "prefect.filesystems:S3": "Use 'prefect_aws' instead.",
-    "prefect.engine:_out_of_process_pause": "Use 'prefect.flow_runs.pause_flow_run' instead.",
+    "prefect.client.schemas.objects:MinimalDeploymentSchedule": "Use `prefect.client.schemas.actions.DeploymentScheduleCreate` instead.",
+    "prefect.context:PrefectObjectRegistry": upgrade_guide_msg,
+    "prefect.deployments.deployments:Deployment": "Use `flow.serve()`, `flow.deploy()`, or `prefect deploy` instead.",
+    "prefect.deployments:Deployment": "Use `flow.serve()`, `flow.deploy()`, or `prefect deploy` instead.",
+    "prefect.filesystems:GCS": "Use `prefect_gcp.GcsBucket` instead.",
+    "prefect.filesystems:Azure": "Use `prefect_azure.AzureBlobStorageContainer` instead.",
+    "prefect.filesystems:S3": "Use `prefect_aws.S3Bucket` instead.",
+    "prefect.filesystems:GitHub": "Use `prefect_github.GitHubRepository` instead.",
+    "prefect.engine:_out_of_process_pause": "Use `prefect.flow_runs.pause_flow_run` instead.",
+    "prefect.agent:PrefectAgent": "Use workers instead. " + upgrade_guide_msg,
+    "prefect.infrastructure:KubernetesJob": "Use workers instead. " + upgrade_guide_msg,
+    "prefect.infrastructure.base:Infrastructure": "Use the `BaseWorker` class to create custom infrastructure integrations instead. "
+    + upgrade_guide_msg,
+    "prefect.workers.block:BlockWorkerJobConfiguration": upgrade_guide_msg,
+    "prefect.workers.cloud:BlockWorker": upgrade_guide_msg,
 }
 
 # IMPORTANT FOR USAGE: When adding new modules to MOVED_IN_V3 or REMOVED_IN_V3, include the following lines at the bottom of that module:
@@ -112,7 +154,7 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
         if import_path in REMOVED_IN_V3.keys():
             error_message = REMOVED_IN_V3[import_path]
             raise PrefectImportError(
-                f"{import_path!r} has been removed. {error_message}"
+                f"`{import_path}` has been removed. {error_message}"
             )
 
         globals: Dict[str, Any] = sys.modules[module_name].__dict__

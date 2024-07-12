@@ -3,21 +3,13 @@ title: Trigger actions on events
 description: Automations provide a flexible and powerful framework for automatically taking action in response to events. 
 ---
 
-Automations are a Prefect Cloud feature that enable you to configure [actions](#actions) that execute automatically based on 
-[trigger](#triggers) conditions.
+Automations enable you to configure [actions](#actions) that execute automatically based on [trigger](#triggers) conditions.
 
 Potential triggers include the occurrence of events from changes in a flow run's state—or the absence of such events. 
-You can even define your own custom trigger to fire based on an [event](/3.0rc/automate/events/) created from a 
-webhook or a custom event defined in Python code.
+You can define your own custom trigger to fire based on a custom [event](/3.0rc/automate/events/custom-triggers/) defined in Python code.
+With Prefect Cloud you can even create [webhooks](/3.0rc/automate/events/webhook-triggers/) that can receive data for use in actions.
 
 Actions include starting flow runs, pausing schedules, and sending custom notifications.
-
-## Prerequisites
-
-- Python installed
-- Prefect [installed](/3.0rc/get-started/install/)
-- Authenticated to a [Prefect Cloud workspace](/3.0rc/get-started/quickstart/#step-2-connect-to-prefects-api/)
-- A [work pool](/3.0rc/deploy/work-pools/control-runs/) set up to handle the deployments
 
 ## Create an automation
 
@@ -49,7 +41,7 @@ common conditions, such as:
 - Work queue status
 - Deployment status
 - Metric thresholds, such as average duration, lateness, or completion percentage
-- Incident declarations (available on Pro and Custom plans)
+- Incident declarations (available on Pro and Enterprise plans)
 - Custom event triggers
 
 <Note>
@@ -85,7 +77,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Send a [notification](#automation-notifications)
 - Call a webhook
 - Suspend a flow run
-- Declare an incident (available on Pro and Custom plans)
+- Declare an incident (available on Pro and Enterprise plans)
 - Change the state of a flow run
 
 ![Configuring an action for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-action.png)
@@ -351,17 +343,17 @@ Jinja templated variable syntax wraps the variable name in double curly brackets
 
 You can access properties of the underlying flow run objects including:
 
-- [flow_run](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.FlowRun)
-- [flow](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
-- [deployment](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
-- [work_queue](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
-- [work_pool](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkPool)
+- [flow_run](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.FlowRun)
+- [flow](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.Flow)
+- [deployment](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.Deployment)
+- [work_queue](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
+- [work_pool](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.WorkPool)
 
 In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
 
-The `flow_run|ui_url` token returns the URL to view the flow run in Prefect Cloud.
+The `flow_run|ui_url` token returns the URL to view the flow run in the UI.
 
-Here’s an example for something relevant to a flow run state-based notification:
+Here's an example relevant to a flow run state-based notification:
 
 ```
 Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
@@ -512,8 +504,7 @@ run in response to an event.
 Create an automation to kick off a deployment instead of a notification. Explore how to programmatically create this 
 automation with Prefect's REST API.  
 
-See the [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) as a 
-reference for interacting with the Prefect Cloud automation endpoints.
+See the [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) as a reference for interacting with the automation endpoints.
 
 Create a deployment to kick off some work based on how long a flow is running. For example, if the `build_names` flow 
 takes too long to execute, you can kick off a deployment with the same `build_names` flow, but replace the `count` value 
@@ -531,7 +522,7 @@ Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.
 
       # Generic metadata about this project
       name: automations-guide
-      prefect-version: 2.13.1
+      prefect-version: 3.0.0
 
       # build section allows you to manage and build docker images
       build: null
@@ -603,33 +594,33 @@ Create an automation with a POST call to programmatically create the automation.
 def create_event_driven_automation():
     api_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/automations/"
     data = {
-    "name": "Event Driven Redeploy",
-    "description": "Programmatically created an automation to redeploy a flow based on an event",
-    "enabled": "true",
-    "trigger": {
-    "after": [
-        "string"
-    ],
-    "expect": [
-        "prefect.flow-run.Running"
-    ],
-    "for_each": [
-        "prefect.resource.id"
-    ],
-    "posture": "Proactive",
-    "threshold": 30,
-    "within": 0
-    },
-    "actions": [
-    {
-        "type": "run-deployment",
-        "source": "selected",
-        "deployment_id": "YOUR-DEPLOYMENT-ID", 
-        "parameters": "10"
+        "name": "Event Driven Redeploy",
+        "description": "Programmatically created an automation to redeploy a flow based on an event",
+        "enabled": "true",
+        "trigger": {
+            "after": [
+                "string"
+            ],
+            "expect": [
+                "prefect.flow-run.Running"
+            ],
+            "for_each": [
+                "prefect.resource.id"
+            ],
+            "posture": "Proactive",
+            "threshold": 30,
+            "within": 0
+        },
+        "actions": [
+            {
+                "type": "run-deployment",
+                "source": "selected",
+                "deployment_id": "YOUR-DEPLOYMENT-ID", 
+                "parameters": "10"
+            }
+        ],
+        "owner_resource": "string"
     }
-    ],
-    "owner_resource": "string"
-        }
     
     headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
     response = requests.post(api_url, headers=headers, json=data)
@@ -710,8 +701,16 @@ In this example, you created the automation by registering the .yaml file with a
 
 ## Kick off an automation with a custom webhook
 
+{/*
+<!-- vale off -->
+*/}
+
 Use webhooks to expose the events API. This allows you to extend the functionality of deployments and respond to 
 changes in your workflow. 
+
+{/*
+<!-- vale on -->
+*/}
 
 By exposing a webhook endpoint, you can kick off workflows that trigger deployments, all from an event created from an 
 HTTP request. 
@@ -806,7 +805,7 @@ running state for longer than 30 seconds.
 
 # Generic metadata about this project
 name: automations-guide
-prefect-version: 2.13.1
+prefect-version: 3.0.0
 
 # build section allows you to manage and build docker images
 build: null
@@ -826,9 +825,9 @@ deployments:
     - enabled: true
       match:
         prefect.resource.id: "prefect.flow-run.*"
-      after: "prefect.flow-run.Running",
-      expect: [],
-      for_each: ["prefect.resource.id"],
+      after: ["prefect.flow-run.Running"]
+      expect: []
+      for_each: ["prefect.resource.id"]
       parameters:
         param_1: 10
       posture: "Proactive"
