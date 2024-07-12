@@ -42,7 +42,7 @@
   },
   "topbarCtaButton": {
     "name": "TRY PREFECT CLOUD",
-    "url": "https://app.prefect.cloud/auth/login"
+    "url": "https://app.prefect.cloud/"
   },
   "anchors": [
     {
