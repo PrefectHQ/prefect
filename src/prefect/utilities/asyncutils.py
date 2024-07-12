@@ -249,6 +249,7 @@ def run_coro_as_sync(
             return call.result()
         except KeyboardInterrupt:
             call.cancel()
+
             logger.debug("Coroutine cancelled due to KeyboardInterrupt.")
             raise
 
