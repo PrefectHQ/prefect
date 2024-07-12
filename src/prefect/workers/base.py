@@ -542,63 +542,72 @@ class BaseWorker(abc.ABC):
             with_healthcheck: If set, the worker will start a healthcheck server.
             printer: A `print`-like function where logs will be reported.
         """
-        async with self as worker:
-            # wait for an initial heartbeat to configure the worker
-            await worker.sync_with_backend()
-            # schedule the scheduled flow run polling loop
-            async with anyio.create_task_group() as loops_task_group:
-                loops_task_group.start_soon(
-                    partial(
-                        critical_service_loop,
-                        workload=self.get_and_submit_flow_runs,
-                        interval=PREFECT_WORKER_QUERY_SECONDS.value(),
-                        run_once=run_once,
-                        jitter_range=0.3,
-                        backoff=4,  # Up to ~1 minute interval during backoff
+        healthcheck_server = None
+        healthcheck_thread = None
+        try:
+            async with self as worker:
+                # wait for an initial heartbeat to configure the worker
+                await worker.sync_with_backend()
+                # schedule the scheduled flow run polling loop
+                async with anyio.create_task_group() as loops_task_group:
+                    loops_task_group.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=self.get_and_submit_flow_runs,
+                            interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                            run_once=run_once,
+                            jitter_range=0.3,
+                            backoff=4,  # Up to ~1 minute interval during backoff
+                        )
                     )
-                )
-                # schedule the sync loop
-                loops_task_group.start_soon(
-                    partial(
-                        critical_service_loop,
-                        workload=self.sync_with_backend,
-                        interval=self.heartbeat_interval_seconds,
-                        run_once=run_once,
-                        jitter_range=0.3,
-                        backoff=4,
+                    # schedule the sync loop
+                    loops_task_group.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=self.sync_with_backend,
+                            interval=self.heartbeat_interval_seconds,
+                            run_once=run_once,
+                            jitter_range=0.3,
+                            backoff=4,
+                        )
                     )
-                )
-                loops_task_group.start_soon(
-                    partial(
-                        critical_service_loop,
-                        workload=self.check_for_cancelled_flow_runs,
-                        interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
-                        run_once=run_once,
-                        jitter_range=0.3,
-                        backoff=4,
+                    loops_task_group.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=self.check_for_cancelled_flow_runs,
+                            interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                            run_once=run_once,
+                            jitter_range=0.3,
+                            backoff=4,
+                        )
                     )
-                )
 
-                self._started_event = await self._emit_worker_started_event()
+                    self._started_event = await self._emit_worker_started_event()
 
-                if with_healthcheck:
-                    from prefect.workers.server import start_healthcheck_server
+                    if with_healthcheck:
+                        from prefect.workers.server import build_healthcheck_server
 
-                    # we'll start the ASGI server in a separate thread so that
-                    # uvicorn does not block the main thread
-                    webserver_thread = threading.Thread(
-                        name="healthcheck-server-thread",
-                        target=partial(
-                            start_healthcheck_server,
-                            worker=self,
+                        # we'll start the ASGI server in a separate thread so that
+                        # uvicorn does not block the main thread
+                        healthcheck_server = build_healthcheck_server(
+                            worker=worker,
                             query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
-                        ),
-                        daemon=True,
-                    )
-                    webserver_thread.start()
-                printer(f"Worker {worker.name!r} started!")
+                        )
+                        healthcheck_thread = threading.Thread(
+                            name="healthcheck-server-thread",
+                            target=healthcheck_server.run,
+                            daemon=True,
+                        )
+                        healthcheck_thread.start()
+                    printer(f"Worker {worker.name!r} started!")
+        finally:
+            if healthcheck_server and healthcheck_thread:
+                self._logger.debug("Stopping healthcheck server...")
+                healthcheck_server.should_exit = True
+                healthcheck_thread.join()
+                self._logger.debug("Healthcheck server stopped.")
 
-            printer(f"Worker {worker.name!r} stopped!")
+        printer(f"Worker {worker.name!r} stopped!")
 
     @abc.abstractmethod
     async def run(
