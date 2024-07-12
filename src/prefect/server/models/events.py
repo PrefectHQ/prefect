@@ -294,6 +294,7 @@ async def deployment_status_event(
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
     )
+    assert deployment
     flow = await models.flows.read_flow(session=session, flow_id=deployment.flow_id)
     work_queue = (
         await models.workers.read_work_queue(
@@ -396,7 +397,7 @@ async def work_pool_status_event(
     occurred: pendulum.DateTime,
     pre_update_work_pool: Optional["ORMWorkPool"],
     work_pool: "ORMWorkPool",
-):
+) -> Event:
     assert work_pool.status
 
     return Event(
