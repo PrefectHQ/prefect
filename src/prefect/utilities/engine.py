@@ -558,7 +558,7 @@ def propose_state_sync(
         )
 
 
-def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
+def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> Union[int, str]:
     if context.detached:  # this task is running on remote infrastructure
         return str(uuid4())
     elif context.flow_run is None:  # this is an autonomous task run
