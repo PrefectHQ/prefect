@@ -1,6 +1,7 @@
 from typing import Optional
 
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
 from prefect.server.database import orm_models
@@ -11,9 +12,9 @@ from prefect.server.database.interface import PrefectDBInterface
 @db_injector
 async def write_configuration(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     configuration: schemas.core.Configuration,
-):
+) -> orm_models.Configuration:
     # first see if the key already exists
     query = sa.select(orm_models.Configuration).where(
         orm_models.Configuration.key == configuration.key
@@ -40,7 +41,7 @@ async def write_configuration(
 @db_injector
 async def read_configuration(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     key: str,
 ) -> Optional[schemas.core.Configuration]:
     value = await db.read_configuration_value(session=session, key=key)
