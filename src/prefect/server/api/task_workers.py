@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import Body
 from pydantic import BaseModel
@@ -11,15 +11,15 @@ router = PrefectRouter(prefix="/task_workers", tags=["Task Workers"])
 
 
 class TaskWorkerFilter(BaseModel):
-    task_keys: list[str]
+    task_keys: List[str]
 
 
 @router.post("/filter")
 async def read_task_workers(
     task_worker_filter: Optional[TaskWorkerFilter] = Body(
-        None, description="The task worker filter"
+        default=None, description="The task worker filter"
     ),
-) -> list[TaskWorkerResponse]:
+) -> List[TaskWorkerResponse]:
     """Read active task workers. Optionally filter by task keys."""
 
     if task_worker_filter and task_worker_filter.task_keys:
