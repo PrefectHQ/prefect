@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import os
 import re
@@ -180,11 +181,11 @@ class TestServe:
         monkeypatch.setattr("prefect.runner.Runner.start", mock)
         return mock
 
-    async def test_serve_prints_help_message_on_startup(self, capsys):
-        await serve(
-            await dummy_flow_1.to_deployment(__file__),
-            await dummy_flow_2.to_deployment(__file__),
-            await tired_flow.to_deployment(__file__),
+    def test_serve_prints_help_message_on_startup(self, capsys):
+        serve(
+            dummy_flow_1.to_deployment(__file__),
+            dummy_flow_2.to_deployment(__file__),
+            tired_flow.to_deployment(__file__),
         )
 
         captured = capsys.readouterr()
@@ -200,7 +201,7 @@ class TestServe:
 
     is_python_38 = sys.version_info[:2] == (3, 8)
 
-    async def test_serve_typed_container_inputs_flow(self, capsys):
+    def test_serve_typed_container_inputs_flow(self, capsys):
         if self.is_python_38:
 
             @flow
@@ -215,8 +216,8 @@ class TestServe:
                 print(arg1)
                 return ",".join(arg1)
 
-        await serve(
-            await type_container_input_flow.to_deployment(__file__),
+        serve(
+            type_container_input_flow.to_deployment(__file__),
         )
 
         captured = capsys.readouterr()
@@ -228,17 +229,17 @@ class TestServe:
         assert "type-container-input-flow/test_runner" in captured.out
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
-    async def test_serve_can_create_multiple_deployments(
+    def test_serve_can_create_multiple_deployments(
         self,
         prefect_client: PrefectClient,
     ):
-        deployment_1 = await dummy_flow_1.to_deployment(__file__, interval=3600)
-        deployment_2 = await dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
-        await serve(deployment_1, deployment_2)
+        serve(deployment_1, deployment_2)
 
-        deployment = await prefect_client.read_deployment_by_name(
-            name="dummy-flow-1/test_runner"
+        deployment = asyncio.run(
+            prefect_client.read_deployment_by_name(name="dummy-flow-1/test_runner")
         )
 
         assert deployment is not None
@@ -246,19 +247,19 @@ class TestServe:
             seconds=3600
         )
 
-        deployment = await prefect_client.read_deployment_by_name(
-            name="dummy-flow-2/test_runner"
+        deployment = asyncio.run(
+            prefect_client.read_deployment_by_name(name="dummy-flow-2/test_runner")
         )
 
         assert deployment is not None
         assert deployment.schedules[0].schedule.cron == "* * * * *"
 
-    async def test_serve_starts_a_runner(
+    def test_serve_starts_a_runner(
         self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
     ):
-        deployment = await dummy_flow_1.to_deployment("test")
+        deployment = dummy_flow_1.to_deployment("test")
 
-        await serve(deployment)
+        serve(deployment)
 
         mock_runner_start.assert_awaited_once()
 
