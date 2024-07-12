@@ -1,8 +1,8 @@
-name: Nightly Release Candidate
+name: Weekly Release Candidate
 
 on:
   schedule:
-    - cron: '0 8 * * *' # Run at midnight PST (08:00 UTC)
+    - cron: '0 13 * * 4' # Run every Thursday at 2PM EST
   workflow_dispatch:
 
 jobs:
