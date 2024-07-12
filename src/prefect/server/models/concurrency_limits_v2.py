@@ -1,8 +1,9 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Sequence, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
@@ -10,7 +11,9 @@ from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 
 
-def greatest(db, clamped_value, sql_value):
+def greatest(
+    db: PrefectDBInterface, clamped_value: int, sql_value: ColumnElement
+) -> ColumnElement:
     # Determine the greatest value based on the database type
     if db.dialect.name == "sqlite":
         # `sa.func.greatest` isn't available in SQLite, fallback to using a
@@ -20,7 +23,7 @@ def greatest(db, clamped_value, sql_value):
         return sa.func.greatest(clamped_value, sql_value)
 
 
-def seconds_ago(db, field) -> float:
+def seconds_ago(db: PrefectDBInterface, field: ColumnElement) -> ColumnElement:
     if db.dialect.name == "sqlite":
         # `sa.func.timezone` isn't available in SQLite, fallback to using
         # `julianday` .
@@ -32,7 +35,7 @@ def seconds_ago(db, field) -> float:
         ).cast(sa.Float)
 
 
-def active_slots_after_decay(db: PrefectDBInterface):
+def active_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
     # Active slots will decay at a rate of `slot_decay_per_second` per second.
     return greatest(
         db,
@@ -45,7 +48,7 @@ def active_slots_after_decay(db: PrefectDBInterface):
     )
 
 
-def denied_slots_after_decay(db: PrefectDBInterface):
+def denied_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
     # Denied slots decay at a rate of `slot_decay_per_second` per second if it's
     # greater than 0, otherwise it decays at a rate of `avg_slot_occupancy_seconds`.
     # The combination of `denied_slots` and `slot_decay_per_second` /
@@ -88,7 +91,7 @@ async def create_concurrency_limit(
     concurrency_limit: Union[
         schemas.actions.ConcurrencyLimitV2Create, schemas.core.ConcurrencyLimitV2
     ],
-):
+) -> orm_models.ConcurrencyLimitV2:
     model = orm_models.ConcurrencyLimitV2(**concurrency_limit.model_dump())
 
     session.add(model)
@@ -101,7 +104,7 @@ async def read_concurrency_limit(
     session: AsyncSession,
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
-):
+) -> Union[orm_models.ConcurrencyLimitV2, None]:
     if not concurrency_limit_id and not name:
         raise ValueError("Must provide either concurrency_limit_id or name")
 
@@ -119,7 +122,7 @@ async def read_all_concurrency_limits(
     session: AsyncSession,
     limit: int,
     offset: int,
-):
+) -> Sequence[orm_models.ConcurrencyLimitV2]:
     query = sa.select(orm_models.ConcurrencyLimitV2).order_by(
         orm_models.ConcurrencyLimitV2.name
     )
@@ -185,7 +188,7 @@ async def delete_concurrency_limit(
 async def bulk_read_or_create_concurrency_limits(
     session: AsyncSession,
     names: List[str],
-):
+) -> List[orm_models.ConcurrencyLimitV2]:
     # Get all existing concurrency limits in `names`.
     existing_query = sa.select(orm_models.ConcurrencyLimitV2).where(
         orm_models.ConcurrencyLimitV2.name.in_(names)
@@ -298,7 +301,7 @@ async def bulk_update_denied_slots(
     session: AsyncSession,
     concurrency_limit_ids: List[UUID],
     slots: int,
-):
+) -> bool:
     query = (
         sa.update(orm_models.ConcurrencyLimitV2)
         .where(
