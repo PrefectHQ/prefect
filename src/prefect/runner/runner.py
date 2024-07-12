@@ -1160,8 +1160,11 @@ class Runner:
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        if self._runs_task_group is None:
+            self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+
+        if self._loops_task_group is None:
+            self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
