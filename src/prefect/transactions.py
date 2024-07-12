@@ -235,7 +235,18 @@ class Transaction(ContextModel):
         try:
             for hook in reversed(self.on_rollback_hooks):
                 hook_name = _get_hook_name(hook)
+                if self.logger:
+                    self.logger.info(
+                        f"Running hook {hook_name!r} in response to entering state"
+                        f" {TransactionState.ROLLED_BACK.name!r}"
+                    )
+
                 hook(self)
+
+                if self.logger:
+                    self.logger.info(
+                        f"Hook {hook_name!r} finished running successfully"
+                    )
 
             self.state = TransactionState.ROLLED_BACK
 
