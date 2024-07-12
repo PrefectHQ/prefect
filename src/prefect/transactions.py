@@ -187,7 +187,15 @@ class Transaction(ContextModel):
 
             for hook in self.on_commit_hooks:
                 hook_name = _get_hook_name(hook)
+                if self.logger:
+                    self.logger.info(f"Running commit hook {hook_name!r}")
+
                 hook(self)
+
+                if self.logger:
+                    self.logger.info(
+                        f"Commit hook {hook_name!r} finished running successfully"
+                    )
 
             if self.store and self.key:
                 self.store.write(key=self.key, value=self._staged_value)
@@ -236,16 +244,13 @@ class Transaction(ContextModel):
             for hook in reversed(self.on_rollback_hooks):
                 hook_name = _get_hook_name(hook)
                 if self.logger:
-                    self.logger.info(
-                        f"Running hook {hook_name!r} in response to entering state"
-                        f" {TransactionState.ROLLED_BACK.name!r}"
-                    )
+                    self.logger.info(f"Running rollback hook {hook_name!r}")
 
                 hook(self)
 
                 if self.logger:
                     self.logger.info(
-                        f"Hook {hook_name!r} finished running successfully"
+                        f"Rollback hook {hook_name!r} finished running successfully"
                     )
 
             self.state = TransactionState.ROLLED_BACK
