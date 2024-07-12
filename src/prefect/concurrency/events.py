@@ -54,6 +54,6 @@ def _emit_concurrency_release_events(
     limits: List[MinimalConcurrencyLimitResponse],
     occupy: int,
     events: Dict[UUID, Optional[Event]],
-):
+) -> None:
     for limit in limits:
         _emit_concurrency_event("released", limit, limits, occupy, events[limit.id])

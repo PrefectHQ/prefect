@@ -3,7 +3,7 @@ Functions for interacting with agent ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import Union
+from typing import Sequence, Union
 from uuid import UUID
 
 import pendulum
@@ -20,7 +20,7 @@ from prefect.server.database.interface import PrefectDBInterface
 async def create_agent(
     session: AsyncSession,
     agent: schemas.core.Agent,
-):
+) -> orm_models.Agent:
     """
     Inserts a Agent.
 
@@ -45,7 +45,7 @@ async def create_agent(
 async def read_agent(
     session: AsyncSession,
     agent_id: UUID,
-):
+) -> Union[orm_models.Agent, None]:
     """
     Reads a Agent by id.
 
@@ -64,7 +64,7 @@ async def read_agents(
     session: AsyncSession,
     offset: Union[int, None] = None,
     limit: Union[int, None] = None,
-):
+) -> Sequence[orm_models.Agent]:
     """
     Read Agents.
 
