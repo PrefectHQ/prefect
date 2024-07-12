@@ -49,7 +49,10 @@ async def create_or_update_csrf_token(
     )
 
     # Return the created / updated token object
-    return await read_token_for_client(session=session, client=client)
+    token = await read_token_for_client(session=session, client=client)
+    assert token
+
+    return token
 
 
 async def read_token_for_client(
