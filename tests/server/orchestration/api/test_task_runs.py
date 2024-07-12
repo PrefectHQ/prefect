@@ -1,4 +1,5 @@
 import uuid
+from unittest import mock
 from uuid import uuid4
 
 import pendulum
@@ -11,7 +12,23 @@ from prefect.server import models, schemas
 from prefect.server.database.orm_models import TaskRun
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
-from prefect.states import Pending
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY,
+    PREFECT_EXPERIMENTAL_WARN_CLIENT_SIDE_TASK_CONCURRENCY,
+    temporary_settings,
+)
+from prefect.states import Pending, Running
+
+
+@pytest.fixture
+def enable_client_side_concurrency():
+    with temporary_settings(
+        updates={
+            PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY: True,
+            PREFECT_EXPERIMENTAL_WARN_CLIENT_SIDE_TASK_CONCURRENCY: False,
+        }
+    ):
+        yield
 
 
 class TestCreateTaskRun:
@@ -575,6 +592,25 @@ class TestSetTaskRunState:
         )
 
         assert response_2.status == responses.SetStateStatus.ABORT
+
+    async def test_set_task_run_state_uses_client_orchestration_policy(
+        self, task_run, flow_run, prefect_client, enable_client_side_concurrency
+    ):
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id, state=Running()
+        )
+        await prefect_client.set_task_run_state(
+            task_run_id=task_run.id, state=Pending(), force=True
+        )
+
+        with mock.patch(
+            "prefect.server.orchestration.core_policy.SecureTaskConcurrencySlots.before_transition",
+        ) as mock_slot_transition:
+            response = await prefect_client.set_task_run_state(
+                task_run_id=task_run.id, state=Running()
+            )
+            assert response.status == responses.SetStateStatus.ACCEPT
+            mock_slot_transition.assert_not_called()
 
 
 class TestTaskRunHistory:

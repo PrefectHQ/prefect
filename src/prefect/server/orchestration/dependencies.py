@@ -4,6 +4,11 @@ Injected orchestration dependencies
 
 from contextlib import contextmanager
 
+from fastapi import Depends
+
+from prefect.server.api.dependencies import provide_request_client_version
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY
+
 ORCHESTRATION_DEPENDENCIES = {
     "task_policy_provider": None,
     "flow_policy_provider": None,
@@ -12,11 +17,26 @@ ORCHESTRATION_DEPENDENCIES = {
 }
 
 
-async def provide_task_policy():
+async def provide_task_policy(client_version=Depends(provide_request_client_version)):
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("task_policy_provider")
 
     if policy_provider is None:
-        from prefect.server.orchestration.core_policy import CoreTaskPolicy
+        from prefect.server.orchestration.core_policy import (
+            ClientSideTaskOrchestrationPolicy,
+            CoreTaskPolicy,
+        )
+
+        if (
+            PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY.value()
+            and client_version
+            and (
+                # Clients older than 3.0.0rc11 do not support client-side task concurrency.
+                client_version.major == 3
+                and client_version.pre
+                and client_version.pre[1] >= 9
+            )
+        ):
+            return ClientSideTaskOrchestrationPolicy
 
         return CoreTaskPolicy
 

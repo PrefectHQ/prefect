@@ -1032,6 +1032,15 @@
                             "type": "string",
                             "title": "X-Prefect-Api-Version"
                         }
+                    },
+                    {
+                        "name": "user-agent",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "User-Agent"
+                        }
                     }
                 ],
                 "requestBody": {
@@ -1922,6 +1931,15 @@
                         "schema": {
                             "type": "string",
                             "title": "X-Prefect-Api-Version"
+                        }
+                    },
+                    {
+                        "name": "user-agent",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "User-Agent"
                         }
                     }
                 ],
