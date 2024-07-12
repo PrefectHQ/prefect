@@ -1113,6 +1113,10 @@ class Deployment(ObjectBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+    disabled: bool = Field(
+        default=False,
+        description="If true, no flow runs will be created for the deployment.",
+    )
 
 
 class ConcurrencyLimit(ObjectBaseModel):
