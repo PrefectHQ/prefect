@@ -2,7 +2,7 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Hashable, List, Tuple, Union, cast
+from typing import Any, Dict, Hashable, List, Tuple, Union, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -1105,7 +1105,7 @@ class BlockDocumentReference(Base):
 
 class Configuration(Base):
     key = sa.Column(sa.String, nullable=False, index=True)
-    value = sa.Column(JSON, nullable=False)
+    value: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("key"),)
 
