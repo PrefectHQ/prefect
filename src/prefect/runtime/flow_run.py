@@ -244,7 +244,7 @@ def get_parent_flow_run_id() -> Optional[str]:
     return None
 
 
-def get_parent_deployment_id() -> Optional[UUID]:
+def get_parent_deployment_id() -> Optional[str]:
     parent_flow_run_id = get_parent_flow_run_id()
     if parent_flow_run_id is None:
         return None
