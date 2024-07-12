@@ -925,10 +925,10 @@ class Flow(Generic[P, R]):
     @classmethod
     @sync_compatible
     async def from_source(
-        cls: Type[F],
+        cls: Type["Flow[P, R]"],
         source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
-    ) -> F:
+    ) -> "Flow[P, R]":
         """
         Loads a flow from a remote source.
 
@@ -1006,7 +1006,9 @@ class Flow(Generic[P, R]):
             create_storage_from_source,
         )
 
-        if isinstance(source, str):
+        if isinstance(source, (Path, str)):
+            if isinstance(source, Path):
+                source = str(source)
             storage = create_storage_from_source(source)
         elif isinstance(source, RunnerStorage):
             storage = source

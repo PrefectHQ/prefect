@@ -151,7 +151,7 @@ class from_async(_base):
         __call: Union[Callable[[], T], Call[T]],
         timeout: Optional[float] = None,
         done_callbacks: Optional[Iterable[Call]] = None,
-    ) -> Call[T]:
+    ) -> T:
         call = _cast_to_call(__call)
         waiter = AsyncWaiter(call=call)
         for callback in done_callbacks or []:
