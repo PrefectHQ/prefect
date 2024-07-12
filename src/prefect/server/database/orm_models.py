@@ -2,7 +2,7 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Hashable, List, Tuple, Union, cast
+from typing import Any, Dict, Hashable, List, Tuple, Union, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -10,7 +10,9 @@ from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
+    Mapped,
     declared_attr,
+    mapped_column,
     registry,
     synonym,
 )
@@ -338,7 +340,7 @@ class ArtifactCollection(Base):
         nullable=False,
     )
 
-    latest_id = sa.Column(UUID(), nullable=False)
+    latest_id: Mapped[UUID] = mapped_column(UUID(), nullable=False)
 
     task_run_id = sa.Column(
         UUID(),
@@ -952,7 +954,9 @@ class Log(Base):
 class ConcurrencyLimit(Base):
     tag = sa.Column(sa.String, nullable=False)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
-    active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    active_slots: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=list, nullable=False
+    )
 
     __table_args__ = (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
 
@@ -1103,7 +1107,7 @@ class BlockDocumentReference(Base):
 
 class Configuration(Base):
     key = sa.Column(sa.String, nullable=False, index=True)
-    value = sa.Column(JSON, nullable=False)
+    value: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("key"),)
 

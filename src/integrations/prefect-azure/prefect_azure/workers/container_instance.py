@@ -554,17 +554,15 @@ class AzureContainerWorker(BaseWorker):
         # Get the flow, so we can use its name in the container group name
         # to make it easier to identify and debug.
         flow = await prefect_client.read_flow(flow_run.flow_id)
-        container_group_name = f"{flow.name}-{flow_run.id}"
 
-        # Slugify flow.name if the generated name will be too long for the
-        # max deployment name length (64) including "prefect-"
-        if len(container_group_name) > 55:
-            slugified_flow_name = slugify(
-                flow.name,
-                max_length=55 - len(str(flow_run.id)),
-                regex_pattern=r"[^a-zA-Z0-9-]+",
-            )
-            container_group_name = f"{slugified_flow_name}-{flow_run.id}"
+        # Slugify flow.name and ensure that the generated name won't be too long
+        # for the max deployment name length (64) including "prefect-"
+        slugified_flow_name = slugify(
+            flow.name,
+            max_length=55 - len(str(flow_run.id)),
+            regex_pattern=r"[^a-zA-Z0-9-]+",
+        )
+        container_group_name = f"{slugified_flow_name}-{flow_run.id}"
 
         self._logger.info(
             f"{self._log_prefix}: Preparing to run command {configuration.command} "
