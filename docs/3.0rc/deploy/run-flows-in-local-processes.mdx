@@ -12,7 +12,7 @@ The serve method creates a deployment for the flow and starts a long-running pro
 that monitors for work from the Prefect server.
 When work is found, it is executed within its own isolated subprocess.
 
-```python title="hello_world.py"
+```python hello_world.py
 from prefect import flow
 
 
@@ -101,7 +101,7 @@ To execute remotely triggered or scheduled runs, your script with `flow.serve` m
 
 Serve multiple flows with the same process using the `serve` utility along with the `to_deployment` method of flows:
 
-```python
+```python serve_two_flows.py
 import time
 from prefect import flow, serve
 
@@ -159,13 +159,15 @@ You can retrieve flows from remote storage with the `flow.from_source` method.
 `flow.from_source` accepts a git repository URL and an entrypoint pointing to the 
 flow to load from the repository:
 
-```python title="load_from_url.py"
+```python load_from_url.py
 from prefect import flow
+
 
 my_flow = flow.from_source(
     source="https://github.com/PrefectHQ/prefect.git",
     entrypoint="flows/hello_world.py:hello"
 )
+
 
 if __name__ == "__main__":
     my_flow()
@@ -183,7 +185,7 @@ flow function separated by a colon.
 For additional configuration, such as specifying a private repository, 
 provide a `GitRepository` object instead of URL:
 
-```python title="load_from_storage.py"
+```python load_from_storage.py
 from prefect import flow
 from prefect.runner.storage import GitRepository
 from prefect.blocks.system import Secret
@@ -210,7 +212,7 @@ if __name__ == "__main__":
 
 You can serve a flow loaded from remote storage with the same [`serve`](#serving-a-flow) method as a local flow:
 
-```python title="serve_loaded_flow.py"
+```python serve_loaded_flow.py
 from prefect import flow
 
 
