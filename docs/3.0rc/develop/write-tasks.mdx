@@ -556,7 +556,7 @@ If the task fails on the final retry, Prefect marks the task as _failed_.
 A new task run is not created when a task is retried. 
 Instead, a new state is added to the state history of the original task run.
 
-Retries are often useful in cases that depend uon external systems, such as when making an API request. 
+Retries are often useful in cases that depend upon external systems, such as making an API request. 
 The example below uses the [`httpx`](https://www.python-httpx.org/) library to make an HTTP
 request.
 
