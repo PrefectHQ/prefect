@@ -1,7 +1,6 @@
 import abc
 import inspect
 import threading
-import warnings
 from contextlib import AsyncExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
@@ -15,11 +14,6 @@ from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal
 
 import prefect
-from prefect._internal.compatibility.experimental import (
-    EXPERIMENTAL_WARNING,
-    ExperimentalFeature,
-    experiment_enabled,
-)
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
@@ -48,8 +42,6 @@ from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logg
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_WARN,
-    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -242,22 +234,7 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a command for a flow run job.
         """
-        if experiment_enabled("enhanced_cancellation"):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Enhanced flow run cancellation",
-                        group="enhanced_cancellation",
-                        help="",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-            return "prefect flow-run execute"
-        return "python -m prefect.engine"
+        return "prefect flow-run execute"
 
     @staticmethod
     def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
