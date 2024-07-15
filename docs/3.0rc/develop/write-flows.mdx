@@ -777,7 +777,7 @@ def always_fails_flow():
     return x, y, z
 ```
 
-Running this flow fails because one of the three returned futures failed. 
+Running this flow fails because one of the three returned futures fails. 
 Note that the states of each of the returned futures are included in the flow run state:
 
 ```bash
@@ -822,7 +822,7 @@ if __name__ == "__main__":
     always_succeeds_flow()
 ```
 
-Running this flow produces the following result.
+Running this flow produces the following result:
 
 ```bash
 ...
@@ -834,7 +834,7 @@ I'm fail safe!
 07:29:35.225 | INFO    | Flow run 'hidden-butterfly' - Finished in state Completed('I am happy with this result')
 ```
 
-If a flow run returns any other object, then it is recorded as Completed.
+If a flow run returns any other object, then it is recorded as `COMPLETED`
 
 ## Retries
 
@@ -843,13 +843,14 @@ For example the GitHub API may be temporarily unavailable or rate limited.
 
 Prefect can automatically retry flow runs on failure. 
 
-To enable retries, pass `retries` to the flow.
+To enable retries, pass an integer to the flow's `retries` parameter.
 If the flow run fails, Prefect will retry it up to `retries` times.
-Optionally, pass an integer to `retry_delay_seconds` to specify how many seconds to wait between each retry attempt. 
+
 If the flow run fails on the final retry, Prefect records the final flow run state as _failed_.
 
-Check out [Transactions](/3.0rc/develop/transactions/) to make your flows even more resilient and rollback actions when desired.
+Optionally, pass an integer to `retry_delay_seconds` to specify how many seconds to wait between each retry attempt. 
 
+Check out [Transactions](/3.0rc/develop/transactions/) to make your flows even more resilient and rollback actions when desired.
 
 ## See also
 
