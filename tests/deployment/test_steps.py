@@ -526,8 +526,14 @@ class TestGitCloneStep:
                 }
             )
 
-        assert "Attempt 1 failed with RuntimeError. Retrying in " in caplog.text
-        assert "Attempt 2 failed with RuntimeError. Retrying in " in caplog.text
+        assert (
+            "Attempt 1 of function 'git_clone' failed with RuntimeError. Retrying in "
+            in caplog.text
+        )
+        assert (
+            "Attempt 2 of function 'git_clone' failed with RuntimeError. Retrying in "
+            in caplog.text
+        )
 
         assert result == {"directory": "repo"}
 

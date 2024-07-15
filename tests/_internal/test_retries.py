@@ -74,8 +74,11 @@ class TestRetryAsyncFn:
         with pytest.raises(ValueError, match="Test error"), caplog.at_level("WARNING"):
             await fail_func()
 
-        assert "Attempt 1 failed with ValueError. Retrying in" in caplog.text
-        assert "Failed after 2 attempts" in caplog.text
+        assert (
+            "Attempt 1 of function 'fail_func' failed with ValueError. Retrying in"
+            in caplog.text
+        )
+        assert "'fail_func' failed after 2 attempts" in caplog.text
         assert mock_sleep.call_count == 1
 
     async def test_exponential_backoff_with_jitter(self, mock_sleep):

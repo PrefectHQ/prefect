@@ -1,6 +1,6 @@
 import asyncio
 from functools import wraps
-from typing import Any, Callable, Optional, Tuple, Type
+from typing import Any, Callable, Tuple, Type
 
 from prefect.logging.loggers import get_logger
 from prefect.utilities.math import clamped_poisson_interval
@@ -17,10 +17,12 @@ def exponential_backoff_with_jitter(
 
 def retry_async_fn(
     max_attempts: int = 3,
-    backoff_strategy: Optional[Callable[[int, float, float], float]] = None,
+    backoff_strategy: Callable[
+        [int, float, float], float
+    ] = exponential_backoff_with_jitter,
     base_delay: float = 1,
     max_delay: float = 10,
-    retry_on_exceptions: Optional[Tuple[Type[Exception], ...]] = None,
+    retry_on_exceptions: Tuple[Type[Exception], ...] = (Exception,),
 ):
     """A decorator for retrying an async function.
 
@@ -34,11 +36,6 @@ def retry_async_fn(
         retry_on_exceptions: A tuple of exception types to retry on. Defaults to
             retrying on all exceptions.
     """
-    if backoff_strategy is None:
-        backoff_strategy = exponential_backoff_with_jitter
-
-    if retry_on_exceptions is None:
-        retry_on_exceptions = (Exception,)
 
     def decorator(func):
         @wraps(func)
@@ -48,11 +45,13 @@ def retry_async_fn(
                     return await func(*args, **kwargs)
                 except retry_on_exceptions as e:
                     if attempt == max_attempts - 1:
-                        logger.exception(f"Failed after {max_attempts} attempts")
+                        logger.exception(
+                            f"Function {func.__name__!r} failed after {max_attempts} attempts"
+                        )
                         raise
                     delay = backoff_strategy(attempt, base_delay, max_delay)
                     logger.warning(
-                        f"Attempt {attempt + 1} failed with {type(e).__name__}. "
+                        f"Attempt {attempt + 1} of function {func.__name__!r} failed with {type(e).__name__}. "
                         f"Retrying in {delay:.2f} seconds..."
                     )
                     await asyncio.sleep(delay)
