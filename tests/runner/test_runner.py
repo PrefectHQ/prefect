@@ -809,6 +809,7 @@ class TestRunner:
             await runner._cancel_run(flow_run)
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 async def test_runner_emits_cancelled_event(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
@@ -816,7 +817,7 @@ async def test_runner_emits_cancelled_event(
     temp_storage: MockStorage,
     in_temporary_runner_directory: None,
 ):
-    runner = Runner()
+    runner = Runner(query_seconds=1)
     temp_storage.code = dedent(
         """\
         from time import sleep
