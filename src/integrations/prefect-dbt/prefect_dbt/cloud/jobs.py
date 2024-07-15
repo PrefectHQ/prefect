@@ -416,7 +416,7 @@ async def trigger_dbt_cloud_job_run_and_wait_for_completion(
 async def _build_trigger_job_run_options(
     dbt_cloud_credentials: DbtCloudCredentials,
     trigger_job_run_options: TriggerJobRunOptions,
-    run_id: str,
+    run_id: int,
     run_info: Dict[str, Any],
     job_info: Dict[str, Any],
 ):

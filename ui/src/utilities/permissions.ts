@@ -4,8 +4,6 @@ import { InjectionKey } from 'vue'
 const featureFlags = [
   'access:workers',
   'access:artifacts',
-  'access:deploymentStatus',
-  'access:workQueueStatus',
 ] as const
 
 export type FeatureFlag = typeof featureFlags[number] | WorkspaceFeatureFlag

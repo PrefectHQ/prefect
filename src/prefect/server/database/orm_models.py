@@ -2,7 +2,7 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Hashable, List, Tuple, Union, cast
+from typing import Any, Dict, Hashable, List, Tuple, Union, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -10,7 +10,9 @@ from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
+    Mapped,
     declared_attr,
+    mapped_column,
     registry,
     synonym,
 )
@@ -105,8 +107,7 @@ class Base(DeclarativeBase):
         """
         return camel_to_snake.sub("_", cls.__name__).lower()
 
-    id = sa.Column(
-        UUID(),
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
         server_default=GenerateUUID(),
         default=uuid.uuid4,
@@ -137,7 +138,9 @@ class Flow(Base):
     """SQLAlchemy mixin of a flow."""
 
     name = sa.Column(sa.String, nullable=False)
-    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    tags: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=list, nullable=False
+    )
 
     flow_runs = sa.orm.relationship("FlowRun", back_populates="flow", lazy="raise")
     deployments = sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
@@ -338,7 +341,7 @@ class ArtifactCollection(Base):
         nullable=False,
     )
 
-    latest_id = sa.Column(UUID(), nullable=False)
+    latest_id: Mapped[UUID] = mapped_column(UUID(), nullable=False)
 
     task_run_id = sa.Column(
         UUID(),
@@ -486,14 +489,14 @@ class Run(Base):
 class FlowRun(Run):
     """SQLAlchemy model of a flow run."""
 
-    flow_id = sa.Column(
+    flow_id: Mapped[uuid.UUID] = mapped_column(
         UUID(),
         sa.ForeignKey("flow.id", ondelete="cascade"),
         nullable=False,
         index=True,
     )
 
-    deployment_id = sa.Column(UUID(), nullable=True)
+    deployment_id: Mapped[Union[uuid.UUID, None]] = mapped_column(UUID(), nullable=True)
     work_queue_name = sa.Column(sa.String, index=True)
     flow_version = sa.Column(sa.String, index=True)
     deployment_version = sa.Column(sa.String, index=True)
@@ -506,8 +509,11 @@ class FlowRun(Run):
         default=schemas.core.FlowRunPolicy,
         nullable=False,
     )
-    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
-    created_by = sa.Column(
+    tags: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=list, nullable=False
+    )
+
+    created_by: Mapped[Union[schemas.core.CreatedBy, None]] = mapped_column(
         Pydantic(schemas.core.CreatedBy),
         server_default=None,
         default=None,
@@ -524,7 +530,7 @@ class FlowRun(Run):
         index=True,
     )
 
-    parent_task_run_id = sa.Column(
+    parent_task_run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(),
         sa.ForeignKey(
             "task_run.id",
@@ -549,7 +555,7 @@ class FlowRun(Run):
         index=True,
     )
 
-    work_queue_id = sa.Column(
+    work_queue_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
         UUID,
         sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
         nullable=True,
@@ -702,7 +708,9 @@ class TaskRun(Run):
         default=dict,
         nullable=False,
     )
-    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    tags: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=list, nullable=False
+    )
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = sa.Column(
@@ -844,14 +852,14 @@ class Deployment(Base):
     def job_variables(self):
         return synonym("infra_overrides")
 
-    flow_id = sa.Column(
+    flow_id: Mapped[uuid.UUID] = mapped_column(
         UUID,
         sa.ForeignKey("flow.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
-    work_queue_id = sa.Column(
+    work_queue_id: Mapped[uuid.UUID] = mapped_column(
         UUID,
         sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
         nullable=True,
@@ -872,7 +880,9 @@ class Deployment(Base):
         order_by=sa.desc(sa.text("updated")),
     )
 
-    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    tags: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=list, nullable=False
+    )
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     pull_steps = sa.Column(JSON, default=list, nullable=True)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
@@ -952,7 +962,9 @@ class Log(Base):
 class ConcurrencyLimit(Base):
     tag = sa.Column(sa.String, nullable=False)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
-    active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    active_slots: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=list, nullable=False
+    )
 
     __table_args__ = (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
 
@@ -1103,7 +1115,7 @@ class BlockDocumentReference(Base):
 
 class Configuration(Base):
     key = sa.Column(sa.String, nullable=False, index=True)
-    value = sa.Column(JSON, nullable=False)
+    value: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("key"),)
 
@@ -1151,7 +1163,7 @@ class WorkQueue(Base):
 
     __table_args__ = (sa.UniqueConstraint("work_pool_id", "name"),)
 
-    work_pool_id = sa.Column(
+    work_pool_id: Mapped[uuid.UUID] = mapped_column(
         UUID,
         sa.ForeignKey("work_pool.id", ondelete="cascade"),
         nullable=False,
@@ -1185,8 +1197,10 @@ class WorkPool(Base):
         default=WorkPoolStatus.NOT_READY,
         server_default=WorkPoolStatus.NOT_READY.value,
     )
-    last_transitioned_status_at = sa.Column(Timestamp(), nullable=True)
-    last_status_event_id = sa.Column(UUID, nullable=True)
+    last_transitioned_status_at: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
+        Timestamp(), nullable=True
+    )
+    last_status_event_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=True)
 
     __table_args__ = (sa.UniqueConstraint("name"),)
 
@@ -1248,7 +1262,9 @@ class Agent(Base):
 class FlowRunNotificationPolicy(Base):
     is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
     state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
-    tags = sa.Column(JSON, server_default="[]", default=[], nullable=False)
+    tags: Mapped[List[str]] = mapped_column(
+        JSON, server_default="[]", default=[], nullable=False
+    )
     message_template = sa.Column(sa.String, nullable=True)
 
     block_document_id = sa.Column(
