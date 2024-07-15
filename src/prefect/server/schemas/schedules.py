@@ -4,11 +4,10 @@ Schedule schemas
 
 import datetime
 from typing import Annotated, Any, Generator, List, Optional, Tuple, Union
-
+import zoneinfo
 import dateutil
 import dateutil.rrule
 import pendulum
-import pytz
 from croniter import croniter
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
@@ -296,19 +295,11 @@ class CronSchedule(PrefectBaseModel):
         # Respect microseconds by rounding up
         if start.microsecond > 0:
             start += datetime.timedelta(seconds=1)
-
-        # croniter's DST logic interferes with all other datetime libraries except pytz
-        start_localized = pytz.timezone(start.tz.name).localize(
-            datetime.datetime(
-                year=start.year,
-                month=start.month,
-                day=start.day,
-                hour=start.hour,
-                minute=start.minute,
-                second=start.second,
-                microsecond=start.microsecond,
-            )
+       
+        start_localized = start.replace(
+            tzinfo=zoneinfo.ZoneInfo(self.timezone or "UTC")
         )
+
         start_naive_tz = start.naive()
 
         cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
