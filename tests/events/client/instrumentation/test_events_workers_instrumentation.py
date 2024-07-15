@@ -18,14 +18,6 @@ class WorkerEventsTestImpl(BaseWorker):
     async def run(self):
         pass
 
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: BaseJobConfiguration,
-        grace_seconds: int = 30,
-    ):
-        pass
-
 
 async def test_worker_emits_submitted_event(
     asserting_events_worker: EventsWorker,

@@ -13,7 +13,6 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 from pydantic import Field, PrivateAttr, field_validator
 
-from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -463,35 +462,6 @@ class CloudRunWorkerV2(BaseWorker):
 
             return result
 
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: CloudRunWorkerJobV2Configuration,
-        grace_seconds: int = 30,
-    ):
-        """
-        Stops the Cloud Run job.
-
-        Args:
-            infrastructure_pid: The ID of the infrastructure to stop.
-            configuration: The configuration for the job.
-            grace_seconds: The number of seconds to wait before stopping the job.
-        """
-        if grace_seconds != 30:
-            self._logger.warning(
-                f"Kill grace period of {grace_seconds}s requested, but GCP does not "
-                "support dynamic grace period configuration. See here for more info: "
-                "https://cloud.google.com/run/docs/reference/rest/v1/namespaces.jobs/delete"  # noqa
-            )
-
-        with self._get_client(configuration=configuration) as cr_client:
-            await run_sync_in_worker_thread(
-                self._stop_job,
-                cr_client=cr_client,
-                configuration=configuration,
-                job_name=infrastructure_pid,
-            )
-
     @staticmethod
     def _get_client(
         configuration: CloudRunWorkerJobV2Configuration,
@@ -823,32 +793,3 @@ class CloudRunWorkerV2(BaseWorker):
                 ) from exc
             else:
                 raise exc
-
-    @staticmethod
-    def _stop_job(
-        cr_client: Resource,
-        configuration: CloudRunWorkerJobV2Configuration,
-        job_name: str,
-    ):
-        """
-        Stops/deletes the Cloud Run job.
-
-        Args:
-            cr_client: The Cloud Run client.
-            configuration: The configuration for the job.
-            job_name: The name of the job to stop.
-        """
-        try:
-            JobV2.delete(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_name=job_name,
-            )
-        except Exception as exc:
-            if "does not exist" in str(exc):
-                raise InfrastructureNotFound(
-                    f"Cannot stop Cloud Run Job; the job name {job_name!r} "
-                    "could not be found."
-                ) from exc
-            raise

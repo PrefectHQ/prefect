@@ -40,14 +40,6 @@ class WorkerTestImpl(BaseWorker):
     async def run(self):
         pass
 
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        grace_seconds: int = 30,
-        configuration: Optional[BaseJobConfiguration] = None,
-    ):
-        pass
-
 
 @pytest.fixture(autouse=True)
 async def ensure_default_agent_pool_exists(session):
