@@ -65,11 +65,8 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
-from prefect.client.schemas.objects import (
-    FlowRun,
-    State,
-    StateType,
-)
+from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.events.related import tags_as_related_resources
@@ -846,7 +843,7 @@ class Runner:
     def _emit_flow_run_cancelled_event(
         self,
         flow_run: "FlowRun",
-        flow: "Optional[Flow]",
+        flow: "Optional[APIFlow]",
         deployment: "Optional[Deployment]",
     ):
         related = []
