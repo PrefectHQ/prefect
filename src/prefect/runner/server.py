@@ -3,8 +3,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 import pendulum
 import uvicorn
-from fastapi import APIRouter, FastAPI, HTTPException, status
-from fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
@@ -28,6 +26,8 @@ from prefect.utilities.importtools import load_script_as_module
 if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
+    from fastapi import APIRouter, FastAPI, HTTPException, status
+    from fastapi.responses import JSONResponse
 
 from pydantic import BaseModel
 
@@ -52,6 +52,8 @@ def perform_health_check(runner, delay_threshold: Optional[int] = None) -> JSONR
     def _health_check():
         now = pendulum.now("utc")
         poll_delay = (now - runner.last_polled).total_seconds()
+        from fastapi import status
+        from fastapi.responses import JSONResponse
 
         if poll_delay > delay_threshold:
             return JSONResponse(
@@ -116,7 +118,9 @@ async def _build_endpoint_for_deployment(
 
 async def get_deployment_router(
     runner: "Runner",
-) -> Tuple[APIRouter, Dict[str, Dict]]:
+) -> Tuple["APIRouter", Dict[str, Dict]]:
+    from fastapi import APIRouter
+
     router = APIRouter()
     schemas = {}
     async with get_client() as client:
@@ -135,9 +139,9 @@ async def get_deployment_router(
             )
 
             # Used for updating the route schemas later on
-            schemas[
-                f"{deployment.name}-{deployment_id}"
-            ] = deployment.parameter_openapi_schema
+            schemas[f"{deployment.name}-{deployment_id}"] = (
+                deployment.parameter_openapi_schema
+            )
             schemas[deployment_id] = deployment.name
     return router, schemas
 
@@ -242,7 +246,7 @@ def _build_generic_endpoint_for_flows(
 
 
 @sync_compatible
-async def build_server(runner: "Runner") -> FastAPI:
+async def build_server(runner: "Runner") -> "FastAPI":
     """
     Build a FastAPI server for a runner.
 
@@ -250,6 +254,8 @@ async def build_server(runner: "Runner") -> FastAPI:
         runner (Runner): the runner this server interacts with and monitors
         log_level (str): the log level to use for the server
     """
+    from fastapi import APIRouter, FastAPI
+
     webserver = FastAPI()
     router = APIRouter()
 

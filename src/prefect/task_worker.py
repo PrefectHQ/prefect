@@ -7,7 +7,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import AsyncExitStack
 from contextvars import copy_context
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 import anyio
@@ -15,7 +15,6 @@ import anyio.abc
 import pendulum
 import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
-from fastapi import FastAPI
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
@@ -38,6 +37,9 @@ from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
 from prefect.utilities.urls import url_for
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 logger = get_logger("task_worker")
 
@@ -379,7 +381,9 @@ class TaskWorker:
         await self._exit_stack.__aexit__(*exc_info)
 
 
-def create_status_server(task_worker: TaskWorker) -> FastAPI:
+def create_status_server(task_worker: TaskWorker) -> "FastAPI":
+    from fastapi import FastAPI
+
     status_app = FastAPI()
 
     @status_app.get("/status")

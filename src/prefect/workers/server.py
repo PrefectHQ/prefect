@@ -2,8 +2,6 @@ from typing import Union
 
 import uvicorn
 import uvicorn.server
-from fastapi import APIRouter, FastAPI, status
-from fastapi.responses import JSONResponse
 
 from prefect.settings import (
     PREFECT_WORKER_WEBSERVER_HOST,
@@ -25,6 +23,8 @@ def build_healthcheck_server(
         worker (BaseWorker | ProcessWorker): the worker whose health we will check
         log_level (str): the log
     """
+    from fastapi import APIRouter, FastAPI, status
+    from fastapi.responses import JSONResponse
     app = FastAPI()
     router = APIRouter()
 

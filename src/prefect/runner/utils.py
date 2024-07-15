@@ -1,14 +1,16 @@
 from copy import deepcopy
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
-from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
 from prefect import __version__ as PREFECT_VERSION
 
+if TYPE_CHECKING:
+    from fastapi import FastAPI
+
 
 def inject_schemas_into_openapi(
-    webserver: FastAPI, schemas_to_inject: Dict[str, Any]
+    webserver: "FastAPI", schemas_to_inject: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Augments the webserver's OpenAPI schema with additional schemas from deployments / flows / tasks.
