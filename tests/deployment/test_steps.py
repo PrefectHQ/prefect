@@ -498,6 +498,36 @@ class TestGitCloneStep:
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
+    @pytest.fixture
+    def shortcut_backoff(self, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.GIT_CLONE_BACKOFF_STRATEGY",
+            None,
+        )
+
+    @pytest.mark.usefixtures("shortcut_backoff")
+    async def test_git_clone_retry(self, git_repository_mock, monkeypatch):
+        pull_code_mock = AsyncMock(
+            side_effect=[
+                Exception("Error 1"),
+                Exception("Error 2"),
+                None,  # Successful on third attempt
+            ]
+        )
+        git_repository_mock.return_value.pull_code = pull_code_mock
+
+        output = await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                }
+            }
+        )
+
+        assert output["directory"] == "repo"
+
+        assert pull_code_mock.call_count == 3
+
 
 class TestPullFromRemoteStorage:
     @pytest.fixture
