@@ -535,16 +535,6 @@ class BaseWorker(abc.ABC):
                             backoff=4,
                         )
                     )
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.check_for_cancelled_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,
-                        )
-                    )
 
                     self._started_event = await self._emit_worker_started_event()
 

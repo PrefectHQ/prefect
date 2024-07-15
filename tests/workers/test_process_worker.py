@@ -672,13 +672,6 @@ def legacy_named_cancelling_state(**kwargs):
 
 
 class TestCancellation:
-    @pytest.fixture(autouse=True)
-    def disable_enhanced_cancellation(self, disable_enhanced_cancellation):
-        """
-        Workers only cancel flow runs when enhanced cancellation is disabled.
-        These tests are for the legacy cancellation behavior.
-        """
-
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
