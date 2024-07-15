@@ -333,7 +333,7 @@ def wait(futures: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
         return DoneAndNotDoneFutures(done, not_done)
     try:
         with timeout_context(timeout):
-            for future in not_done:
+            for future in not_done.copy():
                 future.wait()
                 done.add(future)
                 not_done.remove(future)
