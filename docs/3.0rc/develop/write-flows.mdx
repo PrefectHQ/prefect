@@ -5,6 +5,7 @@ description: Learn the basics of defining and running flows.
 
 Flows are the most central Prefect objects. 
 A flow is a container for workflow logic as code. 
+
 Flows are defined as Python functions. 
 They can take inputs, perform work, and return an output.
 
@@ -19,7 +20,8 @@ def my_flow():
     return
 ```
 
-When a function becomes a flow, its behavior changes. Flows have the following capabilities:
+When a function becomes a flow, its behavior changes. 
+Flows have the following capabilities:
 
 - All runs of the flow have persistent [state](/3.0rc/develop/manage-states/). Transitions between states are recorded, 
 allowing you to observe and act on flow execution.
@@ -44,8 +46,7 @@ If you don't provide a name, Prefect uses the flow function name.
 
 A _flow run_ is a single execution of a flow.
 
-You can create a flow run by calling a flow by its function name, just as you would a normal Python function.
-For example, by running a script or importing the function into an interactive session and calling it.
+Create a flow run by calling a flow by its function name, just as you would a normal Python function in a script.
 
 You can also create a flow run by:
 
@@ -54,19 +55,9 @@ You can also create a flow run by:
 - Starting a flow run for the deployment through a schedule, the Prefect UI, or the Prefect API
 
 However you run your flow, Prefect monitors the flow run, capturing its state for observability.
+You can log a [variety of metadata](/3.0rc/develop/logging) about flow runs for monitoring, troubleshooting, and auditing purposes.
 
-<Tip>
-**Logging**
-
-You can log a [variety of metadata](/3.0rc/develop/logging) about your flow runs for monitoring, troubleshooting, and auditing purposes.
-</Tip>
-
-### Example
-
-The script below fetches statistics about the [main Prefect repository](https://github.com/PrefectHQ/prefect).
-(Note that [httpx](https://www.python-httpx.org/) is an HTTP client library and a dependency of Prefect.)
-
-Turn this function into a Prefect flow and run the script:
+The script below uses the HTTPX client library to fetch statistics about the [main Prefect repository](https://github.com/PrefectHQ/prefect).
 
 ```python repo_info.py
 import httpx
@@ -83,6 +74,7 @@ def get_repo_info():
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
 
+
 if __name__ == "__main__":
     get_repo_info()
 ```
@@ -96,8 +88,6 @@ Stars 🌠 : 12146
 Forks 🍴 : 1245
 12:47:45.008 | INFO | Flow run 'ludicrous-warthog' - Finished in state Completed()
 ```
-
-As you can see above, fows can contain arbitrary Python code. 
 
 ## Specify flow parameters
 
@@ -125,7 +115,7 @@ def model_validator(model: Model):
     print(model)
 ```
 
-For example, to automatically convert an arguement to a datetime:
+For example, to automatically convert an argument to a datetime object:
 
 ```python
 from prefect import flow
@@ -149,8 +139,8 @@ When you run this flow, you'll see the following output:
 It was Friday on 2021-01-01T02:00:19.180906
 ```
 
-Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/infrastructure-examples/docker/).
-Flow run parameters sent to the API on flow calls are coerced to the appropriate types.
+Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/).
+Flow run parameters sent to the API are coerced to the appropriate types when possible.
 
 <Warning>
 **Prefect API requires keyword arguments**
@@ -160,7 +150,6 @@ The values passed cannot be positional.
 </Warning>
 
 Parameters are validated before a flow is run.
-If a flow call receives invalid parameters, a flow run is created in a `Failed` state.
 If a flow run for a deployment receives invalid parameters, it moves from a `Pending` state to a `Failed` state without entering a `Running` state.
 
 <Note>
@@ -187,36 +176,27 @@ def hello_world(name="world"):
 
 A single flow function can contain all of your workflow's code.
 However, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow fails and must be retried from the beginning. 
-Organizing your workflow code into smaller flows and tasks lets you take advantage of Prefect features such as retries, 
-more granular visibility into runtime state, the ability to determine final state regardless of individual task state, and more.
+The more granular you make your workflows, the better they can recover from failures and the easier you can find and fix issues.
 
-You may call any number of tasks, other flows, and even regular Python functions within your flow. 
-You can pass parameters to your flow function to use elsewhere in the workflow, and Prefect will report on the progress 
-and [final state](#final-state-determination) of any invocation.
-
-Each task should be a single, discrete piece of work in your workflow, such as calling an API, performing a database operation, or transforming a data point.
-The more granular the tasks, the better your workflows can recover from failures and the easier you can find and fix issues.
 Prefect tasks are well suited for parallel or distributed execution using distributed computation frameworks such as Dask or Ray. 
 
-### Nestflows
+### Nest flows
 
-In addition to calling tasks within a flow, you can also call other flows.
-A _nested_ flow run is created when a flow function is called by another flow.
+In addition to calling tasks from a flow, flows can also call other flows.
+A nested flow run is created when a flow function is called by another flow.
 When one flow calls another, the calling flow run is the "parent" run, the called flow run is the "child" run.
 
-Nesting flows is a great way to organize your workflows and offer more visibility within the UI.
 In the UI, each child flow run is linked to its parent and can be individually observed.
 
-For most purposes, nested flow runs behave just as all flow runs do.
+For most purposes, nested flow runs behave just like unnested flow runs.
 There is a full representation of the nested flow run in the backend as if it had been called separately. 
 Nested flow runs differ from normal flow runs in that they resolve any passed task futures into data.
-This allows data to be passed from the parent flow run to the child run easily.
+This allows data to be passed from the parent flow run to a nested flow run easily.
 
 When a nested flow run starts, it creates a new [task runner](/3.0rc/develop/task-runners/) for any tasks it contains.
 When the nested flow run completes, the task runner shuts down. 
 Nested flow runs block execution of the parent flow run until completion.
-However, asynchronous nested flows can run concurrently with [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or 
-[asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
+However, asynchronous nested flows can run concurrently with [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
 The relationship between nested runs is recorded through a special task run in the parent flow run that represents the child flow run.
 The `state_details` field of the task run representing the child flow run includes a `child_flow_run_id`.
@@ -226,7 +206,7 @@ You can define multiple flows within the same file.
 Whether running locally or through a [deployment](/3.0rc/deploy/infrastructure-examples/docker/), you must indicate which flow is the entrypoint for a flow run.
 
 <Warning>
-**Cancelling nested flow runs**
+**Cancel nested flow runs**
 
 A nested flow run cannot be cancelled without cancelling its parent flow run.
 If you need to be able to cancel a nested flow run independent of its parent flow run, we recommend deploying it separately and starting it with 
@@ -246,7 +226,7 @@ def my_nested_flow(msg):
 
 Here's a parent flow that imports and uses `my_nested_flow` as a nested flow:
 
-```python
+```python hello.py
 from prefect import flow, task
 from nested_flow import my_nested_flow
 
@@ -268,21 +248,22 @@ if __name__=="__main__":
     hello_world("Marvin")
 ```
 
-Running the `hello_world()` flow (in this example from the file `hello.py`) creates a flow run like this:
+Running the `hello_world()` flow creates a flow run like this:
 
 ```bash
-$ python hello.py
-15:19:21.651 | INFO    | prefect.engine - Created flow run 'daft-cougar' for flow 'Hello Flow'
-15:19:21.945 | INFO    | Flow run 'daft-cougar' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
+08:24:06.617 | INFO    | prefect.engine - Created flow run 'sage-mongoose' for flow 'Hello Flow'
+08:24:06.620 | INFO    | prefect.engine - View at https://app.prefect.cloud/...
+08:24:07.113 | INFO    | Task run 'Print Hello-0' - Created task run 'Print Hello-0' for task 'Print Hello'
 Hello Marvin!
-15:19:22.055 | INFO    | Task run 'Print Hello-84f0fe0e-0' - Finished in state Completed()
-15:19:22.107 | INFO    | Flow run 'daft-cougar' - Created subflow run 'ninja-duck' for flow 'Nestedfflow'
+08:24:07.445 | INFO    | Task run 'Print Hello-0' - Finished in state Completed()
+08:24:07.825 | INFO    | Flow run 'sage-mongoose' - Created subflow run 'powerful-capybara' for flow 'Nestedflow'
+08:24:07.826 | INFO    | prefect.engine - View at https://app.prefect.cloud/...
 Nestedflow says: Hello Marvin!
-15:19:22.794 | INFO    | Flow run 'ninja-duck' - Finished in state Completed()
-15:19:23.215 | INFO    | Flow run 'daft-cougar' - Finished in state Completed('All states completed.')
+08:24:08.165 | INFO    | Flow run 'powerful-capybara' - Finished in state Completed()
+08:24:08.296 | INFO    | Flow run 'sage-mongoose' - Finished in state Completed()
 ```
 
-Here are some scenarios where you should choose a nested flow rather than calling tasks individually:
+Here are some scenarios where you might want to define a nested flow rather than call tasks individually:
 
 - Observability: Nested flows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll 
 see nested flows' status in the **Runs** dashboard rather than having to dig down into the tasks within a specific flow run. 
@@ -298,32 +279,15 @@ task runner for each nested flow.
 ## Supported functions
 
 Almost any standard Python function can be turned into a Prefect flow by adding the `@flow` decorator. 
+Flows are executed in the main thread by default to facilitate native Python debugging and profiling.
 
-<Tip>
-Flows are always executed in the main thread by default to facilitate native Python debugging and profiling.
-</Tip>
-
-### Synchronous functions
-
-The simplest Prefect flow is a synchronous Python function. Here's an example of a synchronous flow that prints a message:
-
-```python
-from prefect import flow
-
-
-@flow
-def print_message():
-    print("Hello, I'm a flow")
-
-
-if __name__ == "__main__":
-    print_message()
-```
+As shown in the examples above, flows run synchronously by default. 
 
 ### Asynchronous functions
 
-Prefect also supports asynchronous functions. 
+Prefect also supports asynchronous exocution. 
 The resulting flows are coroutines that can be awaited or run concurrently, following [the standard rules of async Python](https://docs.python.org/3/library/asyncio-task.html).
+For example:
 
 ```python
 import asyncio
@@ -356,7 +320,7 @@ if __name__ == "__main__":
 ### Class methods
 
 Prefect supports synchronous and asynchronous class methods as flows, including instance methods, class methods, and static methods. 
-For class methods and static methods, you must apply the appropriate method decorator _above_ the `@flow` decorator:
+For class methods and static methods, apply the appropriate method decorator _above_ the `@flow` decorator:
 
 ```python
 from prefect import flow
@@ -520,7 +484,6 @@ They cannot be positional.
 </Warning>
 
 Parameters are validated before a flow is run.
-If a flow call receives invalid parameters, a flow run is created in a `Failed` state.
 If a flow run for a deployment receives invalid parameters, it moves from a `Pending` state to `Failed` without entering a `Running` state.
 
 <Note>
@@ -529,48 +492,14 @@ Flow run parameters cannot exceed `512kb` in size.
 
 ## Flow runs
 
-A _flow run_ represents a single execution of the flow.
+A _flow run_ represents a single execution of a flow.
 
-You can create a flow run by calling the flow manually.
-For example, by running a Python script or importing the flow into an interactive session and calling it.
+In adddition to create a flow run by calling the flow manually, you can create a flow run by using an external scheduler such as `cron` to invoke a flow function. 
+More commonly, most users run flows by create a [deployment](/3.0rc/deploy/) on Prefect Cloud or Prefect server and then scheduling a flow run for the deployment through a schedule, the Prefect UI, or the Prefect API.
 
-You can also create a flow run by:
-
-- Using external schedulers such as `cron` to invoke a flow function
-- Creating a [deployment](/3.0rc/deploy/infrastructure-examples/docker/) on Prefect Cloud or a locally run Prefect server
-- Creating a flow run for the deployment through a schedule, the Prefect UI, or the Prefect API
-
-However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
-
-<Tip>
-**Logging**
-
-Prefect enables you to log a variety of useful information about your flow and task runs. 
-You can capture information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
-Check out [Logging](/3.0rc/develop/logging) for more information.
-</Tip>
-
-When you run a flow that contains tasks or additional flows, Prefect tracks the relationship of each child run to the parent flow run.
-
-<Tip>
-**Retries**
-
-Unexpected errors may occur. For example the GitHub API may be temporarily unavailable or rate limited.
-Check out [Transactions](/3.0rc/develop/transactions) to learn how to make your flows more resilient.
-</Tip>
-
-## Write flows
-
-The `@flow` decorator is used to designate a flow:
-
-```python
-from prefect import flow
+However you run a flow, the Prefect API monitors the flow run and records information for monitoring, troubleshooting, and auditing.
 
 
-@flow
-def my_flow():
-    return
-```
 
 There are no rigid rules for what code you include within a flow definition. All valid Python is acceptable.
 
@@ -680,8 +609,8 @@ if __name__ == "__main__":
 
 If no description is provided, a flow function's docstring becomes the description.
 
-You can distinguish runs of a flow by pasisng a `flow_run_name`.
-This parameter accepts a string that can optionally contain templated references to the parameters of your flow.
+You can distinguish runs of a flow by passing a `flow_run_name`.
+This parameter accepts a string that can contain templated references to the parameters of your flow.
 The name is formatted using Python's standard string formatting syntax:
 
 ```python
@@ -768,7 +697,6 @@ The following rules apply:
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 - If the flow run returns _any other object_, then it is marked as completed.
 
-
 ### Return a future
 
 If a flow returns one or more futures, the final state is determined based on the underlying states.
@@ -799,7 +727,7 @@ if __name__ == "__main__":
     always_succeeds_flow()
 ```
 
-Running this flow reulsts in a **Completed** final state because the the flow returns the future of the task that succeeds:
+Running this flow results in a **Completed** final state because the flow returns the future of the task that succeeds:
 
 ```bash
 18:35:24.965 | INFO    | prefect.engine - Created flow run 'whispering-guan' for flow 'always-succeeds-flow'
@@ -910,6 +838,9 @@ If a flow run returns any other object, then it is recorded as Completed.
 
 ## Retries
 
+Unexpected errors may occur in workflows. 
+For example the GitHub API may be temporarily unavailable or rate limited.
+
 Prefect can automatically retry flow runs on failure. 
 
 To enable retries, pass `retries` to the flow.
@@ -917,8 +848,8 @@ If the flow run fails, Prefect will retry it up to `retries` times.
 Optionally, pass an integer to `retry_delay_seconds` to specify how many seconds to wait between each retry attempt. 
 If the flow run fails on the final retry, Prefect records the final flow run state as _failed_.
 
-A new flow run is not created when a flow run is retried. 
-Instead, a new state is added to the state history of the original flow run.
+Check out [Transactions](/3.0rc/develop/transactions/) to make your flows even more resilient and rollback actions when desired.
+
 
 ## See also
 
