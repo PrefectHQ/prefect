@@ -502,8 +502,8 @@ class TestGitCloneStep:
         mock_git_repo = MagicMock()
         mock_git_repo.return_value.pull_code = AsyncMock(
             side_effect=[
-                Exception("Error 1"),
-                Exception("Error 2"),
+                RuntimeError("Octocat went out to lunch"),
+                RuntimeError("Octocat is playing chess in the break room"),
                 None,  # Successful on third attempt
             ]
         )
@@ -512,7 +512,6 @@ class TestGitCloneStep:
             "prefect.deployments.steps.pull.GitRepository", mock_git_repo
         )
 
-        # Mock sleep to speed up test
         async def mock_sleep(seconds):
             pass
 
@@ -527,8 +526,8 @@ class TestGitCloneStep:
                 }
             )
 
-        assert "Attempt 1 failed with Exception. Retrying in " in caplog.text
-        assert "Attempt 2 failed with Exception. Retrying in " in caplog.text
+        assert "Attempt 1 failed with RuntimeError. Retrying in " in caplog.text
+        assert "Attempt 2 failed with RuntimeError. Retrying in " in caplog.text
 
         assert result == {"directory": "repo"}
 

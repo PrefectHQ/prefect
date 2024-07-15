@@ -36,6 +36,7 @@ def set_working_directory(directory: str) -> dict:
     max_attempts=3,
     base_delay=1,
     max_delay=10,
+    retry_on_exceptions=(RuntimeError,),
 )
 @sync_compatible
 async def git_clone(
