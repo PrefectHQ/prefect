@@ -1,4 +1,5 @@
 import abc
+import collections
 import concurrent.futures
 import inspect
 import uuid
@@ -295,6 +296,41 @@ class PrefectFutureList(list, Iterator, Generic[F]):
             raise TimeoutError(
                 f"Timed out waiting for all futures to complete within {timeout} seconds"
             ) from exc
+
+
+DoneAndNotDoneFutures = collections.namedtuple("DoneAndNotDoneFutures", "done not_done")
+
+
+def wait(pfs: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
+    """
+    Wait for the futures in the given sequence to complete.
+
+    Args:
+        fs: The sequence of Futures to wait upon.
+        timeout: The maximum number of seconds to wait. If None, then there
+            is no limit on the wait time.
+    Returns:
+        A named 2-tuple of sets. The first set, named 'done', contains the
+        futures that completed (is finished or cancelled) before the wait
+        completed. The second set, named 'not_done', contains uncompleted
+        futures. Duplicate futures given to *fs* are removed and will be
+        returned only once.
+    """
+    pfs = set(pfs)
+    done = {f for f in pfs if f._final_state}
+    not_done = pfs - done
+    if len(done) == len(pfs):
+        return DoneAndNotDoneFutures(done, not_done)
+    try:
+        with timeout_context(timeout):
+            for f in not_done:
+                f.wait()
+                done.add(f)
+                not_done.remove(f)
+            return DoneAndNotDoneFutures(done, not_done)
+    except TimeoutError:
+        logger.debug("Timed out waiting for all futures to complete.")
+        return DoneAndNotDoneFutures(done, not_done)
 
 
 def resolve_futures_to_states(
