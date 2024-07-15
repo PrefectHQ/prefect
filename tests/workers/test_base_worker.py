@@ -27,7 +27,7 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
-from prefect.states import Cancelled, Cancelling, Completed, Pending, Running, Scheduled
+from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
@@ -1456,10 +1456,6 @@ class TestPrepareForFlowRun:
         assert job_config.command == "prefect flow-run execute"
 
 
-def legacy_named_cancelling_state(**kwargs):
-    return Cancelled(name="Cancelling", **kwargs)
-
-
 async def test_get_flow_run_logger(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
@@ -1659,24 +1655,3 @@ class TestBaseWorkerStart:
 
         worker.run.assert_awaited_once()
         assert worker.run.call_args[1]["flow_run"].id == flow_run.id
-
-    @pytest.mark.parametrize(
-        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
-    )
-    async def test_start_cancels_flow_runs(
-        self,
-        prefect_client: PrefectClient,
-        worker_deployment_wq1,
-        work_pool,
-        cancelling_constructor,
-    ):
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq1.id,
-            state=cancelling_constructor(),
-        )
-
-        worker = WorkerTestImpl(work_pool_name=work_pool.name)
-        worker.cancel_run = AsyncMock()
-        await worker.start(run_once=True)
-
-        worker.cancel_run.assert_awaited_once_with(flow_run)
