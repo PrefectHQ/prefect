@@ -414,7 +414,7 @@ class TestRunner:
         in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
-        runner = Runner(query_seconds=2)
+        runner = Runner(query_seconds=1)
 
         temp_storage.code = dedent(
             """\
@@ -440,13 +440,12 @@ class TestRunner:
             name=__file__,
         )
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
-
+        async with runner:
             flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment_id
             )
 
+            execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
             # Need to wait for polling loop to pick up flow run and
             # start execution
             while True:
@@ -463,18 +462,9 @@ class TestRunner:
                 ),
             )
 
-            # Need to wait for polling loop to pick up flow run and then
-            # finish cancellation
-            while True:
-                await anyio.sleep(0.5)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                assert flow_run.state
-                if flow_run.state.is_cancelled():
-                    break
+            await execute_task
 
-            await runner.stop()
-            tg.cancel_scope.cancel()
-
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state.is_cancelled()
         # check to make sure on_cancellation hook was called
         assert "This flow was cancelled!" in caplog.text
@@ -513,13 +503,12 @@ class TestRunner:
             name=__file__,
         )
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
-
+        async with runner:
             flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment_id
             )
 
+            execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
             # Need to wait for polling loop to pick up flow run and
             # start execution
             while True:
@@ -538,17 +527,9 @@ class TestRunner:
                 ),
             )
 
-            # Need to wait for polling loop to pick up flow run and then
-            # finish cancellation
-            while True:
-                await anyio.sleep(0.5)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                assert flow_run.state
-                if flow_run.state.is_cancelled():
-                    break
+            await execute_task
 
-            await runner.stop()
-            tg.cancel_scope.cancel()
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
 
         # Cancellation hook should not have been called successfully
         # but the flow run should still be cancelled correctly
