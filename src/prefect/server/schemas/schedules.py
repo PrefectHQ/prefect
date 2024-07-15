@@ -295,7 +295,7 @@ class CronSchedule(PrefectBaseModel):
         # Respect microseconds by rounding up
         if start.microsecond > 0:
             start += datetime.timedelta(seconds=1)
-       
+
         start_localized = start.replace(
             tzinfo=zoneinfo.ZoneInfo(self.timezone or "UTC")
         )
@@ -356,7 +356,9 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(
+        default="UTC", examples=["America/New_York"], validate_default=True
+    )
 
     @field_validator("rrule")
     @classmethod
