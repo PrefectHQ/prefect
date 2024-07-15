@@ -1,4 +1,5 @@
 import abc
+import collections
 import concurrent.futures
 import inspect
 import uuid
@@ -256,13 +257,7 @@ class PrefectFutureList(list, Iterator, Generic[F]):
             timeout: The maximum number of seconds to wait for all futures to
                 complete. This method will not raise if the timeout is reached.
         """
-        try:
-            with timeout_context(timeout):
-                for future in self:
-                    future.wait()
-        except TimeoutError:
-            logger.debug("Timed out waiting for all futures to complete.")
-            return
+        wait(self, timeout=timeout)
 
     def result(
         self,
@@ -295,6 +290,57 @@ class PrefectFutureList(list, Iterator, Generic[F]):
             raise TimeoutError(
                 f"Timed out waiting for all futures to complete within {timeout} seconds"
             ) from exc
+
+
+DoneAndNotDoneFutures = collections.namedtuple("DoneAndNotDoneFutures", "done not_done")
+
+
+def wait(futures: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
+    """
+    Wait for the futures in the given sequence to complete.
+
+    Args:
+        futures: The sequence of Futures to wait upon.
+        timeout: The maximum number of seconds to wait. If None, then there
+            is no limit on the wait time.
+
+    Returns:
+        A named 2-tuple of sets. The first set, named 'done', contains the
+        futures that completed (is finished or cancelled) before the wait
+        completed. The second set, named 'not_done', contains uncompleted
+        futures. Duplicate futures given to *futures* are removed and will be
+        returned only once.
+
+    Examples:
+        ```python
+        @task
+        def sleep_task(seconds):
+            sleep(seconds)
+            return 42
+
+        @flow
+        def flow():
+            futures = random_task.map(range(10))
+            done, not_done = wait(futures, timeout=5)
+            print(f"Done: {len(done)}")
+            print(f"Not Done: {len(not_done)}")
+        ```
+    """
+    futures = set(futures)
+    done = {f for f in futures if f._final_state}
+    not_done = futures - done
+    if len(done) == len(futures):
+        return DoneAndNotDoneFutures(done, not_done)
+    try:
+        with timeout_context(timeout):
+            for future in not_done.copy():
+                future.wait()
+                done.add(future)
+                not_done.remove(future)
+            return DoneAndNotDoneFutures(done, not_done)
+    except TimeoutError:
+        logger.debug("Timed out waiting for all futures to complete.")
+        return DoneAndNotDoneFutures(done, not_done)
 
 
 def resolve_futures_to_states(
