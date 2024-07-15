@@ -498,35 +498,48 @@ class TestGitCloneStep:
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-    @pytest.fixture
-    def shortcut_backoff(self, monkeypatch):
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.GIT_CLONE_BACKOFF_STRATEGY",
-            None,
-        )
-
-    @pytest.mark.usefixtures("shortcut_backoff")
-    async def test_git_clone_retry(self, git_repository_mock, monkeypatch):
-        pull_code_mock = AsyncMock(
+    async def test_git_clone_retry(self, monkeypatch, caplog):
+        mock_git_repo = MagicMock()
+        mock_git_repo.return_value.pull_code = AsyncMock(
             side_effect=[
                 Exception("Error 1"),
                 Exception("Error 2"),
                 None,  # Successful on third attempt
             ]
         )
-        git_repository_mock.return_value.pull_code = pull_code_mock
-
-        output = await run_step(
-            {
-                "prefect.deployments.steps.git_clone": {
-                    "repository": "https://github.com/org/repo.git",
-                }
-            }
+        mock_git_repo.return_value.destination.relative_to.return_value = "repo"
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.GitRepository", mock_git_repo
         )
 
-        assert output["directory"] == "repo"
+        # Mock sleep to speed up test
+        async def mock_sleep(seconds):
+            pass
 
-        assert pull_code_mock.call_count == 3
+        monkeypatch.setattr("asyncio.sleep", mock_sleep)
+
+        with caplog.at_level("WARNING"):
+            result = await run_step(
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://github.com/org/repo.git"
+                    }
+                }
+            )
+
+        assert "Attempt 1 failed with Exception. Retrying in " in caplog.text
+        assert "Attempt 2 failed with Exception. Retrying in " in caplog.text
+
+        assert result == {"directory": "repo"}
+
+        expected_call = call(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
+        )
+
+        assert mock_git_repo.call_args_list == [expected_call] * 3
 
 
 class TestPullFromRemoteStorage:

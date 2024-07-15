@@ -6,8 +6,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-from tenacity import retry, stop_after_attempt, wait_exponential
-
+from prefect._internal.retries import retry_async_fn
 from prefect.logging.loggers import get_logger
 from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import sync_compatible
@@ -16,13 +15,6 @@ deployment_logger = get_logger("deployment")
 
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
-
-GIT_CLONE_RETRIES = 3
-GIT_CLONE_BACKOFF_STRATEGY = wait_exponential(
-    multiplier=1,
-    min=1,
-    max=10,
-)
 
 
 def set_working_directory(directory: str) -> dict:
@@ -40,7 +32,11 @@ def set_working_directory(directory: str) -> dict:
     return dict(directory=directory)
 
 
-@retry(stop=stop_after_attempt(GIT_CLONE_RETRIES), wait=GIT_CLONE_BACKOFF_STRATEGY)
+@retry_async_fn(
+    max_attempts=3,
+    base_delay=1,
+    max_delay=10,
+)
 @sync_compatible
 async def git_clone(
     repository: str,
