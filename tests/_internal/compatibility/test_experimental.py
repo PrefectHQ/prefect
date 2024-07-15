@@ -359,4 +359,4 @@ def test_enabled_experiments_with_opt_in():
 
 
 def test_enabled_experiments_without_opt_in():
-    assert enabled_experiments() == {}
+    assert enabled_experiments() == set()
