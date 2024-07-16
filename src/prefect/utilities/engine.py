@@ -51,6 +51,7 @@ from prefect.logging.loggers import (
 )
 from prefect.results import BaseResult
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_LOGGING_LOG_PRINTS,
 )
 from prefect.states import (
@@ -798,6 +799,9 @@ def emit_task_run_state_change_event(
                 else ""
             ),
             "prefect.state-type": str(validated_state.type.value),
+            "prefect.orchestration": "client"
+            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION
+            else "server",
         },
         follows=follows,
     )
