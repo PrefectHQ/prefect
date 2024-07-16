@@ -31,8 +31,7 @@ from typing_extensions import ParamSpec
 
 from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient
-from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import State, TaskRunInput
+from prefect.client.schemas.objects import State, TaskRun, TaskRunInput
 from prefect.context import (
     ClientContext,
     FlowRunContext,

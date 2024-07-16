@@ -43,12 +43,12 @@ from typing_extensions import Literal, ParamSpec, Self, get_args
 
 import prefect
 import prefect.exceptions
-from prefect.client.schemas import (
+from prefect.client.schemas.actions import BlockTypeUpdate
+from prefect.client.schemas.objects import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
     BlockSchema,
     BlockType,
-    BlockTypeUpdate,
 )
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event

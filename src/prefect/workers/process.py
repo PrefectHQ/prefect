@@ -31,7 +31,6 @@ import anyio.abc
 from pydantic import Field, field_validator
 
 from prefect._internal.schemas.validators import validate_command
-from prefect.client.schemas import FlowRun
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
@@ -43,7 +42,7 @@ from prefect.client.schemas.filters import (
     WorkQueueFilter,
     WorkQueueFilterName,
 )
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.events.utilities import emit_event
 from prefect.exceptions import (
     InfrastructureNotAvailable,

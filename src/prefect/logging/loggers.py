@@ -15,8 +15,8 @@ from prefect.exceptions import MissingContextError
 from prefect.logging.filters import ObfuscateApiKeyFilter
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun as ClientFlowRun
     from prefect.client.schemas.objects import FlowRun, TaskRun
+    from prefect.client.schemas.objects import FlowRun as ClientFlowRun
     from prefect.context import RunContext
     from prefect.flows import Flow
     from prefect.tasks import Task

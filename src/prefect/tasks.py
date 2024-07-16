@@ -38,8 +38,7 @@ from prefect._internal.compatibility.deprecated import (
 )
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
-from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.client.schemas.objects import TaskRun, TaskRunInput, TaskRunResult
 from prefect.context import (
     FlowRunContext,
     TagsContext,

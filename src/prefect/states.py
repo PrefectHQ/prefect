@@ -12,8 +12,8 @@ import httpx
 import pendulum
 from typing_extensions import TypeGuard
 
-from prefect.client.schemas import State as State
-from prefect.client.schemas import StateDetails, StateType
+from prefect.client.schemas.objects import State as State
+from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
     CrashedRun,

@@ -27,8 +27,8 @@ from typing_extensions import ParamSpec
 
 from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient, get_client
-from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
+from prefect.client.schemas.objects import FlowRun, TaskRun
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import ClientContext, FlowRunContext, TagsContext
 from prefect.exceptions import (

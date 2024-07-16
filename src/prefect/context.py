@@ -34,7 +34,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
-from prefect.client.schemas import FlowRun, TaskRun
+from prefect.client.schemas.objects import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultFactory

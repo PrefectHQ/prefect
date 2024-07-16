@@ -25,13 +25,13 @@ import prefect
 import prefect.context
 import prefect.plugins
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import (
     StateType,
+    TaskRun,
     TaskRunInput,
     TaskRunResult,
 )
-from prefect.client.schemas.responses import SetStateStatus
+from prefect.client.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.context import (
     FlowRunContext,
 )
@@ -322,7 +322,8 @@ async def resolve_inputs(
             #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
-            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure)
+            and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
@@ -767,9 +768,11 @@ def emit_task_run_state_change_event(
                     exclude_unset=True,
                     exclude={"flow_run_id", "task_run_id"},
                 ),
-                "data": validated_state.data.model_dump(mode="json")
-                if isinstance(validated_state.data, BaseResult)
-                else None,
+                "data": (
+                    validated_state.data.model_dump(mode="json")
+                    if isinstance(validated_state.data, BaseResult)
+                    else None
+                ),
             },
             "task_run": task_run.model_dump(
                 mode="json",
@@ -799,9 +802,11 @@ def emit_task_run_state_change_event(
                 else ""
             ),
             "prefect.state-type": str(validated_state.type.value),
-            "prefect.orchestration": "client"
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION
-            else "server",
+            "prefect.orchestration": (
+                "client"
+                if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION
+                else "server"
+            ),
         },
         follows=follows,
     )
@@ -847,7 +852,8 @@ def resolve_to_final_result(expr, context):
         #       incorrectly evaluate to false — to resolve this, we must track all
         #       annotations wrapping the current expression but this is not yet
         #       implemented.
-        isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+        isinstance(context.get("annotation"), allow_failure)
+        and state.is_failed()
     ):
         raise UpstreamTaskError(
             f"Upstream task run '{state.state_details.task_run_id}' did not reach a"

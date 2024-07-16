@@ -16,8 +16,8 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import BlockSchema, BlockType
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import BlockType as ClientBlockType
     from prefect.client.schemas.actions import BlockTypeUpdate as ClientBlockTypeUpdate
+    from prefect.client.schemas.objects import BlockType as ClientBlockType
 
 
 @db_injector

@@ -13,7 +13,7 @@ import prefect.context
 import prefect.settings
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
-from prefect.client.schemas import sorting
+from prefect.client.schemas.sorting import FlowRunSort
 from prefect.client.utilities import inject_client
 from prefect.results import PersistedResult
 from prefect.serializers import Serializer
@@ -143,7 +143,7 @@ async def get_most_recent_flow_run(client: "PrefectClient" = None):
         client = get_client()
 
     flow_runs = await client.read_flow_runs(
-        sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC, limit=1
+        sort=FlowRunSort.EXPECTED_START_TIME_ASC, limit=1
     )
 
     return flow_runs[0]

@@ -32,7 +32,6 @@ import prefect.exceptions
 import prefect.settings
 import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     ArtifactUpdate,
@@ -89,12 +88,14 @@ from prefect.client.schemas.objects import (
     Deployment,
     DeploymentSchedule,
     Flow,
+    FlowRun,
     FlowRunInput,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
     Log,
     Parameter,
     QueueFilter,
+    TaskRun,
     TaskRunPolicy,
     TaskRunResult,
     Variable,
@@ -107,12 +108,14 @@ from prefect.client.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
     GlobalConcurrencyLimitResponse,
+    OrchestrationResult,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.schemas.sorting import (
     ArtifactCollectionSort,
     ArtifactSort,
+    AutomationSort,
     DeploymentSort,
     FlowRunSort,
     FlowSort,
@@ -161,15 +164,13 @@ class ServerType(AutoEnum):
 @overload
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[False] = False
-) -> "PrefectClient":
-    ...
+) -> "PrefectClient": ...
 
 
 @overload
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[True] = True
-) -> "SyncPrefectClient":
-    ...
+) -> "SyncPrefectClient": ...
 
 
 def get_client(
@@ -3229,10 +3230,12 @@ class PrefectClient:
         response = await self._client.post(
             "/automations/filter",
             json={
-                "sort": sorting.AutomationSort.UPDATED_DESC,
-                "automations": automation_filter.model_dump(mode="json")
-                if automation_filter
-                else None,
+                "sort": AutomationSort.UPDATED_DESC,
+                "automations": (
+                    automation_filter.model_dump(mode="json")
+                    if automation_filter
+                    else None
+                ),
             },
         )
 
