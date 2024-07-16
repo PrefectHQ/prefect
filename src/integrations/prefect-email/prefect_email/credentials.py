@@ -9,7 +9,7 @@ from typing import Optional, Union
 from pydantic import Field, SecretStr, field_validator
 
 from prefect.blocks.core import Block
-from prefect.logging import get_logger, get_run_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 
 internal_logger = get_logger(__name__)
 
