@@ -1,7 +1,6 @@
 import abc
 import inspect
 import threading
-import warnings
 from contextlib import AsyncExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
@@ -15,41 +14,21 @@ from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal
 
 import prefect
-from prefect._internal.compatibility.experimental import (
-    EXPERIMENTAL_WARNING,
-    ExperimentalFeature,
-    experiment_enabled,
-)
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.client.schemas.filters import (
-    FlowRunFilter,
-    FlowRunFilterId,
-    FlowRunFilterState,
-    FlowRunFilterStateName,
-    FlowRunFilterStateType,
-    WorkPoolFilter,
-    WorkPoolFilterName,
-    WorkQueueFilter,
-    WorkQueueFilterName,
-)
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
     Abort,
-    InfrastructureNotAvailable,
-    InfrastructureNotFound,
     ObjectNotFound,
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_WARN,
-    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -242,22 +221,7 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a command for a flow run job.
         """
-        if experiment_enabled("enhanced_cancellation"):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Enhanced flow run cancellation",
-                        group="enhanced_cancellation",
-                        help="",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-            return "prefect flow-run execute"
-        return "python -m prefect.engine"
+        return "prefect flow-run execute"
 
     @staticmethod
     def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
@@ -571,16 +535,6 @@ class BaseWorker(abc.ABC):
                             backoff=4,
                         )
                     )
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.check_for_cancelled_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,
-                        )
-                    )
 
                     self._started_event = await self._emit_worker_started_event()
 
@@ -621,20 +575,6 @@ class BaseWorker(abc.ABC):
         """
         raise NotImplementedError(
             "Workers must implement a method for running submitted flow runs"
-        )
-
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: BaseJobConfiguration,
-        grace_seconds: int = 30,
-    ):
-        """
-        Method for killing infrastructure created by a worker. Should be implemented by
-        individual workers if they support killing infrastructure.
-        """
-        raise NotImplementedError(
-            "This worker does not support killing infrastructure."
         )
 
     @classmethod
@@ -708,138 +648,6 @@ class BaseWorker(abc.ABC):
         self._last_polled_time = pendulum.now("utc")
 
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
-
-    async def check_for_cancelled_flow_runs(self):
-        if not self.is_setup:
-            raise RuntimeError(
-                "Worker is not set up. Please make sure you are running this worker "
-                "as an async context manager."
-            )
-
-        self._logger.debug("Checking for cancelled flow runs...")
-
-        work_queue_filter = (
-            WorkQueueFilter(name=WorkQueueFilterName(any_=list(self._work_queues)))
-            if self._work_queues
-            else None
-        )
-
-        named_cancelling_flow_runs = await self._client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                state=FlowRunFilterState(
-                    type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
-                    name=FlowRunFilterStateName(any_=["Cancelling"]),
-                ),
-                # Avoid duplicate cancellation calls
-                id=FlowRunFilterId(not_any_=list(self._cancelling_flow_run_ids)),
-            ),
-            work_pool_filter=WorkPoolFilter(
-                name=WorkPoolFilterName(any_=[self._work_pool_name])
-            ),
-            work_queue_filter=work_queue_filter,
-        )
-
-        typed_cancelling_flow_runs = await self._client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                state=FlowRunFilterState(
-                    type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
-                ),
-                # Avoid duplicate cancellation calls
-                id=FlowRunFilterId(not_any_=list(self._cancelling_flow_run_ids)),
-            ),
-            work_pool_filter=WorkPoolFilter(
-                name=WorkPoolFilterName(any_=[self._work_pool_name])
-            ),
-            work_queue_filter=work_queue_filter,
-        )
-
-        cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
-
-        if cancelling_flow_runs:
-            self._logger.info(
-                f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
-            )
-
-        for flow_run in cancelling_flow_runs:
-            self._cancelling_flow_run_ids.add(flow_run.id)
-            self._runs_task_group.start_soon(self.cancel_run, flow_run)
-
-        return cancelling_flow_runs
-
-    async def cancel_run(self, flow_run: "FlowRun"):
-        run_logger = self.get_flow_run_logger(flow_run)
-
-        try:
-            configuration = await self._get_configuration(flow_run)
-        except ObjectNotFound:
-            self._logger.warning(
-                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
-                f" associated deployment {flow_run.deployment_id!r} does not exist."
-            )
-            await self._mark_flow_run_as_cancelled(
-                flow_run,
-                state_updates={
-                    "message": (
-                        "This flow run is missing infrastructure configuration information"
-                        " and cancellation cannot be guaranteed."
-                    )
-                },
-            )
-            return
-        else:
-            if configuration.is_using_a_runner:
-                self._logger.info(
-                    f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
-                    " using enhanced cancellation. A dedicated runner will handle"
-                    " cancellation."
-                )
-                return
-
-        if not flow_run.infrastructure_pid:
-            run_logger.error(
-                f"Flow run '{flow_run.id}' does not have an infrastructure pid"
-                " attached. Cancellation cannot be guaranteed."
-            )
-            await self._mark_flow_run_as_cancelled(
-                flow_run,
-                state_updates={
-                    "message": (
-                        "This flow run is missing infrastructure tracking information"
-                        " and cancellation cannot be guaranteed."
-                    )
-                },
-            )
-            return
-
-        try:
-            await self.kill_infrastructure(
-                infrastructure_pid=flow_run.infrastructure_pid,
-                configuration=configuration,
-            )
-        except NotImplementedError:
-            self._logger.error(
-                f"Worker type {self.type!r} does not support killing created "
-                "infrastructure. Cancellation cannot be guaranteed."
-            )
-        except InfrastructureNotFound as exc:
-            self._logger.warning(f"{exc} Marking flow run as cancelled.")
-            await self._mark_flow_run_as_cancelled(flow_run)
-        except InfrastructureNotAvailable as exc:
-            self._logger.warning(f"{exc} Flow run cannot be cancelled by this worker.")
-        except Exception:
-            run_logger.exception(
-                "Encountered exception while killing infrastructure for flow run "
-                f"'{flow_run.id}'. Flow run may not be cancelled."
-            )
-            # We will try again on generic exceptions
-            self._cancelling_flow_run_ids.remove(flow_run.id)
-            return
-        else:
-            self._emit_flow_run_cancelled_event(
-                flow_run=flow_run, configuration=configuration
-            )
-            await self._mark_flow_run_as_cancelled(flow_run)
-            run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
     async def _update_local_work_pool_info(self):
         try:
@@ -1343,21 +1151,4 @@ class BaseWorker(abc.ABC):
             resource=self._event_resource(),
             related=self._event_related_resources(),
             follows=started_event,
-        )
-
-    def _emit_flow_run_cancelled_event(
-        self, flow_run: "FlowRun", configuration: BaseJobConfiguration
-    ):
-        related = self._event_related_resources(configuration=configuration)
-
-        for resource in related:
-            if resource.role == "flow-run":
-                resource["prefect.infrastructure.identifier"] = str(
-                    flow_run.infrastructure_pid
-                )
-
-        emit_event(
-            event="prefect.worker.cancelled-flow-run",
-            resource=self._event_resource(),
-            related=related,
         )
