@@ -103,6 +103,8 @@ jobs:
       - name: Generate tags for prefecthq/prefect
         id: metadata-prod
         uses: docker/metadata-action@v5
+        # generate the production tags on release events or when manually triggered for 3-latest
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
         with:
           images: prefecthq/prefect
           # push `latest`, `X.Y` and `X` tags only when the release is not marked as prerelease
