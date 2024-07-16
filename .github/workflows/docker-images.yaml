@@ -28,7 +28,7 @@ on:
     inputs:
       publish_3_latest:
         description: 'Publish 3-latest images'
-        required: true
+        required: false
         type: boolean
         default: false
 
