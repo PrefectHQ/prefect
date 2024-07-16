@@ -17,12 +17,6 @@ depends_on = None
 
 
 def upgrade():
-    op.create_index(
-        op.f("ix_artifact_collection__updated"),
-        "artifact_collection",
-        ["updated"],
-        unique=False,
-    )
     op.add_column(
         "automation_event_follower", sa.Column("scope", sa.String(), nullable=False)
     )
