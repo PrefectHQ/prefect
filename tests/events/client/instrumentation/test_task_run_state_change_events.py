@@ -306,6 +306,7 @@ async def test_task_state_change_task_failure(
             "prefect.state-type": "RUNNING",
             "prefect.state-name": "Running",
             "prefect.state-timestamp": task_run_states[1].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
     )
     assert (
