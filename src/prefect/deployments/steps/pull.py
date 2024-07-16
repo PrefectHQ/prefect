@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from prefect._internal.retries import retry_async_fn
 from prefect.logging.loggers import get_logger
 from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import sync_compatible
@@ -31,6 +32,12 @@ def set_working_directory(directory: str) -> dict:
     return dict(directory=directory)
 
 
+@retry_async_fn(
+    max_attempts=3,
+    base_delay=1,
+    max_delay=10,
+    retry_on_exceptions=(RuntimeError,),
+)
 @sync_compatible
 async def git_clone(
     repository: str,
