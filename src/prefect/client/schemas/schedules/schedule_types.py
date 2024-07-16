@@ -1,6 +1,6 @@
 import datetime
-from typing import Any, Optional, TypeAlias, TypeGuard, Union
-
+from typing import Any, Optional, TypeGuard, Union
+from typing_extensions import TypeAlias
 from pydantic_extra_types.pendulum_dt import DateTime
 
 from .cron_schedule import CronSchedule
