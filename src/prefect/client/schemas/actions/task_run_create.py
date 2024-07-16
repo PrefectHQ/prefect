@@ -2,8 +2,14 @@ from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import Field
+from pydantic_extra_types.pendulum_dt import DateTime
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import (
+    TaskRunPolicy,
+    TaskRunResult,
+    Parameter,
+    Constant,
+)
 from prefect._internal.schemas.bases import ActionBaseModel
 
 from .state_create import StateCreate
@@ -34,19 +40,19 @@ class TaskRunCreate(ActionBaseModel):
         ),
     )
     cache_key: Optional[str] = Field(None)
-    cache_expiration: Optional[objects.DateTime] = Field(None)
+    cache_expiration: Optional[DateTime] = Field(None)
     task_version: Optional[str] = Field(None)
-    empirical_policy: objects.TaskRunPolicy = Field(
-        default_factory=objects.TaskRunPolicy,
+    empirical_policy: TaskRunPolicy = Field(
+        default_factory=TaskRunPolicy,
     )
     tags: List[str] = Field(default_factory=list)
     task_inputs: Dict[
         str,
         List[
             Union[
-                objects.TaskRunResult,
-                objects.Parameter,
-                objects.Constant,
+                TaskRunResult,
+                Parameter,
+                Constant,
             ]
         ],
     ] = Field(default_factory=dict)

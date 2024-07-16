@@ -1,8 +1,7 @@
 from typing import Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, HttpUrl
 
-import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     validate_block_type_slug,
@@ -14,10 +13,10 @@ class BlockTypeCreate(ActionBaseModel):
 
     name: str = Field(default=..., description="A block type's name")
     slug: str = Field(default=..., description="A block type's slug")
-    logo_url: Optional[objects.HttpUrl] = Field(
+    logo_url: Optional[HttpUrl] = Field(
         default=None, description="Web URL for the block type's logo"
     )
-    documentation_url: Optional[objects.HttpUrl] = Field(
+    documentation_url: Optional[HttpUrl] = Field(
         default=None, description="Web URL for the block type's documentation"
     )
     description: Optional[str] = Field(

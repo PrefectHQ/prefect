@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import Field
 from pydantic_extra_types.pendulum_dt import DateTime
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import DeploymentSchedule, DeploymentStatus
 from prefect._internal.schemas.bases import ObjectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -30,7 +30,7 @@ class DeploymentResponse(ObjectBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[objects.DeploymentSchedule] = Field(
+    schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
     job_variables: Dict[str, Any] = Field(
@@ -110,7 +110,7 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
-    status: Optional[objects.DeploymentStatus] = Field(
+    status: Optional[DeploymentStatus] = Field(
         default=None,
         description="Current status of the deployment.",
     )

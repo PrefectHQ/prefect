@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import Field
 from pydantic_extra_types.pendulum_dt import DateTime
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import FlowRunPolicy, FlowRun, StateType, State
 from prefect._internal.schemas.bases import ObjectBaseModel
 from prefect._internal.schemas.fields import CreatedBy
 from prefect.utilities.names import generate_slug
@@ -57,8 +57,8 @@ class FlowRunResponse(ObjectBaseModel):
         description="Additional context for the flow run.",
         examples=[{"my_var": "my_val"}],
     )
-    empirical_policy: objects.FlowRunPolicy = Field(
-        default_factory=objects.FlowRunPolicy,
+    empirical_policy: FlowRunPolicy = Field(
+        default_factory=FlowRunPolicy,
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -132,7 +132,7 @@ class FlowRunResponse(ObjectBaseModel):
         description="The name of the flow run's work pool.",
         examples=["my-work-pool"],
     )
-    state: Optional[objects.State] = Field(
+    state: Optional[State] = Field(
         default=None,
         description="The state of the flow run.",
         examples=["objects.State(type=objects.StateType.COMPLETED)"],
@@ -144,7 +144,7 @@ class FlowRunResponse(ObjectBaseModel):
     # These are server-side optimizations and should not be present on client models
     # TODO: Deprecate these fields
 
-    state_type: Optional[objects.StateType] = Field(
+    state_type: Optional[StateType] = Field(
         default=None, description="The type of the current flow run state."
     )
     state_name: Optional[str] = Field(
@@ -158,7 +158,7 @@ class FlowRunResponse(ObjectBaseModel):
         Estimates times are rolling and will always change with repeated queries for
         a flow run so we ignore them during equality checks.
         """
-        if isinstance(other, objects.FlowRun):
+        if isinstance(other, FlowRun):
             exclude_fields = {"estimated_run_time", "estimated_start_time_delta"}
             return self.model_dump(exclude=exclude_fields) == other.model_dump(
                 exclude=exclude_fields

@@ -3,7 +3,8 @@ from uuid import UUID
 
 from pydantic import Field
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import DEFAULT_BLOCK_SCHEMA_VERSION
+
 from prefect._internal.schemas.bases import ActionBaseModel
 
 
@@ -19,6 +20,6 @@ class BlockSchemaCreate(ActionBaseModel):
         description="A list of Block capabilities",
     )
     version: str = Field(
-        default=objects.DEFAULT_BLOCK_SCHEMA_VERSION,
+        default=DEFAULT_BLOCK_SCHEMA_VERSION,
         description="Human readable identifier for the block schema",
     )

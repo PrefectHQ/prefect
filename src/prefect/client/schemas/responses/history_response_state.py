@@ -2,14 +2,14 @@ import datetime
 
 from pydantic import Field
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import StateType
 from prefect._internal.schemas.bases import PrefectBaseModel
 
 
 class HistoryResponseState(PrefectBaseModel):
     """Represents a single state's history over an interval."""
 
-    state_type: objects.StateType = Field(default=..., description="The state type.")
+    state_type: StateType = Field(default=..., description="The state type.")
     state_name: str = Field(default=..., description="The state name.")
     count_runs: int = Field(
         default=...,

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import Field
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import FlowRunPolicy
 from prefect._internal.schemas.bases import ActionBaseModel
 
 from .state_create import StateCreate
@@ -25,9 +25,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default_factory=dict, description="The context for the flow run."
     )
     infrastructure_document_id: Optional[UUID] = Field(None)
-    empirical_policy: objects.FlowRunPolicy = Field(
-        default_factory=objects.FlowRunPolicy
-    )
+    empirical_policy: FlowRunPolicy = Field(default_factory=FlowRunPolicy)
     tags: List[str] = Field(default_factory=list)
     idempotency_key: Optional[str] = Field(None)
     parent_task_run_id: Optional[UUID] = Field(None)

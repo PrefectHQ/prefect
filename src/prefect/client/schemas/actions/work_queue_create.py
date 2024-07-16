@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import Field
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import QueueFilter
 from prefect._internal.schemas.bases import ActionBaseModel
 
 
@@ -28,7 +28,7 @@ class WorkQueueCreate(ActionBaseModel):
 
     # DEPRECATED
 
-    filter: Optional[objects.QueueFilter] = Field(
+    filter: Optional[QueueFilter] = Field(
         None,
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,

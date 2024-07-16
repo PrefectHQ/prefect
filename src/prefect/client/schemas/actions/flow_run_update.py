@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import FlowRunPolicy
 from prefect._internal.schemas.bases import ActionBaseModel
 
 
@@ -12,9 +12,7 @@ class FlowRunUpdate(ActionBaseModel):
     name: Optional[str] = Field(None)
     flow_version: Optional[str] = Field(None)
     parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    empirical_policy: objects.FlowRunPolicy = Field(
-        default_factory=objects.FlowRunPolicy
-    )
+    empirical_policy: FlowRunPolicy = Field(default_factory=FlowRunPolicy)
     tags: List[str] = Field(default_factory=list)
     infrastructure_pid: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)

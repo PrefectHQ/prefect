@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import Field
 from pydantic_extra_types.pendulum_dt import DateTime
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import QueueFilter
 from prefect._internal.schemas.bases import ActionBaseModel
 
 
@@ -21,7 +21,7 @@ class WorkQueueUpdate(ActionBaseModel):
 
     # DEPRECATED
 
-    filter: Optional[objects.QueueFilter] = Field(
+    filter: Optional[QueueFilter] = Field(
         None,
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,

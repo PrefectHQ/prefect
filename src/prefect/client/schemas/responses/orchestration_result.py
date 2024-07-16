@@ -1,6 +1,6 @@
 from typing import Optional, Union
 
-import prefect.client.schemas.objects as objects
+from prefect.client.schemas.objects import State
 from prefect._internal.schemas.bases import PrefectBaseModel
 
 from .set_state_status import SetStateStatus
