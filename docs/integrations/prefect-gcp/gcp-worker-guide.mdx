@@ -118,7 +118,7 @@ Once those variables are set, run the following shell command to deploy your wor
 Don't forget to replace `<YOUR-SERVICE-ACCOUNT-NAME>` with the name of the service account you created in the first step of this guide, and replace `<WORK-POOL-NAME>` with the name of the work pool you created in the second step.
 
 ```bash
-gcloud run deploy prefect-worker --image=prefecthq/prefect:3-latest \
+gcloud run deploy prefect-worker --image=prefecthq/prefect:3rc-latest \
 --set-env-vars PREFECT_API_URL=$PREFECT_API_URL,PREFECT_API_KEY=$PREFECT_API_KEY \
 --service-account <YOUR-SERVICE-ACCOUNT-NAME> \
 --no-cpu-throttling \
