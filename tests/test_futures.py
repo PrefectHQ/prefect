@@ -15,6 +15,7 @@ from prefect.futures import (
     PrefectFuture,
     PrefectFutureList,
     PrefectWrappedFuture,
+    as_completed,
     resolve_futures_to_states,
     wait,
 )
@@ -54,6 +55,25 @@ class TestUtilityFunctions:
         mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
         futures = wait(mock_futures, timeout=0.01)
         assert futures.not_done == {mock_futures[-1]}
+
+    def test_as_completed(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        for future in as_completed(mock_futures):
+            assert future.state.is_completed()
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_with_timeout(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        hanging_future = Future()
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
+
+        with pytest.raises(TimeoutError) as exc_info:
+            for future in as_completed(mock_futures, timeout=0.01):
+                assert future.state.is_completed()
+
+        assert (
+            exc_info.value.args[0] == f"1 (of {len(mock_futures)}) futures unfinished"
+        )
 
 
 class TestPrefectConcurrentFuture:
