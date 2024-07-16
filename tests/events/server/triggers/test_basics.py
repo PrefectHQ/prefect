@@ -661,9 +661,6 @@ async def test_follower_messages_are_processed_when_leaders_arrive(
     # Failed is the event we want, but it's too early so we shouldn't have acted yet
     act.assert_not_awaited()
 
-    # There should also be a follower recorded for safe-keeping
-    assert await triggers.get_followers(running) == [failed]
-
     await triggers.reactive_evaluation(running)
     assert_acted_with(
         Firing(
@@ -674,9 +671,6 @@ async def test_follower_messages_are_processed_when_leaders_arrive(
             triggering_event=failed,  # we reacted due to the Failed event, not Running
         ),
     )
-
-    # The follower should have been removed
-    assert await triggers.get_followers(running) == []
 
 
 async def test_old_follower_messages_are_processed_immediately(
@@ -826,25 +820,16 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
     # the Pending event is irrelevant
     act.assert_not_awaited()
 
-    # No followers yet
-    assert await triggers.get_followers(bogus) == []
-
     with pytest.raises(triggers.EventArrivedEarly):
         await triggers.reactive_evaluation(failed)
     # Failed is the event we want, but it's too early so we shouldn't have acted yet
     act.assert_not_awaited()
-
-    # There should also be a follower recorded for safe-keeping
-    assert await triggers.get_followers(bogus) == [failed]
 
     with pytest.raises(triggers.EventArrivedEarly):
         await triggers.reactive_evaluation(running)
     # The Running event is also early and this Running event is _not_ the leader here,
     # so nothing should have fired
     act.assert_not_awaited()
-
-    # There should now be two followers
-    assert await triggers.get_followers(bogus) == [running, failed]
 
     # A proactive evaluation happening before the timeout should not process these
     # events
@@ -870,6 +855,3 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
             triggering_event=failed,
         ),
     )
-
-    # The followers should have been removed
-    assert await triggers.get_followers(bogus) == []

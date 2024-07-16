@@ -365,7 +365,8 @@ async def test_only_processes_event_once(
         },
     )
 
-    reactive_evaluation.side_effect = triggers.record_event_as_seen
+    causal_ordering = triggers.causal_ordering()
+    reactive_evaluation.side_effect = causal_ordering.record_event_as_seen
 
     await asyncio.gather(*[message_handler(message) for _ in range(50)])
 

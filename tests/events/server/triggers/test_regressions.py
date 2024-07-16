@@ -19,10 +19,6 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import Event, ReceivedEvent
-from prefect.server.events.triggers import (
-    MAX_DEPTH_OF_PRECEDING_EVENT,
-    MaxDepthExceeded,
-)
 from prefect.server.models import work_queues
 from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import WorkQueue
@@ -531,40 +527,6 @@ async def test_same_event_in_expect_and_after_proactively_fires(
         frozen_time + timedelta(seconds=30),
     )
     act.assert_not_awaited()  # won't act here, we haven't "armed" the trigger again
-
-
-async def test_max_recursion_depth_handling():
-    """
-    Test to ensure that the recursive_evaluation function correctly handles the maximum recursion depth.
-    """
-
-    # Create a chain of events where each event follows the previous one
-    events = []
-    for i in range(MAX_DEPTH_OF_PRECEDING_EVENT + 5):  # Exceed the max depth
-        event = ReceivedEvent(
-            occurred=pendulum.now(),
-            event=f"event_{i}",
-            resource={"prefect.resource.id": f"resource_id_{i}"},
-            received=pendulum.now(),
-            id=uuid4(),
-            follows=events[-1].id if events else None,
-        )
-        events.append(event)
-
-    # Mock to avoid EventArrivedEarly exception
-    with mock.patch(
-        "prefect.server.events.triggers.event_has_been_seen", return_value=True
-    ), mock.patch(
-        "prefect.server.events.triggers.record_follower", return_value=None
-    ), mock.patch(
-        "prefect.server.events.triggers.update_events_clock", mock.AsyncMock()
-    ), mock.patch(
-        "prefect.server.events.triggers.get_followers",
-        mock.AsyncMock(return_value=events),
-    ):
-        for event in reversed(events):
-            with pytest.raises(MaxDepthExceeded):
-                await triggers.reactive_evaluation(event)
 
 
 @pytest.fixture
