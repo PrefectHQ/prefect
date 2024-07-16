@@ -1160,6 +1160,11 @@ polled."""
 PREFECT_API_LOG_RETRYABLE_ERRORS = Setting(bool, default=False)
 """If `True`, log retryable errors in the API and it's services."""
 
+PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the task run recorder service in the server application.
+"""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
@@ -1308,6 +1313,13 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
 The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
+
+PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION = Setting(
+    bool, default=False
+)
+"""
+Whether or not to enable experimental client side task run orchestration.
+"""
 
 # Prefect Events feature flags
 
