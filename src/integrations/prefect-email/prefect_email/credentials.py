@@ -9,8 +9,9 @@ from typing import Optional, Union
 from pydantic import Field, SecretStr, field_validator
 
 from prefect.blocks.core import Block
-from prefect.logging import get_run_logger
+from prefect.logging import get_logger, get_run_logger
 
+internal_logger = get_logger(__name__)
 
 class SMTPType(Enum):
     """
@@ -202,7 +203,11 @@ class EmailServerCredentials(Block):
                 server.starttls(context=context)
         if self.username is not None:
             if not self.verify or smtp_type == SMTPType.INSECURE:
-                get_run_logger().warning(
+                try:
+                    logger = get_run_logger()
+                except Exception:
+                    logger = internal_logger()
+                logger.warning(
                     """SMTP login is not secure without a verified SSL/TLS or SECURE connection. 
                     Without such a connection, the password may be sent in plain text, 
                     making it vulnerable to interception."""
