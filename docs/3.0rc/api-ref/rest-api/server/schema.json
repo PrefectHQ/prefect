@@ -26091,7 +26091,7 @@
                             }
                         ],
                         "title": "Within",
-                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
+                        "description": "The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
                     }
                 },
                 "type": "object",
@@ -26410,7 +26410,7 @@
                         "title": "Id",
                         "description": "The unique ID of this trigger"
                     },
-                    "triggers": {
+                    "triggers": { 
                         "items": {
                             "anyOf": [
                                 {
