@@ -52,6 +52,7 @@ async def test_task_state_change_happy_path(
             "prefect.state-type": "PENDING",
             "prefect.state-name": "Pending",
             "prefect.state-timestamp": task_run_states[0].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
     )
     assert (
@@ -103,6 +104,7 @@ async def test_task_state_change_happy_path(
             "prefect.state-type": "RUNNING",
             "prefect.state-name": "Running",
             "prefect.state-timestamp": task_run_states[1].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
     )
     assert (
@@ -159,6 +161,7 @@ async def test_task_state_change_happy_path(
             "prefect.state-type": "COMPLETED",
             "prefect.state-name": "Completed",
             "prefect.state-timestamp": task_run_states[2].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
     )
     assert (
@@ -251,6 +254,7 @@ async def test_task_state_change_task_failure(
             "prefect.state-type": "PENDING",
             "prefect.state-name": "Pending",
             "prefect.state-timestamp": task_run_states[0].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
     )
     assert (
@@ -302,6 +306,7 @@ async def test_task_state_change_task_failure(
             "prefect.state-type": "RUNNING",
             "prefect.state-name": "Running",
             "prefect.state-timestamp": task_run_states[1].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
     )
     assert (
@@ -361,6 +366,7 @@ async def test_task_state_change_task_failure(
             "prefect.state-type": "FAILED",
             "prefect.state-name": "Failed",
             "prefect.state-timestamp": task_run_states[2].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
     )
     assert (
