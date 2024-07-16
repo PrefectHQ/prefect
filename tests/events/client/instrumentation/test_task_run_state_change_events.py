@@ -71,6 +71,7 @@ async def test_task_state_change_happy_path(
             "prefect.state-name": task_run_state.name,
             "prefect.state-timestamp": task_run_state.timestamp.isoformat(),
             "prefect.state-type": str(task_run_state.type.value),
+            "prefect.orchestration": "server",
         }
 
         last_state = task_run_state
@@ -140,6 +141,7 @@ async def test_task_state_change_task_failure(
             "prefect.state-name": task_run_state.name,
             "prefect.state-timestamp": task_run_state.timestamp.isoformat(),
             "prefect.state-type": str(task_run_state.type.value),
+            "prefect.orchestration": "server",
         }
 
         last_state = task_run_state
