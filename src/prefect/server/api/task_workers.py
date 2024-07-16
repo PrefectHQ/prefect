@@ -17,7 +17,7 @@ class TaskWorkerFilter(BaseModel):
 @router.post("/filter")
 async def read_task_workers(
     task_worker_filter: Optional[TaskWorkerFilter] = Body(
-        default=None, description="The task worker filter"
+        default=None, description="The task worker filter", embed=True
     ),
 ) -> List[TaskWorkerResponse]:
     """Read active task workers. Optionally filter by task keys."""

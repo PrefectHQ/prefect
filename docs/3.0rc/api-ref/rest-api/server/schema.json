@@ -6523,16 +6523,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "anyOf": [
+                                "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/TaskWorkerFilter"
-                                    },
-                                    {
-                                        "type": "null"
+                                        "$ref": "#/components/schemas/Body_read_task_workers_task_workers_filter_post"
                                     }
                                 ],
-                                "description": "The task worker filter",
-                                "title": "Task Worker Filter"
+                                "title": "Body"
                             }
                         }
                     }
@@ -14362,6 +14358,23 @@
                 },
                 "type": "object",
                 "title": "Body_read_task_runs_task_runs_filter_post"
+            },
+            "Body_read_task_workers_task_workers_filter_post": {
+                "properties": {
+                    "task_worker_filter": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskWorkerFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The task worker filter"
+                    }
+                },
+                "type": "object",
+                "title": "Body_read_task_workers_task_workers_filter_post"
             },
             "Body_read_variables_variables_filter_post": {
                 "properties": {
