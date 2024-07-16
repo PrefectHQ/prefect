@@ -78,7 +78,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                     "Cannot put items in a stopped service instance. Current queue size: %s",
                     self._queue.qsize(),
                 )
-                return None
+                return  # type: ignore
 
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()
