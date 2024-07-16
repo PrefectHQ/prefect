@@ -1160,6 +1160,11 @@ polled."""
 PREFECT_API_LOG_RETRYABLE_ERRORS = Setting(bool, default=False)
 """If `True`, log retryable errors in the API and it's services."""
 
+PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the task run recorder service in the server application.
+"""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
@@ -1317,6 +1322,11 @@ Whether or not to enable experimental enhanced flow run cancellation.
 PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
 """
 Whether or not to warn when experimental enhanced flow run cancellation is used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_CLIENT_TASK_ORCHESTRATION = Setting(bool, default=False)
+"""
+Whether or not to enable experimental client side task run orchestration.
 """
 
 

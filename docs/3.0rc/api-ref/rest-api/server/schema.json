@@ -22075,6 +22075,11 @@
                         "title": "Prefect Api Log Retryable Errors",
                         "default": false
                     },
+                    "PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED": {
+                        "type": "boolean",
+                        "title": "Prefect Api Services Task Run Recorder Enabled",
+                        "default": true
+                    },
                     "PREFECT_API_DEFAULT_LIMIT": {
                         "type": "integer",
                         "title": "Prefect Api Default Limit",
@@ -22175,6 +22180,11 @@
                     "PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION": {
                         "type": "boolean",
                         "title": "Prefect Experimental Warn Enhanced Cancellation",
+                        "default": false
+                    },
+                    "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_TASK_ORCHESTRATION": {
+                        "type": "boolean",
+                        "title": "Prefect Experimental Enable Client Task Orchestration",
                         "default": false
                     },
                     "PREFECT_RUNNER_PROCESS_LIMIT": {
