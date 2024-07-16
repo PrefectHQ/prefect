@@ -69,10 +69,16 @@ class ConcurrencySlotAcquisitionService(QueueService):
                 else:
                     return response
 
-    def send(self, item: Tuple[int, str, Optional[float]]) -> concurrent.futures.Future:
+    def send(
+        self, item: Tuple[int, str, Optional[float]]
+    ) -> Optional[concurrent.futures.Future]:
         with self._lock:
             if self._stopped:
-                raise RuntimeError("Cannot put items in a stopped service instance.")
+                logger.warning(
+                    "Cannot put items in a stopped service instance. Current queue size: %s",
+                    self._queue.qsize(),
+                )
+                return None
 
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()

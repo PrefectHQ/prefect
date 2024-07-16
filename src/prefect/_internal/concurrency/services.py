@@ -105,7 +105,11 @@ class QueueService(abc.ABC, Generic[T]):
         """
         with self._lock:
             if self._stopped:
-                raise RuntimeError("Cannot put items in a stopped service instance.")
+                logger.warning(
+                    "Cannot put items in a stopped service instance. Current queue size: %s",
+                    self._queue.qsize(),
+                )
+                return
 
             logger.debug("Service %r enqueuing item %r", self, item)
             self._queue.put_nowait(self._prepare_item(item))
