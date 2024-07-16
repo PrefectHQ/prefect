@@ -1430,8 +1430,17 @@ class CompositeTriggerChildFiring(Base):
 
 
 class AutomationEventFollower(Base):
+    __table_args__ = (
+        sa.Index(
+            "uq_follower_for_scope",
+            "scope",
+            "follower_event_id",
+            unique=True,
+        ),
+    )
+    scope = sa.Column(sa.String, nullable=False, default="", index=True)
     leader_event_id = sa.Column(UUID(), nullable=False, index=True)
-    follower_event_id = sa.Column(UUID(), nullable=False, unique=True)
+    follower_event_id = sa.Column(UUID(), nullable=False)
     received = sa.Column(Timestamp(), nullable=False, index=True)
     follower = sa.Column(Pydantic(ReceivedEvent), nullable=False)
 

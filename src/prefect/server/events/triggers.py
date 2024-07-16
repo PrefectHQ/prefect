@@ -12,7 +12,6 @@ from typing import (
     Collection,
     Dict,
     List,
-    MutableMapping,
     Optional,
     Tuple,
 )
@@ -20,7 +19,6 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from cachetools import TTLCache
 from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Literal, TypeAlias
@@ -39,6 +37,11 @@ from prefect.server.events.models.composite_trigger_child_firing import (
     clear_old_child_firings,
     get_child_firings,
     upsert_child_firing,
+)
+from prefect.server.events.ordering import (
+    PRECEDING_EVENT_LOOKBACK,
+    CausalOrdering,
+    EventArrivedEarly,
 )
 from prefect.server.events.schemas.automations import (
     Automation,
@@ -65,8 +68,6 @@ TriggerID: TypeAlias = UUID
 
 
 AUTOMATION_BUCKET_BATCH_SIZE = 500
-
-MAX_DEPTH_OF_PRECEDING_EVENT = 20
 
 
 async def evaluate(
@@ -414,7 +415,11 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0):
     """
     async with AsyncExitStack() as stack:
         await update_events_clock(event)
-        await stack.enter_async_context(with_preceding_event_confirmed(event, depth))
+        await stack.enter_async_context(
+            causal_ordering().preceding_event_confirmed(
+                reactive_evaluation, event, depth
+            )
+        )
 
         interested_triggers = find_interested_triggers(event)
         if not interested_triggers:
@@ -518,7 +523,7 @@ async def periodic_evaluation(now: DateTime):
     # Any followers that have been sitting around longer than our lookback are never
     # going to see their leader event (maybe it was lost or took too long to arrive).
     # These events can just be evaluated now in the order they occurred.
-    for event in await get_lost_followers():
+    for event in await causal_ordering().get_lost_followers():
         await reactive_evaluation(event)
 
     async with automations_session() as session:
@@ -878,178 +883,16 @@ async def sweep_closed_buckets(
     )
 
 
-# How long we'll retain preceding events (to aid with ordering)
-PRECEDING_EVENT_LOOKBACK = timedelta(minutes=15)
-
-# How long we'll retain events we've processed (to prevent re-processing an event)
-PROCESSED_EVENT_LOOKBACK = timedelta(minutes=30)
-
-
-class EventArrivedEarly(Exception):
-    def __init__(self, event: ReceivedEvent):
-        self.event = event
-
-
-class MaxDepthExceeded(Exception):
-    def __init__(self, event: ReceivedEvent):
-        self.event = event
-
-
-SEEN_EXPIRATION = max(PRECEDING_EVENT_LOOKBACK, PROCESSED_EVENT_LOOKBACK)
-
-
-_seen_events: MutableMapping[UUID, bool] = TTLCache(
-    maxsize=10000, ttl=SEEN_EXPIRATION.total_seconds()
-)
-
-
-async def event_has_been_seen(id: UUID) -> bool:
-    return _seen_events.get(id, False)
-
-
-async def record_event_as_seen(event: ReceivedEvent) -> None:
-    _seen_events[event.id] = True
-
-
-@asynccontextmanager
-async def with_preceding_event_confirmed(event: ReceivedEvent, depth: int = 0):
-    """Events may optionally declare that they logically follow another event, so that
-    we can preserve important event orderings in the face of unreliable delivery and
-    ordering of messages from the queues.
-
-    This function keeps track of the ID of each event that this shard has successfully
-    processed going back to the PRECEDING_EVENT_LOOKBACK period.  If an event arrives
-    that must follow another one, confirm that we have recently seen and processed that
-    event before proceeding.
-
-    Args:
-    event (ReceivedEvent): The event to be processed. This object should include metadata indicating
-        if and what event it follows.
-    depth (int, optional): The current recursion depth, used to prevent infinite recursion due to
-        cyclic dependencies between events. Defaults to 0.
-
-
-    Raises EventArrivedEarly if the current event shouldn't be processed yet."""
-
-    if depth > MAX_DEPTH_OF_PRECEDING_EVENT:
-        logger.exception(
-            "Event %r (%s) for %r has exceeded the maximum recursion depth of %s",
-            event.event,
-            event.id,
-            event.resource.id,
-            MAX_DEPTH_OF_PRECEDING_EVENT,
-        )
-        raise MaxDepthExceeded(event)
-    if event.event == "prefect.log.write":
-        # special case, we know that log writes are extremely high volume and also that
-        # we do not tag these in event.follows links, so just exit early and don't
-        # incur the expense of bookkeeping with these
-        yield
-        return
-
-    if event.follows:
-        if not await event_has_been_seen(event.follows):
-            age = pendulum.now("UTC") - event.received
-            if age < PRECEDING_EVENT_LOOKBACK:
-                logger.debug(
-                    "Event %r (%s) for %r arrived before the event it follows %s",
-                    event.event,
-                    event.id,
-                    event.resource.id,
-                    event.follows,
-                )
-
-                # record this follower for safe-keeping
-                await record_follower(event)
-                raise EventArrivedEarly(event)
-
-    yield
-
-    await record_event_as_seen(event)
-
-    # we have just processed an event that other events were waiting on, so let's
-    # react to them now in the order they occurred
-    for waiter in await get_followers(event):
-        await reactive_evaluation(waiter, depth + 1)
-
-    # if this event was itself waiting on something, let's consider it as resolved now
-    # that it has been processed
-    if event.follows:
-        await forget_follower(event)
-
-
-@db_injector
-async def record_follower(db: PrefectDBInterface, event: ReceivedEvent):
-    """Remember that this event is waiting on another event to arrive"""
-    assert event.follows
-
-    async with db.session_context(begin_transaction=True) as session:
-        await session.execute(
-            sa.insert(db.AutomationEventFollower).values(
-                leader_event_id=event.follows,
-                follower_event_id=event.id,
-                received=event.received,
-                follower=event,
-            )
-        )
-
-
-@db_injector
-async def forget_follower(db: PrefectDBInterface, follower: ReceivedEvent):
-    """Forget that this event is waiting on another event to arrive"""
-    assert follower.follows
-
-    async with db.session_context(begin_transaction=True) as session:
-        await session.execute(
-            sa.delete(db.AutomationEventFollower).where(
-                db.AutomationEventFollower.follower_event_id == follower.id
-            )
-        )
-
-
-@db_injector
-async def get_followers(
-    db: PrefectDBInterface, leader: ReceivedEvent
-) -> List[ReceivedEvent]:
-    """Returns events that were waiting on this leader event to arrive"""
-    async with db.session_context() as session:
-        query = sa.select(db.AutomationEventFollower.follower).where(
-            db.AutomationEventFollower.leader_event_id == leader.id
-        )
-        result = await session.execute(query)
-        followers = result.scalars().all()
-        return sorted(followers, key=lambda e: e.occurred)
-
-
-@db_injector
-async def get_lost_followers(db: PrefectDBInterface) -> List[ReceivedEvent]:
-    """Returns events that were waiting on a leader event that never arrived"""
-    earlier = pendulum.now("UTC") - PRECEDING_EVENT_LOOKBACK
-
-    async with db.session_context(begin_transaction=True) as session:
-        query = sa.select(db.AutomationEventFollower.follower).where(
-            db.AutomationEventFollower.received < earlier
-        )
-        result = await session.execute(query)
-        followers = result.scalars().all()
-
-        # forget these followers, since they are never going to see their leader event
-
-        await session.execute(
-            sa.delete(db.AutomationEventFollower).where(
-                db.AutomationEventFollower.received < earlier
-            )
-        )
-
-        return sorted(followers, key=lambda e: e.occurred)
-
-
 async def reset():
     """Resets the in-memory state of the service"""
     reset_events_clock()
     automations_by_id.clear()
     triggers.clear()
     next_proactive_runs.clear()
+
+
+def causal_ordering() -> CausalOrdering:
+    return CausalOrdering(scope="")
 
 
 @asynccontextmanager
@@ -1063,6 +906,8 @@ async def consumer(
         await load_automations(session)
 
     proactive_task = asyncio.create_task(evaluate_periodically(periodic_granularity))
+
+    ordering = causal_ordering()
 
     async def message_handler(message: Message):
         if not message.data:
@@ -1087,7 +932,7 @@ async def consumer(
             )
             return
 
-        if await event_has_been_seen(event_id):
+        if await ordering.event_has_been_seen(event_id):
             return
 
         event = ReceivedEvent.model_validate_json(message.data)
