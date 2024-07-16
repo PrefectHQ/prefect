@@ -22182,9 +22182,9 @@
                         "title": "Prefect Experimental Warn Enhanced Cancellation",
                         "default": false
                     },
-                    "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_TASK_ORCHESTRATION": {
+                    "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION": {
                         "type": "boolean",
-                        "title": "Prefect Experimental Enable Client Task Orchestration",
+                        "title": "Prefect Experimental Enable Client Side Task Orchestration",
                         "default": false
                     },
                     "PREFECT_RUNNER_PROCESS_LIMIT": {

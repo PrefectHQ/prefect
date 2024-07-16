@@ -1324,7 +1324,9 @@ PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
 Whether or not to warn when experimental enhanced flow run cancellation is used.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_CLIENT_TASK_ORCHESTRATION = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION = Setting(
+    bool, default=False
+)
 """
 Whether or not to enable experimental client side task run orchestration.
 """

@@ -604,7 +604,7 @@ def create_app(
             service_instances.append(stream.Distributor())
 
         if (
-            prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_CLIENT_TASK_ORCHESTRATION
+            prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION
             and prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED
         ):
             service_instances.append(TaskRunRecorder())
