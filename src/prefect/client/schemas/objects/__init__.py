@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from .queue_filter import QueueFilter
     from .saved_search import SavedSearch
     from .saved_search_filter import SavedSearchFilter
-    from .state import State
+    from .state import State, TERMINAL_STATES
     from .state_details import StateDetails
     from .state_type import StateType
     from .task_run import TaskRun
@@ -61,6 +61,7 @@ _public_api: dict[str, tuple[str, str]] = {
     "Constant": (__spec__.parent, ".constant"),
     "CsrfToken": (__spec__.parent, ".csrf_token"),
     "Deployment": (__spec__.parent, ".deployment"),
+    "DEFAULT_BLOCK_SCHEMA_VERSION": (__spec__.parent, ".block_schema"),
     "DeploymentSchedule": (__spec__.parent, ".deployment_schedule"),
     "DeploymentStatus": (__spec__.parent, ".deployment_status"),
     "Flow": (__spec__.parent, ".flow"),
@@ -81,6 +82,7 @@ _public_api: dict[str, tuple[str, str]] = {
     "TaskRunInput": (__spec__.parent, ".task_run_input"),
     "TaskRunPolicy": (__spec__.parent, ".task_run_policy"),
     "TaskRunResult": (__spec__.parent, ".task_run_result"),
+    "TERMINAL_STATES": (__spec__.parent, ".state"),
     "Variable": (__spec__.parent, ".variable"),
     "WorkPool": (__spec__.parent, ".work_pool"),
     "WorkPoolStatus": (__spec__.parent, ".work_pool_status"),
@@ -128,6 +130,7 @@ __all__ = [
     "TaskRunInput",
     "TaskRunPolicy",
     "TaskRunResult",
+    "TERMINAL_STATES",
     "Variable",
     "WorkPool",
     "WorkPoolStatus",

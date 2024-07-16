@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 import importlib
 
 if TYPE_CHECKING:
@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from .interval_schedule import IntervalSchedule
     from .no_schedule import NoSchedule
     from .r_rule_schedule import RRuleSchedule
+    from .schedule_types import SCHEDULE_TYPES, construct_schedule, is_schedule_type
 
 
 _public_api: dict[str, tuple[str, str]] = {
@@ -13,6 +14,9 @@ _public_api: dict[str, tuple[str, str]] = {
     "IntervalSchedule": (__spec__.parent, ".interval_schedule"),
     "NoSchedule": (__spec__.parent, ".no_schedule"),
     "RRuleSchedule": (__spec__.parent, ".r_rule_schedule"),
+    "SCHEDULE_TYPES": (__spec__.parent, ".schedule_types"),
+    "construct_schedule": (__spec__.parent, ".schedule_types"),
+    "is_schedule_type": (__spec__.parent, ".schedule_types"),
 }
 
 __all__ = [
@@ -20,6 +24,9 @@ __all__ = [
     "IntervalSchedule",
     "NoSchedule",
     "RRuleSchedule",
+    "SCHEDULE_TYPES",
+    "construct_schedule",
+    "is_schedule_type",
 ]
 
 
