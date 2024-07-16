@@ -6500,67 +6500,6 @@
                 }
             }
         },
-        "/api/task_workers/filter": {
-            "post": {
-                "tags": [
-                    "Task Workers"
-                ],
-                "summary": "Read Task Workers",
-                "description": "Read active task workers. Optionally filter by task keys.",
-                "operationId": "read_task_workers_task_workers_filter_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/Body_read_task_workers_task_workers_filter_post"
-                                    }
-                                ],
-                                "title": "Body"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/TaskWorkerResponse"
-                                    },
-                                    "title": "Response Read Task Workers Task Workers Filter Post"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/work_queues/": {
             "post": {
                 "tags": [
@@ -14311,42 +14250,30 @@
                         "default": 0
                     },
                     "flows": {
-                        "anyOf": [
+                        "allOf": [
                             {
                                 "$ref": "#/components/schemas/FlowFilter"
-                            },
-                            {
-                                "type": "null"
                             }
                         ]
                     },
                     "flow_runs": {
-                        "anyOf": [
+                        "allOf": [
                             {
                                 "$ref": "#/components/schemas/FlowRunFilter"
-                            },
-                            {
-                                "type": "null"
                             }
                         ]
                     },
                     "task_runs": {
-                        "anyOf": [
+                        "allOf": [
                             {
                                 "$ref": "#/components/schemas/TaskRunFilter"
-                            },
-                            {
-                                "type": "null"
                             }
                         ]
                     },
                     "deployments": {
-                        "anyOf": [
+                        "allOf": [
                             {
                                 "$ref": "#/components/schemas/DeploymentFilter"
-                            },
-                            {
-                                "type": "null"
                             }
                         ]
                     },
@@ -14358,23 +14285,6 @@
                 },
                 "type": "object",
                 "title": "Body_read_task_runs_task_runs_filter_post"
-            },
-            "Body_read_task_workers_task_workers_filter_post": {
-                "properties": {
-                    "task_worker_filter": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/TaskWorkerFilter"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "The task worker filter"
-                    }
-                },
-                "type": "object",
-                "title": "Body_read_task_workers_task_workers_filter_post"
             },
             "Body_read_variables_variables_filter_post": {
                 "properties": {
@@ -24040,49 +23950,6 @@
                 "type": "object",
                 "title": "TaskRunUpdate",
                 "description": "Data used by the Prefect REST API to update a task run"
-            },
-            "TaskWorkerFilter": {
-                "properties": {
-                    "task_keys": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "title": "Task Keys"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "task_keys"
-                ],
-                "title": "TaskWorkerFilter"
-            },
-            "TaskWorkerResponse": {
-                "properties": {
-                    "identifier": {
-                        "type": "string",
-                        "title": "Identifier"
-                    },
-                    "task_keys": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "title": "Task Keys"
-                    },
-                    "timestamp": {
-                        "type": "string",
-                        "format": "date-time",
-                        "title": "Timestamp"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "identifier",
-                    "task_keys",
-                    "timestamp"
-                ],
-                "title": "TaskWorkerResponse"
             },
             "TimeUnit": {
                 "type": "string",
