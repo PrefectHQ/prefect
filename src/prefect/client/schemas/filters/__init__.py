@@ -3,10 +3,14 @@ import importlib
 
 if TYPE_CHECKING:
     from .artifact_collection_filter import ArtifactCollectionFilter
-    from .artifact_collection_filter_flow_run_id import ArtifactCollectionFilterFlowRunId
+    from .artifact_collection_filter_flow_run_id import (
+        ArtifactCollectionFilterFlowRunId,
+    )
     from .artifact_collection_filter_key import ArtifactCollectionFilterKey
     from .artifact_collection_filter_latest_id import ArtifactCollectionFilterLatestId
-    from .artifact_collection_filter_task_run_id import ArtifactCollectionFilterTaskRunId
+    from .artifact_collection_filter_task_run_id import (
+        ArtifactCollectionFilterTaskRunId,
+    )
     from .artifact_collection_filter_type import ArtifactCollectionFilterType
     from .artifact_filter import ArtifactFilter
     from .artifact_filter_flow_run_id import ArtifactFilterFlowRunId
@@ -45,7 +49,9 @@ if TYPE_CHECKING:
     from .flow_run_filter_id import FlowRunFilterId
     from .flow_run_filter_idempotency_key import FlowRunFilterIdempotencyKey
     from .flow_run_filter_name import FlowRunFilterName
-    from .flow_run_filter_next_scheduled_start_time import FlowRunFilterNextScheduledStartTime
+    from .flow_run_filter_next_scheduled_start_time import (
+        FlowRunFilterNextScheduledStartTime,
+    )
     from .flow_run_filter_parent_flow_run_id import FlowRunFilterParentFlowRunId
     from .flow_run_filter_parent_task_run_id import FlowRunFilterParentTaskRunId
     from .flow_run_filter_start_time import FlowRunFilterStartTime
@@ -55,7 +61,9 @@ if TYPE_CHECKING:
     from .flow_run_filter_tags import FlowRunFilterTags
     from .flow_run_filter_work_queue_name import FlowRunFilterWorkQueueName
     from .flow_run_notification_policy_filter import FlowRunNotificationPolicyFilter
-    from .flow_run_notification_policy_filter_is_active import FlowRunNotificationPolicyFilterIsActive
+    from .flow_run_notification_policy_filter_is_active import (
+        FlowRunNotificationPolicyFilterIsActive,
+    )
     from .log_filter import LogFilter
     from .log_filter_flow_run_id import LogFilterFlowRunId
     from .log_filter_level import LogFilterLevel
@@ -88,15 +96,27 @@ if TYPE_CHECKING:
     from .worker_filter import WorkerFilter
     from .worker_filter_last_heartbeat_time import WorkerFilterLastHeartbeatTime
     from .worker_filter_work_pool_id import WorkerFilterWorkPoolId
-    
+
 
 _public_api: dict[str, tuple[str, str]] = {
     "ArtifactCollectionFilter": (__spec__.parent, ".artifact_collection_filter"),
-    "ArtifactCollectionFilterFlowRunId": (__spec__.parent, ".artifact_collection_filter_flow_run_id"),
+    "ArtifactCollectionFilterFlowRunId": (
+        __spec__.parent,
+        ".artifact_collection_filter_flow_run_id",
+    ),
     "ArtifactCollectionFilterKey": (__spec__.parent, ".artifact_collection_filter_key"),
-    "ArtifactCollectionFilterLatestId": (__spec__.parent, ".artifact_collection_filter_latest_id"),
-    "ArtifactCollectionFilterTaskRunId": (__spec__.parent, ".artifact_collection_filter_task_run_id"),
-    "ArtifactCollectionFilterType": (__spec__.parent, ".artifact_collection_filter_type"),
+    "ArtifactCollectionFilterLatestId": (
+        __spec__.parent,
+        ".artifact_collection_filter_latest_id",
+    ),
+    "ArtifactCollectionFilterTaskRunId": (
+        __spec__.parent,
+        ".artifact_collection_filter_task_run_id",
+    ),
+    "ArtifactCollectionFilterType": (
+        __spec__.parent,
+        ".artifact_collection_filter_type",
+    ),
     "ArtifactFilter": (__spec__.parent, ".artifact_filter"),
     "ArtifactFilterFlowRunId": (__spec__.parent, ".artifact_filter_flow_run_id"),
     "ArtifactFilterId": (__spec__.parent, ".artifact_filter_id"),
@@ -104,13 +124,25 @@ _public_api: dict[str, tuple[str, str]] = {
     "ArtifactFilterTaskRunId": (__spec__.parent, ".artifact_filter_task_run_id"),
     "ArtifactFilterType": (__spec__.parent, ".artifact_filter_type"),
     "BlockDocumentFilter": (__spec__.parent, ".block_document_filter"),
-    "BlockDocumentFilterBlockTypeId": (__spec__.parent, ".block_document_filter_block_type_id"),
+    "BlockDocumentFilterBlockTypeId": (
+        __spec__.parent,
+        ".block_document_filter_block_type_id",
+    ),
     "BlockDocumentFilterId": (__spec__.parent, ".block_document_filter_id"),
-    "BlockDocumentFilterIsAnonymous": (__spec__.parent, ".block_document_filter_is_anonymous"),
+    "BlockDocumentFilterIsAnonymous": (
+        __spec__.parent,
+        ".block_document_filter_is_anonymous",
+    ),
     "BlockDocumentFilterName": (__spec__.parent, ".block_document_filter_name"),
     "BlockSchemaFilter": (__spec__.parent, ".block_schema_filter"),
-    "BlockSchemaFilterBlockTypeId": (__spec__.parent, ".block_schema_filter_block_type_id"),
-    "BlockSchemaFilterCapabilities": (__spec__.parent, ".block_schema_filter_capabilities"),
+    "BlockSchemaFilterBlockTypeId": (
+        __spec__.parent,
+        ".block_schema_filter_block_type_id",
+    ),
+    "BlockSchemaFilterCapabilities": (
+        __spec__.parent,
+        ".block_schema_filter_capabilities",
+    ),
     "BlockSchemaFilterId": (__spec__.parent, ".block_schema_filter_id"),
     "BlockSchemaFilterVersion": (__spec__.parent, ".block_schema_filter_version"),
     "BlockTypeFilter": (__spec__.parent, ".block_type_filter"),
@@ -118,10 +150,16 @@ _public_api: dict[str, tuple[str, str]] = {
     "BlockTypeFilterSlug": (__spec__.parent, ".block_type_filter_slug"),
     "DeploymentFilter": (__spec__.parent, ".deployment_filter"),
     "DeploymentFilterId": (__spec__.parent, ".deployment_filter_id"),
-    "DeploymentFilterIsScheduleActive": (__spec__.parent, ".deployment_filter_is_schedule_active"),
+    "DeploymentFilterIsScheduleActive": (
+        __spec__.parent,
+        ".deployment_filter_is_schedule_active",
+    ),
     "DeploymentFilterName": (__spec__.parent, ".deployment_filter_name"),
     "DeploymentFilterTags": (__spec__.parent, ".deployment_filter_tags"),
-    "DeploymentFilterWorkQueueName": (__spec__.parent, ".deployment_filter_work_queue_name"),
+    "DeploymentFilterWorkQueueName": (
+        __spec__.parent,
+        ".deployment_filter_work_queue_name",
+    ),
     "FilterSet": (__spec__.parent, ".filter_set"),
     "FlowFilter": (__spec__.parent, ".flow_filter"),
     "FlowFilterId": (__spec__.parent, ".flow_filter_id"),
@@ -129,22 +167,43 @@ _public_api: dict[str, tuple[str, str]] = {
     "FlowFilterTags": (__spec__.parent, ".flow_filter_tags"),
     "FlowRunFilter": (__spec__.parent, ".flow_run_filter"),
     "FlowRunFilterDeploymentId": (__spec__.parent, ".flow_run_filter_deployment_id"),
-    "FlowRunFilterExpectedStartTime": (__spec__.parent, ".flow_run_filter_expected_start_time"),
+    "FlowRunFilterExpectedStartTime": (
+        __spec__.parent,
+        ".flow_run_filter_expected_start_time",
+    ),
     "FlowRunFilterFlowVersion": (__spec__.parent, ".flow_run_filter_flow_version"),
     "FlowRunFilterId": (__spec__.parent, ".flow_run_filter_id"),
-    "FlowRunFilterIdempotencyKey": (__spec__.parent, ".flow_run_filter_idempotency_key"),
+    "FlowRunFilterIdempotencyKey": (
+        __spec__.parent,
+        ".flow_run_filter_idempotency_key",
+    ),
     "FlowRunFilterName": (__spec__.parent, ".flow_run_filter_name"),
-    "FlowRunFilterNextScheduledStartTime": (__spec__.parent, ".flow_run_filter_next_scheduled_start_time"),
-    "FlowRunFilterParentFlowRunId": (__spec__.parent, ".flow_run_filter_parent_flow_run_id"),
-    "FlowRunFilterParentTaskRunId": (__spec__.parent, ".flow_run_filter_parent_task_run_id"),
+    "FlowRunFilterNextScheduledStartTime": (
+        __spec__.parent,
+        ".flow_run_filter_next_scheduled_start_time",
+    ),
+    "FlowRunFilterParentFlowRunId": (
+        __spec__.parent,
+        ".flow_run_filter_parent_flow_run_id",
+    ),
+    "FlowRunFilterParentTaskRunId": (
+        __spec__.parent,
+        ".flow_run_filter_parent_task_run_id",
+    ),
     "FlowRunFilterStartTime": (__spec__.parent, ".flow_run_filter_start_time"),
     "FlowRunFilterState": (__spec__.parent, ".flow_run_filter_state"),
     "FlowRunFilterStateName": (__spec__.parent, ".flow_run_filter_state_name"),
     "FlowRunFilterStateType": (__spec__.parent, ".flow_run_filter_state_type"),
     "FlowRunFilterTags": (__spec__.parent, ".flow_run_filter_tags"),
     "FlowRunFilterWorkQueueName": (__spec__.parent, ".flow_run_filter_work_queue_name"),
-    "FlowRunNotificationPolicyFilter": (__spec__.parent, ".flow_run_notification_policy_filter"),
-    "FlowRunNotificationPolicyFilterIsActive": (__spec__.parent, ".flow_run_notification_policy_filter_is_active"),
+    "FlowRunNotificationPolicyFilter": (
+        __spec__.parent,
+        ".flow_run_notification_policy_filter",
+    ),
+    "FlowRunNotificationPolicyFilterIsActive": (
+        __spec__.parent,
+        ".flow_run_notification_policy_filter_is_active",
+    ),
     "LogFilter": (__spec__.parent, ".log_filter"),
     "LogFilterFlowRunId": (__spec__.parent, ".log_filter_flow_run_id"),
     "LogFilterLevel": (__spec__.parent, ".log_filter_level"),
@@ -175,10 +234,12 @@ _public_api: dict[str, tuple[str, str]] = {
     "WorkQueueFilterId": (__spec__.parent, ".work_queue_filter_id"),
     "WorkQueueFilterName": (__spec__.parent, ".work_queue_filter_name"),
     "WorkerFilter": (__spec__.parent, ".worker_filter"),
-    "WorkerFilterLastHeartbeatTime": (__spec__.parent, ".worker_filter_last_heartbeat_time"),
+    "WorkerFilterLastHeartbeatTime": (
+        __spec__.parent,
+        ".worker_filter_last_heartbeat_time",
+    ),
     "WorkerFilterWorkPoolId": (__spec__.parent, ".worker_filter_work_pool_id"),
-    
-    }
+}
 
 __all__ = [
     "ArtifactCollectionFilter",
@@ -267,8 +328,8 @@ __all__ = [
     "WorkerFilter",
     "WorkerFilterLastHeartbeatTime",
     "WorkerFilterWorkPoolId",
-      
 ]
+
 
 def __getattr__(attr_name: str) -> object:
     dynamic_attr = _public_api.get(attr_name)
