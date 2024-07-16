@@ -310,6 +310,20 @@ def as_completed(futures: List[PrefectFuture], timeout=None) -> Iterator[Prefect
     Raises:
         TimeoutError: If the entire result iterator could not be generated
             before the given timeout.
+
+    Examples:
+        ```python
+        @task
+        def sleep_task(seconds):
+            sleep(seconds)
+            return 42
+
+        @flow
+        def flow():
+            futures = random_task.map(range(10))
+            for future in as_completed(futures):
+                print(future.result())
+        ```
     """
     futures = set(futures)
     total_futures = len(futures)
