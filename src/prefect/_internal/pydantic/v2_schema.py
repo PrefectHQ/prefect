@@ -68,14 +68,6 @@ def process_v2_params(
 
     type_ = t.Any if param.annotation is inspect._empty else param.annotation
 
-    # # Replace pendulum type annotations with our own so that they are pydantic compatible
-    # if type_ == pendulum.DateTime:
-    #     type_ = PydanticPendulumDateTimeType
-    # if type_ == pendulum.Date:
-    #     type_ = PydanticPendulumDateType
-    # if type_ == pendulum.Duration:
-    #     type_ = PydanticPendulumDurationType
-
     field = pydantic.Field(
         default=... if param.default is param.empty else param.default,
         title=param.name,
