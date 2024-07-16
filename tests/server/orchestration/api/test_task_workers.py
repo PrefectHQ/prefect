@@ -26,7 +26,9 @@ async def test_read_task_workers(
 
     response = await prefect_client._client.post(
         "/task_workers/filter",
-        json={"task_keys": certain_tasks} if certain_tasks else None,
+        json={"task_worker_filter": {"task_keys": certain_tasks}}
+        if certain_tasks
+        else None,
     )
 
     assert response.status_code == 200
