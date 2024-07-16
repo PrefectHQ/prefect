@@ -1,11 +1,8 @@
 import uuid
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import anyio
 import pydantic
 import pytest
-from google.cloud.aiplatform_v1.types.job_service import CancelCustomJobRequest
 from google.cloud.aiplatform_v1.types.job_state import JobState
 from prefect_gcp.workers.vertex import (
     VertexAIWorker,
@@ -14,7 +11,6 @@ from prefect_gcp.workers.vertex import (
 )
 
 from prefect.client.schemas import FlowRun
-from prefect.exceptions import InfrastructureNotFound
 
 
 @pytest.fixture
@@ -202,56 +198,3 @@ class TestVertexAIWorker:
             assert result == VertexAIWorkerResult(
                 status_code=1, identifier=job_display_name
             )
-
-    async def test_kill_infrastructure(self, flow_run, job_config):
-        mock = job_config.credentials.job_service_async_client.create_custom_job
-        # the CancelCustomJobRequest class seems to reject a MagicMock value
-        # so here, we'll use a SimpleNamespace as the mocked return values
-        mock.return_value = SimpleNamespace(
-            name="foobar", state=JobState.JOB_STATE_PENDING
-        )
-
-        async with VertexAIWorker("test-pool") as worker:
-            with anyio.fail_after(10):
-                async with anyio.create_task_group() as tg:
-                    result = await tg.start(worker.run, flow_run, job_config)
-                await worker.kill_infrastructure(result, job_config)
-
-            mock = job_config.credentials.job_service_async_client.cancel_custom_job
-            assert mock.call_count == 1
-            mock.assert_called_with(request=CancelCustomJobRequest(name="foobar"))
-
-    async def test_kill_infrastructure_no_grace_seconds(
-        self, flow_run, job_config, caplog
-    ):
-        mock = job_config.credentials.job_service_async_client.create_custom_job
-        mock.return_value = SimpleNamespace(
-            name="bazzbar", state=JobState.JOB_STATE_PENDING
-        )
-        async with VertexAIWorker("test-pool") as worker:
-            input_grace_period = 32
-
-            with anyio.fail_after(10):
-                async with anyio.create_task_group() as tg:
-                    identifier = await tg.start(worker.run, flow_run, job_config)
-                await worker.kill_infrastructure(
-                    identifier, job_config, input_grace_period
-                )
-            for record in caplog.records:
-                if (
-                    f"Kill grace period of {input_grace_period}s "
-                    "requested, but GCP does not"
-                ) in record.msg:
-                    break
-            else:
-                raise AssertionError("Expected message not found.")
-
-    async def test_kill_infrastructure_not_found(self, job_config):
-        async with VertexAIWorker("test-pool") as worker:
-            job_config.credentials.job_service_async_client.cancel_custom_job.side_effect = Exception(
-                "does not exist"
-            )
-            with pytest.raises(
-                InfrastructureNotFound, match="Cannot stop Vertex AI job"
-            ):
-                await worker.kill_infrastructure("foobarbazz", job_config)

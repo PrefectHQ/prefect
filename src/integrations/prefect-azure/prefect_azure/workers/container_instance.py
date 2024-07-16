@@ -93,7 +93,6 @@ from slugify import slugify
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import FlowRun
-from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -623,56 +622,6 @@ class AzureContainerWorker(BaseWorker):
         return AzureContainerWorkerResult(
             identifier=created_container_group.name, status_code=status_code
         )
-
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: AzureContainerJobConfiguration,
-    ):
-        """
-        Kill a flow running in an ACI container group.
-
-        Args:
-            infrastructure_pid: The container group identification data yielded by
-                `AzureContainerInstanceJob.run`.
-            configuration: The job configuration.
-        """
-        (flow_run_id, container_group_name) = infrastructure_pid.split(":")
-
-        aci_client = configuration.aci_credentials.get_container_client(
-            configuration.subscription_id.get_secret_value()
-        )
-
-        # get the container group to check that it still exists
-        try:
-            container_group = aci_client.container_groups.get(
-                resource_group_name=configuration.resource_group_name,
-                container_group_name=container_group_name,
-            )
-        except ResourceNotFoundError as exc:
-            # the container group no longer exists, so there's nothing to cancel
-            raise InfrastructureNotFound(
-                f"Cannot stop ACI job: container group "
-                f"{container_group_name} no longer exists."
-            ) from exc
-
-        # get the container state to check if the container has terminated
-        container = self._get_container(container_group)
-        container_state = container.instance_view.current_state.state
-
-        # the container group needs to be deleted regardless of whether the container
-        # already terminated
-        await self._wait_for_container_group_deletion(
-            aci_client, configuration, container_group_name
-        )
-
-        # if the container has already terminated, raise an exception to let the agent
-        # know the flow was not cancelled
-        if container_state == ContainerRunState.TERMINATED:
-            raise InfrastructureNotAvailable(
-                f"Cannot stop ACI job: container group {container_group.name} exists, "
-                f"but container {container.name} has already terminated."
-            )
 
     def _wait_for_task_container_start(
         self,

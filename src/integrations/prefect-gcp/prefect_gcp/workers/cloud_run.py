@@ -168,7 +168,6 @@ from googleapiclient import discovery
 from googleapiclient.discovery import Resource
 from pydantic import Field, field_validator
 
-from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -811,39 +810,3 @@ class CloudRunWorker(BaseWorker):
             )
 
             time.sleep(poll_interval)
-
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: CloudRunWorkerJobConfiguration,
-        grace_seconds: int = 30,
-    ):
-        """
-        Stops a job for a cancelled flow run based on the provided infrastructure PID
-        and run configuration.
-        """
-        if grace_seconds != 30:
-            self._logger.warning(
-                f"Kill grace period of {grace_seconds}s requested, but GCP does not "
-                "support dynamic grace period configuration. See here for more info: "
-                "https://cloud.google.com/run/docs/reference/rest/v1/namespaces.jobs/delete"  # noqa
-            )
-
-        with self._get_client(configuration) as client:
-            await run_sync_in_worker_thread(
-                self._stop_job,
-                client=client,
-                namespace=configuration.project,
-                job_name=infrastructure_pid,
-            )
-
-    def _stop_job(self, client: Resource, namespace: str, job_name: str):
-        try:
-            Job.delete(client=client, namespace=namespace, job_name=job_name)
-        except Exception as exc:
-            if "does not exist" in str(exc):
-                raise InfrastructureNotFound(
-                    f"Cannot stop Cloud Run Job; the job name {job_name!r} "
-                    "could not be found."
-                ) from exc
-            raise

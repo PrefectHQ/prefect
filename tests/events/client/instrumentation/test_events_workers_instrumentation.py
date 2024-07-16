@@ -5,7 +5,7 @@ from prefect import __version__
 from prefect.client.orchestration import PrefectClient
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
-from prefect.states import Cancelling, Scheduled
+from prefect.states import Scheduled
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
@@ -16,14 +16,6 @@ class WorkerEventsTestImpl(BaseWorker):
     job_configuration = BaseJobConfiguration
 
     async def run(self):
-        pass
-
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: BaseJobConfiguration,
-        grace_seconds: int = 30,
-    ):
         pass
 
 
@@ -270,82 +262,6 @@ def test_lifecycle_events(
     related = [dict(r.items()) for r in stopped_event.related]
 
     assert related == [
-        {
-            "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
-            "prefect.resource.role": "work-pool",
-            "prefect.resource.name": work_pool.name,
-        },
-    ]
-
-
-async def test_worker_emits_cancelled_event(
-    asserting_events_worker: EventsWorker,
-    reset_worker_events,
-    prefect_client: PrefectClient,
-    worker_deployment_wq1,
-    work_pool,
-    disable_enhanced_cancellation,  # workers only cancel flow runs if enhanced cancellation is disabled
-):
-    flow_run = await prefect_client.create_flow_run_from_deployment(
-        worker_deployment_wq1.id,
-        state=Cancelling(),
-        tags=["flow-run-one"],
-    )
-    await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="process123")
-    flow = await prefect_client.read_flow(flow_run.flow_id)
-
-    async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
-        await worker.sync_with_backend()
-        await worker.check_for_cancelled_flow_runs()
-
-    await asserting_events_worker.drain()
-
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
-    assert len(asserting_events_worker._client.events) == 1
-
-    cancelled_events = list(
-        filter(
-            lambda e: e.event == "prefect.worker.cancelled-flow-run",
-            asserting_events_worker._client.events,
-        )
-    )
-    assert len(cancelled_events) == 1
-
-    assert dict(cancelled_events[0].resource.items()) == {
-        "prefect.resource.id": f"prefect.worker.events-test.{worker.get_name_slug()}",
-        "prefect.resource.name": worker.name,
-        "prefect.version": str(__version__),
-        "prefect.worker-type": worker.type,
-    }
-
-    related = [dict(r.items()) for r in cancelled_events[0].related]
-
-    assert related == [
-        {
-            "prefect.resource.id": f"prefect.deployment.{worker_deployment_wq1.id}",
-            "prefect.resource.role": "deployment",
-            "prefect.resource.name": worker_deployment_wq1.name,
-        },
-        {
-            "prefect.resource.id": f"prefect.flow.{flow.id}",
-            "prefect.resource.role": "flow",
-            "prefect.resource.name": flow.name,
-        },
-        {
-            "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
-            "prefect.resource.role": "flow-run",
-            "prefect.resource.name": flow_run.name,
-            "prefect.infrastructure.identifier": "process123",
-        },
-        {
-            "prefect.resource.id": "prefect.tag.flow-run-one",
-            "prefect.resource.role": "tag",
-        },
-        {
-            "prefect.resource.id": "prefect.tag.test",
-            "prefect.resource.role": "tag",
-        },
         {
             "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
             "prefect.resource.role": "work-pool",

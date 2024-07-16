@@ -36,7 +36,6 @@ import prefect
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas import FlowRun
 from prefect.events import Event, RelatedResource, emit_event
-from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import PREFECT_API_URL
@@ -446,55 +445,6 @@ class DockerWorker(BaseWorker):
             status_code=exit_code if exit_code is not None else -1,
             identifier=container_pid,
         )
-
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: DockerWorkerJobConfiguration,
-        grace_seconds: int = 30,
-    ):
-        """
-        Stops a container for a cancelled flow run based on the provided infrastructure
-        PID.
-        """
-        docker_client = self._get_client()
-
-        base_url, container_id = self._parse_infrastructure_pid(infrastructure_pid)
-        if docker_client.api.base_url != base_url:
-            raise InfrastructureNotAvailable(
-                "".join(
-                    [
-                        (
-                            f"Unable to stop container {container_id!r}: the current"
-                            " Docker API "
-                        ),
-                        (
-                            f"URL {docker_client.api.base_url!r} does not match the"
-                            " expected "
-                        ),
-                        f"API base URL {base_url}.",
-                    ]
-                )
-            )
-        await run_sync_in_worker_thread(
-            self._stop_container, container_id, docker_client, grace_seconds
-        )
-
-    def _stop_container(
-        self,
-        container_id: str,
-        client: "DockerClient",
-        grace_seconds: int = 30,
-    ):
-        try:
-            container = client.containers.get(container_id=container_id)
-        except docker.errors.NotFound:
-            raise InfrastructureNotFound(
-                f"Unable to stop container {container_id!r}: The container was not"
-                " found."
-            )
-
-        container.stop(timeout=grace_seconds)
 
     def _get_client(self):
         """Returns a docker client."""

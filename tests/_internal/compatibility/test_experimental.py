@@ -355,11 +355,8 @@ def test_experimental_marker_cannot_be_used_without_opt_in_setting_if_required()
 def test_enabled_experiments_with_opt_in():
     assert enabled_experiments() == {
         "test",
-        "enhanced_cancellation",
     }
 
 
 def test_enabled_experiments_without_opt_in():
-    assert enabled_experiments() == {
-        "enhanced_cancellation",
-    }
+    assert enabled_experiments() == set()
