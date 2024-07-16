@@ -206,7 +206,7 @@ class EmailServerCredentials(Block):
                 try:
                     logger = get_run_logger()
                 except Exception:
-                    logger = internal_logger()
+                    logger = internal_logger
                 logger.warning(
                     """SMTP login is not secure without a verified SSL/TLS or SECURE connection. 
                     Without such a connection, the password may be sent in plain text, 
