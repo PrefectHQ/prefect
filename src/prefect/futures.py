@@ -3,7 +3,7 @@ import collections
 import concurrent.futures
 import inspect
 import uuid
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from functools import partial
 from typing import Any, Generic, List, Optional, Set, Union, cast
 
@@ -292,12 +292,14 @@ class PrefectFutureList(list, Iterator, Generic[F]):
             ) from exc
 
 
-def as_completed(futures: List[PrefectFuture], timeout=None) -> Iterator[PrefectFuture]:
+def as_completed(
+    futures: List[PrefectFuture], timeout: Optional[float] = None
+) -> Generator[PrefectFuture, None]:
     """
     An iterator over the given futures that yields each as it completes.
 
     Args:
-        fs: The sequence of Futures (possibly created by different Executors) to
+        futures: The sequence of PrefectFutures to
             iterate over.
         timeout: The maximum number of seconds to wait. If None, then there
             is no limit on the wait time.
@@ -325,12 +327,12 @@ def as_completed(futures: List[PrefectFuture], timeout=None) -> Iterator[Prefect
                 print(future.result())
         ```
     """
-    futures = set(futures)
-    total_futures = len(futures)
+    unique_futures: Set[PrefectFuture] = set(futures)
+    total_futures = len(unique_futures)
     try:
         with timeout_context(timeout):
-            done = {f for f in futures if f._final_state}
-            pending = futures - done
+            done = {f for f in unique_futures if f._final_state}
+            pending = unique_futures - done
             for future in done:
                 yield future
 
