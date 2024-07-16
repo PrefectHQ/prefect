@@ -31,7 +31,13 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Running, State
-from prefect.task_engine import TaskRunEngine, run_task_async, run_task_sync
+from prefect.task_engine import (
+    AsyncTaskRunEngine,
+    SyncTaskRunEngine,
+    run_task,
+    run_task_async,
+    run_task_sync,
+)
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
@@ -43,23 +49,45 @@ async def foo():
     return 42
 
 
-class TestTaskRunEngine:
+class TestSyncTaskRunEngine:
     async def test_basic_init(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         assert isinstance(engine.task, Task)
         assert engine.task.name == "foo"
         assert engine.parameters == {}
 
     async def test_client_attribute_raises_informative_error(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
     async def test_client_attr_returns_client_after_starting(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         with engine.initialize_run():
             client = engine.client
             assert isinstance(client, SyncPrefectClient)
+
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
+
+
+class TestAsyncTaskRunEngine:
+    async def test_basic_init(self):
+        engine = AsyncTaskRunEngine(task=foo)
+        assert isinstance(engine.task, Task)
+        assert engine.task.name == "foo"
+        assert engine.parameters == {}
+
+    async def test_client_attribute_raises_informative_error(self):
+        engine = AsyncTaskRunEngine(task=foo)
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
+
+    async def test_client_attr_returns_client_after_starting(self):
+        engine = AsyncTaskRunEngine(task=foo)
+        async with engine.initialize_run():
+            client = engine.client
+            assert isinstance(client, PrefectClient)
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
@@ -985,11 +1013,11 @@ class TestTaskCrashDetection:
             await task_run.state.result()
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
-    async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
+    async def test_interrupt_in_task_orchestration_crashes_task_and_flow_async(
         self, prefect_client, interrupt_type, monkeypatch
     ):
         monkeypatch.setattr(
-            TaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
+            AsyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
 
         @task
@@ -998,6 +1026,30 @@ class TestTaskCrashDetection:
 
         with pytest.raises(interrupt_type):
             await my_task()
+
+        task_runs = await prefect_client.read_task_runs()
+        assert len(task_runs) == 1
+        task_run = task_runs[0]
+        assert task_run.state.is_crashed()
+        assert task_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in task_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await task_run.state.result()
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_task_orchestration_crashes_task_and_flow_sync(
+        self, prefect_client, interrupt_type, monkeypatch
+    ):
+        monkeypatch.setattr(
+            SyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
+        )
+
+        @task
+        def my_task():
+            pass
+
+        with pytest.raises(interrupt_type):
+            my_task()
 
         task_runs = await prefect_client.read_task_runs()
         assert len(task_runs) == 1
@@ -1019,7 +1071,7 @@ class TestSyncAsyncTasks:
         async def async_task():
             return sync_task()
 
-        result = await run_task_async(async_task)
+        result = await run_task(async_task)
         assert result == 42
 
 
