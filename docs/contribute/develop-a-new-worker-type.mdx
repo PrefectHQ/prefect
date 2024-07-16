@@ -392,22 +392,6 @@ class MyWorkerResult(BaseWorkerResult):
 
 To return more information about a flow run, add additional attributes to the `BaseWorkerResult` class.
 
-#### `kill_infrastructure`
-
-Workers must implement a `kill_infrastructure` method to support flow run cancellation. The `kill_infrastructure` method is called 
-when a flow run is cancelled. It's passed an identifier for the infrastructure to tear down and the execution environment configuration 
-for the flow run.
-
-The `infrastructure_pid` passed to the `kill_infrastructure` method is the same identifier used to mark a flow run execution as 
-started in the `run` method. The `infrastructure_pid` must be a string, but it can take on any format you choose.
-
-The `infrastructure_pid` should contain enough information to uniquely identify the infrastructure created for a flow run when 
-used with the `job_configuration` passed to the `kill_infrastructure` method. Examples of useful information include: the cluster name, 
-the hostname, the process ID, the container ID, etc.
-
-If a worker cannot tear down infrastructure created for a flow run, the `kill_infrastructure` command should raise an 
-`InfrastructureNotFound` or `InfrastructureNotAvailable` exception.
-
 ### Worker implementation example
 
 Below is an example of a worker implementation. This example is not intended as a complete implementation but to 
@@ -468,10 +452,6 @@ class MyWorker(BaseWorker):
             status_code=exit_code,
             identifier=job.id,
         )
-
-    async def kill_infrastructure(self, infrastructure_pid: str, configuration: BaseJobConfiguration) -> None:
-        # Tear down the execution environment
-        await self._kill_job(infrastructure_pid, configuration)
 ```
 
 Most of the execution logic is omitted from the example above, but it shows that the typical order of operations in the `run` method is:

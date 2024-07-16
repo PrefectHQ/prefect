@@ -1309,17 +1309,6 @@ The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
 
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
-"""
-Whether or not to enable experimental enhanced flow run cancellation.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental enhanced flow run cancellation is used.
-"""
-
-
 # Prefect Events feature flags
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
