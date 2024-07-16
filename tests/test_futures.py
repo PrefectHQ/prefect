@@ -16,6 +16,7 @@ from prefect.futures import (
     PrefectFutureList,
     PrefectWrappedFuture,
     resolve_futures_to_states,
+    wait,
 )
 from prefect.states import Completed, Failed
 from prefect.task_engine import run_task_async, run_task_sync
@@ -35,6 +36,24 @@ class MockFuture(PrefectWrappedFuture):
         raise_on_failure: bool = True,
     ) -> Any:
         return self._final_state.result()
+
+
+class TestUtilityFunctions:
+    def test_wait(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        futures = wait(mock_futures)
+        assert futures.not_done == set()
+
+        for future in mock_futures:
+            assert future.state.is_completed()
+
+    @pytest.mark.timeout(method="thread")
+    def test_wait_with_timeout(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        hanging_future = Future()
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
+        futures = wait(mock_futures, timeout=0.01)
+        assert futures.not_done == {mock_futures[-1]}
 
 
 class TestPrefectConcurrentFuture:
