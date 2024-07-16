@@ -325,7 +325,7 @@ class TaskWorker:
 
         if task_run_url := url_for(task_run):
             logger.info(
-                f"Submitting task run {task_run.name!r} to engine. View run in the UI at {task_run_url!r}"
+                f"Submitting task run {task_run.name!r} to engine. View in the UI: {task_run_url}"
             )
 
         if task.isasync:

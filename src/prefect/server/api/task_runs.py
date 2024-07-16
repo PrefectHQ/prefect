@@ -4,7 +4,7 @@ Routes for interacting with task run objects.
 
 import asyncio
 import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import pendulum
@@ -188,10 +188,10 @@ async def read_task_runs(
     sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.TaskRun]:
     """
@@ -296,13 +296,24 @@ async def scheduled_task_subscription(websocket: WebSocket):
             code=4001, reason="Protocol violation: expected 'keys' in subscribe message"
         )
 
+    if not (client_id := subscription.get("client_id")):
+        return await websocket.close(
+            code=4001,
+            reason="Protocol violation: expected 'client_id' in subscribe message",
+        )
+
     subscribed_queue = MultiQueue(task_keys)
+
+    logger.info(f"Task worker {client_id!r} subscribed to task keys {task_keys!r}")
 
     while True:
         try:
+            # observe here so that all workers with active websockets are tracked
+            await models.task_workers.observe_worker(task_keys, client_id)
             task_run = await asyncio.wait_for(subscribed_queue.get(), timeout=1)
         except asyncio.TimeoutError:
             if not await subscriptions.still_connected(websocket):
+                await models.task_workers.forget_worker(client_id)
                 return
             continue
 
@@ -319,7 +330,11 @@ async def scheduled_task_subscription(websocket: WebSocket):
                     code=4001, reason="Protocol violation: expected 'ack' message"
                 )
 
+            await models.task_workers.observe_worker([task_run.task_key], client_id)
+
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
             await asyncio.shield(TaskQueue.for_key(task_run.task_key).retry(task_run))
             return
+        finally:
+            await models.task_workers.forget_worker(client_id)
