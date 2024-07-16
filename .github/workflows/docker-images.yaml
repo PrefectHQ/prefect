@@ -23,8 +23,14 @@ on:
       - ".github/workflows/docker-images.yaml"
       - "ui/**"
 
-  # On workflow_dispatch, push sha and branch patterns to prefect-dev
+  # On workflow_dispatch, allow publishing 3-latest images
   workflow_dispatch:
+    inputs:
+      publish_3_latest:
+        description: 'Publish 3-latest images'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   publish-docker-images:
@@ -97,17 +103,19 @@ jobs:
       - name: Generate tags for prefecthq/prefect
         id: metadata-prod
         uses: docker/metadata-action@v5
-        # only generate the production tags on release events
-        if: ${{ github.event_name == 'release' }}
+        # generate the production tags on release events or when manually triggered for 3-latest
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
         with:
           images: prefecthq/prefect
           # push `latest`, `X.Y` and `X` tags only when the release is not marked as prerelease
           # push `latest` and `X` tags only when the release is marked as latest
+          # push `3-latest` tags on latest release or manual trigger
           tags: |
-            type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
-            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false }}
-            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
-            type=raw,value=3-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
+            type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'release' }}
+            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'release' && github.event.release.prerelease == false }}
+            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
+            type=raw,value=3-latest${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG && matrix.python-version == '3.12') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
+            type=raw,value=3-latest-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true' }}
           flavor: |
             latest=false
 
