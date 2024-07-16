@@ -498,6 +498,54 @@ class TestGitCloneStep:
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
+    async def test_git_clone_retry(self, monkeypatch, caplog):
+        mock_git_repo = MagicMock()
+        mock_git_repo.return_value.pull_code = AsyncMock(
+            side_effect=[
+                RuntimeError("Octocat went out to lunch"),
+                RuntimeError("Octocat is playing chess in the break room"),
+                None,  # Successful on third attempt
+            ]
+        )
+        mock_git_repo.return_value.destination.relative_to.return_value = "repo"
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.GitRepository", mock_git_repo
+        )
+
+        async def mock_sleep(seconds):
+            pass
+
+        monkeypatch.setattr("asyncio.sleep", mock_sleep)
+
+        with caplog.at_level("WARNING"):
+            result = await run_step(
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://github.com/org/repo.git"
+                    }
+                }
+            )
+
+        assert (
+            "Attempt 1 of function 'git_clone' failed with RuntimeError. Retrying in "
+            in caplog.text
+        )
+        assert (
+            "Attempt 2 of function 'git_clone' failed with RuntimeError. Retrying in "
+            in caplog.text
+        )
+
+        assert result == {"directory": "repo"}
+
+        expected_call = call(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
+        )
+
+        assert mock_git_repo.call_args_list == [expected_call] * 3
+
 
 class TestPullFromRemoteStorage:
     @pytest.fixture
