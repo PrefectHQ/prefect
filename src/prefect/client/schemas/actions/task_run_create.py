@@ -4,13 +4,13 @@ from uuid import UUID
 from pydantic import Field
 from pydantic_extra_types.pendulum_dt import DateTime
 
+from prefect._internal.schemas.bases import ActionBaseModel
 from prefect.client.schemas.objects import (
+    Constant,
+    Parameter,
     TaskRunPolicy,
     TaskRunResult,
-    Parameter,
-    Constant,
 )
-from prefect._internal.schemas.bases import ActionBaseModel
 
 from .state_create import StateCreate
 

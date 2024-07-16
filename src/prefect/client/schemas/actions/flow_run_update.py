@@ -2,8 +2,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
-from prefect.client.schemas.objects import FlowRunPolicy
 from prefect._internal.schemas.bases import ActionBaseModel
+from prefect.client.schemas.objects import FlowRunPolicy
 
 
 class FlowRunUpdate(ActionBaseModel):

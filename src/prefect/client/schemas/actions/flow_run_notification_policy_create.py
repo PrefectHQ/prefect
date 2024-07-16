@@ -3,12 +3,12 @@ from uuid import UUID
 
 from pydantic import Field, field_validator
 
-from prefect.client.schemas.objects.flow_run_notification_policy import (
-    FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS,
-)
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     validate_message_template_variables,
+)
+from prefect.client.schemas.objects.flow_run_notification_policy import (
+    FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS,
 )
 from prefect.utilities.collections import listrepr
 

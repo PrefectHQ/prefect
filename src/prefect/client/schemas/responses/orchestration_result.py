@@ -1,7 +1,7 @@
 from typing import Optional, Union
 
-from prefect.client.schemas.objects import State
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.client.schemas.objects import State
 
 from .set_state_status import SetStateStatus
 from .state_abort_details import StateAbortDetails
@@ -19,6 +19,6 @@ class OrchestrationResult(PrefectBaseModel):
     A container for the output of state orchestration.
     """
 
-    state: Optional[objects.State]
+    state: Optional[State]
     status: SetStateStatus
     details: StateResponseDetails

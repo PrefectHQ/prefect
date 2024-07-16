@@ -3,9 +3,8 @@ from uuid import UUID
 
 from pydantic import Field
 
-from prefect.client.schemas.objects import DEFAULT_BLOCK_SCHEMA_VERSION
-
 from prefect._internal.schemas.bases import ActionBaseModel
+from prefect.client.schemas.objects import DEFAULT_BLOCK_SCHEMA_VERSION
 
 
 class BlockSchemaCreate(ActionBaseModel):

@@ -4,9 +4,9 @@ from uuid import UUID
 from pydantic import Field
 from pydantic_extra_types.pendulum_dt import DateTime
 
-from prefect.client.schemas.objects import DeploymentSchedule, DeploymentStatus
 from prefect._internal.schemas.bases import ObjectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
+from prefect.client.schemas.objects import DeploymentSchedule, DeploymentStatus
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 
 

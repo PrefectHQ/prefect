@@ -2,8 +2,8 @@ from uuid import UUID
 
 from pydantic import ConfigDict
 
-from prefect.client.schemas.objects import FlowRun
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.client.schemas.objects import FlowRun
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):

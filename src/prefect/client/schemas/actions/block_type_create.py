@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import Field, field_validator, HttpUrl
+from pydantic import Field, HttpUrl, field_validator
 
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (

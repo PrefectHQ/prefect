@@ -3,8 +3,8 @@ from uuid import UUID
 
 from pydantic import Field
 
-from prefect.client.schemas.objects import FlowRunPolicy
 from prefect._internal.schemas.bases import ActionBaseModel
+from prefect.client.schemas.objects import FlowRunPolicy
 
 from .state_create import StateCreate
 

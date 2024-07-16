@@ -2,8 +2,8 @@ import datetime
 
 from pydantic import Field
 
-from prefect.client.schemas.objects import StateType
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.client.schemas.objects import StateType
 
 
 class HistoryResponseState(PrefectBaseModel):

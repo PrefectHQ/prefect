@@ -2,8 +2,8 @@ from typing import Optional
 
 from pydantic import Field
 
-from prefect.client.schemas.objects import QueueFilter
 from prefect._internal.schemas.bases import ActionBaseModel
+from prefect.client.schemas.objects import QueueFilter
 
 
 class WorkQueueCreate(ActionBaseModel):

@@ -5,9 +5,9 @@ from uuid import UUID
 from pydantic import Field
 from pydantic_extra_types.pendulum_dt import DateTime
 
-from prefect.client.schemas.objects import FlowRunPolicy, FlowRun, StateType, State
 from prefect._internal.schemas.bases import ObjectBaseModel
 from prefect._internal.schemas.fields import CreatedBy
+from prefect.client.schemas.objects import FlowRun, FlowRunPolicy, State, StateType
 from prefect.utilities.names import generate_slug
 
 

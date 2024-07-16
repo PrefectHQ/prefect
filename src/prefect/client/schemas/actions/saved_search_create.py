@@ -2,8 +2,8 @@ from typing import List
 
 from pydantic import Field
 
-from prefect.client.schemas.objects import SavedSearchFilter
 from prefect._internal.schemas.bases import ActionBaseModel
+from prefect.client.schemas.objects import SavedSearchFilter
 
 
 class SavedSearchCreate(ActionBaseModel):
