@@ -51,6 +51,7 @@ from prefect.logging.loggers import (
 )
 from prefect.results import BaseResult
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_LOGGING_LOG_PRINTS,
 )
 from prefect.states import (
@@ -744,6 +745,12 @@ def emit_task_run_state_change_event(
                     "message": truncated_to(
                         state_message_truncation_length, initial_state.message
                     ),
+                    "state_details": initial_state.state_details.model_dump(
+                        mode="json",
+                        exclude_none=True,
+                        exclude_unset=True,
+                        exclude={"flow_run_id", "task_run_id"},
+                    ),
                 }
                 if initial_state
                 else None
@@ -754,7 +761,30 @@ def emit_task_run_state_change_event(
                 "message": truncated_to(
                     state_message_truncation_length, validated_state.message
                 ),
+                "state_details": validated_state.state_details.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                    exclude_unset=True,
+                    exclude={"flow_run_id", "task_run_id"},
+                ),
+                "data": validated_state.data.model_dump(mode="json")
+                if isinstance(validated_state.data, BaseResult)
+                else None,
             },
+            "task_run": task_run.model_dump(
+                mode="json",
+                exclude_none=True,
+                exclude={
+                    "id",
+                    "created",
+                    "updated",
+                    "flow_run_id",
+                    "state_id",
+                    "state_type",
+                    "state_name",
+                    "state",
+                },
+            ),
         },
         resource={
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
@@ -769,6 +799,9 @@ def emit_task_run_state_change_event(
                 else ""
             ),
             "prefect.state-type": str(validated_state.type.value),
+            "prefect.orchestration": "client"
+            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION
+            else "server",
         },
         follows=follows,
     )

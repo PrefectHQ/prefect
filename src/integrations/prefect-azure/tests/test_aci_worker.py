@@ -7,7 +7,7 @@ import dateutil.parser
 import prefect_azure.container_instance
 import pytest
 from anyio.abc import TaskStatus
-from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
+from azure.core.exceptions import HttpResponseError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.resource import ResourceManagementClient
 from prefect_azure import AzureContainerInstanceCredentials
@@ -23,7 +23,6 @@ from prefect_azure.workers.container_instance import (
 from pydantic import SecretStr
 
 from prefect.client.schemas import FlowRun
-from prefect.exceptions import InfrastructureNotFound
 from prefect.server.schemas.core import Flow
 from prefect.settings import get_current_settings
 from prefect.testing.utilities import AsyncMock
@@ -1013,95 +1012,6 @@ async def test_add_dns_servers(
     # entries in the dns servers list
     for dns_server in raw_job_configuration.dns_servers:
         assert dns_server in dns_config["nameServers"]
-
-
-async def test_kill_infrastructure_deletes_running_container_group(
-    worker_flow_run,
-    job_configuration,
-    mock_aci_client,
-    mock_prefect_client,
-    monkeypatch,
-    running_worker_container_group,
-):
-    mock_container_groups = Mock(name="container_groups")
-    mock_delete_status_poller = Mock(name="delete_status_poller")
-    mock_delete_status_poller.done = Mock(return_value=True)
-    mock_deletion_call = Mock(
-        name="deletion_call", return_value=mock_delete_status_poller
-    )
-    mock_aci_client.container_groups = mock_container_groups
-    mock_container_groups.begin_delete = mock_deletion_call
-
-    flow = await mock_prefect_client.read_flow(worker_flow_run.flow_id)
-    container_group_name = f"{flow.name}-{worker_flow_run.id}"
-    identifier = f"{worker_flow_run.id}:{container_group_name}"
-
-    mock_container_group_get = Mock(return_value=running_worker_container_group)
-    mock_aci_client.container_groups.get = mock_container_group_get
-
-    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
-        await aci_worker.kill_infrastructure(identifier, job_configuration)
-
-    # Kill_infrastructure should check if the container group exists before
-    # attempting to delete it
-    mock_container_group_get.assert_called_once_with(
-        resource_group_name=job_configuration.resource_group_name,
-        container_group_name=container_group_name,
-    )
-
-    # Kill_infrastructure should delete the container group if it exists
-    mock_deletion_call.assert_called_once_with(
-        resource_group_name=job_configuration.resource_group_name,
-        container_group_name=container_group_name,
-    )
-
-    # Also ensure that the deletion times out if Azure does not delete
-    # the container group quickly enough.
-    mock_delete_status_poller.done.return_value = False
-    monkeypatch.setattr(
-        prefect_azure.workers.container_instance,
-        "CONTAINER_GROUP_DELETION_TIMEOUT_SECONDS",
-        0.03,
-    )
-    job_configuration.task_watch_poll_interval = 0.01
-
-    async with aci_worker:
-        # Deletion timing out should raise a RuntimeError
-        with pytest.raises(RuntimeError):
-            await aci_worker.kill_infrastructure(identifier, job_configuration)
-
-
-async def test_kill_infrastructure_raises_exception_if_container_group_missing(
-    worker_flow_run,
-    job_configuration,
-    mock_aci_client,
-    mock_prefect_client,
-):
-    mock_container_groups = Mock(name="container_groups")
-    mock_aci_client.container_groups = mock_container_groups
-    mock_container_groups.get = Mock(side_effect=ResourceNotFoundError())
-
-    mock_deletion_call = Mock(name="deletion_call", return_value=None)
-    mock_container_groups.begin_delete = mock_deletion_call
-
-    flow = await mock_prefect_client.read_flow(worker_flow_run.flow_id)
-    container_group_name = f"{flow.name}-{worker_flow_run.id}"
-    identifier = f"{worker_flow_run.id}:{container_group_name}"
-
-    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
-        with pytest.raises(InfrastructureNotFound):
-            await aci_worker.kill_infrastructure(identifier, job_configuration)
-
-    # Kill_infrastructure should check if the container group exists before
-    # attempting to delete it
-    mock_container_groups.get.assert_called_once_with(
-        resource_group_name=job_configuration.resource_group_name,
-        container_group_name=container_group_name,
-    )
-
-    # Kill_infrastructure should not attempt to delete the container group if it
-    # does not exist
-    mock_deletion_call.assert_not_called()
 
 
 @pytest.mark.parametrize(

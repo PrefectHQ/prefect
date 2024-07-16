@@ -1,7 +1,10 @@
+import pendulum
+
 from prefect import flow, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import State
 from prefect.events.clients import AssertingEventsClient
+from prefect.events.schemas.events import Resource
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.task_worker import TaskWorker
@@ -36,44 +39,177 @@ async def test_task_state_change_happy_path(
     ]
     assert len(task_run_states) == len(events) == 3
 
-    last_state = None
-    for i, task_run_state in enumerate(task_run_states):
-        event = events[i]
+    pending, running, completed = events
 
-        assert event.id == task_run_state.id
-        assert event.occurred == task_run_state.timestamp
-        assert event.event == f"prefect.task-run.{task_run_state.name}"
-        assert event.payload == {
-            "intended": {
-                "from": str(last_state.type.value) if last_state else None,
-                "to": str(task_run_state.type.value) if task_run_state else None,
-            },
-            "initial_state": (
-                {
-                    "type": last_state.type.value,
-                    "name": last_state.name,
-                    "message": last_state.message or "",
-                }
-                if last_state
-                else None
-            ),
-            "validated_state": {
-                "type": task_run_state.type.value,
-                "name": task_run_state.name,
-                "message": task_run_state.message or "",
-            },
-        }
-        assert event.follows == (last_state.id if last_state else None)
-        assert dict(event.resource.items()) == {
+    assert pending.event == "prefect.task-run.Pending"
+    assert pending.id == task_run_states[0].id
+    assert pending.occurred == task_run_states[0].timestamp
+    assert pending.resource == Resource(
+        {
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
-            "prefect.state-message": task_run_state.message or "",
-            "prefect.state-name": task_run_state.name,
-            "prefect.state-timestamp": task_run_state.timestamp.isoformat(),
-            "prefect.state-type": str(task_run_state.type.value),
+            "prefect.state-message": "",
+            "prefect.state-type": "PENDING",
+            "prefect.state-name": "Pending",
+            "prefect.state-timestamp": task_run_states[0].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
+    )
+    assert (
+        pendulum.parse(pending.payload["task_run"].pop("expected_start_time"))
+        == task_run.expected_start_time
+    )
+    assert pending.payload["task_run"].pop("estimated_start_time_delta") > 0.0
+    assert (
+        pending.payload["task_run"]
+        .pop("task_key")
+        .startswith("test_task_state_change_happy_path.<locals>.happy_little_tree")
+    )
+    assert pending.payload == {
+        "initial_state": None,
+        "intended": {"from": None, "to": "PENDING"},
+        "validated_state": {
+            "type": "PENDING",
+            "name": "Pending",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+            "data": None,
+        },
+        "task_run": {
+            "dynamic_key": "0",
+            "empirical_policy": {
+                "max_retries": 0,
+                "retries": 0,
+                "retry_delay": 0,
+                "retry_delay_seconds": 0.0,
+            },
+            "estimated_run_time": 0.0,
+            "flow_run_run_count": 0,
+            "name": "happy_little_tree-0",
+            "run_count": 0,
+            "tags": [],
+            "task_inputs": {},
+            "total_run_time": 0.0,
+        },
+    }
 
-        last_state = task_run_state
+    assert running.event == "prefect.task-run.Running"
+    assert running.id == task_run_states[1].id
+    assert running.occurred == task_run_states[1].timestamp
+    assert running.resource == Resource(
+        {
+            "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+            "prefect.resource.name": task_run.name,
+            "prefect.state-message": "",
+            "prefect.state-type": "RUNNING",
+            "prefect.state-name": "Running",
+            "prefect.state-timestamp": task_run_states[1].timestamp.isoformat(),
+            "prefect.orchestration": "server",
+        }
+    )
+    assert (
+        pendulum.parse(running.payload["task_run"].pop("expected_start_time"))
+        == task_run.expected_start_time
+    )
+    assert running.payload["task_run"].pop("estimated_start_time_delta") > 0.0
+    assert (
+        running.payload["task_run"]
+        .pop("task_key")
+        .startswith("test_task_state_change_happy_path.<locals>.happy_little_tree")
+    )
+    assert running.payload == {
+        "intended": {"from": "PENDING", "to": "RUNNING"},
+        "initial_state": {
+            "type": "PENDING",
+            "name": "Pending",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+        },
+        "validated_state": {
+            "type": "RUNNING",
+            "name": "Running",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+            "data": None,
+        },
+        "task_run": {
+            "dynamic_key": "0",
+            "empirical_policy": {
+                "max_retries": 0,
+                "retries": 0,
+                "retry_delay": 0,
+                "retry_delay_seconds": 0.0,
+            },
+            "estimated_run_time": 0.0,
+            "flow_run_run_count": 0,
+            "name": "happy_little_tree-0",
+            "run_count": 0,
+            "tags": [],
+            "task_inputs": {},
+            "total_run_time": 0.0,
+        },
+    }
+
+    assert completed.event == "prefect.task-run.Completed"
+    assert completed.id == task_run_states[2].id
+    assert completed.occurred == task_run_states[2].timestamp
+    assert completed.resource == Resource(
+        {
+            "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+            "prefect.resource.name": task_run.name,
+            "prefect.state-message": "",
+            "prefect.state-type": "COMPLETED",
+            "prefect.state-name": "Completed",
+            "prefect.state-timestamp": task_run_states[2].timestamp.isoformat(),
+            "prefect.orchestration": "server",
+        }
+    )
+    assert (
+        pendulum.parse(completed.payload["task_run"].pop("expected_start_time"))
+        == task_run.expected_start_time
+    )
+    assert completed.payload["task_run"].pop("estimated_start_time_delta") > 0.0
+    assert (
+        completed.payload["task_run"]
+        .pop("task_key")
+        .startswith("test_task_state_change_happy_path.<locals>.happy_little_tree")
+    )
+    assert completed.payload["task_run"].pop("estimated_run_time") > 0.0
+    assert (
+        pendulum.parse(completed.payload["task_run"].pop("start_time"))
+        == task_run.start_time
+    )
+    assert completed.payload == {
+        "intended": {"from": "RUNNING", "to": "COMPLETED"},
+        "initial_state": {
+            "type": "RUNNING",
+            "name": "Running",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+        },
+        "validated_state": {
+            "type": "COMPLETED",
+            "name": "Completed",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+            "data": {"type": "unpersisted"},
+        },
+        "task_run": {
+            "dynamic_key": "0",
+            "empirical_policy": {
+                "max_retries": 0,
+                "retries": 0,
+                "retry_delay": 0,
+                "retry_delay_seconds": 0.0,
+            },
+            "flow_run_run_count": 1,
+            "name": "happy_little_tree-0",
+            "run_count": 1,
+            "tags": [],
+            "task_inputs": {},
+            "total_run_time": 0.0,
+        },
+    }
 
 
 async def test_task_state_change_task_failure(
@@ -105,44 +241,187 @@ async def test_task_state_change_task_failure(
     ]
     assert len(task_run_states) == len(events) == 3
 
-    last_state = None
-    for i, task_run_state in enumerate(task_run_states):
-        event = events[i]
+    pending, running, failed = events
 
-        assert event.id == task_run_state.id
-        assert event.occurred == task_run_state.timestamp
-        assert event.event == f"prefect.task-run.{task_run_state.name}"
-        assert event.payload == {
-            "intended": {
-                "from": str(last_state.type.value) if last_state else None,
-                "to": str(task_run_state.type.value) if task_run_state else None,
-            },
-            "initial_state": (
-                {
-                    "type": last_state.type.value,
-                    "name": last_state.name,
-                    "message": last_state.message or "",
-                }
-                if last_state
-                else None
-            ),
-            "validated_state": {
-                "type": task_run_state.type.value,
-                "name": task_run_state.name,
-                "message": task_run_state.message or "",
-            },
-        }
-        assert event.follows == (last_state.id if last_state else None)
-        assert dict(event.resource.items()) == {
+    assert pending.event == "prefect.task-run.Pending"
+    assert pending.id == task_run_states[0].id
+    assert pending.occurred == task_run_states[0].timestamp
+    assert pending.resource == Resource(
+        {
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
-            "prefect.state-message": task_run_state.message or "",
-            "prefect.state-name": task_run_state.name,
-            "prefect.state-timestamp": task_run_state.timestamp.isoformat(),
-            "prefect.state-type": str(task_run_state.type.value),
+            "prefect.state-message": "",
+            "prefect.state-type": "PENDING",
+            "prefect.state-name": "Pending",
+            "prefect.state-timestamp": task_run_states[0].timestamp.isoformat(),
+            "prefect.orchestration": "server",
         }
+    )
+    assert (
+        pendulum.parse(pending.payload["task_run"].pop("expected_start_time"))
+        == task_run.expected_start_time
+    )
+    assert pending.payload["task_run"].pop("estimated_start_time_delta") > 0.0
+    assert (
+        pending.payload["task_run"]
+        .pop("task_key")
+        .startswith("test_task_state_change_task_failure.<locals>.happy_little_tree")
+    )
+    assert pending.payload == {
+        "initial_state": None,
+        "intended": {"from": None, "to": "PENDING"},
+        "validated_state": {
+            "type": "PENDING",
+            "name": "Pending",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+            "data": None,
+        },
+        "task_run": {
+            "dynamic_key": "0",
+            "empirical_policy": {
+                "max_retries": 0,
+                "retries": 0,
+                "retry_delay": 0,
+                "retry_delay_seconds": 0.0,
+            },
+            "estimated_run_time": 0.0,
+            "flow_run_run_count": 0,
+            "name": "happy_little_tree-0",
+            "run_count": 0,
+            "tags": [],
+            "task_inputs": {},
+            "total_run_time": 0.0,
+        },
+    }
 
-        last_state = task_run_state
+    assert running.event == "prefect.task-run.Running"
+    assert running.id == task_run_states[1].id
+    assert running.occurred == task_run_states[1].timestamp
+    assert running.resource == Resource(
+        {
+            "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+            "prefect.resource.name": task_run.name,
+            "prefect.state-message": "",
+            "prefect.state-type": "RUNNING",
+            "prefect.state-name": "Running",
+            "prefect.state-timestamp": task_run_states[1].timestamp.isoformat(),
+            "prefect.orchestration": "server",
+        }
+    )
+    assert (
+        pendulum.parse(running.payload["task_run"].pop("expected_start_time"))
+        == task_run.expected_start_time
+    )
+    assert running.payload["task_run"].pop("estimated_start_time_delta") > 0.0
+    assert (
+        running.payload["task_run"]
+        .pop("task_key")
+        .startswith("test_task_state_change_task_failure.<locals>.happy_little_tree")
+    )
+    assert running.payload == {
+        "intended": {"from": "PENDING", "to": "RUNNING"},
+        "initial_state": {
+            "type": "PENDING",
+            "name": "Pending",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+        },
+        "validated_state": {
+            "type": "RUNNING",
+            "name": "Running",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+            "data": None,
+        },
+        "task_run": {
+            "dynamic_key": "0",
+            "empirical_policy": {
+                "max_retries": 0,
+                "retries": 0,
+                "retry_delay": 0,
+                "retry_delay_seconds": 0.0,
+            },
+            "estimated_run_time": 0.0,
+            "flow_run_run_count": 0,
+            "name": "happy_little_tree-0",
+            "run_count": 0,
+            "tags": [],
+            "task_inputs": {},
+            "total_run_time": 0.0,
+        },
+    }
+
+    assert failed.event == "prefect.task-run.Failed"
+    assert failed.id == task_run_states[2].id
+    assert failed.occurred == task_run_states[2].timestamp
+    assert failed.resource == Resource(
+        {
+            "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+            "prefect.resource.name": task_run.name,
+            "prefect.state-message": (
+                "Task run encountered an exception ValueError: "
+                "Here's a happy little accident."
+            ),
+            "prefect.state-type": "FAILED",
+            "prefect.state-name": "Failed",
+            "prefect.state-timestamp": task_run_states[2].timestamp.isoformat(),
+            "prefect.orchestration": "server",
+        }
+    )
+    assert (
+        pendulum.parse(failed.payload["task_run"].pop("expected_start_time"))
+        == task_run.expected_start_time
+    )
+    assert failed.payload["task_run"].pop("estimated_start_time_delta") > 0.0
+    assert (
+        failed.payload["task_run"]
+        .pop("task_key")
+        .startswith("test_task_state_change_task_failure.<locals>.happy_little_tree")
+    )
+    assert failed.payload["task_run"].pop("estimated_run_time") > 0.0
+    assert (
+        pendulum.parse(failed.payload["task_run"].pop("start_time"))
+        == task_run.start_time
+    )
+    assert failed.payload == {
+        "intended": {"from": "RUNNING", "to": "FAILED"},
+        "initial_state": {
+            "type": "RUNNING",
+            "name": "Running",
+            "message": "",
+            "state_details": {"pause_reschedule": False, "untrackable_result": False},
+        },
+        "validated_state": {
+            "type": "FAILED",
+            "name": "Failed",
+            "message": (
+                "Task run encountered an exception ValueError: "
+                "Here's a happy little accident."
+            ),
+            "state_details": {
+                "pause_reschedule": False,
+                "retriable": False,
+                "untrackable_result": False,
+            },
+            "data": {"type": "unpersisted"},
+        },
+        "task_run": {
+            "dynamic_key": "0",
+            "empirical_policy": {
+                "max_retries": 0,
+                "retries": 0,
+                "retry_delay": 0,
+                "retry_delay_seconds": 0.0,
+            },
+            "flow_run_run_count": 1,
+            "name": "happy_little_tree-0",
+            "run_count": 1,
+            "tags": [],
+            "task_inputs": {},
+            "total_run_time": 0.0,
+        },
+    }
 
 
 async def test_background_task_state_changes(

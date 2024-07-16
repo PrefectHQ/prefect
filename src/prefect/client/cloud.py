@@ -9,7 +9,7 @@ from starlette import status
 import prefect.context
 import prefect.settings
 from prefect.client.base import PrefectHttpxAsyncClient
-from prefect.client.schemas import Workspace
+from prefect.client.schemas.objects import Workspace
 from prefect.exceptions import ObjectNotFound, PrefectException
 from prefect.settings import (
     PREFECT_API_KEY,

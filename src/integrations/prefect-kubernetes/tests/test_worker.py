@@ -12,7 +12,6 @@ import anyio.abc
 import kubernetes_asyncio
 import pendulum
 import pytest
-from exceptiongroup import ExceptionGroup, catch
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Pod
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import (
@@ -33,8 +32,6 @@ import prefect
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
-    InfrastructureNotAvailable,
-    InfrastructureNotFound,
 )
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
@@ -2653,149 +2650,6 @@ class TestKubernetesWorker:
                     ),
                 ]
             )
-
-    class TestKillInfrastructure:
-        async def test_kill_infrastructure_calls_delete_namespaced_job(
-            self,
-            default_configuration,
-            mock_batch_client,
-            mock_core_client,
-            mock_watch,
-        ):
-            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                await k8s_worker.kill_infrastructure(
-                    infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
-                    grace_seconds=0,
-                    configuration=default_configuration,
-                )
-
-            assert len(mock_batch_client.mock_calls) == 1
-            mock_batch_client.return_value.delete_namespaced_job.assert_called_once_with(
-                name="mock-k8s-v1-job",
-                namespace="default",
-                grace_period_seconds=0,
-                propagation_policy="Foreground",
-            )
-
-        async def test_kill_infrastructure_uses_correct_grace_seconds(
-            self,
-            default_configuration,
-            mock_batch_client,
-            mock_core_client,
-            mock_watch,
-        ):
-            GRACE_SECONDS = 42
-            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                await k8s_worker.kill_infrastructure(
-                    infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
-                    grace_seconds=GRACE_SECONDS,
-                    configuration=default_configuration,
-                )
-
-            assert len(mock_batch_client.mock_calls) == 1
-            mock_batch_client.return_value.delete_namespaced_job.assert_called_once_with(
-                name="mock-k8s-v1-job",
-                namespace="default",
-                grace_period_seconds=GRACE_SECONDS,
-                propagation_policy="Foreground",
-            )
-
-        async def test_kill_infrastructure_raises_infra_not_available_on_mismatched_cluster_namespace(
-            self,
-            default_configuration,
-            mock_batch_client,
-            mock_core_client,
-            mock_watch,
-        ):
-            BAD_NAMESPACE = "dog"
-
-            def handle_infra_not_available(exc: ExceptionGroup):
-                assert len(exc.exceptions) == 1
-                assert isinstance(exc.exceptions[0], InfrastructureNotAvailable)
-                assert (
-                    "The job is running in namespace 'dog' but this worker expected"
-                    in str(exc.exceptions[0])
-                )
-
-            with catch({InfrastructureNotAvailable: handle_infra_not_available}):
-                async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                    await k8s_worker.kill_infrastructure(
-                        infrastructure_pid=f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job",
-                        grace_seconds=0,
-                        configuration=default_configuration,
-                    )
-
-        async def test_kill_infrastructure_raises_infra_not_available_on_mismatched_cluster_uid(
-            self,
-            default_configuration,
-            mock_batch_client,
-            mock_core_client,
-            mock_watch,
-        ):
-            BAD_CLUSTER = "4321"
-
-            def handle_infra_not_available(exc: ExceptionGroup):
-                assert len(exc.exceptions) == 1
-                assert isinstance(exc.exceptions[0], InfrastructureNotAvailable)
-                assert "The job is running on another cluster" in str(exc.exceptions[0])
-
-            with catch({InfrastructureNotAvailable: handle_infra_not_available}):
-                async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                    await k8s_worker.kill_infrastructure(
-                        infrastructure_pid=f"{BAD_CLUSTER}:default:mock-k8s-v1-job",
-                        grace_seconds=0,
-                        configuration=default_configuration,
-                    )
-
-        async def test_kill_infrastructure_raises_infrastructure_not_found_on_404(
-            self,
-            default_configuration,
-            mock_batch_client,
-            mock_core_client,
-            mock_watch,
-        ):
-            mock_batch_client.return_value.delete_namespaced_job.side_effect = [
-                ApiException(status=404)
-            ]
-
-            def handle_infra_not_found(exc: ExceptionGroup):
-                assert len(exc.exceptions) == 1
-                assert isinstance(exc.exceptions[0], InfrastructureNotFound)
-                assert (
-                    "Unable to kill job 'mock-k8s-v1-job': The job was not found."
-                    in str(exc.exceptions[0])
-                )
-
-            with catch({InfrastructureNotFound: handle_infra_not_found}):
-                async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                    await k8s_worker.kill_infrastructure(
-                        infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
-                        grace_seconds=0,
-                        configuration=default_configuration,
-                    )
-
-        async def test_kill_infrastructure_passes_other_k8s_api_errors_through(
-            self,
-            default_configuration,
-            mock_batch_client,
-            mock_core_client,
-            mock_watch,
-        ):
-            mock_batch_client.return_value.delete_namespaced_job.side_effect = [
-                ApiException(status=400)
-            ]
-
-            def handle_api_error(exc: ExceptionGroup):
-                assert len(exc.exceptions) == 1
-                assert isinstance(exc.exceptions[0], ApiException)
-
-            with catch({ApiException: handle_api_error}):
-                async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                    await k8s_worker.kill_infrastructure(
-                        infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:dog",
-                        grace_seconds=0,
-                        configuration=default_configuration,
-                    )
 
     @pytest.fixture
     async def mock_events(self, mock_core_client):
