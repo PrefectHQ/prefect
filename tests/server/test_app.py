@@ -34,9 +34,7 @@ def test_app_exposes_ui_settings():
     json = response.json()
 
     flags = set(json.pop("flags"))
-    assert flags == {
-        "enhanced_cancellation",
-    }
+    assert flags == set()
     assert json == {
         "api_url": PREFECT_UI_API_URL.value(),
         "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
@@ -54,7 +52,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     flags = set(json.pop("flags"))
     assert flags == {
         "test",
-        "enhanced_cancellation",
     }
     assert json == {
         "api_url": PREFECT_UI_API_URL.value(),

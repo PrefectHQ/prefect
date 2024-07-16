@@ -31,7 +31,6 @@ import anyio
 from pydantic import Field, field_validator
 from slugify import slugify
 
-from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.utilities.pydantic import JsonPatch
 from prefect.workers.base import (
@@ -54,7 +53,6 @@ try:
         Scheduling,
         WorkerPoolSpec,
     )
-    from google.cloud.aiplatform_v1.types.job_service import CancelCustomJobRequest
     from google.cloud.aiplatform_v1.types.job_state import JobState
     from google.cloud.aiplatform_v1.types.machine_resources import DiskSpec, MachineSpec
     from google.protobuf.duration_pb2 import Duration
@@ -608,50 +606,3 @@ class VertexAIWorker(BaseWorker):
                 regex_pattern=_DISALLOWED_GCP_LABEL_CHARACTERS,
             )
         return compatible_labels
-
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: VertexAIWorkerJobConfiguration,
-        grace_seconds: int = 30,
-    ):
-        """
-        Stops a job running in Vertex AI upon flow cancellation,
-        based on the provided infrastructure PID + run configuration.
-        """
-        if grace_seconds != 30:
-            self._logger.warning(
-                f"Kill grace period of {grace_seconds}s requested, but GCP does not "
-                "support dynamic grace period configuration. See here for more info: "
-                "https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.customJobs/cancel"  # noqa
-            )
-
-        client_options = ClientOptions(
-            api_endpoint=f"{configuration.region}-aiplatform.googleapis.com"
-        )
-        job_service_async_client = (
-            configuration.credentials.get_job_service_async_client(
-                client_options=client_options
-            )
-        )
-        await self._stop_job(
-            client=job_service_async_client,
-            vertex_job_name=infrastructure_pid,
-        )
-
-    async def _stop_job(self, client: "JobServiceAsyncClient", vertex_job_name: str):
-        """
-        Calls the `cancel_custom_job` method on the Vertex AI Job Service Client.
-        """
-        cancel_custom_job_request = CancelCustomJobRequest(name=vertex_job_name)
-        try:
-            await client.cancel_custom_job(
-                request=cancel_custom_job_request,
-            )
-        except Exception as exc:
-            if "does not exist" in str(exc):
-                raise InfrastructureNotFound(
-                    f"Cannot stop Vertex AI job; the job name {vertex_job_name!r} "
-                    "could not be found."
-                ) from exc
-            raise

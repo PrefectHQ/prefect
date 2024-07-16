@@ -144,8 +144,6 @@ import prefect
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
-    InfrastructureNotAvailable,
-    InfrastructureNotFound,
 )
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
@@ -611,18 +609,6 @@ class KubernetesWorker(BaseWorker):
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: KubernetesWorkerJobConfiguration,
-        grace_seconds: int = 30,
-    ):
-        """
-                Stops a job for a cancelled flow run based on the provided infrastructure PID
-                and run configuration.
-        att"""
-        await self._stop_job(infrastructure_pid, configuration, grace_seconds)
-
     async def teardown(self, *exc_info):
         await super().teardown(*exc_info)
 
@@ -642,53 +628,6 @@ class KubernetesWorker(BaseWorker):
                     self._logger.warning(
                         "Failed to delete created secret with exception: %s", result
                     )
-
-    async def _stop_job(
-        self,
-        infrastructure_pid: str,
-        configuration: KubernetesWorkerJobConfiguration,
-        grace_seconds: int = 30,
-    ):
-        """Removes the given Job from the Kubernetes cluster"""
-        async with self._get_configured_kubernetes_client(configuration) as client:
-            job_cluster_uid, job_namespace, job_name = self._parse_infrastructure_pid(
-                infrastructure_pid
-            )
-
-            if job_namespace != configuration.namespace:
-                raise InfrastructureNotAvailable(
-                    f"Unable to kill job {job_name!r}: The job is running in namespace "
-                    f"{job_namespace!r} but this worker expected jobs to be running in "
-                    f"namespace {configuration.namespace!r} based on the work pool and "
-                    "deployment configuration."
-                )
-
-            current_cluster_uid = await self._get_cluster_uid(client)
-            if job_cluster_uid != current_cluster_uid:
-                raise InfrastructureNotAvailable(
-                    f"Unable to kill job {job_name!r}: The job is running on another "
-                    "cluster than the one specified by the infrastructure PID."
-                )
-
-            async with self._get_batch_client(client) as batch_client:
-                try:
-                    await batch_client.delete_namespaced_job(
-                        name=job_name,
-                        namespace=job_namespace,
-                        grace_period_seconds=grace_seconds,
-                        # Foreground propagation deletes dependent objects before deleting # noqa
-                        # owner objects. This ensures that the pods are cleaned up before # noqa
-                        # the job is marked as deleted.
-                        # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion # noqa
-                        propagation_policy="Foreground",
-                    )
-                except kubernetes_asyncio.client.exceptions.ApiException as exc:
-                    if exc.status == 404:
-                        raise InfrastructureNotFound(
-                            f"Unable to kill job {job_name!r}: The job was not found."
-                        ) from exc
-                    else:
-                        raise
 
     @asynccontextmanager
     async def _get_configured_kubernetes_client(

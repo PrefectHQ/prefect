@@ -21,15 +21,16 @@ from prefect import flow
 from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
-from prefect.exceptions import InfrastructureNotAvailable
+from prefect.client.schemas.objects import StateType
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server import models
 from prefect.server.schemas.actions import (
     DeploymentUpdate,
     WorkPoolCreate,
 )
+from prefect.states import Cancelled, Cancelling, Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (
-    ProcessJobConfiguration,
     ProcessWorker,
     ProcessWorkerResult,
 )
@@ -133,7 +134,7 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
 
 
 @pytest.fixture
-async def work_pool(session: AsyncSession):
+async def process_work_pool(session: AsyncSession):
     job_template = ProcessWorker.get_default_base_job_template()
 
     wp = await models.workers.create_work_pool(
@@ -171,15 +172,15 @@ async def work_pool_with_default_env(session: AsyncSession):
 
 
 async def test_worker_process_run_flow_run(
-    flow_run, patch_run_process, work_pool, monkeypatch
+    flow_run, patch_run_process, process_work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
     patch_client(monkeypatch)
 
     async with ProcessWorker(
-        work_pool_name=work_pool.name,
+        work_pool_name=process_work_pool.name,
     ) as worker:
-        worker._work_pool = work_pool
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -335,7 +336,7 @@ async def test_flow_run_vars_and_deployment_vars_get_merged(
 
 
 async def test_process_created_then_marked_as_started(
-    flow_run, mock_open_process, work_pool, monkeypatch
+    flow_run, mock_open_process, process_work_pool, monkeypatch
 ):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     # By raising an exception when started is called we can assert the process
@@ -354,9 +355,9 @@ async def test_process_created_then_marked_as_started(
         {RuntimeError: handle_exception_group}  # type: ignore
     ):  # see https://github.com/agronholm/anyio/blob/master/docs/migration.rst#task-groups-now-wrap-single-exceptions-in-groups # noqa F821
         async with ProcessWorker(
-            work_pool_name=work_pool.name,
+            work_pool_name=process_work_pool.name,
         ) as worker:
-            worker._work_pool = work_pool
+            worker._work_pool = process_work_pool
             await worker.run(
                 flow_run=flow_run,
                 configuration=fake_configuration,
@@ -383,13 +384,13 @@ async def test_process_worker_logs_exit_code_help_message(
     caplog,
     patch_run_process,
     flow_run,
-    work_pool,
+    process_work_pool,
     monkeypatch,
 ):
     patch_client(monkeypatch)
     patch_run_process(returncode=exit_code)
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -407,13 +408,13 @@ async def test_process_worker_logs_exit_code_help_message(
     reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
 )
 async def test_windows_process_worker_run_sets_process_group_creation_flag(
-    patch_run_process, flow_run, work_pool, monkeypatch
+    patch_run_process, flow_run, process_work_pool, monkeypatch
 ):
     mock = patch_run_process()
     patch_client(monkeypatch)
 
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -431,12 +432,12 @@ async def test_windows_process_worker_run_sets_process_group_creation_flag(
     ),
 )
 async def test_unix_process_worker_run_does_not_set_creation_flag(
-    patch_run_process, flow_run, work_pool, monkeypatch
+    patch_run_process, flow_run, process_work_pool, monkeypatch
 ):
     mock = patch_run_process()
     patch_client(monkeypatch)
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -448,15 +449,15 @@ async def test_unix_process_worker_run_does_not_set_creation_flag(
 
 
 async def test_process_worker_working_dir_override(
-    flow_run, patch_run_process, work_pool, monkeypatch
+    flow_run, patch_run_process, process_work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
     path_override_value = "/tmp/test"
 
     # Check default is not the mock_path
     patch_client(monkeypatch, overrides={})
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -468,8 +469,8 @@ async def test_process_worker_working_dir_override(
 
     # Check mock_path is used after setting the override
     patch_client(monkeypatch, overrides={"working_dir": path_override_value})
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -481,14 +482,14 @@ async def test_process_worker_working_dir_override(
 
 
 async def test_process_worker_stream_output_override(
-    flow_run, patch_run_process, work_pool, monkeypatch
+    flow_run, patch_run_process, process_work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
 
     # Check default is True
     patch_client(monkeypatch, overrides={})
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -501,8 +502,8 @@ async def test_process_worker_stream_output_override(
     # Check False is used after setting the override
     patch_client(monkeypatch, overrides={"stream_output": False})
 
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -514,7 +515,7 @@ async def test_process_worker_stream_output_override(
 
 
 async def test_process_worker_uses_correct_default_command(
-    flow_run, patch_run_process, work_pool, monkeypatch
+    flow_run, patch_run_process, process_work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
     correct_default = [
@@ -524,8 +525,8 @@ async def test_process_worker_uses_correct_default_command(
     ]
     patch_client(monkeypatch)
 
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -537,15 +538,15 @@ async def test_process_worker_uses_correct_default_command(
 
 
 async def test_process_worker_command_override(
-    flow_run, patch_run_process, work_pool, monkeypatch
+    flow_run, patch_run_process, process_work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
     override_command = "echo hello world"
     override = {"command": override_command}
     patch_client(monkeypatch, overrides=override)
 
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -557,12 +558,12 @@ async def test_process_worker_command_override(
 
 
 async def test_task_status_receives_infrastructure_pid(
-    work_pool, patch_run_process, monkeypatch, flow_run
+    process_work_pool, patch_run_process, monkeypatch, flow_run
 ):
     patch_client(monkeypatch)
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -573,17 +574,16 @@ async def test_task_status_receives_infrastructure_pid(
         fake_status.started.assert_called_once_with(f"{hostname}:{result.identifier}")
 
 
-async def test_process_kill_mismatching_hostname(monkeypatch, work_pool):
+async def test_process_kill_mismatching_hostname(monkeypatch, process_work_pool):
     os_kill = MagicMock()
     monkeypatch.setattr("os.kill", os_kill)
 
     infrastructure_pid = f"not-{socket.gethostname()}:12345"
 
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
         with pytest.raises(InfrastructureNotAvailable):
-            await worker.kill_infrastructure(
+            await worker.kill_process(
                 infrastructure_pid=infrastructure_pid,
-                configuration=ProcessJobConfiguration(),
             )
 
     os_kill.assert_not_called()
@@ -593,7 +593,7 @@ async def test_process_kill_mismatching_hostname(monkeypatch, work_pool):
     sys.platform == "win32",
     reason="SIGTERM/SIGKILL are only used in non-Windows environments",
 )
-async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch, work_pool):
+async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch, process_work_pool):
     patch_client(monkeypatch)
     os_kill = MagicMock()
     monkeypatch.setattr("os.kill", os_kill)
@@ -601,11 +601,10 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch, work_pool):
     infrastructure_pid = f"{socket.gethostname()}:12345"
     grace_seconds = 2
 
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        await worker.kill_infrastructure(
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        await worker.kill_process(
             infrastructure_pid=infrastructure_pid,
             grace_seconds=grace_seconds,
-            configuration=ProcessJobConfiguration(),
         )
 
     os_kill.assert_has_calls(
@@ -621,7 +620,7 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch, work_pool):
     sys.platform == "win32",
     reason="SIGTERM/SIGKILL are only used in non-Windows environments",
 )
-async def test_process_kill_early_return(monkeypatch, work_pool):
+async def test_process_kill_early_return(monkeypatch, process_work_pool):
     patch_client(monkeypatch)
     os_kill = MagicMock(side_effect=[None, ProcessLookupError])
     anyio_sleep = AsyncMock()
@@ -631,11 +630,10 @@ async def test_process_kill_early_return(monkeypatch, work_pool):
     infrastructure_pid = f"{socket.gethostname()}:12345"
     grace_seconds = 30
 
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        await worker.kill_infrastructure(
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        await worker.kill_process(
             infrastructure_pid=infrastructure_pid,
             grace_seconds=grace_seconds,
-            configuration=ProcessJobConfiguration(),
         )
 
     os_kill.assert_has_calls(
@@ -652,7 +650,7 @@ async def test_process_kill_early_return(monkeypatch, work_pool):
     sys.platform != "win32",
     reason="CTRL_BREAK_EVENT is only defined in Windows",
 )
-async def test_process_kill_windows_sends_ctrl_break(monkeypatch, work_pool):
+async def test_process_kill_windows_sends_ctrl_break(monkeypatch, process_work_pool):
     patch_client(monkeypatch)
     os_kill = MagicMock()
     monkeypatch.setattr("os.kill", os_kill)
@@ -660,11 +658,434 @@ async def test_process_kill_windows_sends_ctrl_break(monkeypatch, work_pool):
     infrastructure_pid = f"{socket.gethostname()}:12345"
     grace_seconds = 15
 
-    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        await worker.kill_infrastructure(
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        await worker.kill_process(
             infrastructure_pid=infrastructure_pid,
             grace_seconds=grace_seconds,
-            configuration=ProcessJobConfiguration(),
         )
 
     os_kill.assert_called_once_with(12345, signal.CTRL_BREAK_EVENT)
+
+
+def legacy_named_cancelling_state(**kwargs):
+    return Cancelled(name="Cancelling", **kwargs)
+
+
+class TestCancellation:
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_called_for_cancelling_run(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+            await worker.sync_with_backend()
+            worker.cancel_run = AsyncMock()
+            await worker.check_for_cancelled_flow_runs()
+
+        worker.cancel_run.assert_awaited_once_with(flow_run)
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            # Name not "Cancelling"
+            Cancelled(),
+            # Name "Cancelling" but type not "Cancelled"
+            Completed(name="Cancelling"),
+            # Type not Cancelled
+            Scheduled(),
+            Pending(),
+            Running(),
+        ],
+    )
+    async def test_worker_cancel_run_not_called_for_other_states(
+        self, prefect_client: PrefectClient, worker_deployment_wq1, state, work_pool
+    ):
+        await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=state,
+        )
+
+        async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+            await worker.sync_with_backend()
+            worker.cancel_run = AsyncMock()
+            await worker.check_for_cancelled_flow_runs()
+
+        worker.cancel_run.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_called_for_cancelling_run_with_multiple_work_queues(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
+        work_queue_1,
+        work_queue_2,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name,
+            work_queues=[work_queue_1.name, work_queue_2.name],
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.cancel_run = AsyncMock()
+            await worker.check_for_cancelled_flow_runs()
+
+        worker.cancel_run.assert_awaited_once_with(flow_run)
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_not_called_for_same_queue_names_in_different_work_pool(
+        self,
+        prefect_client: PrefectClient,
+        deployment,
+        cancelling_constructor,
+        work_pool,
+        work_queue_1,
+        work_queue_2,
+    ):
+        # Update queue name, but not work pool name
+        deployment.work_queue_name = work_queue_2.name
+        await prefect_client.update_deployment(deployment)
+
+        await prefect_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=cancelling_constructor(),
+        )
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name,
+            work_queues=[work_queue_1.name],
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.cancel_run = AsyncMock()
+            await worker.check_for_cancelled_flow_runs()
+
+        worker.cancel_run.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_not_called_for_other_work_queues(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
+    ):
+        await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name,
+            work_queues=[f"not-{worker_deployment_wq1.work_queue_name}"],
+            prefetch_seconds=10,
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.cancel_run = AsyncMock()
+            await worker.check_for_cancelled_flow_runs()
+
+        worker.cancel_run.assert_not_called()
+
+    # _______________________________________________________________________________
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_kills_run_with_infrastructure_pid(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test")
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.kill_process = AsyncMock()
+            await worker.check_for_cancelled_flow_runs()
+
+        worker.kill_process.assert_awaited_once_with(infrastructure_pid="test")
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_with_missing_infrastructure_pid(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        caplog,
+        cancelling_constructor,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.kill_process = AsyncMock()
+            await worker.check_for_cancelled_flow_runs()
+
+        worker.kill_process.assert_not_awaited()
+
+        # State name updated to prevent further attempts
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert post_flow_run.state.name == "Cancelled"
+
+        # Information broadcasted to user in logs and state message
+        assert (
+            "does not have an infrastructure pid attached. Cancellation cannot be"
+            " guaranteed." in caplog.text
+        )
+        assert (
+            "missing infrastructure tracking information" in post_flow_run.state.message
+        )
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_updates_state_type(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        await prefect_client.update_flow_run(
+            flow_run.id, infrastructure_pid="test:test"
+        )
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.kill_process = AsyncMock()
+            await worker.check_for_cancelled_flow_runs()
+
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert post_flow_run.state.type == StateType.CANCELLED
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    @pytest.mark.parametrize("infrastructure_pid", [None, "", "test"])
+    async def test_worker_cancel_run_handles_missing_deployment(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
+        infrastructure_pid: str,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id, infrastructure_pid=infrastructure_pid
+        )
+        await prefect_client.delete_deployment(worker_deployment_wq1.id)
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            await worker.check_for_cancelled_flow_runs()
+
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert post_flow_run.state.type == StateType.CANCELLED
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_preserves_other_state_properties(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
+    ):
+        expected_changed_fields = {"type", "name", "timestamp", "id", "state_details"}
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(message="test"),
+        )
+
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test")
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            await worker.check_for_cancelled_flow_runs()
+
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert post_flow_run.state.model_dump(
+            exclude=expected_changed_fields
+        ) == flow_run.state.model_dump(exclude=expected_changed_fields)
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_with_infrastructure_not_available_during_kill(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        caplog,
+        cancelling_constructor,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test")
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.kill_process = AsyncMock()
+            worker.kill_process.side_effect = InfrastructureNotAvailable("Test!")
+            await worker.check_for_cancelled_flow_runs()
+            # Perform a second call to check that it is tracked locally that this worker
+            # should not try again
+            await worker.check_for_cancelled_flow_runs()
+
+        # Only awaited once
+        worker.kill_process.assert_awaited_once_with(infrastructure_pid="test")
+
+        # State name not updated; other workers may attempt the kill
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert post_flow_run.state.name == "Cancelling"
+
+        # Exception message is included with note on worker action
+        assert "Test! Flow run cannot be cancelled by this worker." in caplog.text
+
+        # State message is not changed
+        assert post_flow_run.state.message is None
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_with_infrastructure_not_found_during_kill(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        caplog,
+        cancelling_constructor,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test")
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.kill_process = AsyncMock()
+            worker.kill_process.side_effect = InfrastructureNotFound("Test!")
+            await worker.check_for_cancelled_flow_runs()
+            # Perform a second call to check that another cancellation attempt is not made
+            await worker.check_for_cancelled_flow_runs()
+
+        # Only awaited once
+        worker.kill_process.assert_awaited_once_with(infrastructure_pid="test")
+
+        # State name updated to prevent further attempts
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert post_flow_run.state.name == "Cancelled"
+
+        # Exception message is included with note on worker action
+        assert "Test! Marking flow run as cancelled." in caplog.text
+
+        # No need for state message update
+        assert post_flow_run.state.message is None
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
+    async def test_worker_cancel_run_with_unknown_error_during_kill(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1,
+        caplog,
+        cancelling_constructor,
+        work_pool,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test")
+
+        async with ProcessWorker(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            worker.kill_process = AsyncMock()
+            worker.kill_process.side_effect = ValueError("Oh no!")
+            await worker.check_for_cancelled_flow_runs()
+            await anyio.sleep(0.5)
+            await worker.check_for_cancelled_flow_runs()
+
+        # Multiple attempts should be made
+        worker.kill_process.assert_has_awaits(
+            [
+                call(infrastructure_pid="test"),
+                call(infrastructure_pid="test"),
+            ]
+        )
+
+        # State name not updated
+        post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert post_flow_run.state.name == "Cancelling"
+
+        assert (
+            "Encountered exception while killing infrastructure for flow run"
+            in caplog.text
+        )
+        assert "ValueError: Oh no!" in caplog.text
+        assert "Traceback" in caplog.text

@@ -35,9 +35,6 @@ class MockKubernetesWorker(BaseWorker):
     async def run(self):
         pass
 
-    async def kill_infrastructure(self, *args, **kwargs):
-        pass
-
 
 @pytest.fixture
 def interactive_console(monkeypatch):
@@ -69,7 +66,6 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
     ) as respx_mock:
         respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()
         respx_mock.route(path__startswith="/work_pools/").pass_through()
-        respx_mock.route(path__startswith="/flow_runs/").pass_through()
         respx_mock.get("/collections/views/aggregate-worker-metadata").mock(
             return_value=httpx.Response(
                 200,

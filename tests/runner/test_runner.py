@@ -21,7 +21,7 @@ import pytest
 from starlette import status
 
 import prefect.runner
-from prefect import flow, serve, task
+from prefect import __version__, flow, serve, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import StateType
@@ -33,6 +33,8 @@ from prefect.deployments.runner import (
     deploy,
 )
 from prefect.docker.docker_image import DockerImage
+from prefect.events.clients import AssertingEventsClient
+from prefect.events.worker import EventsWorker
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
@@ -48,6 +50,7 @@ from prefect.settings import (
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.slugify import slugify
 
 
 @flow(version="test")
@@ -411,7 +414,7 @@ class TestRunner:
         in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
-        runner = Runner(query_seconds=2)
+        runner = Runner(query_seconds=1)
 
         temp_storage.code = dedent(
             """\
@@ -437,13 +440,12 @@ class TestRunner:
             name=__file__,
         )
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
-
+        async with runner:
             flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment_id
             )
 
+            execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
             # Need to wait for polling loop to pick up flow run and
             # start execution
             while True:
@@ -460,18 +462,9 @@ class TestRunner:
                 ),
             )
 
-            # Need to wait for polling loop to pick up flow run and then
-            # finish cancellation
-            while True:
-                await anyio.sleep(0.5)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                assert flow_run.state
-                if flow_run.state.is_cancelled():
-                    break
+            await execute_task
 
-            await runner.stop()
-            tg.cancel_scope.cancel()
-
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state.is_cancelled()
         # check to make sure on_cancellation hook was called
         assert "This flow was cancelled!" in caplog.text
@@ -510,13 +503,12 @@ class TestRunner:
             name=__file__,
         )
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
-
+        async with runner:
             flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment_id
             )
 
+            execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
             # Need to wait for polling loop to pick up flow run and
             # start execution
             while True:
@@ -535,17 +527,9 @@ class TestRunner:
                 ),
             )
 
-            # Need to wait for polling loop to pick up flow run and then
-            # finish cancellation
-            while True:
-                await anyio.sleep(0.5)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                assert flow_run.state
-                if flow_run.state.is_cancelled():
-                    break
+            await execute_task
 
-            await runner.stop()
-            tg.cancel_scope.cancel()
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
 
         # Cancellation hook should not have been called successfully
         # but the flow run should still be cancelled correctly
@@ -804,6 +788,110 @@ class TestRunner:
             runner.stopping = True
             runner._cancelling_flow_run_ids.add(flow_run.id)
             await runner._cancel_run(flow_run)
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+async def test_runner_emits_cancelled_event(
+    asserting_events_worker: EventsWorker,
+    reset_worker_events,
+    prefect_client: PrefectClient,
+    temp_storage: MockStorage,
+    in_temporary_runner_directory: None,
+):
+    runner = Runner(query_seconds=1)
+    temp_storage.code = dedent(
+        """\
+        from time import sleep
+
+        from prefect import flow
+        from prefect.logging.loggers import flow_run_logger
+
+        def on_cancellation(flow, flow_run, state):
+            logger = flow_run_logger(flow_run, flow)
+            logger.info("This flow was cancelled!")
+
+        @flow(on_cancellation=[on_cancellation], log_prints=True)
+        def cancel_flow(sleep_time: int = 100):
+            sleep(sleep_time)
+        """
+    )
+
+    deployment_id = await runner.add_flow(
+        await flow.from_source(source=temp_storage, entrypoint="flows.py:cancel_flow"),
+        name=__file__,
+        tags=["test"],
+    )
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id,
+        tags=["flow-run-one"],
+    )
+    api_flow = await prefect_client.read_flow(flow_run.flow_id)
+
+    async with runner:
+        execute_task = asyncio.create_task(
+            runner.execute_flow_run(flow_run_id=flow_run.id)
+        )
+        while True:
+            await anyio.sleep(0.5)
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=flow_run.state.model_copy(
+                update={"name": "Cancelling", "type": StateType.CANCELLING}
+            ),
+        )
+        await execute_task
+
+    await asserting_events_worker.drain()
+
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+
+    assert len(asserting_events_worker._client.events) == 1
+
+    cancelled_events = list(
+        filter(
+            lambda e: e.event == "prefect.runner.cancelled-flow-run",
+            asserting_events_worker._client.events,
+        )
+    )
+    assert len(cancelled_events) == 1
+
+    assert dict(cancelled_events[0].resource.items()) == {
+        "prefect.resource.id": f"prefect.runner.{slugify(runner.name)}",
+        "prefect.resource.name": runner.name,
+        "prefect.version": str(__version__),
+    }
+
+    related = [dict(r.items()) for r in cancelled_events[0].related]
+
+    assert related == [
+        {
+            "prefect.resource.id": f"prefect.deployment.{deployment_id}",
+            "prefect.resource.role": "deployment",
+            "prefect.resource.name": "test_runner",
+        },
+        {
+            "prefect.resource.id": f"prefect.flow.{api_flow.id}",
+            "prefect.resource.role": "flow",
+            "prefect.resource.name": api_flow.name,
+        },
+        {
+            "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+            "prefect.resource.role": "flow-run",
+            "prefect.resource.name": flow_run.name,
+        },
+        {
+            "prefect.resource.id": "prefect.tag.flow-run-one",
+            "prefect.resource.role": "tag",
+        },
+        {
+            "prefect.resource.id": "prefect.tag.test",
+            "prefect.resource.role": "tag",
+        },
+    ]
 
 
 class TestRunnerDeployment:

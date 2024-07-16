@@ -1,10 +1,8 @@
 import uuid
 from unittest.mock import Mock
 
-import anyio
 import pydantic
 import pytest
-from googleapiclient.errors import HttpError
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.utilities import slugify_name
 from prefect_gcp.workers.cloud_run import (
@@ -14,7 +12,6 @@ from prefect_gcp.workers.cloud_run import (
 )
 
 from prefect.client.schemas.objects import FlowRun
-from prefect.exceptions import InfrastructureNotFound
 from prefect.server.schemas.actions import DeploymentCreate
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.schema_tools.validation import (
@@ -640,69 +637,3 @@ class TestCloudRunWorker:
             calls = list_mock_calls(mock_client, 2)
             for call, expected_call in zip(calls, expected_calls):
                 assert call.startswith(expected_call)
-
-    async def test_kill(self, mock_client, cloud_run_worker_job_config, flow_run):
-        async with CloudRunWorker("my-work-pool") as cloud_run_worker:
-            cloud_run_worker_job_config.prepare_for_flow_run(flow_run, None, None)
-
-            mock_client.jobs().get().execute.return_value = self.job_ready
-            mock_client.jobs().run().execute.return_value = self.job_ready
-            mock_client.executions().get().execute.return_value = (
-                self.execution_not_found
-            )  # noqa
-
-            with anyio.fail_after(5):
-                async with anyio.create_task_group() as tg:
-                    identifier = await tg.start(
-                        cloud_run_worker.run, flow_run, cloud_run_worker_job_config
-                    )
-                    await cloud_run_worker.kill_infrastructure(
-                        identifier, cloud_run_worker_job_config
-                    )
-
-            actual_calls = list_mock_calls(mock_client=mock_client)
-            assert "call.jobs().delete().execute()" in actual_calls
-
-    def failed_to_get(self):
-        raise HttpError(Mock(reason="does not exist"), content=b"")
-
-    async def test_kill_not_found(
-        self, mock_client, cloud_run_worker_job_config, flow_run
-    ):
-        async with CloudRunWorker("my-work-pool") as cloud_run_worker:
-            cloud_run_worker_job_config.prepare_for_flow_run(flow_run, None, None)
-
-            mock_client.jobs().delete().execute.side_effect = self.failed_to_get
-            with pytest.raises(
-                InfrastructureNotFound, match="Cannot stop Cloud Run Job; the job name"
-            ):
-                await cloud_run_worker.kill_infrastructure(
-                    "non-existent", cloud_run_worker_job_config
-                )
-
-    async def test_kill_grace_seconds(
-        self, mock_client, cloud_run_worker_job_config, flow_run, caplog
-    ):
-        async with CloudRunWorker("my-work-pool") as cloud_run_worker:
-            cloud_run_worker_job_config.prepare_for_flow_run(flow_run, None, None)
-
-            mock_client.jobs().get().execute.return_value = self.job_ready
-            mock_client.jobs().run().execute.return_value = self.job_ready
-            mock_client.executions().get().execute.return_value = (
-                self.execution_not_found
-            )
-
-            with anyio.fail_after(5):
-                async with anyio.create_task_group() as tg:
-                    identifier = await tg.start(
-                        cloud_run_worker.run, flow_run, cloud_run_worker_job_config
-                    )
-                    await cloud_run_worker.kill_infrastructure(
-                        identifier, cloud_run_worker_job_config, grace_seconds=42
-                    )
-
-            for record in caplog.records:
-                if "Kill grace period of 42s requested, but GCP does not" in record.msg:
-                    break
-            else:
-                raise AssertionError("Expected message not found.")
