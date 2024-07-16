@@ -15,6 +15,7 @@ from prefect._internal.schemas.bases import ObjectBaseModel
 from .block_type import BlockType
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
+DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
 
 class BlockSchema(ObjectBaseModel):

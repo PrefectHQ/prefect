@@ -7,7 +7,11 @@ if TYPE_CHECKING:
     from .artifact_collection import ArtifactCollection
     from .block_document import BlockDocument
     from .block_document_reference import BlockDocumentReference
-    from .block_schema import BlockSchema, DEFAULT_BLOCK_SCHEMA_VERSION
+    from .block_schema import (
+        BlockSchema,
+        DEFAULT_BLOCK_SCHEMA_VERSION,
+        DEFAULT_AGENT_WORK_POOL_NAME,
+    )
     from .block_schema_reference import BlockSchemaReference
     from .block_type import BlockType
     from .concurrency_limit import ConcurrencyLimit
@@ -62,6 +66,7 @@ _public_api: dict[str, tuple[str, str]] = {
     "CsrfToken": (__spec__.parent, ".csrf_token"),
     "Deployment": (__spec__.parent, ".deployment"),
     "DEFAULT_BLOCK_SCHEMA_VERSION": (__spec__.parent, ".block_schema"),
+    "DEFAULT_AGENT_WORK_POOL_NAME": (__spec__.parent, ".block_schema"),
     "DeploymentSchedule": (__spec__.parent, ".deployment_schedule"),
     "DeploymentStatus": (__spec__.parent, ".deployment_status"),
     "Flow": (__spec__.parent, ".flow"),
@@ -109,6 +114,7 @@ __all__ = [
     "Constant",
     "CsrfToken",
     "DEFAULT_BLOCK_SCHEMA_VERSION",
+    "DEFAULT_AGENT_WORK_POOL_NAME",
     "Deployment",
     "DeploymentSchedule",
     "DeploymentStatus",
