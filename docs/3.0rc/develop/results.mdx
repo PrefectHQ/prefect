@@ -55,7 +55,7 @@ In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, result persiste
 enabled or disabled on both individual flows and individual tasks.
 Specifying a non-null value for any of the following keywords on the task decorator will enable result 
 persistence for that task:
-- `persist_result`: a boolean that allows you to explicity enable or disable result persistence.
+- `persist_result`: a boolean that allows you to explicitly enable or disable result persistence.
 - `result_storage`: accepts either a string reference to a storage block or a storage block class that
 specifies where results should be stored.
 - `result_storage_key`: a string that specifies the filename of the result within the task's result storage.
