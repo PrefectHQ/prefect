@@ -66,7 +66,6 @@ from typing_extensions import Literal, Self
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import FlowRun
 from prefect.client.utilities import inject_client
-from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -1724,62 +1723,3 @@ class ECSWorker(BaseWorker):
             taskdef_2.pop(field, None)
 
         return taskdef_1 == taskdef_2
-
-    async def kill_infrastructure(
-        self,
-        configuration: ECSJobConfiguration,
-        infrastructure_pid: str,
-        grace_seconds: int = 30,
-    ) -> None:
-        """
-        Kill a task running on ECS.
-
-        Args:
-            infrastructure_pid: A cluster and task arn combination. This should match a
-                value yielded by `ECSWorker.run`.
-        """
-        if grace_seconds != 30:
-            self._logger.warning(
-                f"Kill grace period of {grace_seconds}s requested, but AWS does not "
-                "support dynamic grace period configuration so 30s will be used. "
-                "See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-agent-config.html for configuration of grace periods."  # noqa
-            )
-        cluster, task = parse_identifier(infrastructure_pid)
-        await run_sync_in_worker_thread(self._stop_task, configuration, cluster, task)
-
-    def _stop_task(
-        self, configuration: ECSJobConfiguration, cluster: str, task: str
-    ) -> None:
-        """
-        Stop a running ECS task.
-        """
-        if configuration.cluster is not None and cluster != configuration.cluster:
-            raise InfrastructureNotAvailable(
-                "Cannot stop ECS task: this infrastructure block has access to "
-                f"cluster {configuration.cluster!r} but the task is running in cluster "
-                f"{cluster!r}."
-            )
-
-        ecs_client = self._get_client(configuration, "ecs")
-        try:
-            ecs_client.stop_task(cluster=cluster, task=task)
-        except Exception as exc:
-            # Raise a special exception if the task does not exist
-            if "ClusterNotFound" in str(exc):
-                raise InfrastructureNotFound(
-                    f"Cannot stop ECS task: the cluster {cluster!r} could not be found."
-                ) from exc
-            if "not find task" in str(exc) or "referenced task was not found" in str(
-                exc
-            ):
-                raise InfrastructureNotFound(
-                    f"Cannot stop ECS task: the task {task!r} could not be found in "
-                    f"cluster {cluster!r}."
-                ) from exc
-            if "no registered tasks" in str(exc):
-                raise InfrastructureNotFound(
-                    f"Cannot stop ECS task: the cluster {cluster!r} has no tasks."
-                ) from exc
-
-            # Reraise unknown exceptions
-            raise

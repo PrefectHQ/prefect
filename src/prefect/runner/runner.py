@@ -65,13 +65,13 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
-from prefect.client.schemas.objects import (
-    FlowRun,
-    State,
-    StateType,
-)
+from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
+from prefect.events.related import tags_as_related_resources
+from prefect.events.schemas.events import RelatedResource
+from prefect.events.utilities import emit_event
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
@@ -93,8 +93,10 @@ from prefect.utilities.asyncutils import (
 from prefect.utilities.engine import propose_state
 from prefect.utilities.processutils import _register_signal, run_process
 from prefect.utilities.services import critical_service_loop
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
+    from prefect.client.schemas.objects import Deployment
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
 
@@ -173,7 +175,7 @@ class Runner:
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
         self._deployment_ids: Set[UUID] = set()
-        self._flow_run_process_map = dict()
+        self._flow_run_process_map: Dict[UUID, Dict] = dict()
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
@@ -816,7 +818,70 @@ class Runner:
                     "message": state_msg or "Flow run was cancelled successfully."
                 },
             )
+            try:
+                deployment = await self._client.read_deployment(flow_run.deployment_id)
+            except ObjectNotFound:
+                deployment = None
+            try:
+                flow = await self._client.read_flow(flow_run.flow_id)
+            except ObjectNotFound:
+                flow = None
+            self._emit_flow_run_cancelled_event(
+                flow_run=flow_run, flow=flow, deployment=deployment
+            )
             run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
+
+    def _event_resource(self):
+        from prefect import __version__
+
+        return {
+            "prefect.resource.id": f"prefect.runner.{slugify(self.name)}",
+            "prefect.resource.name": self.name,
+            "prefect.version": __version__,
+        }
+
+    def _emit_flow_run_cancelled_event(
+        self,
+        flow_run: "FlowRun",
+        flow: "Optional[APIFlow]",
+        deployment: "Optional[Deployment]",
+    ):
+        related = []
+        tags = []
+        if deployment:
+            related.append(
+                {
+                    "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+                    "prefect.resource.role": "deployment",
+                    "prefect.resource.name": deployment.name,
+                }
+            )
+            tags.extend(deployment.tags)
+        if flow:
+            related.append(
+                {
+                    "prefect.resource.id": f"prefect.flow.{flow.id}",
+                    "prefect.resource.role": "flow",
+                    "prefect.resource.name": flow.name,
+                }
+            )
+        related.append(
+            {
+                "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                "prefect.resource.role": "flow-run",
+                "prefect.resource.name": flow_run.name,
+            }
+        )
+        tags.extend(flow_run.tags)
+
+        related = [RelatedResource.model_validate(r) for r in related]
+        related += tags_as_related_resources(set(tags))
+
+        emit_event(
+            event="prefect.runner.cancelled-flow-run",
+            resource=self._event_resource(),
+            related=related,
+        )
 
     async def _get_scheduled_flow_runs(
         self,
@@ -954,7 +1019,7 @@ class Runner:
             # If the run is not ready to submit, release the concurrency slot
             self._release_limit_slot(flow_run.id)
 
-        self._submitting_flow_run_ids.remove(flow_run.id)
+        self._submitting_flow_run_ids.discard(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self,

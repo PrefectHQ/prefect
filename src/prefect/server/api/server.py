@@ -85,6 +85,7 @@ API_ROUTERS = (
     api.block_types.router,
     api.block_documents.router,
     api.workers.router,
+    api.task_workers.router,
     api.work_queues.router,
     api.artifacts.router,
     api.block_schemas.router,
