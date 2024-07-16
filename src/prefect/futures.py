@@ -292,46 +292,6 @@ class PrefectFutureList(list, Iterator, Generic[F]):
             ) from exc
 
 
-# def as_completed(futures: List[PrefectFuture], timeout=None) -> Iterator[PrefectFuture]:
-#     """
-#     An iterator over the given futures that yields each as it completes.
-
-#     Args:
-#         fs: The sequence of Futures (possibly created by different Executors) to
-#             iterate over.
-#         timeout: The maximum number of seconds to wait. If None, then there
-#             is no limit on the wait time.
-
-#     Returns:
-#         An iterator that yields the given Futures as they complete (finished or
-#         cancelled). If any given Futures are duplicated, they will be returned
-#         once.
-
-#     Raises:
-#         TimeoutError: If the entire result iterator could not be generated
-#             before the given timeout.
-#     """
-
-#     futures = set(futures)
-#     total_futures = len(futures)
-
-#     try:
-#         done = {f for f in futures if f._final_state}
-#         pending = futures - done
-#         for future in done:
-#                 yield future
-#         with timeout_context(timeout):
-#             for future in pending.copy():
-#                     future.wait()
-#                     pending.remove(future)
-#                     yield future
-
-#     except TimeoutError:
-#         raise TimeoutError(
-#                                 '%d (of %d) futures unfinished' % (
-#                                 len(pending),total_futures))
-
-
 def as_completed(futures: List[PrefectFuture], timeout=None) -> Iterator[PrefectFuture]:
     """
     An iterator over the given futures that yields each as it completes.
