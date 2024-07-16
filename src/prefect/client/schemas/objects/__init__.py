@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from .worker import Worker
     from .worker_status import WorkerStatus
     from .workspace import Workspace
-    
+
 
 _public_api: dict[str, tuple[str, str]] = {
     "Agent": (__spec__.parent, ".agent"),
@@ -91,8 +91,7 @@ _public_api: dict[str, tuple[str, str]] = {
     "Worker": (__spec__.parent, ".worker"),
     "WorkerStatus": (__spec__.parent, ".worker_status"),
     "Workspace": (__spec__.parent, ".workspace"),
-    
-    }
+}
 
 __all__ = [
     "Agent",
@@ -138,8 +137,8 @@ __all__ = [
     "Worker",
     "WorkerStatus",
     "Workspace",
-      
 ]
+
 
 def __getattr__(attr_name: str) -> object:
     dynamic_attr = _public_api.get(attr_name)
