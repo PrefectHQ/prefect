@@ -320,9 +320,11 @@ def as_completed(futures: List[PrefectFuture], timeout=None) -> Iterator[Prefect
             for future in done:
                 yield future
 
-            done, pending = wait(pending)
-            for future in done:
+            for future in pending.copy():
+                future.wait()
+                pending.remove(future)
                 yield future
+
     except TimeoutError:
         raise TimeoutError(
             "%d (of %d) futures unfinished" % (len(pending), total_futures)
