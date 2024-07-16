@@ -199,7 +199,7 @@ async def test_task_worker_emits_run_ui_url_upon_submission(
     with temporary_settings({PREFECT_UI_URL: "http://test/api"}):
         await task_worker.execute_task_run(task_run)
 
-    assert "in the UI at 'http://test/api/runs/task-run/" in caplog.text
+    assert "in the UI: http://test/api/runs/task-run/" in caplog.text
 
 
 @pytest.mark.usefixtures("mock_task_worker_start")
