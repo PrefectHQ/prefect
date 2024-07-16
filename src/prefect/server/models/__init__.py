@@ -19,6 +19,7 @@ from . import (
     saved_searches,
     task_run_states,
     task_runs,
+    task_workers,
     variables,
     work_queues,
     workers,
