@@ -63,7 +63,7 @@ jobs:
 
       - name: Create Cloud OpenAPI JSON
         working-directory: compat-tests
-        run: curl https://api.prefect.cloud/api/openapi.json > cloud_schema.json
+        run: curl https://api.prefect.dev/api/openapi.json > cloud_schema.json
 
       - name: Create OSS OpenAPI JSON
         working-directory: compat-tests
