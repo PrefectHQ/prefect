@@ -767,7 +767,7 @@ def emit_task_run_state_change_event(
                     exclude={"flow_run_id", "task_run_id"},
                 ),
                 "data": validated_state.data.model_dump(mode="json")
-                if validated_state.data
+                if isinstance(validated_state.data, BaseResult)
                 else None,
             },
             "task_run": task_run.model_dump(
