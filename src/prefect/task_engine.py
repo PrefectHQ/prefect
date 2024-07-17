@@ -465,6 +465,7 @@ class TaskRunEngine(Generic[P, R]):
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
         from prefect.utilities.engine import (
+            _resolve_custom_task_run_name,
             should_log_prints,
         )
 
@@ -490,20 +491,20 @@ class TaskRunEngine(Generic[P, R]):
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
             # update the task run name if necessary
-            # TODO: - do we need to even do this? can we do this when we create the run?
-            # if not self._task_name_set and self.task.task_run_name:
-            #     task_run_name = _resolve_custom_task_run_name(
-            #         task=self.task, parameters=self.parameters
-            #     )
-            #     self.client.set_task_run_name(
-            #         task_run_id=self.task_run.id, name=task_run_name
-            #     )
-            #     self.logger.extra["task_run_name"] = task_run_name
-            #     self.logger.debug(
-            #         f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-            #     )
-            #     self.task_run.name = task_run_name
-            #     self._task_name_set = True
+            if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                if not self._task_name_set and self.task.task_run_name:
+                    task_run_name = _resolve_custom_task_run_name(
+                        task=self.task, parameters=self.parameters
+                    )
+                    self.client.set_task_run_name(
+                        task_run_id=self.task_run.id, name=task_run_name
+                    )
+                    self.logger.extra["task_run_name"] = task_run_name
+                    self.logger.debug(
+                        f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+                    )
+                    self.task_run.name = task_run_name
+                    self._task_name_set = True
             yield
 
     @contextmanager
