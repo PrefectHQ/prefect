@@ -13,6 +13,7 @@ from prefect.logging.loggers import get_logger, get_run_logger
 
 internal_logger = get_logger(__name__)
 
+
 class SMTPType(Enum):
     """
     Protocols used to secure email transmissions.
@@ -193,8 +194,9 @@ class EmailServerCredentials(Block):
             server = SMTP(smtp_server, smtp_port)
         else:
             context = (
-                ssl.create_default_context() if self.verify else
-                ssl._create_unverified_context(protocol=ssl.PROTOCOL_TLS_CLIENT)
+                ssl.create_default_context()
+                if self.verify
+                else ssl._create_unverified_context(protocol=ssl.PROTOCOL_TLS_CLIENT)
             )
             if smtp_type == SMTPType.SSL:
                 server = SMTP_SSL(smtp_server, smtp_port, context=context)

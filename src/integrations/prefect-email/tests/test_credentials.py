@@ -95,9 +95,7 @@ def test_email_service_credentials_roundtrip_smtp_type_enum(smtp, smtp_type):
 
 @pytest.mark.parametrize("smtp_type", [SMTPType.STARTTLS, "STARTTLS", 587])
 @pytest.mark.parametrize("verify", [False])
-def test_email_service_credentials_unverified_context(
-    smtp, smtp_type, verify
-):
+def test_email_service_credentials_unverified_context(smtp, smtp_type, verify):
     email_server_credentials = EmailServerCredentials(
         smtp_server="us-smtp-outbound-1.mimecast.com",
         smtp_type=smtp_type,
