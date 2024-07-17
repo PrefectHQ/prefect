@@ -2,6 +2,7 @@ import inspect
 import logging
 import threading
 import time
+import uuid
 from asyncio import CancelledError
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
@@ -53,6 +54,7 @@ from prefect.records.result_store import ResultFactoryStore
 from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
@@ -299,9 +301,12 @@ class TaskRunEngine(Generic[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
-            new_state = propose_state_sync(
-                self.client, state, task_run_id=self.task_run.id, force=force
-            )
+            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                new_state = state
+            else:
+                new_state = propose_state_sync(
+                    self.client, state, task_run_id=self.task_run.id, force=force
+                )
         except Pause as exc:
             # We shouldn't get a pause signal without a state, but if this happens,
             # just use a Paused state to assume an in-process pause.
@@ -460,7 +465,6 @@ class TaskRunEngine(Generic[P, R]):
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
         from prefect.utilities.engine import (
-            _resolve_custom_task_run_name,
             should_log_prints,
         )
 
@@ -469,7 +473,6 @@ class TaskRunEngine(Generic[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
 
-        self.task_run = client.read_task_run(self.task_run.id)
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
@@ -487,19 +490,20 @@ class TaskRunEngine(Generic[P, R]):
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
             # update the task run name if necessary
-            if not self._task_name_set and self.task.task_run_name:
-                task_run_name = _resolve_custom_task_run_name(
-                    task=self.task, parameters=self.parameters
-                )
-                self.client.set_task_run_name(
-                    task_run_id=self.task_run.id, name=task_run_name
-                )
-                self.logger.extra["task_run_name"] = task_run_name
-                self.logger.debug(
-                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                )
-                self.task_run.name = task_run_name
-                self._task_name_set = True
+            # TODO: - do we need to even do this? can we do this when we create the run?
+            # if not self._task_name_set and self.task.task_run_name:
+            #     task_run_name = _resolve_custom_task_run_name(
+            #         task=self.task, parameters=self.parameters
+            #     )
+            #     self.client.set_task_run_name(
+            #         task_run_id=self.task_run.id, name=task_run_name
+            #     )
+            #     self.logger.extra["task_run_name"] = task_run_name
+            #     self.logger.debug(
+            #         f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+            #     )
+            #     self.task_run.name = task_run_name
+            #     self._task_name_set = True
             yield
 
     @contextmanager
@@ -722,6 +726,8 @@ def run_task_sync(
         context=context,
     )
 
+    task_run_id = task_run_id or uuid.uuid4()
+
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             run_coro_as_sync(engine.wait_until_ready())
@@ -748,6 +754,8 @@ async def run_task_async(
         wait_for=wait_for,
         context=context,
     )
+
+    task_run_id = task_run_id or uuid.uuid4()
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():

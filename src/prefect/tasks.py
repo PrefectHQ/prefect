@@ -33,13 +33,19 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
+import prefect.states
 from prefect._internal.compatibility.deprecated import (
     deprecated_async_method,
 )
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.client.schemas.objects import (
+    StateDetails,
+    TaskRunInput,
+    TaskRunPolicy,
+    TaskRunResult,
+)
 from prefect.context import (
     FlowRunContext,
     TagsContext,
@@ -50,6 +56,7 @@ from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutu
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -766,23 +773,61 @@ class Task(Generic[P, R]):
                 task_inputs[k] = task_inputs[k].union(extras)
 
             # create the task run
-            task_run = client.create_task_run(
-                task=self,
-                name=task_run_name,
-                flow_run_id=(
+            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                flow_run_id = (
                     getattr(flow_run_context.flow_run, "id", None)
                     if flow_run_context and flow_run_context.flow_run
                     else None
-                ),
-                dynamic_key=str(dynamic_key),
-                id=id,
-                state=state,
-                task_inputs=task_inputs,
-                extra_tags=TagsContext.get().current_tags,
-            )
-            # the new engine uses sync clients but old engines use async clients
-            if inspect.isawaitable(task_run):
-                task_run = await task_run
+                )
+                state = prefect.states.Pending(
+                    state_details=StateDetails(
+                        task_run_id=id,
+                        flow_run_id=flow_run_id,
+                    )
+                )
+                task_run = TaskRun(
+                    id=id,
+                    name=task_run_name,
+                    flow_run_id=flow_run_id,
+                    task_key=self.task_key,
+                    dynamic_key=str(dynamic_key),
+                    task_version=self.version,
+                    empirical_policy=TaskRunPolicy(
+                        retries=self.retries,
+                        retry_delay=self.retry_delay_seconds,
+                        retry_jitter_factor=self.retry_jitter_factor,
+                    ),
+                    tags=list(
+                        set(self.tags).union(TagsContext.get().current_tags or [])
+                    ),
+                    task_inputs=task_inputs or {},
+                    expected_start_time=state.timestamp,
+                    state_id=state.id,
+                    state_type=state.type,
+                    state_name=state.name,
+                    state=state,
+                    created=state.timestamp,
+                    updated=state.timestamp,
+                )
+
+            else:
+                task_run = client.create_task_run(
+                    task=self,
+                    name=task_run_name,
+                    flow_run_id=(
+                        getattr(flow_run_context.flow_run, "id", None)
+                        if flow_run_context and flow_run_context.flow_run
+                        else None
+                    ),
+                    dynamic_key=str(dynamic_key),
+                    id=id,
+                    state=state,
+                    task_inputs=task_inputs,
+                    extra_tags=TagsContext.get().current_tags,
+                )
+                # the new engine uses sync clients but old engines use async clients
+                if inspect.isawaitable(task_run):
+                    task_run = await task_run
 
             return task_run
 
