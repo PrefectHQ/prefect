@@ -18,11 +18,8 @@
 
   const api = useWorkspaceApi()
   const deploymentId = useRouteParam('deploymentId')
-  const subscriptionOptions = {
-    interval: 300000,
-  }
 
-  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
+  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], {})
   const deployment = computed(() => deploymentSubscription.response)
 
   function isDeploymentCreate(request: DeploymentCreate | DeploymentUpdateV2): request is DeploymentCreate {
