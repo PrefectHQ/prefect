@@ -29,7 +29,7 @@
     </template>
     <MarketingBanner
       title="Ready to scale?"
-      subtitle="Automations, role and object-level security, and serverless push work pools on Prefect Cloud"
+      subtitle="Webhooks, role and object-level security, and serverless push work pools on Prefect Cloud"
     >
       <template #actions>
         <p-button to="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none" target="_blank" primary>
