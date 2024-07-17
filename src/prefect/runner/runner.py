@@ -51,6 +51,7 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import pendulum
+import prefect.datetime
 
 from prefect._internal.concurrency.api import (
     create_call,

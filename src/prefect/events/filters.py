@@ -2,6 +2,7 @@ from typing import List, Optional, Tuple, cast
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 from pydantic import Field, PrivateAttr
 from pydantic_extra_types.pendulum_dt import DateTime
 

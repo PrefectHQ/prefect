@@ -8,6 +8,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession

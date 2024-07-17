@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from fastapi import (
     BackgroundTasks,

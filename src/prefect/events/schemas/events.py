@@ -14,6 +14,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
+import prefect.datetime
 from pydantic import ConfigDict, Field, RootModel, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self

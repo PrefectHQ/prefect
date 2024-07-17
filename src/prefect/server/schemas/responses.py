@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self

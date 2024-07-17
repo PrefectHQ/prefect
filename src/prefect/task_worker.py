@@ -13,6 +13,7 @@ from uuid import UUID
 import anyio
 import anyio.abc
 import pendulum
+import prefect.datetime
 import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI

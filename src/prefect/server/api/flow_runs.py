@@ -8,6 +8,7 @@ from uuid import UUID
 
 import orjson
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from fastapi import (
     Body,

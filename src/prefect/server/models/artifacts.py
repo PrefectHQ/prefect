@@ -2,6 +2,7 @@ from typing import Optional, Sequence, TypeVar, Union
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

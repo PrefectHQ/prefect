@@ -15,6 +15,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession

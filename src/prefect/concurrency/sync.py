@@ -12,6 +12,7 @@ from typing import (
 )
 
 import pendulum
+import prefect.datetime
 
 try:
     from pendulum import Interval

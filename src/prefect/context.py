@@ -25,6 +25,7 @@ from typing import (
 )
 
 import pendulum
+import prefect.datetime
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self

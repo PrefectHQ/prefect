@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Uni
 
 import jsonschema
 import pendulum
+import prefect.datetime
 import yaml
 from pydantic_extra_types.pendulum_dt import DateTime
 

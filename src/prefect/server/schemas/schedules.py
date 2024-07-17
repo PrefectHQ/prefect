@@ -8,6 +8,7 @@ from typing import Annotated, Any, Generator, List, Optional, Tuple, Union
 import dateutil
 import dateutil.rrule
 import pendulum
+import prefect.datetime
 import pytz
 from croniter import croniter
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator

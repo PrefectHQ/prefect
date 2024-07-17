@@ -4,6 +4,7 @@ from typing import AsyncGenerator, List, Literal, Optional, Union, cast
 
 import httpx
 import pendulum
+import prefect.datetime
 
 try:
     from pendulum import Interval

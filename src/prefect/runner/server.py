@@ -2,6 +2,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 import pendulum
+import prefect.datetime
 import uvicorn
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -135,9 +136,9 @@ async def get_deployment_router(
             )
 
             # Used for updating the route schemas later on
-            schemas[
-                f"{deployment.name}-{deployment_id}"
-            ] = deployment.parameter_openapi_schema
+            schemas[f"{deployment.name}-{deployment_id}"] = (
+                deployment.parameter_openapi_schema
+            )
             schemas[deployment_id] = deployment.name
     return router, schemas
 

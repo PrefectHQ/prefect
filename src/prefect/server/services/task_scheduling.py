@@ -6,6 +6,7 @@ import asyncio
 from typing import Optional
 
 import pendulum
+import prefect.datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models

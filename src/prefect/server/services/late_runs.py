@@ -8,6 +8,7 @@ import datetime
 from typing import Optional
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 

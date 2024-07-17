@@ -2,6 +2,7 @@ import json
 from typing import Any, Dict, List, Optional, Union
 
 import pendulum
+import prefect.datetime
 import typer
 from rich.pretty import Pretty
 from rich.table import Table

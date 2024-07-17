@@ -10,6 +10,7 @@ from uuid import UUID
 import anyio
 import httpx
 import pendulum
+import prefect.datetime
 import pytest
 from starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.exceptions import ConnectionClosed

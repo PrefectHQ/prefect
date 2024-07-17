@@ -10,6 +10,7 @@ from importlib.metadata import version as import_version
 from typing import Any, Dict
 
 import pendulum
+import prefect.datetime
 import typer
 
 import prefect

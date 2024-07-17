@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, Optional, Type
 import anyio
 import httpx
 import pendulum
+import prefect.datetime
 from typing_extensions import TypeGuard
 
 from prefect.client.schemas import State as State

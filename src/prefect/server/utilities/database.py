@@ -12,6 +12,7 @@ import uuid
 from typing import List, Optional, Union
 
 import pendulum
+import prefect.datetime
 import pydantic
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
@@ -318,7 +319,8 @@ def _date_add_sqlite(element, compiler, **kwargs):
             sa.func.julianday(dt)
             + (
                 # convert interval to fractional days after the epoch
-                sa.func.julianday(interval) - 2440587.5
+                sa.func.julianday(interval)
+                - 2440587.5
             ),
         )
     )
@@ -421,8 +423,7 @@ def _date_diff_sqlite(element, compiler, **kwargs):
             # the epoch in julian days
             2440587.5
             # plus the date difference in julian days
-            + sa.func.julianday(d1)
-            - sa.func.julianday(d2),
+            + sa.func.julianday(d1) - sa.func.julianday(d2),
         )
     )
 

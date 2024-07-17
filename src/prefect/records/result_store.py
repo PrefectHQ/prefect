@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pendulum
+import prefect.datetime
 
 from prefect.results import BaseResult, PersistedResult, ResultFactory
 from prefect.utilities.asyncutils import run_coro_as_sync

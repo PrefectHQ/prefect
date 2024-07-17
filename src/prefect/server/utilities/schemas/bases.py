@@ -13,6 +13,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
+import prefect.datetime
 from pydantic import (
     BaseModel,
     ConfigDict,

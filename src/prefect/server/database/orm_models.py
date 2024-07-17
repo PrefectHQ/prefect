@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Hashable, List, Tuple, Union, cast
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -444,8 +445,7 @@ class Run(Base):
             )
             # add a correlate statement so this can reuse the `FROM` clause
             # of any parent query
-            .correlate(cls)
-            .label("estimated_run_time")
+            .correlate(cls).label("estimated_run_time")
         )
 
     @hybrid_property

@@ -15,6 +15,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from pydantic import TypeAdapter
 from sqlalchemy import delete, select

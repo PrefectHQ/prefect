@@ -16,6 +16,7 @@ import warnings
 from typing import Any, Callable, List, Optional, Type, TypeVar
 
 import pendulum
+import prefect.datetime
 import wrapt
 from pydantic import BaseModel
 

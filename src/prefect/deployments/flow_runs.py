@@ -4,6 +4,7 @@ from uuid import UUID
 
 import anyio
 import pendulum
+import prefect.datetime
 
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect.client.schemas import FlowRun

@@ -9,6 +9,7 @@ from typing import Optional
 from uuid import uuid4
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select

@@ -17,6 +17,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from cachetools import TTLCache
 from typing_extensions import Self
@@ -53,8 +54,9 @@ class MaxDepthExceeded(Exception):
 
 
 class event_handler(Protocol):
-    async def __call__(self, event: ReceivedEvent, depth: int = 0):
-        ...  # pragma: no cover
+    async def __call__(
+        self, event: ReceivedEvent, depth: int = 0
+    ): ...  # pragma: no cover
 
 
 class CausalOrdering:

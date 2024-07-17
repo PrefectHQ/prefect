@@ -14,6 +14,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 from pydantic import (
     AnyHttpUrl,
     ConfigDict,

@@ -6,6 +6,7 @@ generation and validation.
 import typing as t
 
 import pendulum
+import prefect.datetime
 from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
@@ -13,9 +14,9 @@ from typing_extensions import Annotated
 
 
 class _PendulumDateTimeAnnotation:
-    _pendulum_type: t.Type[
-        t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]
-    ] = pendulum.DateTime
+    _pendulum_type: t.Type[t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]] = (
+        pendulum.DateTime
+    )
 
     _pendulum_types_to_schemas = {
         pendulum.DateTime: core_schema.datetime_schema(),

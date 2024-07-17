@@ -4,6 +4,7 @@ from typing import Optional
 
 import orjson
 import pendulum
+import prefect.datetime
 import typer
 from pydantic import ValidationError
 from rich.pretty import Pretty

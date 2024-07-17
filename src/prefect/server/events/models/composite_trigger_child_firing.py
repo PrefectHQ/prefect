@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Sequence
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession

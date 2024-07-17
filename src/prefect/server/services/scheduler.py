@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 
 import prefect.server.models as models

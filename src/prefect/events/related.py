@@ -15,6 +15,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 from pendulum.datetime import DateTime
 
 from .schemas.events import RelatedResource

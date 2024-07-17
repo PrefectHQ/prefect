@@ -6,6 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies

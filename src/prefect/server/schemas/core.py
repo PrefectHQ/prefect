@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 from pydantic import (
     BaseModel,
     ConfigDict,

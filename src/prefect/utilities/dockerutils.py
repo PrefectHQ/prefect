@@ -22,6 +22,7 @@ from typing import (
 from urllib.parse import urlsplit
 
 import pendulum
+import prefect.datetime
 from typing_extensions import Self
 
 import prefect

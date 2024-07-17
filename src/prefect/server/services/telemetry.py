@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import httpx
 import pendulum
+import prefect.datetime
 
 import prefect
 from prefect.server.database.dependencies import inject_db

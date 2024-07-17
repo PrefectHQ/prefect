@@ -7,6 +7,7 @@ from typing import Optional
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy.sql.expression import or_
 

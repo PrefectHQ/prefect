@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple, cast
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
 from pydantic_extra_types.pendulum_dt import DateTime

@@ -9,6 +9,7 @@ from datetime import timedelta
 from typing import AsyncGenerator, List, Optional
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 
 from prefect.logging import get_logger

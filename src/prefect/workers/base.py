@@ -9,6 +9,7 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
+import prefect.datetime
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal

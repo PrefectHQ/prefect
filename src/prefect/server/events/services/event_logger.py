@@ -2,6 +2,7 @@ import asyncio
 from typing import Optional
 
 import pendulum
+import prefect.datetime
 import rich
 
 from prefect.logging import get_logger

@@ -7,6 +7,7 @@ from typing import Sequence, Union
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -106,8 +107,7 @@ async def update_agent(
     """
 
     update_stmt = (
-        sa.update(orm_models.Agent)
-        .where(orm_models.Agent.id == agent_id)
+        sa.update(orm_models.Agent).where(orm_models.Agent.id == agent_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**agent.model_dump_for_orm(exclude_unset=True))

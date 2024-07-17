@@ -18,6 +18,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession

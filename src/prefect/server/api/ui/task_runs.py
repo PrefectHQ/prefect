@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, cast
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
 from pydantic import Field, model_serializer

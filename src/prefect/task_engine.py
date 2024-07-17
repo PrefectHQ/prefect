@@ -27,6 +27,7 @@ from uuid import UUID
 
 import anyio
 import pendulum
+import prefect.datetime
 from typing_extensions import ParamSpec
 
 from prefect import Task

@@ -8,6 +8,7 @@ from typing import Annotated, Any, Optional, Union
 import dateutil
 import dateutil.rrule
 import pendulum
+import prefect.datetime
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import TypeAlias, TypeGuard

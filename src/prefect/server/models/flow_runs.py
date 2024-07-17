@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -136,8 +137,7 @@ async def update_flow_run(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(orm_models.FlowRun)
-        .where(orm_models.FlowRun.id == flow_run_id)
+        sa.update(orm_models.FlowRun).where(orm_models.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow_run.model_dump_for_orm(exclude_unset=True))

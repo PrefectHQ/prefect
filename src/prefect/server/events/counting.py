@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from pendulum.datetime import DateTime
 from sqlalchemy.sql.selectable import Select

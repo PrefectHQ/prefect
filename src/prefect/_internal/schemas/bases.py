@@ -8,6 +8,7 @@ from typing import Any, ClassVar, Optional, Set, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
+import prefect.datetime
 from pydantic import (
     BaseModel,
     ConfigDict,

@@ -23,6 +23,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 import pendulum
+import prefect.datetime
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client

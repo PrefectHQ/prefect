@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Type, Union
 
 import pendulum
+import prefect.datetime
 from rich.console import Console
 from rich.highlighter import Highlighter, NullHighlighter
 from rich.theme import Theme

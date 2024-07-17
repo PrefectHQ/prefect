@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 from pydantic_extra_types.pendulum_dt import DateTime
 
 from .clients import (

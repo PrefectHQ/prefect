@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import sqlalchemy as sa
 from fastapi import Body, Depends
 from pydantic import Field, field_validator

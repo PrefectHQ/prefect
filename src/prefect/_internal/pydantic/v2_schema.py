@@ -3,6 +3,7 @@ import typing
 import typing as t
 
 import pendulum
+import prefect.datetime
 import pydantic
 from pydantic import BaseModel as V2BaseModel
 from pydantic import ConfigDict, PydanticUndefinedAnnotation, create_model

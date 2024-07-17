@@ -9,6 +9,7 @@ from uuid import UUID
 
 import httpx
 import pendulum
+import prefect.datetime
 import typer
 from rich.markup import escape
 from rich.pretty import Pretty
