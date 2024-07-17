@@ -31,6 +31,7 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.context import FlowRunContext, get_run_context
 from prefect.deployments.runner import RunnerDeployment
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentEventTrigger, Posture
@@ -40,6 +41,7 @@ from prefect.exceptions import (
     ParameterTypeError,
     ReservedArgumentError,
     ScriptError,
+    UnfinishedRun,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import (
@@ -60,6 +62,7 @@ from prefect.settings import (
 )
 from prefect.states import (
     Cancelled,
+    Cancelling,
     Paused,
     PausedRun,
     State,
@@ -2807,6 +2810,39 @@ def create_async_hook(mock_obj):
         mock_obj()
 
     return my_hook
+
+
+class TestFlowHooksContext:
+    @pytest.mark.parametrize(
+        "hook_type, fn_body, expected_exc",
+        [
+            ("on_completion", lambda: None, None),
+            ("on_failure", lambda: 100 / 0, ZeroDivisionError),
+            ("on_cancellation", lambda: Cancelling(), UnfinishedRun),
+        ],
+    )
+    def test_hooks_are_called_within_flow_run_context(
+        self, caplog, hook_type, fn_body, expected_exc
+    ):
+        def hook(flow, flow_run, state):
+            ctx: FlowRunContext = get_run_context()  # type: ignore
+            assert ctx is not None
+            assert ctx.flow_run and ctx.flow_run == flow_run
+            assert ctx.flow_run.state == state
+            assert ctx.flow == flow
+
+        @flow(**{hook_type: [hook]})  # type: ignore
+        def foo_flow():
+            return fn_body()
+
+        with caplog.at_level("INFO"):
+            if expected_exc:
+                with pytest.raises(expected_exc):
+                    foo_flow()
+            else:
+                foo_flow()
+
+        assert "Hook 'hook' finished running successfully" in caplog.text
 
 
 class TestFlowHooksWithKwargs:
