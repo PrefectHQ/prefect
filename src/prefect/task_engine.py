@@ -518,6 +518,9 @@ class TaskRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a task run if needed.
         """
+
+        task_run_id = task_run_id or uuid.uuid4()
+
         with hydrated_context(self.context):
             with ClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.sync_client
@@ -729,8 +732,6 @@ def run_task_sync(
         context=context,
     )
 
-    task_run_id = task_run_id or uuid.uuid4()
-
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             run_coro_as_sync(engine.wait_until_ready())
@@ -757,8 +758,6 @@ async def run_task_async(
         wait_for=wait_for,
         context=context,
     )
-
-    task_run_id = task_run_id or uuid.uuid4()
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
