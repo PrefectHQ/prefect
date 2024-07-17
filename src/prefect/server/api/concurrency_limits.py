@@ -5,9 +5,9 @@ Routes for interacting with concurrency limit objects.
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
+import prefect.datetime
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -34,7 +34,7 @@ async def create_concurrency_limit(
             session=session, concurrency_limit=concurrency_limit_model
         )
 
-    if model.created >= pendulum.now("UTC"):
+    if model.created >= prefect.datetime.now("UTC"):
         response.status_code = status.HTTP_201_CREATED
 
     return model

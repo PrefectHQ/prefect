@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
+import prefect.datetime
 import typer
 import yaml
 from rich.pretty import Pretty
@@ -513,7 +514,7 @@ async def list_schedules(deployment_name: str):
 
     def sort_by_created_key(schedule: DeploymentScheduleCreate):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
-        return pendulum.now("utc") - schedule.created
+        return prefect.datetime.now("utc") - schedule.created
 
     def schedule_details(schedule: DeploymentScheduleCreate) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
@@ -598,8 +599,8 @@ async def ls(flow_name: Optional[List[str]] = None, by_created: bool = False):
     def sort_by_name_keys(d):
         return flows[d.flow_id].name, d.name
 
-    def sort_by_created_key(d):
-        return pendulum.now("utc") - d.created
+    def sort_byprefect.datetime.now(d):
+        return prefect.datetime.now("utc") - d.created
 
     table = Table(
         title="Deployments",
@@ -701,8 +702,8 @@ async def run(
     To watch the flow run until it reaches a terminal state, use the `--watch` flag.
     """
     import dateparser
-
-    now = pendulum.now("UTC")
+prefect.datetime.now
+    now = prefect.datetime.now("UTC")
 
     multi_params = {}
     if multiparams:

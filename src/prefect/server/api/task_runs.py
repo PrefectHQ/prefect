@@ -7,7 +7,6 @@ import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-import pendulum
 from fastapi import (
     Body,
     Depends,
@@ -20,6 +19,7 @@ from fastapi import (
 from pydantic_extra_types.pendulum_dt import DateTime
 from starlette.websockets import WebSocketDisconnect
 
+import prefect.datetime
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -65,7 +65,7 @@ async def create_task_run(
     if not task_run.state:
         task_run.state = schemas.states.Pending()
 
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.task_runs.create_task_run(
@@ -248,7 +248,7 @@ async def set_task_run_state(
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     # create the state
     async with db.session_context(

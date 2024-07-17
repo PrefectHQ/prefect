@@ -6,11 +6,11 @@ Intended for internal use by the Prefect REST API.
 from typing import Sequence, Union
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import prefect.datetime
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
@@ -106,8 +106,7 @@ async def update_agent(
     """
 
     update_stmt = (
-        sa.update(orm_models.Agent)
-        .where(orm_models.Agent.id == agent_id)
+        sa.update(orm_models.Agent).where(orm_models.Agent.id == agent_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**agent.model_dump_for_orm(exclude_unset=True))
@@ -139,7 +138,9 @@ async def record_agent_poll(
         work_queue_id: A work queue id
     """
     agent_data = schemas.core.Agent(
-        id=agent_id, work_queue_id=work_queue_id, last_activity_time=pendulum.now("UTC")
+        id=agent_id,
+        work_queue_id=work_queue_id,
+        last_activity_time=prefect.datetime.now("UTC"),
     )
     insert_stmt = (
         db.insert(orm_models.Agent)

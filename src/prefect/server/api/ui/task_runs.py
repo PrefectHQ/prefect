@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
 from pydantic import Field, model_serializer
 from pydantic_extra_types.pendulum_dt import DateTime
 
+import prefect.datetime
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
@@ -99,7 +100,7 @@ async def read_dashboard_task_run_counts(
         (
             task_runs.start_time.before_.end_of("minute")
             if task_runs.start_time.before_
-            else pendulum.now("UTC").end_of("minute")
+            else prefect.datetime.now("UTC").end_of("minute")
         ),
     )
     window = end_time - start_time

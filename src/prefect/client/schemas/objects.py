@@ -14,7 +14,6 @@ from typing import (
 from uuid import UUID, uuid4
 
 import orjson
-import pendulum
 from pydantic import (
     ConfigDict,
     Field,
@@ -27,6 +26,7 @@ from pydantic import (
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self, TypeVar
 
+import prefect.datetime
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -163,7 +163,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: prefect.datetime.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Union["BaseResult[R]", Any] = Field(
@@ -171,12 +171,12 @@ class State(ObjectBaseModel, Generic[R]):
     )
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = True) -> R:
-        ...
+    def result(self: "State[R]", raise_on_failure: bool = True) -> R: ...
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
-        ...
+    def result(
+        self: "State[R]", raise_on_failure: bool = False
+    ) -> Union[R, Exception]: ...
 
     def result(
         self,
@@ -349,9 +349,9 @@ class State(ObjectBaseModel, Generic[R]):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": pendulum.now("utc"),
-                "updated": pendulum.now("utc"),
-                "timestamp": pendulum.now("utc"),
+                "created": prefect.datetime.now("utc"),
+                "updated": prefect.datetime.now("utc"),
+                "timestamp": prefect.datetime.now("utc"),
             },
             **kwargs,
         )
@@ -1298,7 +1298,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                or prefect.datetime.now("UTC").diff(last_polled).in_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False

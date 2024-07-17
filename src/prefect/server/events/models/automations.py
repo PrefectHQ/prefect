@@ -2,10 +2,10 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import prefect.datetime
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import filters
@@ -303,7 +303,7 @@ async def relate_automation_to_resource(
                     db.AutomationRelatedResource.automation_owned_by_resource,
                     sa.true() if owned_by_resource else sa.false(),
                 ),
-                updated=pendulum.now("UTC"),
+                updated=prefect.datetime.now("UTC"),
             ),
         )
     )

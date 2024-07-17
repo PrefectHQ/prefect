@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import prefect.datetime
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events.schemas.automations import CompositeTrigger, Firing
@@ -44,7 +45,7 @@ async def upsert_child_firing(
                 child_firing_id=firing.id,
                 child_fired_at=firing.triggered,
                 child_firing=firing.model_dump(),
-                updated=pendulum.now("UTC"),
+                updated=prefect.datetime.now("UTC"),
             ),
         )
     )

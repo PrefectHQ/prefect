@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-import pendulum
-
+import prefect.datetime
 from prefect.results import BaseResult, PersistedResult, ResultFactory
 from prefect.utilities.asyncutils import run_coro_as_sync
 
@@ -21,7 +20,7 @@ class ResultFactoryStore(RecordStore):
             if result.expiration:
                 # if the result has an expiration,
                 # check if it is still in the future
-                exists = result.expiration > pendulum.now("utc")
+                exists = result.expiration > prefect.datetime.now("utc")
             else:
                 exists = True
             self.cache = result

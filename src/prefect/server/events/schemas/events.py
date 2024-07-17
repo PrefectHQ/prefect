@@ -25,6 +25,7 @@ from pydantic import (
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
+import prefect.datetime
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
 from prefect.server.utilities.schemas import PrefectBaseModel
@@ -173,14 +174,14 @@ class ReceivedEvent(Event):
     model_config = ConfigDict(extra="ignore", from_attributes=True)
 
     received: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: prefect.datetime.now("UTC"),
         description="When the event was received by Prefect Cloud",
     )
 
     def as_database_row(self) -> Dict[str, Any]:
         row = self.model_dump()
         row["resource_id"] = self.resource.id
-        row["recorded"] = pendulum.now("UTC")
+        row["recorded"] = prefect.datetime.now("UTC")
         row["related_resource_ids"] = [related.id for related in self.related]
         return row
 

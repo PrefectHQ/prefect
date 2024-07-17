@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional
 
 import pendulum
 
+import prefect.datetime
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
@@ -194,7 +195,7 @@ def get_scheduled_start_time() -> pendulum.DateTime:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
-        return pendulum.now("utc")
+        return prefect.datetime.now("utc")
     elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)

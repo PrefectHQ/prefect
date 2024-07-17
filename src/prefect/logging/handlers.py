@@ -15,6 +15,7 @@ from rich.theme import Theme
 from typing_extensions import Self
 
 import prefect.context
+import prefect.datetime
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService

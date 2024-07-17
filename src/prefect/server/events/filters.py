@@ -10,6 +10,7 @@ from pydantic import Field, PrivateAttr
 from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.sql import Select
 
+import prefect.datetime
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.server.database import orm_models
 from prefect.server.schemas.filters import (
@@ -111,18 +112,18 @@ class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
         default_factory=lambda: cast(
             DateTime,
-            pendulum.now("UTC").start_of("day").subtract(days=180),
+            prefect.datetime.now("UTC").start_of("day").subtract(days=180),
         ),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(
-        default_factory=lambda: cast(DateTime, pendulum.now("UTC")),
+        default_factory=lambda: cast(DateTime, prefect.datetime.now("UTC")),
         description="Only include events prior to this time (inclusive)",
     )
 
     def clamp(self, max_duration: timedelta):
         """Limit how far the query can look back based on the given duration"""
-        earliest = pendulum.now("UTC") - max_duration
+        earliest = prefect.datetime.now("UTC") - max_duration
         self.since = max(earliest, cast(pendulum.DateTime, self.since))
 
     def includes(self, event: Event) -> bool:

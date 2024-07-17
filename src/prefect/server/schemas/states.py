@@ -12,6 +12,7 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
+import prefect.datetime
 from prefect.server.utilities.schemas.bases import (
     IDBaseModel,
     PrefectBaseModel,
@@ -111,7 +112,7 @@ class State(StateBaseModel):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: prefect.datetime.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     data: Optional[Any] = Field(
         default=None,
@@ -164,7 +165,7 @@ class State(StateBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = prefect.datetime.now("utc")
 
         return self
 
@@ -205,9 +206,9 @@ class State(StateBaseModel):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": pendulum.now("utc"),
-                "updated": pendulum.now("utc"),
-                "timestamp": pendulum.now("utc"),
+                "created": prefect.datetime.now("utc"),
+                "updated": prefect.datetime.now("utc"),
+                "timestamp": prefect.datetime.now("utc"),
             },
             deep=True,
             **kwargs,
@@ -300,7 +301,7 @@ def Scheduled(
 
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = prefect.datetime.now("UTC")
     elif state_details.scheduled_time:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
@@ -398,7 +399,7 @@ def Paused(
         pass
     else:
         state_details.pause_timeout = pause_expiration_time or (
-            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+            prefect.datetime.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
         )
 
     state_details.pause_reschedule = reschedule

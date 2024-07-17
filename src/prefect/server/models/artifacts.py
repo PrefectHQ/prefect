@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+import prefect.datetime
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
@@ -106,7 +107,7 @@ async def create_artifact(
     session: AsyncSession,
     artifact: Artifact,
 ) -> orm_models.Artifact:
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     if artifact.key is not None:
         await _insert_into_artifact_collection(

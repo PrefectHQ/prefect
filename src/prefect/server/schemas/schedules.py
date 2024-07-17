@@ -13,6 +13,7 @@ from croniter import croniter
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 
+import prefect.datetime
 from prefect._internal.schemas.validators import (
     default_anchor_date,
     default_timezone,
@@ -74,7 +75,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: prefect.datetime.now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -137,7 +138,7 @@ class IntervalSchedule(PrefectBaseModel):
                 n = 1
 
         if start is None:
-            start = pendulum.now("UTC")
+            start = prefect.datetime.now("UTC")
 
         anchor_tz = self.anchor_date.in_tz(self.timezone)
         start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
@@ -274,7 +275,7 @@ class CronSchedule(PrefectBaseModel):
             List[pendulum.DateTime]: a list of dates
         """
         if start is None:
-            start = pendulum.now("UTC")
+            start = prefect.datetime.now("UTC")
 
         start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 
@@ -520,7 +521,7 @@ class RRuleSchedule(PrefectBaseModel):
             List[pendulum.DateTime]: a list of dates
         """
         if start is None:
-            start = pendulum.now("UTC")
+            start = prefect.datetime.now("UTC")
 
         start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 

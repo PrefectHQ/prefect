@@ -8,11 +8,11 @@ Prefect enforces on a state transition.
 from typing import Optional
 from uuid import uuid4
 
-import pendulum
 import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
+import prefect.datetime
 from prefect.results import UnknownResult
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
@@ -337,7 +337,8 @@ class CacheRetrieval(BaseOrchestrationRule):
                         db.TaskRunStateCache.cache_key == cache_key,
                         sa.or_(
                             db.TaskRunStateCache.cache_expiration.is_(None),
-                            db.TaskRunStateCache.cache_expiration > pendulum.now("utc"),
+                            db.TaskRunStateCache.cache_expiration
+                            > prefect.datetime.now("utc"),
                         ),
                     ),
                 )
@@ -378,7 +379,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
         if run_settings.retries is None or run_count > run_settings.retries:
             return  # Retry count exceeded, allow transition to failed
 
-        scheduled_start_time = pendulum.now("UTC").add(
+        scheduled_start_time = prefect.datetime.now("UTC").add(
             seconds=run_settings.retry_delay or 0
         )
 
@@ -464,7 +465,7 @@ class RetryFailedTasks(BaseOrchestrationRule):
 
         if run_settings.retries is not None and run_count <= run_settings.retries:
             retry_state = states.AwaitingRetry(
-                scheduled_time=pendulum.now("UTC").add(seconds=delay),
+                scheduled_time=prefect.datetime.now("UTC").add(seconds=delay),
                 message=proposed_state.message,
                 data=proposed_state.data,
             )
@@ -576,7 +577,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
 
         # At this moment, we round delay to the nearest second as the API schema
         # specifies an integer return value.
-        delay = scheduled_time - pendulum.now("UTC")
+        delay = scheduled_time - prefect.datetime.now("UTC")
         delay_seconds = delay.in_seconds()
         delay_seconds += round(delay.microseconds / 1e6)
         if delay_seconds > 0:
@@ -715,7 +716,7 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
                 )
                 return
         pause_timeout = initial_state.state_details.pause_timeout
-        if pause_timeout and pause_timeout < pendulum.now("UTC"):
+        if pause_timeout and pause_timeout < prefect.datetime.now("UTC"):
             pause_timeout_failure = states.Failed(
                 message=(
                     f"The flow was {proposed_state.name.lower()} and never resumed."

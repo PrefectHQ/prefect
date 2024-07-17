@@ -8,13 +8,12 @@ from typing import Annotated, Any, Optional, Union
 import dateutil
 import dateutil.rrule
 import pendulum
-from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import TypeAlias, TypeGuard
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.validators import (
-    default_anchor_date,
     default_timezone,
     validate_cron_string,
     validate_rrule_string,
@@ -57,9 +56,11 @@ class IntervalSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid", exclude_none=True)
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
-    anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
-        default_factory=lambda: pendulum.now("UTC"),
-        examples=["2020-01-01T00:00:00Z"],
+    anchor_date: Annotated[DateTprefect.datetime.nowlidator(default_anchor_date)] = (
+        Field(
+            default_factory=lambda: pendulum.now("UTC"),
+            examples=["2020-01-01T00:00:00Z"],
+        )
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 

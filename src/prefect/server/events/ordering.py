@@ -16,11 +16,11 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from cachetools import TTLCache
 from typing_extensions import Self
 
+import prefect.datetime
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
@@ -53,8 +53,9 @@ class MaxDepthExceeded(Exception):
 
 
 class event_handler(Protocol):
-    async def __call__(self, event: ReceivedEvent, depth: int = 0):
-        ...  # pragma: no cover
+    async def __call__(
+        self, event: ReceivedEvent, depth: int = 0
+    ): ...  # pragma: no cover
 
 
 class CausalOrdering:
@@ -122,7 +123,7 @@ class CausalOrdering:
     @db_injector
     async def get_lost_followers(db: PrefectDBInterface, self) -> List[ReceivedEvent]:
         """Returns events that were waiting on a leader event that never arrived"""
-        earlier = pendulum.now("UTC") - PRECEDING_EVENT_LOOKBACK
+        earlier = prefect.datetime.now("UTC") - PRECEDING_EVENT_LOOKBACK
 
         async with db.session_context(begin_transaction=True) as session:
             query = sa.select(AutomationEventFollower.follower).where(
@@ -177,7 +178,7 @@ class CausalOrdering:
 
         if event.follows:
             if not await self.event_has_been_seen(event.follows):
-                age = pendulum.now("UTC") - event.received
+                age = prefect.datetime.now("UTC") - event.received
                 if age < PRECEDING_EVENT_LOOKBACK:
                     logger.debug(
                         "Event %r (%s) for %r arrived before the event it follows %s",

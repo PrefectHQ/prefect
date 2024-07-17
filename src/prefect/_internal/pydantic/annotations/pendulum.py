@@ -13,9 +13,9 @@ from typing_extensions import Annotated
 
 
 class _PendulumDateTimeAnnotation:
-    _pendulum_type: t.Type[
-        t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]
-    ] = pendulum.DateTime
+    _pendulum_type: t.Type[t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]] = (
+        pendulum.DateTime
+    )
 
     _pendulum_types_to_schemas = {
         pendulum.DateTime: core_schema.datetime_schema(),

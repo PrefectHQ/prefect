@@ -24,11 +24,11 @@ from typing import (
     Union,
 )
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
+import prefect.datetime
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
@@ -246,7 +246,7 @@ class RunContext(ContextModel):
         client: The Prefect client instance being used for API communication
     """
 
-    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTime = Field(default_factory=lambda: prefect.datetime.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 

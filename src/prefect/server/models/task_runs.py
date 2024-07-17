@@ -7,11 +7,11 @@ import contextlib
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import prefect.datetime
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
@@ -53,7 +53,7 @@ async def create_task_run(
         orm_models.TaskRun: the newly-created or existing task run
     """
 
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     # if a dynamic key exists, we need to guard against conflicts
     if task_run.flow_run_id:
@@ -142,8 +142,7 @@ async def update_task_run(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(orm_models.TaskRun)
-        .where(orm_models.TaskRun.id == task_run_id)
+        sa.update(orm_models.TaskRun).where(orm_models.TaskRun.id == task_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**task_run.model_dump_for_orm(exclude_unset=True))

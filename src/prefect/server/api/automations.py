@@ -1,11 +1,11 @@
 from typing import Optional, Sequence
 from uuid import UUID
 
-import pendulum
 from fastapi import Body, Depends, HTTPException, Path, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
+import prefect.datetime
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.api.validation import (
     validate_job_variables_for_run_deployment_action,
@@ -235,6 +235,6 @@ async def delete_automations_owned_by_resource(
             session,
             resource_id=resource_id,
             automation_filter=AutomationFilter(
-                created=AutomationFilterCreated(before_=pendulum.now("UTC"))
+                created=AutomationFilterCreated(before_=prefect.datetime.now("UTC"))
             ),
         )

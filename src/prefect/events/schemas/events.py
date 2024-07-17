@@ -13,11 +13,11 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import ConfigDict, Field, RootModel, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
+import prefect.datetime
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -86,7 +86,7 @@ class Event(PrefectBaseModel):
     model_config = ConfigDict(extra="ignore")
 
     occurred: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: prefect.datetime.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
     event: str = Field(

@@ -5,10 +5,10 @@ Routes for interacting with flow objects.
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 from fastapi import Depends, HTTPException, Path, Response, status
 from fastapi.param_functions import Body
 
+import prefect.datetime
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -32,7 +32,7 @@ async def create_flow(
     # hydrate the input model into a full flow model
     flow = schemas.core.Flow(**flow.model_dump())
 
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.flows.create_flow(session=session, flow=flow)
