@@ -1,4 +1,3 @@
-import asyncio
 import inspect
 import logging
 import threading
@@ -20,6 +19,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -225,14 +225,17 @@ class BaseTaskRunEngine(Generic[P, R]):
         except UpstreamTaskError as upstream_exc:
             return Pending(name="NotReady", message=str(upstream_exc))
 
-    def _calculate_backoff(self, backoff_count: int) -> float:
+    def _calculate_backoff(self, backoff_count: int) -> Tuple[float, int]:
         if backoff_count < BACKOFF_MAX:
             backoff_count += 1
-        return clamped_poisson_interval(
+
+        interval = clamped_poisson_interval(
             average_interval=backoff_count, clamping_factor=0.3
         )
 
-    def _handle_state_change(self, new_state: State) -> State:
+        return interval, backoff_count
+
+    def _handle_state_change(self, new_state: State):
         last_state = self.state
 
         # currently this is a hack to keep a reference to the state object
@@ -240,6 +243,7 @@ class BaseTaskRunEngine(Generic[P, R]):
 
         # could result in losing that reference
         self.task_run.state = new_state
+
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
             task_run=self.task_run,
@@ -307,7 +311,9 @@ class BaseTaskRunEngine(Generic[P, R]):
         ) as txn:
             yield txn
 
-    def _get_hooks(self, task: Task, state: State) -> dict[str, Callable]:
+    def _hooks(
+        self, task: Task, state: State
+    ) -> Generator[Tuple[str, Callable], None, None]:
         task = self.task
 
         if state.is_failed() and task.on_failure_hooks:
@@ -317,7 +323,8 @@ class BaseTaskRunEngine(Generic[P, R]):
         else:
             hooks = []
 
-        return {_get_hook_name(hook): hook for hook in hooks}
+        for hook in hooks:
+            yield (_get_hook_name(hook), hook)
 
     def _result_from_non_base_result(
         self, raise_on_failure: bool
@@ -434,7 +441,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         self._ensure_task_run()
 
-        for hook_name, hook in self._get_hooks(task=self.task, state=state).items():
+        for hook_name, hook in self._hooks(task=self.task, state=state):
             try:
                 self.logger.info(
                     f"Running hook {hook_name!r} in response to entering state"
@@ -456,6 +463,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.set_state(not_ready_state, force=self.state.is_pending())
             return
 
+        self.task_run = self.client.read_task_run(self.task_run.id)
+
         new_state = Running()
         state = self.set_state(new_state)
 
@@ -473,7 +482,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         # TODO: Could this listen for state change events instead of polling?
         while state.is_pending() or state.is_paused():
-            interval = self._calculate_backoff(backoff_count)
+            interval, backoff_count = self._calculate_backoff(backoff_count)
             time.sleep(interval)
             state = self.set_state(new_state)
 
@@ -615,16 +624,18 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 extra_task_inputs=dependencies,
                             )
                         )
-                        self.logger = self._task_run_logger()
 
-                    # Emit an event to capture that the task run was in the `PENDING` state.
+                    self.logger = self._task_run_logger()
+
+                    # Capture initial state of the task run, usually `PENDING` or `SCHEDULED`.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
                         initial_state=None,
                         validated_state=self.task_run.state,
                     )
 
-                    self.set_task_run_name()
+                    with self.configured_run_context():
+                        self.set_task_run_name()
 
                     self.logger.info(
                         f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
@@ -715,6 +726,20 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     # --------------------------
 
     @contextmanager
+    def configured_run_context(self) -> Generator[None, None, None]:
+        result_factory = run_coro_as_sync(ResultFactory.from_task(self.task))
+        self.task_run = self.client.read_task_run(self.task_run.id)
+
+        try:
+            with self.setup_run_context(
+                result_factory=result_factory,
+                client=self.client,
+            ):
+                yield
+        finally:
+            pass
+
+    @contextmanager
     def start(
         self,
         task_run_id: Optional[UUID] = None,
@@ -729,15 +754,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def run_context(self):
-        result_factory = run_coro_as_sync(ResultFactory.from_task(self.task))
-
-        self.task_run = self.client.read_task_run(self.task_run.id)
-        self.set_task_run_name()
-
-        with self.setup_run_context(
-            result_factory=result_factory,
-            client=self.client,
-        ):
+        with self.configured_run_context():
             try:
                 with timeout(
                     seconds=self.task.timeout_seconds,
@@ -784,7 +801,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         self._ensure_task_run()
 
-        for hook_name, hook in self._get_hooks(task=self.task, state=state).items():
+        for hook_name, hook in self._hooks(task=self.task, state=state):
             try:
                 self.logger.info(
                     f"Running hook {hook_name!r} in response to entering state"
@@ -806,6 +823,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             await self.set_state(not_ready_state, force=self.state.is_pending())
             return
 
+        self.task_run = await self.client.read_task_run(self.task_run.id)
+
         new_state = Running()
         state = await self.set_state(new_state)
 
@@ -823,8 +842,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         # TODO: Could this listen for state change events instead of polling?
         while state.is_pending() or state.is_paused():
-            interval = self._calculate_backoff(backoff_count)
-            await asyncio.sleep(interval)
+            interval, backoff_count = self._calculate_backoff(backoff_count)
+            await anyio.sleep(interval)
             state = await self.set_state(new_state)
 
     async def set_state(self, state: State, force: bool = False) -> State:
@@ -969,16 +988,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             wait_for=self.wait_for,
                             extra_task_inputs=dependencies,
                         )
-                        self.logger = self._task_run_logger()
 
-                    # Emit an event to capture that the task run was in the `PENDING` state.
+                    self.logger = self._task_run_logger()
+
+                    # Capture initial state of the task run, usually `PENDING` or `SCHEDULED`.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
                         initial_state=None,
                         validated_state=self.task_run.state,
                     )
 
-                    await self.set_task_run_name()
+                    async with self.configured_run_context():
+                        # Some tasks may rely on the run context to set the task
+                        # run name.
+                        await self.set_task_run_name()
 
                     self.logger.info(
                         f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
@@ -1063,6 +1086,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     # --------------------------
 
     @asynccontextmanager
+    async def configured_run_context(self) -> AsyncGenerator[None, None]:
+        result_factory = await ResultFactory.from_task(self.task)
+        self.task_run = await self.client.read_task_run(self.task_run.id)
+
+        try:
+            with self.setup_run_context(
+                result_factory=result_factory,
+                client=self.client,
+            ):
+                yield
+        finally:
+            pass
+
+    @asynccontextmanager
     async def start(
         self,
         task_run_id: Optional[UUID] = None,
@@ -1087,15 +1124,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def run_context(self):
-        result_factory = await ResultFactory.from_task(self.task)
-
-        self.task_run = await self.client.read_task_run(self.task_run.id)
-        await self.set_task_run_name()
-
-        with self.setup_run_context(
-            result_factory=result_factory,
-            client=self.client,
-        ):
+        async with self.configured_run_context():
             try:
                 with timeout_async(
                     seconds=self.task.timeout_seconds,

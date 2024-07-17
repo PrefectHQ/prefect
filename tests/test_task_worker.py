@@ -178,7 +178,7 @@ async def test_task_worker_stays_running_on_errors(monkeypatch):
     def always_error(*args, **kwargs):
         raise ValueError("oops")
 
-    monkeypatch.setattr("prefect.task_engine.TaskRunEngine.start", always_error)
+    monkeypatch.setattr("prefect.task_engine.SyncTaskRunEngine.start", always_error)
 
     task_worker = TaskWorker(empty_task)
 
@@ -794,17 +794,21 @@ class TestTaskWorkerLimit:
         mock_subscription.return_value = mock_iter()
 
         server_task = asyncio.create_task(task_worker.start())
-        await event.wait()
+        await event.wait()  # Wait for the first task to set the event
+
+        # Give some additional time for the first task to complete
+        await asyncio.sleep(0.5)
+
         updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
         updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
 
         assert updated_task_run_1.state.is_completed()
         assert not updated_task_run_2.state.is_completed()
 
-        # clear the event to allow the second task to complete
+        # Clear the event to allow the second task to complete
         event.clear()
 
-        await event.wait()
+        await event.wait()  # Wait for the second task to set the event
         updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
 
         assert updated_task_run_2.state.is_completed()
