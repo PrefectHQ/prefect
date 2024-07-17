@@ -10,7 +10,7 @@
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/prefect-design'
-  import { PageHeadingDeploymentDuplicate, useWorkspaceApi, getApiErrorMessage, DeploymentFormV2, DeploymentCreate } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingDeploymentDuplicate, useWorkspaceApi, getApiErrorMessage, DeploymentFormV2, DeploymentCreate, DeploymentUpdateV2 } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -25,8 +25,15 @@
   const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
 
-  async function submit(request: DeploymentCreate): Promise<void> {
+  function isDeploymentCreate(request: DeploymentCreate | DeploymentUpdateV2): request is DeploymentCreate {
+    return 'name' in request
+  }
+
+  async function submit(request: DeploymentCreate | DeploymentUpdateV2): Promise<void> {
     try {
+      if (!isDeploymentCreate(request)) {
+        throw new Error('Invalid request')
+      }
       const newDeployment = await api.deployments.createDeployement(request)
       showToast('Deployment created', 'success')
       router.push(routes.deployment(newDeployment.id))
