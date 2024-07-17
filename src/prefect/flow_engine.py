@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import (
     Any,
     AsyncGenerator,
-    Callable,
     Coroutine,
     Dict,
     Generator,
@@ -415,7 +414,7 @@ class FlowRunEngine(Generic[P, R]):
 
         return flow_run
 
-    def call_hooks(self, state: Optional[State] = None) -> Iterable[Callable]:
+    def call_hooks(self, state: Optional[State] = None):
         if state is None:
             state = self.state
         flow = self.flow
@@ -613,11 +612,7 @@ class FlowRunEngine(Generic[P, R]):
 
             if self.state.is_running():
                 self.call_hooks()
-            try:
-                yield
-            finally:
-                if self.state.is_final() or self.state.is_cancelling():
-                    self.call_hooks()
+            yield
 
     @contextmanager
     def run_context(self):
@@ -638,6 +633,9 @@ class FlowRunEngine(Generic[P, R]):
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
                 self.handle_exception(exc)
+            finally:
+                if self.state.is_final() or self.state.is_cancelling():
+                    self.call_hooks()
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
         """
