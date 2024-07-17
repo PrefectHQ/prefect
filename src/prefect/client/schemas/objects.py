@@ -791,7 +791,7 @@ class TaskRun(ObjectBaseModel):
 
     state: Optional[State] = Field(
         default=None,
-        description="The state of the flow run.",
+        description="The state of the task run.",
         examples=["State(type=StateType.COMPLETED)"],
     )
 
