@@ -18,6 +18,7 @@ from typing import (
     Any,
     Dict,
     Generator,
+    Mapping,
     Optional,
     Set,
     Type,
@@ -295,7 +296,7 @@ class EngineContext(RunContext):
     # Tracking for result from task runs in this flow run for dependency tracking
     # Holds the ID of the object returned by the task run and task run state
     # This is a weakref dictionary to avoid undermining garbage collection
-    task_run_results: Dict[int, State] = Field(
+    task_run_results: Mapping[int, State] = Field(
         default_factory=weakref.WeakValueDictionary
     )
 
