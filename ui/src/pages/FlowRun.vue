@@ -15,10 +15,6 @@
         <FlowRunLogs :flow-run="flowRun" />
       </template>
 
-      <template #results>
-        <FlowRunResults :flow-run="flowRun" />
-      </template>
-
       <template #artifacts>
         <FlowRunArtifacts :flow-run="flowRun" />
       </template>
@@ -53,7 +49,6 @@
     FlowRunDetails,
     FlowRunLogs,
     FlowRunTaskRuns,
-    FlowRunResults,
     FlowRunFilteredList,
     useFavicon,
     CopyableWrapper,
@@ -88,7 +83,6 @@
     { label: 'Logs' },
     { label: 'Task Runs', hidden: isPending.value },
     { label: 'Subflow Runs', hidden: isPending.value },
-    { label: 'Results', hidden: isPending.value },
     { label: 'Artifacts', hidden: isPending.value },
     { label: 'Details' },
     { label: 'Parameters' },
