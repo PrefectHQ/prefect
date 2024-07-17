@@ -107,7 +107,7 @@ async def create_artifact(
     session: AsyncSession,
     artifact: Artifact,
 ) -> orm_models.Artifact:
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     if artifact.key is not None:
         await _insert_into_artifact_collection(

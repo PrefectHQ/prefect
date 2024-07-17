@@ -54,7 +54,7 @@ async def create_task_run(
         orm_models.TaskRun: the newly-created or existing task run
     """
 
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     # if a dynamic key exists, we need to guard against conflicts
     if task_run.flow_run_id:

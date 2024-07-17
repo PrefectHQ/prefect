@@ -52,7 +52,9 @@ class Telemetry(LoopService):
             if telemetry_session is None:
                 self.logger.debug("No telemetry session found, setting")
                 session_id = str(uuid4())
-                session_start_timestamp = pendulum.now("UTC").to_iso8601_string()
+                session_start_timestamp = prefect.datetime.now(
+                    "UTC"
+                ).to_iso8601_string()
 
                 telemetry_session = Configuration(
                     key="TELEMETRY_SESSION",

@@ -30,7 +30,7 @@ async def create_artifact(
 ) -> core.Artifact:
     artifact = core.Artifact(**artifact.model_dump())
 
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.artifacts.create_artifact(

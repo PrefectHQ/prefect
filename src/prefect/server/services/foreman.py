@@ -197,7 +197,7 @@ class Foreman(LoopService):
             session (AsyncSession): The session to use for the database operation.
         """
         async with db.session_context(begin_transaction=True) as session:
-            status_timeout_threshold = pendulum.now("UTC") - timedelta(
+            status_timeout_threshold = prefect.datetime.now("UTC") - timedelta(
                 seconds=self._deployment_last_polled_timeout_seconds
             )
             deployment_id_select_stmt = (
@@ -243,7 +243,7 @@ class Foreman(LoopService):
             session (AsyncSession): The session to use for the database operation.
         """
         async with db.session_context(begin_transaction=True) as session:
-            status_timeout_threshold = pendulum.now("UTC") - timedelta(
+            status_timeout_threshold = prefect.datetime.now("UTC") - timedelta(
                 seconds=self._work_queue_last_polled_timeout_seconds
             )
             id_select_stmt = (

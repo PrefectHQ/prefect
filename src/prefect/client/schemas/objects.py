@@ -164,7 +164,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: prefect.datetime.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Union["BaseResult[R]", Any] = Field(
@@ -350,9 +350,9 @@ class State(ObjectBaseModel, Generic[R]):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": pendulum.now("utc"),
-                "updated": pendulum.now("utc"),
-                "timestamp": pendulum.now("utc"),
+                "created": prefect.datetime.now("utc"),
+                "updated": prefect.datetime.now("utc"),
+                "timestamp": prefect.datetime.now("utc"),
             },
             **kwargs,
         )
@@ -1299,7 +1299,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                or prefect.datetime.now("UTC").diff(last_polled).in_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False

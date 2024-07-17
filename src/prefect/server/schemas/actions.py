@@ -396,7 +396,7 @@ class StateCreate(ActionBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = prefect.datetime.now("utc")
 
         return self
 

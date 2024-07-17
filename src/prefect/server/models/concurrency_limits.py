@@ -31,7 +31,7 @@ async def create_concurrency_limit(
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    concurrency_limit.updated = pendulum.now("UTC")  # type: ignore[assignment]
+    concurrency_limit.updated = prefect.datetime.now("UTC")  # type: ignore[assignment]
 
     insert_stmt = (
         db.insert(orm_models.ConcurrencyLimit)

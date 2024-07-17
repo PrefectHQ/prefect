@@ -51,7 +51,7 @@ def perform_health_check(runner, delay_threshold: Optional[int] = None) -> JSONR
         )
 
     def _health_check():
-        now = pendulum.now("utc")
+        now = prefect.datetime.now("utc")
         poll_delay = (now - runner.last_polled).total_seconds()
 
         if poll_delay > delay_threshold:

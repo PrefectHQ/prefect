@@ -57,7 +57,7 @@ class MarkLateRuns(LoopService):
         - Querying for flow runs in a scheduled state that are Scheduled to start in the past
         - For any runs past the "late" threshold, setting the flow run state to a new `Late` state
         """
-        scheduled_to_start_before = pendulum.now("UTC").subtract(
+        scheduled_to_start_before = prefect.datetime.now("UTC").subtract(
             seconds=self.mark_late_after.total_seconds()
         )
 

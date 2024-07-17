@@ -113,7 +113,9 @@ async def create_handler(
                 queue.put_nowait(event)
 
     async def trim() -> None:
-        older_than = pendulum.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+        older_than = (
+            prefect.datetime.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+        )
 
         try:
             async with db.session_context() as session:

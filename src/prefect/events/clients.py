@@ -466,8 +466,8 @@ class PrefectEventSubscriber:
         from prefect.events.filters import EventOccurredFilter
 
         self._filter.occurred = EventOccurredFilter(
-            since=pendulum.now("UTC").subtract(minutes=1),
-            until=pendulum.now("UTC").add(years=1),
+            since=prefect.datetime.now("UTC").subtract(minutes=1),
+            until=prefect.datetime.now("UTC").add(years=1),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)

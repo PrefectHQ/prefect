@@ -199,7 +199,7 @@ async def read_work_queues(
 def is_last_polled_recent(last_polled):
     if last_polled is None:
         return False
-    return (pendulum.now("UTC") - last_polled) <= WORK_QUEUE_LAST_POLLED_TIMEOUT
+    return (prefect.datetime.now("UTC") - last_polled) <= WORK_QUEUE_LAST_POLLED_TIMEOUT
 
 
 async def update_work_queue(
@@ -494,7 +494,7 @@ async def record_work_queue_polls(
 ):
     """Record that the given work queues were polled, and also update the given
     ready_work_queue_ids to READY."""
-    polled = pendulum.now("UTC")
+    polled = prefect.datetime.now("UTC")
 
     if polled_work_queue_ids:
         await session.execute(
@@ -541,7 +541,7 @@ async def mark_work_queues_ready(
             await work_queue_status_event(
                 session=session,
                 work_queue=work_queue,
-                occurred=pendulum.now("UTC"),
+                occurred=prefect.datetime.now("UTC"),
             )
             for work_queue in newly_ready_work_queues.scalars().all()
         ]
@@ -581,7 +581,7 @@ async def mark_work_queues_not_ready(
             await work_queue_status_event(
                 session=session,
                 work_queue=work_queue,
-                occurred=pendulum.now("UTC"),
+                occurred=prefect.datetime.now("UTC"),
             )
             for work_queue in newly_unready_work_queues.scalars().all()
         ]
@@ -600,7 +600,7 @@ async def emit_work_queue_status_event(
         event = await work_queue_status_event(
             session=session,
             work_queue=work_queue,
-            occurred=pendulum.now(),
+            occurred=prefect.datetime.now(),
         )
 
     async with PrefectServerEventsClient() as events_client:

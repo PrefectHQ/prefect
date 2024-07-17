@@ -86,7 +86,8 @@ class TaskSchedulingTimeouts(LoopService):
         )
 
         older_than = (
-            pendulum.now("UTC") - PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT.value()
+            prefect.datetime.now("UTC")
+            - PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT.value()
         )
         task_runs = [t for t in task_runs if t.state.timestamp <= older_than]
 

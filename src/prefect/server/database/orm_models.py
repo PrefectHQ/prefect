@@ -118,7 +118,7 @@ class Base(DeclarativeBase):
         Timestamp(),
         nullable=False,
         server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+        default=lambda: prefect.datetime.now("UTC"),
     )
 
     # onupdate is only called when statements are actually issued
@@ -129,7 +129,7 @@ class Base(DeclarativeBase):
         nullable=False,
         index=True,
         server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+        default=lambda: prefect.datetime.now("UTC"),
         onupdate=now(),
         server_onupdate=FetchedValue(),
     )
@@ -166,7 +166,7 @@ class FlowRunState(Base):
         Timestamp(),
         nullable=False,
         server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+        default=lambda: prefect.datetime.now("UTC"),
     )
     name = sa.Column(sa.String, nullable=False, index=True)
     message = sa.Column(sa.String)
@@ -240,7 +240,7 @@ class TaskRunState(Base):
         Timestamp(),
         nullable=False,
         server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+        default=lambda: prefect.datetime.now("UTC"),
     )
     name = sa.Column(sa.String, nullable=False, index=True)
     message = sa.Column(sa.String)
@@ -424,7 +424,9 @@ class Run(Base):
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
         if self.state_type and self.state_type == schemas.states.StateType.RUNNING:
-            return self.total_run_time + (pendulum.now("UTC") - self.state_timestamp)
+            return self.total_run_time + (
+                prefect.datetime.now("UTC") - self.state_timestamp
+            )
         else:
             return self.total_run_time
 
@@ -460,10 +462,10 @@ class Run(Base):
         elif (
             self.start_time is None
             and self.expected_start_time
-            and self.expected_start_time < pendulum.now("UTC")
+            and self.expected_start_time < prefect.datetime.now("UTC")
             and self.state_type not in schemas.states.TERMINAL_STATES
         ):
-            return pendulum.now("UTC") - self.expected_start_time
+            return prefect.datetime.now("UTC") - self.expected_start_time
         else:
             return datetime.timedelta(0)
 
@@ -1222,7 +1224,7 @@ class Worker(Base):
         Timestamp(),
         nullable=False,
         server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+        default=lambda: prefect.datetime.now("UTC"),
         index=True,
     )
     heartbeat_interval_seconds = sa.Column(sa.Integer, nullable=True)
@@ -1253,7 +1255,7 @@ class Agent(Base):
         Timestamp(),
         nullable=False,
         server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+        default=lambda: prefect.datetime.now("UTC"),
     )
 
     __table_args__ = (sa.UniqueConstraint("name"),)

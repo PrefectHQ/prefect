@@ -236,6 +236,6 @@ async def delete_automations_owned_by_resource(
             session,
             resource_id=resource_id,
             automation_filter=AutomationFilter(
-                created=AutomationFilterCreated(before_=pendulum.now("UTC"))
+                created=AutomationFilterCreated(before_=prefect.datetime.now("UTC"))
             ),
         )

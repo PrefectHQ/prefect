@@ -139,7 +139,9 @@ async def record_agent_poll(
         work_queue_id: A work queue id
     """
     agent_data = schemas.core.Agent(
-        id=agent_id, work_queue_id=work_queue_id, last_activity_time=pendulum.now("UTC")
+        id=agent_id,
+        work_queue_id=work_queue_id,
+        last_activity_time=prefect.datetime.now("UTC"),
     )
     insert_stmt = (
         db.insert(orm_models.Agent)

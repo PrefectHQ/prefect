@@ -169,7 +169,7 @@ async def create_deployment(
         elif "is_schedule_active" in data:
             deployment.paused = not data["is_schedule_active"]
 
-        now = pendulum.now("UTC")
+        now = prefect.datetime.now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
         )
@@ -779,7 +779,7 @@ async def create_flow_run_from_deployment(
         if not flow_run.state:
             flow_run.state = schemas.states.Scheduled()
 
-        now = pendulum.now("UTC")
+        now = prefect.datetime.now("UTC")
         model = await models.flow_runs.create_flow_run(
             session=session, flow_run=flow_run
         )

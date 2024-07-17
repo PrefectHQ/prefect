@@ -60,7 +60,7 @@ class CancellationCleanup(LoopService):
                     orm_models.FlowRun.state_type == states.StateType.CANCELLED,
                     orm_models.FlowRun.end_time.is_not(None),
                     orm_models.FlowRun.end_time
-                    >= (pendulum.now("UTC").subtract(days=1)),
+                    >= (prefect.datetime.now("UTC").subtract(days=1)),
                 )
                 .limit(self.batch_size)
             )

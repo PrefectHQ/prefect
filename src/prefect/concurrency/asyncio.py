@@ -65,13 +65,15 @@ async def concurrency(
     limits = await _acquire_concurrency_slots(
         names, occupy, timeout_seconds=timeout_seconds
     )
-    acquisition_time = pendulum.now("UTC")
+    acquisition_time = prefect.datetime.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
 
     try:
         yield
     finally:
-        occupancy_period = cast(Interval, (pendulum.now("UTC") - acquisition_time))
+        occupancy_period = cast(
+            Interval, (prefect.datetime.now("UTC") - acquisition_time)
+        )
         await _release_concurrency_slots(
             names, occupy, occupancy_period.total_seconds()
         )

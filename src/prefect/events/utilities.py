@@ -67,7 +67,7 @@ def emit_event(
     }
 
     if occurred is None:
-        occurred = pendulum.now("UTC")
+        occurred = prefect.datetime.now("UTC")
     event_kwargs["occurred"] = occurred
 
     if related is not None:

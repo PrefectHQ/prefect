@@ -26,7 +26,7 @@ class EventLogger:
         console = rich.console.Console()
 
         async def handler(message: Message):
-            now = pendulum.now("UTC")
+            now = prefect.datetime.now("UTC")
             event: ReceivedEvent = ReceivedEvent.model_validate_json(message.data)
 
             console.print(

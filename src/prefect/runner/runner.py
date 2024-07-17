@@ -704,7 +704,7 @@ class Runner:
         if self.stopping:
             return
         runs_response = await self._get_scheduled_flow_runs()
-        self.last_polled = pendulum.now("UTC")
+        self.last_polled = prefect.datetime.now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
@@ -890,7 +890,9 @@ class Runner:
         """
         Retrieve scheduled flow runs for this runner.
         """
-        scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
+        scheduled_before = prefect.datetime.now("utc").add(
+            seconds=int(self._prefetch_seconds)
+        )
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )

@@ -540,7 +540,7 @@ def Scheduled(
     """
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = prefect.datetime.now("UTC")
     elif state_details.scheduled_time:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
@@ -638,7 +638,7 @@ def Paused(
         pass
     else:
         state_details.pause_timeout = pause_expiration_time or (
-            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+            prefect.datetime.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
         )
 
     state_details.pause_reschedule = reschedule

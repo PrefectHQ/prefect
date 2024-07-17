@@ -1085,7 +1085,7 @@ class PrefectClient:
             List[FlowRun]: a list of FlowRun objects read from the queue
         """
         if scheduled_before is None:
-            scheduled_before = pendulum.now("UTC")
+            scheduled_before = prefect.datetime.now("UTC")
 
         try:
             response = await self._client.post(

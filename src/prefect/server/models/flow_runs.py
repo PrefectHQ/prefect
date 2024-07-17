@@ -55,7 +55,7 @@ async def create_flow_run(
     Returns:
         orm_models.FlowRun: the newly-created flow run
     """
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     flow_run_dict = dict(
         **flow_run.model_dump_for_orm(

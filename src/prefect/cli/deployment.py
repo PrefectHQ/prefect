@@ -514,7 +514,7 @@ async def list_schedules(deployment_name: str):
 
     def sort_by_created_key(schedule: DeploymentScheduleCreate):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
-        return pendulum.now("utc") - schedule.created
+        return prefect.datetime.now("utc") - schedule.created
 
     def schedule_details(schedule: DeploymentScheduleCreate) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
@@ -600,7 +600,7 @@ async def ls(flow_name: Optional[List[str]] = None, by_created: bool = False):
         return flows[d.flow_id].name, d.name
 
     def sort_by_created_key(d):
-        return pendulum.now("utc") - d.created
+        return prefect.datetime.now("utc") - d.created
 
     table = Table(
         title="Deployments",
@@ -703,7 +703,7 @@ async def run(
     """
     import dateparser
 
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     multi_params = {}
     if multiparams:

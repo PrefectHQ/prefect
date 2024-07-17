@@ -100,7 +100,7 @@ async def read_dashboard_task_run_counts(
         (
             task_runs.start_time.before_.end_of("minute")
             if task_runs.start_time.before_
-            else pendulum.now("UTC").end_of("minute")
+            else prefect.datetime.now("UTC").end_of("minute")
         ),
     )
     window = end_time - start_time

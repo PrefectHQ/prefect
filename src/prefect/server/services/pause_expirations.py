@@ -72,7 +72,7 @@ class FailExpiredPauses(LoopService):
 
         Pass-through method for overrides.
         """
-        if flow_run.state.state_details.pause_timeout < pendulum.now("UTC"):
+        if flow_run.state.state_details.pause_timeout < prefect.datetime.now("UTC"):
             await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,

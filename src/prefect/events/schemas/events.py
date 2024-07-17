@@ -87,7 +87,7 @@ class Event(PrefectBaseModel):
     model_config = ConfigDict(extra="ignore")
 
     occurred: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: prefect.datetime.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
     event: str = Field(

@@ -45,7 +45,7 @@ async def upsert_child_firing(
                 child_firing_id=firing.id,
                 child_fired_at=firing.triggered,
                 child_firing=firing.model_dump(),
-                updated=pendulum.now("UTC"),
+                updated=prefect.datetime.now("UTC"),
             ),
         )
     )

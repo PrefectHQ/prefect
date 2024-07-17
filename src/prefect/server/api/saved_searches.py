@@ -34,7 +34,7 @@ async def create_saved_search(
     # hydrate the input model into a full model
     saved_search = schemas.core.SavedSearch(**saved_search.model_dump())
 
-    now = pendulum.now("UTC")
+    now = prefect.datetime.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.saved_searches.create_saved_search(

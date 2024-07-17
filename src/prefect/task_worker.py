@@ -234,7 +234,9 @@ class TaskWorker:
                 )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
-        self.in_flight_task_runs[task_run.task_key][task_run.id] = pendulum.now()
+        self.in_flight_task_runs[task_run.task_key][
+            task_run.id
+        ] = prefect.datetime.now()
         try:
             await self._submit_scheduled_task_run(task_run)
         except BaseException as exc:
@@ -371,7 +373,7 @@ class TaskWorker:
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
 
-        self._started_at = pendulum.now()
+        self._started_at = prefect.datetime.now()
         return self
 
     async def __aexit__(self, *exc_info):

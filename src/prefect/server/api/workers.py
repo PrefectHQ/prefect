@@ -181,7 +181,7 @@ async def create_work_pool(
 
             await emit_work_pool_status_event(
                 event_id=uuid4(),
-                occurred=pendulum.now("UTC"),
+                occurred=prefect.datetime.now("UTC"),
                 pre_update_work_pool=None,
                 work_pool=model,
             )

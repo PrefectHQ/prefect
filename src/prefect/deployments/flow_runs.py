@@ -90,7 +90,7 @@ async def run_deployment(
         raise ValueError("`timeout` cannot be negative")
 
     if scheduled_time is None:
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = prefect.datetime.now("UTC")
 
     parameters = parameters or {}
 

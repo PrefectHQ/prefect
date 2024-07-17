@@ -134,7 +134,7 @@ class Action(PrefectBaseModel, abc.ABC):
             extra={**self.logging_context(triggered_action)},
         )
         event = Event(
-            occurred=pendulum.now("UTC"),
+            occurred=prefect.datetime.now("UTC"),
             event="prefect.automation.action.failed",
             resource={
                 "prefect.resource.id": automation_resource_id,
@@ -167,7 +167,7 @@ class Action(PrefectBaseModel, abc.ABC):
         automation_resource_id = f"prefect.automation.{automation.id}"
 
         event = Event(
-            occurred=pendulum.now("UTC"),
+            occurred=prefect.datetime.now("UTC"),
             event="prefect.automation.action.executed",
             resource={
                 "prefect.resource.id": automation_resource_id,

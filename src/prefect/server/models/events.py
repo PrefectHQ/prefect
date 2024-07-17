@@ -427,7 +427,7 @@ def _get_recent_preceding_work_pool_event_id(
     time_since_last_event = timedelta(hours=24)
     if work_pool.last_transitioned_status_at:
         time_since_last_event = (
-            pendulum.now("UTC") - work_pool.last_transitioned_status_at
+            prefect.datetime.now("UTC") - work_pool.last_transitioned_status_at
         )
 
     return (

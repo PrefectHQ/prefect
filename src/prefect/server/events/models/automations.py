@@ -304,7 +304,7 @@ async def relate_automation_to_resource(
                     db.AutomationRelatedResource.automation_owned_by_resource,
                     sa.true() if owned_by_resource else sa.false(),
                 ),
-                updated=pendulum.now("UTC"),
+                updated=prefect.datetime.now("UTC"),
             ),
         )
     )
