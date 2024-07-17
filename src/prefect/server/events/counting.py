@@ -7,7 +7,6 @@ import sqlalchemy as sa
 from pendulum.datetime import DateTime
 from sqlalchemy.sql.selectable import Select
 
-import prefect.datetime
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.database import json_extract
@@ -89,8 +88,8 @@ class TimeUnit(AutoEnum):
         start_in_utc = start_datetime.in_timezone("UTC")
         end_in_utc = end_datetime.in_timezone("UTC")
 
-        if end_in_utc > prefect.datetime.now("UTC"):
-            end_in_utc = prefect.datetime.now("UTC").end_of(self.value)
+        if end_in_utc > pendulum.now("UTC"):
+            end_in_utc = pendulum.now("UTC").end_of(self.value)
 
         first_span_index = math.floor((start_in_utc - PIVOT_DATETIME) / delta)
 

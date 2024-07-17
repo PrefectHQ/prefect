@@ -5,9 +5,9 @@ The TaskSchedulingTimeouts service reschedules background tasks that are stuck P
 import asyncio
 from typing import Optional
 
+import pendulum
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import prefect.datetime
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.api.task_runs import TaskQueue
@@ -85,8 +85,7 @@ class TaskSchedulingTimeouts(LoopService):
         )
 
         older_than = (
-            prefect.datetime.now("UTC")
-            - PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT.value()
+            pendulum.now("UTC") - PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT.value()
         )
         task_runs = [t for t in task_runs if t.state.timestamp <= older_than]
 

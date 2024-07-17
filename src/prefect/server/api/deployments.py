@@ -7,11 +7,11 @@ from typing import List, Optional
 from uuid import UUID
 
 import jsonschema.exceptions
+import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from pydantic_extra_types.pendulum_dt import DateTime
 from starlette.background import BackgroundTasks
 
-import prefect.datetime
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -100,22 +100,22 @@ async def create_deployment(
         if deployment.work_pool_name and deployment.work_queue_name:
             # If a specific pool name/queue name combination was provided, get the
             # ID for that work pool queue.
-            deployment_dict["work_queue_id"] = (
-                await worker_lookups._get_work_queue_id_from_name(
-                    session=session,
-                    work_pool_name=deployment.work_pool_name,
-                    work_queue_name=deployment.work_queue_name,
-                    create_queue_if_not_found=True,
-                )
+            deployment_dict[
+                "work_queue_id"
+            ] = await worker_lookups._get_work_queue_id_from_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+                work_queue_name=deployment.work_queue_name,
+                create_queue_if_not_found=True,
             )
         elif deployment.work_pool_name:
             # If just a pool name was provided, get the ID for its default
             # work pool queue.
-            deployment_dict["work_queue_id"] = (
-                await worker_lookups._get_default_work_queue_id_from_work_pool_name(
-                    session=session,
-                    work_pool_name=deployment.work_pool_name,
-                )
+            deployment_dict[
+                "work_queue_id"
+            ] = await worker_lookups._get_default_work_queue_id_from_work_pool_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
             )
         elif deployment.work_queue_name:
             # If just a queue name was provided, ensure that the queue exists and
@@ -168,7 +168,7 @@ async def create_deployment(
         elif "is_schedule_active" in data:
             deployment.paused = not data["is_schedule_active"]
 
-        now = prefect.datetime.now("UTC")
+        now = pendulum.now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
         )
@@ -778,7 +778,7 @@ async def create_flow_run_from_deployment(
         if not flow_run.state:
             flow_run.state = schemas.states.Scheduled()
 
-        now = prefect.datetime.now("UTC")
+        now = pendulum.now("UTC")
         model = await models.flow_runs.create_flow_run(
             session=session, flow_run=flow_run
         )

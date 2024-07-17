@@ -6,7 +6,6 @@ import pendulum
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import prefect.datetime
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -427,7 +426,7 @@ def _get_recent_preceding_work_pool_event_id(
     time_since_last_event = timedelta(hours=24)
     if work_pool.last_transitioned_status_at:
         time_since_last_event = (
-            prefect.datetime.now("UTC") - work_pool.last_transitioned_status_at
+            pendulum.now("UTC") - work_pool.last_transitioned_status_at
         )
 
     return (

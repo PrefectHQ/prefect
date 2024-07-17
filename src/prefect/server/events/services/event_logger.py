@@ -1,9 +1,9 @@
 import asyncio
 from typing import Optional
 
+import pendulum
 import rich
 
-import prefect.datetime
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message, create_consumer
@@ -25,7 +25,7 @@ class EventLogger:
         console = rich.console.Console()
 
         async def handler(message: Message):
-            now = prefect.datetime.now("UTC")
+            now = pendulum.now("UTC")
             event: ReceivedEvent = ReceivedEvent.model_validate_json(message.data)
 
             console.print(

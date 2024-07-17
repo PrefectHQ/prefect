@@ -14,7 +14,6 @@ import typer
 
 import prefect
 import prefect.context
-import prefect.datetime
 import prefect.settings
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling

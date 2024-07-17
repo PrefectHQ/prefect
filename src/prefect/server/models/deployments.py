@@ -13,7 +13,6 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
-import prefect.datetime
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
@@ -80,7 +79,7 @@ async def create_deployment(
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    deployment.updated = prefect.datetime.now("UTC")  # type: ignore[assignment]
+    deployment.updated = pendulum.now("UTC")  # type: ignore[assignment]
 
     schedules = deployment.schedules
     insert_values = deployment.model_dump_for_orm(
@@ -525,7 +524,7 @@ async def schedule_runs(
     if max_runs is None:
         max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
     if start_time is None:
-        start_time = prefect.datetime.now("UTC")
+        start_time = pendulum.now("UTC")
     if end_time is None:
         end_time = start_time + (
             PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
@@ -945,7 +944,7 @@ async def mark_deployments_ready(
         )
         unready_deployments = list(result.scalars().unique().all())
 
-        last_polled = prefect.datetime.now("UTC")
+        last_polled = pendulum.now("UTC")
 
         await session.execute(
             sa.update(orm_models.Deployment)
@@ -1020,6 +1019,6 @@ async def mark_deployments_not_ready(
                         session=session,
                         deployment_id=deployment_id,
                         status=DeploymentStatus.NOT_READY,
-                        occurred=prefect.datetime.now("UTC"),
+                        occurred=pendulum.now("UTC"),
                     )
                 )

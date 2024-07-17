@@ -11,7 +11,7 @@ from typing import (
     cast,
 )
 
-import prefect.datetime
+import pendulum
 
 try:
     from pendulum import Interval
@@ -71,15 +71,13 @@ def concurrency(
     limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
         _acquire_concurrency_slots, names, occupy, timeout_seconds=timeout_seconds
     )
-    acquisition_time = prefect.datetime.now("UTC")
+    acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
 
     try:
         yield
     finally:
-        occupancy_period = cast(
-            Interval, prefect.datetime.now("UTC") - acquisition_time
-        )
+        occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
         _call_async_function_from_sync(
             _release_concurrency_slots,
             names,

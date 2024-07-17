@@ -7,8 +7,8 @@ import signal
 from typing import List, Optional
 
 import anyio
+import pendulum
 
-import prefect.datetime
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
@@ -76,7 +76,7 @@ class LoopService:
 
         i = 0
         while not self._should_stop:
-            start_time = prefect.datetime.now("UTC")
+            start_time = pendulum.now("UTC")
 
             try:
                 self.logger.debug(f"About to run {self.name}...")
@@ -98,7 +98,7 @@ class LoopService:
                         f"Unexpected error in: {repr(exc)}", exc_info=True
                     )
 
-            end_time = prefect.datetime.now("UTC")
+            end_time = pendulum.now("UTC")
 
             # if service took longer than its loop interval, log a warning
             # that the interval might be too short
@@ -119,14 +119,14 @@ class LoopService:
             # note that if the loop took unexpectedly long, the "next_run" time
             # might be in the past, which will result in an instant start
             next_run = max(
-                start_time.add(seconds=self.loop_seconds), prefect.datetime.now("UTC")
+                start_time.add(seconds=self.loop_seconds), pendulum.now("UTC")
             )
             self.logger.debug(f"Finished running {self.name}. Next run at {next_run}")
 
             # check the `_should_stop` flag every 1 seconds until the next run time is reached
-            while prefect.datetime.now("UTC") < next_run and not self._should_stop:
+            while pendulum.now("UTC") < next_run and not self._should_stop:
                 await asyncio.sleep(
-                    min(1, (next_run - prefect.datetime.now("UTC")).total_seconds())
+                    min(1, (next_run - pendulum.now("UTC")).total_seconds())
                 )
 
         await self._on_stop()

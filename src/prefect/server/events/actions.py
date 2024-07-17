@@ -42,7 +42,6 @@ from pydantic import (
 )
 from typing_extensions import Self, TypeAlias
 
-import prefect.datetime
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block
 from prefect.blocks.webhook import Webhook
@@ -134,7 +133,7 @@ class Action(PrefectBaseModel, abc.ABC):
             extra={**self.logging_context(triggered_action)},
         )
         event = Event(
-            occurred=prefect.datetime.now("UTC"),
+            occurred=pendulum.now("UTC"),
             event="prefect.automation.action.failed",
             resource={
                 "prefect.resource.id": automation_resource_id,
@@ -167,7 +166,7 @@ class Action(PrefectBaseModel, abc.ABC):
         automation_resource_id = f"prefect.automation.{automation.id}"
 
         event = Event(
-            occurred=prefect.datetime.now("UTC"),
+            occurred=pendulum.now("UTC"),
             event="prefect.automation.action.executed",
             resource={
                 "prefect.resource.id": automation_resource_id,

@@ -2,9 +2,8 @@ from datetime import timedelta
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
+import pendulum
 from pydantic_extra_types.pendulum_dt import DateTime
-
-import prefect.datetime
 
 from .clients import (
     AssertingEventsClient,
@@ -67,7 +66,7 @@ def emit_event(
     }
 
     if occurred is None:
-        occurred = prefect.datetime.now("UTC")
+        occurred = pendulum.now("UTC")
     event_kwargs["occurred"] = occurred
 
     if related is not None:

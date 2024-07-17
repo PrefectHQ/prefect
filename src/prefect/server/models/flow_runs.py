@@ -9,12 +9,12 @@ from itertools import chain
 from typing import Any, Dict, List, Optional, Sequence
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only, selectinload
 
-import prefect.datetime
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
@@ -54,7 +54,7 @@ async def create_flow_run(
     Returns:
         orm_models.FlowRun: the newly-created flow run
     """
-    now = prefect.datetime.now("UTC")
+    now = pendulum.now("UTC")
 
     flow_run_dict = dict(
         **flow_run.model_dump_for_orm(
@@ -136,7 +136,8 @@ async def update_flow_run(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(orm_models.FlowRun).where(orm_models.FlowRun.id == flow_run_id)
+        sa.update(orm_models.FlowRun)
+        .where(orm_models.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow_run.model_dump_for_orm(exclude_unset=True))

@@ -18,7 +18,6 @@ from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI
 from websockets.exceptions import InvalidStatusCode
 
-import prefect.datetime
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.cache_policies import DEFAULT, NONE
@@ -234,9 +233,7 @@ class TaskWorker:
                 )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
-        self.in_flight_task_runs[task_run.task_key][
-            task_run.id
-        ] = prefect.datetime.now()
+        self.in_flight_task_runs[task_run.task_key][task_run.id] = pendulum.now()
         try:
             await self._submit_scheduled_task_run(task_run)
         except BaseException as exc:
@@ -373,7 +370,7 @@ class TaskWorker:
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
 
-        self._started_at = prefect.datetime.now()
+        self._started_at = pendulum.now()
         return self
 
     async def __aexit__(self, *exc_info):

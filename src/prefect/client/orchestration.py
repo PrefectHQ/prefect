@@ -21,13 +21,13 @@ from uuid import UUID, uuid4
 import certifi
 import httpcore
 import httpx
+import pendulum
 import pydantic
 from asgi_lifespan import LifespanManager
 from starlette import status
 from typing_extensions import ParamSpec
 
 import prefect
-import prefect.datetime
 import prefect.exceptions
 import prefect.settings
 import prefect.states
@@ -161,13 +161,15 @@ class ServerType(AutoEnum):
 @overload
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[False] = False
-) -> "PrefectClient": ...
+) -> "PrefectClient":
+    ...
 
 
 @overload
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[True] = True
-) -> "SyncPrefectClient": ...
+) -> "SyncPrefectClient":
+    ...
 
 
 def get_client(
@@ -1084,7 +1086,7 @@ class PrefectClient:
             List[FlowRun]: a list of FlowRun objects read from the queue
         """
         if scheduled_before is None:
-            scheduled_before = prefect.datetime.now("UTC")
+            scheduled_before = pendulum.now("UTC")
 
         try:
             response = await self._client.post(
@@ -3228,11 +3230,9 @@ class PrefectClient:
             "/automations/filter",
             json={
                 "sort": sorting.AutomationSort.UPDATED_DESC,
-                "automations": (
-                    automation_filter.model_dump(mode="json")
-                    if automation_filter
-                    else None
-                ),
+                "automations": automation_filter.model_dump(mode="json")
+                if automation_filter
+                else None,
             },
         )
 

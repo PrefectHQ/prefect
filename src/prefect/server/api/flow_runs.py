@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import orjson
+import pendulum
 import sqlalchemy as sa
 from fastapi import (
     Body,
@@ -21,7 +22,6 @@ from fastapi.responses import ORJSONResponse, PlainTextResponse
 from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.exc import IntegrityError
 
-import prefect.datetime
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -76,7 +76,7 @@ async def create_flow_run(
     if not flow_run.state:
         flow_run.state = schemas.states.Pending()
 
-    now = prefect.datetime.now("UTC")
+    now = pendulum.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.flow_runs.create_flow_run(
@@ -360,7 +360,7 @@ async def resume_flow_run(
     """
     Resume a paused flow run.
     """
-    now = prefect.datetime.now("UTC")
+    now = pendulum.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
@@ -448,7 +448,7 @@ async def resume_flow_run(
                 session=session,
                 flow_run_id=flow_run_id,
                 state=schemas.states.Scheduled(
-                    name="Resuming", scheduled_time=prefect.datetime.now("UTC")
+                    name="Resuming", scheduled_time=pendulum.now("UTC")
                 ),
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
@@ -574,7 +574,7 @@ async def set_flow_run_state(
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
-    now = prefect.datetime.now("UTC")
+    now = pendulum.now("UTC")
 
     # create the state
     async with db.session_context(

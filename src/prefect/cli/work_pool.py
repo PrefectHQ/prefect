@@ -6,7 +6,6 @@ import json
 import textwrap
 
 import pendulum
-import prefect.datetime
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -268,7 +267,7 @@ async def ls(
         pools = await client.read_work_pools()
 
     def sort_by_created_key(q):
-        return prefect.datetime.now("utc") - q.created
+        return pendulum.now("utc") - q.created
 
     for pool in sorted(pools, key=sort_by_created_key):
         row = [
@@ -634,10 +633,10 @@ async def preview(
     table.add_column("Run ID", justify="left", style="cyan", no_wrap=True)
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
-prefect.datetime.now
-    prefect.datetime.now("utc").add(hours=hours or 1)
-prefect.datetime.now
-    now = prefect.datetime.now("utc")
+
+    pendulum.now("utc").add(hours=hours or 1)
+
+    now = pendulum.now("utc")
 
     def sort_by_created_key(r):
         return now - r.created

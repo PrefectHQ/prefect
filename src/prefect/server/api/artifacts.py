@@ -5,9 +5,9 @@ Routes for interacting with artifact objects.
 from typing import List
 from uuid import UUID
 
+import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
-import prefect.datetime
 import prefect.server.api.dependencies as dependencies
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
@@ -29,7 +29,7 @@ async def create_artifact(
 ) -> core.Artifact:
     artifact = core.Artifact(**artifact.model_dump())
 
-    now = prefect.datetime.now("UTC")
+    now = pendulum.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.artifacts.create_artifact(

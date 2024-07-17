@@ -14,12 +14,12 @@ from typing import (
 )
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from pydantic import TypeAdapter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import prefect.datetime
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
@@ -198,7 +198,7 @@ async def read_work_queues(
 def is_last_polled_recent(last_polled):
     if last_polled is None:
         return False
-    return (prefect.datetime.now("UTC") - last_polled) <= WORK_QUEUE_LAST_POLLED_TIMEOUT
+    return (pendulum.now("UTC") - last_polled) <= WORK_QUEUE_LAST_POLLED_TIMEOUT
 
 
 async def update_work_queue(
@@ -493,7 +493,7 @@ async def record_work_queue_polls(
 ):
     """Record that the given work queues were polled, and also update the given
     ready_work_queue_ids to READY."""
-    polled = prefect.datetime.now("UTC")
+    polled = pendulum.now("UTC")
 
     if polled_work_queue_ids:
         await session.execute(
@@ -540,7 +540,7 @@ async def mark_work_queues_ready(
             await work_queue_status_event(
                 session=session,
                 work_queue=work_queue,
-                occurred=prefect.datetime.now("UTC"),
+                occurred=pendulum.now("UTC"),
             )
             for work_queue in newly_ready_work_queues.scalars().all()
         ]
@@ -580,7 +580,7 @@ async def mark_work_queues_not_ready(
             await work_queue_status_event(
                 session=session,
                 work_queue=work_queue,
-                occurred=prefect.datetime.now("UTC"),
+                occurred=pendulum.now("UTC"),
             )
             for work_queue in newly_unready_work_queues.scalars().all()
         ]
@@ -599,7 +599,7 @@ async def emit_work_queue_status_event(
         event = await work_queue_status_event(
             session=session,
             work_queue=work_queue,
-            occurred=prefect.datetime.now(),
+            occurred=pendulum.now(),
         )
 
     async with PrefectServerEventsClient() as events_client:

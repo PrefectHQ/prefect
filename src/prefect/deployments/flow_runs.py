@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Iterable, Optional, Union
 from uuid import UUID
 
 import anyio
+import pendulum
 
-import prefect.datetime
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
@@ -89,7 +89,7 @@ async def run_deployment(
         raise ValueError("`timeout` cannot be negative")
 
     if scheduled_time is None:
-        scheduled_time = prefect.datetime.now("UTC")
+        scheduled_time = pendulum.now("UTC")
 
     parameters = parameters or {}
 

@@ -7,11 +7,11 @@ from textwrap import dedent
 from typing import Optional, Union
 from uuid import UUID
 
+import pendulum
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-import prefect.datetime
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
@@ -372,7 +372,7 @@ async def ls(
             pool_id_name_map = {p.id: p.name for p in pools}
 
             def sort_by_created_key(q):
-                return prefect.datetime.now("utc") - q.created
+                return pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -408,7 +408,7 @@ async def ls(
                 exit_with_error(f"No work pool found: {pool!r}")
 
             def sort_by_created_key(q):
-                return prefect.datetime.now("utc") - q.created
+                return pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -461,7 +461,7 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    window = prefect.datetime.now("utc").add(hours=hours or 1)
+    window = pendulum.now("utc").add(hours=hours or 1)
 
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name, work_pool_name=pool
@@ -485,7 +485,7 @@ async def preview(
                 )
             except ObjectNotFound:
                 exit_with_error(f"No work queue found: {name!r}")
-    now = prefect.datetime.now("utc")
+    now = pendulum.now("utc")
 
     def sort_by_created_key(r):
         return now - r.created

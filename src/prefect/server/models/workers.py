@@ -19,7 +19,6 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import prefect.datetime
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
@@ -239,7 +238,7 @@ async def update_work_pool(
 
     if "status" in update_data:
         update_data["last_status_event_id"] = uuid4()
-        update_data["last_transitioned_status_at"] = prefect.datetime.now("UTC")
+        update_data["last_transitioned_status_at"] = pendulum.now("UTC")
 
     update_stmt = (
         sa.update(orm_models.WorkPool)
@@ -718,7 +717,7 @@ async def worker_heartbeat(
         bool: whether or not the worker was updated
 
     """
-    now = prefect.datetime.now("UTC")
+    now = pendulum.now("UTC")
     # Values that won't change between heart beats
     base_values = dict(
         work_pool_id=work_pool_id,

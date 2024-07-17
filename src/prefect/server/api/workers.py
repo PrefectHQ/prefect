@@ -5,6 +5,7 @@ Routes for interacting with work queue objects.
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import (
     BackgroundTasks,
@@ -17,7 +18,6 @@ from fastapi import (
 from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import prefect.datetime
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -180,7 +180,7 @@ async def create_work_pool(
 
             await emit_work_pool_status_event(
                 event_id=uuid4(),
-                occurred=prefect.datetime.now("UTC"),
+                occurred=pendulum.now("UTC"),
                 pre_update_work_pool=None,
                 work_pool=model,
             )

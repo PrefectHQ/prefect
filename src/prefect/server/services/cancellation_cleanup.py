@@ -6,10 +6,10 @@ import asyncio
 from typing import Optional
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from sqlalchemy.sql.expression import or_
 
-import prefect.datetime
 import prefect.server.models as models
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import inject_db
@@ -59,7 +59,7 @@ class CancellationCleanup(LoopService):
                     orm_models.FlowRun.state_type == states.StateType.CANCELLED,
                     orm_models.FlowRun.end_time.is_not(None),
                     orm_models.FlowRun.end_time
-                    >= (prefect.datetime.now("UTC").subtract(days=1)),
+                    >= (pendulum.now("UTC").subtract(days=1)),
                 )
                 .limit(self.batch_size)
             )

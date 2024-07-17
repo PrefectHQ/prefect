@@ -26,9 +26,9 @@ from typing import (
 from uuid import UUID
 
 import anyio
+import pendulum
 from typing_extensions import ParamSpec
 
-import prefect.datetime
 from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
@@ -351,7 +351,7 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Result factory is not set")
 
         if self.task.cache_expiration is not None:
-            expiration = prefect.datetime.now("utc") + self.task.cache_expiration
+            expiration = pendulum.now("utc") + self.task.cache_expiration
         else:
             expiration = None
 
@@ -393,7 +393,7 @@ class TaskRunEngine(Generic[P, R]):
                     else self.task.retry_delay_seconds
                 )
                 new_state = AwaitingRetry(
-                    scheduled_time=prefect.datetime.now("utc").add(seconds=delay)
+                    scheduled_time=pendulum.now("utc").add(seconds=delay)
                 )
             else:
                 delay = None
@@ -610,7 +610,7 @@ class TaskRunEngine(Generic[P, R]):
     async def wait_until_ready(self):
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            sleep_time = (scheduled_time - prefect.datetime.now("utc")).total_seconds()
+            sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
             self.set_state(
                 Retrying() if self.state.name == "AwaitingRetry" else Running(),

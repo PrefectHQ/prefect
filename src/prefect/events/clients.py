@@ -17,6 +17,7 @@ from uuid import UUID
 
 import httpx
 import orjson
+import pendulum
 from cachetools import TTLCache
 from typing_extensions import Self
 from websockets import Subprotocol
@@ -27,7 +28,6 @@ from websockets.exceptions import (
     ConnectionClosedOK,
 )
 
-import prefect.datetime
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.events import Event
 from prefect.logging import get_logger
@@ -465,8 +465,8 @@ class PrefectEventSubscriber:
         from prefect.events.filters import EventOccurredFilter
 
         self._filter.occurred = EventOccurredFilter(
-            since=prefect.datetime.now("UTC").subtract(minutes=1),
-            until=prefect.datetime.now("UTC").add(years=1),
+            since=pendulum.now("UTC").subtract(minutes=1),
+            until=pendulum.now("UTC").add(years=1),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)

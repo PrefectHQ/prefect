@@ -1,12 +1,12 @@
 import uuid
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
+import pendulum
 import uvicorn
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
-import prefect.datetime
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingFlowError, ScriptError
@@ -50,7 +50,7 @@ def perform_health_check(runner, delay_threshold: Optional[int] = None) -> JSONR
         )
 
     def _health_check():
-        now = prefect.datetime.now("utc")
+        now = pendulum.now("utc")
         poll_delay = (now - runner.last_polled).total_seconds()
 
         if poll_delay > delay_threshold:

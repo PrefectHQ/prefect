@@ -14,7 +14,6 @@ from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal
 
 import prefect
-import prefect.datetime
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
@@ -410,7 +409,7 @@ class BaseWorker(abc.ABC):
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
-        self._last_polled_time: pendulum.DateTime = prefect.datetime.now("utc")
+        self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
@@ -630,7 +629,7 @@ class BaseWorker(abc.ABC):
         threshold_seconds = query_interval_seconds * 30
 
         seconds_since_last_poll = (
-            prefect.datetime.now("utc") - self._last_polled_time
+            pendulum.now("utc") - self._last_polled_time
         ).in_seconds()
 
         is_still_polling = seconds_since_last_poll <= threshold_seconds
@@ -646,7 +645,7 @@ class BaseWorker(abc.ABC):
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
 
-        self._last_polled_time = prefect.datetime.now("utc")
+        self._last_polled_time = pendulum.now("utc")
 
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
@@ -719,9 +718,7 @@ class BaseWorker(abc.ABC):
         """
         Retrieve scheduled flow runs from the work pool's queues.
         """
-        scheduled_before = prefect.datetime.now("utc").add(
-            seconds=int(self._prefetch_seconds)
-        )
+        scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )
