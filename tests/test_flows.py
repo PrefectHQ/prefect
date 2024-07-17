@@ -2824,13 +2824,9 @@ class TestFlowHooksContext:
     def test_hooks_are_called_within_flow_run_context(
         self, caplog, hook_type, fn_body, expected_exc
     ):
-        was_in_context = False
-
         def hook(flow, flow_run, state):
-            nonlocal was_in_context
             ctx: FlowRunContext = get_run_context()  # type: ignore
             assert ctx is not None
-            was_in_context = True
             assert ctx.flow_run and ctx.flow_run == flow_run
             assert ctx.flow_run.state == state
             assert ctx.flow == flow
@@ -2846,7 +2842,6 @@ class TestFlowHooksContext:
             else:
                 foo_flow()
 
-        assert was_in_context
         assert "Hook 'hook' finished running successfully" in caplog.text
 
 
