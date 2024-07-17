@@ -9,6 +9,7 @@ For more user-accessible information about the current run, see [`prefect.runtim
 import os
 import sys
 import warnings
+import weakref
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar, Token
 from pathlib import Path
@@ -17,6 +18,7 @@ from typing import (
     Any,
     Dict,
     Generator,
+    Mapping,
     Optional,
     Set,
     Type,
@@ -291,8 +293,12 @@ class EngineContext(RunContext):
     # Counter for flow pauses
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
-    # Tracking for result from task runs in this flow run
-    task_run_results: Dict[int, State] = Field(default_factory=dict)
+    # Tracking for result from task runs in this flow run for dependency tracking
+    # Holds the ID of the object returned by the task run and task run state
+    # This is a weakref dictionary to avoid undermining garbage collection
+    task_run_results: Mapping[int, State] = Field(
+        default_factory=weakref.WeakValueDictionary
+    )
 
     # Events worker to emit events to Prefect Cloud
     events: Optional[EventsWorker] = None
