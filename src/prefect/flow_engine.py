@@ -91,9 +91,12 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
 
     flow_run = client.read_flow_run(flow_run_id)
     if entrypoint:
-        flow = load_flow_from_entrypoint(entrypoint)
+        # we should not accept a placeholder flow at runtime
+        flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
     else:
-        flow = run_coro_as_sync(load_flow_from_flow_run(flow_run))
+        flow = run_coro_as_sync(
+            load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
+        )
 
     return flow_run, flow
 

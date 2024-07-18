@@ -607,29 +607,28 @@ class TestRunner:
     async def test_runner_respects_set_limit(
         self, prefect_client: PrefectClient, caplog
     ):
-        runner = Runner(limit=1)
+        async with Runner(limit=1) as runner:
+            deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+            good_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment_id
+            )
+            bad_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment_id
+            )
 
-        good_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-        bad_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
+            runner._acquire_limit_slot(good_run.id)
+            await runner.execute_flow_run(bad_run.id)
+            assert "run limit reached" in caplog.text
 
-        runner._acquire_limit_slot(good_run.id)
-        await runner.execute_flow_run(bad_run.id)
-        assert "run limit reached" in caplog.text
+            flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
+            assert flow_run.state.is_scheduled()
 
-        flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
-        assert flow_run.state.is_scheduled()
+            runner._release_limit_slot(good_run.id)
+            await runner.execute_flow_run(bad_run.id)
 
-        runner._release_limit_slot(good_run.id)
-        await runner.execute_flow_run(bad_run.id)
-
-        flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
-        assert flow_run.state.is_completed()
+            flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
+            assert flow_run.state.is_completed()
 
     async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
         """

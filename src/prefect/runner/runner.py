@@ -167,9 +167,7 @@ class Runner:
         self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
         self._prefetch_seconds = prefetch_seconds
 
-        self._limiter: Optional[anyio.CapacityLimiter] = anyio.CapacityLimiter(
-            self.limit
-        )
+        self._limiter: Optional[anyio.CapacityLimiter] = None
         self._client = get_client()
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
@@ -1226,6 +1224,8 @@ class Runner:
         self._logger.debug("Starting runner...")
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
+
+        self._limiter = anyio.CapacityLimiter(self.limit)
 
         if not hasattr(self, "_loop") or not self._loop:
             self._loop = asyncio.get_event_loop()
