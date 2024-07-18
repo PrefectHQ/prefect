@@ -4383,7 +4383,9 @@ class TestLoadFlowFromFlowRun:
         result = await load_flow_from_flow_run(flow_run)
 
         assert result == pretend_flow
-        load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")
+        load_flow_from_entrypoint.assert_called_once_with(
+            "my.module.pretend_flow", use_placeholder_flow=True
+        )
 
 
 class TestTransactions:
