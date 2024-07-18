@@ -267,11 +267,17 @@ async def run_sync_in_worker_thread(
     Note that cancellation of threads will not result in interrupted computation, the
     thread may continue running — the outcome will just be ignored.
     """
-    call = partial(__fn, *args, **kwargs)
-    result = await anyio.to_thread.run_sync(
-        call_with_mark, call, abandon_on_cancel=True, limiter=get_thread_limiter()
-    )
-    return result
+    # When running a sync function in a worker thread, we set this flag so that
+    # any root sync compatible functions will run as sync functions
+    token = RUNNING_ASYNC_FLAG.set(False)
+    try:
+        call = partial(__fn, *args, **kwargs)
+        result = await anyio.to_thread.run_sync(
+            call_with_mark, call, abandon_on_cancel=True, limiter=get_thread_limiter()
+        )
+        return result
+    finally:
+        RUNNING_ASYNC_FLAG.reset(token)
 
 
 def call_with_mark(call):
