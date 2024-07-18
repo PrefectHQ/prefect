@@ -417,9 +417,12 @@ async def retrieve_flow_then_begin_flow_run(
 
     try:
         flow = (
-            load_flow_from_entrypoint(entrypoint)
+            # We do not want to use a placeholder flow at runtime
+            load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
             if entrypoint
-            else await load_flow_from_flow_run(flow_run, client=client)
+            else await load_flow_from_flow_run(
+                flow_run, client=client, use_placeholder_flow=False
+            )
         )
     except Exception:
         message = (

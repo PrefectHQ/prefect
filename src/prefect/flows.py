@@ -1650,6 +1650,7 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
 
 def load_flow_from_entrypoint(
     entrypoint: str,
+    use_placeholder_flow: bool = True,
 ) -> Flow:
     """
     Extract a flow object from a script at an entrypoint by running all of the code in the file.
@@ -1657,6 +1658,9 @@ def load_flow_from_entrypoint(
     Args:
         entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
             to a flow function
+        use_placeholder_flow: If True, a placeholder flow will be used if the entrypoint
+            cannot be loaded for any reason (e.g. dependencies are missing). If False, an
+            exception will be raised.
 
     Returns:
         The flow object from the script
@@ -1687,7 +1691,10 @@ def load_flow_from_entrypoint(
             # function, so we create a placeholder flow that will re-raise this
             # exception when called.
 
-            flow = load_placeholder_flow(entrypoint=entrypoint, raises=exc)
+            if use_placeholder_flow:
+                flow = load_placeholder_flow(entrypoint=entrypoint, raises=exc)
+            else:
+                raise
 
         if not isinstance(flow, Flow):
             raise MissingFlowError(

@@ -244,6 +244,7 @@ async def load_flow_from_flow_run(
     client: PrefectClient,
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
+    use_placeholder_flow: bool = True,
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
@@ -270,7 +271,7 @@ async def load_flow_from_flow_run(
             f"Importing flow code from module path {deployment.entrypoint}"
         )
         flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, deployment.entrypoint
+            load_flow_from_entrypoint, deployment.entrypoint, use_placeholder_flow
         )
         return flow
 
@@ -314,7 +315,9 @@ async def load_flow_from_flow_run(
             ).absolute()
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
-    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
+    flow = await run_sync_in_worker_thread(
+        load_flow_from_entrypoint, str(import_path), use_placeholder_flow
+    )
 
     return flow
 
