@@ -1712,6 +1712,8 @@ def load_flow_from_entrypoint(
     Args:
         entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
             to a flow function
+        use_placeholder_flow: if True, use a placeholder Flow object if the actual flow object
+            cannot be loaded from the entrypoint (e.g. dependencies are missing)
 
     Returns:
         The flow object from the script
