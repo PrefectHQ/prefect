@@ -45,10 +45,11 @@ from prefect.utilities.engine import propose_state
 def enable_client_side_task_run_orchestration(
     request, asserting_events_worker: EventsWorker
 ):
+    enabled = request.param
     with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: request.param}
+        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
     ):
-        yield
+        yield enabled
 
 
 async def get_task_run(task_run_id: Optional[UUID]) -> TaskRun:
@@ -1157,8 +1158,15 @@ class TestPersistence:
         assert isinstance(state.data, PersistedResult)
         assert state.data.storage_key == "foo-bar"
 
-    async def test_task_result_persistence_references_absolute_path(self):
-        @task(result_storage_key="test-absolute-path", persist_result=True)
+    async def test_task_result_persistence_references_absolute_path(
+        self, enable_client_side_task_run_orchestration
+    ):
+        # temporarily use a dynamic key to avoid conflicts
+        # from running this test twice in a row
+        # with enable_client_side_task_run_orchestration
+        key = f"test-absolute-path-{enable_client_side_task_run_orchestration}"
+
+        @task(result_storage_key=key, persist_result=True)
         async def async_task():
             return 42
 
@@ -1169,7 +1177,7 @@ class TestPersistence:
 
         key_path = Path(state.data.storage_key)
         assert key_path.is_absolute()
-        assert key_path.name == "test-absolute-path"
+        assert key_path.name == key
 
 
 class TestCachePolicy:
@@ -1189,11 +1197,15 @@ class TestCachePolicy:
         assert await state.result() == 1800
         assert Path(state.data.storage_key).name == key
 
-    async def test_cache_expiration_is_respected(self, prefect_client, advance_time):
+    async def test_cache_expiration_is_respected(self, advance_time, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+        await fs.save("local-fs")
+
         @task(
             persist_result=True,
             result_storage_key="expiring-foo-bar",
             cache_expiration=timedelta(seconds=1.0),
+            result_storage=fs,
         )
         async def async_task():
             return random.randint(0, 10000)
