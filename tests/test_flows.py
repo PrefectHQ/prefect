@@ -2540,118 +2540,135 @@ class TestFlowRetries:
             assert run_count == 2
 
 
-def test_load_flow_from_entrypoint(tmp_path):
-    flow_code = """
-    from prefect import flow
+class TestLoadFlowFromEntrypoint:
+    def test_load_flow_from_entrypoint(self, tmp_path):
+        flow_code = """
+        from prefect import flow
 
-    @flow
-    def dog():
-        return "woof!"
-    """
-    fpath = tmp_path / "f.py"
-    fpath.write_text(dedent(flow_code))
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
 
-    flow = load_flow_from_entrypoint(f"{fpath}:dog")
-    assert flow.fn() == "woof!"
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+        assert flow.fn() == "woof!"
 
+    def test_load_flow_from_entrypoint_with_absolute_path(self, tmp_path):
+        # test absolute paths to ensure compatibility for all operating systems
 
-def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
-    # test absolute paths to ensure compatibility for all operating systems
+        flow_code = """
+        from prefect import flow
 
-    flow_code = """
-    from prefect import flow
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
 
-    @flow
-    def dog():
-        return "woof!"
-    """
-    fpath = tmp_path / "f.py"
-    fpath.write_text(dedent(flow_code))
+        # convert the fpath into an absolute path
+        absolute_fpath = str(fpath.resolve())
 
-    # convert the fpath into an absolute path
-    absolute_fpath = str(fpath.resolve())
+        flow = load_flow_from_entrypoint(f"{absolute_fpath}:dog")
+        assert flow.fn() == "woof!"
 
-    flow = load_flow_from_entrypoint(f"{absolute_fpath}:dog")
-    assert flow.fn() == "woof!"
+    def test_load_flow_from_entrypoint_with_module_path(self, monkeypatch):
+        @flow
+        def pretend_flow():
+            pass
 
+        import_object_mock = MagicMock(return_value=pretend_flow)
+        monkeypatch.setattr(
+            "prefect.flows.import_object",
+            import_object_mock,
+        )
+        result = load_flow_from_entrypoint("my.module.pretend_flow")
 
-def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
-    @flow
-    def pretend_flow():
-        pass
+        assert result == pretend_flow
+        import_object_mock.assert_called_with("my.module.pretend_flow")
 
-    import_object_mock = MagicMock(return_value=pretend_flow)
-    monkeypatch.setattr(
-        "prefect.flows.import_object",
-        import_object_mock,
-    )
-    result = load_flow_from_entrypoint("my.module.pretend_flow")
+    def test_load_flow_from_entrypoint_script_error_loads_placeholder(self, tmp_path):
+        flow_code = """
+        from not_a_module import not_a_function
+        from prefect import flow
 
-    assert result == pretend_flow
-    import_object_mock.assert_called_with("my.module.pretend_flow")
+        @flow(description="Says woof!")
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
 
-
-def test_load_flow_from_entrypoint_script_error_loads_placeholder(tmp_path):
-    flow_code = """
-    from not_a_module import not_a_function
-    from prefect import flow
-
-    @flow(description="Says woof!")
-    def dog():
-        return "woof!"
-    """
-    fpath = tmp_path / "f.py"
-    fpath.write_text(dedent(flow_code))
-
-    flow = load_flow_from_entrypoint(f"{fpath}:dog")
-
-    # Since `not_a_module` isn't a real module, loading the flow as python
-    # should fail, and `load_flow_from_entrypoint` should fallback to
-    # returning a placeholder flow with the correct name, description, etc.
-    assert flow.name == "dog"
-    assert flow.description == "Says woof!"
-
-    # But if the flow is called, it should raise the ScriptError
-    with pytest.raises(ScriptError):
-        flow.fn()
-
-
-@pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-async def test_handling_script_with_unprotected_call_in_flow_script(
-    tmp_path,
-    caplog,
-    prefect_client,
-):
-    flow_code_with_call = """
-    from prefect import flow
-from prefect.logging import get_run_logger
-
-    @flow
-    def dog():
-        get_run_logger().warning("meow!")
-        return "woof!"
-
-    dog()
-    """
-    fpath = tmp_path / "f.py"
-    fpath.write_text(dedent(flow_code_with_call))
-    with caplog.at_level("WARNING"):
         flow = load_flow_from_entrypoint(f"{fpath}:dog")
 
-        # Make sure that warning is raised
-        assert (
-            "Script loading is in progress, flow 'dog' will not be executed. "
-            "Consider updating the script to only call the flow" in caplog.text
-        )
+        # Since `not_a_module` isn't a real module, loading the flow as python
+        # should fail, and `load_flow_from_entrypoint` should fallback to
+        # returning a placeholder flow with the correct name, description, etc.
+        assert flow.name == "dog"
+        assert flow.description == "Says woof!"
 
-    flow_runs = await prefect_client.read_flows()
-    assert len(flow_runs) == 0
+        # But if the flow is called, it should raise the ScriptError
+        with pytest.raises(ScriptError):
+            flow.fn()
 
-    # Make sure that flow runs when called
-    res = flow()
-    assert res == "woof!"
-    flow_runs = await prefect_client.read_flows()
-    assert len(flow_runs) == 1
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
+    async def test_handling_script_with_unprotected_call_in_flow_script(
+        self, tmp_path, caplog, prefect_client
+    ):
+        flow_code_with_call = """
+        from prefect import flow
+        from prefect.logging import get_run_logger
+
+        @flow
+        def dog():
+            get_run_logger().warning("meow!")
+            return "woof!"
+
+        dog()
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code_with_call))
+        with caplog.at_level("WARNING"):
+            flow = load_flow_from_entrypoint(f"{fpath}:dog")
+
+            # Make sure that warning is raised
+            assert (
+                "Script loading is in progress, flow 'dog' will not be executed. "
+                "Consider updating the script to only call the flow" in caplog.text
+            )
+
+        flow_runs = await prefect_client.read_flows()
+        assert len(flow_runs) == 0
+
+        # Make sure that flow runs when called
+        res = flow()
+        assert res == "woof!"
+        flow_runs = await prefect_client.read_flows()
+        assert len(flow_runs) == 1
+
+    def test_load_flow_from_entrypoint_with_use_placeholder_flow(self, tmp_path):
+        flow_code = """
+        from not_a_module import not_a_function
+        from prefect import flow
+
+        @flow(description="Says woof!")
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        # Test with use_placeholder_flow=True (default behavior)
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+        assert isinstance(flow, Flow)
+        with pytest.raises(ScriptError):
+            flow.fn()
+
+        # Test with use_placeholder_flow=False
+        with pytest.raises(ScriptError):
+            load_flow_from_entrypoint(f"{fpath}:dog", use_placeholder_flow=False)
 
 
 class TestFlowRunName:
@@ -4366,7 +4383,9 @@ class TestLoadFlowFromFlowRun:
         result = await load_flow_from_flow_run(flow_run)
 
         assert result == pretend_flow
-        load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")
+        load_flow_from_entrypoint.assert_called_once_with(
+            "my.module.pretend_flow", use_placeholder_flow=True
+        )
 
 
 class TestTransactions:
