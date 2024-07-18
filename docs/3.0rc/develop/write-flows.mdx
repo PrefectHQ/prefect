@@ -118,8 +118,12 @@ def model_validator(model: Model):
 For example, to automatically convert an argument to a datetime object:
 
 ```python
+from typing import Optional
 from prefect import flow
-from datetime import datetime
+from datetime import (
+    datetime,
+    timezone,
+)
 
 
 @flow
