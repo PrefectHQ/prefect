@@ -599,9 +599,6 @@ class TaskRunEngine(Generic[P, R]):
                         msg=msg,
                     )
 
-                    # self._is_started = False
-                    # self._client = None
-
     def is_running(self) -> bool:
         """Whether or not the engine is currently running a task."""
         if (task_run := getattr(self, "task_run", None)) is None:
