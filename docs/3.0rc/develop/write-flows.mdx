@@ -126,6 +126,7 @@ from typing import Optional
 
 from prefect import flow
 
+
 @flow
 def what_day_is_it(date: Optional[datetime] = None):
     if date is None:
