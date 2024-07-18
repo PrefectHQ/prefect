@@ -283,6 +283,7 @@ def transaction(
     commit_mode: Optional[CommitMode] = None,
     overwrite: bool = False,
     logger: Optional[PrefectLogAdapter] = None,
+    **kwargs,
 ) -> Generator[Transaction, None, None]:
     """
     A context manager for opening and managing a transaction.
@@ -344,5 +345,6 @@ def transaction(
         commit_mode=commit_mode,
         overwrite=overwrite,
         logger=logger,
+        **kwargs,
     ) as txn:
         yield txn
