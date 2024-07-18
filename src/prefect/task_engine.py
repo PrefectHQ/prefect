@@ -2,7 +2,6 @@ import inspect
 import logging
 import threading
 import time
-import uuid
 from asyncio import CancelledError
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
@@ -303,6 +302,13 @@ class TaskRunEngine(Generic[P, R]):
         try:
             if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
                 new_state = state
+                # Copy over state_details from state to state
+                new_state.state_details.task_run_id = (
+                    last_state.state_details.task_run_id
+                )
+                new_state.state_details.flow_run_id = (
+                    last_state.state_details.flow_run_id
+                )
             else:
                 new_state = propose_state_sync(
                     self.client, state, task_run_id=self.task_run.id, force=force
@@ -489,11 +495,11 @@ class TaskRunEngine(Generic[P, R]):
                     client=client,
                 )
             )
-            # set the logger to the task run logger
+
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            # update the task run name if necessary
             if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                # update the task run name if necessary
                 if not self._task_name_set and self.task.task_run_name:
                     task_run_name = _resolve_custom_task_run_name(
                         task=self.task, parameters=self.parameters
@@ -519,24 +525,46 @@ class TaskRunEngine(Generic[P, R]):
         Enters a client context and creates a task run if needed.
         """
 
-        task_run_id = task_run_id or uuid.uuid4()
-
         with hydrated_context(self.context):
             with ClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.sync_client
                 self._is_started = True
                 try:
                     if not self.task_run:
-                        self.task_run = run_coro_as_sync(
-                            self.task.create_run(
-                                id=task_run_id,
-                                parameters=self.parameters,
-                                flow_run_context=FlowRunContext.get(),
-                                parent_task_run_context=TaskRunContext.get(),
-                                wait_for=self.wait_for,
-                                extra_task_inputs=dependencies,
+                        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                            # TODO - this maybe should be a method on Task?
+                            from prefect.utilities.engine import (
+                                _resolve_custom_task_run_name,
                             )
-                        )
+
+                            task_run_name = None
+                            if not self._task_name_set and self.task.task_run_name:
+                                task_run_name = _resolve_custom_task_run_name(
+                                    task=self.task, parameters=self.parameters
+                                )
+
+                            self.task_run = run_coro_as_sync(
+                                self.task.create_local_run(
+                                    id=task_run_id,
+                                    parameters=self.parameters,
+                                    flow_run_context=FlowRunContext.get(),
+                                    parent_task_run_context=TaskRunContext.get(),
+                                    wait_for=self.wait_for,
+                                    extra_task_inputs=dependencies,
+                                    task_run_name=task_run_name,
+                                )
+                            )
+                        else:
+                            self.task_run = run_coro_as_sync(
+                                self.task.create_run(
+                                    id=task_run_id,
+                                    parameters=self.parameters,
+                                    flow_run_context=FlowRunContext.get(),
+                                    parent_task_run_context=TaskRunContext.get(),
+                                    wait_for=self.wait_for,
+                                    extra_task_inputs=dependencies,
+                                )
+                            )
                     # Emit an event to capture that the task run was in the `PENDING` state.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
