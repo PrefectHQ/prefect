@@ -10,7 +10,7 @@ repos:
     rev: v2.2.6
     hooks:
       - id: codespell
-        exclude: package-lock.json|_vendor/.*|docs/.*
+        exclude: package-lock.json|_vendor/.*|docs/styles/.*
   - repo: https://github.com/netromdk/vermin
     rev: v1.6.0
     hooks:
