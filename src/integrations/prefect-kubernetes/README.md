@@ -24,7 +24,7 @@ Install `prefect-kubernetes` with `pip`:
  pip install prefect-kubernetes
  ```
 
-Requires an installation of Python 3.9+.
+Requires an installation of Python 3.8+.
 
 We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
 
