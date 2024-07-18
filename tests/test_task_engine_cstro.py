@@ -51,9 +51,6 @@ def enable_client_side_task_run_orchestration():
 async def task_run_from_last_event(
     asserting_events_worker: EventsWorker, task_run_id: Optional[UUID] = None
 ) -> TaskRun:
-    # I don't want to drain, I want to flush?
-    # await asserting_events_worker.drain()
-
     events = sorted(asserting_events_worker._client.events, key=lambda e: e.occurred)
     events = [e for e in events if e.event.startswith("prefect.task-run")]
 
