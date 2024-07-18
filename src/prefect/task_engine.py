@@ -642,6 +642,11 @@ class TaskRunEngine(Generic[P, R]):
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
 
         def __prefect_task_rollback_handler(txn: Transaction):
+            # if there are no user-defined rollback hooks to run, then don't
+            # explicitly mark as rolled back
+            if txn.on_rollback_hooks == [__prefect_task_rollback_handler]:
+                return
+
             self.set_state(
                 Completed(
                     name="RolledBack",
