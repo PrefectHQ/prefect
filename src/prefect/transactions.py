@@ -243,12 +243,12 @@ class Transaction(ContextModel):
         try:
             for hook in reversed(self.on_rollback_hooks):
                 hook_name = _get_hook_name(hook)
-                if self.logger:
+                if hook_name != "__prefect_task_rollback_handler" and self.logger:
                     self.logger.info(f"Running rollback hook {hook_name!r}")
 
                 hook(self)
 
-                if self.logger:
+                if hook_name != "__prefect_task_rollback_handler" and self.logger:
                     self.logger.info(
                         f"Rollback hook {hook_name!r} finished running successfully"
                     )
