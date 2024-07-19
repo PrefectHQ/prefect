@@ -172,6 +172,37 @@ def test_send_many_instances():
     )
 
 
+class TimedMockService(MockService):
+    sleep_time = 0.01
+
+    async def _handle(self, item: int):
+        await asyncio.sleep(self.sleep_time)
+        await super()._handle(item)
+
+
+def test_wait_until_empty():
+    instance = TimedMockService.instance()
+
+    num_items = 5
+    for i in range(num_items):
+        instance.send(i)
+
+    start_time = time.time()
+    instance.wait_until_empty()
+    end_time = time.time()
+
+    expected_min_time = num_items * TimedMockService.sleep_time
+
+    assert end_time - start_time >= expected_min_time
+
+    TimedMockService.mock.assert_has_calls(
+        [call(instance, i) for i in range(num_items)]
+    )
+
+    # Ensure the instance is properly drained
+    assert instance._queue.empty()
+
+
 def test_drain_safe_to_call_multiple_times():
     instances = []
     for i in range(10):
