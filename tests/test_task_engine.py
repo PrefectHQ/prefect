@@ -52,6 +52,14 @@ def enable_client_side_task_run_orchestration(
         yield enabled
 
 
+def state_from_event(event) -> State:
+    return State(
+        id=event.id,
+        timestamp=event.occurred,
+        **event.payload["validated_state"],
+    )
+
+
 async def get_task_run(task_run_id: Optional[UUID]) -> TaskRun:
     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
         task_run = get_task_run_sync(task_run_id)
@@ -83,7 +91,7 @@ def get_task_run_sync(task_run_id: Optional[UUID]) -> TaskRun:
                 if e.resource.prefect_object_id("prefect.task-run") == task_run_id
             ]
         last_event = events[-1]
-        state = State(**last_event.payload["validated_state"])
+        state = state_from_event(last_event)
         task_run = TaskRun(
             id=last_event.resource.prefect_object_id("prefect.task-run"),
             state=state,
@@ -119,7 +127,7 @@ async def get_task_run_states(
             for e in events
             if e.resource.prefect_object_id("prefect.task-run") == task_run_id
         ]
-        states = [State(**e.payload["validated_state"]) for e in events]
+        states = [state_from_event(e) for e in events]
     else:
         client = get_client()
         states = await client.read_task_run_states(task_run_id)
@@ -1100,7 +1108,20 @@ class TestTaskCrashDetection:
 
 
 class TestTaskTimeTracking:
-    async def test_start_time_set_on_running(self):
+    async def test_sync_task_start_time_set_on_running(self):
+        @task
+        def foo():
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = run_task_sync(foo)
+        run = await get_task_run(task_run_id)
+
+        assert run.start_time is not None
+        states = await get_task_run_states(task_run_id, StateType.RUNNING)
+        assert len(states) == 1 and states[0].type == StateType.RUNNING
+        assert states[0].timestamp == run.start_time
+
+    async def test_async_task_start_time_set_on_running(self):
         ID = None
 
         @task
@@ -1113,9 +1134,8 @@ class TestTaskTimeTracking:
 
         assert run.start_time is not None
         states = await get_task_run_states(ID, StateType.RUNNING)
-        assert len(states) == 1
-        running = states[0]
-        assert running.timestamp == run.start_time
+        assert len(states) == 1 and states[0].type == StateType.RUNNING
+        assert states[0].timestamp == run.start_time
 
 
 class TestSyncAsyncTasks:
