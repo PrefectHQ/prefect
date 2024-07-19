@@ -996,7 +996,7 @@ async def pause_flow_run(
 
 @deprecated_callable(
     start_date="Jun 2024",
-    help="Will be moved in Prefect 3 to of prefect.flow_runs:pause_flow_run",
+    help="Will be moved in Prefect 3 to prefect.flow_runs:pause_flow_run",
 )
 @overload
 async def pause_flow_run(
