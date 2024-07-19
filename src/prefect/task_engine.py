@@ -309,6 +309,8 @@ class TaskRunEngine(Generic[P, R]):
                 new_state.state_details.flow_run_id = (
                     last_state.state_details.flow_run_id
                 )
+
+                self.task_run.state = new_state
             else:
                 new_state = propose_state_sync(
                     self.client, state, task_run_id=self.task_run.id, force=force
@@ -324,9 +326,15 @@ class TaskRunEngine(Generic[P, R]):
 
         # currently this is a hack to keep a reference to the state object
         # that has an in-memory result attached to it; using the API state
-
         # could result in losing that reference
         self.task_run.state = new_state
+
+        # Predictively update the de-normalized task_run.state_* attributes client-side
+        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+            self.task_run.state_id = new_state.id
+            self.task_run.state_type = new_state.type
+            self.task_run.state_name = new_state.name
+
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
             task_run=self.task_run,
@@ -334,6 +342,7 @@ class TaskRunEngine(Generic[P, R]):
             validated_state=self.task_run.state,
             follows=self._last_event,
         )
+
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
