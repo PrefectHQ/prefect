@@ -52,6 +52,9 @@ jobs:
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
       matrix:
+        modules:
+          - /tests/server/ /tests/events/server
+          - /tests/ --ignore /tests/server/ /tests/events/server
         database:
           - "postgres:14"
           - "sqlite"
@@ -60,6 +63,9 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+        exclude:
+          - database: "sqlite"
+            modules: /tests/ --ignore /tests/server/ /tests/events/server
 
       fail-fast: true
 
@@ -138,7 +144,7 @@ jobs:
         env:
           PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: "1"
         run: >
-          pytest tests
+          pytest ${{matrix.modules}}
           --numprocesses auto
           --maxprocesses 6
           --dist worksteal
