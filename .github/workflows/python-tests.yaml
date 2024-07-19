@@ -53,8 +53,8 @@ jobs:
     strategy:
       matrix:
         modules:
-          - /tests/server/ /tests/events/server
-          - /tests/ --ignore /tests/server/ /tests/events/server
+          - tests/server/ tests/events/server
+          - tests/ --ignore tests/server/ tests/events/server
         database:
           - "postgres:14"
           - "sqlite"
@@ -65,7 +65,7 @@ jobs:
           - "3.12"
         exclude:
           - database: "sqlite"
-            modules: /tests/ --ignore /tests/server/ /tests/events/server
+            modules: tests/ --ignore tests/server/ tests/events/server
 
       fail-fast: true
 
