@@ -309,8 +309,6 @@ class TaskRunEngine(Generic[P, R]):
                 new_state.state_details.flow_run_id = (
                     last_state.state_details.flow_run_id
                 )
-
-                self.task_run.state = new_state
             else:
                 new_state = propose_state_sync(
                     self.client, state, task_run_id=self.task_run.id, force=force
