@@ -113,7 +113,10 @@ from typing_extensions import Literal
 import prefect
 import prefect.context
 import prefect.plugins
-from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.compatibility.deprecated import (
+    deprecated_callable,
+    deprecated_parameter,
+)
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
@@ -975,6 +978,10 @@ async def orchestrate_flow_run(
     return state
 
 
+@deprecated_callable(
+    start_date="June 2024",
+    help="Will be moved in Prefect 3 to prefect.flow_runs:pause_flow_run",
+)
 @overload
 async def pause_flow_run(
     wait_for_input: None = None,
@@ -987,6 +994,10 @@ async def pause_flow_run(
     ...
 
 
+@deprecated_callable(
+    start_date="June 2024",
+    help="Will be moved in Prefect 3 to of prefect.flow_runs:pause_flow_run",
+)
 @overload
 async def pause_flow_run(
     wait_for_input: Type[T],
@@ -1095,6 +1106,10 @@ async def pause_flow_run(
         )
 
 
+@deprecated_callable(
+    start_date="June 2024",
+    help="Will be moved in Prefect 3 to prefect.flow_runs:_in_process_pause",
+)
 @inject_client
 async def _in_process_pause(
     timeout: int = 3600,
@@ -1212,6 +1227,10 @@ async def _out_of_process_pause(
         raise RuntimeError(response.details.reason)
 
 
+@deprecated_callable(
+    start_date="June 2024",
+    help="Will be moved in Prefect 3 to prefect.flow_runs:suspend_flow_run",
+)
 @overload
 async def suspend_flow_run(
     wait_for_input: None = None,
@@ -1343,6 +1362,10 @@ async def suspend_flow_run(
         raise Pause()
 
 
+@deprecated_callable(
+    start_date="June 2024",
+    help="Will be moved in Prefect 3 to prefect.flow_runs:resume_flow_run",
+)
 @sync_compatible
 async def resume_flow_run(flow_run_id, run_input: Optional[Dict] = None):
     """

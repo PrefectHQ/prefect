@@ -16,7 +16,6 @@ import anyio
 import pendulum
 import yaml
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -31,6 +30,7 @@ from prefect._internal.compatibility.deprecated import (
     handle_deprecated_infra_overrides_parameter,
 )
 from prefect._internal.schemas.validators import (
+    deprecated_callable,
     handle_openapi_schema,
     infrastructure_must_have_capabilities,
     reconcile_schedules,
