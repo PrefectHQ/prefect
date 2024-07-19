@@ -1793,3 +1793,123 @@ class TestAsyncGenerators:
         except ValueError:
             pass
         assert values == [1, 2]
+
+
+class TestRunStateIsDenormalized:
+    async def test_state_attributes_are_denormalized_async_success(self):
+        ID = None
+
+        @task
+        async def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+
+            task_run = TaskRunContext.get().task_run
+
+            # while we are Running, we should have the state attributes copied onto the
+            # current task run instance
+            assert task_run.state
+            assert task_run.state_id == task_run.state.id
+            assert task_run.state_type == task_run.state.type == StateType.RUNNING
+            assert task_run.state_name == task_run.state.name == "Running"
+
+        await run_task_async(foo)
+
+        task_run = await get_task_run(ID)
+
+        assert task_run
+        assert task_run.state
+
+        assert task_run.state_id == task_run.state.id
+        assert task_run.state_type == task_run.state.type == StateType.COMPLETED
+        assert task_run.state_name == task_run.state.name == "Completed"
+
+    async def test_state_attributes_are_denormalized_async_failure(self):
+        ID = None
+
+        @task
+        async def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+
+            task_run = TaskRunContext.get().task_run
+
+            # while we are Running, we should have the state attributes copied onto the
+            # current task run instance
+            assert task_run.state
+            assert task_run.state_id == task_run.state.id
+            assert task_run.state_type == task_run.state.type == StateType.RUNNING
+            assert task_run.state_name == task_run.state.name == "Running"
+
+            raise ValueError("woops!")
+
+        with pytest.raises(ValueError, match="woops!"):
+            await run_task_async(foo)
+
+        task_run = await get_task_run(ID)
+
+        assert task_run
+        assert task_run.state
+
+        assert task_run.state_id == task_run.state.id
+        assert task_run.state_type == task_run.state.type == StateType.FAILED
+        assert task_run.state_name == task_run.state.name == "Failed"
+
+    def test_state_attributes_are_denormalized_sync_success(self):
+        ID = None
+
+        @task
+        def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+
+            task_run = TaskRunContext.get().task_run
+
+            # while we are Running, we should have the state attributes copied onto the
+            # current task run instance
+            assert task_run.state
+            assert task_run.state_id == task_run.state.id
+            assert task_run.state_type == task_run.state.type == StateType.RUNNING
+            assert task_run.state_name == task_run.state.name == "Running"
+
+        run_task_sync(foo)
+
+        task_run = get_task_run_sync(ID)
+
+        assert task_run
+        assert task_run.state
+
+        assert task_run.state_id == task_run.state.id
+        assert task_run.state_type == task_run.state.type == StateType.COMPLETED
+        assert task_run.state_name == task_run.state.name == "Completed"
+
+    def test_state_attributes_are_denormalized_sync_failure(self):
+        ID = None
+
+        @task
+        def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+
+            task_run = TaskRunContext.get().task_run
+
+            # while we are Running, we should have the state attributes copied onto the
+            # current task run instance
+            assert task_run.state
+            assert task_run.state_id == task_run.state.id
+            assert task_run.state_type == task_run.state.type == StateType.RUNNING
+            assert task_run.state_name == task_run.state.name == "Running"
+
+            raise ValueError("woops!")
+
+        with pytest.raises(ValueError, match="woops!"):
+            run_task_sync(foo)
+
+        task_run = get_task_run_sync(ID)
+
+        assert task_run
+        assert task_run.state
+
+        assert task_run.state_id == task_run.state.id
+        assert task_run.state_type == task_run.state.type == StateType.FAILED
+        assert task_run.state_name == task_run.state.name == "Failed"
