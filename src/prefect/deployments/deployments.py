@@ -239,7 +239,7 @@ async def run_deployment(
 
 
 @deprecated_callable(
-    start_date="June 2024",
+    start_date="Jun 2024",
     help="Will be moved in Prefect 3 to prefect.flows:load_flow_from_flow_run",
 )
 @inject_client

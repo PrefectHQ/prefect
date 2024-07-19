@@ -979,7 +979,7 @@ async def orchestrate_flow_run(
 
 
 @deprecated_callable(
-    start_date="June 2024",
+    start_date="Jun 2024",
     help="Will be moved in Prefect 3 to prefect.flow_runs:pause_flow_run",
 )
 @overload
@@ -995,7 +995,7 @@ async def pause_flow_run(
 
 
 @deprecated_callable(
-    start_date="June 2024",
+    start_date="Jun 2024",
     help="Will be moved in Prefect 3 to of prefect.flow_runs:pause_flow_run",
 )
 @overload
@@ -1107,7 +1107,7 @@ async def pause_flow_run(
 
 
 @deprecated_callable(
-    start_date="June 2024",
+    start_date="Jun 2024",
     help="Will be moved in Prefect 3 to prefect.flow_runs:_in_process_pause",
 )
 @inject_client
@@ -1232,7 +1232,7 @@ async def _out_of_process_pause(
 
 
 @deprecated_callable(
-    start_date="June 2024",
+    start_date="Jun 2024",
     help="Will be moved in Prefect 3 to prefect.flow_runs:suspend_flow_run",
 )
 @overload
@@ -1367,7 +1367,7 @@ async def suspend_flow_run(
 
 
 @deprecated_callable(
-    start_date="June 2024",
+    start_date="Jun 2024",
     help="Will be moved in Prefect 3 to prefect.flow_runs:resume_flow_run",
 )
 @sync_compatible
