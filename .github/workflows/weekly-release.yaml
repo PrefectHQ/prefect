@@ -2,7 +2,7 @@ name: Weekly Release Candidate
 
 on:
   schedule:
-    - cron: '0 13 * * 4' # Run every Thursday at 2PM EST
+    - cron: '0 18 * * 4' # Run every Thursday at 2PM EST
   workflow_dispatch:
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
       if: env.SHOULD_CREATE_RELEASE == 'true'
       uses: softprops/action-gh-release@v2
       with:
-        name: "Nightly Release Candidate ${{ env.next_tag }}"
+        name: "Weekly Release Candidate ${{ env.next_tag }}"
         tag_name: ${{ env.next_tag }}
         draft: false
         prerelease: true
