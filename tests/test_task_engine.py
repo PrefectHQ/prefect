@@ -1100,7 +1100,7 @@ class TestTaskCrashDetection:
 
 
 class TestTaskTimeTracking:
-    async def test_start_time_set(self):
+    async def test_start_time_set_on_running(self):
         ID = None
 
         @task
