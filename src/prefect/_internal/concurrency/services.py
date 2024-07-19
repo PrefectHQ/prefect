@@ -151,6 +151,7 @@ class QueueService(abc.ABC, Generic[T]):
 
             if item is None:
                 logger.debug("Exiting service %r", self)
+                self._queue.task_done()
                 break
 
             try:
@@ -164,6 +165,8 @@ class QueueService(abc.ABC, Generic[T]):
                     item,
                     exc_info=log_traceback,
                 )
+            finally:
+                self._queue.task_done()
 
     @abc.abstractmethod
     async def _handle(self, item: T):
@@ -234,6 +237,12 @@ class QueueService(abc.ABC, Generic[T]):
             )
         else:
             return concurrent.futures.wait(futures, timeout=timeout)
+
+    def wait_until_empty(self):
+        """
+        Wait until the queue is empty and all items have been processed.
+        """
+        self._queue.join()
 
     @classmethod
     def instance(cls: Type[Self], *args) -> Self:
