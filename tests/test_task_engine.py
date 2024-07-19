@@ -68,6 +68,12 @@ async def get_task_run(task_run_id: Optional[UUID]) -> TaskRun:
 
 def get_task_run_sync(task_run_id: Optional[UUID]) -> TaskRun:
     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+        # the asserting_events_worker fixture
+        # ensures that calling .instance() here will always
+        # yield the same one
+        worker = EventsWorker.instance()
+        worker.wait_until_empty()
+
         events = AssertingEventsClient.last.events
         events = sorted(events, key=lambda e: e.occurred)
         if task_run_id:
@@ -99,6 +105,11 @@ def get_task_run_sync(task_run_id: Optional[UUID]) -> TaskRun:
 
 async def get_task_run_states(task_run_id: UUID) -> List[State]:
     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+        # the asserting_events_worker fixture
+        # ensures that calling .instance() here will always
+        # yield the same one
+        worker = EventsWorker.instance()
+        worker.wait_until_empty()
         events = AssertingEventsClient.last.events
         events = sorted(events, key=lambda e: e.occurred)
         events = [
