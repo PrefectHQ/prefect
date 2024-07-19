@@ -32,6 +32,7 @@ from typing import (
 import anyio.abc
 import pendulum
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -121,6 +122,10 @@ class ContextModel(BaseModel):
         return new
 
 
+@deprecated_class(
+    start_date="Jun 2024",
+    help="Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class PrefectObjectRegistry(ContextModel):
     """
     A context that acts as a registry for all Prefect objects that are
