@@ -25,12 +25,12 @@ else:
 
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
+    deprecated_callable,
     deprecated_class,
     deprecated_parameter,
     handle_deprecated_infra_overrides_parameter,
 )
 from prefect._internal.schemas.validators import (
-    deprecated_callable,
     handle_openapi_schema,
     infrastructure_must_have_capabilities,
     reconcile_schedules,
@@ -240,7 +240,7 @@ async def run_deployment(
 
 @deprecated_callable(
     start_date="June 2024",
-    help="Will be removed in Prefect 3 in favor of prefect.flows:load_flow_from_flow_run",
+    help="Will be moved in Prefect 3 to prefect.flows:load_flow_from_flow_run",
 )
 @inject_client
 async def load_flow_from_flow_run(
