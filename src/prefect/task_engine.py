@@ -271,6 +271,8 @@ class TaskRunEngine(Generic[P, R]):
 
         new_state = Running()
         state = self.set_state(new_state)
+        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+            self.task_run.start_time = state.timestamp
 
         # TODO: this is temporary until the API stops rejecting state transitions
         # and the client / transaction store becomes the source of truth
