@@ -34,6 +34,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.context import (
+    AsyncClientContext,
     ClientContext,
     FlowRunContext,
     TaskRunContext,
@@ -568,7 +569,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         with hydrated_context(self.context):
             with ClientContext.get_or_create() as client_ctx:
-                self._client = client_ctx.sync_client
+                self._client = client_ctx.client
                 self._is_started = True
                 try:
                     if not self.task_run:
@@ -821,6 +822,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
+    async def sleep(self, interval: float):
+        await anyio.sleep(interval)
+
     async def begin_run(self):
         try:
             self._resolve_parameters()
@@ -859,7 +863,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             interval = clamped_poisson_interval(
                 average_interval=backoff_count, clamping_factor=0.3
             )
-            await anyio.sleep(interval)
+            await self.sleep(interval)
             state = await self.set_state(new_state)
 
     async def set_state(self, state: State, force: bool = False) -> State:
@@ -1091,8 +1095,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
-            async with ClientContext.async_get_or_create() as client_ctx:
-                self._client = client_ctx.async_client
+            async with AsyncClientContext.get_or_create() as client_ctx:
+                self._client = client_ctx.client
                 self._is_started = True
                 try:
                     if not self.task_run:

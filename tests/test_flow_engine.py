@@ -1125,8 +1125,10 @@ class TestPauseFlowRun:
         assert schema is not None
 
     async def test_paused_task_polling(self, monkeypatch, prefect_client):
-        sleeper = MagicMock(side_effect=[None, None, None, None, None])
-        monkeypatch.setattr("prefect.task_engine.time.sleep", sleeper)
+        from prefect.testing.utilities import AsyncMock
+
+        sleeper = AsyncMock(side_effect=[None, None, None, None, None])
+        monkeypatch.setattr("prefect.task_engine.AsyncTaskRunEngine.sleep", sleeper)
 
         @task
         async def doesnt_pause():

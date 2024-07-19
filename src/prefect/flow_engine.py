@@ -530,7 +530,7 @@ class FlowRunEngine(Generic[P, R]):
         Enters a client context and creates a flow run if needed.
         """
         with ClientContext.get_or_create() as client_ctx:
-            self._client = client_ctx.sync_client
+            self._client = client_ctx.client
             self._is_started = True
 
             if not self.flow_run:
