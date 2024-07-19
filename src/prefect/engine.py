@@ -1205,6 +1205,10 @@ async def _in_process_pause(
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
 
 
+@deprecated_callable(
+    start_date="Jun 2024",
+    help="Will be moved in Prefect 3 to prefect.flow_runs.pause_flow_run.",
+)
 @inject_client
 async def _out_of_process_pause(
     flow_run_id: UUID,

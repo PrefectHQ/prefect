@@ -9,6 +9,7 @@ from kubernetes.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect import task
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 
@@ -357,6 +358,9 @@ async def read_namespaced_job_status(
         )
 
 
+@deprecated_class(
+    start_date="Jun 2024", help="Will be removed in Prefect 3. Use Workers instead."
+)
 class KubernetesJobRun(JobRun[Dict[str, Any]]):
     """A container representing a run of a Kubernetes job."""
 
