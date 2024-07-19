@@ -1148,10 +1148,11 @@ class TestPauseFlowRun:
                 await asyncio.sleep(0.1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id)
 
-            try:
+            # execution isn't blocked, so this task should enter the engine, but not begin
+            # execution
+            with pytest.raises(RuntimeError):
+                # the sleeper mock will exhaust its side effects after 6 calls
                 await doesnt_run()
-            except RuntimeError:
-                pass
 
         await pausing_flow()
 

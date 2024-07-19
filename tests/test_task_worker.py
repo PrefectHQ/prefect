@@ -794,21 +794,17 @@ class TestTaskWorkerLimit:
         mock_subscription.return_value = mock_iter()
 
         server_task = asyncio.create_task(task_worker.start())
-        await event.wait()  # Wait for the first task to set the event
-
-        # Give some additional time for the first task to complete
-        await asyncio.sleep(0.5)
-
+        await event.wait()
         updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
         updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
 
         assert updated_task_run_1.state.is_completed()
         assert not updated_task_run_2.state.is_completed()
 
-        # Clear the event to allow the second task to complete
+        # clear the event to allow the second task to complete
         event.clear()
 
-        await event.wait()  # Wait for the second task to set the event
+        await event.wait()
         updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
 
         assert updated_task_run_2.state.is_completed()
