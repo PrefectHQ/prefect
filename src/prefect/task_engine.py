@@ -272,7 +272,7 @@ class TaskRunEngine(Generic[P, R]):
         new_state = Running()
 
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            self.task_run.start_time = self.task_run.state.timestamp
+            self.task_run.start_time = new_state.timestamp
             self.task_run.run_count += 1
 
             flow_run_context = FlowRunContext.get()
