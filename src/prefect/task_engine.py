@@ -393,10 +393,7 @@ class TaskRunEngine(Generic[P, R]):
         if transaction.is_committed():
             terminal_state.name = "Cached"
 
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            if self.task_run.start_time and not self.task_run.end_time:
-                self.task_run.end_time = terminal_state.timestamp
-
+        self.record_terminal_state_timing(terminal_state)
         self.set_state(terminal_state)
         self._return_value = result
         return result
@@ -457,9 +454,7 @@ class TaskRunEngine(Generic[P, R]):
                     result_factory=getattr(context, "result_factory", None),
                 )
             )
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                if self.task_run.start_time and not self.task_run.end_time:
-                    self.task_run.end_time = state.timestamp
+            self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
 
@@ -482,11 +477,19 @@ class TaskRunEngine(Generic[P, R]):
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
+        self.record_terminal_state_timing(state)
+        self.set_state(state, force=True)
+        self._raised = exc
+
+    def record_terminal_state_timing(self, state: State) -> None:
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
             if self.task_run.start_time and not self.task_run.end_time:
                 self.task_run.end_time = state.timestamp
-        self.set_state(state, force=True)
-        self._raised = exc
+
+                if self.task_run.state.is_running():
+                    self.task_run.total_run_time += (
+                        state.timestamp - self.task_run.state.timestamp
+                    )
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
