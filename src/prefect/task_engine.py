@@ -270,9 +270,18 @@ class TaskRunEngine(Generic[P, R]):
             return
 
         new_state = Running()
-        state = self.set_state(new_state)
+
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            self.task_run.start_time = self.task_run.state.timestamp
+            self.task_run.start_time = new_state.timestamp
+            self.task_run.run_count += 1
+
+            flow_run_context = FlowRunContext.get()
+            if flow_run_context:
+                # Carry forward any task run information from the flow run
+                flow_run = flow_run_context.flow_run
+                self.task_run.flow_run_run_count = flow_run.run_count
+
+        state = self.set_state(new_state)
 
         # TODO: this is temporary until the API stops rejecting state transitions
         # and the client / transaction store becomes the source of truth
@@ -301,39 +310,36 @@ class TaskRunEngine(Generic[P, R]):
         last_state = self.state
         if not self.task_run:
             raise ValueError("Task run is not set")
-        try:
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                new_state = state
-                # Copy over state_details from state to state
-                new_state.state_details.task_run_id = (
-                    last_state.state_details.task_run_id
-                )
-                new_state.state_details.flow_run_id = (
-                    last_state.state_details.flow_run_id
-                )
-            else:
-                new_state = propose_state_sync(
-                    self.client, state, task_run_id=self.task_run.id, force=force
-                )
-        except Pause as exc:
-            # We shouldn't get a pause signal without a state, but if this happens,
-            # just use a Paused state to assume an in-process pause.
-            new_state = exc.state if exc.state else Paused()
-            if new_state.state_details.pause_reschedule:
-                # If we're being asked to pause and reschedule, we should exit the
-                # task and expect to be resumed later.
-                raise
 
-        # currently this is a hack to keep a reference to the state object
-        # that has an in-memory result attached to it; using the API state
-        # could result in losing that reference
-        self.task_run.state = new_state
-
-        # Predictively update the de-normalized task_run.state_* attributes client-side
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+            self.task_run.state = new_state = state
+
+            # Ensure that the state_details are populated with the current run IDs
+            new_state.state_details.task_run_id = self.task_run.id
+            new_state.state_details.flow_run_id = self.task_run.flow_run_id
+
+            # Predictively update the de-normalized task_run.state_* attributes
             self.task_run.state_id = new_state.id
             self.task_run.state_type = new_state.type
             self.task_run.state_name = new_state.name
+        else:
+            try:
+                new_state = propose_state_sync(
+                    self.client, state, task_run_id=self.task_run.id, force=force
+                )
+            except Pause as exc:
+                # We shouldn't get a pause signal without a state, but if this happens,
+                # just use a Paused state to assume an in-process pause.
+                new_state = exc.state if exc.state else Paused()
+                if new_state.state_details.pause_reschedule:
+                    # If we're being asked to pause and reschedule, we should exit the
+                    # task and expect to be resumed later.
+                    raise
+
+            # currently this is a hack to keep a reference to the state object
+            # that has an in-memory result attached to it; using the API state
+            # could result in losing that reference
+            self.task_run.state = new_state
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
