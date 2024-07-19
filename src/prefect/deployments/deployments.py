@@ -16,6 +16,7 @@ import anyio
 import pendulum
 import yaml
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -25,7 +26,6 @@ else:
 
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
-    deprecated_callable,
     deprecated_class,
     deprecated_parameter,
     handle_deprecated_infra_overrides_parameter,
@@ -238,6 +238,10 @@ async def run_deployment(
     return flow_run
 
 
+@deprecated_callable(
+    start_date="June 2024",
+    help="Will be removed in Prefect 3 in favor of prefect.flows:load_flow_from_flow_run",
+)
 @inject_client
 async def load_flow_from_flow_run(
     flow_run: FlowRun,
