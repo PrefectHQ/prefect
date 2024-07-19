@@ -150,7 +150,7 @@ class TestInitProject:
 class TestDiscoverFlows:
     async def test_find_all_flows_in_dir_tree(self, project_dir):
         flows = await _search_for_flow_functions(str(project_dir))
-        assert len(flows) == 6, f"Expected 6 flows, found {len(flows)}"
+        assert len(flows) == 7, f"Expected 7 flows, found {len(flows)}"
 
         expected_flows = [
             {
@@ -190,6 +190,11 @@ class TestDiscoverFlows:
                 "filepath": str(
                     project_dir / "import-project" / "my_module" / "flow.py"
                 ),
+            },
+            {
+                "flow_name": "uses_block",
+                "function_name": "uses_block",
+                "filepath": str(project_dir / "flows" / "uses_block.py"),
             },
         ]
 

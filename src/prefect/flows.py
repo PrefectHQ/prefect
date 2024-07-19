@@ -1704,6 +1704,7 @@ def select_flow(
 
 def load_flow_from_entrypoint(
     entrypoint: str,
+    use_placeholder_flow: bool = True,
 ) -> Flow:
     """
     Extract a flow object from a script at an entrypoint by running all of the code in the file.
@@ -1711,6 +1712,8 @@ def load_flow_from_entrypoint(
     Args:
         entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
             to a flow function
+        use_placeholder_flow: if True, use a placeholder Flow object if the actual flow object
+            cannot be loaded from the entrypoint (e.g. dependencies are missing)
 
     Returns:
         The flow object from the script
@@ -1737,8 +1740,10 @@ def load_flow_from_entrypoint(
         # drawback of this approach is that we're unable to actually load the
         # function, so we create a placeholder flow that will re-raise this
         # exception when called.
-
-        flow = load_placeholder_flow(entrypoint=entrypoint, raises=exc)
+        if use_placeholder_flow:
+            flow = load_placeholder_flow(entrypoint=entrypoint, raises=exc)
+        else:
+            raise
 
     if not isinstance(flow, Flow):
         raise MissingFlowError(
@@ -1856,6 +1861,7 @@ async def load_flow_from_flow_run(
     flow_run: "FlowRun",
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
+    use_placeholder_flow: bool = True,
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
@@ -1882,7 +1888,9 @@ async def load_flow_from_flow_run(
             f"Importing flow code from module path {deployment.entrypoint}"
         )
         flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, deployment.entrypoint
+            load_flow_from_entrypoint,
+            deployment.entrypoint,
+            use_placeholder_flow=use_placeholder_flow,
         )
         return flow
 
@@ -1924,7 +1932,11 @@ async def load_flow_from_flow_run(
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
-    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
+    flow = await run_sync_in_worker_thread(
+        load_flow_from_entrypoint,
+        str(import_path),
+        use_placeholder_flow=use_placeholder_flow,
+    )
 
     return flow
 
