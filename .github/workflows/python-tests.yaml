@@ -49,7 +49,7 @@ jobs:
   run-tests:
     runs-on:
       group: oss-larger-runners
-    name: ${{ matrix.test-type }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
+    name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
       matrix:
         test-type:
