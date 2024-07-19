@@ -138,6 +138,39 @@ async def get_task_run_states(
     return states
 
 
+async def get_task_run_state(
+    task_run_id: UUID,
+    state_type: StateType,
+) -> State:
+    """
+    Get a single state of a given type for a task run. If more than one state
+    of the given type is found, an error is raised.
+    """
+
+    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+        # the asserting_events_worker fixture
+        # ensures that calling .instance() here will always
+        # yield the same one
+        worker = EventsWorker.instance()
+        worker.wait_until_empty()
+        events = AssertingEventsClient.last.events
+        events = sorted(events, key=lambda e: e.occurred)
+        events = [
+            e
+            for e in events
+            if e.resource.prefect_object_id("prefect.task-run") == task_run_id
+        ]
+        states = [state_from_event(e) for e in events]
+    else:
+        client = get_client()
+        states = await client.read_task_run_states(task_run_id)
+
+    states = [state for state in states if state.type == state_type]
+
+    assert len(states) == 1
+    return states[0]
+
+
 @task
 async def foo():
     return 42
@@ -1116,10 +1149,9 @@ class TestTaskTimeTracking:
         task_run_id = run_task_sync(foo)
         run = await get_task_run(task_run_id)
 
-        assert run.start_time is not None
-        states = await get_task_run_states(task_run_id, StateType.RUNNING)
-        assert len(states) == 1 and states[0].type == StateType.RUNNING
-        assert states[0].timestamp == run.start_time
+        running = await get_task_run_state(task_run_id, StateType.RUNNING)
+        assert run.start_time
+        assert run.start_time == running.timestamp
 
     async def test_async_task_sets_start_time_on_running(self):
         ID = None
@@ -1132,10 +1164,9 @@ class TestTaskTimeTracking:
         await run_task_async(foo)
         run = await get_task_run(ID)
 
-        assert run.start_time is not None
-        states = await get_task_run_states(ID, StateType.RUNNING)
-        assert len(states) == 1 and states[0].type == StateType.RUNNING
-        assert states[0].timestamp == run.start_time
+        running = await get_task_run_state(run.id, StateType.RUNNING)
+        assert run.start_time
+        assert run.start_time == running.timestamp
 
     async def test_sync_task_sets_end_time_on_completed(self):
         @task
@@ -1145,10 +1176,12 @@ class TestTaskTimeTracking:
         task_run_id = run_task_sync(foo)
         run = await get_task_run(task_run_id)
 
-        assert run.end_time is not None
-        states = await get_task_run_states(task_run_id, StateType.COMPLETED)
-        assert len(states) == 1 and states[0].type == StateType.COMPLETED
-        assert states[0].timestamp == run.end_time
+        running = await get_task_run_state(task_run_id, StateType.RUNNING)
+        completed = await get_task_run_state(task_run_id, StateType.COMPLETED)
+
+        assert run.end_time
+        assert run.end_time == completed.timestamp
+        assert run.total_run_time == completed.timestamp - running.timestamp
 
     async def test_async_task_sets_end_time_on_completed(self):
         @task
@@ -1158,10 +1191,12 @@ class TestTaskTimeTracking:
         task_run_id = await run_task_async(foo)
         run = await get_task_run(task_run_id)
 
-        assert run.end_time is not None
-        states = await get_task_run_states(task_run_id, StateType.COMPLETED)
-        assert len(states) == 1 and states[0].type == StateType.COMPLETED
-        assert states[0].timestamp == run.end_time
+        running = await get_task_run_state(task_run_id, StateType.RUNNING)
+        completed = await get_task_run_state(task_run_id, StateType.COMPLETED)
+
+        assert run.end_time
+        assert run.end_time == completed.timestamp
+        assert run.total_run_time == completed.timestamp - running.timestamp
 
     async def test_sync_task_sets_end_time_on_failed(self):
         ID = None
@@ -1177,10 +1212,12 @@ class TestTaskTimeTracking:
 
         run = await get_task_run(ID)
 
-        assert run.end_time is not None
-        states = await get_task_run_states(ID, StateType.FAILED)
-        assert len(states) == 1 and states[0].type == StateType.FAILED
-        assert states[0].timestamp == run.end_time
+        running = await get_task_run_state(run.id, StateType.RUNNING)
+        failed = await get_task_run_state(run.id, StateType.FAILED)
+
+        assert run.end_time
+        assert run.end_time == failed.timestamp
+        assert run.total_run_time == failed.timestamp - running.timestamp
 
     async def test_async_task_sets_end_time_on_failed(self):
         ID = None
@@ -1196,10 +1233,12 @@ class TestTaskTimeTracking:
 
         run = await get_task_run(ID)
 
-        assert run.end_time is not None
-        states = await get_task_run_states(ID, StateType.FAILED)
-        assert len(states) == 1 and states[0].type == StateType.FAILED
-        assert states[0].timestamp == run.end_time
+        running = await get_task_run_state(run.id, StateType.RUNNING)
+        failed = await get_task_run_state(run.id, StateType.FAILED)
+
+        assert run.end_time
+        assert run.end_time == failed.timestamp
+        assert run.total_run_time == failed.timestamp - running.timestamp
 
     async def test_sync_task_sets_end_time_on_crashed(self):
         ID = None
@@ -1215,10 +1254,12 @@ class TestTaskTimeTracking:
 
         run = await get_task_run(ID)
 
-        assert run.end_time is not None
-        states = await get_task_run_states(ID, StateType.CRASHED)
-        assert len(states) == 1 and states[0].type == StateType.CRASHED
-        assert states[0].timestamp == run.end_time
+        running = await get_task_run_state(run.id, StateType.RUNNING)
+        crashed = await get_task_run_state(run.id, StateType.CRASHED)
+
+        assert run.end_time
+        assert run.end_time == crashed.timestamp
+        assert run.total_run_time == crashed.timestamp - running.timestamp
 
     async def test_async_task_sets_end_time_on_crashed(self):
         ID = None
@@ -1234,10 +1275,12 @@ class TestTaskTimeTracking:
 
         run = await get_task_run(ID)
 
-        assert run.end_time is not None
-        states = await get_task_run_states(ID, StateType.CRASHED)
-        assert len(states) == 1 and states[0].type == StateType.CRASHED
-        assert states[0].timestamp == run.end_time
+        running = await get_task_run_state(run.id, StateType.RUNNING)
+        crashed = await get_task_run_state(run.id, StateType.CRASHED)
+
+        assert run.end_time
+        assert run.end_time == crashed.timestamp
+        assert run.total_run_time == crashed.timestamp - running.timestamp
 
     async def test_sync_task_does_not_set_end_time_on_crash_pre_runnning(
         self, monkeypatch
