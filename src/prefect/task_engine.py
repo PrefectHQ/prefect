@@ -270,9 +270,18 @@ class TaskRunEngine(Generic[P, R]):
             return
 
         new_state = Running()
-        state = self.set_state(new_state)
+
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
             self.task_run.start_time = self.task_run.state.timestamp
+            self.task_run.run_count += 1
+
+            flow_run_context = FlowRunContext.get()
+            if flow_run_context:
+                # Carry forward any task run information from the flow run
+                flow_run = flow_run_context.flow_run
+                self.task_run.flow_run_run_count = flow_run.run_count
+
+        state = self.set_state(new_state)
 
         # TODO: this is temporary until the API stops rejecting state transitions
         # and the client / transaction store becomes the source of truth
