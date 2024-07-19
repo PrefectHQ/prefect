@@ -1108,7 +1108,7 @@ class TestTaskCrashDetection:
 
 
 class TestTaskTimeTracking:
-    async def test_sync_task_start_time_set_on_running(self):
+    async def test_sync_task_sets_start_time_on_running(self):
         @task
         def foo():
             return TaskRunContext.get().task_run.id
@@ -1121,7 +1121,7 @@ class TestTaskTimeTracking:
         assert len(states) == 1 and states[0].type == StateType.RUNNING
         assert states[0].timestamp == run.start_time
 
-    async def test_async_task_start_time_set_on_running(self):
+    async def test_async_task_sets_start_time_on_running(self):
         ID = None
 
         @task
@@ -1136,6 +1136,144 @@ class TestTaskTimeTracking:
         states = await get_task_run_states(ID, StateType.RUNNING)
         assert len(states) == 1 and states[0].type == StateType.RUNNING
         assert states[0].timestamp == run.start_time
+
+    async def test_sync_task_sets_end_time_on_completed(self):
+        @task
+        def foo():
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = run_task_sync(foo)
+        run = await get_task_run(task_run_id)
+
+        assert run.end_time is not None
+        states = await get_task_run_states(task_run_id, StateType.COMPLETED)
+        assert len(states) == 1 and states[0].type == StateType.COMPLETED
+        assert states[0].timestamp == run.end_time
+
+    async def test_async_task_sets_end_time_on_completed(self):
+        @task
+        async def foo():
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = await run_task_async(foo)
+        run = await get_task_run(task_run_id)
+
+        assert run.end_time is not None
+        states = await get_task_run_states(task_run_id, StateType.COMPLETED)
+        assert len(states) == 1 and states[0].type == StateType.COMPLETED
+        assert states[0].timestamp == run.end_time
+
+    async def test_sync_task_sets_end_time_on_failed(self):
+        ID = None
+
+        @task
+        def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+            raise ValueError("failure!!!")
+
+        with pytest.raises(ValueError):
+            run_task_sync(foo)
+
+        run = await get_task_run(ID)
+
+        assert run.end_time is not None
+        states = await get_task_run_states(ID, StateType.FAILED)
+        assert len(states) == 1 and states[0].type == StateType.FAILED
+        assert states[0].timestamp == run.end_time
+
+    async def test_async_task_sets_end_time_on_failed(self):
+        ID = None
+
+        @task
+        async def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+            raise ValueError("failure!!!")
+
+        with pytest.raises(ValueError):
+            await run_task_async(foo)
+
+        run = await get_task_run(ID)
+
+        assert run.end_time is not None
+        states = await get_task_run_states(ID, StateType.FAILED)
+        assert len(states) == 1 and states[0].type == StateType.FAILED
+        assert states[0].timestamp == run.end_time
+
+    async def test_sync_task_sets_end_time_on_crashed(self):
+        ID = None
+
+        @task
+        def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+            raise SystemExit
+
+        with pytest.raises(SystemExit):
+            run_task_sync(foo)
+
+        run = await get_task_run(ID)
+
+        assert run.end_time is not None
+        states = await get_task_run_states(ID, StateType.CRASHED)
+        assert len(states) == 1 and states[0].type == StateType.CRASHED
+        assert states[0].timestamp == run.end_time
+
+    async def test_async_task_sets_end_time_on_crashed(self):
+        ID = None
+
+        @task
+        async def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+            raise SystemExit
+
+        with pytest.raises(SystemExit):
+            await run_task_async(foo)
+
+        run = await get_task_run(ID)
+
+        assert run.end_time is not None
+        states = await get_task_run_states(ID, StateType.CRASHED)
+        assert len(states) == 1 and states[0].type == StateType.CRASHED
+        assert states[0].timestamp == run.end_time
+
+    async def test_sync_task_does_not_set_end_time_on_crash_pre_runnning(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(
+            TaskRunEngine, "begin_run", MagicMock(side_effect=SystemExit)
+        )
+
+        @task
+        def my_task():
+            pass
+
+        with pytest.raises(SystemExit):
+            my_task()
+
+        run = await get_task_run(task_run_id=None)
+
+        assert run.end_time is None
+
+    async def test_async_task_does_not_set_end_time_on_crash_pre_running(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(
+            TaskRunEngine, "begin_run", MagicMock(side_effect=SystemExit)
+        )
+
+        @task
+        async def my_task():
+            pass
+
+        with pytest.raises(SystemExit):
+            await my_task()
+
+        run = await get_task_run(task_run_id=None)
+
+        assert run.end_time is None
 
 
 class TestRunCountTracking:
