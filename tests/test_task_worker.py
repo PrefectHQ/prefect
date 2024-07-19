@@ -178,7 +178,7 @@ async def test_task_worker_stays_running_on_errors(monkeypatch):
     def always_error(*args, **kwargs):
         raise ValueError("oops")
 
-    monkeypatch.setattr("prefect.task_engine.TaskRunEngine.start", always_error)
+    monkeypatch.setattr("prefect.task_engine.SyncTaskRunEngine.start", always_error)
 
     task_worker = TaskWorker(empty_task)
 

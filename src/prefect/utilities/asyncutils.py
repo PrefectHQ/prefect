@@ -53,6 +53,7 @@ EVENT_LOOP_GC_REFS = {}
 
 PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
+RUNNING_IN_ASYNC_TASK_ENGINE = ContextVar("running_in_async_task_engine", default=False)
 RUNNING_IN_RUN_SYNC_LOOP_FLAG = ContextVar("running_in_run_sync_loop", default=False)
 RUNNING_ASYNC_FLAG = ContextVar("run_async", default=False)
 BACKGROUND_TASKS: set[asyncio.Task] = set()
@@ -236,7 +237,12 @@ def run_coro_as_sync(
     # if we are already in the run_sync loop, or a descendent of a coroutine
     # that is running in the run_sync loop, we need to run this coroutine in a
     # new thread
-    if in_run_sync_loop() or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get() or force_new_thread:
+    if (
+        in_run_sync_loop()
+        or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get()
+        or RUNNING_IN_ASYNC_TASK_ENGINE.get()
+        or force_new_thread
+    ):
         return from_sync.call_in_new_thread(coroutine_wrapper)
 
     # otherwise, we can run the coroutine in the run_sync loop

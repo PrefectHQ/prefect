@@ -34,7 +34,12 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Running, State
-from prefect.task_engine import TaskRunEngine, run_task_async, run_task_sync
+from prefect.task_engine import (
+    AsyncTaskRunEngine,
+    SyncTaskRunEngine,
+    run_task_async,
+    run_task_sync,
+)
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
@@ -176,20 +181,20 @@ async def foo():
     return 42
 
 
-class TestTaskRunEngine:
+class TestSyncTaskRunEngine:
     async def test_basic_init(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         assert isinstance(engine.task, Task)
         assert engine.task.name == "foo"
         assert engine.parameters == {}
 
     async def test_client_attribute_raises_informative_error(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
     async def test_client_attr_returns_client_after_starting(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         with engine.initialize_run():
             client = engine.client
             assert isinstance(client, SyncPrefectClient)
@@ -1118,11 +1123,33 @@ class TestTaskCrashDetection:
             await task_run.state.result()
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
-    async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
+    async def test_interrupt_in_task_orchestration_crashes_task_and_flow_sync(
         self, interrupt_type, monkeypatch
     ):
         monkeypatch.setattr(
-            TaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
+            SyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
+        )
+
+        @task
+        def my_task():
+            pass
+
+        with pytest.raises(interrupt_type):
+            my_task()
+
+        task_run = await get_task_run(task_run_id=None)
+        assert task_run.state.is_crashed()
+        assert task_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in task_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await task_run.state.result()
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_task_orchestration_crashes_task_and_flow_async(
+        self, interrupt_type, monkeypatch
+    ):
+        monkeypatch.setattr(
+            AsyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
 
         @task
