@@ -17,6 +17,7 @@ import pendulum
 
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
+    deprecated_class,
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.types import NonNegativeInteger, PositiveInteger
@@ -917,6 +918,10 @@ class Flow(ObjectBaseModel):
         return raise_on_name_with_banned_characters(v)
 
 
+@deprecated_class(
+    start_date="Jun 2024",
+    help="Will be removed in Prefect 3 in favor of prefect.client.schemas.actions.DeploymentScheduleCreate",
+)
 class MinimalDeploymentSchedule(PrefectBaseModel):
     schedule: SCHEDULE_TYPES = Field(
         default=..., description="The schedule for the deployment."
