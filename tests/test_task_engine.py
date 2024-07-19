@@ -1138,6 +1138,87 @@ class TestTaskTimeTracking:
         assert states[0].timestamp == run.start_time
 
 
+class TestRunCountTracking:
+    @pytest.fixture
+    async def flow_run_context(self, prefect_client: PrefectClient):
+        @flow
+        def f():
+            pass
+
+        test_task_runner = ThreadPoolTaskRunner()
+        flow_run = await prefect_client.create_flow_run(f)
+        await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.run_count == 1
+
+        result_factory = await ResultFactory.from_flow(f)
+        return EngineContext(
+            flow=f,
+            flow_run=flow_run,
+            client=prefect_client,
+            task_runner=test_task_runner,
+            result_factory=result_factory,
+            parameters={"x": "y"},
+        )
+
+    def test_sync_task_run_counts(self, flow_run_context: EngineContext):
+        ID = None
+        proof_that_i_ran = uuid4()
+
+        @task
+        def foo():
+            task_run = TaskRunContext.get().task_run
+
+            nonlocal ID
+            ID = task_run.id
+
+            assert task_run
+            assert task_run.state
+            assert task_run.state.type == StateType.RUNNING
+
+            assert task_run.run_count == 1
+            assert task_run.flow_run_run_count == flow_run_context.flow_run.run_count
+
+            return proof_that_i_ran
+
+        with flow_run_context:
+            assert run_task_sync(foo) == proof_that_i_ran
+
+        task_run = get_task_run_sync(ID)
+        assert task_run
+        assert task_run.run_count == 1
+        assert task_run.flow_run_run_count == flow_run_context.flow_run.run_count
+
+    async def test_async_task_run_counts(self, flow_run_context: EngineContext):
+        ID = None
+        proof_that_i_ran = uuid4()
+
+        @task
+        async def foo():
+            task_run = TaskRunContext.get().task_run
+
+            nonlocal ID
+            ID = task_run.id
+
+            assert task_run
+            assert task_run.state
+            assert task_run.state.type == StateType.RUNNING
+
+            assert task_run.run_count == 1
+            assert task_run.flow_run_run_count == flow_run_context.flow_run.run_count
+
+            return proof_that_i_ran
+
+        with flow_run_context:
+            assert await run_task_async(foo) == proof_that_i_ran
+
+        task_run = await get_task_run(ID)
+        assert task_run
+        assert task_run.run_count == 1
+        assert task_run.flow_run_run_count == flow_run_context.flow_run.run_count
+
+
 class TestSyncAsyncTasks:
     async def test_sync_task_in_async_task(self):
         @task
