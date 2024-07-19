@@ -1154,15 +1154,12 @@ class TestTaskTimeTracking:
         assert run.start_time == running.timestamp
 
     async def test_async_task_sets_start_time_on_running(self):
-        ID = None
-
         @task
         async def foo():
-            nonlocal ID
-            ID = TaskRunContext.get().task_run.id
+            return TaskRunContext.get().task_run.id
 
-        await run_task_async(foo)
-        run = await get_task_run(ID)
+        task_run_id = await run_task_async(foo)
+        run = await get_task_run(task_run_id)
 
         running = await get_task_run_state(run.id, StateType.RUNNING)
         assert run.start_time
@@ -1317,6 +1314,30 @@ class TestTaskTimeTracking:
         run = await get_task_run(task_run_id=None)
 
         assert run.end_time is None
+
+    async def test_sync_task_sets_expected_start_time_on_pending(self):
+        @task
+        def foo():
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = run_task_sync(foo)
+        run = await get_task_run(task_run_id)
+
+        pending = await get_task_run_state(task_run_id, StateType.PENDING)
+        assert run.expected_start_time
+        assert run.expected_start_time == pending.timestamp
+
+    async def test_async_task_sets_expected_start_time_on_pending(self):
+        @task
+        async def foo():
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = await run_task_async(foo)
+        run = await get_task_run(task_run_id)
+
+        pending = await get_task_run_state(run.id, StateType.PENDING)
+        assert run.expected_start_time
+        assert run.expected_start_time == pending.timestamp
 
 
 class TestRunCountTracking:
