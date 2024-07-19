@@ -504,7 +504,7 @@ class DockerWorker(BaseWorker):
         container_create_kwargs = {
             k: v
             for k, v in container_create_kwargs.items()
-            if k not in configuration.__dict__.keys()
+            if k not in configuration.model_fields.keys()
         }
 
         return dict(
