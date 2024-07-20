@@ -49,9 +49,14 @@ jobs:
   run-tests:
     runs-on:
       group: oss-larger-runners
-    name: python:${{ matrix.python-version }}, ${{ matrix.database }}
+    name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
       matrix:
+        test-type:
+          - name: Server Tests
+            modules: tests/server/ tests/events/server
+          - name: Client Tests
+            modules: tests/ --ignore tests/server/ tests/events/server
         database:
           - "postgres:14"
           - "sqlite"
@@ -60,6 +65,11 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+        exclude:
+          - database: "sqlite"
+            test-type: 
+              name: Client Tests
+              modules: tests/ --ignore tests/server/ tests/events/server
 
       fail-fast: true
 
@@ -138,7 +148,7 @@ jobs:
         env:
           PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: "1"
         run: >
-          pytest tests
+          pytest ${{ matrix.test-type.modules }}
           --numprocesses auto
           --maxprocesses 6
           --dist worksteal
