@@ -65,7 +65,7 @@
 
                 <template v-else-if="!flowRunsSubscription.executed">
                   <p-message type="error">
-                    An error occurred while loading task runs. Please try again.
+                    An error occurred while loading flow runs. Please try again.
                   </p-message>
                 </template>
 
