@@ -1,16 +1,11 @@
 # global
-*                                    @PrefectHQ/open-source
-
-# backend
-/src/prefect/server                  @PrefectHQ/open-source @zangell44
+*                                    @cicdw
 
 # ui
-/ui                                  @PrefectHQ/frontend
+/ui                                  @znicholasbrown
 
 # documentation
-/docs                                @PrefectHQ/docs
-mkdocs.yml                           @PrefectHQ/docs
-mkdocs.insiders.yml                  @PrefectHQ/docs
+/docs                                @discdiver @daniel-prefect
 
 # imports
 /src/prefect/__init__.py              @aaazzam @chrisguidry
