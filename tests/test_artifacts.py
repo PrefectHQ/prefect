@@ -615,6 +615,10 @@ class TestCreateArtifacts:
         assert my_image_artifact.type == "image"
         assert my_image_artifact.description == "my-artifact-description"
 
+    async def test_creating_artifact_outside_of_flow_run_context_warns(self):
+        with pytest.warns(FutureWarning):
+            await create_link_artifact("https://www.google.com", "Google")
+
 
 class TestUpdateArtifacts:
     async def test_update_progress_artifact_updates_progress(self, client):
