@@ -1,20 +1,7 @@
 name: 🐛 Bug Report
 description: Report a bug or unexpected behavior in Prefect
-labels: ["needs:triage", "bug"]
+labels: ["bug"]
 body:
-  - type: markdown
-    attributes:
-      value: >
-        Bug reports are often **usage questions, not bugs**. If you do not have a strong understanding 
-        of the interface you are reporting a bug for, please head to our [Community Slack](https://www.prefect.io/slack/)
-        or [Discourse](https://discourse.prefect.io/) and ask there first. You are likely to get a response
-        faster and learn more about the feature you're working with. If the issue is determined to be a bug,
-        we will open an issue here.
-
-        GitHub issues raised against this repository will receive community support. If you have an
-        [active support agreement](https://www.prefect.io/pricing/), we recommend creating a case to ensure
-        a faster response.
-
   - type: markdown
     attributes:
       value: >
@@ -29,56 +16,33 @@ body:
 
         4. Additional details that may help us reproduce your issue.
 
-  - type: checkboxes
-    id: checks
-    attributes:
-      label: First check
-      description: Please confirm and check all the following options.
-      options:
-        - label: I added a descriptive title to this issue.
-          required: true
-        - label: I used the GitHub search to find a similar issue and didn't find it.
-          required: true
-        - label: I searched the Prefect documentation for this issue.
-          required: true
-        - label: I checked that this issue is related to Prefect and not one of its dependencies.
-          required: true
+        For usage questions, please check out Prefect's [Community Slack](https://www.prefect.io/slack/).
 
   - type: textarea
     attributes:
       label: Bug summary
-      description: A clear and concise description of what the bug is.
+      description: A clear and concise description of what the bug is, ideally including [a minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example).
+      placeholder: >
+        An explanation of the behavior, along with code that will help others reproduce the issue:
+
+          ```python
+          from prefect import flow
+
+          @flow
+          def my_flow():
+            raise ValueError("This flow misbehaves every time it's run and I don't know why!")
+          ```
+
+          Please include tracebacks, console output, etc. with code formatting.
+
     validations:
       required: true
 
   - type: textarea
     attributes:
-      label: Reproduction
+      label: Version info (`prefect version` output)
       description: >
-        Provide your [minimal, complete, and verifiable](https://stackoverflow.com/help/mcve) example here. 
-        If you need help creating one, you can model yours after the code shared in one of our previous [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22).
-      placeholder: "# Insert code here"
-      render: python3
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
-      label: Error
-      description: >
-        Provide the full exception traceback or console error.
-      placeholder: "# Copy complete stack trace and error message here, including log or console output if applicable."
-      render: python3
-    validations:
-      required: false
-
-  - type: textarea
-    attributes:
-      label: Versions (`prefect version` output)
-      description: >
-        Provide information about your Prefect version and environment. The easiest way to retrieve all of the information we require is the `prefect version` command.
-        If using Prefect 1.x, it is useful to also include the output of `prefect diagnostics`.
-        **Please do not just include your Prefect version number**. The command provides additional context such as your operating system, Prefect API type, Python version, etc. that we need to diagnose your problem.
+        Provide information about your Prefect version and environment. The easiest way to retrieve all of this information is by running the `prefect version` command.
       placeholder: "# Copy output of the `prefect version` command here. Do not just include your Prefect version number."
       render: Text
     validations:
@@ -90,7 +54,3 @@ body:
       description: Add any other context about the problem here, including screenshots for UI issues.
     validations:
       required: false
-
-  - type: markdown
-    attributes:
-      value: "**Happy engineering!**"
