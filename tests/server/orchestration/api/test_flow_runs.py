@@ -15,6 +15,7 @@ from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
 from prefect.server.schemas import core, responses
+from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
@@ -2702,8 +2703,12 @@ class TestDownloadFlowRunLogs:
 
         # create 10 logs
         logs = [
-            schemas.core.Log(
-                flow_run_id=flow_run.id, message=f"Log message {i}", timestamp=NOW
+            LogCreate(
+                name="prefect.flow_run",
+                level=10,
+                message=f"Log message {i}",
+                timestamp=NOW,
+                flow_run_id=flow_run.id,
             )
             for i in range(10)
         ]
