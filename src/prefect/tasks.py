@@ -187,7 +187,7 @@ def _infer_parent_task_runs(
     return parents
 
 
-def _generate_task_key(fn: Callable) -> str:
+def _generate_task_key(fn: Callable[..., Any]) -> str:
     """Generate a task key based on the function name and source code.
 
     We may eventually want some sort of top-level namespace here to
