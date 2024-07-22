@@ -26,30 +26,22 @@ class TestCreateArtifacts:
             description="# This is a markdown description title",
         )
 
-    async def test_create_and_read_link_artifact_succeeds(self, artifact, client):
-        my_link = "prefect.io"
-        artifact_id = await create_link_artifact(
-            key=artifact.key,
-            link=my_link,
-            description=artifact.description,
-        )
-
-        response = await client.get(f"/artifacts/{artifact_id}")
-        result = schemas.core.Artifact.model_validate(response.json())
-        assert result.data == f"[{my_link}]({my_link})"
-
     async def test_create_and_read_link_artifact_with_linktext_succeeds(
         self, artifact, client
     ):
         my_link = "prefect.io"
         link_text = "Prefect"
-        artifact_id = await create_link_artifact(
-            key=artifact.key,
-            link=my_link,
-            link_text=link_text,
-            description=artifact.description,
-        )
 
+        @flow
+        async def my_flow():
+            return await create_link_artifact(
+                key=artifact.key,
+                link=my_link,
+                link_text=link_text,
+                description=artifact.description,
+            )
+
+        artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
         result = schemas.core.Artifact.model_validate(response.json())
         assert result.data == f"[{link_text}]({my_link})"
@@ -151,18 +143,6 @@ class TestCreateArtifacts:
         my_big_nums = simple_map([1, 2, 3])
         assert my_big_nums == [11, 12, 13]
 
-    async def test_create_and_read_markdown_artifact_succeeds(self, artifact, client):
-        my_markdown = "# This is a markdown description title"
-        artifact_id = await create_markdown_artifact(
-            key=artifact.key,
-            markdown=my_markdown,
-            description=artifact.description,
-        )
-
-        response = await client.get(f"/artifacts/{artifact_id}")
-        result = schemas.core.Artifact.model_validate(response.json())
-        assert result.data == my_markdown
-
     async def test_create_markdown_artifact_in_task_succeeds(self, client):
         @task
         def my_special_task():
@@ -262,12 +242,15 @@ class TestCreateArtifacts:
     ):
         my_table = {"a": [1, 3], "b": [2, 4]}
 
-        artifact_id = await create_table_artifact(
-            key=artifact.key,
-            table=my_table,
-            description=artifact.description,
-        )
+        @flow
+        async def my_flow():
+            return await create_table_artifact(
+                key=artifact.key,
+                table=my_table,
+                description=artifact.description,
+            )
 
+        artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
         result = schemas.core.Artifact.model_validate(response.json())
         result_data = json.loads(result.data)
@@ -278,12 +261,15 @@ class TestCreateArtifacts:
     ):
         my_table = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
-        artifact_id = await create_table_artifact(
-            key=artifact.key,
-            table=my_table,
-            description=artifact.description,
-        )
+        @flow
+        async def my_flow():
+            return await create_table_artifact(
+                key=artifact.key,
+                table=my_table,
+                description=artifact.description,
+            )
 
+        artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
         result = schemas.core.Artifact.model_validate(response.json())
 
@@ -295,12 +281,15 @@ class TestCreateArtifacts:
     ):
         my_table = [[1, 2], [None, 4]]
 
-        artifact_id = await create_table_artifact(
-            key=artifact.key,
-            table=my_table,
-            description=artifact.description,
-        )
+        @flow
+        async def my_flow():
+            return await create_table_artifact(
+                key=artifact.key,
+                table=my_table,
+                description=artifact.description,
+            )
 
+        artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
         result = schemas.core.Artifact.model_validate(response.json())
         result_data = json.loads(result.data)
@@ -415,21 +404,28 @@ class TestCreateArtifacts:
     async def test_create_dict_table_artifact_with_none_succeeds(self):
         my_table = {"a": [1, 3], "b": [2, None]}
 
-        await create_table_artifact(
-            key="swiss-table",
-            table=my_table,
-            description="my-artifact-description",
-        )
+        @flow
+        async def my_flow():
+            return await create_table_artifact(
+                key="swiss-table",
+                table=my_table,
+                description="my-artifact-description",
+            )
+
+        await my_flow()
 
     async def test_create_dict_table_artifact_with_nan_succeeds(self, client):
         my_table = {"a": [1, 3], "b": [2, float("nan")]}
 
-        artifact_id = await create_table_artifact(
-            key="swiss-table",
-            table=my_table,
-            description="my-artifact-description",
-        )
+        @flow
+        async def my_flow():
+            return await create_table_artifact(
+                key="swiss-table",
+                table=my_table,
+                description="my-artifact-description",
+            )
 
+        artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
         my_artifact = schemas.core.Artifact.model_validate(response.json())
         my_data = json.loads(my_artifact.data)
@@ -441,11 +437,15 @@ class TestCreateArtifacts:
             {"a": 3, "b": None},
         ]
 
-        await create_table_artifact(
-            key="swiss-table",
-            table=my_table,
-            description="my-artifact-description",
-        )
+        @flow
+        async def my_flow():
+            await create_table_artifact(
+                key="swiss-table",
+                table=my_table,
+                description="my-artifact-description",
+            )
+
+        await my_flow()
 
     async def test_create_list_table_artifact_with_nan_succeeds(self, client):
         my_table = [
@@ -453,12 +453,15 @@ class TestCreateArtifacts:
             {"a": 3, "b": float("nan")},
         ]
 
-        artifact_id = await create_table_artifact(
-            key="swiss-table",
-            table=my_table,
-            description="my-artifact-description",
-        )
+        @flow
+        async def my_flow():
+            return await create_table_artifact(
+                key="swiss-table",
+                table=my_table,
+                description="my-artifact-description",
+            )
 
+        artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
         my_artifact = schemas.core.Artifact.model_validate(response.json())
         my_data = json.loads(my_artifact.data)
@@ -470,10 +473,13 @@ class TestCreateArtifacts:
     async def test_create_progress_artifact_without_key(self, client):
         progress = 0.0
 
-        artifact_id = await create_progress_artifact(
-            progress, description="my-description"
-        )
+        @flow
+        async def my_flow():
+            return await create_progress_artifact(
+                progress, description="my-description"
+            )
 
+        artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
         my_artifact = schemas.core.Artifact.model_validate(response.json())
         assert my_artifact.data == progress
@@ -483,10 +489,13 @@ class TestCreateArtifacts:
     async def test_create_progress_artifact_with_key(self, client):
         progress = 0.0
 
-        artifact_id = await create_progress_artifact(
-            progress, key="progress-artifact", description="my-description"
-        )
+        @flow
+        async def my_flow():
+            return await create_progress_artifact(
+                progress, key="progress-artifact", description="my-description"
+            )
 
+        artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
         my_artifact = schemas.core.Artifact.model_validate(response.json())
         assert my_artifact.data == progress
@@ -547,18 +556,6 @@ class TestCreateArtifacts:
         assert my_progress_artifact.type == "progress"
         assert my_progress_artifact.description == "my-artifact-description"
 
-    async def test_create_image_artifact_succeeds(self, client):
-        image_url = "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
-        artifact_id = await create_image_artifact(
-            image_url=image_url,
-            key="google-logo",
-            description="This is the google logo",
-        )
-
-        response = await client.get(f"/artifacts/{artifact_id}")
-        result = schemas.core.Artifact.model_validate(response.json())
-        assert result.data == image_url
-
     async def test_create_image_artifact_in_task_succeeds(self, client):
         @task
         def my_task():
@@ -618,23 +615,31 @@ class TestCreateArtifacts:
         assert my_image_artifact.type == "image"
         assert my_image_artifact.description == "my-artifact-description"
 
+    async def test_creating_artifact_outside_of_flow_run_context_warns(self):
+        with pytest.warns(FutureWarning):
+            await create_link_artifact("https://www.google.com", "Google")
+
 
 class TestUpdateArtifacts:
     async def test_update_progress_artifact_updates_progress(self, client):
         progress = 0.0
 
-        artifact_id = await create_progress_artifact(progress)
+        @flow
+        async def my_flow():
+            artifact_id = await create_progress_artifact(progress)
 
-        response = await client.get(f"/artifacts/{artifact_id}")
-        my_artifact = schemas.core.Artifact.model_validate(response.json())
-        assert my_artifact.data == progress
-        assert my_artifact.type == "progress"
+            response = await client.get(f"/artifacts/{artifact_id}")
+            my_artifact = schemas.core.Artifact.model_validate(response.json())
+            assert my_artifact.data == progress
+            assert my_artifact.type == "progress"
 
-        new_progress = 50.0
-        await update_progress_artifact(artifact_id, new_progress)
-        response = await client.get(f"/artifacts/{artifact_id}")
-        my_artifact = schemas.core.Artifact.model_validate(response.json())
-        assert my_artifact.data == new_progress
+            new_progress = 50.0
+            await update_progress_artifact(artifact_id, new_progress)
+            response = await client.get(f"/artifacts/{artifact_id}")
+            my_artifact = schemas.core.Artifact.model_validate(response.json())
+            assert my_artifact.data == new_progress
+
+        await my_flow()
 
     async def test_update_progress_artifact_in_task(self, client):
         @task
