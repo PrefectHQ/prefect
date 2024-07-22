@@ -1,17 +1,14 @@
 name: Copy labels from linked issues
-on:
+on: 
   pull_request_target:
-    types: [opened, edited, review_requested, synchronize, reopened, ready_for_review]
+    types: [opened, edited, reopened, ready_for_review, review_requested]
 
 jobs:
-  copy-issue-labels:
+  copy-labels:
     runs-on: ubuntu-latest
-    permissions:
-      issues: read
-      contents: read
-      pull-requests: write
+    name: Copy labels from linked issues
     steps:
-      - name: copy-issue-labels
+      - name: copy-labels
         uses: michalvankodev/copy-issue-labels@v1.3.0
         with:
-          repo-token: "${{ github.token }}"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
