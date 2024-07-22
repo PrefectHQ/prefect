@@ -2001,7 +2001,7 @@ def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow]:
 
 
 def _sanitize_and_load_flow(
-    func_def: ast.FunctionDef | ast.AsyncFunctionDef, namespace: Dict[str, Any]
+    func_def: Union[ast.FunctionDef, ast.AsyncFunctionDef], namespace: Dict[str, Any]
 ) -> Optional[Flow]:
     """
     Attempt to load a flow from the function definition after sanitizing the annotations
