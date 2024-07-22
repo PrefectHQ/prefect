@@ -402,7 +402,6 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     return status_app
 
 
-@sync_compatible
 async def serve(
     *tasks: Task, limit: Optional[int] = 10, status_server_port: Optional[int] = None
 ):

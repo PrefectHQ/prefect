@@ -4,9 +4,9 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
+import asyncio
 import datetime
 import inspect
-import os
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
@@ -64,7 +64,6 @@ from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     run_coro_as_sync,
-    sync_compatible,
 )
 from prefect.utilities.callables import (
     expand_mapping_parameters,
@@ -188,6 +187,24 @@ def _infer_parent_task_runs(
     return parents
 
 
+def _generate_task_key(fn: Callable) -> str:
+    """Generate a task key based on the function name and source code.
+
+    We may eventually want some sort of top-level namespace here to
+    disambiguate tasks with the same function name in different modules,
+    in a more human-readable way, while avoiding relative import problems (see #12337).
+
+    As long as the task implementations are unique (even if named the same), we should
+    not have any collisions.
+
+    Args:
+        fn: The function to generate a task key for.
+    """
+    qualname = fn.__qualname__.split(".")[-1]
+    source_hash = h[:8] if (h := hash_objects(inspect.getsource(fn))) else "unknown"
+    return f"{qualname}-{source_hash}"
+
+
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -270,7 +287,7 @@ class Task(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         version: Optional[str] = None,
-        cache_policy: Optional[CachePolicy] = NotSet,
+        cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
@@ -372,14 +389,7 @@ class Task(Generic[P, R]):
         if not hasattr(self.fn, "__qualname__"):
             self.task_key = to_qualified_name(type(self.fn))
         else:
-            try:
-                task_origin_hash = hash_objects(
-                    self.name, os.path.abspath(inspect.getsourcefile(self.fn))
-                )
-            except TypeError:
-                task_origin_hash = "unknown-source-file"
-
-            self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
+            self.task_key = _generate_task_key(self.fn)
 
         if cache_policy is not NotSet and cache_key_fn is not None:
             logger.warning(
@@ -1488,15 +1498,14 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    @sync_compatible
-    async def serve(self) -> NoReturn:
+    def serve(self):
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
 
         Args:
             task_runner: The task runner to use for serving the task. If not provided,
-                the default ConcurrentTaskRunner will be used.
+                the default task runner will be used.
 
         Examples:
             Serve a task using the default task runner
@@ -1508,7 +1517,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        await serve(self)
+        asyncio.run(serve(self))
 
 
 @overload
@@ -1523,7 +1532,7 @@ def task(
     description: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     version: Optional[str] = None,
-    cache_policy: CachePolicy = NotSet,
+    cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
     cache_key_fn: Optional[
         Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
     ] = None,
@@ -1561,7 +1570,9 @@ def task(
     tags: Optional[Iterable[str]] = None,
     version: Optional[str] = None,
     cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
-    cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
+    cache_key_fn: Union[
+        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]], None
+    ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
