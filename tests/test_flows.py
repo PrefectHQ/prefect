@@ -49,6 +49,7 @@ from prefect.flows import (
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
+    safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
 from prefect.results import PersistedResultBlob
@@ -4757,3 +4758,140 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         with pytest.raises(ValueError, match="Could not find flow"):
             load_flow_arguments_from_entrypoint(entrypoint)
+
+
+class TestSafeLoadFlowFromEntrypoint:
+    def test_basic_operation(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        @flow(name="My custom name")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+        assert result.name == "My custom name"
+        assert result("marvin") == "marvin"
+
+    def test_dynamic_name_fstring(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        version = "1.0"
+
+        @flow(name=f"flow-function-{version}")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+        assert result.name == "flow-function-1.0"
+
+    def test_dynamic_name_function(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        def get_name():
+            return "from-a-function"
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+
+    def test_dynamic_name_depends_on_missing_import(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import get_name
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        # We expect this to be None because the flow function cannot be loaded
+        assert result is None
+
+    def test_annotations_rely_on_missing_import(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import Type1, Type2
+
+        @flow
+        def flow_function(name: Type1, *, age: Type2) -> str:
+            return name, age
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result("marvin", age=42) == ("marvin", 42)
+
+    def test_defaults_rely_on_missing_import(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import DEFAULT_NAME, DEFAULT_AGE
+
+        @flow
+        def flow_function(name = DEFAULT_NAME, age = DEFAULT_AGE) -> str:
+            return name, age
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result() == (None, None)
