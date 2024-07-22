@@ -2,7 +2,9 @@
 Routes for interacting with flow run objects.
 """
 
+import csv
 import datetime
+import io
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -18,7 +20,7 @@ from fastapi import (
     Response,
     status,
 )
-from fastapi.responses import ORJSONResponse, PlainTextResponse
+from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
 from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.exc import IntegrityError
 
@@ -767,3 +769,69 @@ async def paginate_flow_runs(
         ).model_dump(mode="json")
 
         return ORJSONResponse(content=response)
+
+
+@router.get("/{id}/logs")
+async def download_logs(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> StreamingResponse:
+    """
+    Download all flow run logs as a CSV file, collecting all logs until there are no more logs to retrieve.
+    """
+    async with db.session_context() as session:
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+
+        if not flow_run:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
+
+        async def generate():
+            data = io.StringIO()
+            csv_writer = csv.writer(data)
+            csv_writer.writerow(
+                ["timestamp", "level", "flow_run_id", "task_run_id", "message"]
+            )
+
+            offset = 0
+            limit = 1000
+
+            while True:
+                results = await models.logs.read_logs(
+                    session=session,
+                    log_filter=schemas.filters.LogFilter(
+                        flow_run_id={"any_": [flow_run_id]}
+                    ),
+                    offset=offset,
+                    limit=limit,
+                    sort=schemas.sorting.LogSort.TIMESTAMP_ASC,
+                )
+
+                if not results:
+                    break
+
+                offset += limit
+
+                for log in results:
+                    csv_writer.writerow(
+                        [
+                            log.timestamp,
+                            log.level,
+                            log.flow_run_id,
+                            log.task_run_id,
+                            log.message,
+                        ]
+                    )
+                    data.seek(0)
+                    yield data.read()
+                    data.seek(0)
+                    data.truncate(0)
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={flow_run.name}-logs.csv"
+            },
+        )
