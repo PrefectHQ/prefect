@@ -1,6 +1,4 @@
 import asyncio
-import inspect
-import os
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncGenerator, Iterable, Tuple
@@ -26,7 +24,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.task_worker import TaskWorker
-from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -447,22 +444,3 @@ class TestMap:
                 "parameters": {"x": i + 1, "mappable": ["some", "iterable"]},
                 "context": mock.ANY,
             }
-
-
-class TestTaskKey:
-    def test_task_key_includes_qualname_and_source_file_hash(self):
-        def some_fn():
-            pass
-
-        t = Task(fn=some_fn)
-        source_file = os.path.abspath(inspect.getsourcefile(some_fn))
-        task_origin_hash = hash_objects(t.name, source_file)
-        assert t.task_key == f"{some_fn.__qualname__}-{task_origin_hash}"
-
-    def test_task_key_handles_unknown_source_file(self, monkeypatch):
-        def some_fn():
-            pass
-
-        monkeypatch.setattr(inspect, "getsourcefile", lambda x: None)
-        t = Task(fn=some_fn)
-        assert t.task_key == f"{some_fn.__qualname__}-unknown-source-file"
