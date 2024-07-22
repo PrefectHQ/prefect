@@ -1992,7 +1992,95 @@ def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow]:
     if func_def.name in namespace:
         return namespace[func_def.name]
     else:
-        return None
+        # If the function is not in the namespace, if may be due to missing dependencies
+        # for the function. We will attempt to compile each annotation and default value
+        # and remove them from the function definition to see if the function can be
+        # compiled without them.
+
+        # Remove annotations that can't be compiled
+        for arg in (
+            func_def.args.posonlyargs + func_def.args.args + func_def.args.kwonlyargs
+        ):
+            if arg.annotation is not None:
+                try:
+                    code = compile(
+                        ast.Expression(arg.annotation),
+                        filename="<ast>",
+                        mode="eval",
+                    )
+                    exec(code, namespace)
+                except Exception as e:
+                    logger.debug(
+                        "Failed to evaluate annotation for argument %s due to the following error. Ignoring annotation.",
+                        arg.arg,
+                        exc_info=e,
+                    )
+                    arg.annotation = None
+
+        # Remove defaults that can't be compiled
+        new_defaults = []
+        for default in func_def.args.defaults:
+            try:
+                code = compile(ast.Expression(default), "<ast>", "eval")
+                exec(code, namespace)
+                new_defaults.append(default)
+            except Exception as e:
+                logger.debug(
+                    "Failed to evaluate default value %s due to the following error. Ignoring default.",
+                    default,
+                    exc_info=e,
+                )
+                new_defaults.append(
+                    ast.Constant(
+                        value=None, lineno=default.lineno, col_offset=default.col_offset
+                    )
+                )
+        func_def.args.defaults = new_defaults
+
+        # Remove kw_defaults that can't be compiled
+        new_kw_defaults = []
+        for default in func_def.args.kw_defaults:
+            if default is not None:
+                try:
+                    code = compile(ast.Expression(default), "<ast>", "eval")
+                    exec(code, namespace)
+                    new_kw_defaults.append(default)
+                except Exception as e:
+                    logger.debug(
+                        "Failed to evaluate default value %s due to the following error. Ignoring default.",
+                        default,
+                        exc_info=e,
+                    )
+                    new_kw_defaults.append(
+                        ast.Constant(
+                            value=None,
+                            lineno=default.lineno,
+                            col_offset=default.col_offset,
+                        )
+                    )
+            else:
+                new_kw_defaults.append(
+                    ast.Constant(
+                        value=None,
+                        lineno=func_def.lineno,
+                        col_offset=func_def.col_offset,
+                    )
+                )
+        func_def.args.kw_defaults = new_kw_defaults
+
+        # Attempt to compile the function without annotations and defaults that
+        # can't be compiled
+        try:
+            code = compile(
+                ast.Module(body=[func_def], type_ignores=[]),
+                filename="<ast>",
+                mode="exec",
+            )
+            exec(code, namespace)
+        except Exception as e:
+            logger.debug("Failed to compile: %s", e)
+        else:
+            return namespace.get(func_def.name)
 
 
 def load_flow_arguments_from_entrypoint(

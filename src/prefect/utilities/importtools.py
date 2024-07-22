@@ -410,7 +410,7 @@ def safe_load_namespace(
         temp_module.__spec__.submodule_search_locations = [file_dir]
 
     try:
-        for node in ast.walk(parsed_code):
+        for node in parsed_code.body:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     module_name = alias.name
@@ -424,29 +424,48 @@ def safe_load_namespace(
                 module_name = node.module or ""
                 if filepath:
                     try:
-                        # Use __import__ for relative imports
-                        # temp_module is used to provide the context for relative imports
-                        # fromlist=['_'] is used to ensure we get the correct module object, without it, we get the parent module
-                        module = __import__(
-                            module_name,
-                            globals=temp_module.__dict__,
-                            locals={},
-                            fromlist=["_"],
-                            level=node.level,
-                        )
+                        if node.level > 0:
+                            # For relative imports, use the parent package to inform the import
+                            package_parts = temp_module.__package__.split(".")
+                            if len(package_parts) < node.level:
+                                raise ImportError(
+                                    "Attempted relative import beyond top-level package"
+                                )
+                            parent_package = ".".join(
+                                package_parts[: (1 - node.level)]
+                                if node.level > 1
+                                else package_parts
+                            )
+                            module = importlib.import_module(
+                                f".{module_name}" if module_name else "",
+                                package=parent_package,
+                            )
+                        else:
+                            # Absolute imports are handled as normal
+                            module = importlib.import_module(module_name)
+
                         for alias in node.names:
                             name = alias.name
                             asname = alias.asname or name
-                            try:
-                                attribute = getattr(module, name)
-                                namespace[asname] = attribute
-                            except AttributeError as e:
-                                logger.debug(
-                                    "Failed to retrieve %s from %s: %s",
-                                    name,
-                                    module_name,
-                                    e,
-                                )
+                            if name == "*":
+                                # Handle 'from module import *'
+                                module_dict = {
+                                    k: v
+                                    for k, v in module.__dict__.items()
+                                    if not k.startswith("_")
+                                }
+                                namespace.update(module_dict)
+                            else:
+                                try:
+                                    attribute = getattr(module, name)
+                                    namespace[asname] = attribute
+                                except AttributeError as e:
+                                    logger.debug(
+                                        "Failed to retrieve %s from %s: %s",
+                                        name,
+                                        module_name,
+                                        e,
+                                    )
                     except ImportError as e:
                         logger.debug("Failed to import from %s: %s", module_name, e)
                 else:
@@ -456,26 +475,34 @@ def safe_load_namespace(
                         for alias in node.names:
                             name = alias.name
                             asname = alias.asname or name
-                            try:
-                                attribute = getattr(module, name)
-                                namespace[asname] = attribute
-                            except AttributeError as e:
-                                logger.debug(
-                                    "Failed to retrieve %s from %s: %s",
-                                    name,
-                                    module_name,
-                                    e,
-                                )
+                            if name == "*":
+                                # Handle 'from module import *'
+                                module_dict = {
+                                    k: v
+                                    for k, v in module.__dict__.items()
+                                    if not k.startswith("_")
+                                }
+                                namespace.update(module_dict)
+                            else:
+                                try:
+                                    attribute = getattr(module, name)
+                                    namespace[asname] = attribute
+                                except AttributeError as e:
+                                    logger.debug(
+                                        "Failed to retrieve %s from %s: %s",
+                                        name,
+                                        module_name,
+                                        e,
+                                    )
                     except ImportError as e:
                         logger.debug("Failed to import from %s: %s", module_name, e)
-
         # Handle local definitions
         for node in parsed_code.body:
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.Assign)):
                 try:
                     code = compile(
                         ast.Module(body=[node], type_ignores=[]),
-                        filename=filepath or "<string>",
+                        filename="<ast>",
                         mode="exec",
                     )
                     exec(code, namespace)
