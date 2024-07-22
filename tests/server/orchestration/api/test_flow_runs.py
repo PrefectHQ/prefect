@@ -2723,7 +2723,7 @@ class TestDownloadFlowRunLogs:
         self, client, flow_run, logs, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setattr(
-            "prefect.server.api.flow_runs", "FLOW_RUN_LOGS_CSV_PAGE_LIMIT", 3
+            "prefect.server.api.flow_runs.FLOW_RUN_LOGS_CSV_PAGE_LIMIT", 3
         )
 
         response = await client.get(f"/flow_runs/{flow_run.id}/logs")
