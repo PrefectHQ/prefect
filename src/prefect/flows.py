@@ -1976,6 +1976,25 @@ def load_placeholder_flow(entrypoint: str, raises: Exception):
     return Flow(**arguments)
 
 
+def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow]:
+    """
+    Load a flow from an entrypoint and return None if an exception is raised.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+          or a module path to a flow function
+    """
+    func_def, source_code = _entrypoint_definition_and_source(entrypoint)
+    path = None
+    if ":" in entrypoint:
+        path = entrypoint.rsplit(":")[0]
+    namespace = safe_load_namespace(source_code, filepath=path)
+    if func_def.name in namespace:
+        return namespace[func_def.name]
+    else:
+        return None
+
+
 def load_flow_arguments_from_entrypoint(
     entrypoint: str, arguments: Optional[Union[List[str], Set[str]]] = None
 ) -> dict[str, Any]:
@@ -1991,6 +2010,9 @@ def load_flow_arguments_from_entrypoint(
     """
 
     func_def, source_code = _entrypoint_definition_and_source(entrypoint)
+    path = None
+    if ":" in entrypoint:
+        path = entrypoint.rsplit(":")[0]
 
     if arguments is None:
         # If no arguments are provided default to known arguments that are of
@@ -2026,7 +2048,7 @@ def load_flow_arguments_from_entrypoint(
 
                 # if the arg value is not a raw str (i.e. a variable or expression),
                 # then attempt to evaluate it
-                namespace = safe_load_namespace(source_code)
+                namespace = safe_load_namespace(source_code, filepath=path)
                 literal_arg_value = ast.get_source_segment(source_code, keyword.value)
                 cleaned_value = (
                     literal_arg_value.replace("\n", "") if literal_arg_value else ""
