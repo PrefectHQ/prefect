@@ -204,8 +204,10 @@ def _generate_task_key(fn: Callable) -> str:
         return to_qualified_name(type(fn))
 
     qualname = fn.__qualname__.split(".")[-1]
-    source_hash = h[:8] if (h := hash_objects(inspect.getsource(fn))) else "unknown"
-    return f"{qualname}-{source_hash}"
+
+    code_hash = h[:8] if (h := hash_objects(fn.__code__)) else "unknown"
+
+    return f"{qualname}-{code_hash}"
 
 
 class Task(Generic[P, R]):
