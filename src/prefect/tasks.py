@@ -200,6 +200,9 @@ def _generate_task_key(fn: Callable) -> str:
     Args:
         fn: The function to generate a task key for.
     """
+    if not hasattr(fn, "__qualname__"):
+        return to_qualified_name(type(fn))
+
     qualname = fn.__qualname__.split(".")[-1]
     source_hash = h[:8] if (h := hash_objects(inspect.getsource(fn))) else "unknown"
     return f"{qualname}-{source_hash}"
@@ -386,10 +389,7 @@ class Task(Generic[P, R]):
 
         self.tags = set(tags if tags else [])
 
-        if not hasattr(self.fn, "__qualname__"):
-            self.task_key = to_qualified_name(type(self.fn))
-        else:
-            self.task_key = _generate_task_key(self.fn)
+        self.task_key = _generate_task_key(self.fn)
 
         if cache_policy is not NotSet and cache_key_fn is not None:
             logger.warning(
