@@ -6,7 +6,6 @@ Module containing the base workflow task class and decorator - for most use case
 
 import datetime
 import inspect
-import os
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
@@ -76,6 +75,8 @@ P = ParamSpec("P")  # The parameters of the task
 
 logger = get_logger("tasks")
 
+NUM_CHARS_DYNAMIC_KEY: int = 8
+
 
 def task_input_hash(
     context: "TaskRunContext", arguments: Dict[str, Any]
@@ -123,6 +124,28 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
         return [backoff_factor * max(0, 2**r) for r in range(retries)]
 
     return retry_backoff_callable
+
+
+def _generate_task_key(fn: Callable[..., Any]) -> str:
+    """Generate a task key based on the function name and source code.
+    We may eventually want some sort of top-level namespace here to
+    disambiguate tasks with the same function name in different modules,
+    in a more human-readable way, while avoiding relative import problems (see #12337).
+    As long as the task implementations are unique (even if named the same), we should
+    not have any collisions.
+    Args:
+        fn: The function to generate a task key for.
+    """
+    if not hasattr(fn, "__qualname__"):
+        return to_qualified_name(type(fn))
+
+    qualname = fn.__qualname__.split(".")[-1]
+
+    code_hash = (
+        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(fn.__code__)) else "unknown"
+    )
+
+    return f"{qualname}-{code_hash}"
 
 
 @PrefectObjectRegistry.register_instances
@@ -292,17 +315,7 @@ class Task(Generic[P, R]):
 
         self.tags = set(tags if tags else [])
 
-        if not hasattr(self.fn, "__qualname__"):
-            self.task_key = to_qualified_name(type(self.fn))
-        else:
-            try:
-                task_origin_hash = hash_objects(
-                    self.name, os.path.abspath(inspect.getsourcefile(self.fn))
-                )
-            except TypeError:
-                task_origin_hash = "unknown-source-file"
-
-            self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
+        self.task_key = _generate_task_key(self.fn)
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
