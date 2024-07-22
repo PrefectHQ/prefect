@@ -2693,3 +2693,46 @@ class TestPaginateFlowRuns:
 
         assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()["results"]) == 0
+
+
+class TestDownloadFlowRunLogs:
+    @pytest.fixture
+    async def logs(self, flow_run, session):
+        NOW = pendulum.now("UTC")
+
+        # create 10 logs
+        logs = [
+            schemas.core.Log(
+                flow_run_id=flow_run.id, message=f"Log message {i}", timestamp=NOW
+            )
+            for i in range(10)
+        ]
+
+        await models.logs.create_logs(session=session, logs=logs)
+
+        await session.commit()
+
+        return logs
+
+    async def test_download_flow_run_logs(
+        self, client, flow_run, logs, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            "prefect.server.api.flow_runs", "FLOW_RUN_LOGS_CSV_PAGE_LIMIT", 3
+        )
+
+        response = await client.get(f"/flow_runs/{flow_run.id}/logs")
+
+        assert response.status_code == status.HTTP_200_OK
+
+        response_body = [chunk async for chunk in response.body_iterator]
+        decoded_content = "".join([chunk.decode("utf-8") for chunk in response_body])
+        lines = decoded_content.splitlines()
+        line_count = len(lines)
+
+        # number of logs generated plus 1 for the header row
+        expected_line_count = len(logs) + 1
+
+        assert (
+            line_count == expected_line_count
+        ), f"Expected {expected_line_count} lines, got {line_count}"

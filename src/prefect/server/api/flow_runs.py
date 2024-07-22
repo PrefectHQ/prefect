@@ -771,6 +771,9 @@ async def paginate_flow_runs(
         return ORJSONResponse(content=response)
 
 
+FLOW_RUN_LOGS_CSV_PAGE_LIMIT = 1000
+
+
 @router.get("/{id}/logs")
 async def download_logs(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
@@ -795,7 +798,7 @@ async def download_logs(
             )
 
             offset = 0
-            limit = 1000
+            limit = FLOW_RUN_LOGS_CSV_PAGE_LIMIT
 
             while True:
                 results = await models.logs.read_logs(
