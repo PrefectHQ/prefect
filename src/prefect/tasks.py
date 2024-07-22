@@ -4,7 +4,6 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
-import asyncio
 import datetime
 import inspect
 from copy import copy
@@ -64,6 +63,7 @@ from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     run_coro_as_sync,
+    sync_compatible,
 )
 from prefect.utilities.callables import (
     expand_mapping_parameters,
@@ -1498,7 +1498,8 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    def serve(self):
+    @sync_compatible
+    async def serve(self) -> NoReturn:
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1517,7 +1518,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        asyncio.run(serve(self))
+        await serve(self)
 
 
 @overload
