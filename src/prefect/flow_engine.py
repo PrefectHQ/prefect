@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import (
     Any,
     AsyncGenerator,
-    Callable,
     Coroutine,
     Dict,
     Generator,
@@ -92,9 +91,12 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
 
     flow_run = client.read_flow_run(flow_run_id)
     if entrypoint:
-        flow = load_flow_from_entrypoint(entrypoint)
+        # we should not accept a placeholder flow at runtime
+        flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
     else:
-        flow = run_coro_as_sync(load_flow_from_flow_run(flow_run))
+        flow = run_coro_as_sync(
+            load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
+        )
 
     return flow_run, flow
 
@@ -415,7 +417,7 @@ class FlowRunEngine(Generic[P, R]):
 
         return flow_run
 
-    def call_hooks(self, state: Optional[State] = None) -> Iterable[Callable]:
+    def call_hooks(self, state: Optional[State] = None):
         if state is None:
             state = self.state
         flow = self.flow
@@ -613,11 +615,7 @@ class FlowRunEngine(Generic[P, R]):
 
             if self.state.is_running():
                 self.call_hooks()
-            try:
-                yield
-            finally:
-                if self.state.is_final() or self.state.is_cancelling():
-                    self.call_hooks()
+            yield
 
     @contextmanager
     def run_context(self):
@@ -638,6 +636,9 @@ class FlowRunEngine(Generic[P, R]):
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
                 self.handle_exception(exc)
+            finally:
+                if self.state.is_final() or self.state.is_cancelling():
+                    self.call_hooks()
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
         """

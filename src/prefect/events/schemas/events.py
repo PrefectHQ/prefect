@@ -60,6 +60,16 @@ class Resource(Labelled):
     def name(self) -> Optional[str]:
         return self.get("prefect.resource.name")
 
+    def prefect_object_id(self, kind: str) -> UUID:
+        """Extracts the UUID from an event's resource ID if it's the expected kind
+        of prefect resource"""
+        prefix = f"{kind}." if not kind.endswith(".") else kind
+
+        if not self.id.startswith(prefix):
+            raise ValueError(f"Resource ID {self.id} does not start with {prefix}")
+
+        return UUID(self.id[len(prefix) :])
+
 
 class RelatedResource(Resource):
     """A Resource with a specific role in an Event"""

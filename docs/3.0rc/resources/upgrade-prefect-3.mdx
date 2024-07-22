@@ -42,7 +42,7 @@ In Prefect 3, all workflow code, including task functions, runs on the main thre
 - Non-threadsafe objects, such as database connections, can be shared globally within a workflow.
 
 <Warning>
-In Prefect 3, synchronous tasks and flows **cannot** be called from asynchronous tasks or flows as they could in Prefect 2.
+In Prefect 3, asynchronous tasks and flows **cannot** be called from synchronous tasks or flows as they could in Prefect 2.
 </Warning>
 
 To execute tasks asynchronously, you must either write asynchronous Python functions or use the `Task.submit` method to submit to a Prefect task runner.

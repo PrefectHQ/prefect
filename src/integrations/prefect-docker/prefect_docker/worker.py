@@ -36,7 +36,6 @@ import prefect
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas import FlowRun
 from prefect.events import Event, RelatedResource, emit_event
-from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import PREFECT_API_URL
@@ -123,6 +122,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             `mem_limit` is 300m and `memswap_limit` is not set, containers can use
             600m in total of memory and swap.
         privileged: Give extended privileges to created containers.
+        container_create_kwargs: Extra args for docker py when creating container.
     """
 
     image: str = Field(
@@ -187,10 +187,16 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             "600m in total of memory and swap."
         ),
     )
-
     privileged: bool = Field(
         default=False,
         description="Give extended privileges to created container.",
+    )
+    container_create_kwargs: Optional[Dict[str, Any]] = Field(
+        default=None,
+        title="Container Configuration",
+        description=(
+            "Configuration for containers created by workers. See the [`docker-py` documentation](https://docker-py.readthedocs.io/en/stable/containers.html) for accepted values."
+        ),
     )
 
     def _convert_labels_to_docker_format(self, labels: Dict[str, str]):
@@ -447,55 +453,6 @@ class DockerWorker(BaseWorker):
             identifier=container_pid,
         )
 
-    async def kill_infrastructure(
-        self,
-        infrastructure_pid: str,
-        configuration: DockerWorkerJobConfiguration,
-        grace_seconds: int = 30,
-    ):
-        """
-        Stops a container for a cancelled flow run based on the provided infrastructure
-        PID.
-        """
-        docker_client = self._get_client()
-
-        base_url, container_id = self._parse_infrastructure_pid(infrastructure_pid)
-        if docker_client.api.base_url != base_url:
-            raise InfrastructureNotAvailable(
-                "".join(
-                    [
-                        (
-                            f"Unable to stop container {container_id!r}: the current"
-                            " Docker API "
-                        ),
-                        (
-                            f"URL {docker_client.api.base_url!r} does not match the"
-                            " expected "
-                        ),
-                        f"API base URL {base_url}.",
-                    ]
-                )
-            )
-        await run_sync_in_worker_thread(
-            self._stop_container, container_id, docker_client, grace_seconds
-        )
-
-    def _stop_container(
-        self,
-        container_id: str,
-        client: "DockerClient",
-        grace_seconds: int = 30,
-    ):
-        try:
-            container = client.containers.get(container_id=container_id)
-        except docker.errors.NotFound:
-            raise InfrastructureNotFound(
-                f"Unable to stop container {container_id!r}: The container was not"
-                " found."
-            )
-
-        container.stop(timeout=grace_seconds)
-
     def _get_client(self):
         """Returns a docker client."""
         try:
@@ -538,6 +495,18 @@ class DockerWorker(BaseWorker):
     ) -> Dict:
         """Builds a dictionary of container settings to pass to the Docker API."""
         network_mode = configuration.get_network_mode()
+
+        container_create_kwargs = (
+            configuration.container_create_kwargs
+            if configuration.container_create_kwargs
+            else {}
+        )
+        container_create_kwargs = {
+            k: v
+            for k, v in container_create_kwargs.items()
+            if k not in configuration.model_fields.keys()
+        }
+
         return dict(
             image=configuration.image,
             network=configuration.networks[0] if configuration.networks else None,
@@ -552,6 +521,7 @@ class DockerWorker(BaseWorker):
             mem_limit=configuration.mem_limit,
             memswap_limit=configuration.memswap_limit,
             privileged=configuration.privileged,
+            **container_create_kwargs,
         )
 
     def _create_and_start_container(

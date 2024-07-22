@@ -1160,6 +1160,11 @@ polled."""
 PREFECT_API_LOG_RETRYABLE_ERRORS = Setting(bool, default=False)
 """If `True`, log retryable errors in the API and it's services."""
 
+PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the task run recorder service in the server application.
+"""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
@@ -1309,14 +1314,11 @@ The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
 
-PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION = Setting(
+    bool, default=False
+)
 """
-Whether or not to enable experimental enhanced flow run cancellation.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental enhanced flow run cancellation is used.
+Whether or not to enable experimental client side task run orchestration.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY = Setting(bool, default=True)
@@ -1329,7 +1331,6 @@ PREFECT_EXPERIMENTAL_WARN_CLIENT_SIDE_TASK_CONCURRENCY = Setting(bool, default=F
 Whether or not to warn when experimental client-side management of task
 concurrency limits is used.
 """
-
 
 # Prefect Events feature flags
 
