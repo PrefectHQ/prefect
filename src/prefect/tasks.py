@@ -205,7 +205,9 @@ def _generate_task_key(fn: Callable) -> str:
 
     qualname = fn.__qualname__.split(".")[-1]
 
-    code_hash = h[:8] if (h := hash_objects(fn.__code__)) else "unknown"
+    code_hash = (
+        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(fn.__code__)) else "unknown"
+    )
 
     return f"{qualname}-{code_hash}"
 
