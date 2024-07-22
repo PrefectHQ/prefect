@@ -60,11 +60,7 @@ async def test_task_state_change_happy_path(
         == task_run.expected_start_time
     )
     assert pending.payload["task_run"].pop("estimated_start_time_delta") > 0.0
-    assert (
-        pending.payload["task_run"]
-        .pop("task_key")
-        .startswith("test_task_state_change_happy_path.<locals>.happy_little_tree")
-    )
+    assert pending.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert pending.payload == {
         "initial_state": None,
         "intended": {"from": None, "to": "PENDING"},
@@ -112,11 +108,7 @@ async def test_task_state_change_happy_path(
         == task_run.expected_start_time
     )
     assert running.payload["task_run"].pop("estimated_start_time_delta") > 0.0
-    assert (
-        running.payload["task_run"]
-        .pop("task_key")
-        .startswith("test_task_state_change_happy_path.<locals>.happy_little_tree")
-    )
+    assert running.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert running.payload == {
         "intended": {"from": "PENDING", "to": "RUNNING"},
         "initial_state": {
@@ -169,11 +161,7 @@ async def test_task_state_change_happy_path(
         == task_run.expected_start_time
     )
     assert completed.payload["task_run"].pop("estimated_start_time_delta") > 0.0
-    assert (
-        completed.payload["task_run"]
-        .pop("task_key")
-        .startswith("test_task_state_change_happy_path.<locals>.happy_little_tree")
-    )
+    assert completed.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert completed.payload["task_run"].pop("estimated_run_time") > 0.0
     assert (
         pendulum.parse(completed.payload["task_run"].pop("start_time"))
@@ -262,11 +250,7 @@ async def test_task_state_change_task_failure(
         == task_run.expected_start_time
     )
     assert pending.payload["task_run"].pop("estimated_start_time_delta") > 0.0
-    assert (
-        pending.payload["task_run"]
-        .pop("task_key")
-        .startswith("test_task_state_change_task_failure.<locals>.happy_little_tree")
-    )
+    assert pending.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert pending.payload == {
         "initial_state": None,
         "intended": {"from": None, "to": "PENDING"},
@@ -314,11 +298,7 @@ async def test_task_state_change_task_failure(
         == task_run.expected_start_time
     )
     assert running.payload["task_run"].pop("estimated_start_time_delta") > 0.0
-    assert (
-        running.payload["task_run"]
-        .pop("task_key")
-        .startswith("test_task_state_change_task_failure.<locals>.happy_little_tree")
-    )
+    assert running.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert running.payload == {
         "intended": {"from": "PENDING", "to": "RUNNING"},
         "initial_state": {
@@ -374,11 +354,7 @@ async def test_task_state_change_task_failure(
         == task_run.expected_start_time
     )
     assert failed.payload["task_run"].pop("estimated_start_time_delta") > 0.0
-    assert (
-        failed.payload["task_run"]
-        .pop("task_key")
-        .startswith("test_task_state_change_task_failure.<locals>.happy_little_tree")
-    )
+    assert failed.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert failed.payload["task_run"].pop("estimated_run_time") > 0.0
     assert (
         pendulum.parse(failed.payload["task_run"].pop("start_time"))
