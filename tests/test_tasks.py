@@ -19,12 +19,7 @@ from prefect import flow, tags
 from prefect.blocks.core import Block
 from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE, CachePolicy
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.filters import (
-    FlowRunFilter,
-    FlowRunFilterId,
-    LogFilter,
-    LogFilterFlowRunId,
-)
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
 from prefect.exceptions import (
@@ -5118,9 +5113,7 @@ def test_rollback_errors_are_logged(caplog):
     assert "whoops!" in caplog.text
 
 
-async def test_rollback_hook_execution_and_completion_are_logged(
-    caplog, prefect_client: PrefectClient
-):
+def test_rollback_hook_execution_and_completion_are_logged(caplog):
     @task
     def foo():
         pass
@@ -5135,21 +5128,9 @@ async def test_rollback_hook_execution_and_completion_are_logged(
             foo()
             raise ValueError("txn failed")
 
-    flow_run_state = txn_flow(return_state=True)
-
+    txn_flow(return_state=True)
     assert "Running rollback hook 'rollback'" in caplog.text
     assert "Rollback hook 'rollback' finished running successfully" in caplog.text
-
-    assert flow_run_state.state_details.flow_run_id
-    task_runs = await prefect_client.read_task_runs(
-        flow_run_filter=FlowRunFilter(
-            id=FlowRunFilterId(any_=[flow_run_state.state_details.flow_run_id])
-        )
-    )
-    assert task_runs[0].state
-    assert task_runs[0].state.type == StateType.COMPLETED
-    assert task_runs[0].state.name == "RolledBack"
-    assert task_runs[0].state.message == "Task rolled back as part of transaction"
 
 
 def test_commit_errors_are_logged(caplog):

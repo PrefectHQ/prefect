@@ -194,6 +194,9 @@ class TestTaskRunEngine:
             client = engine.client
             assert isinstance(client, SyncPrefectClient)
 
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
+
 
 class TestRunTask:
     def test_run_task_with_client_provided_uuid(self):

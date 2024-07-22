@@ -59,7 +59,6 @@ from prefect.settings import (
 )
 from prefect.states import (
     AwaitingRetry,
-    Completed,
     Failed,
     Paused,
     Pending,
@@ -673,6 +672,9 @@ class TaskRunEngine(Generic[P, R]):
                         msg=msg,
                     )
 
+                    self._is_started = False
+                    self._client = None
+
     def is_running(self) -> bool:
         """Whether or not the engine is currently running a task."""
         if (task_run := getattr(self, "task_run", None)) is None:
@@ -712,19 +714,6 @@ class TaskRunEngine(Generic[P, R]):
     def transaction_context(self) -> Generator[Transaction, None, None]:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
 
-        def __prefect_task_rollback_handler(txn: Transaction):
-            # if there are no user-defined rollback hooks to run, then don't
-            # explicitly mark as rolled back
-            if txn.on_rollback_hooks == [__prefect_task_rollback_handler]:
-                return
-
-            self.set_state(
-                Completed(
-                    name="RolledBack",
-                    message="Task rolled back as part of transaction",
-                )
-            )
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
@@ -736,7 +725,6 @@ class TaskRunEngine(Generic[P, R]):
             store=ResultFactoryStore(result_factory=result_factory),
             overwrite=overwrite,
             logger=self.logger,
-            on_rollback_hooks=[__prefect_task_rollback_handler],
         ) as txn:
             yield txn
 
