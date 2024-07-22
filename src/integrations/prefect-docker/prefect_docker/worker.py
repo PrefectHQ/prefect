@@ -122,6 +122,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             `mem_limit` is 300m and `memswap_limit` is not set, containers can use
             600m in total of memory and swap.
         privileged: Give extended privileges to created containers.
+        container_create_kwargs: Extra args for docker py when creating container.
     """
 
     image: str = Field(
@@ -186,10 +187,16 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             "600m in total of memory and swap."
         ),
     )
-
     privileged: bool = Field(
         default=False,
         description="Give extended privileges to created container.",
+    )
+    container_create_kwargs: Optional[Dict[str, Any]] = Field(
+        default=None,
+        title="Container Configuration",
+        description=(
+            "Configuration for containers created by workers. See the [`docker-py` documentation](https://docker-py.readthedocs.io/en/stable/containers.html) for accepted values."
+        ),
     )
 
     def _convert_labels_to_docker_format(self, labels: Dict[str, str]):
@@ -488,6 +495,18 @@ class DockerWorker(BaseWorker):
     ) -> Dict:
         """Builds a dictionary of container settings to pass to the Docker API."""
         network_mode = configuration.get_network_mode()
+
+        container_create_kwargs = (
+            configuration.container_create_kwargs
+            if configuration.container_create_kwargs
+            else {}
+        )
+        container_create_kwargs = {
+            k: v
+            for k, v in container_create_kwargs.items()
+            if k not in configuration.model_fields.keys()
+        }
+
         return dict(
             image=configuration.image,
             network=configuration.networks[0] if configuration.networks else None,
@@ -502,6 +521,7 @@ class DockerWorker(BaseWorker):
             mem_limit=configuration.mem_limit,
             memswap_limit=configuration.memswap_limit,
             privileged=configuration.privileged,
+            **container_create_kwargs,
         )
 
     def _create_and_start_container(

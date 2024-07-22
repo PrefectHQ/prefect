@@ -871,6 +871,37 @@ async def test_task_infra_pid_includes_host_and_container_id(
     assert result.identifier == f"{FAKE_BASE_URL}:{FAKE_CONTAINER_ID}"
 
 
+async def test_container_create_kwargs(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.container_create_kwargs = {
+        "hostname": "custom_name"
+    }
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    mock_docker_client.containers.create.assert_called_once()
+    hostname = mock_docker_client.containers.create.call_args[1].get("hostname")
+    assert hostname == "custom_name"
+
+
+async def test_container_create_kwargs_excludes_job_variables(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.name = "job_config_name"
+    default_docker_worker_job_configuration.container_create_kwargs = {
+        "name": "create_kwarg_name"
+    }
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    mock_docker_client.containers.create.assert_called_once()
+    name = mock_docker_client.containers.create.call_args[1].get("name")
+    assert name == "job_config_name"
+
+
 async def test_task_status_receives_result_identifier(
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
