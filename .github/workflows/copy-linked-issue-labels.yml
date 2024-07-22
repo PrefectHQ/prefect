@@ -1,0 +1,18 @@
+name: Copy labels from linked issues
+on:
+  pull_request_target:
+    types: [opened, edited, review_requested, synchronize, reopened, ready_for_review]
+
+jobs:
+  copy-issue-labels:
+    if: github.repository == 'prefecthq/prefect'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+      contents: read
+      pull-requests: write
+    steps:
+      - name: copy-issue-labels
+        uses: michalvankodev/copy-issue-labels@v1.3.0
+        with:
+          repo-token: "${{ github.token }}"
