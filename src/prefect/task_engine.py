@@ -433,6 +433,8 @@ class TaskRunEngine(Generic[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
+                if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                    self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
