@@ -26,7 +26,6 @@ from prefect.results import (
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
-from prefect.utilities.engine import _get_hook_name
 
 
 class IsolationLevel(AutoEnum):
@@ -180,22 +179,11 @@ class Transaction(ContextModel):
             return False
 
         try:
-            hook_name = None
-
             for child in self.children:
                 child.commit()
 
             for hook in self.on_commit_hooks:
-                hook_name = _get_hook_name(hook)
-                if self.logger:
-                    self.logger.info(f"Running commit hook {hook_name!r}")
-
                 hook(self)
-
-                if self.logger:
-                    self.logger.info(
-                        f"Commit hook {hook_name!r} finished running successfully"
-                    )
 
             if self.store and self.key:
                 self.store.write(key=self.key, value=self._staged_value)
@@ -203,16 +191,8 @@ class Transaction(ContextModel):
             return True
         except Exception:
             if self.logger:
-                if hook_name:
-                    msg = (
-                        f"An error was encountered while running commit hook {hook_name!r}",
-                    )
-                else:
-                    msg = (
-                        f"An error was encountered while committing transaction {self.key!r}",
-                    )
                 self.logger.exception(
-                    msg,
+                    f"An error was encountered while committing transaction {self.key!r}",
                     exc_info=True,
                 )
             self.rollback()
@@ -242,16 +222,7 @@ class Transaction(ContextModel):
 
         try:
             for hook in reversed(self.on_rollback_hooks):
-                hook_name = _get_hook_name(hook)
-                if self.logger:
-                    self.logger.info(f"Running rollback hook {hook_name!r}")
-
                 hook(self)
-
-                if self.logger:
-                    self.logger.info(
-                        f"Rollback hook {hook_name!r} finished running successfully"
-                    )
 
             self.state = TransactionState.ROLLED_BACK
 
@@ -262,7 +233,7 @@ class Transaction(ContextModel):
         except Exception:
             if self.logger:
                 self.logger.exception(
-                    f"An error was encountered while running rollback hook {hook_name!r}",
+                    f"An error was encountered while rolling back transaction {self.key!r}",
                     exc_info=True,
                 )
             return False
