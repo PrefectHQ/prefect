@@ -2015,10 +2015,13 @@ def _sanitize_and_load_flow(
         The loaded function or None if the function can't be loaded
         after sanitizing the annotations and defaults.
     """
+    args = func_def.args.posonlyargs + func_def.args.args + func_def.args.kwonlyargs
+    if func_def.args.vararg:
+        args.append(func_def.args.vararg)
+    if func_def.args.kwarg:
+        args.append(func_def.args.kwarg)
     # Remove annotations that can't be compiled
-    for arg in (
-        func_def.args.posonlyargs + func_def.args.args + func_def.args.kwonlyargs
-    ):
+    for arg in args:
         if arg.annotation is not None:
             try:
                 code = compile(
@@ -2085,6 +2088,19 @@ def _sanitize_and_load_flow(
                 )
             )
     func_def.args.kw_defaults = new_kw_defaults
+
+    if func_def.returns is not None:
+        try:
+            code = compile(
+                ast.Expression(func_def.returns), filename="<ast>", mode="eval"
+            )
+            exec(code, namespace)
+        except Exception as e:
+            logger.debug(
+                "Failed to evaluate return annotation due to the following error. Ignoring annotation.",
+                exc_info=e,
+            )
+            func_def.returns = None
 
     # Attempt to compile the function without annotations and defaults that
     # can't be compiled
