@@ -12,6 +12,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
+    _read_profiles_from,
     load_profiles,
     save_profiles,
     temporary_settings,
@@ -581,3 +582,34 @@ def test_inspect_profile_without_settings():
             Profile 'foo' is empty.
             """,
     )
+
+
+def test_populate_defaults(tmp_path, monkeypatch):
+    # Set up a temporary profiles path
+    temp_profiles_path = tmp_path / "profiles.toml"
+    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+
+    default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
+
+    assert not temp_profiles_path.exists()
+
+    invoke_and_assert(
+        ["profile", "populate-defaults"],
+        user_input="y",
+        expected_output_contains=[
+            f"Default profiles have been populated in {temp_profiles_path}",
+            "You can now use these profiles with prefect profile use [SOME-PROFILE-NAME]",
+        ],
+    )
+
+    assert temp_profiles_path.exists()
+
+    populated_profiles = load_profiles()
+
+    assert populated_profiles.names == default_profiles.names
+    assert populated_profiles.active_name == default_profiles.active_name
+
+    assert {"local", "ephemeral", "test", "cloud"} == set(populated_profiles.names)
+
+    for name in default_profiles.names:
+        assert populated_profiles[name].settings == default_profiles[name].settings

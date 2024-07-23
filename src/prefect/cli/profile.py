@@ -3,7 +3,9 @@ Command line interface for working with profiles.
 """
 
 import os
+import shutil
 import textwrap
+from pathlib import Path
 from typing import Optional
 
 import httpx
@@ -24,6 +26,10 @@ from prefect.utilities.collections import AutoEnum
 
 profile_app = PrefectTyper(name="profile", help="Select and manage Prefect profiles.")
 app.add_typer(profile_app, aliases=["profiles"])
+
+_OLD_MINIMAL_DEFAULT_PROFILE_CONTENT: str = """active = "default"
+
+[profiles.default]"""
 
 
 @profile_app.command()
@@ -248,6 +254,47 @@ def inspect(
 
     for setting, value in profiles[name].settings.items():
         app.console.print(f"{setting.name}='{value}'")
+
+
+@profile_app.command()
+def populate_defaults():
+    """
+    Populate the profiles configuration with the default base profiles.
+    """
+    user_profiles_path = prefect.settings.PREFECT_PROFILES_PATH.value()
+
+    if user_profiles_path.exists():
+        if not typer.confirm(
+            f"This will overwrite existing profiles at {user_profiles_path}. Do you want to continue?"
+        ):
+            exit_with_success("Operation cancelled.")
+
+        if (
+            user_profiles_path.read_text()
+            not in (
+                (Path.cwd() / "src/prefect/profiles.toml").read_text(),
+                _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT,
+            )
+            and (backup_path := user_profiles_path.with_suffix(".toml.bak")).exists()
+            and typer.confirm(
+                f"Do you want to back up your existing profiles to {backup_path}?"
+            )
+        ):
+            shutil.copy(user_profiles_path, backup_path)
+            app.console.print(f"Existing profiles backed up to {backup_path}")
+
+    default_profiles = prefect.settings._read_profiles_from(
+        prefect.settings.DEFAULT_PROFILES_PATH
+    )
+
+    prefect.settings._write_profiles_to(user_profiles_path, default_profiles)
+
+    app.console.print(
+        f"Default profiles have been populated in [green]{user_profiles_path}[/green]"
+    )
+    app.console.print(
+        "You can now use these profiles with [green]prefect profile use[/green] [red][SOME-PROFILE-NAME][/red]"
+    )
 
 
 class ConnectionStatus(AutoEnum):
