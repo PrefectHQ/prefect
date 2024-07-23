@@ -57,7 +57,7 @@ from prefect.deployments.base import (
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
-from prefect.flows import safe_load_flow_from_entrypoint
+from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -471,7 +471,7 @@ async def _run_single_deploy(
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
 
-    flow = safe_load_flow_from_entrypoint(deploy_config["entrypoint"])
+    flow = load_flow_from_entrypoint(deploy_config["entrypoint"])
     assert flow is not None, "Flow could not be loaded from entrypoint."
 
     deploy_config["flow_name"] = flow.name
