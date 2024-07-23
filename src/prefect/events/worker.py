@@ -74,7 +74,7 @@ class EventsWorker(QueueService[Event]):
         context = self._context_cache.pop(event.id)
         with temporary_context(context=context):
             await self.attach_related_resources_from_context(event)
-            event.resource["prefect.version"] = prefect.__version__
+            event.resource["prefect.version"] = str(prefect.__version__)
 
         await self._client.emit(event)
 
