@@ -2843,6 +2843,29 @@ class TestCreateFlowRunFromDeployment:
 
         assert response.status_code == 201
 
+    async def test_create_flow_run_respects_per_run_validation_flag(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={"parameters": {"x": 1}},
+        )
+
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
+            in response.text
+        )
+
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={"parameters": {"x": 1}, "enforce_parameter_schema": False},
+        )
+
+        assert response.status_code == 201
+
     async def test_create_flow_run_does_not_enforce_parameter_schema_when_enforcement_is_toggled_off(
         self,
         deployment_with_parameter_schema,

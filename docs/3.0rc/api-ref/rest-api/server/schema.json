@@ -15990,6 +15990,18 @@
                         "type": "object",
                         "title": "Parameters"
                     },
+                    "enforce_parameter_schema": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Enforce Parameter Schema",
+                        "description": "Whether or not to enforce the parameter schema on this run."
+                    },
                     "context": {
                         "type": "object",
                         "title": "Context"
