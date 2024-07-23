@@ -254,7 +254,7 @@ In Prefect 3, the final state of a flow run is entirely determined by:
 
 1. The `return` value of the flow function (same as in Prefect 2):
    - Literal values are considered successful.
-   - Any explicit `State` that is returned will be considered the final state of the flow run.
+   - Any explicit `State` that is returned will be considered the final state of the flow run. If an iterable of `State` objects is returned, all must be `Completed` for the flow run to be considered `Completed` - if any are `Failed`, the flow run will be marked as `Failed`.
 
 2. Whether the flow function allows an exception to `raise`:
    - Exceptions that are allowed to propagate will result in a `Failed` state.
