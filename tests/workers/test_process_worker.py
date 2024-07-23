@@ -11,6 +11,7 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
+from exceptiongroup import BaseExceptionGroup
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -348,7 +349,8 @@ async def test_process_created_then_marked_as_started(
     patch_client(monkeypatch)
     fake_configuration = MagicMock()
     fake_configuration.command = "echo hello"
-    with pytest.raises(RuntimeError, match="Started called!"):
+
+    with pytest.raises(BaseExceptionGroup) as exc:
         async with ProcessWorker(
             work_pool_name=work_pool.name,
         ) as worker:
@@ -358,6 +360,9 @@ async def test_process_created_then_marked_as_started(
                 configuration=fake_configuration,
                 task_status=fake_status,
             )
+
+        assert len(exc.value.exceptions) == 1
+        assert isinstance(exc.value.exceptions[0], RuntimeError)
 
     fake_status.started.assert_called_once()
     mock_open_process.assert_awaited_once()

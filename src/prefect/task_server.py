@@ -5,6 +5,7 @@ import signal
 import socket
 import sys
 from contextlib import AsyncExitStack
+from exceptiongroup import BaseExceptionGroup
 from functools import partial
 from typing import List, Optional, Type
 
@@ -300,6 +301,14 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
     task_server = TaskServer(*tasks, task_runner=task_runner)
     try:
         await task_server.start()
+
+    except BaseExceptionGroup as exc:  # novermin
+        exceptions = exc.exceptions
+        n_exceptions = len(exceptions)
+        logger.error(
+            f"Task worker stopped with {n_exceptions} exception{'s' if n_exceptions != 1 else ''}:"
+            f"\n" + "\n".join(str(e) for e in exceptions)
+        )
 
     except StopTaskServer:
         logger.info("Task server stopped.")

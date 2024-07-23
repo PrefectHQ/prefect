@@ -9,6 +9,7 @@ from functools import partial, wraps
 
 import anyio
 import pytest
+from exceptiongroup import BaseExceptionGroup
 
 from prefect.context import ContextModel
 from prefect.settings import (
@@ -178,8 +179,11 @@ async def test_run_sync_in_interruptible_worker_thread_does_not_hide_exceptions(
     def foo():
         raise ValueError("test")
 
-    with pytest.raises(ValueError, match="test"):
+    with pytest.raises(BaseExceptionGroup) as exc:
         await run_sync_in_interruptible_worker_thread(foo)
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], ValueError)
 
 
 async def test_run_sync_in_interruptible_worker_thread_does_not_hide_base_exceptions():
@@ -189,8 +193,11 @@ async def test_run_sync_in_interruptible_worker_thread_does_not_hide_base_except
     def foo():
         raise LikeKeyboardInterrupt("test")
 
-    with pytest.raises(LikeKeyboardInterrupt, match="test"):
+    with pytest.raises(BaseExceptionGroup) as exc:
         await run_sync_in_interruptible_worker_thread(foo)
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], LikeKeyboardInterrupt)
 
 
 async def test_run_sync_in_interruptible_worker_thread_function_can_return_exception():
@@ -339,7 +346,6 @@ def test_sync_compatible_allows_direct_access_to_async_fn():
 
 def test_sync_compatible_requires_async_function():
     with pytest.raises(TypeError, match="must be async"):
-
         @sync_compatible
         def foo():
             pass
@@ -347,7 +353,6 @@ def test_sync_compatible_requires_async_function():
 
 def test_sync_compatible_with_async_context_manager():
     with pytest.raises(ValueError, match="Async generators cannot yet be marked"):
-
         @sync_compatible
         @asynccontextmanager
         async def foo():
