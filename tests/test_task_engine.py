@@ -847,22 +847,14 @@ class TestTaskRetries:
         states = await get_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
-        assert (
-            state_names
-            == [
-                "Pending",
-                "Running",
-                "RolledBack",
-                "Retrying",
-                "RolledBack",
-                "Retrying",
-                "RolledBack",
-                "Retrying",
-            ]
-            + ["RolledBack", "Failed"]
-            if always_fail
-            else ["Completed"]
-        )
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+            "Failed" if always_fail else "Completed",
+        ]
 
     @pytest.mark.parametrize("always_fail", [True, False])
     async def test_task_respects_retry_count_sync(self, always_fail):
@@ -903,22 +895,14 @@ class TestTaskRetries:
         states = await get_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
-        assert (
-            state_names
-            == [
-                "Pending",
-                "Running",
-                "RolledBack",
-                "Retrying",
-                "RolledBack",
-                "Retrying",
-                "RolledBack",
-                "Retrying",
-            ]
-            + ["RolledBack", "Failed"]
-            if always_fail
-            else ["Completed"]
-        )
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+            "Failed" if always_fail else "Completed",
+        ]
 
     async def test_task_only_uses_necessary_retries(self):
         mock = MagicMock()
@@ -948,7 +932,6 @@ class TestTaskRetries:
         assert state_names == [
             "Pending",
             "Running",
-            "RolledBack",
             "Retrying",
             "Completed",
         ]
@@ -1044,16 +1027,12 @@ class TestTaskRetries:
         assert state_names == [
             "Pending",
             "Running",
-            "RolledBack",
             "AwaitingRetry",
             "Retrying",
-            "RolledBack",
             "AwaitingRetry",
             "Retrying",
-            "RolledBack",
             "AwaitingRetry",
             "Retrying",
-            "RolledBack",
             "Failed",
         ]
 
@@ -1092,16 +1071,12 @@ class TestTaskRetries:
         assert state_names == [
             "Pending",
             "Running",
-            "RolledBack",
             "AwaitingRetry",
             "Retrying",
-            "RolledBack",
             "AwaitingRetry",
             "Retrying",
-            "RolledBack",
             "AwaitingRetry",
             "Retrying",
-            "RolledBack",
             "Failed",
         ]
 

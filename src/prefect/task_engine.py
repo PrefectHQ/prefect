@@ -69,7 +69,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.transactions import Transaction, transaction
+from prefect.transactions import Transaction, TransactionState, transaction
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
@@ -721,6 +721,12 @@ class TaskRunEngine(Generic[P, R]):
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
 
         def __prefect_set_task_state_to_rolled_back(txn: Transaction):
+            if txn.state != TransactionState.STAGED:
+                # there's nothing to rollback so don't set the state to rolled back
+                # For example, a task that raises an unhandled exception while running
+                # does not trigger any on_rollback hooks b/c the transaction was never staged.
+                return
+
             with ClientContext.get_or_create() as client_ctx:
                 self.set_state(
                     Completed(

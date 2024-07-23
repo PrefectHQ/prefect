@@ -1140,25 +1140,14 @@ class TestTaskRetries:
 
         state_names = [state.name for state in states]
         # task retries are client-side in the new engine
-        assert (
-            state_names
-            == [
-                "Pending",
-                "Running",
-                "RolledBack",
-                "Retrying",
-                "RolledBack",
-                "Retrying",
-                "RolledBack",
-                "Retrying",
-            ]
-            + [
-                "RolledBack",
-                "Failed",
-            ]
-            if always_fail
-            else ["Completed"]
-        )
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+            "Failed" if always_fail else "Completed",
+        ]
 
     async def test_task_only_uses_necessary_retries(self, prefect_client):
         mock = MagicMock()
@@ -1190,7 +1179,6 @@ class TestTaskRetries:
         assert state_names == [
             "Pending",
             "Running",
-            "RolledBack",
             "Retrying",
             "Completed",
         ]
