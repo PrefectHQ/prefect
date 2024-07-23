@@ -691,6 +691,7 @@ async def create_flow_run_from_deployment(
                     "tags",
                     "infrastructure_document_id",
                     "work_queue_name",
+                    "enforce_parameter_schema",
                 }
             ),
             flow_id=deployment.flow_id,
