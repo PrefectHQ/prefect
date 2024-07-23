@@ -37,6 +37,7 @@ from prefect.states import Running, State
 from prefect.task_engine import TaskRunEngine, run_task_async, run_task_sync
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
+from prefect.transactions import transaction
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 
@@ -2276,3 +2277,41 @@ class TestRunStateIsDenormalized:
             return proof_that_i_ran
 
         assert the_flow() == proof_that_i_ran
+
+
+async def test_task_transitions_to_rolled_back_on_transaction_rollback(
+    enable_client_side_task_run_orchestration,
+):
+    if not enable_client_side_task_run_orchestration:
+        pytest.xfail(
+            "The RolledBack state transition is only supported via client-side task orchestration"
+        )
+    task_run_state = None
+
+    @task
+    def foo():
+        pass
+
+    @foo.on_rollback
+    def rollback(txn):
+        pass
+
+    @flow
+    def txn_flow():
+        with transaction():
+            nonlocal task_run_state
+            task_run_state = foo(return_state=True)
+            raise ValueError("txn failed")
+
+    txn_flow(return_state=True)
+
+    task_run_id = task_run_state.state_details.task_run_id
+    task_run_states = await get_task_run_states(task_run_id)
+
+    state_names = [state.name for state in task_run_states]
+    assert state_names == [
+        "Pending",
+        "Running",
+        "Completed",
+        "RolledBack",
+    ]
