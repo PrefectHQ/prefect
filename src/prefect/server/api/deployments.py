@@ -709,7 +709,14 @@ async def create_flow_run_from_deployment(
                 detail=f"Error hydrating flow run parameters: {exc}",
             )
 
-        if deployment.enforce_parameter_schema:
+        # default
+        enforce_parameter_schema = deployment.enforce_parameter_schema
+
+        # run override
+        if flow_run.enforce_parameter_schema is not None:
+            enforce_parameter_schema = flow_run.enforce_parameter_schema
+
+        if enforce_parameter_schema:
             if not isinstance(deployment.parameter_openapi_schema, dict):
                 raise HTTPException(
                     status.HTTP_409_CONFLICT,
@@ -759,6 +766,7 @@ async def create_flow_run_from_deployment(
                     "tags",
                     "infrastructure_document_id",
                     "work_queue_name",
+                    "enforce_parameter_schema",
                 }
             ),
             flow_id=deployment.flow_id,
