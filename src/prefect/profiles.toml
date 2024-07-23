@@ -1,3 +1,22 @@
-active = "default"
+# This is the default profile configuration for Prefect.
+# Users can modify these profiles or create new ones to suit their needs.
 
-[profiles.default]
+active = "ephemeral"
+
+[profiles.ephemeral]
+# The actual path will be resolved when the setting is used
+PREFECT_API_DATABASE_CONNECTION_URL = "sqlite+aiosqlite:///prefect.db"
+
+[profiles.local]
+# Users will need to set these values appropriately
+PREFECT_API_URL = "http://127.0.0.1:4200/api"
+
+[profiles.test]
+PREFECT_API_DATABASE_CONNECTION_URL = "sqlite+aiosqlite:///:memory:"
+PREFECT_RESULTS_PERSIST_BY_DEFAULT = false
+
+[profiles.cloud]
+# This is a placeholder for Prefect Cloud configuration
+# Run "prefect cloud login" to set up your Prefect Cloud profile
+# PREFECT_API_URL = "https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+# PREFECT_API_KEY = "your-api-key-here"
