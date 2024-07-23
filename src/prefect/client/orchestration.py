@@ -3020,7 +3020,7 @@ class PrefectClient:
                 "names": names,
                 "slots": slots,
                 "mode": mode,
-                "active": create_if_missing,
+                "create_if_missing": create_if_missing,
             },
         )
 

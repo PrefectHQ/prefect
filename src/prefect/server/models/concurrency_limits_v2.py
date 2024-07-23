@@ -203,7 +203,9 @@ async def bulk_read_or_create_concurrency_limits(
     if missing_names and create_if_missing:
         new_limits = [
             orm_models.ConcurrencyLimitV2(
-                **schemas.core.ConcurrencyLimitV2(name=name, limit=1).model_dump()
+                **schemas.core.ConcurrencyLimitV2(
+                    name=name, limit=1, active=False
+                ).model_dump()
             )
             for name in missing_names
         ]
