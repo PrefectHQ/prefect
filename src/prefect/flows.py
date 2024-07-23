@@ -798,7 +798,7 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List["FlexibleScheduleList"]] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
