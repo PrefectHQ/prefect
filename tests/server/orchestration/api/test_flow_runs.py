@@ -2774,7 +2774,9 @@ class TestDownloadFlowRunLogs:
             "prefect.server.api.flow_runs.FLOW_RUN_LOGS_CSV_PAGE_LIMIT", 3
         )
 
-        async with client.stream("GET", f"/flow_runs/{flow_run_1.id}/logs") as response:
+        async with client.stream(
+            "GET", f"/flow_runs/{flow_run_1.id}/download-logs-csv"
+        ) as response:
             response_body = [
                 str(chunk, "UTF-8") async for chunk in response.aiter_bytes()
             ]

@@ -774,7 +774,7 @@ async def paginate_flow_runs(
 FLOW_RUN_LOGS_CSV_PAGE_LIMIT = 1000
 
 
-@router.get("/{id}/logs/csv")
+@router.get("/{id}/download-logs-csv")
 async def download_logs(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
