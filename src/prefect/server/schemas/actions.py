@@ -584,8 +584,8 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         examples=["my-flow-run"],
     )
     parameters: Dict[str, Any] = Field(default_factory=dict)
-    enforce_parameter_schema: bool = Field(
-        default=False,
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
         description="Whether or not to enforce the parameter schema on this run.",
     )
     context: Dict[str, Any] = Field(default_factory=dict)
