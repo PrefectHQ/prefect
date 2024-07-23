@@ -34,9 +34,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
 from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY,
     PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
-    PREFECT_EXPERIMENTAL_WARN_CLIENT_SIDE_TASK_CONCURRENCY,
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
@@ -181,28 +179,6 @@ async def get_task_run_state(
 @task
 async def foo():
     return 42
-
-
-@pytest.fixture
-def enable_client_side_concurrency():
-    with temporary_settings(
-        updates={
-            PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY: True,
-            PREFECT_EXPERIMENTAL_WARN_CLIENT_SIDE_TASK_CONCURRENCY: False,
-        }
-    ):
-        yield
-
-
-@pytest.fixture
-def disable_client_side_concurrency():
-    with temporary_settings(
-        updates={
-            PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY: False,
-            PREFECT_EXPERIMENTAL_WARN_CLIENT_SIDE_TASK_CONCURRENCY: False,
-        }
-    ):
-        yield
 
 
 class TestTaskRunEngine:
@@ -2108,7 +2084,7 @@ class TestAsyncGenerators:
 
 
 class TestTaskConcurrencyLimits:
-    async def test_tag_concurrency(self, enable_client_side_concurrency):
+    async def test_tag_concurrency(self, enable_client_side_task_run_orchestration):
         @task(tags=["limit-tag"])
         async def bar():
             return 42
@@ -2123,16 +2099,19 @@ class TestTaskConcurrencyLimits:
             ) as release_spy:
                 await bar()
 
-                acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-                )
+                if enable_client_side_task_run_orchestration:
+                    acquire_spy.assert_called_once_with(
+                        ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    )
 
-                names, occupy, occupy_seconds = release_spy.call_args[0]
-                assert names == ["limit-tag"]
-                assert occupy == 1
-                assert occupy_seconds > 0
+                    names, occupy, occupy_seconds = release_spy.call_args[0]
+                    assert names == ["limit-tag"]
+                    assert occupy == 1
+                    assert occupy_seconds > 0
+                else:
+                    assert acquire_spy.call_count == 0
 
-    def test_tag_concurrency_sync(self, enable_client_side_concurrency):
+    def test_tag_concurrency_sync(self, enable_client_side_task_run_orchestration):
         @task(tags=["limit-tag"])
         def bar():
             return 42
@@ -2147,17 +2126,20 @@ class TestTaskConcurrencyLimits:
             ) as release_spy:
                 bar()
 
-                acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-                )
+                if enable_client_side_task_run_orchestration:
+                    acquire_spy.assert_called_once_with(
+                        ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    )
 
-                names, occupy, occupy_seconds = release_spy.call_args[0]
-                assert names == ["limit-tag"]
-                assert occupy == 1
-                assert occupy_seconds > 0
+                    names, occupy, occupy_seconds = release_spy.call_args[0]
+                    assert names == ["limit-tag"]
+                    assert occupy == 1
+                    assert occupy_seconds > 0
+                else:
+                    assert acquire_spy.call_count == 0
 
     async def test_tag_concurrency_does_not_create_limits(
-        self, enable_client_side_concurrency, prefect_client
+        self, enable_client_side_task_run_orchestration, prefect_client
     ):
         @task(tags=["limit-tag"])
         async def bar():
@@ -2169,27 +2151,15 @@ class TestTaskConcurrencyLimits:
         ) as acquire_spy:
             await bar()
 
-            acquire_spy.assert_called_once_with(
-                ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-            )
+            if enable_client_side_task_run_orchestration:
+                acquire_spy.assert_called_once_with(
+                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                )
 
-            limits = await prefect_client.read_concurrency_limits(10, 0)
-            assert len(limits) == 0
-
-    def test_does_not_use_concurrency_limit_if_experiment_is_disabled(
-        self, disable_client_side_concurrency
-    ):
-        @task(tags=["limit-tag"])
-        def bar():
-            return 42
-
-        with mock.patch(
-            "prefect.concurrency.sync._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
-        ) as acquire_spy:
-            bar()
-
-            acquire_spy.assert_not_called()
+                limits = await prefect_client.read_concurrency_limits(10, 0)
+                assert len(limits) == 0
+            else:
+                assert acquire_spy.call_count == 0
 
 
 class TestRunStateIsDenormalized:

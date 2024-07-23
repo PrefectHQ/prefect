@@ -1032,15 +1032,6 @@
                             "type": "string",
                             "title": "X-Prefect-Api-Version"
                         }
-                    },
-                    {
-                        "name": "user-agent",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "User-Agent"
-                        }
                     }
                 ],
                 "requestBody": {
@@ -1931,15 +1922,6 @@
                         "schema": {
                             "type": "string",
                             "title": "X-Prefect-Api-Version"
-                        }
-                    },
-                    {
-                        "name": "user-agent",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "User-Agent"
                         }
                     }
                 ],
@@ -22293,16 +22275,6 @@
                     "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION": {
                         "type": "boolean",
                         "title": "Prefect Experimental Enable Client Side Task Orchestration",
-                        "default": false
-                    },
-                    "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Enable Client Side Task Concurrency",
-                        "default": true
-                    },
-                    "PREFECT_EXPERIMENTAL_WARN_CLIENT_SIDE_TASK_CONCURRENCY": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Warn Client Side Task Concurrency",
                         "default": false
                     },
                     "PREFECT_RUNNER_PROCESS_LIMIT": {

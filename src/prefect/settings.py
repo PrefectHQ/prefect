@@ -1321,17 +1321,6 @@ PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION = Setting(
 Whether or not to enable experimental client side task run orchestration.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY = Setting(bool, default=True)
-"""
-Whether or not to enable experimental client-side management of task concurrency limits.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_CLIENT_SIDE_TASK_CONCURRENCY = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental client-side management of task
-concurrency limits is used.
-"""
-
 # Prefect Events feature flags
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)

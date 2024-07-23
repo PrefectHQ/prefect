@@ -8,7 +8,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import Body, Depends, Header, HTTPException, status
-from packaging.version import InvalidVersion, Version
+from packaging.version import Version
 from starlette.requests import Request
 
 from prefect.server import schemas
@@ -31,21 +31,6 @@ def provide_request_api_version(x_prefect_api_version: str = Header(None)):
             ),
         )
     return Version(x_prefect_api_version)
-
-
-def provide_request_client_version(user_agent: str = Header(None)):
-    if not user_agent:
-        return
-
-    # Try to parse a Prefect version from the user agent
-    try:
-        client_version, api_version = user_agent.split(" ", 1)
-        client_version = client_version.split("/")[1]
-        version = Version(client_version)
-    except (ValueError, IndexError, InvalidVersion):
-        return
-
-    return version
 
 
 class EnforceMinimumAPIVersion:

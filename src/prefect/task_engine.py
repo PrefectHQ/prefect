@@ -56,7 +56,6 @@ from prefect.records.result_store import ResultFactoryStore
 from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY,
     PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASKS_REFRESH_CACHE,
 )
@@ -767,7 +766,7 @@ class TaskRunEngine(Generic[P, R]):
                 if transaction.is_committed():
                     result = transaction.read()
                 else:
-                    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY.value():
+                    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value():
                         # Acquire a concurrency slot for each tag, but only if a limit
                         # matching the tag already exists.
                         async with aconcurrency(
@@ -786,7 +785,7 @@ class TaskRunEngine(Generic[P, R]):
             if transaction.is_committed():
                 result = transaction.read()
             else:
-                if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_CONCURRENCY.value():
+                if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value():
                     # Acquire a concurrency slot for each tag, but only if a limit
                     # matching the tag already exists.
                     with concurrency(
