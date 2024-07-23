@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 
+import prefect
 from prefect import flow
 from prefect.client.schemas.objects import State
 from prefect.events import Event
@@ -91,3 +92,22 @@ async def test_includes_related_resources_from_run_context(
     assert event.related[1].id == f"prefect.flow.{db_flow.id}"
     assert event.related[1].role == "flow"
     assert event.related[1]["prefect.resource.name"] == db_flow.name
+
+
+async def test_includes_prefect_version(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    from prefect.events import emit_event
+
+    emit_event(
+        event="vogon.poetry.read",
+        resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
+    )
+
+    await asserting_events_worker.drain()
+
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+    assert len(asserting_events_worker._client.events) == 1
+    event = asserting_events_worker._client.events[0]
+    assert event.event == "vogon.poetry.read"
+    assert event.resource["prefect.version"] == prefect.__version__

@@ -5,6 +5,7 @@ from uuid import UUID
 
 from typing_extensions import Self
 
+import prefect
 from prefect._internal.concurrency.services import QueueService
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -73,6 +74,7 @@ class EventsWorker(QueueService[Event]):
         context = self._context_cache.pop(event.id)
         with temporary_context(context=context):
             await self.attach_related_resources_from_context(event)
+            event.resource["prefect.version"] = prefect.__version__
 
         await self._client.emit(event)
 
