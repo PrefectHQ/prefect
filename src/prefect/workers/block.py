@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 import anyio
 import anyio.abc
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import validate_block_is_infrastructure
 from prefect.blocks.core import Block
@@ -27,6 +28,10 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
 
 
+@deprecated_class(
+    start_date="Jun 2024",
+    help="Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/",
+)
 class BlockWorkerJobConfiguration(BaseModel):
     block: Block = Field(
         default=..., description="The infrastructure block to use for job creation."
@@ -144,6 +149,10 @@ class BlockWorkerResult(BaseWorkerResult):
     """Result of a block worker job"""
 
 
+@deprecated_class(
+    start_date="Jun 2024",
+    help="Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/",
+)
 class BlockWorker(BaseWorker):
     type = "block"
     job_configuration = BlockWorkerJobConfiguration
