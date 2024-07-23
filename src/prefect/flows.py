@@ -1739,6 +1739,8 @@ def load_flow_from_entrypoint(
         # environment, fallback to loading the flow via AST parsing.
         if use_placeholder_flow:
             flow = safe_load_flow_from_entrypoint(entrypoint)
+            if flow is None:
+                raise
         else:
             raise
 

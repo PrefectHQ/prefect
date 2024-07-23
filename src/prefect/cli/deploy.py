@@ -472,7 +472,6 @@ async def _run_single_deploy(
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
 
     flow = load_flow_from_entrypoint(deploy_config["entrypoint"])
-    assert flow is not None, "Flow could not be loaded from entrypoint."
 
     deploy_config["flow_name"] = flow.name
 
