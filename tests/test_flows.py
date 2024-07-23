@@ -2611,9 +2611,8 @@ class TestLoadFlowFromEntrypoint:
         assert flow.name == "dog"
         assert flow.description == "Says woof!"
 
-        # But if the flow is called, it should raise the ScriptError
-        with pytest.raises(ScriptError):
-            flow.fn()
+        # Should still be callable
+        assert flow() == "woof!"
 
     @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_handling_script_with_unprotected_call_in_flow_script(
@@ -2665,8 +2664,7 @@ class TestLoadFlowFromEntrypoint:
         # Test with use_placeholder_flow=True (default behavior)
         flow = load_flow_from_entrypoint(f"{fpath}:dog")
         assert isinstance(flow, Flow)
-        with pytest.raises(ScriptError):
-            flow.fn()
+        assert flow() == "woof!"
 
         # Test with use_placeholder_flow=False
         with pytest.raises(ScriptError):
