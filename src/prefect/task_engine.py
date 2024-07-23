@@ -308,7 +308,7 @@ class TaskRunEngine(Generic[P, R]):
             time.sleep(interval)
             state = self.set_state(new_state)
 
-    def set_state(self, state: State, force: bool = False) -> State:
+    def set_state(self, state: State, force: bool = False, client=None) -> State:
         last_state = self.state
         if not self.task_run:
             raise ValueError("Task run is not set")
@@ -327,7 +327,10 @@ class TaskRunEngine(Generic[P, R]):
         else:
             try:
                 new_state = propose_state_sync(
-                    self.client, state, task_run_id=self.task_run.id, force=force
+                    client if client else self.client,
+                    state,
+                    task_run_id=self.task_run.id,
+                    force=force,
                 )
             except Pause as exc:
                 # We shouldn't get a pause signal without a state, but if this happens,
@@ -718,12 +721,14 @@ class TaskRunEngine(Generic[P, R]):
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
 
         def __prefect_set_task_state_to_rolled_back(txn: Transaction):
-            self.set_state(
-                Completed(
-                    name="RolledBack",
-                    message="Task rolled back as part of transaction",
+            with ClientContext.get_or_create() as client_ctx:
+                self.set_state(
+                    Completed(
+                        name="RolledBack",
+                        message="Task rolled back as part of transaction",
+                    ),
+                    client=client_ctx.sync_client,
                 )
-            )
 
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
@@ -736,9 +741,7 @@ class TaskRunEngine(Generic[P, R]):
             store=ResultFactoryStore(result_factory=result_factory),
             overwrite=overwrite,
             logger=self.logger,
-            on_rollback_hooks=[__prefect_set_task_state_to_rolled_back]
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION
-            else [],
+            on_rollback_hooks=[__prefect_set_task_state_to_rolled_back],
         ) as txn:
             yield txn
 
