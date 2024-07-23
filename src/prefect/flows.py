@@ -1734,14 +1734,11 @@ def load_flow_from_entrypoint(
         raise MissingFlowError(
             f"Flow function with name {func_name!r} not found in {path!r}. "
         ) from exc
-    except ScriptError as exc:
+    except ScriptError:
         # If the flow has dependencies that are not installed in the current
-        # environment, fallback to loading the flow via AST parsing. The
-        # drawback of this approach is that we're unable to actually load the
-        # function, so we create a placeholder flow that will re-raise this
-        # exception when called.
+        # environment, fallback to loading the flow via AST parsing.
         if use_placeholder_flow:
-            flow = load_placeholder_flow(entrypoint=entrypoint, raises=exc)
+            flow = safe_load_flow_from_entrypoint(entrypoint)
         else:
             raise
 
