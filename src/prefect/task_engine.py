@@ -308,7 +308,12 @@ class TaskRunEngine(Generic[P, R]):
             time.sleep(interval)
             state = self.set_state(new_state)
 
-    def set_state(self, state: State, force: bool = False, client=None) -> State:
+    def set_state(
+        self,
+        state: State,
+        force: bool = False,
+        client: Optional[SyncPrefectClient] = None,
+    ) -> State:
         last_state = self.state
         if not self.task_run:
             raise ValueError("Task run is not set")
