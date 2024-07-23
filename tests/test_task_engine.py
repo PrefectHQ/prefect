@@ -2279,39 +2279,117 @@ class TestRunStateIsDenormalized:
         assert the_flow() == proof_that_i_ran
 
 
-async def test_task_transitions_to_rolled_back_on_transaction_rollback(
-    enable_client_side_task_run_orchestration,
-):
-    if not enable_client_side_task_run_orchestration:
-        pytest.xfail(
-            "The RolledBack state transition is only supported via client-side task orchestration"
-        )
-    task_run_state = None
+class TestTransactionHooks:
+    async def test_task_transitions_to_rolled_back_on_transaction_rollback(
+        self,
+        enable_client_side_task_run_orchestration,
+    ):
+        if not enable_client_side_task_run_orchestration:
+            pytest.xfail(
+                "The RolledBack state transition is only supported via client-side task orchestration"
+            )
+        task_run_state = None
 
-    @task
-    def foo():
-        pass
+        @task
+        def foo():
+            pass
 
-    @foo.on_rollback
-    def rollback(txn):
-        pass
+        @foo.on_rollback
+        def rollback(txn):
+            pass
 
-    @flow
-    def txn_flow():
-        with transaction():
-            nonlocal task_run_state
-            task_run_state = foo(return_state=True)
-            raise ValueError("txn failed")
+        @flow
+        def txn_flow():
+            with transaction():
+                nonlocal task_run_state
+                task_run_state = foo(return_state=True)
+                raise ValueError("txn failed")
 
-    txn_flow(return_state=True)
+        txn_flow(return_state=True)
 
-    task_run_id = task_run_state.state_details.task_run_id
-    task_run_states = await get_task_run_states(task_run_id)
+        task_run_id = task_run_state.state_details.task_run_id
+        task_run_states = await get_task_run_states(task_run_id)
 
-    state_names = [state.name for state in task_run_states]
-    assert state_names == [
-        "Pending",
-        "Running",
-        "Completed",
-        "RolledBack",
-    ]
+        state_names = [state.name for state in task_run_states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Completed",
+            "RolledBack",
+        ]
+
+    def test_rollback_errors_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            raise RuntimeError("whoops!")
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+                raise ValueError("txn failed")
+
+        txn_flow(return_state=True)
+        assert "An error was encountered while running rollback hook" in caplog.text
+        assert "RuntimeError" in caplog.text
+        assert "whoops!" in caplog.text
+
+    def test_rollback_hook_execution_and_completion_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            pass
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+                raise ValueError("txn failed")
+
+        txn_flow(return_state=True)
+        assert "Running rollback hook 'rollback'" in caplog.text
+        assert "Rollback hook 'rollback' finished running successfully" in caplog.text
+
+    def test_commit_errors_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_commit
+        def rollback(txn):
+            raise RuntimeError("whoops!")
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+
+        txn_flow(return_state=True)
+        assert "An error was encountered while running commit hook" in caplog.text
+        assert "RuntimeError" in caplog.text
+        assert "whoops!" in caplog.text
+
+    def test_commit_hook_execution_and_completion_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_commit
+        def commit(txn):
+            pass
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+
+        txn_flow(return_state=True)
+        assert "Running commit hook 'commit'" in caplog.text
+        assert "Commit hook 'commit' finished running successfully" in caplog.text
