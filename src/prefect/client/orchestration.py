@@ -194,8 +194,6 @@ def get_client(
     """
     import prefect.context
 
-    settings_ctx = prefect.context.get_settings_context()
-
     # try to load clients from a client context, if possible
     # only load clients that match the provided config / loop
     try:
@@ -222,9 +220,13 @@ def get_client(
 
     if not api:
         # create an ephemeral API if none was provided
-        from prefect.server.api.server import create_app
+        from prefect.server.api.server import SubprocessASGIServer
 
-        api = create_app(settings_ctx.settings, ephemeral=True)
+        server = SubprocessASGIServer()
+        server.start()
+        assert server.server_process is not None
+
+        api = f"{server.address()}/api"
 
     if sync_client:
         return SyncPrefectClient(

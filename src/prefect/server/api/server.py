@@ -4,19 +4,24 @@ Defines the Prefect REST API FastAPI app.
 
 import asyncio
 import mimetypes
+import multiprocessing
 import os
 import shutil
+import socket
 import sqlite3
+import time
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
-from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 import anyio
 import asyncpg
+import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
+import uvicorn
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -733,3 +738,97 @@ def create_app(
 
     APP_CACHE[cache_key] = app
     return app
+
+
+class SubprocessASGIServer:
+    _instances: Dict[Union[int, None], "SubprocessASGIServer"] = {}
+
+    def __new__(cls, port: Optional[int] = None, *args, **kwargs):
+        """
+        Return an instance of the server associated with the provided port.
+        Prevents multiple instances from being created for the same port.
+        """
+        if port not in cls._instances:
+            instance = super().__new__(cls)
+            cls._instances[port] = instance
+        return cls._instances[port]
+
+    def __init__(self, port: Optional[int] = None):
+        # This ensures initialization happens only once
+        if not hasattr(self, "_initialized"):
+            if port is None:
+                port = self.find_available_port()
+            assert port is not None, "Port must be provided or available"
+            self.port: int = port
+            self.server_process = None
+            self.server = None
+            self.running = False
+            self._initialized = True
+
+    def find_available_port(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(("", 0))  # Bind to a free port provided by the host.
+        port = s.getsockname()[1]  # Retrieve the port number assigned.
+        s.close()
+        return port
+
+    def address(self) -> str:
+        return f"http://127.0.0.1:{self.port}"
+
+    @staticmethod
+    def run_server(port):
+        app = create_app()
+        config = uvicorn.Config(
+            app=app,
+            host="127.0.0.1",
+            port=port,
+            log_level="error",
+            lifespan="on",
+        )
+
+        uvicorn.Server(config).run()
+
+    def start(self):
+        """
+        Start the server in a separate process. Safe to call multiple times; only starts
+        the server once.
+        """
+        if not self.running:
+            get_logger().info(f"Starting server on {self.address()}")
+            try:
+                self.running = True
+                self.server_process = multiprocessing.Process(
+                    target=self.run_server, kwargs={"port": self.port}, daemon=True
+                )
+                self.server_process.start()
+                with httpx.Client() as client:
+                    response = None
+                    elapsed_time = 0
+                    while elapsed_time < 5:
+                        try:
+                            response = client.get(f"{self.address()}/health")
+                        except httpx.ConnectError:
+                            pass
+                        else:
+                            if response.status_code == 200:
+                                break
+                        time.sleep(0.1)
+                        elapsed_time += 0.1
+                    if response:
+                        response.raise_for_status()
+                    if not response:
+                        raise RuntimeError(
+                            "Timed out while attempting to connect to hosted test Prefect API."
+                        )
+            except Exception:
+                self.running = False
+                raise
+
+    def stop(self):
+        if self.server_process:
+            self.server_process.terminate()
+            self.server_process.join(timeout=5)  # Wait for the server process to finish
+            if self.server_process.is_alive():
+                self.server_process.kill()
+        if self.running:
+            self.running = False
