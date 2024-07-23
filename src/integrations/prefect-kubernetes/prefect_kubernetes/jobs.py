@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type, Union
 
 import yaml
-from kubernetes.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
+from kubernetes_asyncio.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect import task
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.abstract import JobBlock, JobRun
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 
 if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import Field
@@ -23,7 +23,6 @@ from typing_extensions import Self
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
-from prefect_kubernetes.utilities import convert_manifest_to_model
 
 KubernetesManifest = Union[Dict, Path, str]
 
@@ -31,7 +30,7 @@ KubernetesManifest = Union[Dict, Path, str]
 @task
 async def create_namespaced_job(
     kubernetes_credentials: KubernetesCredentials,
-    new_job: V1Job,
+    new_job: Union[V1Job, Dict[str, Any]],
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
 ) -> V1Job:
@@ -54,7 +53,7 @@ async def create_namespaced_job(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.jobs import create_namespaced_job
-        from kubernetes.client.models import V1Job
+        from kubernetes_asyncio.client.models import V1Job
 
         @flow
         def kubernetes_orchestrator():
@@ -64,9 +63,8 @@ async def create_namespaced_job(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.create_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.create_namespaced_job(
             namespace=namespace,
             body=new_job,
             **kube_kwargs,
@@ -99,7 +97,7 @@ async def delete_namespaced_job(
     Example:
         Delete "my-job" in the default namespace:
         ```python
-        from kubernetes.client.models import V1DeleteOptions
+        from kubernetes_asyncio.client.models import V1DeleteOptions
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.jobs import delete_namespaced_job
@@ -114,9 +112,8 @@ async def delete_namespaced_job(
         ```
     """
 
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.delete_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.delete_namespaced_job(
             name=job_name,
             body=delete_options,
             namespace=namespace,
@@ -157,9 +154,8 @@ async def list_namespaced_job(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.list_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.list_namespaced_job(
             namespace=namespace,
             **kube_kwargs,
         )
@@ -197,7 +193,7 @@ async def patch_namespaced_job(
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.jobs import patch_namespaced_job
 
-        from kubernetes.client.models import V1Job
+        from kubernetes_asyncio.client.models import V1Job
 
         @flow
         def kubernetes_orchestrator():
@@ -209,9 +205,8 @@ async def patch_namespaced_job(
         ```
     """
 
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.patch_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.patch_namespaced_job(
             name=job_name,
             namespace=namespace,
             body=job_updates,
@@ -257,9 +252,8 @@ async def read_namespaced_job(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.read_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.read_namespaced_job(
             name=job_name,
             namespace=namespace,
             **kube_kwargs,
@@ -304,9 +298,8 @@ async def replace_namespaced_job(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.replace_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.replace_namespaced_job(
             name=job_name,
             body=new_job,
             namespace=namespace,
@@ -349,9 +342,8 @@ async def read_namespaced_job_status(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.read_namespaced_job_status,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.read_namespaced_job_status(
             name=job_name,
             namespace=namespace,
             **kube_kwargs,
@@ -367,7 +359,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
     def __init__(
         self,
         kubernetes_job: "KubernetesJob",
-        v1_job_model: V1Job,
+        v1_job_model: Union[V1Job, Dict[str, Any]],
     ):
         self.pod_logs = None
 
@@ -377,20 +369,18 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
 
     async def _cleanup(self):
         """Deletes the Kubernetes job resource."""
+        job_name = self._v1_job_model.get("metadata", {}).get("name")
 
         delete_options = V1DeleteOptions(propagation_policy="Foreground")
 
         deleted_v1_job = await delete_namespaced_job.fn(
             kubernetes_credentials=self._kubernetes_job.credentials,
-            job_name=self._v1_job_model.metadata.name,
+            job_name=job_name,
             delete_options=delete_options,
             namespace=self._kubernetes_job.namespace,
             **self._kubernetes_job.api_kwargs,
         )
-        self.logger.info(
-            f"Job {self._v1_job_model.metadata.name} deleted "
-            f"with {deleted_v1_job.status!r}."
-        )
+        self.logger.info(f"Job {job_name} deleted " f"with {deleted_v1_job.status!r}.")
 
     @sync_compatible
     async def wait_for_completion(self, print_func: Optional[Callable] = None):
@@ -422,7 +412,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
 
             v1_job_status = await read_namespaced_job_status.fn(
                 kubernetes_credentials=self._kubernetes_job.credentials,
-                job_name=self._v1_job_model.metadata.name,
+                job_name=self._v1_job_model.get("metadata", {}).get("name"),
                 namespace=self._kubernetes_job.namespace,
                 **self._kubernetes_job.api_kwargs,
             )
@@ -520,7 +510,7 @@ class KubernetesJob(JobBlock):
         default_factory=dict,
         title="Additional API Arguments",
         description="Additional arguments to include in Kubernetes API calls.",
-        example={"pretty": "true"},
+        examples=[{"pretty": "true"}],
     )
     credentials: KubernetesCredentials = Field(
         default=..., description="The credentials to configure a client from."
@@ -551,16 +541,14 @@ class KubernetesJob(JobBlock):
     async def trigger(self):
         """Create a Kubernetes job and return a `KubernetesJobRun` object."""
 
-        v1_job_model = convert_manifest_to_model(self.v1_job, "V1Job")
-
         await create_namespaced_job.fn(
             kubernetes_credentials=self.credentials,
-            new_job=v1_job_model,
+            new_job=self.v1_job,
             namespace=self.namespace,
             **self.api_kwargs,
         )
 
-        return KubernetesJobRun(kubernetes_job=self, v1_job_model=v1_job_model)
+        return KubernetesJobRun(kubernetes_job=self, v1_job_model=self.v1_job)
 
     @classmethod
     def from_yaml_file(
