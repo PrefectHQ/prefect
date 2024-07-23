@@ -126,9 +126,10 @@ class TestUtilityFunctions:
                 )
             )
         results = []
-        for future in as_completed(futures):
-            results.append(future.result())
-        assert results == timings
+        with pytest.raises(MissingResult):
+            for future in as_completed(futures):
+                results.append(future.result())
+            assert results == timings
 
 
 class TestPrefectConcurrentFuture:

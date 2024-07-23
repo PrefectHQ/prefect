@@ -2,7 +2,7 @@ import asyncio
 import atexit
 import threading
 import uuid
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 import anyio
 from cachetools import TTLCache
@@ -74,6 +74,7 @@ class TaskRunWaiter:
             maxsize=10000, ttl=600
         )
         self._completion_events: Dict[uuid.UUID, asyncio.Event] = {}
+        self._completion_callbacks: Dict[uuid.UUID, Callable] = {}
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._observed_completed_task_runs_lock = threading.Lock()
         self._completion_events_lock = threading.Lock()
@@ -135,6 +136,8 @@ class TaskRunWaiter:
                         # so the waiter can wake up the waiting coroutine
                         if task_run_id in self._completion_events:
                             self._completion_events[task_run_id].set()
+                        if task_run_id in self._completion_callbacks:
+                            self._completion_callbacks[task_run_id]()
                 except Exception as exc:
                     self.logger.error(f"Error processing event: {exc}")
 
@@ -196,7 +199,7 @@ class TaskRunWaiter:
                 instance._completion_events.pop(task_run_id, None)
 
     @classmethod
-    async def add_done_callback(cls, task_run_id: uuid.UUID, callback):
+    def add_done_callback(cls, task_run_id: uuid.UUID, callback):
         """
         Add a callback to be called when a task run finishes.
 
@@ -210,32 +213,10 @@ class TaskRunWaiter:
                 callback()
                 return
 
-        # Need to create event in loop thread to ensure it can be set
-        # from the loop thread
-        finished_event = await from_async.wait_for_call_in_loop_thread(
-            create_call(asyncio.Event)
-        )
         with instance._completion_events_lock:
             # Cache the event for the task run ID so the consumer can set it
             # when the event is received
-            instance._completion_events[task_run_id] = finished_event
-
-        try:
-            # Now check one more time whether the task run arrived before we start to
-            # wait on it, in case it came in while we were setting up the event above.
-            with instance._observed_completed_task_runs_lock:
-                if task_run_id in instance._observed_completed_task_runs:
-                    callback()
-                    return
-
-            await from_async.wait_for_call_in_loop_thread(
-                create_call(finished_event.wait)
-            )
-            callback()
-        finally:
-            with instance._completion_events_lock:
-                # Remove the event from the cache after it has been waited on
-                instance._completion_events.pop(task_run_id, None)
+            instance._completion_events[task_run_id] = callback
 
     @classmethod
     def instance(cls):

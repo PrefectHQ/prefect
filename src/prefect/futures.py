@@ -166,8 +166,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
     def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
         if not self._final_state:
 
-            def call_with_self(future):
-                logger.debug(f"{future.result()}")
+            def call_with_self():
                 fn(self)
 
             self._wrapped_future.add_done_callback(call_with_self)
@@ -263,21 +262,17 @@ class PrefectDistributedFuture(PrefectFuture[R]):
         )
 
     def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
-        return run_coro_as_sync(self.async_add_done_callback(fn))
-
-    async def async_add_done_callback(self, fn: Callable[[PrefectFuture], None]):
         if self._final_state:
             fn(self)
-            # Read task run to see if it is still running
+            return
         TaskRunWaiter.instance()
-
-        async with get_client() as client:
-            task_run = await client.read_task_run(task_run_id=self._task_run_id)
+        with get_client(sync_client=True) as client:
+            task_run = client.read_task_run(task_run_id=self._task_run_id)
             if task_run.state.is_final():
                 self._final_state = task_run.state
                 fn(self)
                 return
-            await TaskRunWaiter.add_done_callback(self._task_run_id, partial(fn, self))
+            TaskRunWaiter.add_done_callback(self._task_run_id, partial(fn, self))
 
     def __eq__(self, other):
         if not isinstance(other, PrefectDistributedFuture):
@@ -370,7 +365,6 @@ def as_completed(
                     event.clear()
 
                 for future in done:
-                    logger.debug(f"done: {future.result()}")
                     pending.remove(future)
                     yield future
 
