@@ -59,7 +59,7 @@
             --title "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}" \
             --body "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}.
             Release information can be found at https://github.com/${{ inputs.package_name }}/releases/tag/${{ inputs.package_version }}." \
-            --label maintenance \
+            --label development \
             --label ui
           env:
             GITHUB_TOKEN: ${{ secrets.PREFECT_CONTENTS_PR_RW }}
