@@ -2,10 +2,11 @@ import abc
 import collections
 import concurrent.futures
 import inspect
+import threading
 import uuid
 from collections.abc import Generator, Iterator
 from functools import partial
-from typing import Any, Generic, List, Optional, Set, Union, cast
+from typing import Any, Callable, Generic, List, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
@@ -37,6 +38,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
     def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
         self._final_state: Optional[State[R]] = None
+        self._on_final: Callable = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
@@ -91,6 +93,16 @@ class PrefectFuture(abc.ABC, Generic[R]):
             The result of the task run.
         """
 
+    @abc.abstractmethod
+    def add_done_callback(self, fn):
+        ...
+        """
+            Add a callback to be run when the future completes or is cancelled.
+
+            Args:
+                fn: A callable that will be called with this future as its only argument when the future completes or is cancelled.
+            """
+
 
 class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
     """
@@ -138,6 +150,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
 
             if isinstance(future_result, State):
                 self._final_state = future_result
+
             else:
                 return future_result
 
@@ -149,6 +162,17 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
+
+    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+        if not self._final_state:
+
+            def call_with_self(future):
+                logger.debug(f"{future.result()}")
+                fn(self)
+
+            self._wrapped_future.add_done_callback(call_with_self)
+            return
+        fn(self)
 
     def __del__(self):
         if self._final_state or self._wrapped_future.done():
@@ -171,6 +195,9 @@ class PrefectDistributedFuture(PrefectFuture[R]):
     scheduled to run in a Prefect task worker but can be used to interact with
     any task run scheduled in Prefect's API.
     """
+
+    done_callbacks: List[Callable[[PrefectFuture], None]] = []
+    waiter = None
 
     @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
@@ -235,10 +262,30 @@ class PrefectDistributedFuture(PrefectFuture[R]):
             raise_on_failure=raise_on_failure, fetch=True
         )
 
+    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+        return run_coro_as_sync(self.async_add_done_callback(fn))
+
+    async def async_add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+        if self._final_state:
+            fn(self)
+            # Read task run to see if it is still running
+        TaskRunWaiter.instance()
+
+        async with get_client() as client:
+            task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state.is_final():
+                self._final_state = task_run.state
+                fn(self)
+                return
+            await TaskRunWaiter.add_done_callback(self._task_run_id, partial(fn, self))
+
     def __eq__(self, other):
         if not isinstance(other, PrefectDistributedFuture):
             return False
         return self.task_run_id == other.task_run_id
+
+    def __hash__(self):
+        return hash(self.task_run_id)
 
 
 class PrefectFutureList(list, Iterator, Generic[F]):
@@ -295,51 +342,37 @@ class PrefectFutureList(list, Iterator, Generic[F]):
 def as_completed(
     futures: List[PrefectFuture], timeout: Optional[float] = None
 ) -> Generator[PrefectFuture, None]:
-    """
-    An iterator over the given futures that yields each as it completes.
-
-    Args:
-        futures: The sequence of PrefectFutures to
-            iterate over.
-        timeout: The maximum number of seconds to wait. If None, then there
-            is no limit on the wait time.
-
-    Returns:
-        An iterator that yields the given Futures as they complete (finished or
-        cancelled). If any given Futures are duplicated, they will be returned
-        once.
-
-    Raises:
-        TimeoutError: If the entire result iterator could not be generated
-            before the given timeout.
-
-    Examples:
-        ```python
-        @task
-        def sleep_task(seconds):
-            sleep(seconds)
-            return 42
-
-        @flow
-        def flow():
-            futures = random_task.map(range(10))
-            for future in as_completed(futures):
-                print(future.result())
-        ```
-    """
     unique_futures: Set[PrefectFuture] = set(futures)
     total_futures = len(unique_futures)
     try:
         with timeout_context(timeout):
             done = {f for f in unique_futures if f._final_state}
             pending = unique_futures - done
-            for future in done:
-                yield future
+            yield from done
 
-            for future in pending.copy():
-                future.wait()
-                pending.remove(future)
-                yield future
+            event = threading.Event()
+            lock = threading.Lock()
+            finished_futures = []
+
+            def add_to_done(future):
+                with lock:
+                    finished_futures.append(future)
+                    event.set()
+
+            for future in pending:
+                future.add_done_callback(add_to_done)
+
+            while pending:
+                event.wait()
+                with lock:
+                    done = finished_futures
+                    finished_futures = []
+                    event.clear()
+
+                for future in done:
+                    logger.debug(f"done: {future.result()}")
+                    pending.remove(future)
+                    yield future
 
     except TimeoutError:
         raise TimeoutError(

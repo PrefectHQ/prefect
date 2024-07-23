@@ -21,6 +21,7 @@ from prefect.futures import (
 )
 from prefect.states import Completed, Failed
 from prefect.task_engine import run_task_async, run_task_sync
+from prefect.task_runners import ThreadPoolTaskRunner
 
 
 class MockFuture(PrefectWrappedFuture):
@@ -37,6 +38,9 @@ class MockFuture(PrefectWrappedFuture):
         raise_on_failure: bool = True,
     ) -> Any:
         return self._final_state.result()
+
+    def add_done_callback(self, fn):
+        return super().add_done_callback(fn)
 
 
 class TestUtilityFunctions:
@@ -74,6 +78,57 @@ class TestUtilityFunctions:
         assert (
             exc_info.value.args[0] == f"1 (of {len(mock_futures)}) futures unfinished"
         )
+
+    # @pytest.mark.timeout(method="thread")
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    def test_as_completed_yields_correct_order(self):
+        @task
+        def my_test_task(seconds):
+            import time
+
+            time.sleep(seconds)
+            return seconds
+
+        with ThreadPoolTaskRunner() as runner:
+            futures = []
+            for i in range(5, 25, 5):
+                parameters = {"seconds": i}
+                future = runner.submit(my_test_task, parameters)
+                future.parameters = parameters
+                futures.append(future)
+            results = []
+            for future in as_completed(futures):
+                results.append(future.result())
+            assert results == [5, 10, 15, 20]
+
+    async def test_as_completed_yields_correct_order_dist(self, task_run):
+        @task
+        async def my_task(seconds):
+            import time
+
+            time.sleep(seconds)
+            return seconds
+
+        futures = []
+        timings = [1, 3, 5]
+        for i in timings:
+            task_run = await my_task.create_run(parameters={"seconds": i})
+            future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+            futures.append(future)
+            asyncio.create_task(
+                run_task_async(
+                    task=my_task,
+                    task_run_id=future.task_run_id,
+                    task_run=task_run,
+                    parameters={"seconds": i},
+                    return_type="state",
+                )
+            )
+        results = []
+        for future in as_completed(futures):
+            results.append(future.result())
+        assert results == timings
 
 
 class TestPrefectConcurrentFuture:
