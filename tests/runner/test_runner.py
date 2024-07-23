@@ -48,13 +48,6 @@ from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 
 
-def make_minimal_deployment_schedule(**kwargs) -> MinimalDeploymentSchedule:
-    """dont raise on `PrefectDeprecationWarning` about using `DeploymentScheduleCreate`"""
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        return MinimalDeploymentSchedule(**kwargs)
-
-
 @flow(version="test")
 def dummy_flow_1():
     """I'm just here for tests"""
@@ -304,7 +297,7 @@ class TestRunner:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            make_minimal_deployment_schedule(
+                            MinimalDeploymentSchedule(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ]
@@ -916,7 +909,7 @@ class TestRunnerDeployment:
             dummy_flow_1,
             __file__,
             schedules=[
-                make_minimal_deployment_schedule(
+                MinimalDeploymentSchedule(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -968,7 +961,7 @@ class TestRunnerDeployment:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            make_minimal_deployment_schedule(
+                            MinimalDeploymentSchedule(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ],
@@ -1114,7 +1107,7 @@ class TestRunnerDeployment:
             dummy_flow_1_entrypoint,
             __file__,
             schedules=[
-                make_minimal_deployment_schedule(
+                MinimalDeploymentSchedule(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -1172,7 +1165,7 @@ class TestRunnerDeployment:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            make_minimal_deployment_schedule(
+                            MinimalDeploymentSchedule(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ]
@@ -1350,7 +1343,7 @@ class TestRunnerDeployment:
             entrypoint="flows.py:test_flow",
             name="test-deployment",
             schedules=[
-                make_minimal_deployment_schedule(
+                MinimalDeploymentSchedule(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
