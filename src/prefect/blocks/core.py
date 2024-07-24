@@ -276,7 +276,7 @@ class Block(BaseModel, ABC):
         block_document_id = kwargs.pop("$ref", None)
         if block_document_id:
             block_document, block_document_name = self._get_block_document_by_id(
-                block_document_id
+                block_document_id, _sync=True
             )
             kwargs = {
                 **block_document.data,
