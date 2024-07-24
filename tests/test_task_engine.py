@@ -935,6 +935,92 @@ class TestTaskRetries:
             "Completed",
         ]
 
+    async def test_task_passes_failed_state_to_retry_fn(self):
+        mock = MagicMock()
+        exc = SyntaxError("oops")
+        handler_mock = MagicMock()
+
+        async def handler(task, task_run, state):
+            handler_mock()
+            assert state.is_failed()
+            try:
+                await state.result()
+            except SyntaxError:
+                return True
+            return False
+
+        @task(retries=3, retry_condition_fn=handler)
+        async def flaky_function():
+            mock()
+            if mock.call_count == 2:
+                return True
+            raise exc
+
+        @flow
+        async def test_flow():
+            return await flaky_function(return_state=True)
+
+        task_run_state = await test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_completed()
+        assert await task_run_state.result() is True
+        assert mock.call_count == 2
+        assert handler_mock.call_count == 1
+
+        states = await get_task_run_states(task_run_id)
+
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Completed",
+        ]
+
+    async def test_task_passes_failed_state_to_retry_fn_sync(self):
+        mock = MagicMock()
+        exc = SyntaxError("oops")
+        handler_mock = MagicMock()
+
+        def handler(task, task_run, state):
+            handler_mock()
+            assert state.is_failed()
+            try:
+                state.result()
+            except SyntaxError:
+                return True
+            return False
+
+        @task(retries=3, retry_condition_fn=handler)
+        def flaky_function():
+            mock()
+            if mock.call_count == 2:
+                return True
+            raise exc
+
+        @flow
+        def test_flow():
+            return flaky_function(return_state=True)
+
+        task_run_state = test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_completed()
+        assert await task_run_state.result() is True
+        assert mock.call_count == 2
+        assert handler_mock.call_count == 1
+
+        states = await get_task_run_states(task_run_id)
+
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Completed",
+        ]
+
     async def test_task_retries_receive_latest_task_run_in_context(self):
         state_names: List[str] = []
         run_counts = []
