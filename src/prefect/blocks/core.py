@@ -278,10 +278,14 @@ class Block(BaseModel, ABC):
             block_document, block_document_name = self._get_block_document_by_id(
                 block_document_id, _sync=True
             )
+
+            self._validate_block_reference(block_document)
+
             kwargs = {
                 **block_document.data,
                 **kwargs,
             }
+
         super().__init__(*args, **kwargs)
         self.block_initialization()
 
@@ -294,6 +298,35 @@ class Block(BaseModel, ABC):
         return [
             (key, value) for key, value in repr_args if key is None or key in data_keys
         ]
+
+    def _validate_block_reference(self, block_document: BlockDocument) -> None:
+        """
+        Validates that the provided block document matches the block schema of the current block.
+
+        Args:
+            block_document: The referenced block document to validate.
+
+        Raises:
+            TypeError: If the block instantiation is attempted from the base Block class.
+            ValueError: If the block reference type or slug is invalid.
+        """
+        if self.__class__ == Block:
+            raise TypeError(
+                "Block class cannot be instantiated directly from block reference."
+            )
+        block_type_name = self.get_block_type_name()
+        block_type_slug = self.get_block_type_slug()
+
+        if block_document.block_type_name != block_type_name:
+            raise ValueError(
+                f"Invalid Block reference type {block_document.block_type_name!r} "
+                f"for block type {block_type_name!r} initialization"
+            )
+        if block_document.block_type.slug != block_type_slug:
+            raise ValueError(
+                f"Invalid Block reference slug {block_document.block_type.slug!r} "
+                f"for block slug {block_type_slug!r} initialization"
+            )
 
     def block_initialization(self) -> None:
         pass
