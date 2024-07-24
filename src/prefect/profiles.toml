@@ -1,14 +1,13 @@
-# This is the default profile configuration for Prefect.
-# Users can modify these profiles or create new ones to suit their needs.
+# This is a template for profile configuration for Prefect.
+# You can modify these profiles or create new ones to suit their needs.
 
 active = "ephemeral"
 
 [profiles.ephemeral]
-# The actual path will be resolved when the setting is used
 PREFECT_API_DATABASE_CONNECTION_URL = "sqlite+aiosqlite:///prefect.db"
 
 [profiles.local]
-# Users will need to set these values appropriately
+# You will need to set these values appropriately
 PREFECT_API_URL = "http://127.0.0.1:4200/api"
 
 [profiles.test]
