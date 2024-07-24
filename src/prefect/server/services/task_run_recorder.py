@@ -151,7 +151,9 @@ async def record_task_run_event(event: ReceivedEvent, depth: int = 0):
             "state_name": task_run.state.name,
             "state_timestamp": task_run.state.timestamp,
         }
-        session = await stack.enter_async_context(db.session_context())
+        session = await stack.enter_async_context(
+            db.session_context(begin_transaction=True)
+        )
 
         await _insert_task_run(session, task_run, task_run_attributes)
         await _insert_task_run_state(session, task_run)
