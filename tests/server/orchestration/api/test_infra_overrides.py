@@ -400,7 +400,7 @@ class TestInfraOverrides:
     async def test_base_job_template_default_references_to_blocks(
         self,
         session,
-        client,
+        hosted_api_client,
         k8s_credentials,
     ):
         # create a pool with a pool schema that has a default value referencing a block
@@ -451,7 +451,7 @@ class TestInfraOverrides:
         )
 
         # create a flow run with no overrides
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/deployments/{deployment.id}/create_flow_run", json={}
         )
 
@@ -666,7 +666,7 @@ class TestInfraOverridesUpdates:
     async def test_base_job_template_default_references_to_blocks(
         self,
         session,
-        client,
+        hosted_api_client,
         k8s_credentials,
     ):
         # create a pool with a pool schema that has a default value referencing a block
@@ -718,7 +718,7 @@ class TestInfraOverridesUpdates:
 
         # create a flow run with custom overrides
         updates = {"k8s_credentials": {"context_name": "foo", "config": {}}}
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/deployments/{deployment.id}/create_flow_run",
             json={"job_variables": updates},
         )
@@ -727,7 +727,7 @@ class TestInfraOverridesUpdates:
 
         # update the flow run to force it to refer to the default block's value
         flow_run_id = response.json()["id"]
-        response = await client.patch(
+        response = await hosted_api_client.patch(
             f"/flow_runs/{flow_run_id}", json={"job_variables": {}}
         )
         assert response.status_code == 204, response.text

@@ -10,14 +10,14 @@ from prefect.settings import PREFECT_CLOUD_API_URL
 
 @pytest.fixture
 async def prefect_client(
-    test_database_connection_url: str,
+    test_database_connection_url: str, use_hosted_api_server
 ) -> AsyncGenerator[PrefectClient, None]:
     async with get_client() as client:
         yield client
 
 
 @pytest.fixture
-def sync_prefect_client(test_database_connection_url):
+def sync_prefect_client(test_database_connection_url, use_hosted_api_server):
     yield get_client(sync_client=True)
 
 

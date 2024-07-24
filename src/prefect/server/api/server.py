@@ -4,11 +4,11 @@ Defines the Prefect REST API FastAPI app.
 
 import asyncio
 import mimetypes
-import multiprocessing
 import os
 import shutil
 import socket
 import sqlite3
+import subprocess
 import time
 from contextlib import asynccontextmanager
 from functools import partial, wraps
@@ -21,7 +21,6 @@ import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-import uvicorn
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -55,8 +54,10 @@ from prefect.settings import (
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_UI_SERVE_BASE,
+    get_current_settings,
 )
 from prefect.utilities.hashing import hash_objects
+from prefect.utilities.processutils import get_sys_executable
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
@@ -775,19 +776,6 @@ class SubprocessASGIServer:
     def address(self) -> str:
         return f"http://127.0.0.1:{self.port}"
 
-    @staticmethod
-    def run_server(port):
-        app = create_app()
-        config = uvicorn.Config(
-            app=app,
-            host="127.0.0.1",
-            port=port,
-            log_level="error",
-            lifespan="on",
-        )
-
-        uvicorn.Server(config).run()
-
     def start(self):
         """
         Start the server in a separate process. Safe to call multiple times; only starts
@@ -797,10 +785,33 @@ class SubprocessASGIServer:
             get_logger().info(f"Starting server on {self.address()}")
             try:
                 self.running = True
-                self.server_process = multiprocessing.Process(
-                    target=self.run_server, kwargs={"port": self.port}, daemon=True
+                self.server_process = subprocess.Popen(
+                    args=[
+                        get_sys_executable(),
+                        "-m",
+                        "uvicorn",
+                        "--app-dir",
+                        # quote wrapping needed for windows paths with spaces
+                        f'"{prefect.__module_path__.parent}"',
+                        "--factory",
+                        "prefect.server.api.server:create_app",
+                        "--host",
+                        "127.0.0.1",
+                        "--port",
+                        str(self.port),
+                        "--log-level",
+                        "error",
+                        "--lifespan",
+                        "on",
+                    ],
+                    env={
+                        **os.environ,
+                        **get_current_settings().to_environment_variables(
+                            exclude_unset=True
+                        ),
+                    },
                 )
-                self.server_process.start()
+
                 with httpx.Client() as client:
                     response = None
                     elapsed_time = 0
