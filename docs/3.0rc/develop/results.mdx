@@ -79,9 +79,9 @@ Any settings _explicitly_ set on a task take precedence over the flow settings.
 ### Result storage
 
 You can configure the system of record for your results through the `result_storage` keyword argument.
-This keyword accepts a [filesystem block](/3.0rc/develop/blocks/) or a block document slug. 
+This keyword accepts an instantiated [filesystem block](/3.0rc/develop/blocks/), or a block slug. Find your blocks' slugs with `prefect block ls`.
 Note that if you want your tasks to share a common cache, your result storage should be accessible by 
-the infrastructure in which those tasks run. 
+the infrastructure in which those tasks run. [Integrations](/integrations/integrations) have cloud-specific storage blocks.
 For example, a common distributed filesystem for result storage is AWS S3.
 
 ```python
@@ -104,7 +104,7 @@ unpersisted_task = my_task.with_options(persist_result=False)
 other_storage_task = my_task.with_options(result_storage=test_block)
 
 
-@flow(result_storage='s3/my-dev-bucket')
+@flow(result_storage='s3-bucket/my-dev-block')
 def my_flow():
 
     # this task will use the flow's result storage
@@ -113,7 +113,7 @@ def my_flow():
     # this task will not persist results at all
     unpersisted_task()
 
-    # this task will persist results to its own test bucket using a different S3 block
+    # this task will persist results to its own bucket using a different S3 block
     other_storage_task()
 ```
 
@@ -125,7 +125,7 @@ Specifying a block document slug here will enable result persistence using that 
 For example:
 
 ```bash
-prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3/my-prod-bucket'
+prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-prod-block'
 ```
 
 <Info>
