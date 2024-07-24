@@ -805,7 +805,7 @@ class Block(BaseModel, ABC):
     @inject_client
     async def _get_block_document_by_id(
         cls,
-        block_document_id: str | uuid.UUID,
+        block_document_id: Union[str, uuid.UUID],
         client: Optional["PrefectClient"] = None,
     ):
         if isinstance(block_document_id, str):
