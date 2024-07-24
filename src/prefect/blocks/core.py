@@ -2,6 +2,7 @@ import hashlib
 import html
 import inspect
 import sys
+import uuid
 import warnings
 from abc import ABC
 from functools import partial
@@ -272,6 +273,12 @@ class Block(BaseModel, ABC):
     )
 
     def __init__(self, *args, **kwargs):
+        block_document_id = kwargs.pop("$ref", None)
+        if block_document_id:
+            block_document, block_document_name = self._get_block_document_by_id(
+                block_document_id
+            )
+            kwargs.update(block_document.data)
         super().__init__(*args, **kwargs)
         self.block_initialization()
 
@@ -789,6 +796,33 @@ class Block(BaseModel, ABC):
             ) from e
 
         return block_document, block_document_name
+
+    @classmethod
+    @sync_compatible
+    @inject_client
+    async def _get_block_document_by_id(
+        cls,
+        block_document_id: str | uuid.UUID,
+        client: Optional["PrefectClient"] = None,
+    ):
+        if isinstance(block_document_id, str):
+            try:
+                block_document_id = UUID(block_document_id)
+            except ValueError as e:
+                raise ValueError(
+                    f"Block document ID {block_document_id!r} is not a valid UUID"
+                ) from e
+
+        try:
+            block_document = await client.read_block_document(
+                block_document_id=block_document_id
+            )
+        except prefect.exceptions.ObjectNotFound as e:
+            raise ValueError(
+                f"Unable to find block document with ID {block_document_id!r}"
+            ) from e
+
+        return block_document, block_document.name
 
     @classmethod
     @sync_compatible
