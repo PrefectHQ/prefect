@@ -940,17 +940,103 @@ class TestTaskRetries:
             "Completed",
         ]
 
-    async def test_task_retries_receive_latest_task_run_in_context(self):
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            pytest.xfail(
-                "Run count is not yet implemented in client-side task orchestration"
-            )
+    async def test_task_passes_failed_state_to_retry_fn(self):
+        mock = MagicMock()
+        exc = SyntaxError("oops")
+        handler_mock = MagicMock()
 
-        contexts: List[TaskRunContext] = []
+        async def handler(task, task_run, state):
+            handler_mock()
+            assert state.is_failed()
+            try:
+                await state.result()
+            except SyntaxError:
+                return True
+            return False
+
+        @task(retries=3, retry_condition_fn=handler)
+        async def flaky_function():
+            mock()
+            if mock.call_count == 2:
+                return True
+            raise exc
+
+        @flow
+        async def test_flow():
+            return await flaky_function(return_state=True)
+
+        task_run_state = await test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_completed()
+        assert await task_run_state.result() is True
+        assert mock.call_count == 2
+        assert handler_mock.call_count == 1
+
+        states = await get_task_run_states(task_run_id)
+
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Completed",
+        ]
+
+    async def test_task_passes_failed_state_to_retry_fn_sync(self):
+        mock = MagicMock()
+        exc = SyntaxError("oops")
+        handler_mock = MagicMock()
+
+        def handler(task, task_run, state):
+            handler_mock()
+            assert state.is_failed()
+            try:
+                state.result()
+            except SyntaxError:
+                return True
+            return False
+
+        @task(retries=3, retry_condition_fn=handler)
+        def flaky_function():
+            mock()
+            if mock.call_count == 2:
+                return True
+            raise exc
+
+        @flow
+        def test_flow():
+            return flaky_function(return_state=True)
+
+        task_run_state = test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_completed()
+        assert await task_run_state.result() is True
+        assert mock.call_count == 2
+        assert handler_mock.call_count == 1
+
+        states = await get_task_run_states(task_run_id)
+
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Completed",
+        ]
+
+    async def test_task_retries_receive_latest_task_run_in_context(self):
+        state_names: List[str] = []
+        run_counts = []
+        start_times = []
 
         @task(retries=3)
         async def flaky_function():
-            contexts.append(get_run_context())
+            ctx = TaskRunContext.get()
+            state_names.append(ctx.task_run.state_name)
+            run_counts.append(ctx.task_run.run_count)
+            start_times.append(ctx.start_time)
             raise ValueError()
 
         @flow
@@ -966,15 +1052,15 @@ class TestTaskRetries:
             "Retrying",
             "Retrying",
         ]
-        assert len(contexts) == len(expected_state_names)
-        for i, context in enumerate(contexts):
-            assert context.task_run.run_count == i + 1
-            assert context.task_run.state_name == expected_state_names[i]
+        assert len(state_names) == len(expected_state_names) == len(run_counts)
+        for i in range(len(state_names)):
+            assert run_counts[i] == i + 1
+            assert state_names[i] == expected_state_names[i]
 
             if i > 0:
-                last_context = contexts[i - 1]
+                last_start_time = start_times[i - 1]
                 assert (
-                    last_context.start_time < context.start_time
+                    last_start_time < start_times[i]
                 ), "Timestamps should be increasing"
 
     async def test_global_task_retry_config(self):

@@ -5,30 +5,30 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    labels: ["maintenance"]
+    labels: ["development"]
 
   - package-ecosystem: "npm"
     directory: '/ui/'
     schedule:
       interval: "weekly"
-    labels: ["ui", "maintenance"]
+    labels: ["ui", "development"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
-    labels: ["maintenance"]
+    labels: ["development"]
 
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "daily"
-    labels: ["maintenance"]
+    labels: ["development"]
 
-  # Check for Python updates in v1
+  # Check for Python updates in v2
   - package-ecosystem: "pip"
-    target-branch: "1.x"
+    target-branch: "2.x"
     directory: "/"
     schedule:
       interval: "daily"
-    labels: ["maintenance", "v1"]
+    labels: ["development", "2.x"]
