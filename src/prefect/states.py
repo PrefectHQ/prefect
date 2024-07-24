@@ -131,7 +131,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 
 
 async def exception_to_crashed_state(
-    exc: Union[BaseException | BaseExceptionGroup],
+    exc: Union[BaseException, BaseExceptionGroup],
     result_factory: Optional[ResultFactory] = None,
 ) -> State:
     """
