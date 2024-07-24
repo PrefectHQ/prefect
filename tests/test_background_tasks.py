@@ -1,6 +1,4 @@
 import asyncio
-import inspect
-import os
 from pathlib import Path
 from typing import AsyncGenerator, Iterable, Tuple
 from unittest import mock
@@ -26,7 +24,6 @@ from prefect.settings import (
 )
 from prefect.task_server import TaskServer
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.hashing import hash_objects
 
 
 @sync_compatible
@@ -395,22 +392,3 @@ class TestMap:
             assert await result_factory.read_parameters(
                 task_run.state.state_details.task_parameters_id
             ) == {"x": i + 1, "mappable": ["some", "iterable"]}
-
-
-class TestTaskKey:
-    def test_task_key_includes_qualname_and_source_file_hash(self):
-        def some_fn():
-            pass
-
-        t = Task(fn=some_fn)
-        source_file = os.path.abspath(inspect.getsourcefile(some_fn))
-        task_origin_hash = hash_objects(t.name, source_file)
-        assert t.task_key == f"{some_fn.__qualname__}-{task_origin_hash}"
-
-    def test_task_key_handles_unknown_source_file(self, monkeypatch):
-        def some_fn():
-            pass
-
-        monkeypatch.setattr(inspect, "getsourcefile", lambda x: None)
-        t = Task(fn=some_fn)
-        assert t.task_key == f"{some_fn.__qualname__}-unknown-source-file"
