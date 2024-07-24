@@ -278,7 +278,10 @@ class Block(BaseModel, ABC):
             block_document, block_document_name = self._get_block_document_by_id(
                 block_document_id
             )
-            kwargs.update(block_document.data)
+            kwargs = {
+                **block_document.data,
+                **kwargs,
+            }
         super().__init__(*args, **kwargs)
         self.block_initialization()
 
