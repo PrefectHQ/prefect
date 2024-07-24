@@ -21,6 +21,7 @@ const workspaceRoutes = createWorkspaceRouteRecords({
   flow: () => import('@/pages/Flow.vue'),
   deployments: () => import('@/pages/Deployments.vue'),
   deployment: () => import('@/pages/Deployment.vue'),
+  deploymentDuplicate: () => import('@/pages/DeploymentDuplicate.vue'),
   deploymentEdit: () => import('@/pages/DeploymentEdit.vue'),
   deploymentFlowRunCreate: () => import('@/pages/FlowRunCreate.vue'),
   blocks: () => import('@/pages/Blocks.vue'),

@@ -54,7 +54,7 @@ def tmp_runner_settings():
         yield
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 async def runner() -> Runner:
     return Runner()
 
@@ -146,22 +146,23 @@ class TestWebserverDeploymentRoutes:
         mock_get_client.return_value.__aenter__.return_value = mock_client
         mock_get_client.return_value.__aexit__.return_value = None
 
-        deployment_id = await create_deployment(runner, simple_flow)
-        webserver = await build_server(runner)
-        client = TestClient(webserver)
+        async with runner:
+            deployment_id = await create_deployment(runner, simple_flow)
+            webserver = await build_server(runner)
+            client = TestClient(webserver)
 
-        with mock.patch(
-            "prefect.runner.server.get_client", new=mock_get_client
-        ), mock.patch.object(runner, "execute_in_background"):
-            with client:
-                response = client.post(f"/deployment/{deployment_id}/run")
-            assert response.status_code == 201, response.json()
-            flow_run_id = response.json()["flow_run_id"]
-            assert flow_run_id == mock_flow_run_id
-            assert isinstance(uuid.UUID(flow_run_id), uuid.UUID)
-            mock_client.create_flow_run_from_deployment.assert_called_once_with(
-                deployment_id=uuid.UUID(deployment_id), parameters={}
-            )
+            with mock.patch(
+                "prefect.runner.server.get_client", new=mock_get_client
+            ), mock.patch.object(runner, "execute_in_background"):
+                with client:
+                    response = client.post(f"/deployment/{deployment_id}/run")
+                assert response.status_code == 201, response.json()
+                flow_run_id = response.json()["flow_run_id"]
+                assert flow_run_id == mock_flow_run_id
+                assert isinstance(uuid.UUID(flow_run_id), uuid.UUID)
+                mock_client.create_flow_run_from_deployment.assert_called_once_with(
+                    deployment_id=uuid.UUID(deployment_id), parameters={}
+                )
 
 
 class TestWebserverFlowRoutes:
@@ -192,8 +193,9 @@ class TestWebserverFlowRoutes:
         flow_file: str,
         flow_name: str,
     ):
-        await create_deployment(runner, simple_flow)
-        webserver = await build_server(runner)
+        async with runner:
+            await create_deployment(runner, simple_flow)
+            webserver = await build_server(runner)
         client = TestClient(webserver)
 
         response = client.post(
