@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import pytest
+import readchar
 import respx
 from httpx import Response
 
@@ -597,8 +598,8 @@ def test_populate_defaults(tmp_path, monkeypatch):
         ["profile", "populate-defaults"],
         user_input="y",
         expected_output_contains=[
-            f"Default profiles have been populated in {temp_profiles_path}",
-            "You can now use these profiles with prefect profile use [SOME-PROFILE-NAME]",
+            f"Default profiles populated in {temp_profiles_path}",
+            "Use with prefect profile use [PROFILE-NAME]",
         ],
     )
 
@@ -613,3 +614,34 @@ def test_populate_defaults(tmp_path, monkeypatch):
 
     for name in default_profiles.names:
         assert populated_profiles[name].settings == default_profiles[name].settings
+
+
+def test_populate_defaults_with_existing_profiles(tmp_path, monkeypatch):
+    temp_profiles_path = tmp_path / "profiles.toml"
+    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+
+    existing_profiles = ProfilesCollection(
+        profiles=[Profile(name="existing", settings={PREFECT_API_KEY: "test_key"})],
+        active="existing",
+    )
+    save_profiles(existing_profiles)
+
+    invoke_and_assert(
+        ["profile", "populate-defaults"],
+        user_input=(
+            "y" + readchar.key.ENTER + "y" + readchar.key.ENTER
+        ),  # Confirm overwrite and backup
+        expected_output_contains=[
+            "Overwrite existing profiles",
+            f"Profiles backed up to {temp_profiles_path}.bak",
+            f"Default profiles populated in {temp_profiles_path}",
+        ],
+    )
+
+    new_profiles = load_profiles()
+    assert "existing" not in new_profiles.names
+    assert {"local", "ephemeral", "test", "cloud"} == set(new_profiles.names)
+
+    backup_profiles = _read_profiles_from(temp_profiles_path.with_suffix(".toml.bak"))
+    assert "existing" in backup_profiles.names
+    assert backup_profiles["existing"].settings == {PREFECT_API_KEY: "test_key"}

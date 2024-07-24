@@ -5,7 +5,6 @@ Command line interface for working with profiles.
 import os
 import shutil
 import textwrap
-from pathlib import Path
 from typing import Optional
 
 import httpx
@@ -258,42 +257,35 @@ def inspect(
 
 @profile_app.command()
 def populate_defaults():
-    """
-    Populate the profiles configuration with the default base profiles.
-    """
+    """Populate the profiles configuration with the default base profiles."""
     user_profiles_path = prefect.settings.PREFECT_PROFILES_PATH.value()
+    DEFAULT_PROFILES_TEMPLATE_CONTENT = (
+        prefect.settings.DEFAULT_PROFILES_PATH.read_text()
+    )
 
     if user_profiles_path.exists():
-        if not typer.confirm(
-            f"This will overwrite existing profiles at {user_profiles_path}. Do you want to continue?"
-        ):
-            exit_with_success("Operation cancelled.")
-
-        if (
-            user_profiles_path.read_text()
-            not in (
-                (Path.cwd() / "src/prefect/profiles.toml").read_text(),
-                _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT,
+        if user_profiles_path.read_text() == DEFAULT_PROFILES_TEMPLATE_CONTENT:
+            app.console.print(
+                "Default profiles are already populated. [green]No action required[/green]."
             )
-            and (backup_path := user_profiles_path.with_suffix(".toml.bak")).exists()
-            and typer.confirm(
-                f"Do you want to back up your existing profiles to {backup_path}?"
-            )
-        ):
-            shutil.copy(user_profiles_path, backup_path)
-            app.console.print(f"Existing profiles backed up to {backup_path}")
+            return
+        if not typer.confirm(f"Overwrite existing profiles at {user_profiles_path}?"):
+            app.console.print("Operation cancelled.")
+            return
 
-    default_profiles = prefect.settings._read_profiles_from(
-        prefect.settings.DEFAULT_PROFILES_PATH
-    )
+        if user_profiles_path.read_text() != _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT:
+            backup_path = user_profiles_path.with_suffix(".toml.bak")
+            if typer.confirm(f"Back up existing profiles to {backup_path}?"):
+                shutil.copy(user_profiles_path, backup_path)
+                app.console.print(f"Profiles backed up to {backup_path}")
 
-    prefect.settings._write_profiles_to(user_profiles_path, default_profiles)
+    user_profiles_path.write_text(DEFAULT_PROFILES_TEMPLATE_CONTENT)
 
     app.console.print(
-        f"Default profiles have been populated in [green]{user_profiles_path}[/green]"
+        f"Default profiles populated in [green]{user_profiles_path}[/green]"
     )
     app.console.print(
-        "You can now use these profiles with [green]prefect profile use[/green] [red][SOME-PROFILE-NAME][/red]"
+        "Use with [green]prefect profile use[/green] [red][PROFILE-NAME][/red]"
     )
 
 
