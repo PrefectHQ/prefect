@@ -25,7 +25,7 @@ from typing_extensions import ParamSpec, Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import MissingResult, ObjectAlreadyExists
+from prefect.exceptions import MissingResult
 from prefect.filesystems import (
     LocalFileSystem,
     WritableFileSystem,
@@ -62,51 +62,6 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 _default_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
-
-
-async def _get_or_create_default_storage(block_document_slug: str) -> ResultStorage:
-    """
-    Generate a default file system for storage.
-    """
-    default_storage_name, storage_path = cache_key = (
-        block_document_slug,
-        PREFECT_LOCAL_STORAGE_PATH.value(),
-    )
-
-    async def get_storage() -> WritableFileSystem:
-        try:
-            return await Block.load(default_storage_name)
-        except ValueError as e:
-            if "Unable to find" not in str(e):
-                raise e
-
-        block_type_slug, name = default_storage_name.split("/")
-        if block_type_slug == "local-file-system":
-            block = LocalFileSystem(basepath=storage_path)
-        else:
-            raise ValueError(
-                "The default storage block does not exist, but it is of type "
-                f"'{block_type_slug}' which cannot be created implicitly.  Please create "
-                "the block manually."
-            )
-
-        try:
-            await block.save(name, overwrite=False)
-        except ValueError as e:
-            if "already in use" not in str(e):
-                raise e
-        except ObjectAlreadyExists:
-            # Another client created the block before we reached this line
-            block = await Block.load(default_storage_name)
-
-        return block
-
-    try:
-        return _default_storages[cache_key]
-    except KeyError:
-        storage = await get_storage()
-        _default_storages[cache_key] = storage
-        return storage
 
 
 @sync_compatible
