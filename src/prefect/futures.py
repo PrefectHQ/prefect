@@ -166,7 +166,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
     def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
         if not self._final_state:
 
-            def call_with_self():
+            def call_with_self(future):
                 fn(self)
 
             self._wrapped_future.add_done_callback(call_with_self)
@@ -345,24 +345,24 @@ def as_completed(
             pending = unique_futures - done
             yield from done
 
-            event = threading.Event()
-            lock = threading.Lock()
+            finished_event = threading.Event()
+            finished_lock = threading.Lock()
             finished_futures = []
 
             def add_to_done(future):
-                with lock:
+                with finished_lock:
                     finished_futures.append(future)
-                    event.set()
+                    finished_event.set()
 
             for future in pending:
                 future.add_done_callback(add_to_done)
 
             while pending:
-                event.wait()
-                with lock:
+                finished_event.wait()
+                with finished_lock:
                     done = finished_futures
                     finished_futures = []
-                    event.clear()
+                    finished_event.clear()
 
                 for future in done:
                     pending.remove(future)

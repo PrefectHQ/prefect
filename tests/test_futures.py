@@ -91,7 +91,9 @@ class TestUtilityFunctions:
 
         with ThreadPoolTaskRunner() as runner:
             futures = []
-            for i in range(5, 25, 5):
+            timings = [1, 5, 10]
+
+            for i in timings:
                 parameters = {"seconds": i}
                 future = runner.submit(my_test_task, parameters)
                 future.parameters = parameters
@@ -99,7 +101,7 @@ class TestUtilityFunctions:
             results = []
             for future in as_completed(futures):
                 results.append(future.result())
-            assert results == [5, 10, 15, 20]
+            assert results == timings
 
     async def test_as_completed_yields_correct_order_dist(self, task_run):
         @task
@@ -110,7 +112,7 @@ class TestUtilityFunctions:
             return seconds
 
         futures = []
-        timings = [1, 3, 5]
+        timings = [1, 5, 10]
         for i in timings:
             task_run = await my_task.create_run(parameters={"seconds": i})
             future = PrefectDistributedFuture(task_run_id=task_run.id)

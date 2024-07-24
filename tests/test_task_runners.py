@@ -61,6 +61,9 @@ class MockFuture(PrefectWrappedFuture):
         self.wait()
         return self._state.result()
 
+    def add_done_callback(self, fn):
+        return super().add_done_callback(fn)
+
     @property
     def state(self) -> Any:
         return self._state
