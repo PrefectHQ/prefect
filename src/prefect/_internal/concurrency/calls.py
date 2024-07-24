@@ -12,6 +12,7 @@ import dataclasses
 import inspect
 import threading
 import weakref
+from asyncio.exceptions import CancelledError as AsyncIOCancelledError
 from concurrent.futures._base import (
     CANCELLED,
     CANCELLED_AND_NOTIFIED,
@@ -361,7 +362,7 @@ class Call(Generic[T]):
             if inspect.isawaitable(result):
                 return result
 
-        except CancelledError:
+        except (CancelledError, AsyncIOCancelledError):
             # Report cancellation
             if cancel_scope.timedout():
                 self.future._timed_out = True
@@ -393,7 +394,7 @@ class Call(Generic[T]):
                         # there's no need to keep a reference to them
                         self.args = None
                         self.kwargs = None
-        except CancelledError:
+        except (CancelledError, AsyncIOCancelledError):
             # Report cancellation
             if cancel_scope.timedout():
                 self.future._timed_out = True

@@ -4,12 +4,13 @@ import traceback
 import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import Any, Dict, Iterable, Optional, Type
+from typing import Any, Dict, Iterable, Optional, Type, Union
 
 import anyio
 import httpx
 import pendulum
 from typing_extensions import TypeGuard
+from exceptiongroup import BaseExceptionGroup
 
 from prefect.client.schemas import State as State
 from prefect.client.schemas import StateDetails, StateType
@@ -130,7 +131,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 
 
 async def exception_to_crashed_state(
-    exc: BaseException,
+    exc: Union[BaseException | BaseExceptionGroup],
     result_factory: Optional[ResultFactory] = None,
 ) -> State:
     """
@@ -138,6 +139,15 @@ async def exception_to_crashed_state(
     'Crash' exception with a 'Crashed' state.
     """
     state_message = None
+
+    if isinstance(exc, BaseExceptionGroup):
+        # If there are multiple exceptions, we will use the first one for
+        # the purposes of crash reporting.
+        exc = exc.exceptions[0]
+
+        # TODO: Why do we get nested groups here?
+        if isinstance(exc, BaseExceptionGroup):
+            exc = exc.exceptions[0]
 
     if isinstance(exc, anyio.get_cancelled_exc_class()):
         state_message = "Execution was cancelled by the runtime environment."

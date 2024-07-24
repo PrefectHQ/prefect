@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+from asyncio import CancelledError
 from enum import Enum
 from functools import partial
 from typing import List, Optional, Type
@@ -16,6 +17,7 @@ from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.exceptions import ObjectNotFound
+from prefect.logging import get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
@@ -31,6 +33,8 @@ from prefect.utilities.processutils import (
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.server import start_healthcheck_server
+
+logger = get_logger(__name__)
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
@@ -171,61 +175,64 @@ async def start(
         base_job_template=template_contents,
     ) as worker:
         app.console.print(f"Worker {worker.name!r} started!", style="green")
-        async with anyio.create_task_group() as tg:
-            # wait for an initial heartbeat to configure the worker
-            await worker.sync_with_backend()
-            # schedule the scheduled flow run polling loop
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=worker.get_and_submit_flow_runs,
-                    interval=PREFECT_WORKER_QUERY_SECONDS.value(),
-                    run_once=run_once,
-                    printer=app.console.print,
-                    jitter_range=0.3,
-                    backoff=4,  # Up to ~1 minute interval during backoff
+        try:
+            async with anyio.create_task_group() as tg:
+                # wait for an initial heartbeat to configure the worker
+                await worker.sync_with_backend()
+                # schedule the scheduled flow run polling loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=worker.get_and_submit_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        run_once=run_once,
+                        printer=app.console.print,
+                        jitter_range=0.3,
+                        backoff=4,  # Up to ~1 minute interval during backoff
+                    )
                 )
-            )
-            # schedule the sync loop
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=worker.sync_with_backend,
-                    interval=worker.heartbeat_interval_seconds,
-                    run_once=run_once,
-                    printer=app.console.print,
-                    jitter_range=0.3,
-                    backoff=4,
+                # schedule the sync loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=worker.sync_with_backend,
+                        interval=worker.heartbeat_interval_seconds,
+                        run_once=run_once,
+                        printer=app.console.print,
+                        jitter_range=0.3,
+                        backoff=4,
+                    )
                 )
-            )
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=worker.check_for_cancelled_flow_runs,
-                    interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
-                    run_once=run_once,
-                    printer=app.console.print,
-                    jitter_range=0.3,
-                    backoff=4,
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=worker.check_for_cancelled_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                        run_once=run_once,
+                        printer=app.console.print,
+                        jitter_range=0.3,
+                        backoff=4,
+                    )
                 )
-            )
 
-            started_event = await worker._emit_worker_started_event()
+                started_event = await worker._emit_worker_started_event()
 
-            # if --with-healthcheck was passed, start the healthcheck server
-            if with_healthcheck:
-                # we'll start the ASGI server in a separate thread so that
-                # uvicorn does not block the main thread
-                server_thread = threading.Thread(
-                    name="healthcheck-server-thread",
-                    target=partial(
-                        start_healthcheck_server,
-                        worker=worker,
-                        query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
-                    ),
-                    daemon=True,
-                )
-                server_thread.start()
+                # if --with-healthcheck was passed, start the healthcheck server
+                if with_healthcheck:
+                    # we'll start the ASGI server in a separate thread so that
+                    # uvicorn does not block the main thread
+                    server_thread = threading.Thread(
+                        name="healthcheck-server-thread",
+                        target=partial(
+                            start_healthcheck_server,
+                            worker=worker,
+                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        ),
+                        daemon=True,
+                    )
+                    server_thread.start()
+        except CancelledError:
+            logger.debug("Worker task group cancelled")
 
     await worker._emit_worker_stopped_event(started_event)
     app.console.print(f"Worker {worker.name!r} stopped!")
