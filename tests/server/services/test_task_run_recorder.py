@@ -199,6 +199,7 @@ async def flow_run(session: AsyncSession, flow):
             flow_id=flow.id,
         ),
     )
+    await session.commit()
     return flow_run
 
 
