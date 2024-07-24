@@ -38,7 +38,6 @@ class PrefectFuture(abc.ABC, Generic[R]):
     def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
         self._final_state: Optional[State[R]] = None
-        self._on_final: Callable = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
