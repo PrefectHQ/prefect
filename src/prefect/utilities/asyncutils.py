@@ -261,14 +261,14 @@ def sync_compatible(async_fn: T) -> T:
     """
 
     @wraps(async_fn)
-    def coroutine_wrapper(*args, **kwargs):
+    def coroutine_wrapper(*args, _sync: Optional[bool] = None, **kwargs):
         from prefect._internal.concurrency.api import create_call, from_sync
         from prefect._internal.concurrency.calls import get_current_call, logger
         from prefect._internal.concurrency.event_loop import get_running_loop
         from prefect._internal.concurrency.threads import get_global_loop
         from prefect.settings import PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT
 
-        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT:
+        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT or _sync is False:
             return async_fn(*args, **kwargs)
 
         global_thread_portal = get_global_loop()
@@ -276,12 +276,17 @@ def sync_compatible(async_fn: T) -> T:
         current_call = get_current_call()
         current_loop = get_running_loop()
 
-        if current_thread.ident == global_thread_portal.thread.ident:
+        if (
+            current_thread.ident == global_thread_portal.thread.ident
+            and _sync is not True
+        ):
             logger.debug(f"{async_fn} --> return coroutine for internal await")
             # In the prefect async context; return the coro for us to await
             return async_fn(*args, **kwargs)
-        elif in_async_main_thread() and (
-            not current_call or is_async_fn(current_call.fn)
+        elif (
+            in_async_main_thread()
+            and (not current_call or is_async_fn(current_call.fn))
+            and _sync is not True
         ):
             # In the main async context; return the coro for them to await
             logger.debug(f"{async_fn} --> return coroutine for user await")
