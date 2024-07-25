@@ -30,7 +30,7 @@ class EventsPipeline:
     async def process_message(self, message: MemoryMessage):
         """Process a single event message"""
 
-        # All event stream consumers should be added here
+        # TODO: Investigate if we want to include triggers/actions etc.
         async with task_run_recorder.consumer() as handler:
             await handler(message)
 
