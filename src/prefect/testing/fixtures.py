@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import socket
@@ -19,6 +20,7 @@ from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
+from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
@@ -335,7 +337,7 @@ def mock_should_emit_events(monkeypatch) -> mock.Mock:
     return m
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
     worker = EventsWorker.instance(AssertingEventsClient)
     # Always yield the asserting worker when new instances are retrieved
@@ -344,6 +346,23 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
         yield worker
     finally:
         worker.drain()
+
+
+@pytest.fixture
+async def events_pipeline(asserting_events_worker: EventsWorker):
+    class AssertingEventsPipeline(EventsPipeline):
+        def sync_process_events(self):
+            asyncio.run(self.process_events())
+
+        async def process_events(self):
+            asserting_events_worker.wait_until_empty()
+            events = asserting_events_worker._client.events
+
+            messages = self.events_to_messages(events)
+            await self.process_messages(messages)
+            asserting_events_worker._client.reset_events()
+
+    yield AssertingEventsPipeline()
 
 
 @pytest.fixture
