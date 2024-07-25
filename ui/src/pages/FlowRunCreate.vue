@@ -4,13 +4,13 @@
       <PageHeadingFlowRunCreate :deployment="deployment" />
     </template>
 
-    <FlowRunCreateFormV2 :deployment :parameters :disabled @submit="createFlowRun" @cancel="goBack" />
+    <FlowRunCreateForm :deployment :parameters :disabled @submit="createFlowRun" @cancel="goBack" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/prefect-design'
-  import { PageHeadingFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi, useDeployment, FlowRunCreateFormV2, DeploymentFlowRunCreateV2, getApiErrorMessage } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi, useDeployment, FlowRunCreateForm, DeploymentFlowRunCreate, getApiErrorMessage } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, h, ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -25,14 +25,14 @@
   const { deployment } = useDeployment(deploymentId)
   const disabled = ref(false)
 
-  const createFlowRun = async (request: DeploymentFlowRunCreateV2): Promise<void> => {
+  const createFlowRun = async (request: DeploymentFlowRunCreate): Promise<void> => {
     if (disabled.value) {
       return
     }
 
     try {
       disabled.value = true
-      const flowRun = await api.deployments.createDeploymentFlowRunV2(deploymentId.value, request)
+      const flowRun = await api.deployments.createDeploymentFlowRun(deploymentId.value, request)
       const startTime = request.state?.stateDetails?.scheduledTime ?? undefined
       const immediate = !startTime
       const toastMessage = h(ToastFlowRunCreate, { flowRun, flowRunRoute: routes.flowRun, router, immediate, startTime })
