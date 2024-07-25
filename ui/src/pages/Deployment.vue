@@ -36,7 +36,7 @@
 
       <template #runs>
         <template v-if="nextRun">
-          <p-heading heading="6" class="workspace-deployment__next-run">
+          <p-heading heading="6" class="deployment__next-run">
             Next Run
           </p-heading>
           <FlowRunListItem :flow-run="nextRun" />
@@ -133,8 +133,7 @@
 </script>
 
 <style>
-.deployment__infra-overrides { @apply
-  px-4
-  py-3
+.deployment__next-run { @apply
+  mb-2
 }
 </style>

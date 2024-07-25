@@ -1,7 +1,6 @@
 ruff
 cairosvg
 codespell>=2.2.6
-ddtrace
 ipython
 jinja2
 moto >= 5

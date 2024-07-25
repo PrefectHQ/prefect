@@ -6,7 +6,6 @@ Module containing the base workflow task class and decorator - for most use case
 
 import datetime
 import inspect
-import os
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
@@ -33,13 +32,19 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
+import prefect.states
 from prefect._internal.compatibility.deprecated import (
     deprecated_async_method,
 )
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.client.schemas.objects import (
+    StateDetails,
+    TaskRunInput,
+    TaskRunPolicy,
+    TaskRunResult,
+)
 from prefect.context import (
     FlowRunContext,
     TagsContext,
@@ -50,6 +55,7 @@ from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutu
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -181,6 +187,31 @@ def _infer_parent_task_runs(
     return parents
 
 
+def _generate_task_key(fn: Callable[..., Any]) -> str:
+    """Generate a task key based on the function name and source code.
+
+    We may eventually want some sort of top-level namespace here to
+    disambiguate tasks with the same function name in different modules,
+    in a more human-readable way, while avoiding relative import problems (see #12337).
+
+    As long as the task implementations are unique (even if named the same), we should
+    not have any collisions.
+
+    Args:
+        fn: The function to generate a task key for.
+    """
+    if not hasattr(fn, "__qualname__"):
+        return to_qualified_name(type(fn))
+
+    qualname = fn.__qualname__.split(".")[-1]
+
+    code_hash = (
+        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(fn.__code__)) else "unknown"
+    )
+
+    return f"{qualname}-{code_hash}"
+
+
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -263,7 +294,7 @@ class Task(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         version: Optional[str] = None,
-        cache_policy: Optional[CachePolicy] = NotSet,
+        cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
@@ -362,17 +393,7 @@ class Task(Generic[P, R]):
 
         self.tags = set(tags if tags else [])
 
-        if not hasattr(self.fn, "__qualname__"):
-            self.task_key = to_qualified_name(type(self.fn))
-        else:
-            try:
-                task_origin_hash = hash_objects(
-                    self.name, os.path.abspath(inspect.getsourcefile(self.fn))
-                )
-            except TypeError:
-                task_origin_hash = "unknown-source-file"
-
-            self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
+        self.task_key = _generate_task_key(self.fn)
 
         if cache_policy is not NotSet and cache_key_fn is not None:
             logger.warning(
@@ -783,6 +804,130 @@ class Task(Generic[P, R]):
             # the new engine uses sync clients but old engines use async clients
             if inspect.isawaitable(task_run):
                 task_run = await task_run
+
+            return task_run
+
+    async def create_local_run(
+        self,
+        client: Optional["PrefectClient"] = None,
+        id: Optional[UUID] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        flow_run_context: Optional[FlowRunContext] = None,
+        parent_task_run_context: Optional[TaskRunContext] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        deferred: bool = False,
+        task_run_name: Optional[str] = None,
+    ) -> TaskRun:
+        if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+            raise RuntimeError(
+                "Cannot call `Task.create_local_run` unless "
+                "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION is True"
+            )
+
+        from prefect.utilities.engine import (
+            _dynamic_key_for_task_run,
+            collect_task_run_inputs_sync,
+        )
+
+        if flow_run_context is None:
+            flow_run_context = FlowRunContext.get()
+        if parent_task_run_context is None:
+            parent_task_run_context = TaskRunContext.get()
+        if parameters is None:
+            parameters = {}
+        if client is None:
+            client = get_client()
+
+        async with client:
+            if not flow_run_context:
+                dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
+                task_run_name = task_run_name or self.name
+            else:
+                dynamic_key = _dynamic_key_for_task_run(
+                    context=flow_run_context, task=self
+                )
+                task_run_name = task_run_name or f"{self.name}-{dynamic_key}"
+
+            if deferred:
+                state = Scheduled()
+                state.state_details.deferred = True
+            else:
+                state = Pending()
+
+            # store parameters for background tasks so that task worker
+            # can retrieve them at runtime
+            if deferred and (parameters or wait_for):
+                parameters_id = uuid4()
+                state.state_details.task_parameters_id = parameters_id
+
+                # TODO: Improve use of result storage for parameter storage / reference
+                self.persist_result = True
+
+                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                context = serialize_context()
+                data: Dict[str, Any] = {"context": context}
+                if parameters:
+                    data["parameters"] = parameters
+                if wait_for:
+                    data["wait_for"] = wait_for
+                await factory.store_parameters(parameters_id, data)
+
+            # collect task inputs
+            task_inputs = {
+                k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
+            }
+
+            # collect all parent dependencies
+            if task_parents := _infer_parent_task_runs(
+                flow_run_context=flow_run_context,
+                task_run_context=parent_task_run_context,
+                parameters=parameters,
+            ):
+                task_inputs["__parents__"] = task_parents
+
+            # check wait for dependencies
+            if wait_for:
+                task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
+
+            # Join extra task inputs
+            for k, extras in (extra_task_inputs or {}).items():
+                task_inputs[k] = task_inputs[k].union(extras)
+
+            flow_run_id = (
+                getattr(flow_run_context.flow_run, "id", None)
+                if flow_run_context and flow_run_context.flow_run
+                else None
+            )
+            task_run_id = id or uuid4()
+            state = prefect.states.Pending(
+                state_details=StateDetails(
+                    task_run_id=task_run_id,
+                    flow_run_id=flow_run_id,
+                )
+            )
+            task_run = TaskRun(
+                id=task_run_id,
+                name=task_run_name,
+                flow_run_id=flow_run_id,
+                task_key=self.task_key,
+                dynamic_key=str(dynamic_key),
+                task_version=self.version,
+                empirical_policy=TaskRunPolicy(
+                    retries=self.retries,
+                    retry_delay=self.retry_delay_seconds,
+                    retry_jitter_factor=self.retry_jitter_factor,
+                ),
+                tags=list(set(self.tags).union(TagsContext.get().current_tags or [])),
+                task_inputs=task_inputs or {},
+                expected_start_time=state.timestamp,
+                state_id=state.id,
+                state_type=state.type,
+                state_name=state.name,
+                state=state,
+                created=state.timestamp,
+                updated=state.timestamp,
+            )
 
             return task_run
 
@@ -1365,7 +1510,7 @@ class Task(Generic[P, R]):
 
         Args:
             task_runner: The task runner to use for serving the task. If not provided,
-                the default ConcurrentTaskRunner will be used.
+                the default task runner will be used.
 
         Examples:
             Serve a task using the default task runner
@@ -1392,7 +1537,7 @@ def task(
     description: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     version: Optional[str] = None,
-    cache_policy: CachePolicy = NotSet,
+    cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
     cache_key_fn: Optional[
         Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
     ] = None,
@@ -1430,7 +1575,9 @@ def task(
     tags: Optional[Iterable[str]] = None,
     version: Optional[str] = None,
     cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
-    cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
+    cache_key_fn: Union[
+        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]], None
+    ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,

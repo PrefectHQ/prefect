@@ -11,7 +11,7 @@ import anyio
 import pydantic
 import pytest
 
-from prefect import Flow, flow, task
+from prefect import Flow, __development_base_path__, flow, task
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
@@ -37,6 +37,7 @@ from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.utilities.callables import get_call_parameters
+from prefect.utilities.filesystem import tmpchdir
 
 
 @flow
@@ -1730,3 +1731,34 @@ class TestAsyncGenerators:
                 yield i
 
         assert [i for i in g("hello")] == ["hello", 1, 2, 3]
+
+
+class TestLoadFlowAndFlowRun:
+    async def test_load_flow_from_script_with_module_level_sync_compatible_call(
+        self, prefect_client: PrefectClient, tmp_path
+    ):
+        """
+        This test ensures that when a worker or runner loads a flow from a script, and
+        that script contains a module-level call to a sync-compatible function, the sync
+        compatible function is correctly runs as sync and does not prevent the flow from
+        being loaded.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14625
+        """
+        flow_id = await prefect_client.create_flow_from_name(flow_name="uses_block")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-load-flow-from-script-with-module-level-sync-compatible-call",
+            path=str(__development_base_path__ / "tests" / "test-projects" / "flows"),
+            entrypoint="uses_block.py:uses_block",
+        )
+        api_flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        with tmpchdir(tmp_path):
+            flow_run, flow = load_flow_and_flow_run(api_flow_run.id)
+
+        assert flow_run.id == api_flow_run.id
+
+        assert await flow() == "bar"
