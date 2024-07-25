@@ -17,10 +17,13 @@ changelog:
     - title: Experimental 🔬
       labels:
         - experimental
-    - title: Integrations & Dependencies
+    - title: Integrations & Dependencies 🤝
       labels:
         - integrations
         - upstream dependency
+    - title: Development & Tidiness 🧹
+      labels:
+        - development
     - title: Uncategorized
       labels:
         - "*"
