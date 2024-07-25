@@ -21688,11 +21688,6 @@
                         "title": "Prefect Home",
                         "default": "~/.prefect"
                     },
-                    "PREFECT_EXTRA_ENTRYPOINTS": {
-                        "type": "string",
-                        "title": "Prefect Extra Entrypoints",
-                        "default": ""
-                    },
                     "PREFECT_DEBUG_MODE": {
                         "type": "boolean",
                         "title": "Prefect Debug Mode",
@@ -22380,11 +22375,6 @@
                         "format": "duration",
                         "title": "Prefect Task Scheduling Pending Task Timeout",
                         "default": "PT0S"
-                    },
-                    "PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Disable Sync Compat",
-                        "default": false
                     },
                     "PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY": {
                         "type": "boolean",
