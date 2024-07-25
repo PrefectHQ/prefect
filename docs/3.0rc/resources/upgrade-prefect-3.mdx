@@ -245,3 +245,92 @@ If you [self-host a Prefect server instance](/3.0rc/manage/self-host), run the f
 ```bash
 prefect server database upgrade -y
 ```
+
+## Flow run final state determination
+
+In Prefect 2, the final state of a flow run was influenced by the states of its task runs; if any task run failed, the flow run was marked as failed.
+
+In Prefect 3, the final state of a flow run is entirely determined by:
+
+1. The `return` value of the flow function (same as in Prefect 2):
+   - Literal values are considered successful.
+   - Any explicit `State` that is returned will be considered the final state of the flow run. If an iterable of `State` objects is returned, all must be `Completed` for the flow run to be considered `Completed`. If any are `Failed`, the flow run will be marked as `Failed`.
+
+2. Whether the flow function allows an exception to `raise`:
+   - Exceptions that are allowed to propagate will result in a `Failed` state.
+   - Exceptions suppressed with `raise_on_failure=False` will not affect the flow run state.
+
+This change means that task failures within a flow do not automatically cause the flow run to fail unless they affect the flow's return value or raise an uncaught exception.
+
+<Warning>
+When migrating from Prefect 2 to Prefect 3, be aware that flows may now complete successfully even if they contain failed tasks, unless you explicitly handle task failures.
+</Warning>
+
+To ensure your flow fails when critical tasks fail, consider these approaches:
+
+1. Allow exceptions to propagate by not using `raise_on_failure=False`.
+2. Use `return_state=True` and explicitly check task states to conditionally `raise` the underlying exception or return a failed state.
+3. Use try/except blocks to handle task failures and return appropriate states.
+
+### Examples
+
+<CodeGroup>
+```python Allow Unhandled Exceptions
+from prefect import flow, task
+
+@task
+def failing_task():
+    raise ValueError("Task failed")
+
+@flow
+def my_flow():
+    failing_task()  # Exception propagates, causing flow failure
+
+try:
+    my_flow()
+except ValueError as e:
+    print(f"Flow failed: {e}")  # Output: Flow failed: Task failed
+```
+
+```python Use return_state
+from prefect import flow, task
+from prefect.states import Failed
+
+@task
+def failing_task():
+    raise ValueError("Task failed")
+
+@flow
+def my_flow():
+    state = failing_task(return_state=True)
+    if state.is_failed():
+        raise ValueError(state.result())
+    return "Flow completed successfully"
+
+try:
+    print(my_flow())
+except ValueError as e:
+    print(f"Flow failed: {e}")  # Output: Flow failed: Task failed
+```
+
+```python Use try/except
+from prefect import flow, task
+from prefect.states import Failed
+
+@task
+def failing_task():
+    raise ValueError("Task failed")
+
+@flow
+def my_flow():
+    try:
+        failing_task()
+    except ValueError:
+        return Failed(message="Flow failed due to task failure")
+    return "Flow completed successfully"
+
+print(my_flow())  # Output: Failed(message='Flow failed due to task failure')
+```
+</CodeGroup>
+
+Choose the strategy that best fits your specific use case and error handling requirements.
