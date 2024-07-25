@@ -15,6 +15,7 @@ from unittest.mock import ANY, MagicMock
 
 import anyio
 import pytest
+from exceptiongroup import BaseExceptionGroup
 
 import prefect
 import prefect.context
@@ -164,11 +165,8 @@ async def test_interrupt_crashes_flow(prefect_client, interrupt_type):
         flow_run_id = prefect.context.get_run_context().flow_run.id
         raise interrupt_type()
 
-    with pytest.raises(BaseExceptionGroup) as exc:
+    with pytest.raises(interrupt_type):
         await my_flow()
-
-        assert len(exc.value.exceptions) == 1
-        assert isinstance(exc.value.exceptions[0], interrupt_type)
 
     flow_run = await prefect_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(

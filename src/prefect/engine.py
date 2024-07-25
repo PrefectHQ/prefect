@@ -216,7 +216,7 @@ from prefect.utilities.engine import (
     propose_state,
     resolve_inputs,
     should_log_prints,
-    wait_for_task_runs_and_report_crashes,
+    wait_for_task_runs_and_report_crashes, collapse_excgroups,
 )
 
 R = TypeVar("R")
@@ -279,7 +279,7 @@ def enter_flow_run_engine_from_flow_call(
     # the user. Generally, you should enter contexts _within_ the async `begin_run`
     # instead but if you need to enter a context from the main thread you'll need to do
     # it here.
-    contexts = [capture_sigterm()]
+    contexts = [capture_sigterm(), collapse_excgroups()]
 
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
@@ -324,7 +324,7 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
             flow_run_id,
             user_thread=threading.current_thread(),
         ),
-        contexts=[capture_sigterm()],
+        contexts=[capture_sigterm(), collapse_excgroups()],
     )
 
     APILogHandler.flush()
@@ -927,10 +927,10 @@ async def orchestrate_flow_run(
                 # All tasks and subflows are reference tasks if there is no return value
                 # If there are no tasks, use `None` instead of an empty iterable
                 result = (
-                    flow_run_context.task_run_futures
-                    + flow_run_context.task_run_states
-                    + flow_run_context.flow_run_states
-                ) or None
+                             flow_run_context.task_run_futures
+                             + flow_run_context.task_run_states
+                             + flow_run_context.flow_run_states
+                         ) or None
 
             terminal_state = await return_value_to_state(
                 await resolve_futures_to_states(result),
@@ -2255,6 +2255,10 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
         # Do not capture internal signals as crashes
         raise
     except BaseException as exc:
+        if isinstance(exc, BaseExceptionGroup):
+            # If there are multiple exceptions, we will use the first one for
+            # the purposes of crash reporting.
+            exc = exc.exceptions[0]
         state = await exception_to_crashed_state(exc)
         logger = flow_run_logger(flow_run)
         with anyio.CancelScope(shield=True):

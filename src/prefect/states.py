@@ -140,6 +140,7 @@ async def exception_to_crashed_state(
     """
     state_message = None
 
+    # TODO: Do we need this or can we rely on the `collapse_excgrp` manager?
     if isinstance(exc, BaseExceptionGroup):
         # If there are multiple exceptions, we will use the first one for
         # the purposes of crash reporting.
