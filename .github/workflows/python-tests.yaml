@@ -182,43 +182,6 @@ jobs:
           && docker container logs postgres
           || echo "Ignoring bad exit code"
 
-  notify-tests-failing-on-main:
-    needs: run-tests
-    if: github.ref == 'refs/heads/main' && failure()
-    runs-on: ubuntu-latest
-    env:
-      FAILURE_THRESHOLD: 1
-    steps:
-      - name: Download all failure flags
-        uses: actions/download-artifact@v4
-        with:
-          path: failure-flags/
-
-      - name: Check for failure flags
-        id: check_failure
-        run: |
-          failure_count=$(ls -1q failure-flags/*/*.txt | wc -l)
-
-          if [ $failure_count -gt $FAILURE_THRESHOLD ]; then
-            too_many_tests_failed="true"
-          else
-            too_many_tests_failed="false"
-          fi
-          echo "failure_count=$failure_count" >> $GITHUB_OUTPUT
-          echo "too_many_tests_failed=$too_many_tests_failed" >> $GITHUB_OUTPUT
-
-      - name: Send Slack Notification
-        if: ${{ steps.check_failure.outputs.too_many_tests_failed == 'true' }}
-        uses: 8398a7/action-slack@v3
-        with:
-          author_name: Prefect OSS Tests Failing on Main
-          channel: CBH18KG8G # This is #engineering
-          fields: message,commit,author,workflowRun
-          status: failure
-          text: ":warning: Unit tests are failing in Prefect's main branch. Commit author: please either fix or remove the failing tests. If you remove the failing tests create a GitHub issue with the details."
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
-
   run-docker-tests:
     runs-on:
       group: oss-larger-runners
