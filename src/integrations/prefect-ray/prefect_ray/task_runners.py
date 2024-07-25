@@ -147,6 +147,16 @@ class PrefectRayFuture(PrefectWrappedFuture[R, ray.ObjectRef]):
             _result = run_coro_as_sync(_result)
         return _result
 
+    def add_done_callback(self, fn):
+        if not self._final_state:
+
+            def call_with_self(future):
+                fn(self)
+
+            self._wrapped_future.future().add_done_callback(call_with_self)
+            return
+        fn(self)
+
     def __del__(self):
         if self._final_state:
             return
