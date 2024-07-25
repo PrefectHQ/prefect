@@ -1067,13 +1067,13 @@ def DebugPrintNotification() -> Type[NotificationBlock]:
 
 @pytest.fixture
 async def notifier_block(
-    DebugPrintNotification: Type[NotificationBlock], prefect_client
+    DebugPrintNotification: Type[NotificationBlock], in_memory_prefect_client
 ):
     # Ignore warnings from block reuse in fixture
     warnings.filterwarnings("ignore", category=UserWarning)
 
     block = DebugPrintNotification()
-    await block.save("debug-print-notification", client=prefect_client)
+    await block.save("debug-print-notification", client=in_memory_prefect_client)
     return block
 
 

@@ -59,6 +59,7 @@ async def hosted_api_server(unused_tcp_port_factory):
         The API URL
     """
     port = unused_tcp_port_factory()
+    print(f"Running hosted API server on port {port}")
 
     # Will connect to the same database as normal test clients
     async with open_process(
