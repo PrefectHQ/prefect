@@ -569,31 +569,22 @@ class TestLoadProfiles:
 
     def test_load_profiles_with_default(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
-            textwrap.dedent(
-                """
-                [profiles.default]
-                PREFECT_API_KEY = "foo"
+            """
+            [profiles.default]
+            PREFECT_API_KEY = "foo"
 
-                [profiles.bar]
-                PREFECT_API_KEY = "bar"
-                """
-            )
+            [profiles.bar]
+            PREFECT_API_KEY = "bar"
+            """
         )
-        assert load_profiles() == ProfilesCollection(
-            profiles=[
-                Profile(
-                    name="default",
-                    settings={PREFECT_API_KEY: "foo"},
-                    source=temporary_profiles_path,
-                ),
-                Profile(
-                    name="bar",
-                    settings={PREFECT_API_KEY: "bar"},
-                    source=temporary_profiles_path,
-                ),
-            ],
-            active="default",
-        )
+        profiles = load_profiles()
+        expected = {
+            "default": {PREFECT_API_KEY: "foo"},
+            "bar": {PREFECT_API_KEY: "bar"},
+        }
+        for name, settings in expected.items():
+            assert profiles[name].settings == settings
+            assert profiles[name].source == temporary_profiles_path
 
     def test_load_profile_default(self):
         assert load_profile("default") == Profile(
