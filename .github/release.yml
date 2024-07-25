@@ -1,34 +1,29 @@
 # .github/release.yml
 
 changelog:
-  exclude:
-    labels:
-      - maintenance
   categories:
-    - title: Breaking Changes
+    - title: Breaking Changes ⚠️
       labels:
         - breaking
-    - title: Exciting New Features 🎉
+        - deprecation
+    - title: New Features 🎉
       labels:
         - feature
-    - title: Enhancements
-      labels:
         - enhancement
-    - title: Fixes
+    - title: Bug Fixes 🐞
       labels:
         - fix
-    - title: Experimental
+        - bug
+    - title: Experimental 🔬
       labels:
         - experimental
-    - title: Deprecations
+    - title: Integrations & Dependencies 🤝
       labels:
-        - deprecation
-    - title: Documentation
+        - integrations
+        - upstream dependency
+    - title: Development & Tidiness 🧹
       labels:
-        - docs
-    - title: Collections
-      labels:
-        - collections
+        - development
     - title: Uncategorized
       labels:
         - "*"
