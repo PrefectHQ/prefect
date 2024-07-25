@@ -3,6 +3,7 @@ Defines the Prefect REST API FastAPI app.
 """
 
 import asyncio
+import atexit
 import mimetypes
 import os
 import shutil
@@ -741,6 +742,9 @@ def create_app(
     return app
 
 
+subprocess_server_logger = get_logger()
+
+
 class SubprocessASGIServer:
     _instances: Dict[Union[int, None], "SubprocessASGIServer"] = {}
 
@@ -782,7 +786,7 @@ class SubprocessASGIServer:
         the server once.
         """
         if not self.running:
-            get_logger().info(f"Starting server on {self.address()}")
+            subprocess_server_logger.info(f"Starting server on {self.address()}")
             try:
                 self.running = True
                 self.server_process = subprocess.Popen(
@@ -811,6 +815,7 @@ class SubprocessASGIServer:
                         ),
                     },
                 )
+                atexit.register(self.stop)
 
                 with httpx.Client() as client:
                     response = None
@@ -836,10 +841,14 @@ class SubprocessASGIServer:
                 raise
 
     def stop(self):
+        subprocess_server_logger.info(f"Stopping server on {self.address()}")
         if self.server_process:
             self.server_process.terminate()
-            self.server_process.join(timeout=5)  # Wait for the server process to finish
-            if self.server_process.is_alive():
+            try:
+                self.server_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
                 self.server_process.kill()
+            finally:
+                self.server_process = None
         if self.running:
             self.running = False
