@@ -226,16 +226,21 @@ class TaskServer:
             validated_state=state,
         )
 
-        self._runs_task_group.start_soon(
-            partial(
-                submit_autonomous_task_run_to_engine,
-                task=task,
-                task_run=task_run,
-                parameters=parameters,
-                task_runner=self.task_runner,
-                client=self._client,
+        try:
+            self._runs_task_group.start_soon(
+                partial(
+                    submit_autonomous_task_run_to_engine,
+                    task=task,
+                    task_run=task_run,
+                    parameters=parameters,
+                    task_runner=self.task_runner,
+                    client=self._client,
+                )
             )
-        )
+        except BaseException as exc:
+            logger.exception(
+                f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
+            )
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task server."""
