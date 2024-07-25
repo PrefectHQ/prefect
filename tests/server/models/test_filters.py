@@ -13,7 +13,7 @@ from prefect.server import models
 from prefect.server.schemas import actions, core, filters, schedules, states
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True)
 def auto_use_hosted_api_server(use_hosted_api_server):
     pass
 
