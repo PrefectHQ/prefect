@@ -248,7 +248,7 @@ prefect server database upgrade -y
 
 ## Flow run final state determination
 
-In Prefect 2, the final state of a flow run was influenced by the states of its task runs, i.e. if any task run failed, the flow run was marked as failed.
+In Prefect 2, the final state of a flow run was influenced by the states of its task runs; if any task run failed, the flow run was marked as failed.
 
 In Prefect 3, the final state of a flow run is entirely determined by:
 
