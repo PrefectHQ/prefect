@@ -14,6 +14,11 @@ from prefect.server.schemas import actions, core, filters, schedules, states
 
 
 @pytest.fixture(autouse=True, scope="module")
+def auto_use_hosted_api_server(use_hosted_api_server):
+    pass
+
+
+@pytest.fixture(autouse=True, scope="module")
 async def clear_db(db):
     """Clear DB only once before running tests in this module."""
     max_retries = 3
