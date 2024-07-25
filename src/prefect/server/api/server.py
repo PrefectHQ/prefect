@@ -4,6 +4,7 @@ Defines the Prefect REST API FastAPI app.
 
 import asyncio
 import atexit
+import contextlib
 import mimetypes
 import os
 import shutil
@@ -771,11 +772,11 @@ class SubprocessASGIServer:
             self._initialized = True
 
     def find_available_port(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(("", 0))  # Bind to a free port provided by the host.
-        port = s.getsockname()[1]  # Retrieve the port number assigned.
-        s.close()
-        return port
+        with contextlib.closing(
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ) as sock:
+            sock.bind(("127.0.0.1", 0))
+            return sock.getsockname()[1]
 
     def address(self) -> str:
         return f"http://127.0.0.1:{self.port}"
