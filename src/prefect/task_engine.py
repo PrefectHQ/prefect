@@ -578,20 +578,22 @@ class TaskRunEngine(Generic[P, R]):
                 self._is_started = True
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                        # TODO - this maybe should be a method on Task?
                         from prefect.utilities.engine import (
                             _resolve_custom_task_run_name,
                         )
 
-                        task_run_name = None
-                        if not self._task_name_set and self.task.task_run_name:
-                            task_run_name = _resolve_custom_task_run_name(
+                        task_run_name = (
+                            _resolve_custom_task_run_name(
                                 task=self.task, parameters=self.parameters
                             )
-                            if self.task_run:
-                                self.task_run.name = task_run_name
+                            if self.task.task_run_name
+                            else None
+                        )
 
-                        else:
+                        if self.task_run and task_run_name:
+                            self.task_run.name = task_run_name
+
+                        if not self.task_run:
                             self.task_run = run_coro_as_sync(
                                 self.task.create_local_run(
                                     id=task_run_id,
