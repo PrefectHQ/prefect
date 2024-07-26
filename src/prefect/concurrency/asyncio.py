@@ -44,7 +44,7 @@ async def concurrency(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
-        create_if_missing: If implicitly creating new limits, whether the limits are active.
+        create_if_missing: Whether to create the concurrency limits if they do not exist.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -97,7 +97,7 @@ async def rate_limit(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
-        create_if_missing: If implicitly creating new limits, whether the limits are active.
+        create_if_missing: Whether to create the concurrency limits if they do not exist.
     """
     names = names if isinstance(names, list) else [names]
     limits = await _acquire_concurrency_slots(
