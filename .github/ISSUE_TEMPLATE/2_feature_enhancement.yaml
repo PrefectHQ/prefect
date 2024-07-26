@@ -2,18 +2,16 @@ name: 🚀 Enhancement
 description: Suggest an idea or improvement for Prefect
 labels: ["needs:triage", "enhancement"]
 body:
-  - type: checkboxes
-    id: checks
+  - type: markdown
     attributes:
-      label: First check
-      description: Please confirm and check all the following options.
-      options:
-        - label: I added a descriptive title to this issue.
-          required: true
-        - label: I used the GitHub search to find a similar request and didn't find it.
-          required: true
-        - label: I searched the Prefect documentation for this feature.
-          required: true
+      value: >
+        ## Please review these steps before proceeding.
+
+        1. I added a descriptive title to this issue.
+
+        2. I used the GitHub search to find a similar request and didn't find it.
+
+        3. I searched the Prefect documentation for this feature.
 
   - type: textarea
     attributes:
@@ -45,4 +43,4 @@ body:
 
   - type: markdown
     attributes:
-      value: "**Happy engineering!**"
+      value: Thank you for taking the time to help us improve Prefect!
