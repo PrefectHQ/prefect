@@ -354,10 +354,9 @@ async def events_pipeline(asserting_events_worker: EventsWorker):
         @sync_compatible
         async def process_events(self):
             asserting_events_worker.wait_until_empty()
-            events = asserting_events_worker._client.events
+            events = asserting_events_worker._client.pop_events()
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
-            asserting_events_worker._client.reset_events()
 
     yield AssertingEventsPipeline()
 
