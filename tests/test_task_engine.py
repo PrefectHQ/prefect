@@ -90,7 +90,7 @@ class TestRunTask:
 
         run_task_sync(foo, task_run_id=task_run_id)
 
-        events_pipeline.sync_process_events()
+        events_pipeline.process_events(_sync=True)
 
         task_run = sync_prefect_client.read_task_run(task_run_id)
         assert task_run.id == task_run_id
@@ -1482,7 +1482,7 @@ class TestRunCountTracking:
         with flow_run_context:
             assert run_task_sync(foo) == proof_that_i_ran
 
-        events_pipeline.sync_process_events()
+        events_pipeline.process_events(_sync=True)
         task_run = sync_prefect_client.read_task_run(ID)
         assert task_run
         assert task_run.run_count == 1
@@ -1839,7 +1839,7 @@ class TestGenerators:
 
         gen = g()
         tr_id = next(gen)
-        await events_pipeline.process_events()
+        events_pipeline.process_events(_sync=True)
         tr = await prefect_client.read_task_run(tr_id)
         assert tr.state.is_running()
 
@@ -1847,7 +1847,7 @@ class TestGenerators:
         for _ in gen:
             pass
 
-        await events_pipeline.process_events()
+        events_pipeline.process_events(_sync=True)
         tr = await prefect_client.read_task_run(tr_id)
         assert tr.state.is_completed()
 
@@ -2279,7 +2279,7 @@ class TestRunStateIsDenormalized:
             assert task_run.state_name == task_run.state.name == "Running"
 
         run_task_sync(foo)
-        events_pipeline.sync_process_events()
+        events_pipeline.process_events(_sync=True)
         task_run = sync_prefect_client.read_task_run(ID)
 
         assert task_run
@@ -2313,7 +2313,7 @@ class TestRunStateIsDenormalized:
         with pytest.raises(ValueError, match="woops!"):
             run_task_sync(foo)
 
-        events_pipeline.sync_process_events()
+        events_pipeline.process_events(_sync=True)
         task_run = sync_prefect_client.read_task_run(ID)
 
         assert task_run

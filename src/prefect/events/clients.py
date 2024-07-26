@@ -140,7 +140,6 @@ class AssertingEventsClient(EventsClient):
         cls.last = None
         cls.all = []
 
-    @classmethod
     def reset_events(self) -> None:
         self.events = []
 

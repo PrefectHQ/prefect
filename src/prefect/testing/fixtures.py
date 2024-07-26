@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 import socket
@@ -28,6 +27,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import open_process
 
 
@@ -351,13 +351,10 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
 @pytest.fixture
 async def events_pipeline(asserting_events_worker: EventsWorker):
     class AssertingEventsPipeline(EventsPipeline):
-        def sync_process_events(self):
-            asyncio.run(self.process_events())
-
+        @sync_compatible
         async def process_events(self):
             asserting_events_worker.wait_until_empty()
             events = asserting_events_worker._client.events
-
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
             asserting_events_worker._client.reset_events()
