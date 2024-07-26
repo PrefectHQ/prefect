@@ -4,7 +4,7 @@ from typing import AsyncGenerator, Iterable, Tuple
 from unittest import mock
 
 import pytest
-from exceptiongroup import catch
+from exceptiongroup import BaseExceptionGroup, catch  # novermin
 
 import prefect.results
 from prefect import Task, task, unmapped
