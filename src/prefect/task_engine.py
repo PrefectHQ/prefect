@@ -287,9 +287,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             raise RuntimeError("Engine has not started.")
         return self._client
 
-    def sleep(self, interval: float):
-        time.sleep(interval)
-
     def call_hooks(self, state: Optional[State] = None):
         if state is None:
             state = self.state
@@ -374,7 +371,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             interval = clamped_poisson_interval(
                 average_interval=backoff_count, clamping_factor=0.3
             )
-            self.sleep(interval)
+            time.sleep(interval)
             state = self.set_state(new_state)
 
     def set_state(self, state: State, force: bool = False) -> State:
@@ -485,7 +482,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """Handle any task run retries.
 
         - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
-          - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
+        - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
         - If the task has no retries left, or the retry condition is not met, return False.
         """
         if self.retries < self.task.retries and self.can_retry(exc):
@@ -801,9 +798,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             raise RuntimeError("Engine has not started.")
         return self._client
 
-    async def sleep(self, interval: float):
-        await anyio.sleep(interval)
-
     async def call_hooks(self, state: Optional[State] = None):
         if state is None:
             state = self.state
@@ -888,7 +882,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             interval = clamped_poisson_interval(
                 average_interval=backoff_count, clamping_factor=0.3
             )
-            await self.sleep(interval)
+            await anyio.sleep(interval)
             state = await self.set_state(new_state)
 
     async def set_state(self, state: State, force: bool = False) -> State:
@@ -940,10 +934,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if self._return_value is not NotSet:
             # if the return value is a BaseResult, we need to fetch it
             if isinstance(self._return_value, BaseResult):
-                _result = self._return_value.get()
-                if inspect.isawaitable(_result):
-                    _result = await _result
-                return _result
+                return await self._return_value.get()
 
             # otherwise, return the value as is
             return self._return_value
@@ -997,10 +988,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """Handle any task run retries.
 
         - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
-          - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
+        - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
         - If the task has no retries left, or the retry condition is not met, return False.
         """
-        if self.retries < self.task.retries and self.can_retry:
+        if self.retries < self.task.retries and self.can_retry(exc):
             if self.task.retry_delay_seconds:
                 delay = (
                     self.task.retry_delay_seconds[

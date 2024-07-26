@@ -4,6 +4,7 @@ import time
 import warnings
 from textwrap import dedent
 from typing import Optional
+from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
 
@@ -36,7 +37,6 @@ from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
-from prefect.task_engine import AsyncTaskRunEngine
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
@@ -1126,9 +1126,8 @@ class TestPauseFlowRun:
         )
         assert schema is not None
 
-    async def test_paused_task_polling(self, monkeypatch, prefect_client):
+    async def test_paused_task_polling(self, prefect_client):
         sleeper = AsyncMock(side_effect=[None, None, None, None, None])
-        monkeypatch.setattr(AsyncTaskRunEngine, "sleep", sleeper)
 
         @task
         async def doesnt_pause():
@@ -1153,9 +1152,10 @@ class TestPauseFlowRun:
 
             # execution isn't blocked, so this task should enter the engine, but not begin
             # execution
-            with pytest.raises(RuntimeError):
-                # the sleeper mock will exhaust its side effects after 6 calls
-                await doesnt_run()
+            with mock.patch("prefect.task_engine.anyio.sleep", sleeper):
+                with pytest.raises(RuntimeError):
+                    # the sleeper mock will exhaust its side effects after 6 calls
+                    await doesnt_run()
 
         await pausing_flow()
 

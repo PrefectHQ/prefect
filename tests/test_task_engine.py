@@ -1204,7 +1204,10 @@ class TestTaskCrashDetection:
         with pytest.raises(interrupt_type):
             my_task()
 
-        task_run = await get_task_run(task_run_id=None)
+        await events_pipeline.process_events()
+        task_runs = await prefect_client.read_task_runs()
+        assert len(task_runs) == 1
+        task_run = task_runs[0]
         assert task_run.state.is_crashed()
         assert task_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in task_run.state.message
@@ -1213,7 +1216,7 @@ class TestTaskCrashDetection:
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_task_orchestration_crashes_task_and_flow_async(
-        self, interrupt_type, monkeypatch
+        self, prefect_client, events_pipeline, interrupt_type, monkeypatch
     ):
         monkeypatch.setattr(
             AsyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
