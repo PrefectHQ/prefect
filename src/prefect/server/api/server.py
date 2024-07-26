@@ -590,9 +590,6 @@ def create_app(
         if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
             service_instances.append(services.foreman.Foreman())
 
-        if prefect.settings.PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED.value():
-            service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
-
         if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
             service_instances.append(ReactiveTriggers())
             service_instances.append(ProactiveTriggers())

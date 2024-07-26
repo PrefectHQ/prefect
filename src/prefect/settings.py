@@ -1383,11 +1383,6 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 The port the worker's webserver should bind to.
 """
 
-PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to start the task scheduling service in the server application.
-"""
-
 PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(Optional[str], default=None)
 """The `block-type/block-document` slug of a block to use as the default storage
 for autonomous tasks."""
