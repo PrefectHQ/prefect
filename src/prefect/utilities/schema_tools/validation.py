@@ -272,6 +272,7 @@ def preprocess_schema(
                                             "additionalProperties": {
                                                 "type": "string",
                                             },
+                                            "minProperties": 1,
                                         },
                                     ]
                                 }
