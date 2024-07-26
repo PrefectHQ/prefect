@@ -140,6 +140,9 @@ class AssertingEventsClient(EventsClient):
         cls.last = None
         cls.all = []
 
+    def reset_events(self) -> None:
+        self.events = []
+
     async def _emit(self, event: Event) -> None:
         self.events.append(event)
 
