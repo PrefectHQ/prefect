@@ -610,9 +610,7 @@ def test_populate_defaults(tmp_path, monkeypatch):
     assert populated_profiles.names == default_profiles.names
     assert populated_profiles.active_name == default_profiles.active_name
 
-    assert {"local", "ephemeral", "test", "cloud", "default"} == set(
-        populated_profiles.names
-    )
+    assert {"local", "ephemeral", "cloud", "default"} == set(populated_profiles.names)
 
     for name in default_profiles.names:
         assert populated_profiles[name].settings == default_profiles[name].settings
@@ -642,7 +640,7 @@ def test_populate_defaults_with_existing_profiles(tmp_path, monkeypatch):
 
     new_profiles = load_profiles()
     assert "existing" not in new_profiles.names
-    assert {"local", "ephemeral", "test", "cloud", "default"} == set(new_profiles.names)
+    assert {"local", "ephemeral", "cloud", "default"} == set(new_profiles.names)
 
     backup_profiles = _read_profiles_from(temp_profiles_path.with_suffix(".toml.bak"))
     assert "existing" in backup_profiles.names

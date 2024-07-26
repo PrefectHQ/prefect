@@ -12,9 +12,6 @@ PREFECT_API_DATABASE_CONNECTION_URL = "sqlite+aiosqlite:///prefect.db"
 # You will need to set these values appropriately
 PREFECT_API_URL = "http://127.0.0.1:4200/api"
 
-[profiles.test]
-PREFECT_API_DATABASE_CONNECTION_URL = "sqlite+aiosqlite:///:memory:"
-PREFECT_RESULTS_PERSIST_BY_DEFAULT = false
 
 [profiles.cloud]
 # This is a placeholder for Prefect Cloud configuration
