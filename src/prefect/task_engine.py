@@ -126,8 +126,7 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Task run is not set")
         return self.task_run.state
 
-    @property
-    def can_retry(self) -> bool:
+    def can_retry(self, exc: Exception) -> bool:
         retry_condition: Optional[
             Callable[[Task[P, Coroutine[Any, Any, R]], TaskRun, State], bool]
         ] = self.task.retry_condition_fn
@@ -138,9 +137,19 @@ class TaskRunEngine(Generic[P, R]):
                 f"Running `retry_condition_fn` check {retry_condition!r} for task"
                 f" {self.task.name!r}"
             )
-            return not retry_condition or retry_condition(
-                self.task, self.task_run, self.state
+            state = Failed(
+                data=exc,
+                message=f"Task run encountered unexpected exception: {repr(exc)}",
             )
+            if inspect.iscoroutinefunction(retry_condition):
+                should_retry = run_coro_as_sync(
+                    retry_condition(self.task, self.task_run, state)
+                )
+            elif inspect.isfunction(retry_condition):
+                should_retry = retry_condition(self.task, self.task_run, state)
+            else:
+                should_retry = not retry_condition
+            return should_retry
         except Exception:
             self.logger.error(
                 (
@@ -418,7 +427,7 @@ class TaskRunEngine(Generic[P, R]):
           - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
         - If the task has no retries left, or the retry condition is not met, return False.
         """
-        if self.retries < self.task.retries and self.can_retry:
+        if self.retries < self.task.retries and self.can_retry(exc):
             if self.task.retry_delay_seconds:
                 delay = (
                     self.task.retry_delay_seconds[
@@ -568,19 +577,23 @@ class TaskRunEngine(Generic[P, R]):
                 self._client = client_ctx.sync_client
                 self._is_started = True
                 try:
-                    if not self.task_run:
-                        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                            # TODO - this maybe should be a method on Task?
-                            from prefect.utilities.engine import (
-                                _resolve_custom_task_run_name,
+                    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                        from prefect.utilities.engine import (
+                            _resolve_custom_task_run_name,
+                        )
+
+                        task_run_name = (
+                            _resolve_custom_task_run_name(
+                                task=self.task, parameters=self.parameters
                             )
+                            if self.task.task_run_name
+                            else None
+                        )
 
-                            task_run_name = None
-                            if not self._task_name_set and self.task.task_run_name:
-                                task_run_name = _resolve_custom_task_run_name(
-                                    task=self.task, parameters=self.parameters
-                                )
+                        if self.task_run and task_run_name:
+                            self.task_run.name = task_run_name
 
+                        if not self.task_run:
                             self.task_run = run_coro_as_sync(
                                 self.task.create_local_run(
                                     id=task_run_id,
@@ -592,7 +605,8 @@ class TaskRunEngine(Generic[P, R]):
                                     task_run_name=task_run_name,
                                 )
                             )
-                        else:
+                    else:
+                        if not self.task_run:
                             self.task_run = run_coro_as_sync(
                                 self.task.create_run(
                                     id=task_run_id,

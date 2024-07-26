@@ -140,6 +140,11 @@ class AssertingEventsClient(EventsClient):
         cls.last = None
         cls.all = []
 
+    def pop_events(self) -> List[Event]:
+        events = self.events
+        self.events = []
+        return events
+
     async def _emit(self, event: Event) -> None:
         self.events.append(event)
 
