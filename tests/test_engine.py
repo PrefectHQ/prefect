@@ -12,7 +12,7 @@ from uuid import uuid4
 import anyio
 import pendulum
 import pytest
-from exceptiongroup import catch
+from exceptiongroup import BaseExceptionGroup, catch  # novermin
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
