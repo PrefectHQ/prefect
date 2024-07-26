@@ -262,9 +262,19 @@ def preprocess_schema(
                             "type": "object",
                             "properties": {
                                 "$ref": {
-                                    "type": "string",
-                                    "format": "uuid",
-                                },
+                                    "oneOf": [
+                                        {
+                                            "type": "string",
+                                            "format": "uuid",
+                                        },
+                                        {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string",
+                                            },
+                                        },
+                                    ]
+                                }
                             },
                             "required": [
                                 "$ref",
