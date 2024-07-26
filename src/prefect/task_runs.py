@@ -216,7 +216,7 @@ class TaskRunWaiter:
         with instance._completion_events_lock:
             # Cache the event for the task run ID so the consumer can set it
             # when the event is received
-            instance._completion_events[task_run_id] = callback
+            instance._completion_callbacks[task_run_id] = callback
 
     @classmethod
     def instance(cls):

@@ -39,9 +39,6 @@ class MockFuture(PrefectWrappedFuture):
     ) -> Any:
         return self._final_state.result()
 
-    def add_done_callback(self, fn):
-        return super().add_done_callback(fn)
-
 
 class TestUtilityFunctions:
     def test_wait(self):
@@ -93,7 +90,7 @@ class TestUtilityFunctions:
             futures = []
             timings = [1, 5, 10]
 
-            for i in timings:
+            for i in reversed(timings):
                 parameters = {"seconds": i}
                 future = runner.submit(my_test_task, parameters)
                 future.parameters = parameters
@@ -102,6 +99,29 @@ class TestUtilityFunctions:
             for future in as_completed(futures):
                 results.append(future.result())
             assert results == timings
+
+    def test_as_completed_timeout(self, caplog):
+        @task
+        def my_test_task(seconds):
+            import time
+
+            time.sleep(seconds)
+            return seconds
+
+        with ThreadPoolTaskRunner() as runner:
+            futures = []
+            timings = [1, 5, 10]
+
+            for i in reversed(timings):
+                parameters = {"seconds": i}
+                future = runner.submit(my_test_task, parameters)
+                future.parameters = parameters
+                futures.append(future)
+            results = []
+            with pytest.raises(TimeoutError) as exc_info:
+                for future in as_completed(futures, timeout=5):
+                    results.append(future.result())
+            assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
 
     async def test_as_completed_yields_correct_order_dist(self, task_run):
         @task
@@ -113,7 +133,7 @@ class TestUtilityFunctions:
 
         futures = []
         timings = [1, 5, 10]
-        for i in timings:
+        for i in reversed(timings):
             task_run = await my_task.create_run(parameters={"seconds": i})
             future = PrefectDistributedFuture(task_run_id=task_run.id)
 
@@ -131,6 +151,7 @@ class TestUtilityFunctions:
         with pytest.raises(MissingResult):
             for future in as_completed(futures):
                 results.append(future.result())
+
             assert results == timings
 
 

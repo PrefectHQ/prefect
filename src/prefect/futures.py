@@ -94,13 +94,13 @@ class PrefectFuture(abc.ABC, Generic[R]):
 
     @abc.abstractmethod
     def add_done_callback(self, fn):
-        ...
         """
-            Add a callback to be run when the future completes or is cancelled.
+        Add a callback to be run when the future completes or is cancelled.
 
-            Args:
-                fn: A callable that will be called with this future as its only argument when the future completes or is cancelled.
-            """
+        Args:
+            fn: A callable that will be called with this future as its only argument when the future completes or is cancelled.
+        """
+        ...
 
 
 class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
@@ -116,6 +116,17 @@ class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
     def wrapped_future(self) -> F:
         """The underlying future object wrapped by this Prefect future"""
         return self._wrapped_future
+
+    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+        if not self._final_state:
+
+            def call_with_self(future):
+                """Call the callback with self as the argument, this is necessary to ensure we remove the future from the pending set"""
+                fn(self)
+
+            self._wrapped_future.add_done_callback(call_with_self)
+            return
+        fn(self)
 
 
 class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]):
@@ -161,16 +172,6 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
-
-    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
-        if not self._final_state:
-
-            def call_with_self(future):
-                fn(self)
-
-            self._wrapped_future.add_done_callback(call_with_self)
-            return
-        fn(self)
 
     def __del__(self):
         if self._final_state or self._wrapped_future.done():
