@@ -1,8 +1,6 @@
 from typing import List
 
-import pendulum
-
-from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.events.schemas.events import Event, ReceivedEvent
 from prefect.server.events.services import event_persister
 from prefect.server.services import task_run_recorder
 from prefect.server.utilities.messaging.memory import MemoryMessage
@@ -13,15 +11,17 @@ class EventsPipeline:
     def events_to_messages(events) -> List[MemoryMessage]:
         messages = []
         for event in events:
-            received_event = ReceivedEvent(
-                received=pendulum.now("UTC"), **event.model_dump()
-            )
+            received_event = ReceivedEvent(**event.model_dump())
             message = MemoryMessage(
                 data=received_event.model_dump_json().encode(),
                 attributes={"id": str(event.id), "event": event.event},
             )
             messages.append(message)
         return messages
+
+    async def process_events(self, events: List[Event]):
+        messages = self.events_to_messages(events)
+        await self.process_messages(messages)
 
     async def process_messages(self, messages: List[MemoryMessage]):
         for message in messages:

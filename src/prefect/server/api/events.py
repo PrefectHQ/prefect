@@ -21,6 +21,7 @@ from prefect.server.events.counting import (
 )
 from prefect.server.events.filters import EventFilter, EventOrder
 from prefect.server.events.models.automations import automations_session
+from prefect.server.events.pipeline import EventsPipeline
 from prefect.server.events.schemas.events import Event, EventCount, EventPage
 from prefect.server.events.storage import (
     INTERACTIVE_PAGE_SIZE,
@@ -44,23 +45,12 @@ router = PrefectRouter(prefix="/events", tags=["Events"])
 async def create_events(
     events: List[Event],
     ephemeral_request: bool = Depends(is_ephemeral_request),
-    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """Record a batch of Events"""
-    received_events = [event.receive() for event in events]
     if ephemeral_request:
-        async with db.session_context() as session:
-            try:
-                await database.write_events(session, received_events)
-            except RuntimeError as exc:
-                if "can't create new thread at interpreter shutdown" in str(exc):
-                    # Background events sometimes fail to write when the interpreter is shutting down.
-                    # This is a known issue in Python 3.12.2 that can be ignored and is fixed in Python 3.12.3.
-                    # see e.g. https://github.com/python/cpython/issues/113964
-                    logger.debug("Received event during interpreter shutdown, ignoring")
-                else:
-                    raise
+        await EventsPipeline().process_events(events)
     else:
+        received_events = [event.receive() for event in events]
         await messaging.publish(received_events)
 
 

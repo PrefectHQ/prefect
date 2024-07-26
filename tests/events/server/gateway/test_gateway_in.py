@@ -87,11 +87,15 @@ def test_post_events(
 
 async def test_post_events_ephemeral(
     client: AsyncClient,
-    frozen_time: pendulum.DateTime,
     event1: Event,
     event2: Event,
-    write_events: mock.AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    pipeline_mock = mock.AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.events.pipeline.EventsPipeline.process_events", pipeline_mock
+    )
+
     response = await client.post(
         # need to use the same base_url as the events client
         "http://ephemeral-prefect/api/events",
@@ -101,8 +105,4 @@ async def test_post_events_ephemeral(
         ],
     )
     assert response.status_code == 204
-    server_events = [
-        event1.receive(received=frozen_time),
-        event2.receive(received=frozen_time),
-    ]
-    write_events.assert_awaited_once_with(session=mock.ANY, events=server_events)
+    pipeline_mock.assert_awaited_once_with([event1, event2])
