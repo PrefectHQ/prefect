@@ -108,6 +108,7 @@ from uuid import UUID, uuid4
 import anyio
 import pendulum
 from anyio.from_thread import start_blocking_portal
+from exceptiongroup import catch
 from typing_extensions import Literal
 
 import prefect
@@ -2248,17 +2249,13 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
 
     This context _must_ reraise the exception to properly exit the run.
     """
-
     try:
-        yield
+        with collapse_excgroups():
+            yield
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise
     except BaseException as exc:
-        if isinstance(exc, BaseExceptionGroup):
-            # If there are multiple exceptions, we will use the first one for
-            # the purposes of crash reporting.
-            exc = exc.exceptions[0]
         state = await exception_to_crashed_state(exc)
         logger = flow_run_logger(flow_run)
         with anyio.CancelScope(shield=True):
@@ -2291,7 +2288,8 @@ async def report_task_run_crashes(task_run: TaskRun, client: PrefectClient):
     This context _must_ reraise the exception to properly exit the run.
     """
     try:
-        yield
+        with collapse_excgroups():
+            yield
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise

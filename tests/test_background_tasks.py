@@ -264,7 +264,7 @@ async def test_stuck_pending_tasks_are_reenqueued(
     # now we simulate a stuck task by having the TaskServer try to run it but fail
     server = TaskServer(foo_task_with_result_storage)
 
-    def assert_exception(exc_group: ExceptionGroup):
+    def assert_exception(exc_group: BaseExceptionGroup):
         assert len(exc_group.exceptions) == 1
         assert isinstance(exc_group.exceptions[0], ValueError)
         assert "woops" in str(exc_group.exceptions[0])
