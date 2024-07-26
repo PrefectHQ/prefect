@@ -365,7 +365,7 @@ async def test_rate_limit_emits_events(
     }
 
 
-async def test_concurrency_makes_new_limits_active_if_requested(
+async def test_concurrency_creates_new_limits_if_requested(
     concurrency_limit: ConcurrencyLimitV2,
 ):
     executed = False
