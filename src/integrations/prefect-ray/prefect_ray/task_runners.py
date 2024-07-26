@@ -151,9 +151,10 @@ class PrefectRayFuture(PrefectWrappedFuture[R, ray.ObjectRef]):
         if not self._final_state:
 
             def call_with_self(future):
+                """Call the callback with self as the argument, this is necessary to ensure we remove the future from the pending set"""
                 fn(self)
 
-            self._wrapped_future.future().add_done_callback(call_with_self)
+            self._wrapped_future._on_completed(call_with_self)
             return
         fn(self)
 

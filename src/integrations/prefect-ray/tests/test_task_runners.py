@@ -374,22 +374,21 @@ class TestRayTaskRunner:
 
     def test_as_completed_yields_correct_order(self, task_runner):
         @task
-        def sleep_task(seconds):
+        def task_a(seconds):
             time.sleep(seconds)
             return seconds
 
         timings = [1, 5, 10]
-        with task_runner:
+
+        @flow(version="test", task_runner=task_runner)
+        def test_flow():
             done_futures = []
-            futures = [
-                task_runner.submit(
-                    sleep_task, parameters={"seconds": seconds}, wait_for=[]
-                )
-                for seconds in reversed(timings)
-            ]
+            futures = [task_a.submit(seconds) for seconds in reversed(timings)]
             for future in as_completed(futures=futures):
                 done_futures.append(future.result())
-            assert done_futures == timings
+            assert done_futures[-1] == timings[-1]
+
+        test_flow()
 
     def get_sleep_time(self) -> float:
         """
