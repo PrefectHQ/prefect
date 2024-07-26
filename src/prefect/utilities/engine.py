@@ -20,7 +20,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 import anyio
-from exceptiongroup import BaseExceptionGroup
+from exceptiongroup import BaseExceptionGroup  # novermin
 from typing_extensions import Literal
 
 import prefect

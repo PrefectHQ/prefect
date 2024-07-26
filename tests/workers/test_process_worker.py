@@ -11,7 +11,7 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
-from exceptiongroup import BaseExceptionGroup
+from exceptiongroup import BaseExceptionGroup  # novermin
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
