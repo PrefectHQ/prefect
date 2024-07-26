@@ -56,7 +56,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
         slots: int,
         mode: str,
         timeout_seconds: Optional[float] = None,
-        active: Optional[bool] = False,
+        create_if_missing: Optional[bool] = False,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
@@ -65,7 +65,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         names=self.concurrency_limit_names,
                         slots=slots,
                         mode=mode,
-                        create_if_missing=active,
+                        create_if_missing=create_if_missing,
                     )
                 except Exception as exc:
                     if (
@@ -89,7 +89,9 @@ class ConcurrencySlotAcquisitionService(QueueService):
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()
 
-            occupy, mode, timeout_seconds, active = item
-            self._queue.put_nowait((occupy, mode, timeout_seconds, future, active))
+            occupy, mode, timeout_seconds, create_if_missing = item
+            self._queue.put_nowait(
+                (occupy, mode, timeout_seconds, future, create_if_missing)
+            )
 
         return future
