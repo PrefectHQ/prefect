@@ -19,6 +19,7 @@ from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
+from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
@@ -26,6 +27,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import open_process
 
 
@@ -344,6 +346,20 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
         yield worker
     finally:
         worker.drain()
+
+
+@pytest.fixture
+async def events_pipeline(asserting_events_worker: EventsWorker):
+    class AssertingEventsPipeline(EventsPipeline):
+        @sync_compatible
+        async def process_events(self):
+            asserting_events_worker.wait_until_empty()
+            events = asserting_events_worker._client.events
+            messages = self.events_to_messages(events)
+            await self.process_messages(messages)
+            asserting_events_worker._client.reset_events()
+
+    yield AssertingEventsPipeline()
 
 
 @pytest.fixture

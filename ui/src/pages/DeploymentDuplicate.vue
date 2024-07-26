@@ -4,13 +4,13 @@
       <PageHeadingDeploymentDuplicate :deployment="deployment" />
     </template>
 
-    <DeploymentFormV2 :deployment="deployment" @cancel="cancel" mode="duplicate" @submit="submit" />
+    <DeploymentForm :deployment="deployment" mode="duplicate" @cancel="cancel" @submit="submit" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/prefect-design'
-  import { PageHeadingDeploymentDuplicate, useWorkspaceApi, getApiErrorMessage, DeploymentFormV2, DeploymentCreate, DeploymentUpdateV2 } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingDeploymentDuplicate, useWorkspaceApi, getApiErrorMessage, DeploymentForm, DeploymentCreate, DeploymentUpdateV2 } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -31,7 +31,7 @@
       if (!isDeploymentCreate(request)) {
         throw new Error('Invalid request')
       }
-      const newDeployment = await api.deployments.createDeployement(request)
+      const newDeployment = await api.deployments.createDeployment(request)
       showToast('Deployment created', 'success')
       router.push(routes.deployment(newDeployment.id))
     } catch (error) {
