@@ -1216,6 +1216,11 @@ compromise. Adjust this setting based on your specific security requirements
 and usage patterns.
 """
 
+PREFECT_SERVER_ALLOW_EPHEMERAL_MODE = Setting(bool, default=False)
+"""
+Controls whether or not a subprocess server can be started when no API URL is provided.
+"""
+
 PREFECT_UI_ENABLED = Setting(
     bool,
     default=True,

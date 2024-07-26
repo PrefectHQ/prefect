@@ -125,7 +125,7 @@ async def hosted_api_server(unused_tcp_port_factory):
             pass
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def use_hosted_api_server(hosted_api_server):
     """
     Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
@@ -134,6 +134,19 @@ def use_hosted_api_server(hosted_api_server):
         {
             PREFECT_API_URL: hosted_api_server,
             PREFECT_SERVER_CSRF_PROTECTION_ENABLED: False,
+        }
+    ):
+        yield hosted_api_server
+
+
+@pytest.fixture
+def disable_hosted_api_server():
+    """
+    Disables the hosted API server by setting `PREFECT_API_URL` to `None`.
+    """
+    with temporary_settings(
+        {
+            PREFECT_API_URL: None,
         }
     ):
         yield hosted_api_server
