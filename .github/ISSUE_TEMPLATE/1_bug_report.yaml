@@ -8,13 +8,14 @@ body:
         If you are new to Prefect bug reports, please review our many examples of [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22). 
         Each of these reports include the following features:
 
-        1. A **succinct description of the problem** - typically a line or two at most
+        1. A succinct description of the problem. 
 
-        2. A **succinct code example which reproduces the problem**, otherwise known as a [minimal, complete, and verifiable](https://stackoverflow.com/help/mcve) example.
+        2. A succinct code example which reproduces the problem, otherwise known as a [minimal reproducible example](https://stackoverflow.com/help/mcve).
 
-        3. The **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
+        3. The complete stack traces for errors - please avoid screenshots, and use markdown formatted text inside issues.
 
         4. Additional details that may help us reproduce your issue.
+
 
         For usage questions, please check out Prefect's [Community Slack](https://www.prefect.io/slack/).
 
@@ -54,3 +55,8 @@ body:
       description: Add any other context about the problem here, including screenshots for UI issues.
     validations:
       required: false
+
+  - type: markdown
+    attributes:
+      value: >
+        Thank you for taking the time to submit a bug report!
