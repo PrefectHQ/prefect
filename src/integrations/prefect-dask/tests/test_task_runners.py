@@ -262,7 +262,7 @@ class TestDaskTaskRunner:
                 task_runner.submit(
                     sleep_task, parameters={"seconds": seconds}, wait_for=[]
                 )
-                for seconds in timings
+                for seconds in reversed(timings)
             ]
             for future in as_completed(futures=futures):
                 done_futures.append(future.result())
