@@ -39,9 +39,11 @@ class ConcurrencySlotAcquisitionService(QueueService):
             int, str, Optional[float], concurrent.futures.Future, Optional[bool]
         ],
     ) -> None:
-        occupy, mode, timeout_seconds, future, active = item
+        occupy, mode, timeout_seconds, future, create_if_missing = item
         try:
-            response = await self.acquire_slots(occupy, mode, timeout_seconds, active)
+            response = await self.acquire_slots(
+                occupy, mode, timeout_seconds, create_if_missing
+            )
         except Exception as exc:
             # If the request to the increment endpoint fails in a non-standard
             # way, we need to set the future's result so that the caller can
