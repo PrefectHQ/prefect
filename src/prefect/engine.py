@@ -108,7 +108,6 @@ from uuid import UUID, uuid4
 import anyio
 import pendulum
 from anyio.from_thread import start_blocking_portal
-from exceptiongroup import catch
 from typing_extensions import Literal
 
 import prefect
@@ -212,12 +211,13 @@ from prefect.utilities.engine import (
     _resolve_custom_task_run_name,
     capture_sigterm,
     check_api_reachable,
+    collapse_excgroups,
     collect_task_run_inputs,
     emit_task_run_state_change_event,
     propose_state,
     resolve_inputs,
     should_log_prints,
-    wait_for_task_runs_and_report_crashes, collapse_excgroups,
+    wait_for_task_runs_and_report_crashes,
 )
 
 R = TypeVar("R")
