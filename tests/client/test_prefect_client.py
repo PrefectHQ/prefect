@@ -1342,8 +1342,9 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
     mock.assert_called_once_with(
         headers=ANY,
         verify=False,
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1360,8 +1361,9 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
     mock.assert_called_once_with(
         headers=ANY,
         verify=ANY,
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1374,8 +1376,9 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     mock.assert_called_once_with(
         headers=ANY,
         verify=ANY,
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1397,8 +1400,9 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
     mock.assert_called_once_with(
         headers=ANY,
         verify="my_cert.pem",
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1420,8 +1424,9 @@ async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
     mock.assert_called_once_with(
         headers=ANY,
         verify="my_cert.pem",
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1443,8 +1448,9 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
     mock.assert_called_once_with(
         headers=ANY,
         verify=certifi.where(),
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1733,7 +1739,8 @@ async def test_delete_flow_run(prefect_client, flow_run):
         await prefect_client.delete_flow_run(flow_run.id)
 
 
-def test_server_type_ephemeral(prefect_client):
+def test_server_type_ephemeral(enable_ephemeral_server):
+    prefect_client = get_client()
     assert prefect_client.server_type == ServerType.EPHEMERAL
 
 
@@ -2467,7 +2474,8 @@ class TestPrefectClientDeploymentSchedules:
 
 
 class TestPrefectClientCsrfSupport:
-    def test_enabled_ephemeral(self, prefect_client: PrefectClient):
+    def test_enabled_ephemeral(self, enable_ephemeral_server):
+        prefect_client = get_client()
         assert prefect_client.server_type == ServerType.EPHEMERAL
         assert prefect_client._client.enable_csrf_support
 

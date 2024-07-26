@@ -22,6 +22,7 @@ from prefect.events.worker import EventsWorker
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     get_current_settings,
     temporary_settings,
@@ -147,6 +148,19 @@ def disable_hosted_api_server():
     with temporary_settings(
         {
             PREFECT_API_URL: None,
+        }
+    ):
+        yield hosted_api_server
+
+
+@pytest.fixture
+def enable_ephemeral_server(disable_hosted_api_server):
+    """
+    Enables the ephemeral server by setting `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` to `True`.
+    """
+    with temporary_settings(
+        {
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
         }
     ):
         yield hosted_api_server

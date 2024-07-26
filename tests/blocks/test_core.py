@@ -1062,7 +1062,9 @@ class TestAPICompatibility:
         block = await Test.load("test")
         assert block.a == "foo"
 
-    async def test_save_protected_block_with_new_block_schema_version(self, session):
+    async def test_save_protected_block_with_new_block_schema_version(
+        self, session, prefect_client: PrefectClient
+    ):
         """
         This testcase would fail when block protection was enabled for block type
         updates and block schema creation.
@@ -1078,9 +1080,7 @@ class TestAPICompatibility:
 
         block_document_id = await JSON(value={"the_answer": 42}).save("test")
 
-        block_document = await models.block_documents.read_block_document_by_id(
-            session=session, block_document_id=block_document_id
-        )
+        block_document = await prefect_client.read_block_document(block_document_id)
         assert block_document.block_schema.version == mock_version
 
 
@@ -1538,7 +1538,9 @@ class TestSaveBlock:
         assert loaded_outer_block.contents._block_document_id is None
         assert loaded_outer_block.contents._block_document_name is None
 
-    async def test_save_and_load_block_with_secrets_includes_secret_data(self, session):
+    async def test_save_and_load_block_with_secrets_includes_secret_data(
+        self, prefect_client: PrefectClient
+    ):
         class SecretBlockB(Block):
             w: SecretDict
             x: SecretStr
@@ -1548,27 +1550,27 @@ class TestSaveBlock:
         block = SecretBlockB(w=dict(secret="value"), x="x", y=b"y", z="z")
         await block.save("secret-block")
 
-        # read from DB without secrets
-        db_block_without_secrets = (
-            await models.block_documents.read_block_document_by_id(
-                session=session,
-                block_document_id=block._block_document_id,
-            )
+        # read from API without secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=False
         )
-        assert db_block_without_secrets.data == {
+        assert api_block.data == {
             "w": {"secret": "********"},
             "x": "********",
             "y": "********",
             "z": "z",
         }
 
-        # read from DB with secrets
-        db_block = await models.block_documents.read_block_document_by_id(
-            session=session,
-            block_document_id=block._block_document_id,
-            include_secrets=True,
+        # read from API with secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=True
         )
-        assert db_block.data == {"w": {"secret": "value"}, "x": "x", "y": "y", "z": "z"}
+        assert api_block.data == {
+            "w": {"secret": "value"},
+            "x": "x",
+            "y": "y",
+            "z": "z",
+        }
 
         # load block with secrets
         api_block = await SecretBlockB.load("secret-block")
@@ -1578,7 +1580,7 @@ class TestSaveBlock:
         assert api_block.z == "z"
 
     async def test_save_and_load_nested_block_with_secrets_hardcoded_child(
-        self, session
+        self, prefect_client: PrefectClient
     ):
         class Child(Block):
             a: SecretStr
@@ -1593,14 +1595,11 @@ class TestSaveBlock:
         block = Parent(a="a", b="b", child=dict(a="a", b="b", c=dict(secret="value")))
         await block.save("secret-block")
 
-        # read from DB without secrets
-        db_block_without_secrets = (
-            await models.block_documents.read_block_document_by_id(
-                session=session,
-                block_document_id=block._block_document_id,
-            )
+        # read from API without secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=False
         )
-        assert db_block_without_secrets.data == {
+        assert api_block.data == {
             "a": "********",
             "b": "b",
             "child": {
@@ -1611,13 +1610,11 @@ class TestSaveBlock:
             },
         }
 
-        # read from DB with secrets
-        db_block = await models.block_documents.read_block_document_by_id(
-            session=session,
-            block_document_id=block._block_document_id,
-            include_secrets=True,
+        # read from API with secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=True
         )
-        assert db_block.data == {
+        assert api_block.data == {
             "a": "a",
             "b": "b",
             "child": {
@@ -1636,7 +1633,9 @@ class TestSaveBlock:
         assert api_block.child.b == "b"
         assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
-    async def test_save_and_load_nested_block_with_secrets_saved_child(self, session):
+    async def test_save_and_load_nested_block_with_secrets_saved_child(
+        self, prefect_client: PrefectClient
+    ):
         class Child(Block):
             a: SecretStr
             b: str
@@ -1652,14 +1651,11 @@ class TestSaveBlock:
         block = Parent(a="a", b="b", child=child)
         await block.save("parent-block")
 
-        # read from DB without secrets
-        db_block_without_secrets = (
-            await models.block_documents.read_block_document_by_id(
-                session=session,
-                block_document_id=block._block_document_id,
-            )
+        # read from API without secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=False
         )
-        assert db_block_without_secrets.data == {
+        assert api_block.data == {
             "a": "********",
             "b": "b",
             "child": {
@@ -1669,13 +1665,11 @@ class TestSaveBlock:
             },
         }
 
-        # read from DB with secrets
-        db_block = await models.block_documents.read_block_document_by_id(
-            session=session,
-            block_document_id=block._block_document_id,
-            include_secrets=True,
+        # read from API with secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=True
         )
-        assert db_block.data == {
+        assert api_block.data == {
             "a": "a",
             "b": "b",
             "child": {"a": "a", "b": "b", "c": {"secret": "value"}},
