@@ -129,13 +129,37 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MicrosoftTeamsWebhook"
 
     url: SecretStr = Field(
-        ...,
+        default=...,
         title="Webhook URL",
-        description="The Teams incoming webhook URL used to send notifications.",
+        description="The Microsoft Power Automate (Workflows) URL used to send notifications to Teams.",
         examples=[
-            "https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ"
+            "https://prod-NO.LOCATION.logic.azure.com:443/workflows/WFID/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=SIGNATURE"
         ],
     )
+
+    include_image: bool = Field(
+        default=True,
+        description="Include an image with the notification.",
+    )
+
+    wrap: bool = Field(
+        default=True,
+        description="Wrap the notification text.",
+    )
+
+    def block_initialization(self) -> None:
+        """see https://github.com/caronc/apprise/pull/1172"""
+        from apprise.plugins.workflows import NotifyWorkflows
+
+        parsed_url = NotifyWorkflows.parse_native_url(self.url.get_secret_value())
+        if not parsed_url:
+            raise ValueError("Invalid Microsoft Teams Workflow URL provided.")
+
+        parsed_url["include_image"] = self.include_image
+        parsed_url["wrap"] = self.wrap
+
+        notify_workflows = NotifyWorkflows(**parsed_url)
+        self._start_apprise_client(SecretStr(notify_workflows.url()))
 
 
 class PagerDutyWebHook(AbstractAppriseNotificationBlock):
