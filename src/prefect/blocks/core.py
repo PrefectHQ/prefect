@@ -904,28 +904,7 @@ class Block(BaseModel, ABC):
         """
         block_document, block_document_name = await cls._get_block_document(name)
 
-        try:
-            return cls._from_block_document(block_document)
-        except ValidationError as e:
-            if not validate:
-                missing_fields = tuple(err["loc"][0] for err in e.errors())
-                missing_block_data = {field: None for field in missing_fields}
-                warnings.warn(
-                    f"Could not fully load {block_document_name!r} of block type"
-                    f" {cls.get_block_type_slug()!r} - this is likely because one or more"
-                    " required fields were added to the schema for"
-                    f" {cls.__name__!r} that did not exist on the class when this block"
-                    " was last saved. Please specify values for new field(s):"
-                    f" {listrepr(missing_fields)}, then run"
-                    f' `{cls.__name__}.save("{block_document_name}", overwrite=True)`,'
-                    " and load this block again before attempting to use it."
-                )
-                return cls.model_construct(**block_document.data, **missing_block_data)
-            raise RuntimeError(
-                f"Unable to load {block_document_name!r} of block type"
-                f" {cls.get_block_type_slug()!r} due to failed validation. To load without"
-                " validation, try loading again with `validate=False`."
-            ) from e
+        return cls._load_from_block_document(block_document, validate=validate)
 
     @classmethod
     @sync_compatible
@@ -971,8 +950,42 @@ class Block(BaseModel, ABC):
             ... TBD
 
         """
-        block_document, block_document_name = await cls._get_block_document_by_id(id)
+        block_document, _ = await cls._get_block_document_by_id(id)
 
+        return cls._load_from_block_document(block_document, validate=validate)
+
+    @classmethod
+    def _load_from_block_document(
+        cls, block_document: BlockDocument, validate: bool = True
+    ) -> "Self":
+        """
+        Loads a block from a given block document.
+
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `load`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
+        Args:
+            block_document: The block document used to instantiate a block.
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+
+        Raises:
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+
+        """
         try:
             return cls._from_block_document(block_document)
         except ValidationError as e:
@@ -980,18 +993,18 @@ class Block(BaseModel, ABC):
                 missing_fields = tuple(err["loc"][0] for err in e.errors())
                 missing_block_data = {field: None for field in missing_fields}
                 warnings.warn(
-                    f"Could not fully load {block_document_name!r} of block type"
+                    f"Could not fully load {block_document.name!r} of block type"
                     f" {cls.get_block_type_slug()!r} - this is likely because one or more"
                     " required fields were added to the schema for"
                     f" {cls.__name__!r} that did not exist on the class when this block"
                     " was last saved. Please specify values for new field(s):"
                     f" {listrepr(missing_fields)}, then run"
-                    f' `{cls.__name__}.save("{block_document_name}", overwrite=True)`,'
+                    f' `{cls.__name__}.save("{block_document.name}", overwrite=True)`,'
                     " and load this block again before attempting to use it."
                 )
                 return cls.model_construct(**block_document.data, **missing_block_data)
             raise RuntimeError(
-                f"Unable to load {block_document_name!r} of block type"
+                f"Unable to load {block_document.name!r} of block type"
                 f" {cls.get_block_type_slug()!r} due to failed validation. To load without"
                 " validation, try loading again with `validate=False`."
             ) from e
