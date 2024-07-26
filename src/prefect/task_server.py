@@ -5,11 +5,11 @@ import signal
 import socket
 import sys
 from contextlib import AsyncExitStack
-from exceptiongroup import BaseExceptionGroup
 from functools import partial
 from typing import List, Optional, Type
 
 import anyio
+from exceptiongroup import BaseExceptionGroup  # novermin
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task, get_client

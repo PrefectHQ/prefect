@@ -928,10 +928,10 @@ async def orchestrate_flow_run(
                 # All tasks and subflows are reference tasks if there is no return value
                 # If there are no tasks, use `None` instead of an empty iterable
                 result = (
-                             flow_run_context.task_run_futures
-                             + flow_run_context.task_run_states
-                             + flow_run_context.flow_run_states
-                         ) or None
+                    flow_run_context.task_run_futures
+                    + flow_run_context.task_run_states
+                    + flow_run_context.flow_run_states
+                ) or None
 
             terminal_state = await return_value_to_state(
                 await resolve_futures_to_states(result),

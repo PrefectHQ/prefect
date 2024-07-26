@@ -1626,7 +1626,7 @@ class TestOrchestrateTaskRun:
         assert (
             state.message
             == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED'"
-               " state."
+            " state."
         )
 
     async def test_quoted_parameters_are_resolved(

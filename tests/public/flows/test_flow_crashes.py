@@ -15,7 +15,6 @@ from unittest.mock import ANY, MagicMock
 
 import anyio
 import pytest
-from exceptiongroup import BaseExceptionGroup
 
 import prefect
 import prefect.context

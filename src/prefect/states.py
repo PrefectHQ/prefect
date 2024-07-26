@@ -9,8 +9,8 @@ from typing import Any, Dict, Iterable, Optional, Type, Union
 import anyio
 import httpx
 import pendulum
+from exceptiongroup import BaseExceptionGroup  # novermin
 from typing_extensions import TypeGuard
-from exceptiongroup import BaseExceptionGroup
 
 from prefect.client.schemas import State as State
 from prefect.client.schemas import StateDetails, StateType

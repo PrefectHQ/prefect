@@ -28,7 +28,6 @@ from prefect.settings import (
 from prefect.utilities.processutils import setup_signal_handlers_agent
 from prefect.utilities.services import critical_service_loop
 
-
 logger = get_logger(__name__)
 
 agent_app = PrefectTyper(

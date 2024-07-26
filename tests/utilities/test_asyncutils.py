@@ -9,7 +9,7 @@ from functools import partial, wraps
 
 import anyio
 import pytest
-from exceptiongroup import BaseExceptionGroup
+from exceptiongroup import BaseExceptionGroup  # novermin
 
 from prefect.context import ContextModel
 from prefect.settings import (
@@ -362,6 +362,7 @@ def test_sync_compatible_allows_direct_access_to_async_fn():
 
 def test_sync_compatible_requires_async_function():
     with pytest.raises(TypeError, match="must be async"):
+
         @sync_compatible
         def foo():
             pass
@@ -369,6 +370,7 @@ def test_sync_compatible_requires_async_function():
 
 def test_sync_compatible_with_async_context_manager():
     with pytest.raises(ValueError, match="Async generators cannot yet be marked"):
+
         @sync_compatible
         @asynccontextmanager
         async def foo():

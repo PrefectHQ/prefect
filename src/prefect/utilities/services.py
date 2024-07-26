@@ -71,9 +71,7 @@ async def critical_service_loop(
         except CancelledError as exc:
             # Exit immediately because the task was cancelled, possibly due
             # to a signal or timeout.
-            logger.debug(
-                f"Run of {workload!r} cancelled", exc_info=exc
-            )
+            logger.debug(f"Run of {workload!r} cancelled", exc_info=exc)
             return
         except httpx.TransportError as exc:
             # httpx.TransportError is the base class for any kind of communications
@@ -155,6 +153,6 @@ async def critical_service_loop(
         if jitter_range is not None:
             sleep = clamped_poisson_interval(interval, clamping_factor=jitter_range)
         else:
-            sleep = interval * 2 ** backoff_count
+            sleep = interval * 2**backoff_count
 
         await anyio.sleep(sleep)
