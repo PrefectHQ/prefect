@@ -8,6 +8,7 @@ from distributed import LocalCluster
 from prefect_dask import DaskTaskRunner
 
 from prefect import flow, task
+from prefect.futures import as_completed
 from prefect.server.schemas.states import StateType
 from prefect.states import State
 from prefect.testing.fixtures import (  # noqa: F401
@@ -247,6 +248,25 @@ class TestDaskTaskRunner:
         assert ax.type == StateType.FAILED
         assert bx.type == StateType.PENDING
         assert cx.type == StateType.COMPLETED
+
+    def test_as_completed_yields_correct_order(self, task_runner):
+        @task
+        def sleep_task(seconds):
+            time.sleep(seconds)
+            return seconds
+
+        timings = [1, 5, 10]
+        with task_runner:
+            done_futures = []
+            futures = [
+                task_runner.submit(
+                    sleep_task, parameters={"seconds": seconds}, wait_for=[]
+                )
+                for seconds in reversed(timings)
+            ]
+            for future in as_completed(futures=futures):
+                done_futures.append(future.result())
+            assert done_futures == timings
 
     async def test_wait_captures_exceptions_as_crashed_state(self, task_runner):
         """
