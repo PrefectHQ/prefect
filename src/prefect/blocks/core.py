@@ -273,19 +273,6 @@ class Block(BaseModel, ABC):
     )
 
     def __init__(self, *args, **kwargs):
-        block_document_id = kwargs.pop("$ref", None)
-        if block_document_id:
-            block_document, block_document_name = self._get_block_document_by_id(
-                block_document_id, _sync=True
-            )
-
-            self._validate_block_reference(block_document)
-
-            kwargs = {
-                **block_document.data,
-                **kwargs,
-            }
-
         super().__init__(*args, **kwargs)
         self.block_initialization()
 
@@ -298,35 +285,6 @@ class Block(BaseModel, ABC):
         return [
             (key, value) for key, value in repr_args if key is None or key in data_keys
         ]
-
-    def _validate_block_reference(self, block_document: BlockDocument) -> None:
-        """
-        Validates that the provided block document matches the block schema of the current block.
-
-        Args:
-            block_document: The referenced block document to validate.
-
-        Raises:
-            TypeError: If the block instantiation is attempted from the base Block class.
-            ValueError: If the block reference type or slug is invalid.
-        """
-        if self.__class__ == Block:
-            raise TypeError(
-                "Block class cannot be instantiated directly from block reference."
-            )
-        block_type_name = self.get_block_type_name()
-        block_type_slug = self.get_block_type_slug()
-
-        if block_document.block_type_name != block_type_name:
-            raise ValueError(
-                f"Invalid Block reference type {block_document.block_type_name!r} "
-                f"for block type {block_type_name!r} initialization"
-            )
-        if block_document.block_type.slug != block_type_slug:
-            raise ValueError(
-                f"Invalid Block reference slug {block_document.block_type.slug!r} "
-                f"for block slug {block_type_slug!r} initialization"
-            )
 
     def block_initialization(self) -> None:
         pass
@@ -945,6 +903,75 @@ class Block(BaseModel, ABC):
             ```
         """
         block_document, block_document_name = await cls._get_block_document(name)
+
+        try:
+            return cls._from_block_document(block_document)
+        except ValidationError as e:
+            if not validate:
+                missing_fields = tuple(err["loc"][0] for err in e.errors())
+                missing_block_data = {field: None for field in missing_fields}
+                warnings.warn(
+                    f"Could not fully load {block_document_name!r} of block type"
+                    f" {cls.get_block_type_slug()!r} - this is likely because one or more"
+                    " required fields were added to the schema for"
+                    f" {cls.__name__!r} that did not exist on the class when this block"
+                    " was last saved. Please specify values for new field(s):"
+                    f" {listrepr(missing_fields)}, then run"
+                    f' `{cls.__name__}.save("{block_document_name}", overwrite=True)`,'
+                    " and load this block again before attempting to use it."
+                )
+                return cls.model_construct(**block_document.data, **missing_block_data)
+            raise RuntimeError(
+                f"Unable to load {block_document_name!r} of block type"
+                f" {cls.get_block_type_slug()!r} due to failed validation. To load without"
+                " validation, try loading again with `validate=False`."
+            ) from e
+
+    @classmethod
+    @sync_compatible
+    @inject_client
+    async def load_from_ref(
+        cls,
+        id: Union[str, UUID],
+        validate: bool = True,
+        client: Optional["PrefectClient"] = None,
+    ) -> "Self":
+        """
+        Retrieves data from the block document with the given ID for the block type
+        that corresponds with the current class and returns an instantiated version of
+        the current class with the data stored in the block document.
+
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `load`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
+        Args:
+            id: The ID of the block document.
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+            client: The client to use to load the block document. If not provided, the
+                default client will be injected.
+
+        Raises:
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+
+        Examples:
+            ... TBD
+
+        """
+        block_document, block_document_name = await cls._get_block_document_by_id(id)
 
         try:
             return cls._from_block_document(block_document)
