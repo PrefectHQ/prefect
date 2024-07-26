@@ -203,20 +203,18 @@ def get_client(
     except RuntimeError:
         loop = None
 
-    if client_ctx := prefect.context.ClientContext.get():
-        if (
-            sync_client
-            and client_ctx.sync_client
-            and client_ctx._httpx_settings == httpx_settings
-        ):
-            return client_ctx.sync_client
-        elif (
-            not sync_client
-            and client_ctx.async_client
-            and client_ctx._httpx_settings == httpx_settings
-            and loop in (client_ctx.async_client._loop, None)
-        ):
-            return client_ctx.async_client
+    if sync_client:
+        if client_ctx := prefect.context.SyncClientContext.get():
+            if client_ctx.client and client_ctx._httpx_settings == httpx_settings:
+                return client_ctx.client
+    else:
+        if client_ctx := prefect.context.AsyncClientContext.get():
+            if (
+                client_ctx.client
+                and client_ctx._httpx_settings == httpx_settings
+                and loop in (client_ctx.client._loop, None)
+            ):
+                return client_ctx.client
 
     api = PREFECT_API_URL.value()
 
