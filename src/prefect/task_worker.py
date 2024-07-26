@@ -29,6 +29,7 @@ from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
@@ -289,26 +290,33 @@ class TaskWorker:
                     await self._client._client.delete(f"/task_runs/{task_run.id}")
                 return
 
-        try:
+        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
             new_state = Pending()
             new_state.state_details.deferred = True
-            state = await propose_state(
-                client=get_client(),  # TODO prove that we cannot use self._client here
-                state=new_state,
-                task_run_id=task_run.id,
-            )
-        except Abort as exc:
-            logger.exception(
-                f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
-            )
-            return
-        except PrefectHTTPStatusError as exc:
-            if exc.response.status_code == 404:
-                logger.warning(
-                    f"Task run {task_run.id!r} not found. It may have been deleted."
+            new_state.state_details.task_run_id = task_run.id
+            new_state.state_details.flow_run_id = task_run.flow_run_id
+            state = new_state
+        else:
+            try:
+                new_state = Pending()
+                new_state.state_details.deferred = True
+                state = await propose_state(
+                    client=get_client(),  # TODO prove that we cannot use self._client here
+                    state=new_state,
+                    task_run_id=task_run.id,
+                )
+            except Abort as exc:
+                logger.exception(
+                    f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
                 )
                 return
-            raise
+            except PrefectHTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    logger.warning(
+                        f"Task run {task_run.id!r} not found. It may have been deleted."
+                    )
+                    return
+                raise
 
         if not state.is_pending():
             logger.warning(
