@@ -259,27 +259,25 @@ def inspect(
 def populate_defaults():
     """Populate the profiles configuration with the default base profiles."""
     user_profiles_path = prefect.settings.PREFECT_PROFILES_PATH.value()
-    DEFAULT_PROFILES_TEMPLATE_CONTENT = (
-        prefect.settings.DEFAULT_PROFILES_PATH.read_text()
-    )
+    DEFAULT_PROFILES_CONTENT = prefect.settings.DEFAULT_PROFILES_PATH.read_text()
 
     if user_profiles_path.exists():
-        if user_profiles_path.read_text() == DEFAULT_PROFILES_TEMPLATE_CONTENT:
+        if user_profiles_path.read_text() == DEFAULT_PROFILES_CONTENT:
             app.console.print(
                 "Default profiles are already populated. [green]No action required[/green]."
             )
             return
-        if not typer.confirm(f"Overwrite existing profiles at {user_profiles_path}?"):
-            app.console.print("Operation cancelled.")
-            return
-
         if user_profiles_path.read_text() != _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT:
             backup_path = user_profiles_path.with_suffix(".toml.bak")
             if typer.confirm(f"Back up existing profiles to {backup_path}?"):
                 shutil.copy(user_profiles_path, backup_path)
                 app.console.print(f"Profiles backed up to {backup_path}")
 
-    user_profiles_path.write_text(DEFAULT_PROFILES_TEMPLATE_CONTENT)
+        if not typer.confirm(f"Overwrite existing profiles at {user_profiles_path}?"):
+            app.console.print("Operation cancelled.")
+            return
+
+    user_profiles_path.write_text(DEFAULT_PROFILES_CONTENT)
 
     app.console.print(
         f"Default profiles populated in [green]{user_profiles_path}[/green]"
