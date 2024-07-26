@@ -205,7 +205,7 @@ async def test_task_worker_stays_running_on_errors(monkeypatch):
     def always_error(*args, **kwargs):
         raise ValueError("oops")
 
-    monkeypatch.setattr("prefect.task_engine.TaskRunEngine.start", always_error)
+    monkeypatch.setattr("prefect.task_engine.SyncTaskRunEngine.start", always_error)
 
     task_worker = TaskWorker(empty_task)
 
@@ -842,53 +842,58 @@ class TestTaskWorkerLimit:
     async def test_tasks_execute_when_capacity_frees_up(
         self, mock_subscription, prefect_client, events_pipeline
     ):
-        event = asyncio.Event()
+        execution_order = []
 
         @task
-        async def slow_task():
-            await asyncio.sleep(1)
-            if event.is_set():
-                raise ValueError("Something went wrong! This event should not be set.")
-            event.set()
+        async def slow_task(task_id: str):
+            execution_order.append(f"{task_id} start")
+            await asyncio.sleep(0.1)  # Simulating some work
+            execution_order.append(f"{task_id} end")
 
         task_worker = TaskWorker(slow_task, limit=1)
 
-        task_run_future_1 = slow_task.apply_async()
+        task_run_future_1 = slow_task.apply_async(("task1",))
         task_run_1 = await prefect_client.read_task_run(task_run_future_1.task_run_id)
-        task_run_future_2 = slow_task.apply_async()
+        task_run_future_2 = slow_task.apply_async(("task2",))
         task_run_2 = await prefect_client.read_task_run(task_run_future_2.task_run_id)
 
         async def mock_iter():
             yield task_run_1
             yield task_run_2
-            # sleep for a second to ensure that task execution starts
-            await asyncio.sleep(1)
+            while len(execution_order) < 4:
+                await asyncio.sleep(0.1)
 
         mock_subscription.return_value = mock_iter()
 
         server_task = asyncio.create_task(task_worker.start())
-        await event.wait()
 
-        await events_pipeline.process_events()
+        try:
+            # Wait for both tasks to complete
+            await asyncio.sleep(2)
 
-        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
-        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+            await events_pipeline.process_events()
 
-        assert updated_task_run_1.state.is_completed()
-        assert not updated_task_run_2.state.is_completed()
+            # Verify the execution order
+            assert execution_order == [
+                "task1 start",
+                "task1 end",
+                "task2 start",
+                "task2 end",
+            ], "Tasks should execute sequentially"
 
-        # clear the event to allow the second task to complete
-        event.clear()
+            # Verify the states of both tasks
+            updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+            updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
 
-        await event.wait()
-        await events_pipeline.process_events()
+            assert updated_task_run_1.state.is_completed()
+            assert updated_task_run_2.state.is_completed()
 
-        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
-
-        assert updated_task_run_2.state.is_completed()
-
-        server_task.cancel()
-        await server_task
+        finally:
+            server_task.cancel()
+            try:
+                await server_task
+            except asyncio.CancelledError:
+                pass
 
     async def test_execute_task_run_respects_limit(
         self, prefect_client, events_pipeline
