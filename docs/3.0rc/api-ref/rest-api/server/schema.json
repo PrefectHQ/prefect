@@ -22339,11 +22339,6 @@
                         "title": "Prefect Worker Webserver Port",
                         "default": 8080
                     },
-                    "PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED": {
-                        "type": "boolean",
-                        "title": "Prefect Api Services Task Scheduling Enabled",
-                        "default": true
-                    },
                     "PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK": {
                         "anyOf": [
                             {
