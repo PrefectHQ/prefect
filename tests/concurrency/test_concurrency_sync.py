@@ -35,7 +35,9 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
         ) as release_spy:
             resource_heavy()
 
-            acquire_spy.assert_called_once_with(["test"], 1, timeout_seconds=None)
+            acquire_spy.assert_called_once_with(
+                ["test"], 1, timeout_seconds=None, create_if_missing=True
+            )
 
             # On release we calculate how many seconds the slots were occupied
             # for, so here we really just want to make sure that the value
@@ -214,7 +216,13 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
         ) as release_spy:
             resource_heavy()
 
-            acquire_spy.assert_called_once_with(["test"], 1, mode="rate_limit")
+            acquire_spy.assert_called_once_with(
+                ["test"],
+                1,
+                mode="rate_limit",
+                timeout_seconds=None,
+                create_if_missing=True,
+            )
 
             # When used as a rate limit concurrency slots are not explicitly
             # released.
