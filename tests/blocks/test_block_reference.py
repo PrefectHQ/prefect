@@ -1,9 +1,9 @@
 import warnings
-from typing import Dict, Type
-from uuid import uuid4, UUID
+from typing import Type
+from uuid import UUID, uuid4
 
+import pydantic
 import pytest
-from pydantic import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.exceptions import ParameterTypeError
@@ -37,6 +37,15 @@ class TestBlockReference:
         assert block.a == 1
         assert block.b == "foo"
 
+    def test_base_block_load_from_reference(
+        self,
+        block_document_id: UUID,
+    ):
+        block = Block.load_from_ref(block_document_id)
+        assert isinstance(block, self.ReferencedBlock)
+        assert block.a == 1
+        assert block.b == "foo"
+
     def test_block_load_from_reference_string(
         self,
         block_document_id: UUID,
@@ -66,6 +75,22 @@ class TestBlockReference:
 
         with pytest.raises(RuntimeError):
             self.ReferencedBlock.load_from_ref(block._block_document_id)
+
+    def test_block_load_from_nested_block_reference(self):
+        ReferencedBlock = self.ReferencedBlock
+
+        class NestedReferencedBlock(Block):
+            inner_block: ReferencedBlock
+
+        nested_block = NestedReferencedBlock(inner_block=ReferencedBlock(a=1, b="foo"))
+        nested_block.save("nested-block")
+
+        loaded_block = NestedReferencedBlock.load_from_ref(
+            nested_block._block_document_id
+        )
+        assert getattr(loaded_block, "inner_block", None) is not None
+        assert loaded_block.inner_block.a == 1
+        assert loaded_block.inner_block.b == "foo"
 
 
 class TestFlowWithBlockParam:
@@ -122,3 +147,45 @@ class TestFlowWithBlockParam:
             ParameterTypeError, match="Flow run received invalid parameters"
         ):
             flow_with_block_param({"$ref": str(ref_block._block_document_id)})
+
+    def test_flow_with_nested_block_params(self, ParamBlock):
+        class NestedParamBlock(Block):
+            inner_block: ParamBlock
+
+        nested_block = NestedParamBlock(inner_block=ParamBlock(a=12, b="foo"))
+        nested_block.save("nested-block")
+
+        @flow
+        def flow_with_nested_block_param(block: NestedParamBlock):
+            return block.inner_block.a
+
+        assert (
+            flow_with_nested_block_param(
+                {"$ref": {"block_document_id": str(nested_block._block_document_id)}}
+            )
+            == nested_block.inner_block.a
+        )
+
+    def test_flow_with_block_param_in_basemodel(self, ParamBlock):
+        class ParamModel(pydantic.BaseModel):
+            block: ParamBlock
+
+        param_block = ParamBlock(a=12, b="foo")
+        param_block.save("param-block")
+
+        @flow
+        def flow_with_block_param_in_basemodel(param: ParamModel):
+            return param.block.a
+
+        assert (
+            flow_with_block_param_in_basemodel(
+                {
+                    "block": {
+                        "$ref": {
+                            "block_document_id": str(param_block._block_document_id)
+                        }
+                    }
+                }
+            )
+            == param_block.a
+        )
