@@ -102,6 +102,20 @@ class TestTaskName:
         assert my_task.name == "another_name"
 
 
+class TestTaskKey:
+    def test_task_key_typical_case(self):
+        @task
+        def my_task():
+            pass
+
+        assert my_task.task_key.startswith("my_task-")
+
+    def test_task_key_after_import(self):
+        from tests.generic_tasks import noop
+
+        assert noop.task_key.startswith("noop-")
+
+
 class TestTaskRunName:
     def test_run_name_default(self):
         @task

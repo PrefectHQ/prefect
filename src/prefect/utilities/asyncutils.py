@@ -354,11 +354,8 @@ def sync_compatible(
         *args: Any, _sync: Optional[bool] = None, **kwargs: Any
     ) -> Union[R, Coroutine[Any, Any, R]]:
         from prefect.context import MissingContextError, get_run_context
-        from prefect.settings import (
-            PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
-        )
 
-        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT or _sync is False:
+        if _sync is False:
             return async_fn(*args, **kwargs)
 
         is_async = True
