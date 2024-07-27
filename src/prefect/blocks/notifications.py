@@ -151,15 +151,14 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         """see https://github.com/caronc/apprise/pull/1172"""
         from apprise.plugins.workflows import NotifyWorkflows
 
-        parsed_url = NotifyWorkflows.parse_native_url(self.url.get_secret_value())
-        if not parsed_url:
+        if not (
+            parsed_url := NotifyWorkflows.parse_native_url(self.url.get_secret_value())
+        ):
             raise ValueError("Invalid Microsoft Teams Workflow URL provided.")
 
-        parsed_url["include_image"] = self.include_image
-        parsed_url["wrap"] = self.wrap
+        parsed_url |= {"include_image": self.include_image, "wrap": self.wrap}
 
-        notify_workflows = NotifyWorkflows(**parsed_url)
-        self._start_apprise_client(SecretStr(notify_workflows.url()))
+        self._start_apprise_client(SecretStr(NotifyWorkflows(**parsed_url).url()))
 
 
 class PagerDutyWebHook(AbstractAppriseNotificationBlock):
