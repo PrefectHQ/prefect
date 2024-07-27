@@ -111,7 +111,7 @@ class TestFlowWithBlockParam:
         )
 
     def test_flow_with_invalid_block_param_type(self, ParamBlock, OtherParamBlock):
-        ref_block = OtherParamBlock(c=10, d="foo")
+        ref_block = OtherParamBlock(a=10, b="foo")
         ref_block.save("other-param-block")
 
         @flow
