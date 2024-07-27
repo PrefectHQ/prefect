@@ -124,24 +124,17 @@ class TestUtilityFunctions:
             assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
 
     async def test_as_completed_yields_correct_order_dist(self, task_run):
-        markers = [0, 1, 2]
-        DONE = []
-
         @task
-        async def my_task(marker):
-            print(f'received {marker} and global list is {DONE}')
-            if marker == 0:
-                DONE.append(marker)
-            else:
-                while (marker - 1) not in DONE:
-                    await asyncio.sleep(0.1)
-                DONE.append(marker)
-            return marker
+        async def my_task(seconds):
+            import time
+
+            time.sleep(seconds)
+            return seconds
 
         futures = []
-        for i in reversed(markers):
-            print(f'passing marker {i}')
-            task_run = await my_task.create_run(parameters={"marker": i})
+        timings = [1, 5, 10]
+        for i in reversed(timings):
+            task_run = await my_task.create_run(parameters={"seconds": i})
             future = PrefectDistributedFuture(task_run_id=task_run.id)
 
             futures.append(future)
@@ -150,7 +143,7 @@ class TestUtilityFunctions:
                     task=my_task,
                     task_run_id=future.task_run_id,
                     task_run=task_run,
-                    parameters={"marker": i},
+                    parameters={"seconds": i},
                     return_type="state",
                 )
             )
@@ -159,7 +152,7 @@ class TestUtilityFunctions:
             for future in as_completed(futures):
                 results.append(future.result())
 
-            assert results == markers
+            assert results == timings
 
 
 class TestPrefectConcurrentFuture:
