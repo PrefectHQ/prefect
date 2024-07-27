@@ -538,18 +538,7 @@ class Flow(Generic[P, R]):
 
         def resolve_block_reference(data: Any) -> Any:
             if isinstance(data, dict) and "$ref" in data:
-                if isinstance(data["$ref"], (str, UUID)):
-                    # This is format used by Deployment Create Run form
-                    block_document_id = data["$ref"]
-                elif (
-                    isinstance(data["$ref"], dict)
-                    and "block_document_id" in data["$ref"]
-                ):
-                    block_document_id = data["$ref"]["block_document_id"]
-                else:
-                    raise ValueError(f"Invalid reference format: {data}")
-
-                return Block.load_from_ref(block_document_id)
+                return Block.load_from_ref(data["$ref"])
             return data
 
         try:

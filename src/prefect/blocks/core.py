@@ -911,14 +911,19 @@ class Block(BaseModel, ABC):
     @inject_client
     async def load_from_ref(
         cls,
-        id: Union[str, UUID],
+        ref: Union[str, UUID, Dict[str, Any]],
         validate: bool = True,
         client: Optional["PrefectClient"] = None,
     ) -> "Self":
         """
-        Retrieves data from the block document with the given ID for the block type
+        Retrieves data from the block document by given reference for the block type
         that corresponds with the current class and returns an instantiated version of
         the current class with the data stored in the block document.
+
+        Provided reference can be a block document ID, or a reference data in dictionary format.
+        Supported dictionary reference formats are:
+        - {"block_document_id": <block_document_id>}
+        - {"block_document_slug": <block_document_slug>}
 
         If a block document for a given block type is saved with a different schema
         than the current class calling `load`, a warning will be raised.
@@ -932,7 +937,8 @@ class Block(BaseModel, ABC):
         and saved to a new block document before the block can be used as expected.
 
         Args:
-            id: The ID of the block document.
+            ref: The reference to the block document. This can be a block document ID,
+                or one of supported dictionary reference formats.
             validate: If False, the block document will be loaded without Pydantic
                 validating the block schema. This is useful if the block schema has
                 changed client-side since the block document referred to by `name` was saved.
@@ -940,17 +946,27 @@ class Block(BaseModel, ABC):
                 default client will be injected.
 
         Raises:
+            ValueError: If invalid reference format is provided.
             ValueError: If the requested block document is not found.
 
         Returns:
             An instance of the current class hydrated with the data stored in the
             block document with the specified name.
 
-        Examples:
-            ... TBD
-
         """
-        block_document, _ = await cls._get_block_document_by_id(id)
+        block_document = None
+        if isinstance(ref, (str, UUID)):
+            block_document, _ = await cls._get_block_document_by_id(ref)
+        elif isinstance(ref, dict):
+            if block_document_id := ref.get("block_document_id"):
+                block_document, _ = await cls._get_block_document_by_id(
+                    block_document_id
+                )
+            elif block_document_slug := ref.get("block_document_slug"):
+                block_document, _ = await cls._get_block_document(block_document_slug)
+
+        if not block_document:
+            raise ValueError(f"Invalid reference format {ref!r}.")
 
         return cls._load_from_block_document(block_document, validate=validate)
 
