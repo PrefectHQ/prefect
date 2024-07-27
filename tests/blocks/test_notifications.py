@@ -14,6 +14,7 @@ from prefect.blocks.notifications import (
     CustomWebhookNotificationBlock,
     DiscordWebhook,
     MattermostWebhook,
+    MicrosoftTeamsWebhook,
     OpsgenieWebhook,
     PagerDutyWebHook,
     SendgridEmail,
@@ -39,7 +40,12 @@ def reload_modules():
 
 # A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
 notification_classes = sorted(
-    AppriseNotificationBlock.__subclasses__(), key=lambda cls: cls.__name__
+    [
+        cls
+        for cls in AppriseNotificationBlock.__subclasses__()
+        if cls != MicrosoftTeamsWebhook
+    ],
+    key=lambda cls: cls.__name__,
 )
 
 
@@ -702,3 +708,50 @@ class TestSendgridEmail:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, SendgridEmail)
+
+
+class TestMicrosoftTeamsWebhook:
+    SAMPLE_URL = "https://prod-NO.LOCATION.logic.azure.com:443/workflows/WFID/triggers/manual/paths/invoke?sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=SIGNATURE"
+
+    async def test_notify_async(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
+            await block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
+                "?image=yes&wrap=yes"
+                "&format=markdown&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_notify_sync(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
+
+            block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
+                "?image=yes&wrap=yes"
+                "&format=markdown&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_is_picklable(self):
+        block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, MicrosoftTeamsWebhook)
