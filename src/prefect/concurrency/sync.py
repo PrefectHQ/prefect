@@ -40,6 +40,7 @@ def concurrency(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
+    create_if_missing: Optional[bool] = True,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -49,6 +50,7 @@ def concurrency(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+        create_if_missing: Whether to create the concurrency limits if they do not exist.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -69,7 +71,11 @@ def concurrency(
     names = names if isinstance(names, list) else [names]
 
     limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
-        _acquire_concurrency_slots, names, occupy, timeout_seconds=timeout_seconds
+        _acquire_concurrency_slots,
+        names,
+        occupy,
+        timeout_seconds=timeout_seconds,
+        create_if_missing=create_if_missing,
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
@@ -87,7 +93,12 @@ def concurrency(
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
-def rate_limit(names: Union[str, List[str]], occupy: int = 1) -> None:
+def rate_limit(
+    names: Union[str, List[str]],
+    occupy: int = 1,
+    timeout_seconds: Optional[float] = None,
+    create_if_missing: Optional[bool] = True,
+) -> None:
     """Block execution until an `occupy` number of slots of the concurrency
     limits given in `names` are acquired. Requires that all given concurrency
     limits have a slot decay.
@@ -95,10 +106,18 @@ def rate_limit(names: Union[str, List[str]], occupy: int = 1) -> None:
     Args:
         names: The names of the concurrency limits to acquire slots from.
         occupy: The number of slots to acquire and hold from each limit.
+        timeout_seconds: The number of seconds to wait for the slots to be acquired before
+            raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+        create_if_missing: Whether to create the concurrency limits if they do not exist.
     """
     names = names if isinstance(names, list) else [names]
     limits = _call_async_function_from_sync(
-        _acquire_concurrency_slots, names, occupy, mode="rate_limit"
+        _acquire_concurrency_slots,
+        names,
+        occupy,
+        mode="rate_limit",
+        timeout_seconds=timeout_seconds,
+        create_if_missing=create_if_missing,
     )
     _emit_concurrency_acquisition_events(limits, occupy)
 

@@ -12600,6 +12600,11 @@
                             }
                         ],
                         "title": "Occupancy Seconds"
+                    },
+                    "create_if_missing": {
+                        "type": "boolean",
+                        "title": "Create If Missing",
+                        "default": true
                     }
                 },
                 "type": "object",
@@ -12632,6 +12637,11 @@
                         ],
                         "title": "Mode",
                         "default": "concurrency"
+                    },
+                    "create_if_missing": {
+                        "type": "boolean",
+                        "title": "Create If Missing",
+                        "default": true
                     }
                 },
                 "type": "object",

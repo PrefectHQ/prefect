@@ -83,6 +83,27 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
+class ClientSideTaskOrchestrationPolicy(BaseOrchestrationPolicy):
+    """
+    Orchestration rules that run against task-run-state transitions in priority order,
+    specifically for clients doing client-side orchestration.
+    """
+
+    def priority():
+        return [
+            CacheRetrieval,
+            HandleTaskTerminalStateTransitions,
+            PreventRunningTasksFromStoppedFlows,
+            CopyScheduledTime,
+            WaitForScheduledTime,
+            RetryFailedTasks,
+            RenameReruns,
+            UpdateFlowRunTrackerOnTasks,
+            CacheInsertion,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+
 class BackgroundTaskPolicy(BaseOrchestrationPolicy):
     """
     Orchestration rules that run against task-run-state transitions in priority order.
@@ -93,7 +114,7 @@ class BackgroundTaskPolicy(BaseOrchestrationPolicy):
             PreventPendingTransitions,
             CacheRetrieval,
             HandleTaskTerminalStateTransitions,
-            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+            # SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
             CopyTaskParametersID,
             WaitForScheduledTime,

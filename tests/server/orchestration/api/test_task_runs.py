@@ -7,11 +7,27 @@ from starlette import status
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import State
+from prefect.events.worker import EventsWorker
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import TaskRun
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
+    temporary_settings,
+)
 from prefect.states import Pending
+
+
+@pytest.fixture(autouse=True, params=[False, True])
+def enable_client_side_task_run_orchestration(
+    request, asserting_events_worker: EventsWorker
+):
+    enabled = request.param
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
+    ):
+        yield enabled
 
 
 class TestCreateTaskRun:
