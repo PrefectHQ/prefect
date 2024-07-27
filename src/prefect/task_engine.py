@@ -34,6 +34,8 @@ from prefect import Task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
 from prefect.context import (
     AsyncClientContext,
     FlowRunContext,
@@ -783,7 +785,15 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            result = call_with_parameters(self.task.fn, parameters)
+            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value():
+                # Acquire a concurrency slot for each tag, but only if a limit
+                # matching the tag already exists.
+                with concurrency(
+                    list(self.task.tags), occupy=1, create_if_missing=False
+                ):
+                    result = call_with_parameters(self.task.fn, parameters)
+            else:
+                result = call_with_parameters(self.task.fn, parameters)
         self.handle_success(result, transaction=transaction)
         return result
 
@@ -1318,7 +1328,15 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            result = await call_with_parameters(self.task.fn, parameters)
+            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value():
+                # Acquire a concurrency slot for each tag, but only if a limit
+                # matching the tag already exists.
+                async with aconcurrency(
+                    list(self.task.tags), occupy=1, create_if_missing=False
+                ):
+                    result = await call_with_parameters(self.task.fn, parameters)
+            else:
+                result = await call_with_parameters(self.task.fn, parameters)
         await self.handle_success(result, transaction=transaction)
         return result
 

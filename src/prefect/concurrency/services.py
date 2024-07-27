@@ -34,11 +34,16 @@ class ConcurrencySlotAcquisitionService(QueueService):
             yield
 
     async def _handle(
-        self, item: Tuple[int, str, Optional[float], concurrent.futures.Future]
+        self,
+        item: Tuple[
+            int, str, Optional[float], concurrent.futures.Future, Optional[bool]
+        ],
     ) -> None:
-        occupy, mode, timeout_seconds, future = item
+        occupy, mode, timeout_seconds, future, create_if_missing = item
         try:
-            response = await self.acquire_slots(occupy, mode, timeout_seconds)
+            response = await self.acquire_slots(
+                occupy, mode, timeout_seconds, create_if_missing
+            )
         except Exception as exc:
             # If the request to the increment endpoint fails in a non-standard
             # way, we need to set the future's result so that the caller can
@@ -49,13 +54,20 @@ class ConcurrencySlotAcquisitionService(QueueService):
             future.set_result(response)
 
     async def acquire_slots(
-        self, slots: int, mode: str, timeout_seconds: Optional[float] = None
+        self,
+        slots: int,
+        mode: str,
+        timeout_seconds: Optional[float] = None,
+        create_if_missing: Optional[bool] = False,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
                 try:
                     response = await self._client.increment_concurrency_slots(
-                        names=self.concurrency_limit_names, slots=slots, mode=mode
+                        names=self.concurrency_limit_names,
+                        slots=slots,
+                        mode=mode,
+                        create_if_missing=create_if_missing,
                     )
                 except Exception as exc:
                     if (
@@ -69,7 +81,9 @@ class ConcurrencySlotAcquisitionService(QueueService):
                 else:
                     return response
 
-    def send(self, item: Tuple[int, str, Optional[float]]) -> concurrent.futures.Future:
+    def send(
+        self, item: Tuple[int, str, Optional[float], Optional[bool]]
+    ) -> concurrent.futures.Future:
         with self._lock:
             if self._stopped:
                 raise RuntimeError("Cannot put items in a stopped service instance.")
@@ -77,7 +91,9 @@ class ConcurrencySlotAcquisitionService(QueueService):
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()
 
-            occupy, mode, timeout_seconds = item
-            self._queue.put_nowait((occupy, mode, timeout_seconds, future))
+            occupy, mode, timeout_seconds, create_if_missing = item
+            self._queue.put_nowait(
+                (occupy, mode, timeout_seconds, future, create_if_missing)
+            )
 
         return future

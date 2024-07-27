@@ -150,6 +150,7 @@ async def bulk_increment_active_slots(
     slots: int = Body(..., gt=0),
     names: List[str] = Body(..., min_items=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
+    create_if_missing: bool = Body(True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
@@ -157,7 +158,7 @@ async def bulk_increment_active_slots(
             schemas.core.ConcurrencyLimitV2.model_validate(limit)
             for limit in (
                 await models.concurrency_limits_v2.bulk_read_or_create_concurrency_limits(
-                    session=session, names=names
+                    session=session, names=names, create_if_missing=create_if_missing
                 )
             )
         ]
@@ -239,14 +240,18 @@ async def bulk_decrement_active_slots(
     slots: int = Body(..., gt=0),
     names: List[str] = Body(..., min_items=1),
     occupancy_seconds: Optional[float] = Body(None, gt=0.0),
+    create_if_missing: bool = Body(True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
         limits = (
             await models.concurrency_limits_v2.bulk_read_or_create_concurrency_limits(
-                session=session, names=names
+                session=session, names=names, create_if_missing=create_if_missing
             )
         )
+
+        if not limits:
+            return []
 
         await models.concurrency_limits_v2.bulk_decrement_active_slots(
             session=session,

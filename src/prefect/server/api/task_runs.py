@@ -28,6 +28,7 @@ from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
+from prefect.server.orchestration.core_policy import CoreTaskPolicy
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.task_queue import MultiQueue, TaskQueue
@@ -261,7 +262,7 @@ async def set_task_run_state(
                 state
             ),  # convert to a full State object
             force=force,
-            task_policy=task_policy,
+            task_policy=CoreTaskPolicy,
             orchestration_parameters=orchestration_parameters,
         )
 
