@@ -15,6 +15,7 @@ from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
 from prefect.server.schemas import core, responses
+from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
@@ -2693,3 +2694,99 @@ class TestPaginateFlowRuns:
 
         assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()["results"]) == 0
+
+
+class TestDownloadFlowRunLogs:
+    @pytest.fixture
+    async def flow_run_1(self, session, flow):
+        model = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+        )
+
+        await session.commit()
+
+        return model
+
+    @pytest.fixture
+    async def flow_run_2(self, session, flow):
+        model = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+        )
+
+        await session.commit()
+
+        return model
+
+    @pytest.fixture
+    async def flow_run_1_logs(self, flow_run_1, session):
+        NOW = pendulum.now("UTC")
+
+        logs = [
+            LogCreate(
+                name="prefect.flow_run",
+                level=10,
+                message=f"Log message {i}",
+                timestamp=NOW,
+                flow_run_id=flow_run_1.id,
+            )
+            for i in range(10)
+        ]
+
+        await models.logs.create_logs(session=session, logs=logs)
+
+        await session.commit()
+
+        return logs
+
+    @pytest.fixture
+    async def flow_run_2_logs(self, flow_run_2, session):
+        NOW = pendulum.now("UTC")
+
+        logs = [
+            LogCreate(
+                name="prefect.flow_run",
+                level=10,
+                message=f"Log message {i}",
+                timestamp=NOW,
+                flow_run_id=flow_run_2.id,
+            )
+            for i in range(10)
+        ]
+
+        await models.logs.create_logs(session=session, logs=logs)
+
+        await session.commit()
+
+        return logs
+
+    async def test_download_flow_run_logs(
+        self,
+        client,
+        flow_run_1,
+        flow_run_2,
+        flow_run_1_logs,
+        flow_run_2_logs,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "prefect.server.api.flow_runs.FLOW_RUN_LOGS_CSV_PAGE_LIMIT", 3
+        )
+
+        async with client.stream(
+            "GET", f"/flow_runs/{flow_run_1.id}/download-logs-csv"
+        ) as response:
+            response_body = [
+                str(chunk, "UTF-8") async for chunk in response.aiter_bytes()
+            ]
+
+            lines = "".join(response_body).splitlines()
+            line_count = len(lines)
+
+            # number of logs generated plus 1 for the header row
+            expected_line_count = len(flow_run_1_logs) + 1
+
+            assert (
+                line_count == expected_line_count
+            ), f"Expected {expected_line_count} lines, got {line_count}"
