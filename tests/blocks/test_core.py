@@ -884,8 +884,12 @@ class TestAPICompatibility:
             },
         }
 
-    async def test_block_load(self, test_block, block_document):
-        my_block = await test_block.load(block_document.name)
+    async def test_block_load(
+        self, test_block, block_document, in_memory_prefect_client
+    ):
+        my_block = await test_block.load(
+            block_document.name, client=in_memory_prefect_client
+        )
 
         assert my_block._block_document_name == block_document.name
         assert my_block._block_document_id == block_document.id
@@ -894,14 +898,21 @@ class TestAPICompatibility:
         assert my_block.foo == "bar"
 
     async def test_block_load_loads__collections(
-        self, test_block, block_document: BlockDocument, monkeypatch
+        self,
+        test_block,
+        block_document: BlockDocument,
+        monkeypatch,
+        in_memory_prefect_client,
     ):
         mock_load_prefect_collections = Mock()
         monkeypatch.setattr(
             prefect.plugins, "load_prefect_collections", mock_load_prefect_collections
         )
 
-        await Block.load(block_document.block_type.slug + "/" + block_document.name)
+        await Block.load(
+            block_document.block_type.slug + "/" + block_document.name,
+            client=in_memory_prefect_client,
+        )
         mock_load_prefect_collections.assert_called_once()
 
     async def test_load_from_block_base_class(self):
@@ -914,7 +925,7 @@ class TestAPICompatibility:
         loaded_block = await Block.load("custom/my-custom-block")
         assert loaded_block.message == "hello"
 
-    async def test_load_nested_block(self, session):
+    async def test_load_nested_block(self, session, in_memory_prefect_client):
         class B(Block):
             _block_schema_type = "abc"
 
@@ -1011,7 +1022,9 @@ class TestAPICompatibility:
 
         await session.commit()
 
-        block_instance = await E.load("outer-block-document")
+        block_instance = await E.load(
+            "outer-block-document", client=in_memory_prefect_client
+        )
         assert isinstance(block_instance, E)
         assert isinstance(block_instance.c, C)
         assert isinstance(block_instance.d, D)

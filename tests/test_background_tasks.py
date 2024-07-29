@@ -232,7 +232,6 @@ async def prefect_client() -> AsyncGenerator["PrefectClient", None]:
         yield client
 
 
-
 class TestCall:
     async def test_call(self, async_foo_task):
         result = await async_foo_task(42)
