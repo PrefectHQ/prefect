@@ -296,6 +296,50 @@ class TestProjectDeploy:
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
 
+    async def test_deploy_with_wrapped_flow_decorator(
+        self, project_dir, work_pool, prefect_client
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=["test-flow"],
+            expected_output_contains=[
+                "wrapped-flow/test-name",
+                f"prefect worker start --pool '{work_pool.name}'",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "wrapped-flow/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+
+    async def test_deploy_with_missing_imports(
+        self, project_dir, work_pool, prefect_client
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./wrapped-flow-project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=["test-flow"],
+            expected_output_contains=[
+                "wrapped-flow/test-name",
+                f"prefect worker start --pool '{work_pool.name}'",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "wrapped-flow/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+
     async def test_project_deploy_with_default_work_pool(
         self, project_dir, prefect_client
     ):

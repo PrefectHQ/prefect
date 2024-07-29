@@ -17,6 +17,7 @@ from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
+import pendulum
 import pydantic
 import pytest
 import regex as re
@@ -49,6 +50,7 @@ from prefect.flows import (
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
+    safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
 from prefect.results import PersistedResultBlob
@@ -2609,9 +2611,8 @@ class TestLoadFlowFromEntrypoint:
         assert flow.name == "dog"
         assert flow.description == "Says woof!"
 
-        # But if the flow is called, it should raise the ScriptError
-        with pytest.raises(ScriptError):
-            flow.fn()
+        # Should still be callable
+        assert flow() == "woof!"
 
     @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_handling_script_with_unprotected_call_in_flow_script(
@@ -2663,8 +2664,7 @@ class TestLoadFlowFromEntrypoint:
         # Test with use_placeholder_flow=True (default behavior)
         flow = load_flow_from_entrypoint(f"{fpath}:dog")
         assert isinstance(flow, Flow)
-        with pytest.raises(ScriptError):
-            flow.fn()
+        assert flow() == "woof!"
 
         # Test with use_placeholder_flow=False
         with pytest.raises(ScriptError):
@@ -4757,3 +4757,311 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         with pytest.raises(ValueError, match="Could not find flow"):
             load_flow_arguments_from_entrypoint(entrypoint)
+
+
+class TestSafeLoadFlowFromEntrypoint:
+    def test_flow_not_found(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        from prefect import flow
+
+        @flow
+        def f():
+            pass
+        """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+
+        with pytest.raises(ValueError):
+            safe_load_flow_from_entrypoint(f"{tmp_path}/test.py:g")
+
+    def test_basic_operation(self, tmp_path: Path):
+        flow_source = dedent(
+            '''
+
+        from prefect import flow
+
+        @flow(name="My custom name")
+        def flow_function(name: str) -> str:
+            """
+            My docstring
+
+            Args:
+                name (str): A name
+            """
+            return name
+        '''
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+        assert isinstance(result, Flow)
+        assert result.name == "My custom name"
+        assert result("marvin") == "marvin"
+        assert result.__doc__ is not None
+        assert "My docstring" in result.__doc__
+        assert "Args:" in result.__doc__
+        assert "name (str): A name" in result.__doc__
+
+    def test_get_parameter_schema_from_safe_loaded_flow(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        @flow
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+        assert parameter_schema(result).model_dump() == {
+            "definitions": {},
+            "properties": {"name": {"position": 0, "title": "name", "type": "string"}},
+            "required": ["name"],
+            "title": "Parameters",
+            "type": "object",
+        }
+
+    def test_dynamic_name_fstring(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        version = "1.0"
+
+        @flow(name=f"flow-function-{version}")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+        assert result.name == "flow-function-1.0"
+
+    def test_dynamic_name_function(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        def get_name():
+            return "from-a-function"
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+
+    def test_dynamic_name_depends_on_missing_import(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import get_name
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        # We expect this to be None because the flow function cannot be loaded
+        assert result is None
+
+    def test_annotations_and_defaults_rely_on_imports(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        import pendulum
+        import datetime  
+        from prefect import flow               
+
+        @flow
+        def f(
+            x: datetime.datetime,
+            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            z: datetime.timedelta = datetime.timedelta(seconds=5),
+        ):
+            return x, y, z
+        """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+        result = safe_load_flow_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert result is not None
+        assert result(datetime.datetime(2025, 1, 1)) == (
+            datetime.datetime(2025, 1, 1),
+            pendulum.datetime(2025, 1, 1),
+            datetime.timedelta(seconds=5),
+        )
+
+    def test_annotations_rely_on_missing_import(self, tmp_path: Path):
+        """
+        This test ensures missing types for annotations are handled gracefully
+        for all argument types (positional-only, positional-or-keyword,
+        keyword-only, varargs, and varkwargs).
+        """
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+        from typing import Dict, Tuple
+
+        from non_existent import Type1, Type2, Type3, Type4, Type5
+
+        @flow
+        def flow_function(x: Type1, /, y: Type2, *args: Type4, z: Type3, **kwargs: Type5) -> str:
+            return x, y, z, args, kwargs
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result(1, 2, 4, z=3, a=5) == (1, 2, 3, (4,), {"a": 5})
+
+    def test_defaults_rely_on_missing_import(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import DEFAULT_NAME, DEFAULT_AGE
+
+        @flow
+        def flow_function(name = DEFAULT_NAME, age = DEFAULT_AGE) -> str:
+            return name, age
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result() == (None, None)
+
+    def test_function_with_enum_argument(self, tmp_path: Path):
+        class Color(enum.Enum):
+            RED = "RED"
+            GREEN = "GREEN"
+            BLUE = "BLUE"
+
+        source_code = dedent(
+            """
+        from enum import Enum
+
+        from prefect import flow
+
+        class Color(Enum):
+            RED = "RED"
+            GREEN = "GREEN"
+            BLUE = "BLUE"
+
+        @flow
+        def f(x: Color = Color.RED):
+            return x
+        """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+
+        entrypoint = f"{tmp_path.joinpath('test.py')}:f"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result().value == Color.RED.value
+
+    def test_handles_dynamically_created_models(self, tmp_path: Path):
+        source_code = dedent(
+            """
+            from typing import Optional
+            from prefect import flow
+            from pydantic import BaseModel, create_model, Field
+
+
+            def get_model() -> BaseModel:
+                return create_model(
+                    "MyModel",
+                    param=(
+                        int,
+                        Field(
+                            title="param",
+                            default=1,
+                        ),
+                    ),
+                )
+
+
+            MyModel = get_model()
+
+
+            @flow
+            def f(
+                param: Optional[MyModel] = None,
+            ) -> None:
+                return MyModel()        
+            """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+        entrypoint = f"{tmp_path.joinpath('test.py')}:f"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result().param == 1
+
+    def test_raises_name_error_when_loaded_flow_cannot_run(self, tmp_path):
+        source_code = dedent(
+            """
+        from not_a_module import not_a_function
+
+        from prefect import flow
+
+        @flow(description="Says woof!")
+        def dog():
+            return not_a_function('dog')        
+            """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        entrypoint = f"{tmp_path.joinpath('test.py')}:dog"
+
+        with pytest.raises(NameError, match="name 'not_a_function' is not defined"):
+            safe_load_flow_from_entrypoint(entrypoint)()
