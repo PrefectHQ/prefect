@@ -220,7 +220,7 @@ def get_client(
 
         server = SubprocessASGIServer()
         server.start()
-        assert server.server_process is not None
+        assert server.server_process is not None, "Server process did not start"
 
         api = f"{server.address()}/api"
         server_type = ServerType.EPHEMERAL
@@ -4057,6 +4057,33 @@ class SyncPrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+        return DeploymentResponse.model_validate(response.json())
+
+    def read_deployment_by_name(
+        self,
+        name: str,
+    ) -> DeploymentResponse:
+        """
+        Query the Prefect API for a deployment by name.
+
+        Args:
+            name: A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            a Deployment model representation of the deployment
+        """
+        try:
+            response = self._client.get(f"/deployments/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
         return DeploymentResponse.model_validate(response.json())
 
     def create_artifact(
