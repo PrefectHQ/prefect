@@ -1508,6 +1508,59 @@
                 }
             }
         },
+        "/api/flow_runs/{id}/download-logs-csv": {
+            "get": {
+                "tags": [
+                    "Flow Runs"
+                ],
+                "summary": "Download Logs",
+                "description": "Download all flow run logs as a CSV file, collecting all logs until there are no more logs to retrieve.",
+                "operationId": "download_logs_flow_runs__id__download_logs_csv_get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The flow run id",
+                            "title": "Id"
+                        },
+                        "description": "The flow run id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/task_runs/": {
             "post": {
                 "tags": [
@@ -22522,6 +22575,21 @@
                         "exclusiveMinimum": 0.0,
                         "title": "Prefect Events Websocket Backfill Page Size",
                         "default": 250
+                    },
+                    "PREFECT_API_ENABLE_METRICS": {
+                        "type": "boolean",
+                        "title": "Prefect Api Enable Metrics",
+                        "default": false
+                    },
+                    "PREFECT_CLIENT_ENABLE_METRICS": {
+                        "type": "boolean",
+                        "title": "Prefect Client Enable Metrics",
+                        "default": false
+                    },
+                    "PREFECT_CLIENT_METRICS_PORT": {
+                        "type": "integer",
+                        "title": "Prefect Client Metrics Port",
+                        "default": 4201
                     }
                 },
                 "type": "object",

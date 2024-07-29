@@ -95,7 +95,7 @@ from prefect.utilities.callables import (
     parameters_to_args_kwargs,
     raise_for_reserved_arguments,
 )
-from prefect.utilities.collections import listrepr
+from prefect.utilities.collections import listrepr, visit_collection
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
@@ -535,6 +535,21 @@ class Flow(Generic[P, R]):
         Raises:
             ParameterTypeError: if the provided parameters are not valid
         """
+
+        def resolve_block_reference(data: Any) -> Any:
+            if isinstance(data, dict) and "$ref" in data:
+                return Block.load_from_ref(data["$ref"])
+            return data
+
+        try:
+            parameters = visit_collection(
+                parameters, resolve_block_reference, return_data=True
+            )
+        except (ValueError, RuntimeError) as exc:
+            raise ParameterTypeError(
+                "Failed to resolve block references in parameters."
+            ) from exc
+
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         with warnings.catch_warnings():
@@ -1734,14 +1749,13 @@ def load_flow_from_entrypoint(
         raise MissingFlowError(
             f"Flow function with name {func_name!r} not found in {path!r}. "
         ) from exc
-    except ScriptError as exc:
+    except ScriptError:
         # If the flow has dependencies that are not installed in the current
-        # environment, fallback to loading the flow via AST parsing. The
-        # drawback of this approach is that we're unable to actually load the
-        # function, so we create a placeholder flow that will re-raise this
-        # exception when called.
+        # environment, fallback to loading the flow via AST parsing.
         if use_placeholder_flow:
-            flow = load_placeholder_flow(entrypoint=entrypoint, raises=exc)
+            flow = safe_load_flow_from_entrypoint(entrypoint)
+            if flow is None:
+                raise
         else:
             raise
 
@@ -1976,6 +1990,147 @@ def load_placeholder_flow(entrypoint: str, raises: Exception):
     return Flow(**arguments)
 
 
+def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow]:
+    """
+    Load a flow from an entrypoint and return None if an exception is raised.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+          or a module path to a flow function
+    """
+    func_def, source_code = _entrypoint_definition_and_source(entrypoint)
+    path = None
+    if ":" in entrypoint:
+        path = entrypoint.rsplit(":")[0]
+    namespace = safe_load_namespace(source_code, filepath=path)
+    if func_def.name in namespace:
+        return namespace[func_def.name]
+    else:
+        # If the function is not in the namespace, if may be due to missing dependencies
+        # for the function. We will attempt to compile each annotation and default value
+        # and remove them from the function definition to see if the function can be
+        # compiled without them.
+
+        return _sanitize_and_load_flow(func_def, namespace)
+
+
+def _sanitize_and_load_flow(
+    func_def: Union[ast.FunctionDef, ast.AsyncFunctionDef], namespace: Dict[str, Any]
+) -> Optional[Flow]:
+    """
+    Attempt to load a flow from the function definition after sanitizing the annotations
+    and defaults that can't be compiled.
+
+    Args:
+        func_def: the function definition
+        namespace: the namespace to load the function into
+
+    Returns:
+        The loaded function or None if the function can't be loaded
+        after sanitizing the annotations and defaults.
+    """
+    args = func_def.args.posonlyargs + func_def.args.args + func_def.args.kwonlyargs
+    if func_def.args.vararg:
+        args.append(func_def.args.vararg)
+    if func_def.args.kwarg:
+        args.append(func_def.args.kwarg)
+    # Remove annotations that can't be compiled
+    for arg in args:
+        if arg.annotation is not None:
+            try:
+                code = compile(
+                    ast.Expression(arg.annotation),
+                    filename="<ast>",
+                    mode="eval",
+                )
+                exec(code, namespace)
+            except Exception as e:
+                logger.debug(
+                    "Failed to evaluate annotation for argument %s due to the following error. Ignoring annotation.",
+                    arg.arg,
+                    exc_info=e,
+                )
+                arg.annotation = None
+
+    # Remove defaults that can't be compiled
+    new_defaults = []
+    for default in func_def.args.defaults:
+        try:
+            code = compile(ast.Expression(default), "<ast>", "eval")
+            exec(code, namespace)
+            new_defaults.append(default)
+        except Exception as e:
+            logger.debug(
+                "Failed to evaluate default value %s due to the following error. Ignoring default.",
+                default,
+                exc_info=e,
+            )
+            new_defaults.append(
+                ast.Constant(
+                    value=None, lineno=default.lineno, col_offset=default.col_offset
+                )
+            )
+    func_def.args.defaults = new_defaults
+
+    # Remove kw_defaults that can't be compiled
+    new_kw_defaults = []
+    for default in func_def.args.kw_defaults:
+        if default is not None:
+            try:
+                code = compile(ast.Expression(default), "<ast>", "eval")
+                exec(code, namespace)
+                new_kw_defaults.append(default)
+            except Exception as e:
+                logger.debug(
+                    "Failed to evaluate default value %s due to the following error. Ignoring default.",
+                    default,
+                    exc_info=e,
+                )
+                new_kw_defaults.append(
+                    ast.Constant(
+                        value=None,
+                        lineno=default.lineno,
+                        col_offset=default.col_offset,
+                    )
+                )
+        else:
+            new_kw_defaults.append(
+                ast.Constant(
+                    value=None,
+                    lineno=func_def.lineno,
+                    col_offset=func_def.col_offset,
+                )
+            )
+    func_def.args.kw_defaults = new_kw_defaults
+
+    if func_def.returns is not None:
+        try:
+            code = compile(
+                ast.Expression(func_def.returns), filename="<ast>", mode="eval"
+            )
+            exec(code, namespace)
+        except Exception as e:
+            logger.debug(
+                "Failed to evaluate return annotation due to the following error. Ignoring annotation.",
+                exc_info=e,
+            )
+            func_def.returns = None
+
+    # Attempt to compile the function without annotations and defaults that
+    # can't be compiled
+    try:
+        code = compile(
+            ast.Module(body=[func_def], type_ignores=[]),
+            filename="<ast>",
+            mode="exec",
+        )
+        exec(code, namespace)
+    except Exception as e:
+        logger.debug("Failed to compile: %s", e)
+    else:
+        return namespace.get(func_def.name)
+
+
 def load_flow_arguments_from_entrypoint(
     entrypoint: str, arguments: Optional[Union[List[str], Set[str]]] = None
 ) -> dict[str, Any]:
@@ -1991,6 +2146,9 @@ def load_flow_arguments_from_entrypoint(
     """
 
     func_def, source_code = _entrypoint_definition_and_source(entrypoint)
+    path = None
+    if ":" in entrypoint:
+        path = entrypoint.rsplit(":")[0]
 
     if arguments is None:
         # If no arguments are provided default to known arguments that are of
@@ -2026,7 +2184,7 @@ def load_flow_arguments_from_entrypoint(
 
                 # if the arg value is not a raw str (i.e. a variable or expression),
                 # then attempt to evaluate it
-                namespace = safe_load_namespace(source_code)
+                namespace = safe_load_namespace(source_code, filepath=path)
                 literal_arg_value = ast.get_source_segment(source_code, keyword.value)
                 cleaned_value = (
                     literal_arg_value.replace("\n", "") if literal_arg_value else ""
