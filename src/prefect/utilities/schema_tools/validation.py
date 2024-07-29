@@ -253,5 +253,35 @@ def preprocess_schema(
                 process_properties(
                     definition["properties"], required_fields, allow_none_with_default
                 )
+            # Allow block types to be referenced by their id
+            if "block_type_slug" in definition:
+                schema["definitions"][definition["title"]] = {
+                    "oneOf": [
+                        definition,
+                        {
+                            "type": "object",
+                            "properties": {
+                                "$ref": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string",
+                                            "format": "uuid",
+                                        },
+                                        {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string",
+                                            },
+                                            "minProperties": 1,
+                                        },
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "$ref",
+                            ],
+                        },
+                    ]
+                }
 
     return schema

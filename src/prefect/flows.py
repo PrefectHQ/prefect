@@ -95,7 +95,7 @@ from prefect.utilities.callables import (
     parameters_to_args_kwargs,
     raise_for_reserved_arguments,
 )
-from prefect.utilities.collections import listrepr
+from prefect.utilities.collections import listrepr, visit_collection
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
@@ -535,6 +535,21 @@ class Flow(Generic[P, R]):
         Raises:
             ParameterTypeError: if the provided parameters are not valid
         """
+
+        def resolve_block_reference(data: Any) -> Any:
+            if isinstance(data, dict) and "$ref" in data:
+                return Block.load_from_ref(data["$ref"])
+            return data
+
+        try:
+            parameters = visit_collection(
+                parameters, resolve_block_reference, return_data=True
+            )
+        except (ValueError, RuntimeError) as exc:
+            raise ParameterTypeError(
+                "Failed to resolve block references in parameters."
+            ) from exc
+
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         with warnings.catch_warnings():
