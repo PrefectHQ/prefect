@@ -62,6 +62,7 @@ from prefect.settings import (
 )
 from prefect.states import (
     AwaitingRetry,
+    Completed,
     Failed,
     Paused,
     Pending,
@@ -242,6 +243,21 @@ class BaseTaskRunEngine(Generic[P, R]):
         self.logger.log(
             level=level,
             msg=msg,
+        )
+
+    def handle_rollback(self, txn: Transaction) -> None:
+        assert self.task_run is not None
+
+        rolled_back_state = Completed(
+            name="RolledBack",
+            message="Task rolled back as part of transaction",
+        )
+
+        self._last_event = emit_task_run_state_change_event(
+            task_run=self.task_run,
+            initial_state=self.state,
+            validated_state=rolled_back_state,
+            follows=self._last_event,
         )
 
 
@@ -463,7 +479,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[
+            on_rollback_hooks=[self.handle_rollback]
+            + [
                 _with_transaction_hook_logging(hook, "rollback", self.logger)
                 for hook in self.task.on_rollback_hooks
             ],
@@ -1013,7 +1030,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[
+            on_rollback_hooks=[self.handle_rollback]
+            + [
                 _with_transaction_hook_logging(hook, "rollback", self.logger)
                 for hook in self.task.on_rollback_hooks
             ],
