@@ -32,7 +32,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from filelock import FileLock
 from starlette.exceptions import HTTPException
 
 import prefect
@@ -747,7 +746,6 @@ subprocess_server_logger = get_logger()
 
 class SubprocessASGIServer:
     _instances: Dict[Union[int, None], "SubprocessASGIServer"] = {}
-    _lock_file = "/tmp/subprocess_asgi_server.lock"
     _port_range = range(8000, 9000)
 
     def __new__(cls, port: Optional[int] = None, *args, **kwargs):
@@ -775,10 +773,9 @@ class SubprocessASGIServer:
     def find_available_port(self):
         max_attempts = 10
         for _ in range(max_attempts):
-            with FileLock(self._lock_file):
-                port = random.choice(self._port_range)
-                if self.is_port_available(port):
-                    return port
+            port = random.choice(self._port_range)
+            if self.is_port_available(port):
+                return port
             time.sleep(random.uniform(0.1, 0.5))  # Random backoff
         raise RuntimeError("Unable to find an available port after multiple attempts")
 
