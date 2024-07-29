@@ -21,6 +21,8 @@ from prefect.concurrency.asyncio import (
     _acquire_concurrency_slots,
     _release_concurrency_slots,
 )
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
 from prefect.context import (
     EngineContext,
     FlowRunContext,
@@ -32,6 +34,7 @@ from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
 from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
+from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -46,6 +49,7 @@ from prefect.task_engine import (
 )
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
+from prefect.transactions import transaction
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 
@@ -1619,6 +1623,38 @@ class TestTimeout:
         with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             run_task_sync(sync_task)
 
+    async def test_timeout_concurrency_slot_released_sync(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @task(timeout_seconds=0.5)
+        def expensive_task():
+            with concurrency(concurrency_limit_v2.name):
+                time.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            expensive_task()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
+
+    async def test_timeout_concurrency_slot_released_async(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @task(timeout_seconds=0.5)
+        async def expensive_task():
+            async with aconcurrency(concurrency_limit_v2.name):
+                await asyncio.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            await expensive_task()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
+
 
 class TestPersistence:
     async def test_task_can_return_persisted_result(self, prefect_client):
@@ -2306,6 +2342,42 @@ class TestTaskConcurrencyLimits:
                 else:
                     assert acquire_spy.call_count == 0
 
+    async def test_no_tags_no_concurrency(self):
+        @task
+        async def bar():
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.asyncio._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                await bar()
+
+                assert acquire_spy.call_count == 0
+                assert release_spy.call_count == 0
+
+    def test_no_tags_no_concurrency_sync(self):
+        @task
+        def bar():
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.sync._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.sync._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                bar()
+
+                assert acquire_spy.call_count == 0
+                assert release_spy.call_count == 0
+
     async def test_tag_concurrency_does_not_create_limits(
         self, enable_client_side_task_run_orchestration, prefect_client
     ):
@@ -2538,3 +2610,167 @@ class TestRunStateIsDenormalized:
             return proof_that_i_ran
 
         assert the_flow() == proof_that_i_ran
+
+
+class TestTransactionHooks:
+    async def test_task_transitions_to_rolled_back_on_transaction_rollback(
+        self,
+        events_pipeline,
+        prefect_client,
+        enable_client_side_task_run_orchestration,
+    ):
+        if not enable_client_side_task_run_orchestration:
+            pytest.xfail(
+                "The Task Run Recorder is not enabled to handle state transitions via events"
+            )
+
+        task_run_state = None
+
+        @task
+        def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            pass
+
+        @flow
+        def txn_flow():
+            with transaction():
+                nonlocal task_run_state
+                task_run_state = foo(return_state=True)
+                raise ValueError("txn failed")
+
+        txn_flow(return_state=True)
+
+        task_run_id = task_run_state.state_details.task_run_id
+
+        await events_pipeline.process_events()
+        task_run_states = await prefect_client.read_task_run_states(task_run_id)
+
+        state_names = [state.name for state in task_run_states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Completed",
+            "RolledBack",
+        ]
+
+    async def test_task_transitions_to_rolled_back_on_transaction_rollback_async(
+        self,
+        events_pipeline,
+        prefect_client,
+        enable_client_side_task_run_orchestration,
+    ):
+        if not enable_client_side_task_run_orchestration:
+            pytest.xfail(
+                "The Task Run Recorder is not enabled to handle state transitions via events"
+            )
+
+        task_run_state = None
+
+        @task
+        async def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            pass
+
+        @flow
+        async def txn_flow():
+            with transaction():
+                nonlocal task_run_state
+                task_run_state = await foo(return_state=True)
+                raise ValueError("txn failed")
+
+        await txn_flow(return_state=True)
+
+        task_run_id = task_run_state.state_details.task_run_id
+
+        await events_pipeline.process_events()
+        task_run_states = await prefect_client.read_task_run_states(task_run_id)
+
+        state_names = [state.name for state in task_run_states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Completed",
+            "RolledBack",
+        ]
+
+    def test_rollback_errors_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            raise RuntimeError("whoops!")
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+                raise ValueError("txn failed")
+
+        txn_flow(return_state=True)
+        assert "An error was encountered while running rollback hook" in caplog.text
+        assert "RuntimeError" in caplog.text
+        assert "whoops!" in caplog.text
+
+    def test_rollback_hook_execution_and_completion_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            pass
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+                raise ValueError("txn failed")
+
+        txn_flow(return_state=True)
+        assert "Running rollback hook 'rollback'" in caplog.text
+        assert "Rollback hook 'rollback' finished running successfully" in caplog.text
+
+    def test_commit_errors_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_commit
+        def rollback(txn):
+            raise RuntimeError("whoops!")
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+
+        txn_flow(return_state=True)
+        assert "An error was encountered while running commit hook" in caplog.text
+        assert "RuntimeError" in caplog.text
+        assert "whoops!" in caplog.text
+
+    def test_commit_hook_execution_and_completion_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_commit
+        def commit(txn):
+            pass
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+
+        txn_flow(return_state=True)
+        assert "Running commit hook 'commit'" in caplog.text
+        assert "Commit hook 'commit' finished running successfully" in caplog.text

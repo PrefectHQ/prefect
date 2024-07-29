@@ -35,6 +35,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.sync import concurrency
 from prefect.context import (
     AsyncClientContext,
@@ -62,6 +63,7 @@ from prefect.settings import (
 )
 from prefect.states import (
     AwaitingRetry,
+    Completed,
     Failed,
     Paused,
     Pending,
@@ -242,6 +244,21 @@ class BaseTaskRunEngine(Generic[P, R]):
         self.logger.log(
             level=level,
             msg=msg,
+        )
+
+    def handle_rollback(self, txn: Transaction) -> None:
+        assert self.task_run is not None
+
+        rolled_back_state = Completed(
+            name="RolledBack",
+            message="Task rolled back as part of transaction",
+        )
+
+        self._last_event = emit_task_run_state_change_event(
+            task_run=self.task_run,
+            initial_state=self.state,
+            validated_state=rolled_back_state,
+            follows=self._last_event,
         )
 
 
@@ -463,7 +480,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[
+            on_rollback_hooks=[self.handle_rollback]
+            + [
                 _with_transaction_hook_logging(hook, "rollback", self.logger)
                 for hook in self.task.on_rollback_hooks
             ],
@@ -592,6 +610,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     client=client,
                 )
             )
+            stack.enter_context(ConcurrencyContext())
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
@@ -785,7 +804,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value():
+            if (
+                PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value()
+                and self.task.tags
+            ):
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
                 with concurrency(
@@ -1010,7 +1032,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[
+            on_rollback_hooks=[self.handle_rollback]
+            + [
                 _with_transaction_hook_logging(hook, "rollback", self.logger)
                 for hook in self.task.on_rollback_hooks
             ],
@@ -1137,6 +1160,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     client=client,
                 )
             )
+            stack.enter_context(ConcurrencyContext())
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
@@ -1328,7 +1352,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value():
+            if (
+                PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value()
+                and self.task.tags
+            ):
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
                 async with aconcurrency(
