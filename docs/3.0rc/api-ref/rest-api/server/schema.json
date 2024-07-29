@@ -22522,6 +22522,21 @@
                         "exclusiveMinimum": 0.0,
                         "title": "Prefect Events Websocket Backfill Page Size",
                         "default": 250
+                    },
+                    "PREFECT_API_ENABLE_METRICS": {
+                        "type": "boolean",
+                        "title": "Prefect Api Enable Metrics",
+                        "default": false
+                    },
+                    "PREFECT_CLIENT_ENABLE_METRICS": {
+                        "type": "boolean",
+                        "title": "Prefect Client Enable Metrics",
+                        "default": false
+                    },
+                    "PREFECT_CLIENT_METRICS_PORT": {
+                        "type": "integer",
+                        "title": "Prefect Client Metrics Port",
+                        "default": 4201
                     }
                 },
                 "type": "object",

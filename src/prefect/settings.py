@@ -1561,6 +1561,26 @@ The page size for the queries to backfill events for websocket subscribers
 """
 
 
+# Metrics settings
+
+PREFECT_API_ENABLE_METRICS = Setting(bool, default=False)
+"""
+Whether or not to enable Prometheus metrics in the server application.  Metrics are
+served at the path /api/metrics on the API server.
+"""
+
+PREFECT_CLIENT_ENABLE_METRICS = Setting(bool, default=False)
+"""
+Whether or not to enable Prometheus metrics in the client SDK.  Metrics are served
+at the path /metrics.
+"""
+
+PREFECT_CLIENT_METRICS_PORT = Setting(int, default=4201)
+"""
+The port to expose the client Prometheus metrics on.
+"""
+
+
 # Deprecated settings ------------------------------------------------------------------
 
 
