@@ -4178,7 +4178,6 @@ class TestSafeLoadFlowFromEntrypoint:
 
         assert result is not None
         assert parameter_schema(result).dict() == {
-            "definitions": {},
             "properties": {"name": {"position": 0, "title": "name", "type": "string"}},
             "required": ["name"],
             "title": "Parameters",
