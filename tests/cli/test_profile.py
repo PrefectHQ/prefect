@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import pytest
+import readchar
 import respx
 from httpx import Response
 
@@ -12,6 +13,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
+    _read_profiles_from,
     load_profiles,
     save_profiles,
     temporary_settings,
@@ -581,3 +583,66 @@ def test_inspect_profile_without_settings():
             Profile 'foo' is empty.
             """,
     )
+
+
+def test_populate_defaults(tmp_path, monkeypatch):
+    # Set up a temporary profiles path
+    temp_profiles_path = tmp_path / "profiles.toml"
+    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+
+    default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
+
+    assert not temp_profiles_path.exists()
+
+    invoke_and_assert(
+        ["profile", "populate-defaults"],
+        user_input="y",
+        expected_output_contains=[
+            f"Profiles updated in {temp_profiles_path}",
+            "Use with prefect profile use [PROFILE-NAME]",
+        ],
+    )
+
+    assert temp_profiles_path.exists()
+
+    populated_profiles = load_profiles()
+
+    assert populated_profiles.names == default_profiles.names
+    assert populated_profiles.active_name == default_profiles.active_name
+
+    assert {"local", "ephemeral", "cloud", "default"} == set(populated_profiles.names)
+
+    for name in default_profiles.names:
+        assert populated_profiles[name].settings == default_profiles[name].settings
+
+
+def test_populate_defaults_with_existing_profiles(tmp_path, monkeypatch):
+    temp_profiles_path = tmp_path / "profiles.toml"
+    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+
+    existing_profiles = ProfilesCollection(
+        profiles=[Profile(name="existing", settings={PREFECT_API_KEY: "test_key"})],
+        active="existing",
+    )
+    save_profiles(existing_profiles)
+
+    invoke_and_assert(
+        ["profile", "populate-defaults"],
+        user_input=(
+            "y" + readchar.key.ENTER + "y" + readchar.key.ENTER
+        ),  # Confirm overwrite and backup
+        expected_output_contains=[
+            "Update profiles at",
+            f"Profiles backed up to {temp_profiles_path}.bak",
+            f"Profiles updated in {temp_profiles_path}",
+        ],
+    )
+
+    new_profiles = load_profiles()
+    assert {"local", "ephemeral", "cloud", "default", "existing"} == set(
+        new_profiles.names
+    )
+
+    backup_profiles = _read_profiles_from(temp_profiles_path.with_suffix(".toml.bak"))
+    assert "existing" in backup_profiles.names
+    assert backup_profiles["existing"].settings == {PREFECT_API_KEY: "test_key"}
