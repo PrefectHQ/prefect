@@ -2585,6 +2585,49 @@ class TestTransactionHooks:
             "RolledBack",
         ]
 
+    async def test_task_transitions_to_rolled_back_on_transaction_rollback_async(
+        self,
+        events_pipeline,
+        prefect_client,
+        enable_client_side_task_run_orchestration,
+    ):
+        if not enable_client_side_task_run_orchestration:
+            pytest.xfail(
+                "The Task Run Recorder is not enabled to handle state transitions via events"
+            )
+
+        task_run_state = None
+
+        @task
+        async def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            pass
+
+        @flow
+        async def txn_flow():
+            with transaction():
+                nonlocal task_run_state
+                task_run_state = await foo(return_state=True)
+                raise ValueError("txn failed")
+
+        await txn_flow(return_state=True)
+
+        task_run_id = task_run_state.state_details.task_run_id
+
+        await events_pipeline.process_events()
+        task_run_states = await prefect_client.read_task_run_states(task_run_id)
+
+        state_names = [state.name for state in task_run_states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Completed",
+            "RolledBack",
+        ]
+
     def test_rollback_errors_are_logged(self, caplog):
         @task
         def foo():

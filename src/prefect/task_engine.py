@@ -245,6 +245,21 @@ class BaseTaskRunEngine(Generic[P, R]):
             msg=msg,
         )
 
+    def handle_rollback(self, txn: Transaction) -> None:
+        assert self.task_run is not None
+
+        rolled_back_state = Completed(
+            name="RolledBack",
+            message="Task rolled back as part of transaction",
+        )
+
+        self._last_event = emit_task_run_state_change_event(
+            task_run=self.task_run,
+            initial_state=self.state,
+            validated_state=rolled_back_state,
+            follows=self._last_event,
+        )
+
 
 @dataclass
 class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
@@ -574,21 +589,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(state)
         self.set_state(state, force=True)
         self._raised = exc
-
-    def handle_rollback(self, txn: Transaction) -> None:
-        assert self.task_run is not None
-
-        rolled_back_state = Completed(
-            name="RolledBack",
-            message="Task rolled back as part of transaction",
-        )
-
-        self._last_event = emit_task_run_state_change_event(
-            task_run=self.task_run,
-            initial_state=self.state,
-            validated_state=rolled_back_state,
-            follows=self._last_event,
-        )
 
     def record_terminal_state_timing(self, state: State) -> None:
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
@@ -1045,7 +1045,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[
+            on_rollback_hooks=[self.handle_rollback]
+            + [
                 _with_transaction_hook_logging(hook, "rollback", self.logger)
                 for hook in self.task.on_rollback_hooks
             ],
