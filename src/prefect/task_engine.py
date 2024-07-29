@@ -392,11 +392,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             time.sleep(interval)
             state = self.set_state(new_state)
 
-    def set_state(
-        self,
-        state: State,
-        force: bool = False,
-    ) -> State:
+    def set_state(self, state: State, force: bool = False) -> State:
         last_state = self.state
         if not self.task_run:
             raise ValueError("Task run is not set")
@@ -415,10 +411,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         else:
             try:
                 new_state = propose_state_sync(
-                    self.client,
-                    state,
-                    task_run_id=self.task_run.id,
-                    force=force,
+                    self.client, state, task_run_id=self.task_run.id, force=force
                 )
             except Pause as exc:
                 # We shouldn't get a pause signal without a state, but if this happens,
