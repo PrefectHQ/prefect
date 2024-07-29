@@ -17,7 +17,7 @@ import asyncpg
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from fastapi import APIRouter, Depends, FastAPI, Request, status
+from fastapi import APIRouter, Depends, FastAPI, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -693,6 +693,13 @@ def create_app(
 
     if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():
         app.add_middleware(api.middleware.CsrfMiddleware)
+
+    if prefect.settings.PREFECT_API_ENABLE_METRICS:
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+        @api_app.get("/metrics")
+        async def metrics():
+            return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     api_app.mount(
         "/static",
