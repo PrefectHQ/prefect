@@ -15,6 +15,7 @@ import prefect
 import prefect.task_engine
 import tests
 from prefect import flow, task
+from prefect.futures import as_completed
 from prefect.states import State, StateType
 from prefect.testing.fixtures import (  # noqa: F401
     hosted_api_server,
@@ -370,6 +371,24 @@ class TestRayTaskRunner:
         assert ax.type == StateType.FAILED
         assert bx.type == StateType.PENDING
         assert cx.type == StateType.COMPLETED
+
+    def test_as_completed_yields_correct_order(self, task_runner):
+        @task
+        def task_a(seconds):
+            time.sleep(seconds)
+            return seconds
+
+        timings = [1, 5, 10]
+
+        @flow(version="test", task_runner=task_runner)
+        def test_flow():
+            done_futures = []
+            futures = [task_a.submit(seconds) for seconds in reversed(timings)]
+            for future in as_completed(futures=futures):
+                done_futures.append(future.result())
+            assert done_futures[-1] == timings[-1]
+
+        test_flow()
 
     def get_sleep_time(self) -> float:
         """

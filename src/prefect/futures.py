@@ -2,10 +2,11 @@ import abc
 import collections
 import concurrent.futures
 import inspect
+import threading
 import uuid
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from functools import partial
-from typing import Any, Generic, List, Optional, Set, Union, cast
+from typing import Any, Callable, Generic, List, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
@@ -91,6 +92,16 @@ class PrefectFuture(abc.ABC, Generic[R]):
             The result of the task run.
         """
 
+    @abc.abstractmethod
+    def add_done_callback(self, fn):
+        """
+        Add a callback to be run when the future completes or is cancelled.
+
+        Args:
+            fn: A callable that will be called with this future as its only argument when the future completes or is cancelled.
+        """
+        ...
+
 
 class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
     """
@@ -105,6 +116,17 @@ class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
     def wrapped_future(self) -> F:
         """The underlying future object wrapped by this Prefect future"""
         return self._wrapped_future
+
+    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+        if not self._final_state:
+
+            def call_with_self(future):
+                """Call the callback with self as the argument, this is necessary to ensure we remove the future from the pending set"""
+                fn(self)
+
+            self._wrapped_future.add_done_callback(call_with_self)
+            return
+        fn(self)
 
 
 class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]):
@@ -138,6 +160,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
 
             if isinstance(future_result, State):
                 self._final_state = future_result
+
             else:
                 return future_result
 
@@ -171,6 +194,9 @@ class PrefectDistributedFuture(PrefectFuture[R]):
     scheduled to run in a Prefect task worker but can be used to interact with
     any task run scheduled in Prefect's API.
     """
+
+    done_callbacks: List[Callable[[PrefectFuture], None]] = []
+    waiter = None
 
     @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
@@ -235,10 +261,26 @@ class PrefectDistributedFuture(PrefectFuture[R]):
             raise_on_failure=raise_on_failure, fetch=True
         )
 
+    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+        if self._final_state:
+            fn(self)
+            return
+        TaskRunWaiter.instance()
+        with get_client(sync_client=True) as client:
+            task_run = client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state.is_final():
+                self._final_state = task_run.state
+                fn(self)
+                return
+            TaskRunWaiter.add_done_callback(self._task_run_id, partial(fn, self))
+
     def __eq__(self, other):
         if not isinstance(other, PrefectDistributedFuture):
             return False
         return self.task_run_id == other.task_run_id
+
+    def __hash__(self):
+        return hash(self.task_run_id)
 
 
 class PrefectFutureList(list, Iterator, Generic[F]):
@@ -290,6 +332,46 @@ class PrefectFutureList(list, Iterator, Generic[F]):
             raise TimeoutError(
                 f"Timed out waiting for all futures to complete within {timeout} seconds"
             ) from exc
+
+
+def as_completed(
+    futures: List[PrefectFuture], timeout: Optional[float] = None
+) -> Generator[PrefectFuture, None]:
+    unique_futures: Set[PrefectFuture] = set(futures)
+    total_futures = len(unique_futures)
+    try:
+        with timeout_context(timeout):
+            done = {f for f in unique_futures if f._final_state}
+            pending = unique_futures - done
+            yield from done
+
+            finished_event = threading.Event()
+            finished_lock = threading.Lock()
+            finished_futures = []
+
+            def add_to_done(future):
+                with finished_lock:
+                    finished_futures.append(future)
+                    finished_event.set()
+
+            for future in pending:
+                future.add_done_callback(add_to_done)
+
+            while pending:
+                finished_event.wait()
+                with finished_lock:
+                    done = finished_futures
+                    finished_futures = []
+                    finished_event.clear()
+
+                for future in done:
+                    pending.remove(future)
+                    yield future
+
+    except TimeoutError:
+        raise TimeoutError(
+            "%d (of %d) futures unfinished" % (len(pending), total_futures)
+        )
 
 
 DoneAndNotDoneFutures = collections.namedtuple("DoneAndNotDoneFutures", "done not_done")

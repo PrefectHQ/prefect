@@ -4,13 +4,13 @@
       <PageHeadingDeploymentEdit :deployment="deployment" />
     </template>
 
-    <DeploymentFormV2 :deployment="deployment" @cancel="cancel" @submit="submit" />
+    <DeploymentForm :deployment="deployment" @cancel="cancel" @submit="submit" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/prefect-design'
-  import { PageHeadingDeploymentEdit, useWorkspaceApi, DeploymentUpdateV2, getApiErrorMessage, DeploymentFormV2 } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingDeploymentEdit, useWorkspaceApi, DeploymentUpdateV2, getApiErrorMessage, DeploymentForm } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'

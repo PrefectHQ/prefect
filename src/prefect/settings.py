@@ -481,18 +481,6 @@ PREFECT_HOME = Setting(
 directory may be created automatically when required.
 """
 
-PREFECT_EXTRA_ENTRYPOINTS = Setting(
-    str,
-    default="",
-)
-"""
-Modules for Prefect to import when Prefect is imported.
-
-Values should be separated by commas, e.g. `my_module,my_other_module`.
-Objects within modules may be specified by a ':' partition, e.g. `my_module:my_object`.
-If a callable object is provided, it will be called with no arguments on import.
-"""
-
 PREFECT_DEBUG_MODE = Setting(
     bool,
     default=False,
@@ -1395,11 +1383,6 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 The port the worker's webserver should bind to.
 """
 
-PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to start the task scheduling service in the server application.
-"""
-
 PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(Optional[str], default=None)
 """The `block-type/block-document` slug of a block to use as the default storage
 for autonomous tasks."""
@@ -1436,11 +1419,6 @@ PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
 How long before a PENDING task are made available to another task worker.  In practice,
 a task worker should move a task from PENDING to RUNNING very quickly, so runs stuck in
 PENDING for a while is a sign that the task worker may have crashed.
-"""
-
-PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
-"""
-Whether or not to disable the sync_compatible decorator utility.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
