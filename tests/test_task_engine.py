@@ -6,6 +6,7 @@ import time
 from datetime import timedelta
 from pathlib import Path
 from typing import List, Optional
+from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, call
 from uuid import UUID, uuid4
 
@@ -16,6 +17,10 @@ from prefect import Task, flow, task
 from prefect.cache_policies import FLOW_PARAMETERS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
+from prefect.concurrency.asyncio import (
+    _acquire_concurrency_slots,
+    _release_concurrency_slots,
+)
 from prefect.context import (
     EngineContext,
     FlowRunContext,
@@ -33,7 +38,12 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Running, State
-from prefect.task_engine import TaskRunEngine, run_task_async, run_task_sync
+from prefect.task_engine import (
+    AsyncTaskRunEngine,
+    SyncTaskRunEngine,
+    run_task_async,
+    run_task_sync,
+)
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
@@ -56,23 +66,45 @@ async def foo():
     return 42
 
 
-class TestTaskRunEngine:
+class TestSyncTaskRunEngine:
     async def test_basic_init(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         assert isinstance(engine.task, Task)
         assert engine.task.name == "foo"
         assert engine.parameters == {}
 
     async def test_client_attribute_raises_informative_error(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
     async def test_client_attr_returns_client_after_starting(self):
-        engine = TaskRunEngine(task=foo)
+        engine = SyncTaskRunEngine(task=foo)
         with engine.initialize_run():
             client = engine.client
             assert isinstance(client, SyncPrefectClient)
+
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
+
+
+class TestAsyncTaskRunEngine:
+    async def test_basic_init(self):
+        engine = AsyncTaskRunEngine(task=foo)
+        assert isinstance(engine.task, Task)
+        assert engine.task.name == "foo"
+        assert engine.parameters == {}
+
+    async def test_client_attribute_raises_informative_error(self):
+        engine = AsyncTaskRunEngine(task=foo)
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
+
+    async def test_client_attr_returns_client_after_starting(self):
+        engine = AsyncTaskRunEngine(task=foo)
+        async with engine.initialize_run():
+            client = engine.client
+            assert isinstance(client, PrefectClient)
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
@@ -1163,11 +1195,36 @@ class TestTaskCrashDetection:
             await task_run.state.result()
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
-    async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
+    async def test_interrupt_in_task_orchestration_crashes_task_and_flow_sync(
         self, prefect_client, events_pipeline, interrupt_type, monkeypatch
     ):
         monkeypatch.setattr(
-            TaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
+            SyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
+        )
+
+        @task
+        def my_task():
+            pass
+
+        with pytest.raises(interrupt_type):
+            my_task()
+
+        await events_pipeline.process_events()
+        task_runs = await prefect_client.read_task_runs()
+        assert len(task_runs) == 1
+        task_run = task_runs[0]
+        assert task_run.state.is_crashed()
+        assert task_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in task_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await task_run.state.result()
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_task_orchestration_crashes_task_and_flow_async(
+        self, prefect_client, events_pipeline, interrupt_type, monkeypatch
+    ):
+        monkeypatch.setattr(
+            AsyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
 
         @task
@@ -1361,7 +1418,7 @@ class TestTaskTimeTracking:
         self, monkeypatch, prefect_client, events_pipeline
     ):
         monkeypatch.setattr(
-            TaskRunEngine, "begin_run", MagicMock(side_effect=SystemExit)
+            SyncTaskRunEngine, "begin_run", MagicMock(side_effect=SystemExit)
         )
 
         @task
@@ -1382,7 +1439,7 @@ class TestTaskTimeTracking:
         self, monkeypatch, prefect_client, events_pipeline
     ):
         monkeypatch.setattr(
-            TaskRunEngine, "begin_run", MagicMock(side_effect=SystemExit)
+            AsyncTaskRunEngine, "begin_run", MagicMock(side_effect=SystemExit)
         )
 
         @task
@@ -2192,6 +2249,85 @@ class TestAsyncGenerators:
         except ValueError:
             pass
         assert values == [1, 2]
+
+
+class TestTaskConcurrencyLimits:
+    async def test_tag_concurrency(self, enable_client_side_task_run_orchestration):
+        @task(tags=["limit-tag"])
+        async def bar():
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.asyncio._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                await bar()
+
+                if enable_client_side_task_run_orchestration:
+                    acquire_spy.assert_called_once_with(
+                        ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    )
+
+                    names, occupy, occupy_seconds = release_spy.call_args[0]
+                    assert names == ["limit-tag"]
+                    assert occupy == 1
+                    assert occupy_seconds > 0
+                else:
+                    assert acquire_spy.call_count == 0
+
+    def test_tag_concurrency_sync(self, enable_client_side_task_run_orchestration):
+        @task(tags=["limit-tag"])
+        def bar():
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.sync._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.sync._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                bar()
+
+                if enable_client_side_task_run_orchestration:
+                    acquire_spy.assert_called_once_with(
+                        ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    )
+
+                    names, occupy, occupy_seconds = release_spy.call_args[0]
+                    assert names == ["limit-tag"]
+                    assert occupy == 1
+                    assert occupy_seconds > 0
+                else:
+                    assert acquire_spy.call_count == 0
+
+    async def test_tag_concurrency_does_not_create_limits(
+        self, enable_client_side_task_run_orchestration, prefect_client
+    ):
+        @task(tags=["limit-tag"])
+        async def bar():
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            await bar()
+
+            if enable_client_side_task_run_orchestration:
+                acquire_spy.assert_called_once_with(
+                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                )
+
+                limits = await prefect_client.read_concurrency_limits(10, 0)
+                assert len(limits) == 0
+            else:
+                assert acquire_spy.call_count == 0
 
 
 class TestRunStateIsDenormalized:
