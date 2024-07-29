@@ -23,15 +23,19 @@ def reset_imports():
 @pytest.mark.benchmark(group="imports")
 def bench_import_prefect(benchmark: BenchmarkFixture):
     def import_prefect():
+        reset_imports()
+
         import prefect  # noqa
 
-    benchmark.pedantic(import_prefect, setup=reset_imports, rounds=15)
+    benchmark(import_prefect)
 
 
 @pytest.mark.timeout(180)
 @pytest.mark.benchmark(group="imports")
 def bench_import_prefect_flow(benchmark: BenchmarkFixture):
     def import_prefect_flow():
+        reset_imports()
+
         from prefect import flow  # noqa
 
-    benchmark.pedantic(import_prefect_flow, setup=reset_imports, rounds=15)
+    benchmark(import_prefect_flow)
