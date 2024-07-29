@@ -2145,10 +2145,10 @@ def load_current_profile():
     This will _not_ include settings from the current settings context. Only settings
     that have been persisted to the profiles file will be saved.
     """
-    from prefect.context import SettingsContext
+    import prefect.context
 
     profiles = load_profiles()
-    context = SettingsContext.get()
+    context = prefect.context.get_settings_context()
 
     if context:
         profiles.set_active(context.profile.name)
