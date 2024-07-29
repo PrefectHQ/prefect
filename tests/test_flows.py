@@ -5046,3 +5046,22 @@ class TestSafeLoadFlowFromEntrypoint:
         result = safe_load_flow_from_entrypoint(entrypoint)
         assert result is not None
         assert result().param == 1
+
+    def test_raises_name_error_when_loaded_flow_cannot_run(self, tmp_path):
+        source_code = dedent(
+            """
+        from not_a_module import not_a_function
+
+        from prefect import flow
+
+        @flow(description="Says woof!")
+        def dog():
+            return not_a_function('dog')        
+            """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        entrypoint = f"{tmp_path.joinpath('test.py')}:dog"
+
+        with pytest.raises(NameError, match="name 'not_a_function' is not defined"):
+            safe_load_flow_from_entrypoint(entrypoint)()
