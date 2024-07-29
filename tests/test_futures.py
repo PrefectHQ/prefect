@@ -15,11 +15,13 @@ from prefect.futures import (
     PrefectFuture,
     PrefectFutureList,
     PrefectWrappedFuture,
+    as_completed,
     resolve_futures_to_states,
     wait,
 )
 from prefect.states import Completed, Failed
 from prefect.task_engine import run_task_async, run_task_sync
+from prefect.task_runners import ThreadPoolTaskRunner
 
 
 class MockFuture(PrefectWrappedFuture):
@@ -54,6 +56,104 @@ class TestUtilityFunctions:
         mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
         futures = wait(mock_futures, timeout=0.01)
         assert futures.not_done == {mock_futures[-1]}
+
+    def test_as_completed(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        for future in as_completed(mock_futures):
+            assert future.state.is_completed()
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_with_timeout(self):
+        mock_futures = [MockFuture(data=i) for i in range(5)]
+        hanging_future = Future()
+        mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
+
+        with pytest.raises(TimeoutError) as exc_info:
+            for future in as_completed(mock_futures, timeout=0.01):
+                assert future.state.is_completed()
+
+        assert (
+            exc_info.value.args[0] == f"1 (of {len(mock_futures)}) futures unfinished"
+        )
+
+    # @pytest.mark.timeout(method="thread")
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    def test_as_completed_yields_correct_order(self):
+        @task
+        def my_test_task(seconds):
+            import time
+
+            time.sleep(seconds)
+            return seconds
+
+        with ThreadPoolTaskRunner() as runner:
+            futures = []
+            timings = [1, 5, 10]
+
+            for i in reversed(timings):
+                parameters = {"seconds": i}
+                future = runner.submit(my_test_task, parameters)
+                future.parameters = parameters
+                futures.append(future)
+            results = []
+            for future in as_completed(futures):
+                results.append(future.result())
+            assert results == timings
+
+    def test_as_completed_timeout(self, caplog):
+        @task
+        def my_test_task(seconds):
+            import time
+
+            time.sleep(seconds)
+            return seconds
+
+        with ThreadPoolTaskRunner() as runner:
+            futures = []
+            timings = [1, 5, 10]
+
+            for i in reversed(timings):
+                parameters = {"seconds": i}
+                future = runner.submit(my_test_task, parameters)
+                future.parameters = parameters
+                futures.append(future)
+            results = []
+            with pytest.raises(TimeoutError) as exc_info:
+                for future in as_completed(futures, timeout=5):
+                    results.append(future.result())
+            assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
+
+    @pytest.mark.skip("Currently failing inconsistently")
+    async def test_as_completed_yields_correct_order_dist(self, task_run):
+        @task
+        async def my_task(seconds):
+            import time
+
+            time.sleep(seconds)
+            return seconds
+
+        futures = []
+        timings = [1, 5, 10]
+        for i in reversed(timings):
+            task_run = await my_task.create_run(parameters={"seconds": i})
+            future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+            futures.append(future)
+            asyncio.create_task(
+                run_task_async(
+                    task=my_task,
+                    task_run_id=future.task_run_id,
+                    task_run=task_run,
+                    parameters={"seconds": i},
+                    return_type="state",
+                )
+            )
+        results = []
+        with pytest.raises(MissingResult):
+            for future in as_completed(futures):
+                results.append(future.result())
+
+            assert results == timings
 
 
 class TestPrefectConcurrentFuture:

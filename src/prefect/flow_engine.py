@@ -29,7 +29,7 @@ from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import ClientContext, FlowRunContext, TagsContext
+from prefect.context import FlowRunContext, SyncClientContext, TagsContext
 from prefect.exceptions import (
     Abort,
     Pause,
@@ -529,8 +529,8 @@ class FlowRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a flow run if needed.
         """
-        with ClientContext.get_or_create() as client_ctx:
-            self._client = client_ctx.sync_client
+        with SyncClientContext.get_or_create() as client_ctx:
+            self._client = client_ctx.client
             self._is_started = True
 
             if not self.flow_run:
