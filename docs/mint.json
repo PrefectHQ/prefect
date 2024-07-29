@@ -412,6 +412,7 @@
                     "3.0rc/api-ref/rest-api/server/flow-runs/read-flow-run-input",
                     "3.0rc/api-ref/rest-api/server/flow-runs/delete-flow-run-input",
                     "3.0rc/api-ref/rest-api/server/flow-runs/paginate-flow-runs",
+                    "3.0rc/api-ref/rest-api/server/flow-runs/download-logs",
                     "3.0rc/api-ref/rest-api/server/flow-runs/read-flow-run-history",
                     "3.0rc/api-ref/rest-api/server/flow-runs/count-task-runs-by-flow-run"
                   ]
