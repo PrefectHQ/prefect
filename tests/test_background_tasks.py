@@ -180,10 +180,10 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
 
 
 async def test_scheduled_tasks_are_enqueued_server_side(
-    foo_task_with_result_storage: Task, prefect_client
+    foo_task_with_result_storage: Task, in_memory_prefect_client: "PrefectClient"
 ):
     task_run_future = foo_task_with_result_storage.apply_async((42,))
-    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+    task_run = await in_memory_prefect_client.read_task_run(task_run_future.task_run_id)
     client_run: TaskRun = task_run
     assert client_run.state.is_scheduled()
 
@@ -237,16 +237,22 @@ def enabled_task_scheduling_pending_task_timeout():
 
 async def test_scheduled_tasks_are_restored_at_server_startup(
     foo_task_with_result_storage: Task,
-    prefect_client: "PrefectClient",
+    in_memory_prefect_client: "PrefectClient",
     enabled_task_scheduling_pending_task_timeout: None,
+    monkeypatch,
 ):
+    # Need to mock `get_client` to return the in-memory client because we are directly inspecting
+    # changes in the server-side task queue. Ideally, we'd be able to inspect the task queue via
+    # the REST API for this test, but that's not currently possible.
+    # TODO: Add ways to inspect the task queue via the REST API
+    monkeypatch.setattr(get_client, lambda: in_memory_prefect_client)
     # run one iteration of the timeouts service
     service = TaskSchedulingTimeouts()
     await service.start(loops=1)
 
     # schedule a task
     task_run_future = foo_task_with_result_storage.apply_async((42,))
-    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+    task_run = await in_memory_prefect_client.read_task_run(task_run_future.task_run_id)
     assert task_run.state.is_scheduled()
 
     # pull the task from the queue to make sure it's cleared; this simulates when a task
@@ -270,7 +276,7 @@ async def test_scheduled_tasks_are_restored_at_server_startup(
     await service.start(loops=1)
 
     # the task will still be SCHEDULED
-    task_run = await prefect_client.read_task_run(task_run.id)
+    task_run = await in_memory_prefect_client.read_task_run(task_run.id)
     assert task_run.state.type == StateType.SCHEDULED
 
     # ...and it should be re-enqueued

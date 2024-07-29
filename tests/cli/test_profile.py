@@ -67,7 +67,7 @@ class TestChangingProfileAndCheckingOrionConnection:
                 ),
                 Profile(
                     name="ephemeral-prefect",
-                    settings={},
+                    settings={"PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": True},
                 ),
             ],
             active=None,
@@ -201,7 +201,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         profiles = load_profiles()
         assert profiles.active_name == "hosted-orion"
 
-    def test_using_ephemeral_orion(self, profiles):
+    def test_using_ephemeral_server(self, profiles):
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "ephemeral-prefect"],
