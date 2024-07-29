@@ -1,7 +1,9 @@
 import importlib
 import sys
 
+import prometheus_client
 import pytest
+from prometheus_client import CollectorRegistry
 
 
 @pytest.mark.benchmark(group="imports")
@@ -15,6 +17,9 @@ def bench_import_prefect(benchmark):
 
         # Clear importlib cache
         importlib.invalidate_caches()
+
+        # reset the prometheus registry to clear any previously measured metrics
+        prometheus_client.REGISTRY = CollectorRegistry(auto_describe=True)
 
         import prefect  # noqa
 
@@ -33,6 +38,9 @@ def bench_import_prefect_flow(benchmark):
 
         # Clear importlib cache
         importlib.invalidate_caches()
+
+        # reset the prometheus registry to clear any previously measured metrics
+        prometheus_client.REGISTRY = CollectorRegistry(auto_describe=True)
 
         from prefect import flow  # noqa
 
