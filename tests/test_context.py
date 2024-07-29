@@ -299,7 +299,7 @@ class TestSettingsContext:
             Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
             override_environment_variables=False,
         )
-        use_profile().__enter__.assert_called_once_with()
+        use_profile().__enter__.assert_called_once()
         assert result is not None
 
     @pytest.mark.parametrize(
