@@ -57,14 +57,14 @@ from prefect.deployments.base import (
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
-from prefect.flows import load_flow_arguments_from_entrypoint
+from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.callables import (
-    parameter_schema_from_entrypoint,
+    parameter_schema,
 )
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.slugify import slugify
@@ -471,11 +471,9 @@ async def _run_single_deploy(
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
 
-    flow_decorator_arguments = load_flow_arguments_from_entrypoint(
-        deploy_config["entrypoint"], arguments={"name", "description"}
-    )
+    flow = load_flow_from_entrypoint(deploy_config["entrypoint"])
 
-    deploy_config["flow_name"] = flow_decorator_arguments["name"]
+    deploy_config["flow_name"] = flow.name
 
     deployment_name = deploy_config.get("name")
     if not deployment_name:
@@ -483,9 +481,7 @@ async def _run_single_deploy(
             raise ValueError("A deployment name must be provided.")
         deploy_config["name"] = prompt("Deployment name", default="default")
 
-    deploy_config["parameter_openapi_schema"] = parameter_schema_from_entrypoint(
-        deploy_config["entrypoint"]
-    )
+    deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
     deploy_config["schedules"] = _construct_schedules(
         deploy_config,
@@ -654,7 +650,7 @@ async def _run_single_deploy(
         deploy_config["work_pool"]["job_variables"]["image"] = "{{ build-image.image }}"
 
     if not deploy_config.get("description"):
-        deploy_config["description"] = flow_decorator_arguments.get("description")
+        deploy_config["description"] = flow.description
 
     # save deploy_config before templating
     deploy_config_before_templating = deepcopy(deploy_config)

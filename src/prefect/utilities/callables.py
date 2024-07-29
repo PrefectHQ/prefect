@@ -364,17 +364,19 @@ def parameter_schema_from_entrypoint(entrypoint: str) -> ParameterSchema:
     Returns:
         ParameterSchema: The parameter schema for the function.
     """
+    filepath = None
     if ":" in entrypoint:
         # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
         path, func_name = entrypoint.rsplit(":", maxsplit=1)
         source_code = Path(path).read_text()
+        filepath = path
     else:
         path, func_name = entrypoint.rsplit(".", maxsplit=1)
         spec = importlib.util.find_spec(path)
         if not spec or not spec.origin:
             raise ValueError(f"Could not find module {path!r}")
         source_code = Path(spec.origin).read_text()
-    signature = _generate_signature_from_source(source_code, func_name)
+    signature = _generate_signature_from_source(source_code, func_name, filepath)
     docstring = _get_docstring_from_source(source_code, func_name)
     return generate_parameter_schema(signature, parameter_docstrings(docstring))
 
@@ -444,7 +446,7 @@ def raise_for_reserved_arguments(fn: Callable, reserved_arguments: Iterable[str]
 
 
 def _generate_signature_from_source(
-    source_code: str, func_name: str
+    source_code: str, func_name: str, filepath: Optional[str] = None
 ) -> inspect.Signature:
     """
     Extract the signature of a function from its source code.
@@ -460,7 +462,7 @@ def _generate_signature_from_source(
     """
     # Load the namespace from the source code. Missing imports and exceptions while
     # loading local class definitions are ignored.
-    namespace = safe_load_namespace(source_code)
+    namespace = safe_load_namespace(source_code, filepath=filepath)
     # Parse the source code into an AST
     parsed_code = ast.parse(source_code)
 
