@@ -162,11 +162,11 @@ def test_rate_limit_without_limit_names_sync(names):
 
     with mock.patch(
         "prefect.concurrency.sync._acquire_concurrency_slots",
-        wraps=lambda *args, **kwargs: None,  # Mocking to do nothing
+        wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
             "prefect.concurrency.sync._release_concurrency_slots",
-            wraps=lambda *args, **kwargs: None,  # Mocking to do nothing
+            wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             resource_heavy()
 
@@ -392,11 +392,11 @@ def test_concurrency_without_limit_names_sync(names):
 
     with mock.patch(
         "prefect.concurrency.sync._acquire_concurrency_slots",
-        wraps=lambda *args, **kwargs: None,  # Mocking to do nothing
+        wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
             "prefect.concurrency.sync._release_concurrency_slots",
-            wraps=lambda *args, **kwargs: None,  # Mocking to do nothing
+            wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             resource_heavy()
 
