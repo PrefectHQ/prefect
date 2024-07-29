@@ -785,7 +785,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value():
+            if (
+                PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value()
+                and self.task.tags
+            ):
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
                 with concurrency(
@@ -1328,7 +1331,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value():
+            if (
+                PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value()
+                and self.task.tags
+            ):
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
                 async with aconcurrency(
