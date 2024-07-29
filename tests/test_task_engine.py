@@ -21,6 +21,8 @@ from prefect.concurrency.asyncio import (
     _acquire_concurrency_slots,
     _release_concurrency_slots,
 )
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
 from prefect.context import (
     EngineContext,
     FlowRunContext,
@@ -32,6 +34,7 @@ from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
 from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
+from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -1618,6 +1621,38 @@ class TestTimeout:
 
         with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             run_task_sync(sync_task)
+
+    async def test_timeout_concurrency_slot_released_sync(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @task(timeout_seconds=0.5)
+        def expensive_task():
+            with concurrency(concurrency_limit_v2.name):
+                time.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            expensive_task()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
+
+    async def test_timeout_concurrency_slot_released_async(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @task(timeout_seconds=0.5)
+        async def expensive_task():
+            async with aconcurrency(concurrency_limit_v2.name):
+                await asyncio.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            await expensive_task()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
 
 
 class TestPersistence:

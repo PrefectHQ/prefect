@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, List, Literal, Optional, Union, cast
 
+import anyio
 import httpx
 import pendulum
 
@@ -14,6 +15,7 @@ except ImportError:
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 
+from .context import ConcurrencyContext
 from .events import (
     _emit_concurrency_acquisition_events,
     _emit_concurrency_release_events,
@@ -137,11 +139,20 @@ async def _acquire_concurrency_slots(
 async def _release_concurrency_slots(
     names: List[str], slots: int, occupancy_seconds: float
 ) -> List[MinimalConcurrencyLimitResponse]:
-    async with get_client() as client:
-        response = await client.release_concurrency_slots(
-            names=names, slots=slots, occupancy_seconds=occupancy_seconds
-        )
-        return _response_to_minimal_concurrency_limit_response(response)
+    try:
+        async with get_client() as client:
+            response = await client.release_concurrency_slots(
+                names=names, slots=slots, occupancy_seconds=occupancy_seconds
+            )
+            return _response_to_minimal_concurrency_limit_response(response)
+    except anyio.get_cancelled_exc_class() as exc:
+        # The task was cancelled before it could release the slots. Add the
+        # slots to the cleanup list so they can be released when the
+        # concurrency context is exited.
+        if ctx := ConcurrencyContext.get():
+            ctx.cleanup_slots.append((names, slots, occupancy_seconds))
+
+        raise exc
 
 
 def _response_to_minimal_concurrency_limit_response(

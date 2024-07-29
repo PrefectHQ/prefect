@@ -354,7 +354,7 @@ class EngineContext(RunContext):
         default_factory=weakref.WeakValueDictionary
     )
 
-    # Events worker to emit events to Prefect Cloud
+    # Events worker to emit events
     events: Optional[EventsWorker] = None
 
     __var__: ContextVar = ContextVar("flow_run")
