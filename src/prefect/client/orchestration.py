@@ -3025,6 +3025,19 @@ class PrefectClient:
     async def release_concurrency_slots(
         self, names: List[str], slots: int, occupancy_seconds: float
     ) -> httpx.Response:
+        """
+        Release concurrency slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to release slots.
+            slots (int): The number of concurrency slots to release.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were occupied.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+
         return await self._client.post(
             "/v2/concurrency_limits/decrement",
             json={
@@ -4068,3 +4081,27 @@ class SyncPrefectClient:
         )
 
         return Artifact.model_validate(response.json())
+
+    def release_concurrency_slots(
+        self, names: List[str], slots: int, occupancy_seconds: float
+    ) -> httpx.Response:
+        """
+        Release concurrency slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to release slots.
+            slots (int): The number of concurrency slots to release.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were occupied.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        return self._client.post(
+            "/v2/concurrency_limits/decrement",
+            json={
+                "names": names,
+                "slots": slots,
+                "occupancy_seconds": occupancy_seconds,
+            },
+        )
