@@ -598,7 +598,7 @@ def test_populate_defaults(tmp_path, monkeypatch):
         ["profile", "populate-defaults"],
         user_input="y",
         expected_output_contains=[
-            f"Default profiles populated in {temp_profiles_path}",
+            f"Profiles updated in {temp_profiles_path}",
             "Use with prefect profile use [PROFILE-NAME]",
         ],
     )
@@ -632,15 +632,16 @@ def test_populate_defaults_with_existing_profiles(tmp_path, monkeypatch):
             "y" + readchar.key.ENTER + "y" + readchar.key.ENTER
         ),  # Confirm overwrite and backup
         expected_output_contains=[
-            "Overwrite existing profiles",
+            "Update profiles at",
             f"Profiles backed up to {temp_profiles_path}.bak",
-            f"Default profiles populated in {temp_profiles_path}",
+            f"Profiles updated in {temp_profiles_path}",
         ],
     )
 
     new_profiles = load_profiles()
-    assert "existing" not in new_profiles.names
-    assert {"local", "ephemeral", "cloud", "default"} == set(new_profiles.names)
+    assert {"local", "ephemeral", "cloud", "default", "existing"} == set(
+        new_profiles.names
+    )
 
     backup_profiles = _read_profiles_from(temp_profiles_path.with_suffix(".toml.bak"))
     assert "existing" in backup_profiles.names

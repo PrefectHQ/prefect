@@ -257,31 +257,42 @@ def inspect(
 
 @profile_app.command()
 def populate_defaults():
-    """Populate the profiles configuration with the default base profiles."""
-    user_profiles_path = prefect.settings.PREFECT_PROFILES_PATH.value()
-    DEFAULT_PROFILES_CONTENT = prefect.settings.DEFAULT_PROFILES_PATH.read_text()
+    """Populate the profiles configuration with default base profiles, preserving existing user profiles."""
+    user_path = prefect.settings.PREFECT_PROFILES_PATH.value()
+    default_profiles = prefect.settings._read_profiles_from(
+        prefect.settings.DEFAULT_PROFILES_PATH
+    )
 
-    if user_profiles_path.exists():
-        if user_profiles_path.read_text() == DEFAULT_PROFILES_CONTENT:
+    if user_path.exists():
+        user_content = user_path.read_text()
+        if user_content == prefect.settings.DEFAULT_PROFILES_PATH.read_text():
             app.console.print(
-                "Default profiles are already populated. [green]No action required[/green]."
+                "Default profiles already populated. [green]No action required[/green]."
             )
             return
-        if user_profiles_path.read_text() != _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT:
-            backup_path = user_profiles_path.with_suffix(".toml.bak")
+
+        if user_content != _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT:
+            backup_path = user_path.with_suffix(".toml.bak")
             if typer.confirm(f"Back up existing profiles to {backup_path}?"):
-                shutil.copy(user_profiles_path, backup_path)
+                shutil.copy(user_path, backup_path)
                 app.console.print(f"Profiles backed up to {backup_path}")
 
-        if not typer.confirm(f"Overwrite existing profiles at {user_profiles_path}?"):
-            app.console.print("Operation cancelled.")
-            return
+        user_profiles = prefect.settings._read_profiles_from(user_path)
 
-    user_profiles_path.write_text(DEFAULT_PROFILES_CONTENT)
+        # Merge profiles, keeping existing user profiles unchanged
+        for name, profile in default_profiles.items():
+            if name not in user_profiles:
+                user_profiles.add_profile(profile)
+                app.console.print(f"Added default profile: [blue]{name}[/blue]")
+    else:
+        user_profiles = default_profiles
 
-    app.console.print(
-        f"Default profiles populated in [green]{user_profiles_path}[/green]"
-    )
+    if not typer.confirm(f"Update profiles at {user_path}?"):
+        app.console.print("Operation cancelled.")
+        return
+
+    prefect.settings._write_profiles_to(user_path, user_profiles)
+    app.console.print(f"Profiles updated in [green]{user_path}[/green]")
     app.console.print(
         "Use with [green]prefect profile use[/green] [red][PROFILE-NAME][/red]"
     )
