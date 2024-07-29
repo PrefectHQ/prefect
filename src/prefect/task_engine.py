@@ -35,6 +35,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.sync import concurrency
 from prefect.context import (
     AsyncClientContext,
@@ -609,6 +610,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     client=client,
                 )
             )
+            stack.enter_context(ConcurrencyContext())
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
@@ -1158,6 +1160,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     client=client,
                 )
             )
+            stack.enter_context(ConcurrencyContext())
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 

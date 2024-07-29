@@ -29,6 +29,7 @@ from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
+from prefect.concurrency.context import ConcurrencyContext
 from prefect.context import FlowRunContext, SyncClientContext, TagsContext
 from prefect.exceptions import (
     Abort,
@@ -505,6 +506,8 @@ class FlowRunEngine(Generic[P, R]):
                     task_runner=task_runner,
                 )
             )
+            stack.enter_context(ConcurrencyContext())
+
             # set the logger to the flow run logger
             self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
 
