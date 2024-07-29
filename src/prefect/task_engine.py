@@ -396,7 +396,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self,
         state: State,
         force: bool = False,
-        client: Optional[SyncPrefectClient] = None,
     ) -> State:
         last_state = self.state
         if not self.task_run:
@@ -416,7 +415,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         else:
             try:
                 new_state = propose_state_sync(
-                    client if client else self.client,
+                    self.client,
                     state,
                     task_run_id=self.task_run.id,
                     force=force,
@@ -589,16 +588,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(state)
         self.set_state(state, force=True)
         self._raised = exc
-
-    def record_terminal_state_timing(self, state: State) -> None:
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            if self.task_run.start_time and not self.task_run.end_time:
-                self.task_run.end_time = state.timestamp
-
-                if self.task_run.state.is_running():
-                    self.task_run.total_run_time += (
-                        state.timestamp - self.task_run.state.timestamp
-                    )
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
