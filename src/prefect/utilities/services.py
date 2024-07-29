@@ -1,13 +1,16 @@
 import sys
+import threading
 from collections import deque
 from traceback import format_exception
 from types import TracebackType
 from typing import Callable, Coroutine, Deque, Optional, Tuple
+from wsgiref.simple_server import WSGIServer
 
 import anyio
 import httpx
 
 from prefect.logging.loggers import get_logger
+from prefect.settings import PREFECT_CLIENT_ENABLE_METRICS, PREFECT_CLIENT_METRICS_PORT
 from prefect.utilities.collections import distinct
 from prefect.utilities.math import clamped_poisson_interval
 
@@ -150,3 +153,32 @@ async def critical_service_loop(
             sleep = interval * 2**backoff_count
 
         await anyio.sleep(sleep)
+
+
+_metrics_server: Optional[Tuple[WSGIServer, threading.Thread]] = None
+
+
+def start_client_metrics_server():
+    """Start the process-wide Prometheus metrics server for client metrics (if enabled
+    with `PREFECT_CLIENT_ENABLE_METRICS`) on the port `PREFECT_CLIENT_METRICS_PORT`."""
+    if not PREFECT_CLIENT_ENABLE_METRICS:
+        return
+
+    global _metrics_server
+    if _metrics_server:
+        return
+
+    from prometheus_client import start_http_server
+
+    _metrics_server = start_http_server(port=PREFECT_CLIENT_METRICS_PORT.value())
+
+
+def stop_client_metrics_server():
+    """Start the process-wide Prometheus metrics server for client metrics, if it has
+    previously been started"""
+    global _metrics_server
+    if _metrics_server:
+        server, thread = _metrics_server
+        server.shutdown()
+        thread.join()
+        _metrics_server = None

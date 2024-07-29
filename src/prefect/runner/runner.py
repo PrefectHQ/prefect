@@ -92,7 +92,10 @@ from prefect.utilities.asyncutils import (
 )
 from prefect.utilities.engine import propose_state
 from prefect.utilities.processutils import _register_signal, run_process
-from prefect.utilities.services import critical_service_loop
+from prefect.utilities.services import (
+    critical_service_loop,
+    start_client_metrics_server,
+)
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
@@ -379,6 +382,8 @@ class Runner:
                 daemon=True,
             )
             server_thread.start()
+
+        start_client_metrics_server()
 
         async with self as runner:
             async with self._loops_task_group as tg:

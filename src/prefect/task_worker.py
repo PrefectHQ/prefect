@@ -38,6 +38,7 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
+from prefect.utilities.services import start_client_metrics_server
 from prefect.utilities.urls import url_for
 
 logger = get_logger("task_worker")
@@ -157,6 +158,8 @@ class TaskWorker:
         Starts a task worker, which runs the tasks provided in the constructor.
         """
         _register_signal(signal.SIGTERM, self.handle_sigterm)
+
+        start_client_metrics_server()
 
         async with asyncnullcontext() if self.started else self:
             logger.info("Starting task worker...")

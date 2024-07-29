@@ -1,10 +1,20 @@
 import statistics
+from typing import Generator
 
 import httpx
 import pytest
 
+from prefect.settings import (
+    PREFECT_CLIENT_ENABLE_METRICS,
+    PREFECT_CLIENT_METRICS_PORT,
+    temporary_settings,
+)
 from prefect.testing.utilities import AsyncMock
-from prefect.utilities.services import critical_service_loop
+from prefect.utilities.services import (
+    critical_service_loop,
+    start_client_metrics_server,
+    stop_client_metrics_server,
+)
 
 
 class UncapturedException(BaseException):
@@ -359,3 +369,88 @@ async def test_sleeps_for_interval(capsys: pytest.CaptureFixture, mock_anyio_sle
             await critical_service_loop(workload, 1, consecutive=3)
 
     assert workload.await_count == 4
+
+
+@pytest.fixture
+def metrics_server_url(unused_tcp_port: int) -> Generator[str, None, None]:
+    with temporary_settings(
+        updates={
+            PREFECT_CLIENT_ENABLE_METRICS: True,
+            PREFECT_CLIENT_METRICS_PORT: unused_tcp_port,
+        }
+    ):
+        stop_client_metrics_server()
+        start_client_metrics_server()
+
+        url = f"http://localhost:{unused_tcp_port}/metrics"
+
+        while True:
+            try:
+                httpx.get(url)
+            except httpx.ConnectError:
+                pass
+            else:
+                break
+
+        yield url
+
+        stop_client_metrics_server()
+
+
+def test_metrics_server(metrics_server_url: str):
+    response = httpx.get(metrics_server_url)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/plain")
+    assert response.content.startswith(b"# HELP")
+
+
+def test_stopping_metrics_server(metrics_server_url: str):
+    response = httpx.get(metrics_server_url)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/plain")
+    assert response.content.startswith(b"# HELP")
+
+    stop_client_metrics_server()
+
+    with pytest.raises(httpx.ConnectError):
+        httpx.get(metrics_server_url, timeout=0.1)
+
+
+def test_starting_metrics_server_is_idempotent(metrics_server_url: str):
+    response = httpx.get(metrics_server_url)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/plain")
+    assert response.content.startswith(b"# HELP")
+
+    start_client_metrics_server()
+    start_client_metrics_server()
+
+
+def test_stopping_metrics_server_is_idempotent(metrics_server_url: str):
+    response = httpx.get(metrics_server_url)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/plain")
+    assert response.content.startswith(b"# HELP")
+
+    stop_client_metrics_server()
+    stop_client_metrics_server()
+
+
+async def test_stopping_and_starting_from_async(metrics_server_url: str):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(metrics_server_url)
+        assert response.status_code == 200
+        assert response.headers["Content-Type"].startswith("text/plain")
+        assert response.content.startswith(b"# HELP")
+
+        stop_client_metrics_server()
+
+        with pytest.raises(httpx.ConnectError):
+            httpx.get(metrics_server_url, timeout=0.1)
+
+        start_client_metrics_server()
+
+        response = await client.get(metrics_server_url)
+        assert response.status_code == 200
+        assert response.headers["Content-Type"].startswith("text/plain")
+        assert response.content.startswith(b"# HELP")
