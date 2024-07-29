@@ -12600,6 +12600,11 @@
                             }
                         ],
                         "title": "Occupancy Seconds"
+                    },
+                    "create_if_missing": {
+                        "type": "boolean",
+                        "title": "Create If Missing",
+                        "default": true
                     }
                 },
                 "type": "object",
@@ -12632,6 +12637,11 @@
                         ],
                         "title": "Mode",
                         "default": "concurrency"
+                    },
+                    "create_if_missing": {
+                        "type": "boolean",
+                        "title": "Create If Missing",
+                        "default": true
                     }
                 },
                 "type": "object",
@@ -15989,6 +15999,18 @@
                     "parameters": {
                         "type": "object",
                         "title": "Parameters"
+                    },
+                    "enforce_parameter_schema": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Enforce Parameter Schema",
+                        "description": "Whether or not to enforce the parameter schema on this run."
                     },
                     "context": {
                         "type": "object",
@@ -21676,11 +21698,6 @@
                         "title": "Prefect Home",
                         "default": "~/.prefect"
                     },
-                    "PREFECT_EXTRA_ENTRYPOINTS": {
-                        "type": "string",
-                        "title": "Prefect Extra Entrypoints",
-                        "default": ""
-                    },
                     "PREFECT_DEBUG_MODE": {
                         "type": "boolean",
                         "title": "Prefect Debug Mode",
@@ -22332,11 +22349,6 @@
                         "title": "Prefect Worker Webserver Port",
                         "default": 8080
                     },
-                    "PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED": {
-                        "type": "boolean",
-                        "title": "Prefect Api Services Task Scheduling Enabled",
-                        "default": true
-                    },
                     "PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK": {
                         "anyOf": [
                             {
@@ -22368,11 +22380,6 @@
                         "format": "duration",
                         "title": "Prefect Task Scheduling Pending Task Timeout",
                         "default": "PT0S"
-                    },
-                    "PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT": {
-                        "type": "boolean",
-                        "title": "Prefect Experimental Disable Sync Compat",
-                        "default": false
                     },
                     "PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY": {
                         "type": "boolean",
