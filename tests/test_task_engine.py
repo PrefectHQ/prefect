@@ -2306,6 +2306,42 @@ class TestTaskConcurrencyLimits:
                 else:
                     assert acquire_spy.call_count == 0
 
+    async def test_no_tags_no_concurrency(self):
+        @task
+        async def bar():
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.asyncio._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                await bar()
+
+                assert acquire_spy.call_count == 0
+                assert release_spy.call_count == 0
+
+    def test_no_tags_no_concurrency_sync(self):
+        @task
+        def bar():
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.sync._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.sync._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                bar()
+
+                assert acquire_spy.call_count == 0
+                assert release_spy.call_count == 0
+
     async def test_tag_concurrency_does_not_create_limits(
         self, enable_client_side_task_run_orchestration, prefect_client
     ):
