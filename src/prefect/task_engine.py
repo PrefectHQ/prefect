@@ -575,6 +575,21 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.set_state(state, force=True)
         self._raised = exc
 
+    def handle_rollback(self, txn: Transaction) -> None:
+        assert self.task_run is not None
+
+        rolled_back_state = Completed(
+            name="RolledBack",
+            message="Task rolled back as part of transaction",
+        )
+
+        self._last_event = emit_task_run_state_change_event(
+            task_run=self.task_run,
+            initial_state=self.state,
+            validated_state=rolled_back_state,
+            follows=self._last_event,
+        )
+
     def record_terminal_state_timing(self, state: State) -> None:
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
             if self.task_run.start_time and not self.task_run.end_time:
@@ -584,18 +599,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.task_run.total_run_time += (
                         state.timestamp - self.task_run.state.timestamp
                     )
-
-    def handle_rollback(self, txn: Transaction) -> None:
-        # transaction rollbacks can occur outside of the engine's context
-        # so we need to ensure a client is available
-        with SyncClientContext.get_or_create() as client_ctx:
-            self.set_state(
-                Completed(
-                    name="RolledBack",
-                    message="Task rolled back as part of transaction",
-                ),
-                client=client_ctx.client,
-            )
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):

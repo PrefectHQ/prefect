@@ -2546,7 +2546,13 @@ class TestTransactionHooks:
         self,
         events_pipeline,
         prefect_client,
+        enable_client_side_task_run_orchestration,
     ):
+        if not enable_client_side_task_run_orchestration:
+            pytest.xfail(
+                "The Task Run Recorder is not enabled to handle state transitions via events"
+            )
+
         task_run_state = None
 
         @task
