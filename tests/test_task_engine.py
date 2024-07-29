@@ -2306,7 +2306,7 @@ class TestTaskConcurrencyLimits:
                 else:
                     assert acquire_spy.call_count == 0
 
-    async def test_concurrency_not_invoked_without_tags(self):
+    async def test_no_tags_no_concurrency(self):
         @task
         async def bar():
             return 42
@@ -2324,7 +2324,7 @@ class TestTaskConcurrencyLimits:
                 assert acquire_spy.call_count == 0
                 assert release_spy.call_count == 0
 
-    def test_concurrency_not_invoked_without_tags_sync(self):
+    def test_no_tags_no_concurrency_sync(self):
         @task
         def bar():
             return 42
