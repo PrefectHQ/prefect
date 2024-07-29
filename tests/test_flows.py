@@ -4177,7 +4177,7 @@ class TestSafeLoadFlowFromEntrypoint:
         result = safe_load_flow_from_entrypoint(entrypoint)
 
         assert result is not None
-        assert parameter_schema(result).model_dump() == {
+        assert parameter_schema(result).dict() == {
             "definitions": {},
             "properties": {"name": {"position": 0, "title": "name", "type": "string"}},
             "required": ["name"],
@@ -4261,7 +4261,7 @@ class TestSafeLoadFlowFromEntrypoint:
         import datetime  
         from prefect import flow               
 
-        @flow
+        @flow(validate_parameters=False)
         def f(
             x: datetime.datetime,
             y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
