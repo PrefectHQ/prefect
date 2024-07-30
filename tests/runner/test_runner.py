@@ -1216,21 +1216,6 @@ class TestRunnerDeployment:
         )
 
         assert deployment.paused is expected
-        # `is_schedule_active` is the opposite of `paused`
-        assert deployment.is_schedule_active is not expected
-
-    @pytest.mark.parametrize(
-        "value,expected",
-        [(True, True), (False, False), (None, True)],
-    )
-    def test_from_entrypoint_accepts_is_schedule_active(
-        self, dummy_flow_1_entrypoint, value, expected
-    ):
-        deployment = RunnerDeployment.from_entrypoint(
-            dummy_flow_1_entrypoint, __file__, is_schedule_active=value
-        )
-
-        assert deployment.is_schedule_active is expected
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -1241,7 +1226,6 @@ class TestRunnerDeployment:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
                             DeploymentScheduleCreate(
@@ -1258,7 +1242,7 @@ class TestRunnerDeployment:
         self, dummy_flow_1_entrypoint, kwargs
     ):
         expected_message = (
-            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            "Only one of interval, cron, rrule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_entrypoint(
@@ -1313,16 +1297,16 @@ class TestRunnerDeployment:
         }
         assert deployment.work_queue_name == "default"
 
-    async def test_apply_inactive_schedule(self, prefect_client: PrefectClient):
+    async def test_apply_paused(self, prefect_client: PrefectClient):
         deployment = RunnerDeployment.from_flow(
-            dummy_flow_1, __file__, interval=3600, is_schedule_active=False
+            dummy_flow_1, __file__, interval=3600, paused=True
         )
 
         deployment_id = await deployment.apply()
 
         deployment = await prefect_client.read_deployment(deployment_id)
 
-        assert deployment.is_schedule_active is False
+        assert deployment.is_schedule_active is True
 
     @pytest.mark.parametrize(
         "from_flow_kwargs, apply_kwargs, expected_message",
@@ -1455,7 +1439,6 @@ class TestRunnerDeployment:
         )
 
         assert deployment.paused is expected
-        assert deployment.is_schedule_active is not expected
 
     async def test_init_runner_deployment_with_schedule(self):
         schedule = CronSchedule(cron="* * * * *")
