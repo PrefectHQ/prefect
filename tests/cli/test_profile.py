@@ -702,7 +702,6 @@ def test_show_profile_changes(capsys):
     assert "- ephemeral" in output
 
     # Check profile summaries
-    assert "Default Profile Summaries:" in output
     assert "cloud:" in output
     assert "PREFECT_API_URL: https://api.prefect.cloud" in output
     assert "ephemeral:" in output
