@@ -3902,7 +3902,6 @@ class TestFlowToDeployment:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                 ],
                 2,
             )
@@ -3912,7 +3911,9 @@ class TestFlowToDeployment:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            expected_message = (
+                "Only one of interval, cron, rrule, or schedules can be provided."
+            )
             with pytest.raises(ValueError, match=expected_message):
                 await self.flow.to_deployment(__file__, **kwargs)
 
@@ -3969,7 +3970,6 @@ class TestFlowServe:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.paused
-        assert not deployment.is_schedule_active
 
     def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
         deployment = self.flow.serve(
@@ -4003,8 +4003,11 @@ class TestFlowServe:
         )
 
         assert deployment is not None
-        assert isinstance(deployment.schedule, IntervalSchedule)
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert len(deployment.schedules) == 1
+        assert isinstance(deployment.schedules[0].schedule, IntervalSchedule)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
     def test_serve_creates_deployment_with_cron_schedule(
         self, prefect_client: PrefectClient
@@ -4016,7 +4019,8 @@ class TestFlowServe:
         )
 
         assert deployment is not None
-        assert deployment.schedule == CronSchedule(cron="* * * * *")
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
 
     def test_serve_creates_deployment_with_rrule_schedule(
         self, prefect_client: PrefectClient
@@ -4028,7 +4032,8 @@ class TestFlowServe:
         )
 
         assert deployment is not None
-        assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -4039,7 +4044,6 @@ class TestFlowServe:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                 ],
                 2,
             )
@@ -4049,7 +4053,9 @@ class TestFlowServe:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            expected_message = (
+                "Only one of interval, cron, rrule, or schedules can be provided."
+            )
             with pytest.raises(ValueError, match=expected_message):
                 self.flow.serve(__file__, **kwargs)
 

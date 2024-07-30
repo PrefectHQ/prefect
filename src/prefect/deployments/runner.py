@@ -378,7 +378,7 @@ class RunnerDeployment(BaseModel):
         )
         if num_schedules > 1:
             raise ValueError(
-                "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+                "Only one of interval, cron, rrule, or schedules can be provided."
             )
         elif num_schedules == 0:
             return []
