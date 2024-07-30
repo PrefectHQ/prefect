@@ -2,10 +2,9 @@
 Internal utilities for tests.
 """
 
-import warnings
 import atexit
 import shutil
-
+import warnings
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
