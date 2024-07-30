@@ -769,7 +769,7 @@ class KubernetesWorker(BaseWorker):
                 config=configuration.cluster_config.config,
                 context_name=configuration.cluster_config.context_name,
             )
-        return await _get_configured_kubernetes_client_cached(cluster_config)
+        yield await _get_configured_kubernetes_client_cached(cluster_config)
 
     async def _replace_api_key_with_secret(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
