@@ -22276,6 +22276,11 @@
                         "title": "Prefect Server Allow Ephemeral Mode",
                         "default": false
                     },
+                    "PREFECT_SERVER_EPHEMERAL_START_UP_WAIT_SECONDS": {
+                        "type": "integer",
+                        "title": "Prefect Server Ephemeral Start Up Wait Seconds",
+                        "default": 10
+                    },
                     "PREFECT_UI_ENABLED": {
                         "type": "boolean",
                         "title": "Prefect Ui Enabled",
