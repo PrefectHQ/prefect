@@ -60,13 +60,14 @@ async def mock_stream(*args, **kwargs):
 
 @pytest.fixture
 def mock_cluster_config(monkeypatch):
-    mock = AsyncMock()
+    mock = MagicMock()
     # We cannot mock this or the `except` clause will complain
-    mock.return_value.ConfigException.return_value = ConfigException
-    mock.return_value.list_kube_config_contexts.return_value = (
+    mock.ConfigException.return_value = ConfigException
+    mock.list_kube_config_contexts.return_value = (
         [],
         {"context": {"cluster": FAKE_CLUSTER}},
     )
+    mock.new_client_from_config = AsyncMock()
     monkeypatch.setattr("prefect_kubernetes.worker.config", mock)
     monkeypatch.setattr(
         "prefect_kubernetes.worker.config.ConfigException", ConfigException
