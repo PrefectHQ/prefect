@@ -174,7 +174,7 @@ class TestDeploymentSchedules:
                 "rence-griffith/test-deployment",
             ],
             expected_output_does_not_contain=["'interval': 10.76,"],
-            expected_output_contains=["'schedule': None"],
+            expected_output_contains=["'schedules': []"],
             expected_code=0,
         )
 
