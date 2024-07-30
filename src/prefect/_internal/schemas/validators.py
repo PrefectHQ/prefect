@@ -217,6 +217,18 @@ def convert_to_strings(value: Union[Any, List[Any]]) -> Union[str, List[str]]:
 ### SCHEDULE SCHEMA VALIDATORS ###
 
 
+def reconcile_schedules_runner(values: dict) -> dict:
+    from prefect.deployments.schedules import (
+        normalize_to_deployment_schedule_create,
+    )
+
+    schedules = values.get("schedules")
+    if schedules is not None and len(schedules) > 0:
+        values["schedules"] = normalize_to_deployment_schedule_create(schedules)
+
+    return values
+
+
 def validate_schedule_max_scheduled_runs(v: Optional[int], limit: int) -> Optional[int]:
     if v is not None and v > limit:
         raise ValueError(f"`max_scheduled_runs` must be less than or equal to {limit}.")
@@ -254,6 +266,15 @@ def remove_old_deployment_fields(values: dict) -> dict:
             UserWarning,
         )
     return values_copy
+
+
+def reconcile_paused_deployment(values):
+    paused = values.get("paused")
+
+    if paused is None:
+        values["paused"] = False
+
+    return values
 
 
 def default_anchor_date(v: DateTime) -> DateTime:

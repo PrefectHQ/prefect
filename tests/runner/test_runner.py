@@ -1440,13 +1440,13 @@ class TestRunnerDeployment:
 
         assert deployment.paused is expected
 
-    async def test_init_runner_deployment_with_schedule(self):
+    async def test_init_runner_deployment_with_schedules(self):
         schedule = CronSchedule(cron="* * * * *")
 
         deployment = RunnerDeployment(
             flow=dummy_flow_1,
             name="test-deployment",
-            schedule=schedule,
+            schedules=[schedule],
         )
 
         assert deployment.schedules
