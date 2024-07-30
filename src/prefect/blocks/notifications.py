@@ -164,10 +164,12 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         ):
             raise ValueError("Invalid Microsoft Teams Workflow URL provided.")
 
-        parsed_url |= {  # novermin
-            "include_image": self.include_image,
-            "wrap": self.wrap,
-        }
+        parsed_url.update(
+            {
+                "include_image": self.include_image,
+                "wrap": self.wrap,
+            }
+        )
 
         self._start_apprise_client(SecretStr(NotifyWorkflows(**parsed_url).url()))
 
