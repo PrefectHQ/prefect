@@ -78,9 +78,19 @@ async def concurrency(
         yield
     finally:
         occupancy_period = cast(Interval, (pendulum.now("UTC") - acquisition_time))
-        await _release_concurrency_slots(
-            names, occupy, occupancy_period.total_seconds()
-        )
+        try:
+            await _release_concurrency_slots(
+                names, occupy, occupancy_period.total_seconds()
+            )
+        except anyio.get_cancelled_exc_class():
+            # The task was cancelled before it could release the slots. Add the
+            # slots to the cleanup list so they can be released when the
+            # concurrency context is exited.
+            if ctx := ConcurrencyContext.get():
+                ctx.cleanup_slots.append(
+                    (names, occupy, occupancy_period.total_seconds())
+                )
+
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
@@ -139,20 +149,11 @@ async def _acquire_concurrency_slots(
 async def _release_concurrency_slots(
     names: List[str], slots: int, occupancy_seconds: float
 ) -> List[MinimalConcurrencyLimitResponse]:
-    try:
-        async with get_client() as client:
-            response = await client.release_concurrency_slots(
-                names=names, slots=slots, occupancy_seconds=occupancy_seconds
-            )
-            return _response_to_minimal_concurrency_limit_response(response)
-    except anyio.get_cancelled_exc_class() as exc:
-        # The task was cancelled before it could release the slots. Add the
-        # slots to the cleanup list so they can be released when the
-        # concurrency context is exited.
-        if ctx := ConcurrencyContext.get():
-            ctx.cleanup_slots.append((names, slots, occupancy_seconds))
-
-        raise exc
+    async with get_client() as client:
+        response = await client.release_concurrency_slots(
+            names=names, slots=slots, occupancy_seconds=occupancy_seconds
+        )
+        return _response_to_minimal_concurrency_limit_response(response)
 
 
 def _response_to_minimal_concurrency_limit_response(
