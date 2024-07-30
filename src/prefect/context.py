@@ -661,7 +661,7 @@ def root_settings_context():
             ),
             file=sys.stderr,
         )
-        active_name = "default"
+        active_name = "ephemeral"
 
     with use_profile(
         profiles[active_name],

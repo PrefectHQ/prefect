@@ -539,7 +539,7 @@ class TestLoadProfiles:
     def test_load_profiles_no_profiles_file(self):
         assert load_profiles()
 
-    def test_load_profiles_missing_default(self, temporary_profiles_path):
+    def test_load_profiles_missing_ephemeral(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
@@ -549,28 +549,28 @@ class TestLoadProfiles:
             )
         )
         assert load_profiles()["foo"].settings == {PREFECT_API_KEY: "bar"}
-        assert isinstance(load_profiles()["default"].settings, dict)
+        assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
     def test_load_profiles_only_active_key(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                active = "default"
+                active = "ephemeral"
                 """
             )
         )
-        assert load_profiles().active_name == "default"
-        assert isinstance(load_profiles()["default"].settings, dict)
+        assert load_profiles().active_name == "ephemeral"
+        assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
     def test_load_profiles_empty_file(self, temporary_profiles_path):
         temporary_profiles_path.touch()
-        assert load_profiles().active_name == "default"
-        assert isinstance(load_profiles()["default"].settings, dict)
+        assert load_profiles().active_name == "ephemeral"
+        assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
-    def test_load_profiles_with_default(self, temporary_profiles_path):
+    def test_load_profiles_with_ephemeral(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             """
-            [profiles.default]
+            [profiles.ephemeral]
             PREFECT_API_KEY = "foo"
 
             [profiles.bar]
@@ -579,16 +579,23 @@ class TestLoadProfiles:
         )
         profiles = load_profiles()
         expected = {
-            "default": {PREFECT_API_KEY: "foo"},
+            "ephemeral": {
+                PREFECT_API_KEY: "foo",
+                PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db",  # default value
+            },
             "bar": {PREFECT_API_KEY: "bar"},
         }
         for name, settings in expected.items():
             assert profiles[name].settings == settings
             assert profiles[name].source == temporary_profiles_path
 
-    def test_load_profile_default(self):
-        assert load_profile("default") == Profile(
-            name="default", settings={}, source=DEFAULT_PROFILES_PATH
+    def test_load_profile_ephemeral(self):
+        assert load_profile("ephemeral") == Profile(
+            name="ephemeral",
+            settings={
+                PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db"
+            },
+            source=DEFAULT_PROFILES_PATH,
         )
 
     def test_load_profile_missing(self):
