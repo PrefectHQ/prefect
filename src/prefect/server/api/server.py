@@ -842,7 +842,7 @@ class SubprocessASGIServer:
                 with httpx.Client() as client:
                     response = None
                     elapsed_time = 0
-                    while elapsed_time < 10:
+                    while elapsed_time < 5:
                         try:
                             response = client.get(f"{self.address()}/api/health")
                         except httpx.ConnectError:

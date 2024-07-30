@@ -118,15 +118,7 @@ async def version(
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_settings_context().profile.name,
     }
-
-    server_type: str
-
-    try:
-        server_type = determine_server_type()
-    except ValueError:
-        server_type = "unconfigured"
-    except Exception:
-        server_type = "<client error>"
+    server_type = determine_server_type()
 
     version_info["Server type"] = server_type.lower()
 

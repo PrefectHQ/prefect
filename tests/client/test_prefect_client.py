@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Generator, List
@@ -99,6 +100,28 @@ class TestGetClient:
             new_client = get_client()
             assert isinstance(new_client, PrefectClient)
             assert new_client is not client
+
+    def test_get_client_starts_subprocess_server_when_enabled(
+        self, enable_ephemeral_server, monkeypatch
+    ):
+        popen_spy = MagicMock()
+        orig_popen = subprocess.Popen
+
+        def popen_stub(*args, **kwargs):
+            popen_spy(*args, **kwargs)
+            return orig_popen(*args, **kwargs)
+
+        monkeypatch.setattr("prefect.server.api.server.subprocess.Popen", popen_stub)
+
+        get_client()
+        assert popen_spy.call_count == 1
+        assert "prefect.server.api.server:create_app" in popen_spy.call_args[1]["args"]
+
+    def test_get_client_rasises_error_when_no_api_url_and_no_ephemeral_mode(
+        self, disable_hosted_api_server
+    ):
+        with pytest.raises(ValueError, match="API URL"):
+            get_client()
 
 
 class TestClientProxyAwareness:

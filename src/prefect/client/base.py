@@ -650,8 +650,18 @@ class ServerType(AutoEnum):
     UNCONFIGURED = AutoEnum.auto()
 
 
-def determine_server_type() -> ServerType:
-    api_url = PREFECT_API_URL.value()
+def determine_server_type(api: str) -> ServerType:
+    """
+    Determine the server type based on the current settings.
+
+    Returns:
+        - `ServerType.EPHEMERAL` if the ephemeral server is enabled
+        - `ServerType.SERVER` if a API URL is configured and it is not a cloud URL
+        - `ServerType.CLOUD` if an API URL is configured and it is a cloud URL
+        - `ServerType.UNCONFIGURED` if no API URL is configured and ephemeral mode is
+            not enabled
+    """
+    api_url = api or PREFECT_API_URL.value()
     if api_url is None:
         if PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value():
             return ServerType.EPHEMERAL
