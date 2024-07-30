@@ -149,6 +149,33 @@ def test_concurrency_can_be_used_within_a_flow(
     assert executed
 
 
+@pytest.mark.parametrize("names", [[], None])
+def test_rate_limit_without_limit_names_sync(names):
+    executed = False
+
+    def resource_heavy():
+        nonlocal executed
+        rate_limit(names=names, occupy=1)
+        executed = True
+
+    assert not executed
+
+    with mock.patch(
+        "prefect.concurrency.sync._acquire_concurrency_slots",
+        wraps=lambda *args, **kwargs: None,
+    ) as acquire_spy:
+        with mock.patch(
+            "prefect.concurrency.sync._release_concurrency_slots",
+            wraps=lambda *args, **kwargs: None,
+        ) as release_spy:
+            resource_heavy()
+
+            acquire_spy.assert_not_called()
+            release_spy.assert_not_called()
+
+    assert executed
+
+
 async def test_concurrency_can_be_used_while_event_loop_is_running(
     concurrency_limit: ConcurrencyLimitV2,
 ):
@@ -350,3 +377,30 @@ def test_rate_limit_emits_events(
         ),
         "prefect.resource.role": "concurrency-limit",
     }
+
+
+@pytest.mark.parametrize("names", [[], None])
+def test_concurrency_without_limit_names_sync(names):
+    executed = False
+
+    def resource_heavy():
+        nonlocal executed
+        with concurrency(names=names, occupy=1):
+            executed = True
+
+    assert not executed
+
+    with mock.patch(
+        "prefect.concurrency.sync._acquire_concurrency_slots",
+        wraps=lambda *args, **kwargs: None,
+    ) as acquire_spy:
+        with mock.patch(
+            "prefect.concurrency.sync._release_concurrency_slots",
+            wraps=lambda *args, **kwargs: None,
+        ) as release_spy:
+            resource_heavy()
+
+            acquire_spy.assert_not_called()
+            release_spy.assert_not_called()
+
+    assert executed

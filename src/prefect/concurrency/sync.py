@@ -68,6 +68,10 @@ def concurrency(
         resource_heavy()
     ```
     """
+    if not names:
+        yield
+        return
+
     names = names if isinstance(names, list) else [names]
 
     limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
@@ -110,7 +114,11 @@ def rate_limit(
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
         create_if_missing: Whether to create the concurrency limits if they do not exist.
     """
+    if not names:
+        return
+
     names = names if isinstance(names, list) else [names]
+
     limits = _call_async_function_from_sync(
         _acquire_concurrency_slots,
         names,
