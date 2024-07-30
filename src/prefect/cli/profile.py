@@ -277,10 +277,8 @@ def _show_profile_changes(
         elif user_profiles[name].settings != profile.settings:
             profiles_to_modify.append(name)
 
-    if profiles_to_add or profiles_to_modify:
-        app.console.print("\n[bold]Changes to be made:[/bold]")
     if profiles_to_add:
-        app.console.print("\n[blue]Profiles to be added:[/blue]")
+        app.console.print("\n[bold][blue]Profiles to be added:[/blue][bold]")
         for name in profiles_to_add:
             app.console.print(f"  - {name}")
     if profiles_to_modify:
@@ -293,13 +291,17 @@ def _show_profile_changes(
         )
         return [], []
 
-    app.console.print("\n[bold]Default Profile Summaries:[/bold]")
+    app.console.print("\n[bold]Default Profile Configurations:[/bold]")
     for name in profiles_to_add + profiles_to_modify:
         profile = default_profiles[name]
-        if profile_items := list(profile.settings.items()):
-            app.console.print(f"\n[underline]{name}[/underline]:")
+        app.console.print(f"\n[underline]{name}[/underline]:")
+
+        if not (profile_items := list(profile.settings.items())):
+            app.console.print("  (empty)")
+            continue
+
         for setting, value in profile_items:
-            app.console.print(f"  {setting.name}: {value}")
+            app.console.print(f"  {setting.name}: {value or '(empty)'}")
 
     return profiles_to_add, profiles_to_modify
 
@@ -330,7 +332,7 @@ def populate_defaults():
 
         if user_content != _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT:
             backup_path = user_path.with_suffix(".toml.bak")
-            if typer.confirm(f"Back up existing profiles to {backup_path}?"):
+            if typer.confirm(f"\nBack up existing profiles to {backup_path}?"):
                 shutil.copy(user_path, backup_path)
                 app.console.print(f"Profiles backed up to {backup_path}")
     else:

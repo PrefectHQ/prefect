@@ -6,11 +6,13 @@ import readchar
 import respx
 from httpx import Response
 
+from prefect.cli.profile import _show_profile_changes
 from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_KEY,
+    PREFECT_API_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_PROFILES_PATH,
     Profile,
@@ -662,3 +664,55 @@ def test_populate_defaults_no_changes_needed(tmp_path, monkeypatch):
     )
 
     assert temp_profiles_path.read_text() == DEFAULT_PROFILES_PATH.read_text()
+
+
+def test_show_profile_changes(capsys):
+    default_profiles = ProfilesCollection(
+        profiles=[
+            Profile(
+                name="ephemeral", settings={PREFECT_API_URL: "https://api.prefect.io"}
+            ),
+            Profile(name="local", settings={PREFECT_API_URL: "http://localhost:4200"}),
+            Profile(
+                name="cloud", settings={PREFECT_API_URL: "https://api.prefect.cloud"}
+            ),
+        ]
+    )
+    user_profiles = ProfilesCollection(
+        profiles=[
+            Profile(
+                name="ephemeral", settings={PREFECT_API_URL: "https://custom.api.com"}
+            ),
+            Profile(name="local", settings={PREFECT_API_URL: "http://localhost:4200"}),
+            Profile(name="custom", settings={PREFECT_API_KEY: "custom_key"}),
+        ]
+    )
+
+    profiles_to_add, profiles_to_modify = _show_profile_changes(
+        default_profiles, user_profiles
+    )
+
+    captured = capsys.readouterr()
+    output = captured.out
+
+    assert "Profiles to be added:" in output
+    assert "- cloud" in output
+
+    assert "Profiles to be modified:" in output
+    assert "- ephemeral" in output
+
+    # Check profile summaries
+    assert "Default Profile Summaries:" in output
+    assert "cloud:" in output
+    assert "PREFECT_API_URL: https://api.prefect.cloud" in output
+    assert "ephemeral:" in output
+    assert "PREFECT_API_URL: https://api.prefect.io" in output
+
+    assert profiles_to_add == ["cloud"]
+    assert profiles_to_modify == ["ephemeral"]
+
+    # Check that 'local' profile is not mentioned (as it's unchanged)
+    assert "- local" not in output
+
+    # Check that 'custom' profile is not mentioned (as it's not in default profiles)
+    assert "- custom" not in output
