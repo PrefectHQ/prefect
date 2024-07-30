@@ -1682,12 +1682,6 @@ class PrefectClient:
 
         return UUID(deployment_id)
 
-    async def update_schedule(self, deployment_id: UUID, active: bool = True):
-        path = "set_schedule_active" if active else "set_schedule_inactive"
-        await self._client.post(
-            f"/deployments/{deployment_id}/{path}",
-        )
-
     async def set_deployment_paused_state(self, deployment_id: UUID, paused: bool):
         await self._client.patch(
             f"/deployments/{deployment_id}", json={"paused": paused}
