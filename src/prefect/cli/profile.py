@@ -21,7 +21,7 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
 from prefect.exceptions import ObjectNotFound
-from prefect.settings import ProfilesCollection
+from prefect.settings import Profile, ProfilesCollection
 from prefect.utilities.collections import AutoEnum
 
 profile_app = PrefectTyper(name="profile", help="Select and manage Prefect profiles.")
@@ -256,54 +256,34 @@ def inspect(
         app.console.print(f"{setting.name}='{value}'")
 
 
-def _show_profile_changes(
-    default_profiles: ProfilesCollection, user_profiles: ProfilesCollection
-) -> tuple[list[str], list[str]]:
-    """
-    Display detailed information about profile changes.
+def show_profile_changes(
+    user_profiles: ProfilesCollection, default_profiles: ProfilesCollection
+):
+    changes = []
 
-    Args:
-        default_profiles: The default profiles.
-        user_profiles: The user's existing profiles.
+    if "default" in user_profiles:
+        changes.append(("migrate", "default", "ephemeral"))
 
-    Returns:
-        tuple: A tuple containing lists of profiles to add and modify.
-    """
-    profiles_to_add: list[str] = []
-    profiles_to_modify: list[str] = []
-    for name, profile in default_profiles.items():
+    for name in default_profiles.names:
         if name not in user_profiles:
-            profiles_to_add.append(name)
-        elif user_profiles[name].settings != profile.settings:
-            profiles_to_modify.append(name)
+            changes.append(("add", name))
 
-    if profiles_to_add:
-        app.console.print("\n[bold][blue]Profiles to be added:[/blue][bold]")
-        for name in profiles_to_add:
-            app.console.print(f"  - {name}")
-    if profiles_to_modify:
-        app.console.print("\n[yellow]Profiles to be modified:[/yellow]")
-        for name in profiles_to_modify:
-            app.console.print(f"  - {name}")
-    if not profiles_to_add and not profiles_to_modify:
+    if not changes:
         app.console.print(
-            "[green]No changes needed. All default profiles are up to date.[/green]"
+            "[green]No changes needed. All profiles are up to date.[/green]"
         )
-        return [], []
+        return False
 
-    app.console.print("\n[bold]Default Profile Configurations:[/bold]")
-    for name in profiles_to_add + profiles_to_modify:
-        profile = default_profiles[name]
-        app.console.print(f"\n[underline]{name}[/underline]:")
+    app.console.print("\n[bold cyan]Proposed Changes:[/bold cyan]")
+    for change in changes:
+        if change[0] == "migrate":
+            app.console.print(
+                f"  [yellow]•[/yellow] Migrate '{change[1]}' to '{change[2]}'"
+            )
+        elif change[0] == "add":
+            app.console.print(f"  [blue]•[/blue] Add '{change[1]}'")
 
-        if not (profile_items := list(profile.settings.items())):
-            app.console.print("  (empty)")
-            continue
-
-        for setting, value in profile_items:
-            app.console.print(f"  {setting.name}: {value}")
-
-    return profiles_to_add, profiles_to_modify
+    return True
 
 
 @profile_app.command()
@@ -315,38 +295,45 @@ def populate_defaults():
     )
 
     if user_path.exists():
-        user_content = user_path.read_text()
-        if user_content == prefect.settings.DEFAULT_PROFILES_PATH.read_text():
-            app.console.print(
-                "Default profiles already populated. [green]No action required[/green]."
-            )
-            return
-
         user_profiles = prefect.settings._read_profiles_from(user_path)
-        profiles_to_add, profiles_to_modify = _show_profile_changes(
-            default_profiles, user_profiles
-        )
 
-        if not profiles_to_add and not profiles_to_modify:
+        if not show_profile_changes(user_profiles, default_profiles):
             return
 
-        if user_content != _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT:
-            backup_path = user_path.with_suffix(".toml.bak")
-            if typer.confirm(f"\nBack up existing profiles to {backup_path}?"):
-                shutil.copy(user_path, backup_path)
-                app.console.print(f"Profiles backed up to {backup_path}")
+        # Backup prompt
+        if typer.confirm(f"\nBack up existing profiles to {user_path}.bak?"):
+            shutil.copy(user_path, f"{user_path}.bak")
+            app.console.print(f"Profiles backed up to {user_path}.bak")
     else:
-        user_profiles = default_profiles
+        user_profiles = ProfilesCollection([])
         app.console.print(
             "\n[bold]Creating new profiles file with default profiles.[/bold]"
         )
-        _show_profile_changes(default_profiles, ProfilesCollection([]))
+        show_profile_changes(user_profiles, default_profiles)
 
+    # Update prompt
     if not typer.confirm(f"\nUpdate profiles at {user_path}?"):
         app.console.print("Operation cancelled.")
         return
 
-    # Merge profiles, keeping existing user profiles unchanged
+    # Apply changes
+    if "default" in user_profiles:
+        default_settings = user_profiles["default"].settings
+        if "ephemeral" not in user_profiles:
+            user_profiles.add_profile(
+                Profile(name="ephemeral", settings=default_settings)
+            )
+        else:
+            merged_settings = {
+                **user_profiles["ephemeral"].settings,
+                **default_settings,
+            }
+            user_profiles.update_profile("ephemeral", merged_settings)
+
+        if user_profiles.active_name == "default":
+            user_profiles.set_active("ephemeral")
+        user_profiles.remove_profile("default")
+
     for name, profile in default_profiles.items():
         if name not in user_profiles:
             user_profiles.add_profile(profile)

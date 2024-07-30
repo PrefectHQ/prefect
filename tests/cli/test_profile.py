@@ -2,11 +2,10 @@ import shutil
 from uuid import uuid4
 
 import pytest
-import readchar
 import respx
 from httpx import Response
 
-from prefect.cli.profile import _show_profile_changes
+from prefect.cli.profile import show_profile_changes
 from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
@@ -588,130 +587,145 @@ def test_inspect_profile_without_settings():
     )
 
 
-def test_populate_defaults(tmp_path, monkeypatch):
-    # Set up a temporary profiles path
-    temp_profiles_path = tmp_path / "profiles.toml"
-    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+class TestProfilesPopulateDefaults:
+    def test_populate_defaults(self, temporary_profiles_path):
+        default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
 
-    default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
+        assert not temporary_profiles_path.exists()
 
-    assert not temp_profiles_path.exists()
+        invoke_and_assert(
+            ["profile", "populate-defaults"],
+            user_input="y",
+            expected_output_contains=[
+                "Proposed Changes:",
+                "Add 'ephemeral'",
+                "Add 'local'",
+                "Add 'cloud'",
+                f"Profiles updated in {temporary_profiles_path}",
+                "Use with prefect profile use [PROFILE-NAME]",
+            ],
+        )
 
-    invoke_and_assert(
-        ["profile", "populate-defaults"],
-        user_input="y",
-        expected_output_contains=[
-            f"Profiles updated in {temp_profiles_path}",
-            "Use with prefect profile use [PROFILE-NAME]",
-        ],
-    )
+        assert temporary_profiles_path.exists()
 
-    assert temp_profiles_path.exists()
+        populated_profiles = load_profiles()
 
-    populated_profiles = load_profiles()
+        assert populated_profiles.names == default_profiles.names
+        assert populated_profiles.active_name == default_profiles.active_name
 
-    assert populated_profiles.names == default_profiles.names
-    assert populated_profiles.active_name == default_profiles.active_name
+        assert {"local", "ephemeral", "cloud"} == set(populated_profiles.names)
 
-    assert {"local", "ephemeral", "cloud"} == set(populated_profiles.names)
+        for name in default_profiles.names:
+            assert populated_profiles[name].settings == default_profiles[name].settings
 
-    for name in default_profiles.names:
-        assert populated_profiles[name].settings == default_profiles[name].settings
+    def test_populate_defaults_with_existing_profiles(self, temporary_profiles_path):
+        existing_profiles = ProfilesCollection(
+            profiles=[Profile(name="existing", settings={PREFECT_API_KEY: "test_key"})],
+            active="existing",
+        )
+        save_profiles(existing_profiles)
 
+        invoke_and_assert(
+            ["profile", "populate-defaults"],
+            user_input="y\ny",  # Confirm backup and update
+            expected_output_contains=[
+                "Proposed Changes:",
+                "Add 'ephemeral'",
+                "Add 'local'",
+                "Add 'cloud'",
+                f"Back up existing profiles to {temporary_profiles_path}.bak?",
+                f"Update profiles at {temporary_profiles_path}?",
+                f"Profiles updated in {temporary_profiles_path}",
+            ],
+        )
 
-def test_populate_defaults_with_existing_profiles(tmp_path, monkeypatch):
-    temp_profiles_path = tmp_path / "profiles.toml"
-    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+        new_profiles = load_profiles()
+        assert {"local", "ephemeral", "cloud", "existing"} == set(new_profiles.names)
 
-    existing_profiles = ProfilesCollection(
-        profiles=[Profile(name="existing", settings={PREFECT_API_KEY: "test_key"})],
-        active="existing",
-    )
-    save_profiles(existing_profiles)
+        backup_profiles = _read_profiles_from(
+            temporary_profiles_path.with_suffix(".toml.bak")
+        )
+        assert "existing" in backup_profiles.names
+        assert backup_profiles["existing"].settings == {PREFECT_API_KEY: "test_key"}
 
-    invoke_and_assert(
-        ["profile", "populate-defaults"],
-        user_input=(
-            "y" + readchar.key.ENTER + "y" + readchar.key.ENTER
-        ),  # Confirm overwrite and backup
-        expected_output_contains=[
-            "Update profiles at",
-            f"Profiles backed up to {temp_profiles_path}.bak",
-            f"Profiles updated in {temp_profiles_path}",
-        ],
-    )
+    def test_populate_defaults_no_changes_needed(self, temporary_profiles_path):
+        shutil.copy(DEFAULT_PROFILES_PATH, temporary_profiles_path)
 
-    new_profiles = load_profiles()
-    assert {"local", "ephemeral", "cloud", "existing"} == set(new_profiles.names)
+        invoke_and_assert(
+            ["profile", "populate-defaults"],
+            expected_output_contains=[
+                "No changes needed. All profiles are up to date.",
+            ],
+            expected_code=0,
+        )
 
-    backup_profiles = _read_profiles_from(temp_profiles_path.with_suffix(".toml.bak"))
-    assert "existing" in backup_profiles.names
-    assert backup_profiles["existing"].settings == {PREFECT_API_KEY: "test_key"}
+        assert temporary_profiles_path.read_text() == DEFAULT_PROFILES_PATH.read_text()
 
+    def test_populate_defaults_migrates_default(self, temporary_profiles_path):
+        existing_profiles = ProfilesCollection(
+            profiles=[
+                Profile(name="default", settings={PREFECT_API_KEY: "test_key"}),
+                Profile(name="custom", settings={PREFECT_API_URL: "http://custom.url"}),
+            ],
+            active="default",
+        )
+        save_profiles(existing_profiles)
 
-def test_populate_defaults_no_changes_needed(tmp_path, monkeypatch):
-    temp_profiles_path = tmp_path / "profiles.toml"
-    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+        invoke_and_assert(
+            ["profile", "populate-defaults"],
+            user_input="y\ny",  # Confirm backup and update
+            expected_output_contains=[
+                "Proposed Changes:",
+                "Migrate 'default' to 'ephemeral'",
+                "Add 'local'",
+                "Add 'cloud'",
+                f"Back up existing profiles to {temporary_profiles_path}.bak?",
+                f"Update profiles at {temporary_profiles_path}?",
+                f"Profiles updated in {temporary_profiles_path}",
+            ],
+        )
 
-    shutil.copy(DEFAULT_PROFILES_PATH, temp_profiles_path)
+        new_profiles = load_profiles()
+        assert {"ephemeral", "local", "cloud", "custom"} == set(new_profiles.names)
+        assert "default" not in new_profiles.names
+        assert new_profiles.active_name == "ephemeral"
+        assert new_profiles["ephemeral"].settings == {
+            PREFECT_API_KEY: "test_key",
+            PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db",
+        }
 
-    invoke_and_assert(
-        ["profile", "populate-defaults"],
-        expected_output_contains=[
-            "Default profiles already populated. No action required.",
-        ],
-        expected_code=0,
-    )
+    def test_show_profile_changes(self, capsys):
+        default_profiles = ProfilesCollection(
+            profiles=[
+                Profile(
+                    name="ephemeral",
+                    settings={PREFECT_API_URL: "https://api.prefect.io"},
+                ),
+                Profile(
+                    name="local", settings={PREFECT_API_URL: "http://localhost:4200"}
+                ),
+                Profile(
+                    name="cloud",
+                    settings={PREFECT_API_URL: "https://api.prefect.cloud"},
+                ),
+            ]
+        )
+        user_profiles = ProfilesCollection(
+            profiles=[
+                Profile(name="default", settings={PREFECT_API_KEY: "test_key"}),
+                Profile(name="custom", settings={PREFECT_API_KEY: "custom_key"}),
+            ]
+        )
 
-    assert temp_profiles_path.read_text() == DEFAULT_PROFILES_PATH.read_text()
+        changes = show_profile_changes(user_profiles, default_profiles)
 
+        assert changes is True
 
-def test_show_profile_changes(capsys):
-    default_profiles = ProfilesCollection(
-        profiles=[
-            Profile(
-                name="ephemeral", settings={PREFECT_API_URL: "https://api.prefect.io"}
-            ),
-            Profile(name="local", settings={PREFECT_API_URL: "http://localhost:4200"}),
-            Profile(
-                name="cloud", settings={PREFECT_API_URL: "https://api.prefect.cloud"}
-            ),
-        ]
-    )
-    user_profiles = ProfilesCollection(
-        profiles=[
-            Profile(
-                name="ephemeral", settings={PREFECT_API_URL: "https://custom.api.com"}
-            ),
-            Profile(name="local", settings={PREFECT_API_URL: "http://localhost:4200"}),
-            Profile(name="custom", settings={PREFECT_API_KEY: "custom_key"}),
-        ]
-    )
+        captured = capsys.readouterr()
+        output = captured.out
 
-    profiles_to_add, profiles_to_modify = _show_profile_changes(
-        default_profiles, user_profiles
-    )
-
-    captured = capsys.readouterr()
-    output = captured.out
-
-    assert "Profiles to be added:" in output
-    assert "- cloud" in output
-
-    assert "Profiles to be modified:" in output
-    assert "- ephemeral" in output
-
-    # Check profile summaries
-    assert "cloud:" in output
-    assert "PREFECT_API_URL: https://api.prefect.cloud" in output
-    assert "ephemeral:" in output
-    assert "PREFECT_API_URL: https://api.prefect.io" in output
-
-    assert profiles_to_add == ["cloud"]
-    assert profiles_to_modify == ["ephemeral"]
-
-    # Check that 'local' profile is not mentioned (as it's unchanged)
-    assert "- local" not in output
-
-    # Check that 'custom' profile is not mentioned (as it's not in default profiles)
-    assert "- custom" not in output
+        assert "Proposed Changes:" in output
+        assert "Migrate 'default' to 'ephemeral'" in output
+        assert "Add 'ephemeral'" in output
+        assert "Add 'local'" in output
+        assert "Add 'cloud'" in output
