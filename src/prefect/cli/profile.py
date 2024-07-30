@@ -191,12 +191,8 @@ def delete(name: str):
         exit_with_error("Deletion aborted.")
     profiles.remove_profile(name)
 
-    verb = "Removed"
-    if name == "ephemeral":
-        verb = "Reset"
-
     prefect.settings.save_profiles(profiles)
-    exit_with_success(f"{verb} profile {name!r}.")
+    exit_with_success(f"Removed profile {name!r}.")
 
 
 @profile_app.command()

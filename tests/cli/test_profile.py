@@ -388,32 +388,6 @@ def test_delete_profile():
     assert "bar" not in profiles
 
 
-def test_delete_profile_ephemeral_is_reset():
-    save_profiles(
-        ProfilesCollection(
-            profiles=[
-                Profile(name="ephemeral", settings={PREFECT_API_KEY: "foo"}),
-            ],
-            active=None,
-        )
-    )
-
-    invoke_and_assert(
-        ["profile", "delete", "ephemeral"],
-        user_input="y",
-        expected_output_contains="Reset profile 'ephemeral'.",
-    )
-
-    profiles = load_profiles()
-    assert profiles["ephemeral"] == Profile(
-        name="ephemeral",
-        settings={
-            PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db"
-        },
-        source=DEFAULT_PROFILES_PATH,
-    )
-
-
 def test_delete_profile_unknown_name():
     invoke_and_assert(
         ["profile", "delete", "foo"],
