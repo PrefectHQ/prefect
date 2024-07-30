@@ -72,7 +72,6 @@ async def take_a_picture_deployment(
         deployment=Deployment(
             name="Take a picture on demand",
             flow_id=take_a_picture.flow_id,
-            is_schedule_active=True,
             paused=False,
         ),
     )
