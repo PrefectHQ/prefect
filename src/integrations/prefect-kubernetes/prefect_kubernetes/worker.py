@@ -109,6 +109,8 @@ import os
 import shlex
 from contextlib import asynccontextmanager
 from datetime import datetime
+from functools import lru_cache
+from threading import Lock
 from typing import (
     Any,
     AsyncGenerator,
@@ -171,7 +173,10 @@ from prefect_kubernetes.utilities import (
     _slugify_label_key,
     _slugify_label_value,
     _slugify_name,
+    enable_socket_keep_alive,
 )
+
+_LOCK = Lock()
 
 MAX_ATTEMPTS = 3
 RETRY_MIN_DELAY_SECONDS = 1
@@ -191,6 +196,40 @@ class HashableKubernetesClusterConfig(BaseModel, allow_mutation=False):
     context_name: str = Field(
         default=..., description="The name of the kubectl context to use."
     )
+
+
+@lru_cache(maxsize=8, typed=True)
+async def _get_configured_kubernetes_client_cached(
+    cluster_config: Optional[HashableKubernetesClusterConfig] = None,
+) -> Any:
+    """Returns a configured Kubernetes client."""
+    with _LOCK:
+        # if a hard-coded cluster config is provided, use it
+        if cluster_config:
+            client_configuration = Configuration()
+            await config.load_kube_config(
+                config_dict=cluster_config.config,
+                context=cluster_config.context_name,
+                client_configuration=client_configuration,
+            )
+            client = ApiClient(configuration=client_configuration)
+        else:
+            # Try to load in-cluster configuration
+            try:
+                config.load_incluster_config()
+                client = ApiClient()
+            except config.ConfigException:
+                # If in-cluster config fails, load the local kubeconfig
+                client = await config.new_client_from_config()
+
+        yield client
+
+        if os.environ.get(
+            "PREFECT_KUBERNETES_WORKER_ADD_TCP_KEEPALIVE", "TRUE"
+        ).strip().lower() in ("true", "1"):
+            enable_socket_keep_alive(client)
+
+        return client
 
 
 def _get_default_job_manifest_template() -> Dict[str, Any]:
@@ -723,32 +762,14 @@ class KubernetesWorker(BaseWorker):
         """
         Returns a configured Kubernetes client.
         """
-        client = None
+        cluster_config = None
 
         if configuration.cluster_config:
-            config_dict = configuration.cluster_config.config
-            context = configuration.cluster_config.context_name
-
-            # Use Configuration to load configuration from a dictionary
-            client_configuration = Configuration()
-            await config.load_kube_config(
-                config_dict=config_dict,
-                context=context,
-                client_configuration=client_configuration,
+            cluster_config = HashableKubernetesClusterConfig(
+                config=configuration.cluster_config.config,
+                context_name=configuration.cluster_config.context_name,
             )
-            client = ApiClient(configuration=client_configuration)
-        else:
-            # Try to load in-cluster configuration
-            try:
-                config.load_incluster_config()
-                client = ApiClient()
-            except config.ConfigException:
-                # If in-cluster config fails, load the local kubeconfig
-                client = await config.new_client_from_config()
-        try:
-            yield client
-        finally:
-            await client.close()
+        return _get_configured_kubernetes_client_cached(cluster_config)
 
     async def _replace_api_key_with_secret(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
@@ -871,10 +892,7 @@ class KubernetesWorker(BaseWorker):
         """
         Context manager for retrieving a Kubernetes batch client.
         """
-        try:
-            yield BatchV1Api(api_client=client)
-        finally:
-            await client.close()
+        yield BatchV1Api(api_client=client)
 
     async def _get_infrastructure_pid(self, job: "V1Job", client: "ApiClient") -> str:
         """

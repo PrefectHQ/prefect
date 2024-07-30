@@ -25,7 +25,10 @@ from kubernetes_asyncio.client.models import (
 from kubernetes_asyncio.config import ConfigException
 from prefect_kubernetes import KubernetesWorker
 from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
-from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
+from prefect_kubernetes.worker import (
+    KubernetesWorkerJobConfiguration,
+    _get_configured_kubernetes_client_cached,
+)
 from pydantic import VERSION as PYDANTIC_VERSION
 
 import prefect
@@ -2126,6 +2129,8 @@ class TestKubernetesWorker:
         mock_job,
         mock_pod,
     ):
+        _get_configured_kubernetes_client_cached.cache_clear()
+
         async def mock_stream(*args, **kwargs):
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
@@ -2152,6 +2157,8 @@ class TestKubernetesWorker:
         mock_job,
         mock_pod,
     ):
+        _get_configured_kubernetes_client_cached.cache_clear()
+
         async def mock_stream(*args, **kwargs):
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
@@ -2164,6 +2171,38 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, default_configuration)
             mock_cluster_config.new_client_from_config.assert_called_once()
+
+    async def test_get_configured_kubernetes_client_cached(
+        self,
+        flow_run,
+        default_configuration,
+        mock_watch,
+        mock_cluster_config,
+        mock_batch_client,
+        mock_core_client_lean,
+        mock_job,
+        mock_pod,
+    ):
+        _get_configured_kubernetes_client_cached.cache_clear()
+
+        async def mock_stream(*args, **kwargs):
+            if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
+                yield {"object": mock_pod, "type": "MODIFIED"}
+            if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_job:
+                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                yield {"object": mock_job, "type": "MODIFIED"}
+
+        mock_watch.return_value.stream = mock_stream
+
+        assert _get_configured_kubernetes_client_cached.cache_info().hits == 0
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, default_configuration)
+            await k8s_worker.run(flow_run, default_configuration)
+            await k8s_worker.run(flow_run, default_configuration)
+
+        assert _get_configured_kubernetes_client_cached.cache_info().misses == 1
+        assert _get_configured_kubernetes_client_cached.cache_info().hits == 2
 
     class TestPodWatch:
         @pytest.mark.parametrize("job_timeout", [24, 100])
