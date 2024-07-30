@@ -5,6 +5,7 @@ import pytest
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.settings import (
@@ -43,13 +44,15 @@ class TestDeploymentSchedules:
             pass
 
         flow_id = await prefect_client.create_flow(rence_griffith)
-        old_record = IntervalSchedule(interval=timedelta(seconds=10.76))
+        schedule = DeploymentScheduleCreate(
+            schedule=IntervalSchedule(interval=timedelta(seconds=10.76))
+        )
 
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
             version="git-commit-hash",
-            schedule=old_record,
+            schedules=[schedule],
             parameters={"foo": "bar"},
             tags=["foo", "bar"],
             parameter_openapi_schema={},

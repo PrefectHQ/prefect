@@ -996,22 +996,6 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
         return filters
 
 
-class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
-    """Legacy filter to filter by `Deployment.is_schedule_active` which
-    is always the opposite of `Deployment.paused`."""
-
-    eq_: Optional[bool] = Field(
-        default=None,
-        description="Only returns where deployment schedule is/is not active",
-    )
-
-    def _get_filter_list(self) -> List:
-        filters = []
-        if self.eq_ is not None:
-            filters.append(orm_models.Deployment.paused.is_not(self.eq_))
-        return filters
-
-
 class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Deployment.tags`."""
 
@@ -1057,9 +1041,6 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     paused: Optional[DeploymentFilterPaused] = Field(
         default=None, description="Filter criteria for `Deployment.paused`"
     )
-    is_schedule_active: Optional[DeploymentFilterIsScheduleActive] = Field(
-        default=None, description="Filter criteria for `Deployment.is_schedule_active`"
-    )
     tags: Optional[DeploymentFilterTags] = Field(
         default=None, description="Filter criteria for `Deployment.tags`"
     )
@@ -1078,8 +1059,6 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.flow_or_deployment_name.as_sql_filter())
         if self.paused is not None:
             filters.append(self.paused.as_sql_filter())
-        if self.is_schedule_active is not None:
-            filters.append(self.is_schedule_active.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
         if self.work_queue_name is not None:

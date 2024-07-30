@@ -865,11 +865,6 @@ class Deployment(Base):
         nullable=True,
         index=True,
     )
-
-    schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES))
-    is_schedule_active = sa.Column(
-        sa.Boolean, nullable=False, server_default="1", default=True
-    )
     paused = sa.Column(
         sa.Boolean, nullable=False, server_default="0", default=False, index=True
     )

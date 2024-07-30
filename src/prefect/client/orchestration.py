@@ -1591,7 +1591,6 @@ class PrefectClient:
         flow_id: UUID,
         name: str,
         version: Optional[str] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
         parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
@@ -1603,7 +1602,6 @@ class PrefectClient:
         entrypoint: Optional[str] = None,
         infrastructure_document_id: Optional[UUID] = None,
         parameter_openapi_schema: Optional[Dict[str, Any]] = None,
-        is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
         enforce_parameter_schema: Optional[bool] = None,
@@ -1616,7 +1614,6 @@ class PrefectClient:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
             version: an optional version string for the deployment
-            schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
             storage_document_id: an reference to the storage block document
                 used for the deployed flow
@@ -1650,9 +1647,7 @@ class PrefectClient:
             infrastructure_document_id=infrastructure_document_id,
             job_variables=dict(job_variables or {}),
             parameter_openapi_schema=parameter_openapi_schema,
-            is_schedule_active=is_schedule_active,
             paused=paused,
-            schedule=schedule,
             schedules=schedules or [],
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
@@ -1667,9 +1662,6 @@ class PrefectClient:
             for field in ["work_pool_name", "work_queue_name"]
             if field not in deployment_create.model_fields_set
         }
-
-        if deployment_create.is_schedule_active is None:
-            exclude.add("is_schedule_active")
 
         if deployment_create.paused is None:
             exclude.add("paused")
@@ -1705,21 +1697,15 @@ class PrefectClient:
     async def update_deployment(
         self,
         deployment: Deployment,
-        schedule: SCHEDULE_TYPES = None,
-        is_schedule_active: Optional[bool] = None,
     ):
         deployment_update = DeploymentUpdate(
             version=deployment.version,
-            schedule=schedule if schedule is not None else deployment.schedule,
-            is_schedule_active=(
-                is_schedule_active
-                if is_schedule_active is not None
-                else deployment.is_schedule_active
-            ),
             description=deployment.description,
             work_queue_name=deployment.work_queue_name,
             tags=deployment.tags,
             path=deployment.path,
+            schedules=deployment.schedules,
+            paused=deployment.paused,
             entrypoint=deployment.entrypoint,
             parameters=deployment.parameters,
             storage_document_id=deployment.storage_document_id,

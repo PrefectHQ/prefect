@@ -163,9 +163,6 @@ class DeploymentCreate(ActionBaseModel):
     flow_id: UUID = Field(
         default=..., description="The ID of the flow associated with the deployment."
     )
-    is_schedule_active: bool = Field(
-        default=True, description="Whether the schedule is active."
-    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
@@ -202,9 +199,6 @@ class DeploymentCreate(ActionBaseModel):
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
-        None, description="The schedule for the deployment."
-    )
     description: Optional[str] = Field(None)
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
@@ -267,13 +261,7 @@ class DeploymentUpdate(ActionBaseModel):
         return remove_old_deployment_fields(values)
 
     version: Optional[str] = Field(None)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
-        None, description="The schedule for the deployment."
-    )
     description: Optional[str] = Field(None)
-    is_schedule_active: bool = Field(
-        default=True, description="Whether the schedule is active."
-    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )

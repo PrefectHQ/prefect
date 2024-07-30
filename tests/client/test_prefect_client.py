@@ -65,7 +65,7 @@ from prefect.client.schemas.responses import (
     OrchestrationResult,
     SetStateStatus,
 )
-from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
+from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.client.utilities import inject_client
 from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
@@ -630,7 +630,6 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
-    assert lookup.schedule == schedule.schedule
     assert len(lookup.schedules) == 1
     assert lookup.schedules[0].schedule == schedule.schedule
     assert lookup.schedules[0].active == schedule.active
@@ -641,38 +640,32 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert lookup.parameter_openapi_schema == {}
 
 
-async def test_updating_deployment(prefect_client, storage_document_id):
+async def test_update_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
+        paused=False,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
 
     initial_lookup = await prefect_client.read_deployment(deployment_id)
-    assert initial_lookup.is_schedule_active
-    assert initial_lookup.schedule == schedule
-
-    updated_schedule = IntervalSchedule(interval=timedelta(seconds=86399))  # rude
-
-    await prefect_client.update_deployment(
-        initial_lookup, schedule=updated_schedule, is_schedule_active=False
-    )
+    initial_lookup.tags = ["new", "tags"]
+    initial_lookup.paused = True
+    await prefect_client.update_deployment(initial_lookup)
 
     second_lookup = await prefect_client.read_deployment(deployment_id)
-    assert not second_lookup.is_schedule_active
-    assert second_lookup.schedule == updated_schedule
+    assert second_lookup.tags == ["new", "tags"]
+    assert second_lookup.paused
 
 
 async def test_updating_deployment_and_removing_schedule(
@@ -683,13 +676,15 @@ async def test_updating_deployment_and_removing_schedule(
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
+    schedule = DeploymentScheduleCreate(
+        schedule=IntervalSchedule(interval=timedelta(days=1))
+    )
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        schedule=schedule,
+        schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         storage_document_id=storage_document_id,
@@ -697,18 +692,18 @@ async def test_updating_deployment_and_removing_schedule(
     )
 
     initial_lookup = await prefect_client.read_deployment(deployment_id)
-    assert initial_lookup.is_schedule_active
-    assert initial_lookup.schedule == schedule
+    assert len(initial_lookup.schedules) == 1
+    assert not initial_lookup.paused
 
-    updated_schedule = NoSchedule()
+    initial_lookup.schedules = []
+    initial_lookup.paused = True
 
-    await prefect_client.update_deployment(
-        initial_lookup, schedule=updated_schedule, is_schedule_active=False
-    )
+    await prefect_client.update_deployment(initial_lookup)
 
     second_lookup = await prefect_client.read_deployment(deployment_id)
-    assert not second_lookup.is_schedule_active
-    assert second_lookup.schedule is None
+
+    assert len(second_lookup.schedules) == 0
+    assert second_lookup.paused
 
 
 async def test_read_deployment_by_name(prefect_client):
@@ -717,19 +712,16 @@ async def test_read_deployment_by_name(prefect_client):
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        schedule=schedule,
     )
 
     lookup = await prefect_client.read_deployment_by_name("foo/test-deployment")
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
-    assert lookup.schedule == schedule
 
 
 async def test_create_then_delete_deployment(prefect_client):
@@ -738,12 +730,10 @@ async def test_create_then_delete_deployment(prefect_client):
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        schedule=schedule,
     )
 
     await prefect_client.delete_deployment(deployment_id)
@@ -1604,7 +1594,7 @@ class TestClientWorkQueues:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            schedule=schedule,
+            schedules=[DeploymentScheduleCreate(schedule=schedule)],
             parameters={"foo": "bar"},
             work_queue_name="wq",
         )
@@ -1748,9 +1738,9 @@ async def test_server_type_cloud():
 
 
 @pytest.mark.parametrize(
-    "on_create, expected_value", [(True, True), (False, False), (None, True)]
+    "on_create, expected_value", [(True, True), (False, False), (None, False)]
 )
-async def test_update_deployment_schedule_active_does_not_overwrite_when_not_provided(
+async def test_update_deployment_paused_does_not_overwrite_when_not_provided(
     prefect_client, flow_run, on_create, expected_value
 ):
     deployment_id = await prefect_client.create_deployment(
@@ -1758,17 +1748,17 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
         name="test-deployment",
         parameters={"foo": "bar"},
         work_queue_name="wq",
-        is_schedule_active=on_create,
+        paused=on_create,
     )
     # Check that is_schedule_active is created as expected
     deployment = await prefect_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == expected_value
+    assert deployment.paused == expected_value
 
-    # Check that updating the deployment without providing is_schedule_active does not modify the value
-    schedule = IntervalSchedule(interval=timedelta(days=1))
-    await prefect_client.update_deployment(deployment, schedule=schedule)
+    # Check that updating the deployment does not overwrite the value
+    deployment.tags = ["new-tag"]
+    await prefect_client.update_deployment(deployment)
     deployment = await prefect_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == expected_value
+    assert deployment.paused == expected_value
 
 
 @pytest.mark.parametrize(
@@ -1776,10 +1766,10 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
     [
         (False, False, True, True),
         (True, True, False, False),
-        (None, True, False, False),
+        (None, False, True, True),
     ],
 )
-async def test_update_deployment_schedule_active_overwrites_when_provided(
+async def test_update_deployment_paused(
     prefect_client,
     flow_run,
     on_create,
@@ -1792,14 +1782,15 @@ async def test_update_deployment_schedule_active_overwrites_when_provided(
         name="test-deployment",
         parameters={"foo": "bar"},
         work_queue_name="wq",
-        is_schedule_active=on_create,
+        paused=on_create,
     )
     deployment = await prefect_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == after_create
+    assert deployment.paused == after_create
 
-    await prefect_client.update_deployment(deployment, is_schedule_active=on_update)
+    deployment.paused = on_update
+    await prefect_client.update_deployment(deployment)
     deployment = await prefect_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == after_update
+    assert deployment.paused == after_update
 
 
 class TestWorkPools:
@@ -2322,7 +2313,7 @@ class TestPrefectClientDeploymentSchedules:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            schedule=schedule,
+            schedules=[DeploymentScheduleCreate(schedule=schedule)],
             parameters={"foo": "bar"},
             work_queue_name="wq",
         )
