@@ -72,7 +72,7 @@ def bench_async_flow_with_async_tasks(benchmark: BenchmarkFixture, num_tasks: in
                 tg.start_soon(test_task)
 
     if num_tasks > 100:
-        benchmark.pedantic(anyio.run, benchmark_flow)
+        benchmark.pedantic(anyio.run, (benchmark_flow,))
     else:
         benchmark(anyio.run, benchmark_flow)
 
