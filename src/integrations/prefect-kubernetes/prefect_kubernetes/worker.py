@@ -740,7 +740,6 @@ class KubernetesWorker(BaseWorker):
         else:
             # Try to load in-cluster configuration
             try:
-                
                 config.load_incluster_config()
                 client = ApiClient()
             except config.ConfigException:
