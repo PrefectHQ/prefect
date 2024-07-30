@@ -26,6 +26,7 @@ from prefect.exceptions import MissingContextError
 from prefect.results import ResultFactory
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_HOME,
@@ -243,7 +244,7 @@ class TestSettingsContext:
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
         )
-        with use_profile("default"):
+        with use_profile("ephemeral"):
             setup_logging.assert_not_called()
 
     def test_settings_context_nesting(self, temporary_profiles_path):
@@ -296,7 +297,13 @@ class TestSettingsContext:
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         result = root_settings_context()
         use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            Profile(
+                name="ephemeral",
+                settings={
+                    PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db"
+                },
+                source=DEFAULT_PROFILES_PATH,
+            ),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once()
@@ -319,7 +326,13 @@ class TestSettingsContext:
         monkeypatch.setattr("sys.argv", cli_command)
         result = root_settings_context()
         use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            Profile(
+                name="ephemeral",
+                settings={
+                    PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db"
+                },
+                source=DEFAULT_PROFILES_PATH,
+            ),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once_with()

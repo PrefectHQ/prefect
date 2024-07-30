@@ -1,14 +1,17 @@
+import shutil
 from uuid import uuid4
 
 import pytest
-import readchar
 import respx
 from httpx import Response
 
+from prefect.cli.profile import show_profile_changes
 from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_KEY,
+    PREFECT_API_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_PROFILES_PATH,
     Profile,
@@ -36,41 +39,38 @@ def test_use_profile_unknown_key():
     )
 
 
-class TestChangingProfileAndCheckingOrionConnection:
+class TestChangingProfileAndCheckingServerConnection:
     @pytest.fixture
     def profiles(self):
         prefect_cloud_api_url = "https://mock-cloud.prefect.io/api"
-        prefect_cloud_orion_api_url = (
+        prefect_cloud_server_api_url = (
             f"{prefect_cloud_api_url}/accounts/{uuid4()}/workspaces/{uuid4()}"
         )
-        hosted_orion_api_url = "https://hosted-orion.prefect.io/api"
+        hosted_server_api_url = "https://hosted-server.prefect.io/api"
 
         return ProfilesCollection(
             profiles=[
                 Profile(
                     name="prefect-cloud",
                     settings={
-                        "PREFECT_API_URL": prefect_cloud_orion_api_url,
+                        "PREFECT_API_URL": prefect_cloud_server_api_url,
                         "PREFECT_API_KEY": "a working cloud api key",
                     },
                 ),
                 Profile(
                     name="prefect-cloud-with-invalid-key",
                     settings={
-                        "PREFECT_API_URL": prefect_cloud_orion_api_url,
+                        "PREFECT_API_URL": prefect_cloud_server_api_url,
                         "PREFECT_API_KEY": "a broken cloud api key",
                     },
                 ),
                 Profile(
-                    name="hosted-orion",
+                    name="hosted-server",
                     settings={
-                        "PREFECT_API_URL": hosted_orion_api_url,
+                        "PREFECT_API_URL": hosted_server_api_url,
                     },
                 ),
-                Profile(
-                    name="ephemeral-prefect",
-                    settings={},
-                ),
+                Profile(name="ephemeral", settings={}),
             ],
             active=None,
         )
@@ -107,20 +107,20 @@ class TestChangingProfileAndCheckingOrionConnection:
             yield unhealthy_cloud
 
     @pytest.fixture
-    def hosted_orion_has_no_cloud_api(self):
+    def hosted_server_has_no_cloud_api(self):
         # if the API URL points to a hosted Prefect server instance, no Cloud API will be found
         with respx.mock:
             hosted = respx.get(
-                "https://hosted-orion.prefect.io/api/me/workspaces",
+                "https://hosted-server.prefect.io/api/me/workspaces",
             ).mock(return_value=Response(404, json={}))
 
             yield hosted
 
     @pytest.fixture
-    def healthy_hosted_orion(self):
+    def healthy_hosted_server(self):
         with respx.mock:
             hosted = respx.get(
-                "https://hosted-orion.prefect.io/api/health",
+                "https://hosted-server.prefect.io/api/health",
             ).mock(return_value=Response(200, json={}))
 
             yield hosted
@@ -129,10 +129,10 @@ class TestChangingProfileAndCheckingOrionConnection:
         raise Exception
 
     @pytest.fixture
-    def unhealthy_hosted_orion(self):
+    def unhealthy_hosted_server(self):
         with respx.mock:
             badly_hosted = respx.get(
-                "https://hosted-orion.prefect.io/api/health",
+                "https://hosted-server.prefect.io/api/health",
             ).mock(side_effect=self.connection_error)
 
             yield badly_hosted
@@ -175,57 +175,57 @@ class TestChangingProfileAndCheckingOrionConnection:
         profiles = load_profiles()
         assert profiles.active_name == "prefect-cloud"
 
-    def test_using_hosted_orion(
-        self, hosted_orion_has_no_cloud_api, healthy_hosted_orion, profiles
+    def test_using_hosted_server(
+        self, hosted_server_has_no_cloud_api, healthy_hosted_server, profiles
     ):
         save_profiles(profiles)
         invoke_and_assert(
-            ["profile", "use", "hosted-orion"],
+            ["profile", "use", "hosted-server"],
             expected_output_contains=(
-                "Connected to Prefect server using profile 'hosted-orion'"
+                "Connected to Prefect server using profile 'hosted-server'"
             ),
             expected_code=0,
         )
 
         profiles = load_profiles()
-        assert profiles.active_name == "hosted-orion"
+        assert profiles.active_name == "hosted-server"
 
-    def test_unhealthy_hosted_orion(
-        self, hosted_orion_has_no_cloud_api, unhealthy_hosted_orion, profiles
+    def test_unhealthy_hosted_server(
+        self, hosted_server_has_no_cloud_api, unhealthy_hosted_server, profiles
     ):
         save_profiles(profiles)
         invoke_and_assert(
-            ["profile", "use", "hosted-orion"],
+            ["profile", "use", "hosted-server"],
             expected_output_contains="Error connecting to Prefect server",
             expected_code=1,
         )
 
         profiles = load_profiles()
-        assert profiles.active_name == "hosted-orion"
+        assert profiles.active_name == "hosted-server"
 
-    def test_using_ephemeral_orion(self, profiles):
+    def test_using_ephemeral_server(self, profiles):
         save_profiles(profiles)
         invoke_and_assert(
-            ["profile", "use", "ephemeral-prefect"],
+            ["profile", "use", "ephemeral"],
             expected_output_contains=(
-                "No Prefect server specified using profile 'ephemeral-prefect'"
+                "No Prefect server specified using profile 'ephemeral'"
             ),
             expected_code=0,
         )
 
         profiles = load_profiles()
-        assert profiles.active_name == "ephemeral-prefect"
+        assert profiles.active_name == "ephemeral"
 
 
 def test_ls_default_profiles():
-    # 'default' is not the current profile because we have a temporary profile in-use
+    # 'ephemeral' is not the current profile because we have a temporary profile in-use
     # during tests
 
-    invoke_and_assert(["profile", "ls"], expected_output_contains="default")
+    invoke_and_assert(["profile", "ls"], expected_output_contains="ephemeral")
 
 
 def test_ls_additional_profiles():
-    # 'default' is not the current profile because we have a temporary profile in-use
+    # 'ephemeral' is not the current profile because we have a temporary profile in-use
     # during tests
 
     save_profiles(
@@ -241,7 +241,7 @@ def test_ls_additional_profiles():
     invoke_and_assert(
         ["profile", "ls"],
         expected_output_contains=(
-            "default",
+            "ephemeral",
             "foo",
             "bar",
         ),
@@ -261,7 +261,7 @@ def test_ls_respects_current_from_profile_flag():
     invoke_and_assert(
         ["--profile", "foo", "profile", "ls"],
         expected_output_contains=(
-            "default",
+            "ephemeral",
             "* foo",
         ),
     )
@@ -282,7 +282,7 @@ def test_ls_respects_current_from_context():
         invoke_and_assert(
             ["profile", "ls"],
             expected_output_contains=(
-                "default",
+                "ephemeral",
                 "foo",
                 "* bar",
             ),
@@ -355,12 +355,12 @@ def test_create_profile_from_unknown_profile():
 
 def test_create_profile_with_existing_profile():
     invoke_and_assert(
-        ["profile", "create", "default"],
+        ["profile", "create", "ephemeral"],
         expected_output="""
-            Profile 'default' already exists.
+            Profile 'ephemeral' already exists.
             To create a new profile, remove the existing profile first:
 
-                prefect profile delete 'default'
+                prefect profile delete 'ephemeral'
             """,
         expected_code=1,
     )
@@ -386,30 +386,6 @@ def test_delete_profile():
     profiles = load_profiles()
     assert "foo" in profiles
     assert "bar" not in profiles
-
-
-def test_delete_profile_default_is_reset():
-    save_profiles(
-        ProfilesCollection(
-            profiles=[
-                Profile(name="default", settings={PREFECT_API_KEY: "foo"}),
-            ],
-            active=None,
-        )
-    )
-
-    invoke_and_assert(
-        ["profile", "delete", "default"],
-        user_input="y",
-        expected_output_contains="Reset profile 'default'.",
-    )
-
-    profiles = load_profiles()
-    assert profiles["default"] == Profile(
-        name="default",
-        settings={},
-        source=DEFAULT_PROFILES_PATH,
-    )
 
 
 def test_delete_profile_unknown_name():
@@ -585,64 +561,145 @@ def test_inspect_profile_without_settings():
     )
 
 
-def test_populate_defaults(tmp_path, monkeypatch):
-    # Set up a temporary profiles path
-    temp_profiles_path = tmp_path / "profiles.toml"
-    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+class TestProfilesPopulateDefaults:
+    def test_populate_defaults(self, temporary_profiles_path):
+        default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
 
-    default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
+        assert not temporary_profiles_path.exists()
 
-    assert not temp_profiles_path.exists()
+        invoke_and_assert(
+            ["profile", "populate-defaults"],
+            user_input="y",
+            expected_output_contains=[
+                "Proposed Changes:",
+                "Add 'ephemeral'",
+                "Add 'local'",
+                "Add 'cloud'",
+                f"Profiles updated in {temporary_profiles_path}",
+                "Use with prefect profile use [PROFILE-NAME]",
+            ],
+        )
 
-    invoke_and_assert(
-        ["profile", "populate-defaults"],
-        user_input="y",
-        expected_output_contains=[
-            f"Profiles updated in {temp_profiles_path}",
-            "Use with prefect profile use [PROFILE-NAME]",
-        ],
-    )
+        assert temporary_profiles_path.exists()
 
-    assert temp_profiles_path.exists()
+        populated_profiles = load_profiles()
 
-    populated_profiles = load_profiles()
+        assert populated_profiles.names == default_profiles.names
+        assert populated_profiles.active_name == default_profiles.active_name
 
-    assert populated_profiles.names == default_profiles.names
-    assert populated_profiles.active_name == default_profiles.active_name
+        assert {"local", "ephemeral", "cloud"} == set(populated_profiles.names)
 
-    assert {"local", "ephemeral", "cloud", "default"} == set(populated_profiles.names)
+        for name in default_profiles.names:
+            assert populated_profiles[name].settings == default_profiles[name].settings
 
-    for name in default_profiles.names:
-        assert populated_profiles[name].settings == default_profiles[name].settings
+    def test_populate_defaults_with_existing_profiles(self, temporary_profiles_path):
+        existing_profiles = ProfilesCollection(
+            profiles=[Profile(name="existing", settings={PREFECT_API_KEY: "test_key"})],
+            active="existing",
+        )
+        save_profiles(existing_profiles)
 
+        invoke_and_assert(
+            ["profile", "populate-defaults"],
+            user_input="y\ny",  # Confirm backup and update
+            expected_output_contains=[
+                "Proposed Changes:",
+                "Add 'ephemeral'",
+                "Add 'local'",
+                "Add 'cloud'",
+                f"Back up existing profiles to {temporary_profiles_path}.bak?",
+                f"Update profiles at {temporary_profiles_path}?",
+                f"Profiles updated in {temporary_profiles_path}",
+            ],
+        )
 
-def test_populate_defaults_with_existing_profiles(tmp_path, monkeypatch):
-    temp_profiles_path = tmp_path / "profiles.toml"
-    monkeypatch.setattr(PREFECT_PROFILES_PATH, "value", lambda: temp_profiles_path)
+        new_profiles = load_profiles()
+        assert {"local", "ephemeral", "cloud", "existing"} == set(new_profiles.names)
 
-    existing_profiles = ProfilesCollection(
-        profiles=[Profile(name="existing", settings={PREFECT_API_KEY: "test_key"})],
-        active="existing",
-    )
-    save_profiles(existing_profiles)
+        backup_profiles = _read_profiles_from(
+            temporary_profiles_path.with_suffix(".toml.bak")
+        )
+        assert "existing" in backup_profiles.names
+        assert backup_profiles["existing"].settings == {PREFECT_API_KEY: "test_key"}
 
-    invoke_and_assert(
-        ["profile", "populate-defaults"],
-        user_input=(
-            "y" + readchar.key.ENTER + "y" + readchar.key.ENTER
-        ),  # Confirm overwrite and backup
-        expected_output_contains=[
-            "Update profiles at",
-            f"Profiles backed up to {temp_profiles_path}.bak",
-            f"Profiles updated in {temp_profiles_path}",
-        ],
-    )
+    def test_populate_defaults_no_changes_needed(self, temporary_profiles_path):
+        shutil.copy(DEFAULT_PROFILES_PATH, temporary_profiles_path)
 
-    new_profiles = load_profiles()
-    assert {"local", "ephemeral", "cloud", "default", "existing"} == set(
-        new_profiles.names
-    )
+        invoke_and_assert(
+            ["profile", "populate-defaults"],
+            expected_output_contains=[
+                "No changes needed. All profiles are up to date.",
+            ],
+            expected_code=0,
+        )
 
-    backup_profiles = _read_profiles_from(temp_profiles_path.with_suffix(".toml.bak"))
-    assert "existing" in backup_profiles.names
-    assert backup_profiles["existing"].settings == {PREFECT_API_KEY: "test_key"}
+        assert temporary_profiles_path.read_text() == DEFAULT_PROFILES_PATH.read_text()
+
+    def test_populate_defaults_migrates_default(self, temporary_profiles_path):
+        existing_profiles = ProfilesCollection(
+            profiles=[
+                Profile(name="default", settings={PREFECT_API_KEY: "test_key"}),
+                Profile(name="custom", settings={PREFECT_API_URL: "http://custom.url"}),
+            ],
+            active="default",
+        )
+        save_profiles(existing_profiles)
+
+        invoke_and_assert(
+            ["profile", "populate-defaults"],
+            user_input="y\ny",  # Confirm backup and update
+            expected_output_contains=[
+                "Proposed Changes:",
+                "Migrate 'default' to 'ephemeral'",
+                "Add 'local'",
+                "Add 'cloud'",
+                f"Back up existing profiles to {temporary_profiles_path}.bak?",
+                f"Update profiles at {temporary_profiles_path}?",
+                f"Profiles updated in {temporary_profiles_path}",
+            ],
+        )
+
+        new_profiles = load_profiles()
+        assert {"ephemeral", "local", "cloud", "custom"} == set(new_profiles.names)
+        assert "default" not in new_profiles.names
+        assert new_profiles.active_name == "ephemeral"
+        assert new_profiles["ephemeral"].settings == {
+            PREFECT_API_KEY: "test_key",
+            PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db",
+        }
+
+    def test_show_profile_changes(self, capsys):
+        default_profiles = ProfilesCollection(
+            profiles=[
+                Profile(
+                    name="ephemeral",
+                    settings={PREFECT_API_URL: "https://api.prefect.io"},
+                ),
+                Profile(
+                    name="local", settings={PREFECT_API_URL: "http://localhost:4200"}
+                ),
+                Profile(
+                    name="cloud",
+                    settings={PREFECT_API_URL: "https://api.prefect.cloud"},
+                ),
+            ]
+        )
+        user_profiles = ProfilesCollection(
+            profiles=[
+                Profile(name="default", settings={PREFECT_API_KEY: "test_key"}),
+                Profile(name="custom", settings={PREFECT_API_KEY: "custom_key"}),
+            ]
+        )
+
+        changes = show_profile_changes(user_profiles, default_profiles)
+
+        assert changes is True
+
+        captured = capsys.readouterr()
+        output = captured.out
+
+        assert "Proposed Changes:" in output
+        assert "Migrate 'default' to 'ephemeral'" in output
+        assert "Add 'ephemeral'" in output
+        assert "Add 'local'" in output
+        assert "Add 'cloud'" in output
