@@ -1566,6 +1566,26 @@ The page size for the queries to backfill events for websocket subscribers
 """
 
 
+# Metrics settings
+
+PREFECT_API_ENABLE_METRICS = Setting(bool, default=False)
+"""
+Whether or not to enable Prometheus metrics in the server application.  Metrics are
+served at the path /api/metrics on the API server.
+"""
+
+PREFECT_CLIENT_ENABLE_METRICS = Setting(bool, default=False)
+"""
+Whether or not to enable Prometheus metrics in the client SDK.  Metrics are served
+at the path /metrics.
+"""
+
+PREFECT_CLIENT_METRICS_PORT = Setting(int, default=4201)
+"""
+The port to expose the client Prometheus metrics on.
+"""
+
+
 # Deprecated settings ------------------------------------------------------------------
 
 
@@ -2130,10 +2150,10 @@ def load_current_profile():
     This will _not_ include settings from the current settings context. Only settings
     that have been persisted to the profiles file will be saved.
     """
-    from prefect.context import SettingsContext
+    import prefect.context
 
     profiles = load_profiles()
-    context = SettingsContext.get()
+    context = prefect.context.get_settings_context()
 
     if context:
         profiles.set_active(context.profile.name)

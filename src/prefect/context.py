@@ -45,6 +45,7 @@ from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
 
@@ -302,6 +303,11 @@ class RunContext(ContextModel):
         client: The Prefect client instance being used for API communication
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        start_client_metrics_server()
+
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
@@ -354,7 +360,7 @@ class EngineContext(RunContext):
         default_factory=weakref.WeakValueDictionary
     )
 
-    # Events worker to emit events to Prefect Cloud
+    # Events worker to emit events
     events: Optional[EventsWorker] = None
 
     __var__: ContextVar = ContextVar("flow_run")

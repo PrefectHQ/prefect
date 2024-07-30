@@ -18,7 +18,13 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext, TaskRunContext, get_run_context
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
+from prefect.context import (
+    FlowRunContext,
+    TaskRunContext,
+    get_run_context,
+)
 from prefect.exceptions import (
     CrashedRun,
     FlowPauseTimeout,
@@ -36,6 +42,7 @@ from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
+from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
@@ -1764,3 +1771,37 @@ class TestLoadFlowAndFlowRun:
         assert flow_run.id == api_flow_run.id
 
         assert await flow() == "bar"
+
+
+class TestConcurrencyRelease:
+    async def test_timeout_concurrency_slot_released_sync(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @flow(timeout_seconds=0.5)
+        def expensive_flow():
+            with concurrency(concurrency_limit_v2.name):
+                time.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            expensive_flow()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
+
+    async def test_timeout_concurrency_slot_released_async(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @flow(timeout_seconds=0.5)
+        async def expensive_flow():
+            async with aconcurrency(concurrency_limit_v2.name):
+                await asyncio.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            await expensive_flow()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
