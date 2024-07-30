@@ -19,6 +19,7 @@ from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
+from prefect.server.api.server import SubprocessASGIServer
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
@@ -164,6 +165,8 @@ def enable_ephemeral_server(disable_hosted_api_server):
         }
     ):
         yield hosted_api_server
+
+    SubprocessASGIServer().stop()
 
 
 @pytest.fixture
