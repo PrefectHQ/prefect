@@ -809,6 +809,7 @@ class SubprocessASGIServer:
             subprocess_server_logger.info(f"Starting server on {self.address()}")
             try:
                 self.running = True
+                server_env = {"PREFECT_UI_ENABLED": False}
                 self.server_process = subprocess.Popen(
                     args=[
                         get_sys_executable(),
@@ -830,6 +831,7 @@ class SubprocessASGIServer:
                     ],
                     env={
                         **os.environ,
+                        **server_env,
                         **get_current_settings().to_environment_variables(
                             exclude_unset=True
                         ),
@@ -842,7 +844,7 @@ class SubprocessASGIServer:
                     elapsed_time = 0
                     while elapsed_time < 10:
                         try:
-                            response = client.get(f"{self.address()}/health")
+                            response = client.get(f"{self.address()}/api/health")
                         except httpx.ConnectError:
                             pass
                         else:
