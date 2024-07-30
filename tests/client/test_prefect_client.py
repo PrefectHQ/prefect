@@ -1750,7 +1750,7 @@ async def test_update_deployment_paused_does_not_overwrite_when_not_provided(
         work_queue_name="wq",
         paused=on_create,
     )
-    # Check that is_schedule_active is created as expected
+    # Check that paused is created as expected
     deployment = await prefect_client.read_deployment(deployment_id)
     assert deployment.paused == expected_value
 
