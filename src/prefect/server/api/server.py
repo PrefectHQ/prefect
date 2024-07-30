@@ -809,7 +809,7 @@ class SubprocessASGIServer:
             subprocess_server_logger.info(f"Starting server on {self.address()}")
             try:
                 self.running = True
-                server_env = {"PREFECT_UI_ENABLED": False}
+                server_env = {"PREFECT_UI_ENABLED": "0"}
                 self.server_process = subprocess.Popen(
                     args=[
                         get_sys_executable(),
