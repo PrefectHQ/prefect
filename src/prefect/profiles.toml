@@ -12,4 +12,3 @@ PREFECT_API_URL = "http://127.0.0.1:4200/api"
 
 
 [profiles.cloud]
-PREFECT_API_KEY = "run `prefect cloud login` to set up your Prefect Cloud profile"
