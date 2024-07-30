@@ -17,7 +17,6 @@ from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     remove_old_deployment_fields,
-    set_deployment_schedules,
     validate_cache_key_length,
     validate_max_metadata_length,
     validate_message_template_variables,
@@ -231,10 +230,6 @@ class DeploymentCreate(ActionBaseModel):
                 preprocess=True,
                 ignore_required=True,
             )
-
-    @model_validator(mode="before")
-    def populate_schedules(cls, values):
-        return set_deployment_schedules(values)
 
     @model_validator(mode="before")
     @classmethod

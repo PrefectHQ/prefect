@@ -1276,7 +1276,7 @@ class TestRunnerDeployment:
         assert deployment.path == "."
         assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is False
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(
@@ -1306,7 +1306,7 @@ class TestRunnerDeployment:
 
         deployment = await prefect_client.read_deployment(deployment_id)
 
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is True
 
     @pytest.mark.parametrize(
         "from_flow_kwargs, apply_kwargs, expected_message",

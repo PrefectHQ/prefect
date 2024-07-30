@@ -2225,7 +2225,6 @@ class TestPauseAndResumeDeployment:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment.id
         )
-        deployment.is_schedule_active = False
         deployment.paused = True
 
         await models.deployments.create_deployment_schedules(
