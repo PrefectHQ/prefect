@@ -12,7 +12,4 @@ PREFECT_API_URL = "http://127.0.0.1:4200/api"
 
 
 [profiles.cloud]
-# This is a placeholder for Prefect Cloud configuration
-# Run "prefect cloud login" to set up your Prefect Cloud profile
-# PREFECT_API_URL = "https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
-# PREFECT_API_KEY = "pnu_rest-of-your-api-key-here"
+PREFECT_API_KEY = "run `prefect cloud login` to set up your Prefect Cloud profile"
