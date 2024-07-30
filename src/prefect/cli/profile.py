@@ -301,7 +301,7 @@ def _show_profile_changes(
             continue
 
         for setting, value in profile_items:
-            app.console.print(f"  {setting.name}: {value or '(empty)'}")
+            app.console.print(f"  {setting.name}: {value}")
 
     return profiles_to_add, profiles_to_modify
 
