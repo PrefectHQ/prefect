@@ -833,7 +833,7 @@ class SubprocessASGIServer:
                 with httpx.Client() as client:
                     response = None
                     elapsed_time = 0
-                    while elapsed_time < 5:
+                    while elapsed_time < 10:
                         try:
                             response = client.get(f"{self.address()}/health")
                         except httpx.ConnectError:
@@ -863,5 +863,7 @@ class SubprocessASGIServer:
                 self.server_process.kill()
             finally:
                 self.server_process = None
+        if self.port in self._instances:
+            del self._instances[self.port]
         if self.running:
             self.running = False
