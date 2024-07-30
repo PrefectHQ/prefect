@@ -1091,10 +1091,14 @@ async def worker_deployment_wq1(
             name="My Deployment 1",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    )
+                )
+            ],
             path="./subdir",
             entrypoint="/file.py:flow",
             parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
@@ -1116,10 +1120,14 @@ async def worker_deployment_infra_wq1(session, flow, flow_function, work_queue_1
             name="My Deployment 2",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    )
+                )
+            ],
             path="./subdir",
             entrypoint="/file.py:flow",
             parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
@@ -1146,10 +1154,14 @@ async def worker_deployment_wq_2(
             name="My Deployment 2",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    )
+                )
+            ],
             path="./subdir",
             entrypoint="/file.py:flow",
             parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),

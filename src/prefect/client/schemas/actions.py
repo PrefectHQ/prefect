@@ -222,11 +222,11 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    paused: bool = Field(
+    paused: Optional[bool] = Field(
         default=None, description="Whether or not the deployment is paused."
     )
-    schedules: List[DeploymentScheduleCreate] = Field(
-        default_factory=list,
+    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
+        default=None,
         description="A list of schedules for the deployment.",
     )
     tags: List[str] = Field(default_factory=list)

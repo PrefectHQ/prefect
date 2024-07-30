@@ -653,22 +653,35 @@ async def test_update_deployment(prefect_client, storage_document_id):
         version="git-commit-hash",
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        paused=False,
+        paused=True,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
 
-    initial_lookup = await prefect_client.read_deployment(deployment_id)
-    initial_lookup.tags = ["new", "tags"]
-    initial_lookup.paused = True
-    await prefect_client.update_deployment(initial_lookup)
+    deployment = await prefect_client.read_deployment(deployment_id)
 
-    second_lookup = await prefect_client.read_deployment(deployment_id)
-    assert second_lookup.tags == ["new", "tags"]
-    assert second_lookup.paused
+    await prefect_client.update_deployment(
+        deployment_id=deployment_id,
+        deployment=client_schemas.actions.DeploymentUpdate(tags=["new", "tags"]),
+    )
+
+    updated_deployment = await prefect_client.read_deployment(deployment_id)
+    # tags should be updated
+    assert updated_deployment.tags == ["new", "tags"]
+    # everything else should be the same
+    assert updated_deployment.id == deployment.id
+    assert updated_deployment.name == deployment.name
+    assert updated_deployment.version == deployment.version
+    assert updated_deployment.parameters == deployment.parameters
+    assert updated_deployment.paused == deployment.paused
+    assert updated_deployment.storage_document_id == deployment.storage_document_id
+    assert (
+        updated_deployment.parameter_openapi_schema
+        == deployment.parameter_openapi_schema
+    )
 
 
-async def test_updating_deployment_and_removing_schedule(
+async def test_update_deployment_to_remove_schedules(
     prefect_client, storage_document_id
 ):
     @flow
@@ -691,19 +704,16 @@ async def test_updating_deployment_and_removing_schedule(
         parameter_openapi_schema={},
     )
 
-    initial_lookup = await prefect_client.read_deployment(deployment_id)
-    assert len(initial_lookup.schedules) == 1
-    assert not initial_lookup.paused
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert len(deployment.schedules) == 1
 
-    initial_lookup.schedules = []
-    initial_lookup.paused = True
+    await prefect_client.update_deployment(
+        deployment_id=deployment_id,
+        deployment=client_schemas.actions.DeploymentUpdate(schedules=[]),
+    )
 
-    await prefect_client.update_deployment(initial_lookup)
-
-    second_lookup = await prefect_client.read_deployment(deployment_id)
-
-    assert len(second_lookup.schedules) == 0
-    assert second_lookup.paused
+    updated_deployment = await prefect_client.read_deployment(deployment_id)
+    assert len(updated_deployment.schedules) == 0
 
 
 async def test_read_deployment_by_name(prefect_client):
@@ -1740,7 +1750,7 @@ async def test_server_type_cloud():
 @pytest.mark.parametrize(
     "on_create, expected_value", [(True, True), (False, False), (None, False)]
 )
-async def test_update_deployment_paused_does_not_overwrite_when_not_provided(
+async def test_update_deployment_does_not_overwrite_paused_when_not_provided(
     prefect_client, flow_run, on_create, expected_value
 ):
     deployment_id = await prefect_client.create_deployment(
@@ -1754,9 +1764,10 @@ async def test_update_deployment_paused_does_not_overwrite_when_not_provided(
     deployment = await prefect_client.read_deployment(deployment_id)
     assert deployment.paused == expected_value
 
-    # Check that updating the deployment does not overwrite the value
-    deployment.tags = ["new-tag"]
-    await prefect_client.update_deployment(deployment)
+    # Only updating tags should not effect paused
+    await prefect_client.update_deployment(
+        deployment_id, client_schemas.actions.DeploymentUpdate(tags=["new-tag"])
+    )
     deployment = await prefect_client.read_deployment(deployment_id)
     assert deployment.paused == expected_value
 
@@ -1787,8 +1798,9 @@ async def test_update_deployment_paused(
     deployment = await prefect_client.read_deployment(deployment_id)
     assert deployment.paused == after_create
 
-    deployment.paused = on_update
-    await prefect_client.update_deployment(deployment)
+    await prefect_client.update_deployment(
+        deployment_id, client_schemas.actions.DeploymentUpdate(paused=on_update)
+    )
     deployment = await prefect_client.read_deployment(deployment_id)
     assert deployment.paused == after_update
 

@@ -86,7 +86,6 @@ from prefect.client.schemas.objects import (
     BlockType,
     ConcurrencyLimit,
     Constant,
-    Deployment,
     DeploymentSchedule,
     Flow,
     FlowRunInput,
@@ -1696,34 +1695,12 @@ class PrefectClient:
 
     async def update_deployment(
         self,
-        deployment: Deployment,
+        deployment_id: UUID,
+        deployment: DeploymentUpdate,
     ):
-        deployment_update = DeploymentUpdate(
-            version=deployment.version,
-            description=deployment.description,
-            work_queue_name=deployment.work_queue_name,
-            tags=deployment.tags,
-            path=deployment.path,
-            schedules=deployment.schedules,
-            paused=deployment.paused,
-            entrypoint=deployment.entrypoint,
-            parameters=deployment.parameters,
-            storage_document_id=deployment.storage_document_id,
-            infrastructure_document_id=deployment.infrastructure_document_id,
-            job_variables=deployment.job_variables,
-            enforce_parameter_schema=deployment.enforce_parameter_schema,
-        )
-
-        if getattr(deployment, "work_pool_name", None) is not None:
-            deployment_update.work_pool_name = deployment.work_pool_name
-
-        exclude = set()
-        if deployment.enforce_parameter_schema is None:
-            exclude.add("enforce_parameter_schema")
-
         await self._client.patch(
-            f"/deployments/{deployment.id}",
-            json=deployment_update.model_dump(mode="json", exclude=exclude),
+            f"/deployments/{deployment_id}",
+            json=deployment.model_dump(mode="json", exclude_unset=True),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:
