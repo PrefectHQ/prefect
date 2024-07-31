@@ -412,16 +412,18 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             if new_state.is_final():
                 if (
-                    isinstance(new_state.data, BaseResult)
-                    and new_state.data.has_cached_object()
+                    isinstance(state.data, BaseResult)
+                    and state.data.has_cached_object()
                 ):
                     # Avoid fetching the result unless it is cached, otherwise we defeat
                     # the purpose of disabling `cache_result_in_memory`
-                    result = new_state.result(raise_on_failure=False, fetch=True)
+                    result = state.result(raise_on_failure=False, fetch=True)
+                    if inspect.isawaitable(result):
+                        result = run_coro_as_sync(result)
                 else:
-                    result = new_state.data
+                    result = state.data
 
-                link_state_to_result(new_state, result)
+                link_state_to_result(state, result)
 
         else:
             try:
