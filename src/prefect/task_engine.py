@@ -409,6 +409,20 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.state_id = new_state.id
             self.task_run.state_type = new_state.type
             self.task_run.state_name = new_state.name
+
+            if new_state.is_final():
+                if (
+                    isinstance(new_state.data, BaseResult)
+                    and new_state.data.has_cached_object()
+                ):
+                    # Avoid fetching the result unless it is cached, otherwise we defeat
+                    # the purpose of disabling `cache_result_in_memory`
+                    result = new_state.result(raise_on_failure=False, fetch=True)
+                else:
+                    result = new_state.data
+
+                link_state_to_result(new_state, result)
+
         else:
             try:
                 new_state = propose_state_sync(
@@ -966,6 +980,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.state_id = new_state.id
             self.task_run.state_type = new_state.type
             self.task_run.state_name = new_state.name
+
+            if new_state.is_final():
+                if (
+                    isinstance(new_state.data, BaseResult)
+                    and new_state.data.has_cached_object()
+                ):
+                    # Avoid fetching the result unless it is cached, otherwise we defeat
+                    # the purpose of disabling `cache_result_in_memory`
+                    result = await new_state.result(raise_on_failure=False, fetch=True)
+                else:
+                    result = new_state.data
+
+                link_state_to_result(new_state, result)
+
         else:
             try:
                 new_state = await propose_state(
