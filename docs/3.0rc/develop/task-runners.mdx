@@ -80,8 +80,10 @@ In this case, you can create [nested flows](/3.0rc/develop/write-flows/#composin
 For example, you can have a flow (in the example below called `multiple_runner_flow`) that runs its tasks locally using the `ThreadPoolTaskRunner`. 
 If you have some tasks that can run more efficiently in parallel on a Dask cluster, you can create a nested flow (such as `dask_nested_flow`) to run those tasks using the `DaskTaskRunner`.
 
+
 ```python
 from prefect import flow, task
+from prefect.futures import wait
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect_dask.task_runners import DaskTaskRunner
 import time
