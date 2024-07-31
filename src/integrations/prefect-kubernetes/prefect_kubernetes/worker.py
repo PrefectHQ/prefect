@@ -644,7 +644,7 @@ class KubernetesWorker(BaseWorker):
 
             # Use Configuration to load configuration from a dictionary
             client_configuration = Configuration()
-            await config.load_kube_config(
+            await config.load_kube_config_from_dict(
                 config_dict=config_dict,
                 context=context,
                 client_configuration=client_configuration,

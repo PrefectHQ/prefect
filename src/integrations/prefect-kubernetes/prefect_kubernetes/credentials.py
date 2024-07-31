@@ -176,13 +176,12 @@ class KubernetesCredentials(Block):
             context = self.cluster_config.context_name
 
             # Use Configuration to load configuration from a dictionary
-
             await config.load_kube_config_from_dict(
                 config_dict=config_dict,
                 context=context,
                 client_configuration=client_configuration,
             )
-        async with ApiClient(configuration=client_configuration) as api_client:
+        async with ApiClient() as api_client:
             try:
                 yield await self.get_resource_specific_client(
                     client_type, api_client=api_client
