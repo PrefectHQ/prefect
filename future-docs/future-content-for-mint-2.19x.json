@@ -1,8 +1,0 @@
-    {
-        "group": "Getting Started",
-        "version": "2.19.x",
-        "pages": [
-            "getting-started/overview",
-            "getting-started/installation"
-        ]
-    }

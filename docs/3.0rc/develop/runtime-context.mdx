@@ -58,7 +58,8 @@ def my_task(y):
     print("My name is", runtime.task_run.name)
     print("Flow run parameters:", runtime.flow_run.parameters)
 
-my_flow(1)
+if __name__ == "__main__":
+    my_flow(1)
 ```
 
 Running this file produces output similar to the following:
