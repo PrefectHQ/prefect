@@ -428,6 +428,7 @@ class TestSubprocessASGIServer:
         server = SubprocessASGIServer()
         port = server.find_available_port()
         assert server.is_port_available(port)
+        assert 8000 <= port < 9000
 
     def test_is_port_available_returns_true_for_available_port(self):
         server = SubprocessASGIServer()
