@@ -788,7 +788,7 @@ class SubprocessASGIServer:
         raise RuntimeError("Unable to find an available port after multiple attempts")
 
     @staticmethod
-    def is_port_available(port):
+    def is_port_available(port: int):
         with contextlib.closing(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ) as sock:
