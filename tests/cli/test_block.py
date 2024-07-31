@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 
 from prefect.blocks import system
@@ -47,7 +45,9 @@ def test_register_blocks_from_module_with_ui_url():
         )
 
 
-def test_register_blocks_from_module_without_ui_url():
+def test_register_blocks_from_module_without_ui_url(
+    disable_hosted_api_server, enable_ephemeral_server
+):
     with temporary_settings(set_defaults={PREFECT_UI_URL: None}):
         invoke_and_assert(
             ["block", "register", "-m", "prefect.blocks.core"],
@@ -83,14 +83,15 @@ def test_register_blocks_from_invalid_module():
     )
 
 
-def test_register_blocks_from_file(tmp_path, prefect_client: PrefectClient):
+async def test_register_blocks_from_file(tmp_path, prefect_client: PrefectClient):
     test_file_path = tmp_path / "test.py"
 
     with open(test_file_path, "w") as f:
         f.write(TEST_BLOCK_CODE)
 
     with temporary_settings(set_defaults={PREFECT_UI_URL: "https://app.prefect.cloud"}):
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             ["block", "register", "-f", str(test_file_path)],
             expected_code=0,
             expected_output_contains=[
@@ -99,9 +100,7 @@ def test_register_blocks_from_file(tmp_path, prefect_client: PrefectClient):
             ],
         )
 
-    block_type = asyncio.run(
-        prefect_client.read_block_type_by_slug(slug="testforfileregister")
-    )
+    block_type = prefect_client.read_block_type_by_slug(slug="testforfileregister")
     assert block_type is not None
 
 
@@ -297,14 +296,15 @@ def test_inspecting_a_block_type(tmp_path):
     )
 
 
-def test_deleting_a_block_type(tmp_path, prefect_client):
+async def test_deleting_a_block_type(tmp_path, prefect_client):
     test_file_path = tmp_path / "test.py"
 
     with open(test_file_path, "w") as f:
         f.write(TEST_BLOCK_CODE)
 
-    invoke_and_assert(
-        ["block", "register", "-f", str(test_file_path)],
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "register", "-f", str(test_file_path)],
         expected_code=0,
         expected_output_contains="Successfully registered 1 block",
     )
@@ -314,15 +314,16 @@ def test_deleting_a_block_type(tmp_path, prefect_client):
         "testforfileregister",
     ]
 
-    invoke_and_assert(
-        ["block", "type", "delete", "testforfileregister"],
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "type", "delete", "testforfileregister"],
         expected_code=0,
         user_input="y",
         expected_output_contains=expected_output,
     )
 
     with pytest.raises(ObjectNotFound):
-        asyncio.run(prefect_client.read_block_type_by_slug(slug="testforfileregister"))
+        await prefect_client.read_block_type_by_slug(slug="testforfileregister")
 
 
 def test_deleting_a_protected_block_type(

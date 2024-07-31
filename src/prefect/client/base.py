@@ -35,10 +35,14 @@ from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
+from prefect.utilities.collections import AutoEnum
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
 # Datastores for lifespan management, keys should be a tuple of thread and app
@@ -637,3 +641,33 @@ class PrefectHttpxSyncEphemeralClient(TestClient, PrefectHttpxSyncClient):
         )
 
     pass
+
+
+class ServerType(AutoEnum):
+    EPHEMERAL = AutoEnum.auto()
+    SERVER = AutoEnum.auto()
+    CLOUD = AutoEnum.auto()
+    UNCONFIGURED = AutoEnum.auto()
+
+
+def determine_server_type() -> ServerType:
+    """
+    Determine the server type based on the current settings.
+
+    Returns:
+        - `ServerType.EPHEMERAL` if the ephemeral server is enabled
+        - `ServerType.SERVER` if a API URL is configured and it is not a cloud URL
+        - `ServerType.CLOUD` if an API URL is configured and it is a cloud URL
+        - `ServerType.UNCONFIGURED` if no API URL is configured and ephemeral mode is
+            not enabled
+    """
+    api_url = PREFECT_API_URL.value()
+    if api_url is None:
+        if PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value():
+            return ServerType.EPHEMERAL
+        else:
+            return ServerType.UNCONFIGURED
+    if api_url.startswith(PREFECT_CLOUD_API_URL.value()):
+        return ServerType.CLOUD
+    else:
+        return ServerType.SERVER
