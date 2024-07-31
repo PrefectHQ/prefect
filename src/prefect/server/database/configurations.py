@@ -421,6 +421,9 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         else:
             cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 
+        # moves temporary tables from disk into RAM, speeds up queries
+        cursor.execute("PRAGMA temp_store = memory;")
+
         cursor.close()
 
     def begin_sqlite_conn(self, conn, record):
