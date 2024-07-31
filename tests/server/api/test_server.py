@@ -443,6 +443,16 @@ class TestSubprocessASGIServer:
             sock.bind(("127.0.0.1", 12345))
             assert not server.is_port_available(12345)
 
+    def test_start_is_idempotent(self, respx_mock, monkeypatch):
+        popen_mock = MagicMock()
+        monkeypatch.setattr("prefect.server.api.server.subprocess.Popen", popen_mock)
+        respx_mock.get("http://127.0.0.1:8000/api/health").respond(status_code=200)
+        server = SubprocessASGIServer(port=8000)
+        server.start()
+        server.start()
+
+        assert popen_mock.call_count == 1
+
     def test_address_returns_correct_address(self):
         server = SubprocessASGIServer(port=8000)
         assert server.address() == "http://127.0.0.1:8000"
