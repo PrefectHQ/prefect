@@ -140,16 +140,6 @@ async def exception_to_crashed_state(
     """
     state_message = None
 
-    # TODO: Do we need this or can we rely on the `collapse_excgrp` manager?
-    if isinstance(exc, BaseExceptionGroup):
-        # If there are multiple exceptions, we will use the first one for
-        # the purposes of crash reporting.
-        exc = exc.exceptions[0]
-
-        # TODO: Why do we get nested groups here?
-        if isinstance(exc, BaseExceptionGroup):
-            exc = exc.exceptions[0]
-
     if isinstance(exc, anyio.get_cancelled_exc_class()):
         state_message = "Execution was cancelled by the runtime environment."
 
