@@ -22,6 +22,7 @@ from prefect.client.base import determine_server_type
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
 from prefect.exceptions import ObjectNotFound
+from prefect.settings import Profile, ProfilesCollection
 from prefect.utilities.collections import AutoEnum
 
 profile_app = PrefectTyper(name="profile", help="Select and manage Prefect profiles.")
@@ -169,7 +170,7 @@ async def use(name: str):
         )
 
         with use_profile(name, include_current_context=False):
-            connection_status = await check_orion_connection()
+            connection_status = await check_server_connection()
 
         exit_method, msg = status_messages[connection_status]
 
@@ -198,12 +199,8 @@ def delete(name: str):
         exit_with_error("Deletion aborted.")
     profiles.remove_profile(name)
 
-    verb = "Removed"
-    if name == "default":
-        verb = "Reset"
-
     prefect.settings.save_profiles(profiles)
-    exit_with_success(f"{verb} profile {name!r}.")
+    exit_with_success(f"Removed profile {name!r}.")
 
 
 @profile_app.command()
@@ -263,6 +260,36 @@ def inspect(
         app.console.print(f"{setting.name}='{value}'")
 
 
+def show_profile_changes(
+    user_profiles: ProfilesCollection, default_profiles: ProfilesCollection
+):
+    changes = []
+
+    if "default" in user_profiles:
+        changes.append(("migrate", "default", "ephemeral"))
+
+    for name in default_profiles.names:
+        if name not in user_profiles:
+            changes.append(("add", name))
+
+    if not changes:
+        app.console.print(
+            "[green]No changes needed. All profiles are up to date.[/green]"
+        )
+        return False
+
+    app.console.print("\n[bold cyan]Proposed Changes:[/bold cyan]")
+    for change in changes:
+        if change[0] == "migrate":
+            app.console.print(
+                f"  [yellow]•[/yellow] Migrate '{change[1]}' to '{change[2]}'"
+            )
+        elif change[0] == "add":
+            app.console.print(f"  [blue]•[/blue] Add '{change[1]}'")
+
+    return True
+
+
 @profile_app.command()
 def populate_defaults():
     """Populate the profiles configuration with default base profiles, preserving existing user profiles."""
@@ -272,38 +299,57 @@ def populate_defaults():
     )
 
     if user_path.exists():
-        user_content = user_path.read_text()
-        if user_content == prefect.settings.DEFAULT_PROFILES_PATH.read_text():
-            app.console.print(
-                "Default profiles already populated. [green]No action required[/green]."
-            )
-            return
-
-        if user_content != _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT:
-            backup_path = user_path.with_suffix(".toml.bak")
-            if typer.confirm(f"Back up existing profiles to {backup_path}?"):
-                shutil.copy(user_path, backup_path)
-                app.console.print(f"Profiles backed up to {backup_path}")
-
         user_profiles = prefect.settings._read_profiles_from(user_path)
 
-        # Merge profiles, keeping existing user profiles unchanged
-        for name, profile in default_profiles.items():
-            if name not in user_profiles:
-                user_profiles.add_profile(profile)
-                app.console.print(f"Added default profile: [blue]{name}[/blue]")
-    else:
-        user_profiles = default_profiles
+        if not show_profile_changes(user_profiles, default_profiles):
+            return
 
-    if not typer.confirm(f"Update profiles at {user_path}?"):
+        # Backup prompt
+        if typer.confirm(f"\nBack up existing profiles to {user_path}.bak?"):
+            shutil.copy(user_path, f"{user_path}.bak")
+            app.console.print(f"Profiles backed up to {user_path}.bak")
+    else:
+        user_profiles = ProfilesCollection([])
+        app.console.print(
+            "\n[bold]Creating new profiles file with default profiles.[/bold]"
+        )
+        show_profile_changes(user_profiles, default_profiles)
+
+    # Update prompt
+    if not typer.confirm(f"\nUpdate profiles at {user_path}?"):
         app.console.print("Operation cancelled.")
         return
 
+    # Apply changes
+    if "default" in user_profiles:
+        default_settings = user_profiles["default"].settings
+        if "ephemeral" not in user_profiles:
+            user_profiles.add_profile(
+                Profile(name="ephemeral", settings=default_settings)
+            )
+        else:
+            merged_settings = {
+                **user_profiles["ephemeral"].settings,
+                **default_settings,
+            }
+            user_profiles.update_profile("ephemeral", merged_settings)
+
+        if user_profiles.active_name == "default":
+            user_profiles.set_active("ephemeral")
+        user_profiles.remove_profile("default")
+
+    for name, profile in default_profiles.items():
+        if name not in user_profiles:
+            user_profiles.add_profile(profile)
+
     prefect.settings._write_profiles_to(user_path, user_profiles)
-    app.console.print(f"Profiles updated in [green]{user_path}[/green]")
+    app.console.print(f"\nProfiles updated in [green]{user_path}[/green]")
     app.console.print(
-        "Use with [green]prefect profile use[/green] [red][PROFILE-NAME][/red]"
+        "\nUse with [green]prefect profile use[/green] [blue][PROFILE-NAME][/blue]"
     )
+    app.console.print("\nAvailable profiles:")
+    for name in user_profiles.names:
+        app.console.print(f"  - {name}")
 
 
 class ConnectionStatus(AutoEnum):
@@ -317,7 +363,7 @@ class ConnectionStatus(AutoEnum):
     INVALID_API = AutoEnum.auto()
 
 
-async def check_orion_connection():
+async def check_server_connection():
     httpx_settings = dict(timeout=3)
     try:
         # attempt to infer Cloud 2.0 API from the connection URL
@@ -363,6 +409,8 @@ async def check_orion_connection():
             elif server_type == ServerType.UNCONFIGURED:
                 return ConnectionStatus.UNCONFIGURED
             client = get_client(httpx_settings=httpx_settings)
+            if client.server_type == ServerType.EPHEMERAL:
+                return ConnectionStatus.EPHEMERAL
             async with client:
                 connect_error = await client.api_healthcheck()
             if connect_error is not None:
