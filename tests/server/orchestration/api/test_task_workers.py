@@ -19,13 +19,13 @@ from prefect.server.models.task_workers import observe_worker
     ],
 )
 async def test_read_task_workers(
-    prefect_client, initial_workers, certain_tasks, expected_count
+    test_client, initial_workers, certain_tasks, expected_count
 ):
     for worker, tasks in initial_workers.items():
         await observe_worker(tasks, worker)
 
-    response = await prefect_client._client.post(
-        "/task_workers/filter",
+    response = test_client.post(
+        "api/task_workers/filter",
         json={"task_worker_filter": {"task_keys": certain_tasks}}
         if certain_tasks
         else None,

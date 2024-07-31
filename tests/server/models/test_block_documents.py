@@ -1754,16 +1754,16 @@ class TestSecretBlockDocuments:
         # x was NOT overwritten
         assert block2.data["x"] != obfuscate_string(X)
 
-    async def test_block_with_list_of_secrets(self, session):
+    async def test_block_with_list_of_secrets(self, session, prefect_client):
         class ListSecretBlock(Block):
             x: List[SecretStr]
 
         # save the block
         orig_block = ListSecretBlock(x=["a", "b"])
-        await orig_block.save(name="list-secret")
+        await orig_block.save(name="list-secret", client=prefect_client)
 
         # load the block
-        block = await ListSecretBlock.load("list-secret")
+        block = await ListSecretBlock.load("list-secret", client=prefect_client)
 
         assert block.x[0].get_secret_value() == "a"
         assert block.x[1].get_secret_value() == "b"

@@ -17,7 +17,6 @@ from .clients import (
     EventsClient,
     NullEventsClient,
     PrefectCloudEventsClient,
-    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from .related import related_resources_from_run_context
@@ -97,7 +96,15 @@ class EventsWorker(QueueService[Event]):
             elif should_emit_events_to_running_server():
                 client_type = PrefectEventsClient
             elif should_emit_events_to_ephemeral_server():
-                client_type = PrefectEphemeralEventsClient
+                # create an ephemeral API if none was provided
+                from prefect.server.api.server import SubprocessASGIServer
+
+                server = SubprocessASGIServer()
+                server.start()
+                assert server.server_process is not None, "Server process did not start"
+
+                client_kwargs = {"api_url": f"{server.address()}/api"}
+                client_type = PrefectEventsClient
             else:
                 client_type = NullEventsClient
 

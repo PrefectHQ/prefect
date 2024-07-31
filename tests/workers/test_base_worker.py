@@ -413,9 +413,6 @@ async def test_worker_creates_only_one_client_context(
 
     assert tracking_mock.call_count == 1
 
-    # Multiple hits if worker's client is not being reused
-    assert caplog.text.count("Using ephemeral application") == 1
-
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
     session, client

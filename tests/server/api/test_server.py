@@ -1,8 +1,11 @@
+import contextlib
+import socket
 import sqlite3
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
+import httpx
 import pytest
 import sqlalchemy as sa
 import toml
@@ -10,9 +13,12 @@ from fastapi import APIRouter, status, testclient
 from httpx import ASGITransport, AsyncClient
 
 from prefect.client.constants import SERVER_API_VERSION
+from prefect.client.orchestration import get_client
+from prefect.flows import flow
 from prefect.server.api.server import (
     API_ROUTERS,
     SQLITE_LOCKED_MSG,
+    SubprocessASGIServer,
     _memoize_block_auto_registration,
     create_api_app,
     create_app,
@@ -20,6 +26,7 @@ from prefect.server.api.server import (
 )
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_URL,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     temporary_settings,
@@ -405,3 +412,73 @@ class TestMemoizeBlockAutoRegistration:
             await _memoize_block_auto_registration(test_func)()
 
         assert test_func.call_count == 2
+
+
+class TestSubprocessASGIServer:
+    def test_singleton_on_port(self):
+        server_8000 = SubprocessASGIServer(port=8000)
+        assert server_8000 is SubprocessASGIServer(port=8000)
+
+        server_random = SubprocessASGIServer()
+        assert server_random is SubprocessASGIServer()
+
+        assert server_8000 is not server_random
+
+    def test_find_available_port_returns_available_port(self):
+        server = SubprocessASGIServer()
+        port = server.find_available_port()
+        assert server.is_port_available(port)
+        assert 8000 <= port < 9000
+
+    def test_is_port_available_returns_true_for_available_port(self):
+        server = SubprocessASGIServer()
+        port = server.find_available_port()
+        assert server.is_port_available(port)
+
+    def test_is_port_available_returns_false_for_unavailable_port(self):
+        server = SubprocessASGIServer()
+        with contextlib.closing(
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ) as sock:
+            sock.bind(("127.0.0.1", 12345))
+            assert not server.is_port_available(12345)
+
+    def test_start_is_idempotent(self, respx_mock, monkeypatch):
+        popen_mock = MagicMock()
+        monkeypatch.setattr("prefect.server.api.server.subprocess.Popen", popen_mock)
+        respx_mock.get("http://127.0.0.1:8000/api/health").respond(status_code=200)
+        server = SubprocessASGIServer(port=8000)
+        server.start()
+        server.start()
+
+        assert popen_mock.call_count == 1
+
+    def test_address_returns_correct_address(self):
+        server = SubprocessASGIServer(port=8000)
+        assert server.address() == "http://127.0.0.1:8000"
+
+    def test_start_and_stop_server(self):
+        server = SubprocessASGIServer()
+        server.start()
+        health_response = httpx.get(f"{server.address()}/api/health")
+        assert health_response.status_code == 200
+
+        server.stop()
+        with pytest.raises(httpx.RequestError):
+            httpx.get(f"{server.address()}/api/health")
+
+    def test_run_a_flow_against_subprocess_server(self):
+        @flow
+        def f():
+            return 42
+
+        server = SubprocessASGIServer()
+        server.start()
+
+        with temporary_settings({PREFECT_API_URL: f"{server.address()}/api"}):
+            assert f() == 42
+
+            client = get_client(sync_client=True)
+            assert len(client.read_flow_runs()) == 1
+
+        server.stop()

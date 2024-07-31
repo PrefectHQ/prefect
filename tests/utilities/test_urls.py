@@ -267,7 +267,7 @@ def test_url_for_missing_url(flow_run):
         )
 
 
-def test_url_for_with_default_base_url(flow_run):
+def test_url_for_with_default_base_url(flow_run, enable_ephemeral_server):
     default_base_url = "https://default.prefect.io"
     expected_url = f"{default_base_url}/runs/flow-run/{flow_run.id}"
     assert (
@@ -280,7 +280,9 @@ def test_url_for_with_default_base_url(flow_run):
     )
 
 
-def test_url_for_with_default_base_url_with_path_fragment(flow_run):
+def test_url_for_with_default_base_url_with_path_fragment(
+    flow_run, enable_ephemeral_server
+):
     default_base_url = "https://default.prefect.io/api"
     expected_url = f"{default_base_url}/runs/flow-run/{flow_run.id}"
     assert (
@@ -293,7 +295,9 @@ def test_url_for_with_default_base_url_with_path_fragment(flow_run):
     )
 
 
-def test_url_for_with_default_base_url_with_path_fragment_and_slash(flow_run):
+def test_url_for_with_default_base_url_with_path_fragment_and_slash(
+    flow_run, enable_ephemeral_server
+):
     default_base_url = "https://default.prefect.io/api/"
     expected_url = f"{default_base_url}runs/flow-run/{flow_run.id}"
     assert (

@@ -175,10 +175,18 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
 
 
 async def test_scheduled_tasks_are_enqueued_server_side(
-    foo_task_with_result_storage: Task, prefect_client
+    foo_task_with_result_storage: Task,
+    in_memory_prefect_client: "PrefectClient",
+    monkeypatch,
 ):
+    # Need to mock `get_client` to return the in-memory client because we are directly inspecting
+    # changes in the server-side task queue. Ideally, we'd be able to inspect the task queue via
+    # the REST API for this test, but that's not currently possible.
+    # TODO: Add ways to inspect the task queue via the REST API
+    monkeypatch.setattr(prefect.tasks, "get_client", lambda: in_memory_prefect_client)
+
     task_run_future = foo_task_with_result_storage.apply_async((42,))
-    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
+    task_run = await in_memory_prefect_client.read_task_run(task_run_future.task_run_id)
     client_run: TaskRun = task_run
     assert client_run.state.is_scheduled()
 

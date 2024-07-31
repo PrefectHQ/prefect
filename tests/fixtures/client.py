@@ -17,6 +17,20 @@ async def prefect_client(
 
 
 @pytest.fixture
+async def in_memory_prefect_client(app) -> AsyncGenerator[PrefectClient, None]:
+    """
+    Yield a test client that communicates with an in-memory server
+    """
+    # This was created because we were getting test failures caused by the
+    # hosted API fixture using a different DB than the bare DB operations
+    # in tests.
+    # TODO: Figure out how to use the `prefect_client` fixture instead for
+    # tests/fixtures using this fixture.
+    async with PrefectClient(api=app) as client:
+        yield client
+
+
+@pytest.fixture
 def sync_prefect_client(test_database_connection_url):
     yield get_client(sync_client=True)
 

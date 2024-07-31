@@ -105,8 +105,8 @@ jobs:
           # characters with an underscore
           sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
 
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
-          python benches \
+          PREFECT_API_URL="http://127.0.0.1:4200/api" \
+          python -m benches \
           --ignore=benches/bench_import.py \
           --timeout=180 \
           --benchmark-save="${sanitized_uniquename}" \

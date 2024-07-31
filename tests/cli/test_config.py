@@ -7,11 +7,11 @@ import prefect.context
 import prefect.settings
 from prefect.context import use_profile
 from prefect.settings import (
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_API_KEY,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_TEST_SETTING,
     SETTING_VARIABLES,
     Profile,
@@ -68,7 +68,7 @@ def test_set_using_default_profile():
     assert "ephemeral" in profiles
     assert profiles["ephemeral"].settings == {
         PREFECT_TEST_SETTING: "DEBUG",
-        PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db",
+        PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",
     }
 
 

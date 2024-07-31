@@ -422,6 +422,7 @@ class TestCustomWebhook:
     async def test_notify_async(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
+            xmock.route(host="localhost").pass_through()
 
             custom_block = CustomWebhookNotificationBlock(
                 name="test name",
@@ -444,6 +445,7 @@ class TestCustomWebhook:
     def test_notify_sync(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
+            xmock.route(host="localhost").pass_through()
 
             custom_block = CustomWebhookNotificationBlock(
                 name="test name",
@@ -452,11 +454,7 @@ class TestCustomWebhook:
                 secrets={"token": "someSecretToken"},
             )
 
-            @flow
-            def test_flow():
-                custom_block.notify("test", "subject")
-
-            test_flow()
+            custom_block.notify("test", "subject")
 
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "Prefect Notifications"

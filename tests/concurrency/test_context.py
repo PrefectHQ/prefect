@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.sync import concurrency
@@ -41,10 +41,9 @@ async def test_concurrency_context_releases_slots_sync(
 ):
     def expensive_task():
         with concurrency(concurrency_limit.name):
+            client = get_client()
             response = run_coro_as_sync(
-                prefect_client.read_global_concurrency_limit_by_name(
-                    concurrency_limit.name
-                )
+                client.read_global_concurrency_limit_by_name(concurrency_limit.name)
             )
             assert response and response.active_slots == 1
 

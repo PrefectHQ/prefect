@@ -11,13 +11,21 @@ from starlette import status
 import prefect
 import prefect.client
 import prefect.client.constants
-from prefect.client.base import PrefectHttpxAsyncClient, PrefectResponse
+from prefect.client.base import (
+    PrefectHttpxAsyncClient,
+    PrefectResponse,
+    ServerType,
+    determine_server_type,
+)
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -739,3 +747,41 @@ class TestUserAgent:
         assert isinstance(request, httpx.Request)
 
         assert request.headers["User-Agent"] == "prefect/42.43.44 (API 45.46.47)"
+
+
+class TestDetermineServerType:
+    @pytest.mark.parametrize(
+        "temp_settings, expected_type",
+        [
+            (
+                {
+                    PREFECT_API_URL: "http://localhost:4200/api",
+                },
+                ServerType.SERVER,
+            ),
+            (
+                {
+                    PREFECT_API_URL: None,
+                    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
+                },
+                ServerType.EPHEMERAL,
+            ),
+            (
+                {
+                    PREFECT_API_URL: None,
+                    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: False,
+                },
+                ServerType.UNCONFIGURED,
+            ),
+            (
+                {
+                    PREFECT_CLOUD_API_URL: "https://api.prefect.cloud/api/",
+                    PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/foo/workspaces/bar",
+                },
+                ServerType.CLOUD,
+            ),
+        ],
+    )
+    def test_with_settings_variations(self, temp_settings, expected_type):
+        with temporary_settings(temp_settings):
+            assert determine_server_type() == expected_type

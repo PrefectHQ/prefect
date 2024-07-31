@@ -3,17 +3,24 @@ Defines the Prefect REST API FastAPI app.
 """
 
 import asyncio
+import atexit
+import contextlib
 import mimetypes
 import os
+import random
 import shutil
+import socket
 import sqlite3
+import subprocess
+import time
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
-from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 import anyio
 import asyncpg
+import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
@@ -49,9 +56,12 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+    PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
     PREFECT_UI_SERVE_BASE,
+    get_current_settings,
 )
 from prefect.utilities.hashing import hash_objects
+from prefect.utilities.processutils import get_sys_executable
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
@@ -737,3 +747,136 @@ def create_app(
 
     APP_CACHE[cache_key] = app
     return app
+
+
+subprocess_server_logger = get_logger()
+
+
+class SubprocessASGIServer:
+    _instances: Dict[Union[int, None], "SubprocessASGIServer"] = {}
+    _port_range = range(8000, 9000)
+
+    def __new__(cls, port: Optional[int] = None, *args, **kwargs):
+        """
+        Return an instance of the server associated with the provided port.
+        Prevents multiple instances from being created for the same port.
+        """
+        if port not in cls._instances:
+            instance = super().__new__(cls)
+            cls._instances[port] = instance
+        return cls._instances[port]
+
+    def __init__(self, port: Optional[int] = None):
+        # This ensures initialization happens only once
+        if not hasattr(self, "_initialized"):
+            if port is None:
+                port = self.find_available_port()
+            assert port is not None, "Port must be provided or available"
+            self.port: int = port
+            self.server_process = None
+            self.server = None
+            self.running = False
+            self._initialized = True
+
+    def find_available_port(self):
+        max_attempts = 10
+        for _ in range(max_attempts):
+            port = random.choice(self._port_range)
+            if self.is_port_available(port):
+                return port
+            time.sleep(random.uniform(0.1, 0.5))  # Random backoff
+        raise RuntimeError("Unable to find an available port after multiple attempts")
+
+    @staticmethod
+    def is_port_available(port: int):
+        with contextlib.closing(
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ) as sock:
+            try:
+                sock.bind(("127.0.0.1", port))
+                return True
+            except socket.error:
+                return False
+
+    def address(self) -> str:
+        return f"http://127.0.0.1:{self.port}"
+
+    def start(self):
+        """
+        Start the server in a separate process. Safe to call multiple times; only starts
+        the server once.
+        """
+        if not self.running:
+            subprocess_server_logger.info(f"Starting server on {self.address()}")
+            try:
+                self.running = True
+                server_env = {"PREFECT_UI_ENABLED": "0"}
+                self.server_process = subprocess.Popen(
+                    args=[
+                        get_sys_executable(),
+                        "-m",
+                        "uvicorn",
+                        "--app-dir",
+                        # quote wrapping needed for windows paths with spaces
+                        f'"{prefect.__module_path__.parent}"',
+                        "--factory",
+                        "prefect.server.api.server:create_app",
+                        "--host",
+                        "127.0.0.1",
+                        "--port",
+                        str(self.port),
+                        "--log-level",
+                        "error",
+                        "--lifespan",
+                        "on",
+                    ],
+                    env={
+                        **os.environ,
+                        **server_env,
+                        **get_current_settings().to_environment_variables(
+                            exclude_unset=True
+                        ),
+                    },
+                )
+                atexit.register(self.stop)
+
+                with httpx.Client() as client:
+                    response = None
+                    elapsed_time = 0
+                    while (
+                        elapsed_time
+                        < PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+                    ):
+                        try:
+                            response = client.get(f"{self.address()}/api/health")
+                        except httpx.ConnectError:
+                            pass
+                        else:
+                            if response.status_code == 200:
+                                break
+                        time.sleep(0.1)
+                        elapsed_time += 0.1
+                    if response:
+                        response.raise_for_status()
+                    if not response:
+                        raise RuntimeError(
+                            "Timed out while attempting to connect to hosted test Prefect API."
+                        )
+            except Exception:
+                self.running = False
+                raise
+
+    def stop(self):
+        subprocess_server_logger.info(f"Stopping server on {self.address()}")
+        if self.server_process:
+            self.server_process.terminate()
+            try:
+                self.server_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.server_process.kill()
+            finally:
+                self.server_process = None
+        if self.port in self._instances:
+            del self._instances[self.port]
+        if self.running:
+            self.running = False

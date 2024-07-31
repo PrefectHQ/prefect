@@ -60,7 +60,7 @@ def interactive_console(monkeypatch):
 
 class TestCreate:
     @pytest.mark.usefixtures("mock_collection_registry")
-    async def test_create_work_pool(self, prefect_client, mock_collection_registry):
+    async def test_create_work_pool(self, prefect_client):
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,

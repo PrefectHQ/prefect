@@ -22271,6 +22271,16 @@
                         "title": "Prefect Server Csrf Token Expiration",
                         "default": "PT1H"
                     },
+                    "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {
+                        "type": "boolean",
+                        "title": "Prefect Server Allow Ephemeral Mode",
+                        "default": false
+                    },
+                    "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {
+                        "type": "integer",
+                        "title": "Prefect Server Ephemeral Startup Timeout Seconds",
+                        "default": 10
+                    },
                     "PREFECT_UI_ENABLED": {
                         "type": "boolean",
                         "title": "Prefect Ui Enabled",

@@ -3,6 +3,7 @@ from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, Dict
 import httpx
 import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from prefect.server.api.server import create_app
@@ -19,14 +20,24 @@ def app() -> FastAPI:
 
 
 @pytest.fixture
-async def client(app: ASGIApp) -> AsyncGenerator[AsyncClient, Any]:
+def test_client(app: FastAPI) -> TestClient:
+    return TestClient(app)
+
+
+@pytest.fixture
+async def client(app) -> AsyncGenerator[AsyncClient, Any]:
     """
     Yield a test client for testing the api
     """
-    transport = ASGITransport(app=app)
     async with httpx.AsyncClient(
-        transport=transport, base_url="https://test/api"
+        transport=ASGITransport(app=app), base_url="https://test/api"
     ) as async_client:
+        yield async_client
+
+
+@pytest.fixture
+async def hosted_api_client(use_hosted_api_server) -> AsyncGenerator[AsyncClient, Any]:
+    async with httpx.AsyncClient(base_url=use_hosted_api_server) as async_client:
         yield async_client
 
 

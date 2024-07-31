@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 from prefect.server import models, schemas
 from prefect.server.services.flow_run_notifications import FlowRunNotifications
-from prefect.settings import PREFECT_UI_URL, temporary_settings
+from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
 
 
 @pytest.fixture
@@ -216,7 +216,7 @@ async def test_service_only_sends_notifications_for_matching_policy(
 @pytest.mark.parametrize(
     "provided_ui_url,expected_ui_url",
     [
-        (None, "http://ephemeral-prefect/api"),
+        (None, "from-settings"),
         ("http://some-url", "http://some-url"),
     ],
 )
@@ -225,6 +225,8 @@ def test_get_ui_url_for_flow_run_id_with_ui_url(
 ):
     with temporary_settings({PREFECT_UI_URL: provided_ui_url}):
         url = FlowRunNotifications().get_ui_url_for_flow_run_id(flow_run_id=flow_run.id)
+        if expected_ui_url == "from-settings":
+            expected_ui_url = PREFECT_API_URL.value()[:-4]
         assert url == expected_ui_url + "/runs/flow-run/{flow_run_id}".format(
             flow_run_id=flow_run.id
         )
