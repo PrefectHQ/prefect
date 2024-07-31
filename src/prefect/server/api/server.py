@@ -801,10 +801,13 @@ class SubprocessASGIServer:
     def address(self) -> str:
         return f"http://127.0.0.1:{self.port}"
 
-    def start(self):
+    def start(self, timeout: Optional[int] = None):
         """
         Start the server in a separate process. Safe to call multiple times; only starts
         the server once.
+
+        Args:
+            timeout: The maximum time to wait for the server to start
         """
         if not self.running:
             subprocess_server_logger.info(f"Starting server on {self.address()}")
@@ -843,10 +846,11 @@ class SubprocessASGIServer:
                 with httpx.Client() as client:
                     response = None
                     elapsed_time = 0
-                    while (
-                        elapsed_time
-                        < PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
-                    ):
+                    max_wait_time = (
+                        timeout
+                        or PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+                    )
+                    while elapsed_time < max_wait_time:
                         try:
                             response = client.get(f"{self.address()}/api/health")
                         except httpx.ConnectError:
@@ -859,9 +863,18 @@ class SubprocessASGIServer:
                     if response:
                         response.raise_for_status()
                     if not response:
-                        raise RuntimeError(
-                            "Timed out while attempting to connect to hosted test Prefect API."
-                        )
+                        error_message = "Timed out while attempting to connect to ephemeral Prefect API server."
+                        if self.server_process.poll() is not None:
+                            error_message += f" Ephemeral server process exited with code {self.server_process.returncode}."
+                        if self.server_process.stdout:
+                            error_message += (
+                                f" stdout: {self.server_process.stdout.read()}"
+                            )
+                        if self.server_process.stderr:
+                            error_message += (
+                                f" stderr: {self.server_process.stderr.read()}"
+                            )
+                        raise RuntimeError(error_message)
             except Exception:
                 self.running = False
                 raise
