@@ -421,7 +421,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         else:
             cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 
-        # `PRAGMA temp_store = memory;`moves temporary tables from disk into RAM
+        # `PRAGMA temp_store = memory;` moves temporary tables from disk into RAM
         # this supposedly speeds up reads, but it seems to actually
         # decrease overall performance, see https://github.com/PrefectHQ/prefect/pull/14812
         # cursor.execute("PRAGMA temp_store = memory;")
