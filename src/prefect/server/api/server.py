@@ -56,7 +56,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
-    PREFECT_SERVER_EPHEMERAL_START_UP_WAIT_SECONDS,
+    PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
     PREFECT_UI_SERVE_BASE,
     get_current_settings,
 )
@@ -845,7 +845,7 @@ class SubprocessASGIServer:
                     elapsed_time = 0
                     while (
                         elapsed_time
-                        < PREFECT_SERVER_EPHEMERAL_START_UP_WAIT_SECONDS.value()
+                        < PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
                     ):
                         try:
                             response = client.get(f"{self.address()}/api/health")
