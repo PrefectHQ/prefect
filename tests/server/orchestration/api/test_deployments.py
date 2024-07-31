@@ -39,7 +39,7 @@ class TestCreateDeployment:
     async def test_create_oldstyle_deployment(
         self,
         session,
-        client,
+        hosted_api_client,
         flow,
         flow_function,
         storage_document_id,
@@ -52,7 +52,7 @@ class TestCreateDeployment:
             parameters={"foo": "bar"},
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
-        response = await client.post("/deployments/", json=data)
+        response = await hosted_api_client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My Deployment"
         assert response.json()["version"] == "mint"
@@ -72,7 +72,7 @@ class TestCreateDeployment:
     async def test_create_deployment(
         self,
         session,
-        client,
+        hosted_api_client,
         flow,
         flow_function,
         storage_document_id,
@@ -88,7 +88,7 @@ class TestCreateDeployment:
             job_variables={"cpu": 24},
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
-        response = await client.post("/deployments/", json=data)
+        response = await hosted_api_client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
 
         deployment_response = DeploymentResponse(**response.json())
@@ -318,7 +318,7 @@ class TestCreateDeployment:
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self,
         session,
-        client,
+        hosted_api_client,
         flow,
         storage_document_id,
     ):
@@ -328,7 +328,7 @@ class TestCreateDeployment:
             paused=True,
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
-        response = await client.post("/deployments/", json=data)
+        response = await hosted_api_client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
         deployment_id = response.json()["id"]
@@ -340,7 +340,7 @@ class TestCreateDeployment:
             paused=True,
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
-        response = await client.post("/deployments/", json=data)
+        response = await hosted_api_client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
@@ -355,7 +355,7 @@ class TestCreateDeployment:
             paused=False,  # CHANGED
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
-        response = await client.post("/deployments/", json=data)
+        response = await hosted_api_client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id

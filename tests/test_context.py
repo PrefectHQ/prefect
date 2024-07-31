@@ -26,11 +26,11 @@ from prefect.exceptions import MissingContextError
 from prefect.results import ResultFactory
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     Profile,
     ProfilesCollection,
     save_profiles,
@@ -299,9 +299,7 @@ class TestSettingsContext:
         use_profile.assert_called_once_with(
             Profile(
                 name="ephemeral",
-                settings={
-                    PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db"
-                },
+                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
                 source=DEFAULT_PROFILES_PATH,
             ),
             override_environment_variables=False,
@@ -328,9 +326,7 @@ class TestSettingsContext:
         use_profile.assert_called_once_with(
             Profile(
                 name="ephemeral",
-                settings={
-                    PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db"
-                },
+                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
                 source=DEFAULT_PROFILES_PATH,
             ),
             override_environment_variables=False,

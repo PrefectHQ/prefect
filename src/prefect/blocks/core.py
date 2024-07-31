@@ -902,7 +902,9 @@ class Block(BaseModel, ABC):
             loaded_block.save("my-custom-message", overwrite=True)
             ```
         """
-        block_document, block_document_name = await cls._get_block_document(name)
+        block_document, block_document_name = await cls._get_block_document(
+            name, client=client
+        )
 
         return cls._load_from_block_document(block_document, validate=validate)
 

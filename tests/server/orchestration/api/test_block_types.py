@@ -491,13 +491,13 @@ class TestSystemBlockTypes:
         await client.post("/block_types/install_system_block_types")
         await client.post("/block_types/install_system_block_types")
 
-    async def test_create_system_block_type(self, client, session):
+    async def test_create_system_block_type(self, hosted_api_client, session):
         # install system blocks
-        await client.post("/block_types/install_system_block_types")
+        await hosted_api_client.post("/block_types/install_system_block_types")
 
         # create a datetime block
-        datetime_block_type = await client.get("/block_types/slug/date-time")
-        datetime_block_schema = await client.post(
+        datetime_block_type = await hosted_api_client.get("/block_types/slug/date-time")
+        datetime_block_schema = await hosted_api_client.post(
             "/block_schemas/filter",
             json=dict(
                 block_schemas=dict(
@@ -507,7 +507,7 @@ class TestSystemBlockTypes:
             ),
         )
         block = prefect.blocks.system.DateTime(value="2022-01-01T00:00:00+00:00")
-        response = await client.post(
+        response = await hosted_api_client.post(
             "/block_documents/",
             json=block._to_block_document(
                 name="my-test-date-time",

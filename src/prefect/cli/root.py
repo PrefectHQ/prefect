@@ -17,6 +17,7 @@ import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling
+from prefect.client.base import determine_server_type
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
@@ -117,16 +118,7 @@ async def version(
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_settings_context().profile.name,
     }
-
-    server_type: str
-
-    try:
-        # We do not context manage the client because when using an ephemeral app we do not
-        # want to create the database or run migrations
-        client = prefect.get_client()
-        server_type = client.server_type.value
-    except Exception:
-        server_type = "<client error>"
+    server_type = determine_server_type()
 
     version_info["Server type"] = server_type.lower()
 

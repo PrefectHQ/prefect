@@ -22,7 +22,7 @@ from starlette import status
 
 import prefect.runner
 from prefect import __version__, flow, serve, task
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
@@ -234,15 +234,15 @@ class TestServe:
 
     def test_serve_can_create_multiple_deployments(
         self,
-        prefect_client: PrefectClient,
+        sync_prefect_client: SyncPrefectClient,
     ):
         deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
         deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
         serve(deployment_1, deployment_2)
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="dummy-flow-1/test_runner")
+        deployment = sync_prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
         )
 
         assert deployment is not None
@@ -250,8 +250,8 @@ class TestServe:
             seconds=3600
         )
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="dummy-flow-2/test_runner")
+        deployment = sync_prefect_client.read_deployment_by_name(
+            name="dummy-flow-2/test_runner"
         )
 
         assert deployment is not None

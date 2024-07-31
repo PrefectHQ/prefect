@@ -93,9 +93,9 @@ async def take_a_picture_work_queue(
 
 
 @pytest.fixture
-async def webhook_block_id() -> UUID:
+async def webhook_block_id(in_memory_prefect_client) -> UUID:
     block = Webhook(method="POST", url="https://example.com", headers={"foo": "bar"})
-    return await block.save(name="webhook-test")
+    return await block.save(name="webhook-test", client=in_memory_prefect_client)
 
 
 @pytest.fixture

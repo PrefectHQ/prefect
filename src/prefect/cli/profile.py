@@ -18,6 +18,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.cli.root import app, is_interactive
+from prefect.client.base import determine_server_type
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
 from prefect.exceptions import ObjectNotFound
@@ -136,6 +137,13 @@ async def use(name: str):
             (
                 f"No Prefect server specified using profile {name!r} - the API will run"
                 " in ephemeral mode."
+            ),
+        ),
+        ConnectionStatus.UNCONFIGURED: (
+            exit_with_error,
+            (
+                f"Prefect server URL not configured using profile {name!r} - please"
+                " configure the server URL or enable ephemeral mode."
             ),
         ),
         ConnectionStatus.INVALID_API: (
@@ -350,6 +358,7 @@ class ConnectionStatus(AutoEnum):
     CLOUD_UNAUTHORIZED = AutoEnum.auto()
     SERVER_CONNECTED = AutoEnum.auto()
     SERVER_ERROR = AutoEnum.auto()
+    UNCONFIGURED = AutoEnum.auto()
     EPHEMERAL = AutoEnum.auto()
     INVALID_API = AutoEnum.auto()
 
@@ -373,14 +382,16 @@ async def check_server_connection():
         try:
             # inform the user if Prefect API endpoints exist, but there are
             # connection issues
+            server_type = determine_server_type()
+            if server_type == ServerType.EPHEMERAL:
+                return ConnectionStatus.EPHEMERAL
+            elif server_type == ServerType.UNCONFIGURED:
+                return ConnectionStatus.UNCONFIGURED
             client = get_client(httpx_settings=httpx_settings)
             async with client:
                 connect_error = await client.api_healthcheck()
             if connect_error is not None:
                 return ConnectionStatus.SERVER_ERROR
-            elif client.server_type == ServerType.EPHEMERAL:
-                # if the client is using an ephemeral Prefect app, inform the user
-                return ConnectionStatus.EPHEMERAL
             else:
                 return ConnectionStatus.SERVER_CONNECTED
         except Exception:
@@ -390,6 +401,13 @@ async def check_server_connection():
     except TypeError:
         # if no Prefect API URL has been set, httpx will throw a TypeError
         try:
+            # try to connect with the client anyway, it will likely use an
+            # ephemeral Prefect instance
+            server_type = determine_server_type()
+            if server_type == ServerType.EPHEMERAL:
+                return ConnectionStatus.EPHEMERAL
+            elif server_type == ServerType.UNCONFIGURED:
+                return ConnectionStatus.UNCONFIGURED
             client = get_client(httpx_settings=httpx_settings)
             if client.server_type == ServerType.EPHEMERAL:
                 return ConnectionStatus.EPHEMERAL

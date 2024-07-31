@@ -9,11 +9,11 @@ from prefect.cli.profile import show_profile_changes
 from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     Profile,
     ProfilesCollection,
     _read_profiles_from,
@@ -70,7 +70,10 @@ class TestChangingProfileAndCheckingServerConnection:
                         "PREFECT_API_URL": hosted_server_api_url,
                     },
                 ),
-                Profile(name="ephemeral", settings={}),
+                Profile(
+                    name="ephemeral",
+                    settings={"PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": True},
+                ),
             ],
             active=None,
         )
@@ -665,7 +668,7 @@ class TestProfilesPopulateDefaults:
         assert new_profiles.active_name == "ephemeral"
         assert new_profiles["ephemeral"].settings == {
             PREFECT_API_KEY: "test_key",
-            PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db",
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",
         }
 
     def test_show_profile_changes(self, capsys):

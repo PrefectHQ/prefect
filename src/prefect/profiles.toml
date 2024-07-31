@@ -4,7 +4,7 @@
 active = "ephemeral"
 
 [profiles.ephemeral]
-PREFECT_API_DATABASE_CONNECTION_URL = "sqlite+aiosqlite:///prefect.db"
+PREFECT_SERVER_ALLOW_EPHEMERAL_MODE = "true"
 
 [profiles.local]
 # You will need to set these values appropriately for your local development environment

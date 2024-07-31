@@ -31,7 +31,7 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
-from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.concurrency.asyncio import concurrency as aconcurrency
@@ -1192,8 +1192,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
-            async with AsyncClientContext.get_or_create() as client_ctx:
-                self._client = client_ctx.client
+            async with AsyncClientContext.get_or_create():
+                self._client = get_client()
                 self._is_started = True
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
