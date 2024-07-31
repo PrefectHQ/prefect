@@ -19,9 +19,11 @@ from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
+from prefect.server.api.server import SubprocessASGIServer
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     get_current_settings,
     temporary_settings,
@@ -61,6 +63,7 @@ async def hosted_api_server(unused_tcp_port_factory):
         The API URL
     """
     port = unused_tcp_port_factory()
+    print(f"Running hosted API server on port {port}")
 
     # Will connect to the same database as normal test clients
     async with open_process(
@@ -124,7 +127,7 @@ async def hosted_api_server(unused_tcp_port_factory):
             pass
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def use_hosted_api_server(hosted_api_server):
     """
     Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
@@ -136,6 +139,34 @@ def use_hosted_api_server(hosted_api_server):
         }
     ):
         yield hosted_api_server
+
+
+@pytest.fixture
+def disable_hosted_api_server():
+    """
+    Disables the hosted API server by setting `PREFECT_API_URL` to `None`.
+    """
+    with temporary_settings(
+        {
+            PREFECT_API_URL: None,
+        }
+    ):
+        yield hosted_api_server
+
+
+@pytest.fixture
+def enable_ephemeral_server(disable_hosted_api_server):
+    """
+    Enables the ephemeral server by setting `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` to `True`.
+    """
+    with temporary_settings(
+        {
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
+        }
+    ):
+        yield hosted_api_server
+
+    SubprocessASGIServer().stop()
 
 
 @pytest.fixture

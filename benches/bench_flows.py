@@ -55,7 +55,10 @@ def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
         for _ in range(num_tasks):
             test_task()
 
-    benchmark(benchmark_flow)
+    if num_tasks > 100:
+        benchmark.pedantic(benchmark_flow)
+    else:
+        benchmark(benchmark_flow)
 
 
 @pytest.mark.parametrize("num_tasks", [10, 50, 100, 250])
@@ -68,7 +71,10 @@ def bench_async_flow_with_async_tasks(benchmark: BenchmarkFixture, num_tasks: in
             for _ in range(num_tasks):
                 tg.start_soon(test_task)
 
-    benchmark(anyio.run, benchmark_flow)
+    if num_tasks > 100:
+        benchmark.pedantic(anyio.run, (benchmark_flow,))
+    else:
+        benchmark(anyio.run, benchmark_flow)
 
 
 @pytest.mark.parametrize("num_flows", [5, 10, 20])

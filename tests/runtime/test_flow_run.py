@@ -599,15 +599,19 @@ class TestURL:
         assert getattr(flow_run, url_type) is None
 
     @pytest.mark.parametrize(
-        "url_type, base_url_value",
-        [("api_url", PREFECT_API_URL.value()), ("ui_url", PREFECT_UI_URL.value())],
+        "url_type,",
+        ["api_url", "ui_url"],
     )
     async def test_url_returns_correct_url_when_id_present(
         self,
         url_type,
-        base_url_value,
     ):
         test_id = "12345"
+        if url_type == "api_url":
+            base_url_value = PREFECT_API_URL.value()
+        elif url_type == "ui_url":
+            base_url_value = PREFECT_UI_URL.value()
+
         expected_url = f"{base_url_value}/flow-runs/flow-run/{test_id}"
 
         with FlowRunContext.model_construct(
@@ -618,19 +622,23 @@ class TestURL:
         assert not getattr(flow_run, url_type)
 
     @pytest.mark.parametrize(
-        "url_type, base_url_value",
-        [("api_url", PREFECT_API_URL.value()), ("ui_url", PREFECT_UI_URL.value())],
+        "url_type,",
+        ["api_url", "ui_url"],
     )
     async def test_url_pulls_from_api_when_needed(
         self,
         monkeypatch,
         prefect_client,
         url_type,
-        base_url_value,
     ):
         run = await prefect_client.create_flow_run(flow=flow(lambda: None, name="test"))
 
         assert not getattr(flow_run, url_type)
+
+        if url_type == "api_url":
+            base_url_value = PREFECT_API_URL.value()
+        elif url_type == "ui_url":
+            base_url_value = PREFECT_UI_URL.value()
 
         expected_url = f"{base_url_value}/flow-runs/flow-run/{str(run.id)}"
 

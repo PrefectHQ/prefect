@@ -30,6 +30,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     Profile,
     ProfilesCollection,
     save_profiles,
@@ -243,7 +244,7 @@ class TestSettingsContext:
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
         )
-        with use_profile("default"):
+        with use_profile("ephemeral"):
             setup_logging.assert_not_called()
 
     def test_settings_context_nesting(self, temporary_profiles_path):
@@ -296,7 +297,11 @@ class TestSettingsContext:
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         result = root_settings_context()
         use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            Profile(
+                name="ephemeral",
+                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
+                source=DEFAULT_PROFILES_PATH,
+            ),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once()
@@ -319,7 +324,11 @@ class TestSettingsContext:
         monkeypatch.setattr("sys.argv", cli_command)
         result = root_settings_context()
         use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            Profile(
+                name="ephemeral",
+                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
+                source=DEFAULT_PROFILES_PATH,
+            ),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once_with()

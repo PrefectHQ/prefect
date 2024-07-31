@@ -7,7 +7,6 @@ from prefect.client.schemas.objects import State
 from prefect.events import Event
 from prefect.events.clients import (
     AssertingEventsClient,
-    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from prefect.events.worker import EventsWorker
@@ -34,12 +33,6 @@ def test_emits_event_via_client(asserting_events_worker: EventsWorker, event: Ev
     assert asserting_events_worker._client.events == [event]
 
 
-def test_worker_instance_ephemeral_client_no_api_url():
-    with temporary_settings(updates={PREFECT_API_URL: None}):
-        worker = EventsWorker.instance()
-        assert worker.client_type == PrefectEphemeralEventsClient
-
-
 def test_worker_instance_server_client_non_cloud_api_url():
     with temporary_settings(updates={PREFECT_API_URL: "http://localhost:8080/api"}):
         worker = EventsWorker.instance()
@@ -52,9 +45,13 @@ def test_worker_instance_client_non_cloud_api_url_events_enabled():
         assert worker.client_type == PrefectEventsClient
 
 
-def test_worker_instance_ephemeral_prefect_events_client():
+def test_worker_instance_ephemeral_prefect_events_client(enable_ephemeral_server):
+    """
+    Getting an instance of the worker with ephemeral server mode enabled should
+    return a PrefectEventsClient pointing to the subprocess server.
+    """
     worker = EventsWorker.instance()
-    assert worker.client_type == PrefectEphemeralEventsClient
+    assert worker.client_type == PrefectEventsClient
 
 
 async def test_includes_related_resources_from_run_context(
