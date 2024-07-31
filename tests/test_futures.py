@@ -76,7 +76,6 @@ class TestUtilityFunctions:
             exc_info.value.args[0] == f"1 (of {len(mock_futures)}) futures unfinished"
         )
 
-    # @pytest.mark.timeout(method="thread")
     @pytest.mark.usefixtures("use_hosted_api_server")
     def test_as_completed_yields_correct_order(self):
         @task
@@ -100,7 +99,7 @@ class TestUtilityFunctions:
                 results.append(future.result())
             assert results == timings
 
-    def test_as_completed_timeout(self, caplog):
+    def test_as_completed_timeout(self):
         @task
         def my_test_task(seconds):
             import time
@@ -123,7 +122,6 @@ class TestUtilityFunctions:
                     results.append(future.result())
             assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
 
-    @pytest.mark.skip("Currently failing inconsistently")
     async def test_as_completed_yields_correct_order_dist(self, task_run):
         @task
         async def my_task(seconds):
@@ -134,12 +132,13 @@ class TestUtilityFunctions:
 
         futures = []
         timings = [1, 5, 10]
+        task_runs = []
         for i in reversed(timings):
             task_run = await my_task.create_run(parameters={"seconds": i})
             future = PrefectDistributedFuture(task_run_id=task_run.id)
 
             futures.append(future)
-            asyncio.create_task(
+            task_run = asyncio.create_task(
                 run_task_async(
                     task=my_task,
                     task_run_id=future.task_run_id,
@@ -148,6 +147,8 @@ class TestUtilityFunctions:
                     return_type="state",
                 )
             )
+            task_runs.append(task_run)
+        await asyncio.gather(*task_runs)
         results = []
         with pytest.raises(MissingResult):
             for future in as_completed(futures):
