@@ -55,13 +55,17 @@ class TestGetAvailableWorkPoolTypes:
 
     @pytest.mark.usefixtures("mock_collection_registry_not_available")
     async def test_get_available_work_pool_types_without_collection_registry(
-        self, monkeypatch
+        self, monkeypatch, in_memory_prefect_client
     ):
         respx.routes
 
         def available():
             return ["process"]
 
+        monkeypatch.setattr(
+            "prefect.client.collections.get_client",
+            lambda *args, **kwargs: in_memory_prefect_client,
+        )
         monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
 
         work_pool_types = await get_available_work_pool_types()

@@ -1,8 +1,11 @@
+from unittest.mock import ANY
+
 import httpx
 import pytest
 import respx
 
 from prefect.server.api import collections
+from prefect.settings import PREFECT_API_URL
 
 FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
     "job_configuration": {
@@ -427,8 +430,11 @@ def mock_collection_registry(
     with respx.mock(
         assert_all_mocked=False,
         assert_all_called=False,
+        base_url=PREFECT_API_URL.value(),
     ) as respx_mock:
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(return_value=httpx.Response(200, json=mock_body))
+        respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()
+        respx_mock.route(path__startswith="/work_pools/").pass_through()
+        respx_mock.get("/collections/views/aggregate-worker-metadata").mock(
+            return_value=httpx.Response(200, json=mock_body)
+        )
         yield
