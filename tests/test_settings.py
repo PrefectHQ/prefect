@@ -23,6 +23,7 @@ from prefect.settings import (
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
     PREFECT_TEST_MODE,
@@ -581,7 +582,7 @@ class TestLoadProfiles:
         expected = {
             "ephemeral": {
                 PREFECT_API_KEY: "foo",
-                PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db",  # default value
+                PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",  # default value
             },
             "bar": {PREFECT_API_KEY: "bar"},
         }
@@ -592,9 +593,7 @@ class TestLoadProfiles:
     def test_load_profile_ephemeral(self):
         assert load_profile("ephemeral") == Profile(
             name="ephemeral",
-            settings={
-                PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///prefect.db"
-            },
+            settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
             source=DEFAULT_PROFILES_PATH,
         )
 
