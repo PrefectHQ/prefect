@@ -11,19 +11,18 @@ from httpx import Response
 from prefect import flow
 from prefect.context import FlowRunContext
 from prefect.deployments import run_deployment
+from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import TaskRunResult
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
+    temporary_settings,
+)
 from prefect.tasks import task
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-
-from prefect.events.worker import EventsWorker
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
-    temporary_settings,
-)
 
 
 @pytest.fixture(autouse=True, params=[False, True])
