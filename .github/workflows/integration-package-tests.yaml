@@ -98,7 +98,7 @@ jobs:
         run: >
           pytest tests
           --numprocesses auto
-          --maxprocesses 6
+          --maxprocesses 4
           --dist worksteal
 
       # Run prefect-ray tests sequentially to avoid Ray cluster issues

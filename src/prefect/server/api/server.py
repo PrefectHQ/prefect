@@ -757,57 +757,42 @@ class SubprocessASGIServer:
             except socket.error:
                 return False
 
+    @property
     def address(self) -> str:
         return f"http://127.0.0.1:{self.port}"
 
-    def start(self):
+    @property
+    def api_url(self) -> str:
+        return f"{self.address}/api"
+
+    def start(self, timeout: Optional[int] = None):
         """
         Start the server in a separate process. Safe to call multiple times; only starts
         the server once.
+
+        Args:
+            timeout: The maximum time to wait for the server to start
         """
         if not self.running:
-            subprocess_server_logger.info(f"Starting server on {self.address()}")
+            subprocess_server_logger.info(f"Starting server on {self.address}")
             try:
                 self.running = True
-                server_env = {"PREFECT_UI_ENABLED": "0"}
-                self.server_process = subprocess.Popen(
-                    args=[
-                        get_sys_executable(),
-                        "-m",
-                        "uvicorn",
-                        "--app-dir",
-                        # quote wrapping needed for windows paths with spaces
-                        f'"{prefect.__module_path__.parent}"',
-                        "--factory",
-                        "prefect.server.api.server:create_app",
-                        "--host",
-                        "127.0.0.1",
-                        "--port",
-                        str(self.port),
-                        "--log-level",
-                        "error",
-                        "--lifespan",
-                        "on",
-                    ],
-                    env={
-                        **os.environ,
-                        **server_env,
-                        **get_current_settings().to_environment_variables(
-                            exclude_unset=True
-                        ),
-                    },
-                )
+                self.server_process = self._run_uvicorn_command()
                 atexit.register(self.stop)
-
                 with httpx.Client() as client:
                     response = None
                     elapsed_time = 0
-                    while (
-                        elapsed_time
-                        < PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
-                    ):
+                    max_wait_time = (
+                        timeout
+                        or PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+                    )
+                    while elapsed_time < max_wait_time:
+                        if self.server_process.poll() == 3:
+                            self.port = self.find_available_port()
+                            self.server_process = self._run_uvicorn_command()
+                            continue
                         try:
-                            response = client.get(f"{self.address()}/api/health")
+                            response = client.get(f"{self.api_url}/health")
                         except httpx.ConnectError:
                             pass
                         else:
@@ -818,15 +803,52 @@ class SubprocessASGIServer:
                     if response:
                         response.raise_for_status()
                     if not response:
-                        raise RuntimeError(
-                            "Timed out while attempting to connect to hosted test Prefect API."
-                        )
+                        error_message = "Timed out while attempting to connect to ephemeral Prefect API server."
+                        if self.server_process.poll() is not None:
+                            error_message += f" Ephemeral server process exited with code {self.server_process.returncode}."
+                        if self.server_process.stdout:
+                            error_message += (
+                                f" stdout: {self.server_process.stdout.read()}"
+                            )
+                        if self.server_process.stderr:
+                            error_message += (
+                                f" stderr: {self.server_process.stderr.read()}"
+                            )
+                        raise RuntimeError(error_message)
             except Exception:
                 self.running = False
                 raise
 
+    def _run_uvicorn_command(self) -> subprocess.Popen:
+        server_env = {"PREFECT_UI_ENABLED": "0"}
+        return subprocess.Popen(
+            args=[
+                get_sys_executable(),
+                "-m",
+                "uvicorn",
+                "--app-dir",
+                # quote wrapping needed for windows paths with spaces
+                f'"{prefect.__module_path__.parent}"',
+                "--factory",
+                "prefect.server.api.server:create_app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(self.port),
+                "--log-level",
+                "error",
+                "--lifespan",
+                "on",
+            ],
+            env={
+                **os.environ,
+                **server_env,
+                **get_current_settings().to_environment_variables(exclude_unset=True),
+            },
+        )
+
     def stop(self):
-        subprocess_server_logger.info(f"Stopping server on {self.address()}")
+        subprocess_server_logger.info(f"Stopping server on {self.address}")
         if self.server_process:
             self.server_process.terminate()
             try:
@@ -839,3 +861,10 @@ class SubprocessASGIServer:
             del self._instances[self.port]
         if self.running:
             self.running = False
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, *args):
+        self.stop()

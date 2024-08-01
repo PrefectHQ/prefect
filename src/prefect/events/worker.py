@@ -103,7 +103,7 @@ class EventsWorker(QueueService[Event]):
                 server.start()
                 assert server.server_process is not None, "Server process did not start"
 
-                client_kwargs = {"api_url": f"{server.address()}/api"}
+                client_kwargs = {"api_url": server.api_url}
                 client_type = PrefectEventsClient
             else:
                 client_type = NullEventsClient

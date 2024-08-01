@@ -19,6 +19,7 @@ from prefect_sqlalchemy import (
     SyncDriver,
 )
 
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
 
@@ -32,8 +33,9 @@ def prefect_db():
     """
     Sets up test harness for temporary DB during test runs.
     """
-    with prefect_test_harness():
-        yield
+    with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: False}):
+        with prefect_test_harness():
+            yield
 
 
 @pytest.fixture(autouse=True)
