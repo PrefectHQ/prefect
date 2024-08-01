@@ -22,8 +22,8 @@ from prefect.server.api.server import (
     _memoize_block_auto_registration,
     create_api_app,
     create_app,
-    method_paths_from_routes,
 )
+from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_URL,
