@@ -4,12 +4,11 @@ import traceback
 import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import Any, Dict, Iterable, Optional, Type, Union
+from typing import Any, Dict, Iterable, Optional, Type
 
 import anyio
 import httpx
 import pendulum
-from exceptiongroup import BaseExceptionGroup  # novermin
 from typing_extensions import TypeGuard
 
 from prefect.client.schemas import State as State
@@ -131,7 +130,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 
 
 async def exception_to_crashed_state(
-    exc: Union[BaseException, BaseExceptionGroup],
+    exc: BaseException,
     result_factory: Optional[ResultFactory] = None,
 ) -> State:
     """
