@@ -467,6 +467,14 @@ class TestSubprocessASGIServer:
         with pytest.raises(httpx.RequestError):
             httpx.get(f"{server.address()}/api/health")
 
+    def test_run_as_context_manager(self):
+        with SubprocessASGIServer() as server:
+            health_response = httpx.get(f"{server.address()}/api/health")
+            assert health_response.status_code == 200
+
+        with pytest.raises(httpx.RequestError):
+            httpx.get(f"{server.address()}/api/health")
+
     def test_run_a_flow_against_subprocess_server(self):
         @flow
         def f():

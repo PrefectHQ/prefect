@@ -132,7 +132,8 @@ def prefect_test_harness():
         # temporarily override any database interface components
         stack.enter_context(temporary_database_interface())
         # start a subprocess server to test against
-        test_server = stack.enter_context(SubprocessASGIServer())
+        test_server = SubprocessASGIServer()
+        test_server.start(timeout=30)
 
         DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
         stack.enter_context(
@@ -147,6 +148,7 @@ def prefect_test_harness():
             )
         )
         yield
+        test_server.stop()
 
 
 async def get_most_recent_flow_run(client: "PrefectClient" = None):
