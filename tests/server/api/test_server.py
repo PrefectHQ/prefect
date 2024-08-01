@@ -9,7 +9,7 @@ import httpx
 import pytest
 import sqlalchemy as sa
 import toml
-from fastapi import APIRouter, status, testclient
+from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
 from prefect.client.constants import SERVER_API_VERSION
@@ -22,8 +22,8 @@ from prefect.server.api.server import (
     _memoize_block_auto_registration,
     create_api_app,
     create_app,
-    method_paths_from_routes,
 )
+from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_URL,
@@ -169,103 +169,6 @@ class TestCreateOrionAPI:
             expected.update(method_paths_from_routes(router.routes))
 
         assert method_paths_from_routes(app.router.routes) == expected
-
-    def test_allows_router_omission_with_null_override(self):
-        app = create_api_app(router_overrides={"/logs": None})
-
-        routes = method_paths_from_routes(app.router.routes)
-        assert all("/logs" not in route for route in routes)
-        client = testclient.TestClient(app)
-        with client:
-            assert client.post("/logs").status_code == status.HTTP_404_NOT_FOUND
-
-    def test_checks_for_router_paths_during_override(self):
-        router = APIRouter(prefix="/logs")
-
-        with pytest.raises(
-            ValueError,
-            match="override for '/logs' is missing paths",
-        ) as exc:
-            create_api_app(router_overrides={"/logs": router})
-
-        # These are displayed in a non-deterministic order
-        assert exc.match("POST /logs/filter")
-        assert exc.match("POST /logs/")
-
-    def test_checks_for_changed_prefix_during_override(self):
-        router = APIRouter(prefix="/foo")
-
-        with pytest.raises(
-            ValueError,
-            match="Router override for '/logs' defines a different prefix '/foo'",
-        ):
-            create_api_app(router_overrides={"/logs": router})
-
-    def test_checks_for_new_prefix_during_override(self):
-        router = APIRouter(prefix="/foo")
-
-        with pytest.raises(
-            KeyError,
-            match="Router override provided for prefix that does not exist: '/foo'",
-        ):
-            create_api_app(router_overrides={"/foo": router})
-
-    def test_only_includes_missing_paths_in_override_error(self):
-        router = APIRouter(prefix="/logs")
-
-        @router.post("/")
-        def foo():
-            pass
-
-        with pytest.raises(
-            ValueError,
-            match="override for '/logs' is missing paths.* {'POST /logs/filter'}",
-        ):
-            create_api_app(router_overrides={"/logs": router})
-
-    def test_override_uses_new_router(self):
-        router = APIRouter(prefix="/logs")
-
-        logs = MagicMock()
-
-        @router.post("/")
-        def foo():
-            logs()
-
-        logs_filter = MagicMock()
-        router.post("/filter")(logs_filter)
-
-        app = create_api_app(router_overrides={"/logs": router})
-        client = testclient.TestClient(app)
-        client.post("/logs")
-        logs.assert_called_once()
-        client.post("/logs/filter")
-        logs.assert_called_once()
-
-    def test_override_may_include_new_routes(self):
-        router = APIRouter(prefix="/logs")
-
-        logs = MagicMock(return_value=1)
-        logs_get = MagicMock(return_value=1)
-        logs_filter = MagicMock(return_value=1)
-
-        @router.post("/")
-        def foo():
-            return logs()
-
-        @router.post("/filter")
-        def bar():
-            return logs_filter()
-
-        @router.get("/")
-        def foobar():
-            return logs_get()
-
-        app = create_api_app(router_overrides={"/logs": router})
-
-        client = testclient.TestClient(app)
-        client.get("/logs/").raise_for_status()
-        logs_get.assert_called_once()
 
 
 class TestMemoizeBlockAutoRegistration:
@@ -455,17 +358,29 @@ class TestSubprocessASGIServer:
 
     def test_address_returns_correct_address(self):
         server = SubprocessASGIServer(port=8000)
-        assert server.address() == "http://127.0.0.1:8000"
+        assert server.address == "http://127.0.0.1:8000"
+
+    def test_address_returns_correct_api_url(self):
+        server = SubprocessASGIServer(port=8000)
+        assert server.api_url == "http://127.0.0.1:8000/api"
 
     def test_start_and_stop_server(self):
         server = SubprocessASGIServer()
         server.start()
-        health_response = httpx.get(f"{server.address()}/api/health")
+        health_response = httpx.get(f"{server.address}/api/health")
         assert health_response.status_code == 200
 
         server.stop()
         with pytest.raises(httpx.RequestError):
-            httpx.get(f"{server.address()}/api/health")
+            httpx.get(f"{server.api_url}/health")
+
+    def test_run_as_context_manager(self):
+        with SubprocessASGIServer() as server:
+            health_response = httpx.get(f"{server.api_url}/health")
+            assert health_response.status_code == 200
+
+        with pytest.raises(httpx.RequestError):
+            httpx.get(f"{server.api_url}/health")
 
     def test_run_a_flow_against_subprocess_server(self):
         @flow
@@ -475,7 +390,7 @@ class TestSubprocessASGIServer:
         server = SubprocessASGIServer()
         server.start()
 
-        with temporary_settings({PREFECT_API_URL: f"{server.address()}/api"}):
+        with temporary_settings({PREFECT_API_URL: server.api_url}):
             assert f() == 42
 
             client = get_client(sync_client=True)

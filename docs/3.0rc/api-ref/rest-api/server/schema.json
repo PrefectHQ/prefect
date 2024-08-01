@@ -1508,14 +1508,14 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/download-logs-csv": {
+        "/api/flow_runs/{id}/logs/download": {
             "get": {
                 "tags": [
                     "Flow Runs"
                 ],
                 "summary": "Download Logs",
                 "description": "Download all flow run logs as a CSV file, collecting all logs until there are no more logs to retrieve.",
-                "operationId": "download_logs_flow_runs__id__download_logs_csv_get",
+                "operationId": "download_logs_flow_runs__id__logs_download_get",
                 "parameters": [
                     {
                         "name": "id",

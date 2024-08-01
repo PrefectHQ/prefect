@@ -16,7 +16,7 @@ import time
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
-from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
 
 import anyio
 import asyncpg
@@ -24,7 +24,7 @@ import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from fastapi import APIRouter, Depends, FastAPI, Request, Response, status
+from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,7 +49,6 @@ from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveT
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.services.task_run_recorder import TaskRunRecorder
 from prefect.server.utilities.database import get_dialect
-from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_LOG_RETRYABLE_ERRORS,
@@ -285,7 +284,6 @@ def create_api_app(
     health_check_path: str = "/health",
     version_check_path: str = "/version",
     fast_api_app_kwargs: Optional[Dict[str, Any]] = None,
-    router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Prefect REST API
@@ -295,9 +293,6 @@ def create_api_app(
         dependencies: a list of global dependencies to add to each Prefect REST API router
         health_check_path: the health check route path
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
-        router_overrides: a mapping of route prefixes (i.e. "/admin") to new routers
-            allowing the caller to override the default routers. If `None` is provided
-            as a value, the default router will be dropped from the application.
 
     Returns:
         a FastAPI app that serves the Prefect REST API
@@ -320,44 +315,8 @@ def create_api_app(
     else:
         dependencies.append(Depends(enforce_minimum_version))
 
-    routers = {router.prefix: router for router in API_ROUTERS}
-
-    if router_overrides:
-        for prefix, router in router_overrides.items():
-            # We may want to allow this behavior in the future to inject new routes, but
-            # for now this will be treated an as an exception
-            if prefix not in routers:
-                raise KeyError(
-                    "Router override provided for prefix that does not exist:"
-                    f" {prefix!r}"
-                )
-
-            # Drop the existing router
-            existing_router = routers.pop(prefix)
-
-            # Replace it with a new router if provided
-            if router is not None:
-                if prefix != router.prefix:
-                    # We may want to allow this behavior in the future, but it will
-                    # break expectations without additional routing and is banned for
-                    # now
-                    raise ValueError(
-                        f"Router override for {prefix!r} defines a different prefix "
-                        f"{router.prefix!r}."
-                    )
-
-                existing_paths = method_paths_from_routes(existing_router.routes)
-                new_paths = method_paths_from_routes(router.routes)
-                if not existing_paths.issubset(new_paths):
-                    raise ValueError(
-                        f"Router override for {prefix!r} is missing paths defined by "
-                        f"the original router: {existing_paths.difference(new_paths)}"
-                    )
-
-                routers[prefix] = router
-
-    for router in routers.values():
-        api_app.include_router(router, prefix=router_prefix, dependencies=dependencies)
+    for router in API_ROUTERS:
+        api_app.include_router(router, dependencies=dependencies)
 
     return api_app
 
@@ -798,57 +757,42 @@ class SubprocessASGIServer:
             except socket.error:
                 return False
 
+    @property
     def address(self) -> str:
         return f"http://127.0.0.1:{self.port}"
 
-    def start(self):
+    @property
+    def api_url(self) -> str:
+        return f"{self.address}/api"
+
+    def start(self, timeout: Optional[int] = None):
         """
         Start the server in a separate process. Safe to call multiple times; only starts
         the server once.
+
+        Args:
+            timeout: The maximum time to wait for the server to start
         """
         if not self.running:
-            subprocess_server_logger.info(f"Starting server on {self.address()}")
+            subprocess_server_logger.info(f"Starting server on {self.address}")
             try:
                 self.running = True
-                server_env = {"PREFECT_UI_ENABLED": "0"}
-                self.server_process = subprocess.Popen(
-                    args=[
-                        get_sys_executable(),
-                        "-m",
-                        "uvicorn",
-                        "--app-dir",
-                        # quote wrapping needed for windows paths with spaces
-                        f'"{prefect.__module_path__.parent}"',
-                        "--factory",
-                        "prefect.server.api.server:create_app",
-                        "--host",
-                        "127.0.0.1",
-                        "--port",
-                        str(self.port),
-                        "--log-level",
-                        "error",
-                        "--lifespan",
-                        "on",
-                    ],
-                    env={
-                        **os.environ,
-                        **server_env,
-                        **get_current_settings().to_environment_variables(
-                            exclude_unset=True
-                        ),
-                    },
-                )
+                self.server_process = self._run_uvicorn_command()
                 atexit.register(self.stop)
-
                 with httpx.Client() as client:
                     response = None
                     elapsed_time = 0
-                    while (
-                        elapsed_time
-                        < PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
-                    ):
+                    max_wait_time = (
+                        timeout
+                        or PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+                    )
+                    while elapsed_time < max_wait_time:
+                        if self.server_process.poll() == 3:
+                            self.port = self.find_available_port()
+                            self.server_process = self._run_uvicorn_command()
+                            continue
                         try:
-                            response = client.get(f"{self.address()}/api/health")
+                            response = client.get(f"{self.api_url}/health")
                         except httpx.ConnectError:
                             pass
                         else:
@@ -859,15 +803,52 @@ class SubprocessASGIServer:
                     if response:
                         response.raise_for_status()
                     if not response:
-                        raise RuntimeError(
-                            "Timed out while attempting to connect to hosted test Prefect API."
-                        )
+                        error_message = "Timed out while attempting to connect to ephemeral Prefect API server."
+                        if self.server_process.poll() is not None:
+                            error_message += f" Ephemeral server process exited with code {self.server_process.returncode}."
+                        if self.server_process.stdout:
+                            error_message += (
+                                f" stdout: {self.server_process.stdout.read()}"
+                            )
+                        if self.server_process.stderr:
+                            error_message += (
+                                f" stderr: {self.server_process.stderr.read()}"
+                            )
+                        raise RuntimeError(error_message)
             except Exception:
                 self.running = False
                 raise
 
+    def _run_uvicorn_command(self) -> subprocess.Popen:
+        server_env = {"PREFECT_UI_ENABLED": "0"}
+        return subprocess.Popen(
+            args=[
+                get_sys_executable(),
+                "-m",
+                "uvicorn",
+                "--app-dir",
+                # quote wrapping needed for windows paths with spaces
+                f'"{prefect.__module_path__.parent}"',
+                "--factory",
+                "prefect.server.api.server:create_app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(self.port),
+                "--log-level",
+                "error",
+                "--lifespan",
+                "on",
+            ],
+            env={
+                **os.environ,
+                **server_env,
+                **get_current_settings().to_environment_variables(exclude_unset=True),
+            },
+        )
+
     def stop(self):
-        subprocess_server_logger.info(f"Stopping server on {self.address()}")
+        subprocess_server_logger.info(f"Stopping server on {self.address}")
         if self.server_process:
             self.server_process.terminate()
             try:
@@ -880,3 +861,10 @@ class SubprocessASGIServer:
             del self._instances[self.port]
         if self.running:
             self.running = False
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, *args):
+        self.stop()
