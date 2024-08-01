@@ -880,3 +880,10 @@ class SubprocessASGIServer:
             del self._instances[self.port]
         if self.running:
             self.running = False
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, *args):
+        self.stop()

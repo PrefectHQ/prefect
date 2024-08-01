@@ -19,6 +19,7 @@ from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
 from prefect.results import PersistedResult
 from prefect.serializers import Serializer
+from prefect.server.api.server import SubprocessASGIServer
 from prefect.states import State
 
 if TYPE_CHECKING:
@@ -130,6 +131,8 @@ def prefect_test_harness():
     with ExitStack() as stack:
         # temporarily override any database interface components
         stack.enter_context(temporary_database_interface())
+        # start a subprocess server to test against
+        test_server = stack.enter_context(SubprocessASGIServer())
 
         DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
         stack.enter_context(
@@ -139,7 +142,7 @@ def prefect_test_harness():
                 # Use a temporary directory for the database
                 updates={
                     prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
-                    prefect.settings.PREFECT_API_URL: None,
+                    prefect.settings.PREFECT_API_URL: f"{test_server.address()}/api",
                 },
             )
         )
