@@ -22,7 +22,10 @@ from pydantic import TypeAdapter, ValidationError
 from prefect.client.schemas import FlowRun
 from prefect.events import RelatedResource
 from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     get_current_settings,
+    temporary_settings,
 )
 from prefect.testing.utilities import assert_does_not_warn
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -1115,9 +1118,12 @@ async def test_stream_container_logs_on_real_container(
 
 
 async def test_worker_errors_out_on_ephemeral_apis():
-    with pytest.raises(RuntimeError, match="ephemeral"):
-        async with DockerWorker(work_pool_name="test", test_mode=False) as worker:
-            await worker.run()
+    with temporary_settings(
+        {PREFECT_API_URL: None, PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True}
+    ):
+        with pytest.raises(RuntimeError, match="ephemeral"):
+            async with DockerWorker(work_pool_name="test", test_mode=False) as worker:
+                await worker.run()
 
 
 async def test_emits_events(
