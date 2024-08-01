@@ -4,11 +4,13 @@ import inspect
 import os
 import signal
 import time
+from contextlib import contextmanager
 from functools import partial
 from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     Iterable,
     Optional,
     Set,
@@ -18,6 +20,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 import anyio
+from exceptiongroup import BaseExceptionGroup  # novermin
 from typing_extensions import Literal
 
 import prefect
@@ -734,3 +737,14 @@ def emit_task_run_state_change_event(
         },
         follows=follows,
     )
+
+
+@contextmanager
+def collapse_excgroups() -> Generator[None, None, None]:
+    try:
+        yield
+    except BaseException as exc:
+        while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+            exc = exc.exceptions[0]
+
+        raise exc

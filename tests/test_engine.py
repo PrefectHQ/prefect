@@ -12,6 +12,7 @@ from uuid import uuid4
 import anyio
 import pendulum
 import pytest
+from exceptiongroup import BaseExceptionGroup, catch  # novermin
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -434,9 +435,14 @@ class TestNonblockingPause:
             await foo(wait_for=[x, y])
             assert False, "This line should not be reached"
 
+        def assert_exception(exc_group: BaseExceptionGroup):
+            assert len(exc_group.exceptions) == 1
+            assert isinstance(exc_group.exceptions[0], Pause)
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            with pytest.raises(Pause):
+
+            with catch({Pause: assert_exception}):
                 await pausing_flow_without_blocking(return_state=True)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id)

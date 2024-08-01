@@ -3,6 +3,7 @@ Command line interface for working with agent services
 """
 
 import os
+from asyncio import CancelledError
 from functools import partial
 from typing import List, Optional
 from uuid import UUID
@@ -18,6 +19,7 @@ from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.exceptions import ObjectNotFound
+from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_AGENT_PREFETCH_SECONDS,
     PREFECT_AGENT_QUERY_INTERVAL,
@@ -25,6 +27,8 @@ from prefect.settings import (
 )
 from prefect.utilities.processutils import setup_signal_handlers_agent
 from prefect.utilities.services import critical_service_loop
+
+logger = get_logger(__name__)
 
 agent_app = PrefectTyper(
     name="agent",
@@ -219,30 +223,33 @@ async def start(
                     f"queue(s): {', '.join(work_queues)}..."
                 )
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    agent.get_and_submit_flow_runs,
-                    PREFECT_AGENT_QUERY_INTERVAL.value(),
-                    printer=app.console.print,
-                    run_once=run_once,
-                    jitter_range=0.3,
-                    backoff=4,  # Up to ~1 minute interval during backoff
+        try:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        agent.get_and_submit_flow_runs,
+                        PREFECT_AGENT_QUERY_INTERVAL.value(),
+                        printer=app.console.print,
+                        run_once=run_once,
+                        jitter_range=0.3,
+                        backoff=4,  # Up to ~1 minute interval during backoff
+                    )
                 )
-            )
 
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    agent.check_for_cancelled_flow_runs,
-                    PREFECT_AGENT_QUERY_INTERVAL.value() * 2,
-                    printer=app.console.print,
-                    run_once=run_once,
-                    jitter_range=0.3,
-                    backoff=4,
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        agent.check_for_cancelled_flow_runs,
+                        PREFECT_AGENT_QUERY_INTERVAL.value() * 2,
+                        printer=app.console.print,
+                        run_once=run_once,
+                        jitter_range=0.3,
+                        backoff=4,
+                    )
                 )
-            )
+        except CancelledError:
+            logger.debug("Agent task group cancelled")
 
     app.console.print("Agent stopped!")
 

@@ -9,6 +9,7 @@ from functools import partial
 from typing import List, Optional, Type
 
 import anyio
+from exceptiongroup import BaseExceptionGroup  # novermin
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task, get_client
@@ -225,16 +226,21 @@ class TaskServer:
             validated_state=state,
         )
 
-        self._runs_task_group.start_soon(
-            partial(
-                submit_autonomous_task_run_to_engine,
-                task=task,
-                task_run=task_run,
-                parameters=parameters,
-                task_runner=self.task_runner,
-                client=self._client,
+        try:
+            self._runs_task_group.start_soon(
+                partial(
+                    submit_autonomous_task_run_to_engine,
+                    task=task,
+                    task_run=task_run,
+                    parameters=parameters,
+                    task_runner=self.task_runner,
+                    client=self._client,
+                )
             )
-        )
+        except BaseException as exc:
+            logger.exception(
+                f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
+            )
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task server."""
@@ -300,6 +306,14 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
     task_server = TaskServer(*tasks, task_runner=task_runner)
     try:
         await task_server.start()
+
+    except BaseExceptionGroup as exc:  # novermin
+        exceptions = exc.exceptions
+        n_exceptions = len(exceptions)
+        logger.error(
+            f"Task worker stopped with {n_exceptions} exception{'s' if n_exceptions != 1 else ''}:"
+            f"\n" + "\n".join(str(e) for e in exceptions)
+        )
 
     except StopTaskServer:
         logger.info("Task server stopped.")
