@@ -107,7 +107,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import pendulum
-from anyio import start_blocking_portal
+from anyio.from_thread import start_blocking_portal
 from typing_extensions import Literal
 
 import prefect
@@ -211,6 +211,7 @@ from prefect.utilities.engine import (
     _resolve_custom_task_run_name,
     capture_sigterm,
     check_api_reachable,
+    collapse_excgroups,
     collect_task_run_inputs,
     emit_task_run_state_change_event,
     propose_state,
@@ -279,7 +280,7 @@ def enter_flow_run_engine_from_flow_call(
     # the user. Generally, you should enter contexts _within_ the async `begin_run`
     # instead but if you need to enter a context from the main thread you'll need to do
     # it here.
-    contexts = [capture_sigterm()]
+    contexts = [capture_sigterm(), collapse_excgroups()]
 
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
@@ -324,7 +325,7 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
             flow_run_id,
             user_thread=threading.current_thread(),
         ),
-        contexts=[capture_sigterm()],
+        contexts=[capture_sigterm(), collapse_excgroups()],
     )
 
     APILogHandler.flush()
@@ -2248,9 +2249,9 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
 
     This context _must_ reraise the exception to properly exit the run.
     """
-
     try:
-        yield
+        with collapse_excgroups():
+            yield
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise
@@ -2287,7 +2288,8 @@ async def report_task_run_crashes(task_run: TaskRun, client: PrefectClient):
     This context _must_ reraise the exception to properly exit the run.
     """
     try:
-        yield
+        with collapse_excgroups():
+            yield
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise

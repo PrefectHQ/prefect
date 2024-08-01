@@ -4,6 +4,7 @@ Command line interface for working with Prefect
 
 import os
 import textwrap
+from asyncio import CancelledError
 from functools import partial
 
 import anyio
@@ -115,44 +116,47 @@ async def start(
 
     base_url = f"http://{host}:{port}"
 
-    async with anyio.create_task_group() as tg:
-        app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
-        app.console.print("\n")
+    try:
+        async with anyio.create_task_group() as tg:
+            app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
+            app.console.print("\n")
 
-        server_process_id = await tg.start(
-            partial(
-                run_process,
-                command=[
-                    get_sys_executable(),
-                    "-m",
-                    "uvicorn",
-                    "--app-dir",
-                    # quote wrapping needed for windows paths with spaces
-                    f'"{prefect.__module_path__.parent}"',
-                    "--factory",
-                    "prefect.server.api.server:create_app",
-                    "--host",
-                    str(host),
-                    "--port",
-                    str(port),
-                    "--timeout-keep-alive",
-                    str(keep_alive_timeout),
-                ],
-                env=server_env,
-                stream_output=True,
+            server_process_id = await tg.start(
+                partial(
+                    run_process,
+                    command=[
+                        get_sys_executable(),
+                        "-m",
+                        "uvicorn",
+                        "--app-dir",
+                        # quote wrapping needed for windows paths with spaces
+                        f'"{prefect.__module_path__.parent}"',
+                        "--factory",
+                        "prefect.server.api.server:create_app",
+                        "--host",
+                        str(host),
+                        "--port",
+                        str(port),
+                        "--timeout-keep-alive",
+                        str(keep_alive_timeout),
+                    ],
+                    env=server_env,
+                    stream_output=True,
+                )
             )
-        )
 
-        # Explicitly handle the interrupt signal here, as it will allow us to
-        # cleanly stop the uvicorn server. Failing to do that may cause a
-        # large amount of anyio error traces on the terminal, because the
-        # SIGINT is handled by Typer/Click in this process (the parent process)
-        # and will start shutting down subprocesses:
-        # https://github.com/PrefectHQ/server/issues/2475
+            # Explicitly handle the interrupt signal here, as it will allow us to
+            # cleanly stop the uvicorn server. Failing to do that may cause a
+            # large amount of anyio error traces on the terminal, because the
+            # SIGINT is handled by Typer/Click in this process (the parent process)
+            # and will start shutting down subprocesses:
+            # https://github.com/PrefectHQ/server/issues/2475
 
-        setup_signal_handlers_server(
-            server_process_id, "the Prefect server", app.console.print
-        )
+            setup_signal_handlers_server(
+                server_process_id, "the Prefect server", app.console.print
+            )
+    except CancelledError:
+        logger.debug("Server task group cancelled")
 
     app.console.print("Server stopped!")
 

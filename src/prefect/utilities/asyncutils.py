@@ -29,7 +29,9 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import anyio.to_thread
 import sniffio
+from anyio.from_thread import start_blocking_portal
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
 from prefect.logging import get_logger
@@ -134,7 +136,7 @@ async def run_sync_in_worker_thread(
     """
     call = partial(__fn, *args, **kwargs)
     return await anyio.to_thread.run_sync(
-        call, cancellable=True, limiter=get_thread_limiter()
+        call, abandon_on_cancel=True, limiter=get_thread_limiter()
     )
 
 
@@ -202,7 +204,7 @@ async def run_sync_in_interruptible_worker_thread(
             partial(
                 anyio.to_thread.run_sync,
                 capture_worker_thread_and_result,
-                cancellable=True,
+                abandon_on_cancel=True,
                 limiter=get_thread_limiter(),
             )
         )
@@ -228,7 +230,7 @@ def run_async_in_new_loop(__fn: Callable[..., Awaitable[T]], *args: Any, **kwarg
 
 def in_async_worker_thread() -> bool:
     try:
-        anyio.from_thread.threadlocals.current_async_module
+        anyio.from_thread.threadlocals.current_async_backend
     except AttributeError:
         return False
     else:
@@ -338,7 +340,7 @@ def sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwarg
             "`sync` called from an asynchronous context; "
             "you should `await` the async function directly instead."
         )
-        with anyio.start_blocking_portal() as portal:
+        with start_blocking_portal() as portal:
             return portal.call(partial(__async_fn, *args, **kwargs))
     elif in_async_worker_thread():
         # In a sync context but we can access the event loop thread; send the async
