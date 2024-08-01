@@ -17,8 +17,10 @@ depends_on = None
 
 
 def upgrade():
-    op.alter_column("log", "flow_run_id", existing_type=sa.UUID(), nullable=True)
+    with op.batch_alter_table("log") as batch_op:
+        batch_op.alter_column("flow_run_id", existing_type=sa.UUID(), nullable=True)
 
 
 def downgrade():
-    op.alter_column("log", "flow_run_id", existing_type=sa.UUID(), nullable=False)
+    with op.batch_alter_table("log") as batch_op:
+        batch_op.alter_column("flow_run_id", existing_type=sa.UUID(), nullable=False)
