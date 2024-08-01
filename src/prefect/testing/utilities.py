@@ -143,7 +143,7 @@ def prefect_test_harness():
                 # Use a temporary directory for the database
                 updates={
                     prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
-                    prefect.settings.PREFECT_API_URL: f"{test_server.address()}/api",
+                    prefect.settings.PREFECT_API_URL: test_server.api_url,
                 },
             )
         )

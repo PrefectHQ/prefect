@@ -798,8 +798,13 @@ class SubprocessASGIServer:
             except socket.error:
                 return False
 
+    @property
     def address(self) -> str:
         return f"http://127.0.0.1:{self.port}"
+
+    @property
+    def api_url(self) -> str:
+        return f"{self.address}/api"
 
     def start(self, timeout: Optional[int] = None):
         """
@@ -810,7 +815,7 @@ class SubprocessASGIServer:
             timeout: The maximum time to wait for the server to start
         """
         if not self.running:
-            subprocess_server_logger.info(f"Starting server on {self.address()}")
+            subprocess_server_logger.info(f"Starting server on {self.address}")
             try:
                 self.running = True
                 self.server_process = self._run_uvicorn_command()
@@ -828,7 +833,7 @@ class SubprocessASGIServer:
                             self.server_process = self._run_uvicorn_command()
                             continue
                         try:
-                            response = client.get(f"{self.address()}/api/health")
+                            response = client.get(f"{self.api_url}/health")
                         except httpx.ConnectError:
                             pass
                         else:
@@ -884,7 +889,7 @@ class SubprocessASGIServer:
         )
 
     def stop(self):
-        subprocess_server_logger.info(f"Stopping server on {self.address()}")
+        subprocess_server_logger.info(f"Stopping server on {self.address}")
         if self.server_process:
             self.server_process.terminate()
             try:

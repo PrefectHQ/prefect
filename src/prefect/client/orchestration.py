@@ -220,7 +220,7 @@ def get_client(
         server.start()
         assert server.server_process is not None, "Server process did not start"
 
-        api = f"{server.address()}/api"
+        api = server.api_url
         server_type = ServerType.EPHEMERAL
     elif not api and not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         raise ValueError(
