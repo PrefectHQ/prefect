@@ -943,7 +943,7 @@ class Log(Base):
 
     name = sa.Column(sa.String, nullable=False)
     level = sa.Column(sa.SmallInteger, nullable=False, index=True)
-    flow_run_id = sa.Column(UUID(), nullable=False, index=True)
+    flow_run_id = sa.Column(UUID(), nullable=True, index=True)
     task_run_id = sa.Column(UUID(), nullable=True, index=True)
     message = sa.Column(sa.Text, nullable=False)
 
