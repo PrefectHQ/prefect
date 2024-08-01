@@ -30,7 +30,12 @@ from websockets.exceptions import (
 
 from prefect.events import Event
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
+)
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -77,7 +82,7 @@ def get_events_client(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-    else:
+    elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         from prefect.server.api.server import SubprocessASGIServer
 
         server = SubprocessASGIServer()
@@ -86,6 +91,10 @@ def get_events_client(
             api_url=server.api_url,
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+        )
+    else:
+        raise ValueError(
+            "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
         )
 
 
@@ -103,7 +112,7 @@ def get_events_subscriber(
         return PrefectEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
-    else:
+    elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         from prefect.server.api.server import SubprocessASGIServer
 
         server = SubprocessASGIServer()
@@ -112,6 +121,10 @@ def get_events_subscriber(
             api_url=server.api_url,
             filter=filter,
             reconnection_attempts=reconnection_attempts,
+        )
+    else:
+        raise ValueError(
+            "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
         )
 
 

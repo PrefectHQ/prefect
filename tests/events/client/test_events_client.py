@@ -37,6 +37,19 @@ async def test_constructs_client_when_ephemeral_enabled(ephemeral_settings):
     assert isinstance(get_events_client(), PrefectEventsClient)
 
 
+def test_errors_when_missing_api_url_and_ephemeral_disabled():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: None,
+            PREFECT_API_KEY: None,
+            PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: False,
+        }
+    ):
+        with pytest.raises(ValueError, match="PREFECT_API_URL"):
+            get_events_client()
+
+
 @pytest.fixture
 def server_settings():
     with temporary_settings(
