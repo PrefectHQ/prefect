@@ -358,17 +358,29 @@ class TestSubprocessASGIServer:
 
     def test_address_returns_correct_address(self):
         server = SubprocessASGIServer(port=8000)
-        assert server.address() == "http://127.0.0.1:8000"
+        assert server.address == "http://127.0.0.1:8000"
+
+    def test_address_returns_correct_api_url(self):
+        server = SubprocessASGIServer(port=8000)
+        assert server.api_url == "http://127.0.0.1:8000/api"
 
     def test_start_and_stop_server(self):
         server = SubprocessASGIServer()
         server.start()
-        health_response = httpx.get(f"{server.address()}/api/health")
+        health_response = httpx.get(f"{server.address}/api/health")
         assert health_response.status_code == 200
 
         server.stop()
         with pytest.raises(httpx.RequestError):
-            httpx.get(f"{server.address()}/api/health")
+            httpx.get(f"{server.api_url}/health")
+
+    def test_run_as_context_manager(self):
+        with SubprocessASGIServer() as server:
+            health_response = httpx.get(f"{server.api_url}/health")
+            assert health_response.status_code == 200
+
+        with pytest.raises(httpx.RequestError):
+            httpx.get(f"{server.api_url}/health")
 
     def test_run_a_flow_against_subprocess_server(self):
         @flow
@@ -378,7 +390,7 @@ class TestSubprocessASGIServer:
         server = SubprocessASGIServer()
         server.start()
 
-        with temporary_settings({PREFECT_API_URL: f"{server.address()}/api"}):
+        with temporary_settings({PREFECT_API_URL: server.api_url}):
             assert f() == 42
 
             client = get_client(sync_client=True)

@@ -24,6 +24,7 @@ from prefect_dbt.cloud.models import TriggerJobRunOptions
 
 import prefect
 from prefect import flow
+from prefect.logging.loggers import disable_run_logger
 
 
 @pytest.fixture
@@ -36,6 +37,12 @@ def dbt_cloud_job(dbt_cloud_credentials):
     return DbtCloudJob(job_id=10000, dbt_cloud_credentials=dbt_cloud_credentials)
 
 
+@pytest.fixture
+def respx_mock_with_pass_through(respx_mock):
+    respx_mock.route(host="127.0.0.1").pass_through()
+    return respx_mock
+
+
 HEADERS = {
     "Authorization": "Bearer my_api_key",
     "x-dbt-partner-source": "prefect",
@@ -44,8 +51,11 @@ HEADERS = {
 
 
 class TestTriggerDbtCloudJobRun:
-    async def test_get_dbt_cloud_job_info(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.get(
+    async def test_get_dbt_cloud_job_info(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/12/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"id": 10000}}))
@@ -58,8 +68,10 @@ class TestTriggerDbtCloudJobRun:
 
         assert response == {"id": 10000}
 
-    async def test_trigger_job_with_no_options(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_trigger_job_with_no_options(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -68,21 +80,24 @@ class TestTriggerDbtCloudJobRun:
             )
         )
 
-        @flow
-        async def test_flow():
-            return await trigger_dbt_cloud_job_run(
+        with disable_run_logger():
+            result = await trigger_dbt_cloud_job_run.fn(
                 dbt_cloud_credentials=dbt_cloud_credentials,
                 job_id=1,
             )
 
-        result = await test_flow()
         assert result == {"id": 10000, "project_id": 12345}
 
-        request_body = json.loads(respx_mock.calls.last.request.content.decode())
-        assert "Triggered via Prefect in task run" in request_body["cause"]
+        request_body = json.loads(
+            respx_mock_with_pass_through.calls.last.request.content.decode()
+        )
+        assert "Triggered via Prefect" in request_body["cause"]
 
-    async def test_trigger_with_custom_options(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_trigger_with_custom_options(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
             json={
@@ -131,8 +146,11 @@ class TestTriggerDbtCloudJobRun:
         result = await test_trigger_with_custom_options()
         assert result == {"id": 10000, "project_id": 12345}
 
-    async def test_trigger_nonexistent_job(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_trigger_nonexistent_job(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -153,9 +171,10 @@ class TestTriggerDbtCloudJobRun:
             await test_trigger_nonexistent_job()
 
     async def test_trigger_nonexistent_run_id_no_logs(
-        self, respx_mock, dbt_cloud_credentials, caplog
+        self, respx_mock_with_pass_through, dbt_cloud_credentials, caplog
     ):
-        respx_mock.post(
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"project_id": 12345}}))
@@ -175,8 +194,11 @@ class TestTriggerDbtCloudJobRun:
 
 class TestTriggerDbtCloudJobRunAndWaitForCompletion:
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_success(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_run_success(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -184,11 +206,11 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"id": 10000, "status": 10}}))
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
@@ -203,8 +225,11 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
         }
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_success_with_wait(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_run_success_with_wait(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -212,7 +237,7 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(
@@ -222,7 +247,7 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 Response(200, json={"data": {"id": 10000, "status": 10}}),
             ]
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
@@ -240,9 +265,10 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     @pytest.mark.respx(assert_all_called=True)
     async def test_run_failure_with_wait_and_retry(
-        self, respx_mock, dbt_cloud_credentials
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
     ):
-        respx_mock.post(
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -250,7 +276,7 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(
@@ -272,8 +298,11 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
             )
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_with_unexpected_status(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_run_with_unexpected_status(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -281,7 +310,7 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(
@@ -303,8 +332,11 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
             )
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_failure_no_run_id(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_run_failure_no_run_id(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"project_id": 12345}}))
@@ -317,8 +349,11 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
             )
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_cancelled_with_wait(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_run_cancelled_with_wait(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.route(host="127.0.0.1").pass_through()
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -326,7 +361,7 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(
@@ -346,8 +381,10 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
             )
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_timed_out(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
+    async def test_run_timed_out(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -355,7 +392,7 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(
@@ -378,9 +415,9 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
     @pytest.mark.respx(assert_all_called=True)
     async def test_run_success_failed_artifacts(
-        self, respx_mock, dbt_cloud_credentials
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
     ):
-        respx_mock.post(
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -388,11 +425,11 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"id": 10000, "status": 10}}))
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
             headers=HEADERS,
         ).mock(
@@ -408,7 +445,9 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
 
 
 class TestRetryDbtCloudRunJobSubsetAndWaitForCompletion:
-    async def test_run_steps_override_error(self, respx_mock, dbt_cloud_credentials):
+    async def test_run_steps_override_error(
+        self, respx_mock_with_pass_through, dbt_cloud_credentials
+    ):
         with pytest.raises(ValueError, match="Do not set `steps_override"):
             await retry_dbt_cloud_job_run_subset_and_wait_for_completion(
                 dbt_cloud_credentials=dbt_cloud_credentials,
@@ -425,9 +464,13 @@ class TestRetryDbtCloudRunJobSubsetAndWaitForCompletion:
         ["run", "run-operation"],
     )
     async def test_retry_run(
-        self, trigger_job_run_options, exe_command, respx_mock, dbt_cloud_credentials
+        self,
+        trigger_job_run_options,
+        exe_command,
+        respx_mock_with_pass_through,
+        dbt_cloud_credentials,
     ):
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/",
             headers=HEADERS,
         ).mock(
@@ -444,7 +487,7 @@ class TestRetryDbtCloudRunJobSubsetAndWaitForCompletion:
         )
 
         # mock get_dbt_cloud_run_info
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(
@@ -494,13 +537,13 @@ class TestRetryDbtCloudRunJobSubsetAndWaitForCompletion:
         )
 
         # mock list_dbt_cloud_run_artifacts
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": ["run_results.json"]}))
 
         # mock get_dbt_cloud_run_artifact
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json",  # noqa
             headers=HEADERS,
         ).mock(
@@ -519,7 +562,7 @@ class TestRetryDbtCloudRunJobSubsetAndWaitForCompletion:
                 },
             )
         )
-        respx_mock.post(
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
             headers=HEADERS,
         ).mock(
@@ -585,8 +628,8 @@ class TestGetRunId:
 
 class TestTriggerWaitRetryDbtCloudJobRun:
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_success(self, respx_mock, dbt_cloud_job):
-        respx_mock.post(
+    async def test_run_success(self, respx_mock_with_pass_through, dbt_cloud_job):
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
             headers=HEADERS,
         ).mock(
@@ -594,11 +637,11 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"id": 10000, "status": 10}}))
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
@@ -611,8 +654,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         }
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_run_timeout(self, respx_mock, dbt_cloud_job):
-        respx_mock.post(
+    async def test_run_timeout(self, respx_mock_with_pass_through, dbt_cloud_job):
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
             headers=HEADERS,
         ).mock(
@@ -620,7 +663,7 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"id": 10000, "status": 3}}))
@@ -633,8 +676,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         "exe_command",
         ["run", "run-operation"],
     )
-    async def test_fail(self, respx_mock, dbt_cloud_job, exe_command):
-        respx_mock.get(
+    async def test_fail(self, respx_mock_with_pass_through, dbt_cloud_job, exe_command):
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/",
             headers=HEADERS,
         ).mock(
@@ -643,7 +686,7 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 json={"data": {"id": 10000, "project_id": 12345, "run_steps": [""]}},
             )
         )
-        respx_mock.post(
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
             headers=HEADERS,
         ).mock(
@@ -651,12 +694,12 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"id": 10000, "status": 20}}))
 
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/100000/",
             headers=HEADERS,
         ).mock(
@@ -673,7 +716,7 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         )
 
         # mock get_dbt_cloud_run_info
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(
@@ -723,13 +766,13 @@ class TestTriggerWaitRetryDbtCloudJobRun:
         )
 
         # mock list_dbt_cloud_run_artifacts
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": ["run_results.json"]}))
 
         # mock get_dbt_cloud_run_artifact
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json",  # noqa
             headers=HEADERS,
         ).mock(
@@ -753,8 +796,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
             await run_dbt_cloud_job(dbt_cloud_job=dbt_cloud_job)
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_cancel(self, respx_mock, dbt_cloud_job):
-        respx_mock.post(
+    async def test_cancel(self, respx_mock_with_pass_through, dbt_cloud_job):
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
             headers=HEADERS,
         ).mock(
@@ -762,7 +805,7 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 200, json={"data": {"id": 10000, "project_id": 12345}}
             )
         )
-        respx_mock.get(
+        respx_mock_with_pass_through.get(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
             headers=HEADERS,
         ).mock(return_value=Response(200, json={"data": {"id": 10000, "status": 30}}))
@@ -790,8 +833,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
             await run.fetch_result()
 
     @pytest.mark.respx(assert_all_called=True)
-    async def test_fail_auth(self, respx_mock, dbt_cloud_job):
-        respx_mock.post(
+    async def test_fail_auth(self, respx_mock_with_pass_through, dbt_cloud_job):
+        respx_mock_with_pass_through.post(
             "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
             headers=HEADERS,
         ).mock(
@@ -801,8 +844,8 @@ class TestTriggerWaitRetryDbtCloudJobRun:
             await run_dbt_cloud_job(dbt_cloud_job=dbt_cloud_job, targeted_retries=0)
 
 
-def test_get_job(respx_mock, dbt_cloud_job):
-    respx_mock.get(
+def test_get_job(respx_mock_with_pass_through, dbt_cloud_job):
+    respx_mock_with_pass_through.get(
         "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/",
         headers=HEADERS,
     ).mock(
