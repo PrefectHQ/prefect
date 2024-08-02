@@ -351,18 +351,17 @@ TypeError: object PrefectConcurrentFuture can't be used in 'await' expression
 from prefect import flow, task
 
 @task
-def sync_task():
-    return 42
+async def async_task():
+    pass
 
 async def main():
-    # This will raise a TypeError
-    result = await sync_task.submit()
-    print(result)
+    future = await async_task.submit()  # This will raise a TypeError
+    result = await future.result()  # This would also raise a TypeError
 
-# Correct way to call sync_task.submit()
+# Correct way to create a future and get its result in Prefect 3
 def main():
-    result = sync_task.submit()
-    print(result)
+    future = async_task.submit()
+    result = future.result()
 ```
 
 Ensure that you call these methods synchronously to avoid the error.
