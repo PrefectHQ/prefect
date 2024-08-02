@@ -341,7 +341,12 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             # ensure a long-lasting pool is used with in-memory databases
             # because they disappear when the last connection closes
             if ":memory:" in self.connection_url:
-                kwargs.update(poolclass=sa.pool.SingletonThreadPool)
+                kwargs.update(
+                    poolclass=sa.pool.AsyncAdaptedQueuePool,
+                    pool_size=1,
+                    max_overflow=0,
+                    pool_recycle=-1,
+                )
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
             sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)

@@ -409,7 +409,7 @@ class TestSubprocessASGIServer:
             return 42
 
         with temporary_settings(
-            {PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///"}
+            {PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///:memory:"}
         ):
             server = SubprocessASGIServer(port=8000)
             server.start()
