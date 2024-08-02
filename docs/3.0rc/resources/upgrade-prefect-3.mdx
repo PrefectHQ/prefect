@@ -334,3 +334,37 @@ print(my_flow())  # Output: Failed(message='Flow failed due to task failure')
 </CodeGroup>
 
 Choose the strategy that best fits your specific use case and error handling requirements.
+
+## Common Errors
+
+#### "can't be used in 'await' expression"
+
+In Prefect 3, certain methods that were asynchronous in Prefect 2, such as `submit`, `map` (on `Task`), and `result`, `wait` (on `PrefectFuture`), are now synchronous. Attempting to use `await` with these methods will result in a `TypeError`, like:
+
+```python
+TypeError: object PrefectConcurrentFuture can't be used in 'await' expression
+```
+
+##### Example and Resolution
+
+```python
+from prefect import flow, task
+
+@task
+def sync_task():
+    return 42
+
+async def main():
+    # This will raise a TypeError
+    result = await sync_task.submit()
+    print(result)
+
+# Correct way to call sync_task.submit()
+def main():
+    result = sync_task.submit()
+    print(result)
+```
+
+Ensure that you call these methods synchronously to avoid the error.
+
+For more information, refer to [#14837](https://github.com/PrefectHQ/prefect/pull/14837).
