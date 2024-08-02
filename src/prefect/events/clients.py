@@ -66,7 +66,7 @@ logger = get_logger(__name__)
 
 def get_events_client(
     reconnection_attempts: int = 10,
-    checkpoint_every: int = 20,
+    checkpoint_every: int = 700,
 ) -> "EventsClient":
     api_url = PREFECT_API_URL.value()
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
@@ -252,7 +252,7 @@ class PrefectEventsClient(EventsClient):
         self,
         api_url: Optional[str] = None,
         reconnection_attempts: int = 10,
-        checkpoint_every: int = 20,
+        checkpoint_every: int = 700,
     ):
         """
         Args:
@@ -371,7 +371,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
         reconnection_attempts: int = 10,
-        checkpoint_every: int = 20,
+        checkpoint_every: int = 700,
     ):
         """
         Args:
