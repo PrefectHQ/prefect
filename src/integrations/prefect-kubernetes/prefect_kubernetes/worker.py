@@ -124,7 +124,6 @@ from kubernetes_asyncio import config
 from kubernetes_asyncio.client import (
     ApiClient,
     BatchV1Api,
-    Configuration,
     CoreV1Api,
     V1Job,
     V1Pod,
@@ -641,15 +640,10 @@ class KubernetesWorker(BaseWorker):
         if configuration.cluster_config:
             config_dict = configuration.cluster_config.config
             context = configuration.cluster_config.context_name
-
-            # Use Configuration to load configuration from a dictionary
-            client_configuration = Configuration()
-            await config.load_kube_config(
+            client = await config.new_client_from_config_dict(
                 config_dict=config_dict,
                 context=context,
-                client_configuration=client_configuration,
             )
-            client = ApiClient(configuration=client_configuration)
         else:
             # Try to load in-cluster configuration
             try:
