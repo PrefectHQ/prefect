@@ -397,3 +397,40 @@ class TestSubprocessASGIServer:
             assert len(client.read_flow_runs()) == 1
 
         server.stop()
+
+    def test_run_with_temp_db(self):
+        """
+        This test ensures that the format of the database connection URL used for the default
+        test profile does not retain state between subprocess server runs.
+        """
+
+        @flow
+        def f():
+            return 42
+
+        with temporary_settings(
+            {PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///"}
+        ):
+            server = SubprocessASGIServer(port=8000)
+            server.start()
+
+            with temporary_settings({PREFECT_API_URL: server.api_url}):
+                assert f() == 42
+
+                client = get_client(sync_client=True)
+                assert len(client.read_flow_runs()) == 1
+
+            server.stop()
+
+            # do it again to ensure the db is recreated
+
+            server = SubprocessASGIServer(port=8000)
+            server.start()
+
+            with temporary_settings({PREFECT_API_URL: server.api_url}):
+                assert f() == 42
+
+                client = get_client(sync_client=True)
+                assert len(client.read_flow_runs()) == 1
+
+            server.stop()
