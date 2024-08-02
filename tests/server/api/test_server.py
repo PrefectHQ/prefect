@@ -413,7 +413,7 @@ class TestSubprocessASGIServer:
         ):
             SubprocessASGIServer._instances = {}
             server = SubprocessASGIServer()
-            server.start()
+            server.start(timeout=30)
 
             with temporary_settings({PREFECT_API_URL: server.api_url}):
                 assert f() == 42
@@ -426,7 +426,7 @@ class TestSubprocessASGIServer:
             # do it again to ensure the db is recreated
 
             server = SubprocessASGIServer()
-            server.start()
+            server.start(timeout=30)
 
             with temporary_settings({PREFECT_API_URL: server.api_url}):
                 assert f() == 42
