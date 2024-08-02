@@ -176,7 +176,6 @@ class KubernetesCredentials(Block):
             context = self.cluster_config.context_name
 
             # Use Configuration to load configuration from a dictionary
-
             await config.load_kube_config_from_dict(
                 config_dict=config_dict,
                 context=context,
