@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prefect-dask"
 dependencies = [
-  "anyio >= 3.7.1, < 4.0.0",
+  "anyio >= 4.0.0",
   "exceptiongroup",
   "prefect>=2.13.5, < 2.19.9",  # This package is not yet compatible with AnyIO 4
   "distributed==2022.2.0; python_version < '3.8'",

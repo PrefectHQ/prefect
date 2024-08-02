@@ -1,7 +1,8 @@
 import json
 import logging
+from contextlib import contextmanager
 from functools import partial
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional
 from unittest.mock import ANY, MagicMock
 from unittest.mock import patch as mock_patch
 from uuid import uuid4
@@ -17,7 +18,6 @@ from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect.server.schemas.core import FlowRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.engine import collapse_excgroups
 from prefect.utilities.slugify import slugify
 
 if PYDANTIC_VERSION.startswith("2."):
@@ -79,6 +79,17 @@ def patch_task_watch_poll_interval(monkeypatch):
     monkeypatch.setattr(
         ECSVariables.__fields__["task_watch_poll_interval"], "default", 0.05
     )
+
+
+@contextmanager
+def collapse_excgroups() -> Generator[None, None, None]:
+    try:
+        yield
+    except BaseException as exc:
+        while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+            exc = exc.exceptions[0]
+
+        raise exc
 
 
 def inject_moto_patches(moto_mock, patches: Dict[str, List[Callable]]):
