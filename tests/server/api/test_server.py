@@ -411,7 +411,8 @@ class TestSubprocessASGIServer:
         with temporary_settings(
             {PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///:memory:"}
         ):
-            server = SubprocessASGIServer(port=8000)
+            SubprocessASGIServer._instances = {}
+            server = SubprocessASGIServer()
             server.start()
 
             with temporary_settings({PREFECT_API_URL: server.api_url}):
@@ -424,7 +425,7 @@ class TestSubprocessASGIServer:
 
             # do it again to ensure the db is recreated
 
-            server = SubprocessASGIServer(port=8000)
+            server = SubprocessASGIServer()
             server.start()
 
             with temporary_settings({PREFECT_API_URL: server.api_url}):
