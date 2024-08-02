@@ -29,6 +29,7 @@ dynamic = ["version"]
 [project.optional-dependencies]
 dev = [
   "coverage",
+  "exceptiongroup",
   "interrogate",
   "mkdocs-gen-files",
   "mkdocs-material",
