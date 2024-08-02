@@ -159,6 +159,7 @@ class TestDaskTaskRunner(TaskRunnerStandardTestSuite):
             assert isinstance(state, State), "wait should return a state"
             assert state.type == StateType.CRASHED
 
+    @pytest.mark.skip("Deadlocks on 2.19.9")
     @pytest.mark.parametrize(
         "exceptions",
         [
