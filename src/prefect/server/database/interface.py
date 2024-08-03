@@ -85,10 +85,6 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """
         engine = await self.database_config.engine()
 
-        if self.database_config.is_inmemory():
-            async with engine.begin() as conn:
-                await self.database_config.create_db(conn, self.Base.metadata)
-
         return engine
 
     async def session(self):
