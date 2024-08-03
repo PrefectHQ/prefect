@@ -24,6 +24,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
+  "exceptiongroup",
   "boto3>=1.24.53",
   "botocore>=1.27.53",
   "mypy_boto3_s3>=1.24.94",
