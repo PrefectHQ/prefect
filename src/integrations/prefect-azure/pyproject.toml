@@ -28,7 +28,7 @@ dependencies = [
   "azure_identity>=1.10",
   "azure_mgmt_containerinstance>=10.0",
   "azure-mgmt-resource>=21.2",
-  "prefect>2.20.0, < 3.0.0",
+  "prefect>=2.20.0, < 3.0.0",
 ]
 dynamic = ["version"]
 

@@ -24,7 +24,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>2.20.0, < 3.0.0",
+  "prefect>=2.20.0, < 3.0.0",
   "python-gitlab>=3.12.0",
   "tenacity>=8.2.3",
 ]
