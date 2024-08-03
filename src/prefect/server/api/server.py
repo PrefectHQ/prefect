@@ -820,7 +820,10 @@ class SubprocessASGIServer:
                 raise
 
     def _run_uvicorn_command(self) -> subprocess.Popen:
-        server_env = {"PREFECT_UI_ENABLED": "0"}
+        # used to turn off background services
+        server_env = {
+            "PREFECT_UI_ENABLED": "0",
+        }
         return subprocess.Popen(
             args=[
                 get_sys_executable(),
