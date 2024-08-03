@@ -1,9 +1,10 @@
 import json
 import logging
 import textwrap
+from contextlib import contextmanager
 from copy import deepcopy
 from functools import partial
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional
 from unittest.mock import MagicMock
 
 import anyio
@@ -36,6 +37,17 @@ from prefect_aws.ecs import (
     get_prefect_container,
     parse_task_identifier,
 )
+
+
+@contextmanager
+def collapse_excgroups() -> Generator[None, None, None]:
+    try:
+        yield
+    except BaseException as exc:
+        while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+            exc = exc.exceptions[0]
+
+        raise exc
 
 
 def test_ecs_task_emits_deprecation_warning():
@@ -237,18 +249,19 @@ async def run_then_stop_task(
     """
     session = task.aws_credentials.get_boto3_session()
 
-    with anyio.fail_after(20):
-        async with anyio.create_task_group() as tg:
-            identifier = await tg.start(task.run)
-            cluster, task_arn = parse_task_identifier(identifier)
+    with collapse_excgroups():
+        with anyio.fail_after(20):
+            async with anyio.create_task_group() as tg:
+                identifier = await tg.start(task.run)
+                cluster, task_arn = parse_task_identifier(identifier)
 
-            if after_start:
-                await after_start(task_arn)
+                if after_start:
+                    await after_start(task_arn)
 
-            # Stop the task after it starts to prevent the test from running forever
-            tg.start_soon(
-                partial(stop_task, session.client("ecs"), task_arn, cluster=cluster)
-            )
+                # Stop the task after it starts to prevent the test from running forever
+                tg.start_soon(
+                    partial(stop_task, session.client("ecs"), task_arn, cluster=cluster)
+                )
 
     return task_arn
 

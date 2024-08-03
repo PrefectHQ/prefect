@@ -11,7 +11,7 @@ import anyio
 import botocore
 import pytest
 import yaml
-from exceptiongroup import ExceptionGroup  # novermin
+from exceptiongroup import BaseExceptionGroup, ExceptionGroup  # novermin
 from moto import mock_ec2, mock_ecs, mock_logs
 from moto.ec2.utils import generate_instance_identity_document
 from pydantic import VERSION as PYDANTIC_VERSION
@@ -85,8 +85,10 @@ def patch_task_watch_poll_interval(monkeypatch):
 def collapse_excgroups() -> Generator[None, None, None]:
     try:
         yield
-    except BaseException as exc:
-        while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+    except BaseException as exc:  # novermin
+        while (
+            isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1
+        ):  # novermin
             exc = exc.exceptions[0]
 
         raise exc
