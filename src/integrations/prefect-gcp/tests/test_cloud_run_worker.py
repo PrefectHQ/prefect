@@ -123,7 +123,7 @@ class TestCloudRunWorkerJobConfiguration:
 
         # defaults to prefect image
         assert "image" in container
-        assert container["image"].startswith("docker.io/prefecthq/prefect-dev:")
+        assert container["image"].startswith("docker.io/prefecthq/prefect:")
 
     def test_populate_image_doesnt_overwrite(self, cloud_run_worker_job_config):
         image = "my-first-image"
