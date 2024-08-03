@@ -528,7 +528,7 @@ def create_app(
     async def start_services():
         """Start additional services when the Prefect REST API starts up."""
 
-        if ephemeral or os.environ.get("PREFECT__EPHEMERAL_SERVER", "0") == "1":
+        if ephemeral:
             app.state.services = None
             return
 
@@ -822,7 +822,7 @@ class SubprocessASGIServer:
     def _run_uvicorn_command(self) -> subprocess.Popen:
         # used to turn off background services
         server_env = {
-            "PREFECT__EPHEMERAL_SERVER": "1",
+            "PREFECT_UI_ENABLED": "0",
         }
         return subprocess.Popen(
             args=[
