@@ -12,6 +12,7 @@ import anyio.abc
 import kubernetes_asyncio
 import pendulum
 import pytest
+from exceptiongroup import ExceptionGroup  # novermin
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Pod
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import (
@@ -48,7 +49,6 @@ if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import ValidationError
 else:
     from pydantic import ValidationError
-
 
 FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
@@ -2714,21 +2714,23 @@ class TestKubernetesWorker:
             mock_watch,
         ):
             BAD_NAMESPACE = "dog"
-            with pytest.raises(
-                InfrastructureNotAvailable,
-                match=(
-                    "Unable to kill job 'mock-k8s-v1-job': The job is running in "
-                    f"namespace {BAD_NAMESPACE!r} but this worker expected jobs "
-                    "to be running in namespace 'default' based on the work pool and "
-                    "deployment configuration."
-                ),
-            ):
+
+            with pytest.raises(ExceptionGroup) as exc:  # novermin
                 async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                     await k8s_worker.kill_infrastructure(
                         infrastructure_pid=f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job",
                         grace_seconds=0,
                         configuration=default_configuration,
                     )
+
+            assert len(exc.value.exceptions) == 1
+            assert isinstance(exc.value.exceptions[0], InfrastructureNotAvailable)
+            assert (
+                "Unable to kill job 'mock-k8s-v1-job': The job is running in "
+                f"namespace {BAD_NAMESPACE!r} but this worker expected jobs "
+                "to be running in namespace 'default' based on the work pool and "
+                "deployment configuration."
+            ) in str(exc.value.exceptions[0])
 
         async def test_kill_infrastructure_raises_infra_not_available_on_mismatched_cluster_uid(
             self,
@@ -2739,19 +2741,20 @@ class TestKubernetesWorker:
         ):
             BAD_CLUSTER = "4321"
 
-            with pytest.raises(
-                InfrastructureNotAvailable,
-                match=(
-                    "Unable to kill job 'mock-k8s-v1-job': The job is running on another "
-                    "cluster."
-                ),
-            ):
+            with pytest.raises(ExceptionGroup) as exc:  # novermin
                 async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                     await k8s_worker.kill_infrastructure(
                         infrastructure_pid=f"{BAD_CLUSTER}:default:mock-k8s-v1-job",
                         grace_seconds=0,
                         configuration=default_configuration,
                     )
+
+            assert len(exc.value.exceptions) == 1
+            assert isinstance(exc.value.exceptions[0], InfrastructureNotAvailable)
+            assert (
+                "Unable to kill job 'mock-k8s-v1-job': The job is running on another "
+                "cluster than the one specified by the infrastructure PID."
+            ) in str(exc.value.exceptions[0])
 
         async def test_kill_infrastructure_raises_infrastructure_not_found_on_404(
             self,
@@ -2764,16 +2767,19 @@ class TestKubernetesWorker:
                 ApiException(status=404)
             ]
 
-            with pytest.raises(
-                InfrastructureNotFound,
-                match="Unable to kill job 'mock-k8s-v1-job': The job was not found.",
-            ):
+            with pytest.raises(ExceptionGroup) as exc:  # novermin
                 async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                     await k8s_worker.kill_infrastructure(
                         infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
                         grace_seconds=0,
                         configuration=default_configuration,
                     )
+
+            assert len(exc.value.exceptions) == 1
+            assert isinstance(exc.value.exceptions[0], InfrastructureNotFound)
+            assert (
+                "Unable to kill job 'mock-k8s-v1-job': The job was not found."
+            ) in str(exc.value.exceptions[0])
 
         async def test_kill_infrastructure_passes_other_k8s_api_errors_through(
             self,
@@ -2786,15 +2792,16 @@ class TestKubernetesWorker:
                 ApiException(status=400)
             ]
 
-            with pytest.raises(
-                ApiException,
-            ):
+            with pytest.raises(ExceptionGroup) as exc:  # novermin
                 async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                     await k8s_worker.kill_infrastructure(
                         infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:dog",
                         grace_seconds=0,
                         configuration=default_configuration,
                     )
+
+            assert len(exc.value.exceptions) == 1
+            assert isinstance(exc.value.exceptions[0], ApiException)
 
     @pytest.fixture
     async def mock_events(self, mock_core_client):

@@ -1,7 +1,8 @@
 import json
 import logging
+from contextlib import contextmanager
 from functools import partial
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional
 from unittest.mock import ANY, MagicMock
 from unittest.mock import patch as mock_patch
 from uuid import uuid4
@@ -10,6 +11,7 @@ import anyio
 import botocore
 import pytest
 import yaml
+from exceptiongroup import BaseExceptionGroup, ExceptionGroup  # novermin
 from moto import mock_ec2, mock_ecs, mock_logs
 from moto.ec2.utils import generate_instance_identity_document
 from pydantic import VERSION as PYDANTIC_VERSION
@@ -77,6 +79,19 @@ def patch_task_watch_poll_interval(monkeypatch):
     monkeypatch.setattr(
         ECSVariables.__fields__["task_watch_poll_interval"], "default", 0.05
     )
+
+
+@contextmanager
+def collapse_excgroups() -> Generator[None, None, None]:
+    try:
+        yield
+    except BaseException as exc:  # novermin
+        while (
+            isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1
+        ):  # novermin
+            exc = exc.exceptions[0]
+
+        raise exc
 
 
 def inject_moto_patches(moto_mock, patches: Dict[str, List[Callable]]):
@@ -371,18 +386,19 @@ async def run_then_stop_task(
         result = await worker.run(flow_run, configuration, task_status=task_status)
         return
 
-    with anyio.fail_after(20):
-        async with anyio.create_task_group() as tg:
-            identifier = await tg.start(run)
-            cluster, task_arn = parse_identifier(identifier)
+    with collapse_excgroups():
+        with anyio.fail_after(20):
+            async with anyio.create_task_group() as tg:
+                identifier = await tg.start(run)
+                cluster, task_arn = parse_identifier(identifier)
 
-            if after_start:
-                await after_start(task_arn)
+                if after_start:
+                    await after_start(task_arn)
 
-            # Stop the task after it starts to prevent the test from running forever
-            tg.start_soon(
-                partial(stop_task, session.client("ecs"), task_arn, cluster=cluster)
-            )
+                # Stop the task after it starts to prevent the test from running forever
+                tg.start_soon(
+                    partial(stop_task, session.client("ecs"), task_arn, cluster=cluster)
+                )
 
     return result
 
@@ -1132,20 +1148,20 @@ async def test_network_config_from_custom_settings_invalid_subnet(
 
     session = aws_credentials.get_boto3_session()
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            r"Subnets \['sn-8asdas'\] not found within VPC with ID "
-            + vpc.id
-            + r"\.Please check that VPC is associated with supplied subnets\."
-        ),
-    ):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
             original_run_task = worker._create_task_run
             mock_run_task = MagicMock(side_effect=original_run_task)
             worker._create_task_run = mock_run_task
 
             await run_then_stop_task(worker, configuration, flow_run)
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], ValueError)
+    assert (
+        f"Subnets ['sn-8asdas'] not found within VPC with ID {vpc.id}."
+        + " Please check that VPC is associated with supplied subnets."
+    ) in str(exc.value.exceptions[0])
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1174,20 +1190,21 @@ async def test_network_config_from_custom_settings_invalid_subnet_multiple_vpc_s
 
     session = aws_credentials.get_boto3_session()
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            rf"Subnets \['{invalid_subnet_id}', '{subnet.id}'\] not found within VPC"
-            f" with ID {vpc.id}.Please check that VPC is associated with supplied"
-            " subnets."
-        ),
-    ):
+    with pytest.raises(ExceptionGroup) as exc:
         async with ECSWorker(work_pool_name="test") as worker:
             original_run_task = worker._create_task_run
             mock_run_task = MagicMock(side_effect=original_run_task)
             worker._create_task_run = mock_run_task
 
             await run_then_stop_task(worker, configuration, flow_run)
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], ValueError)
+    assert (
+        f"Subnets ['{invalid_subnet_id}', '{subnet.id}'] not found "
+        f"within VPC with ID {vpc.id}. Please check that VPC is "
+        f"associated with supplied subnets."
+    ) in str(exc.value.exceptions[0])
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1289,9 +1306,17 @@ async def test_network_config_missing_default_vpc(
 
     configuration = await construct_configuration(aws_credentials=aws_credentials)
 
-    with pytest.raises(ValueError, match="Failed to find the default VPC"):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
+            original_run_task = worker._create_task_run
+            mock_run_task = MagicMock(side_effect=original_run_task)
+            worker._create_task_run = mock_run_task
+
             await run_then_stop_task(worker, configuration, flow_run)
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], ValueError)
+    assert "Failed to find the default VPC" in str(exc.value.exceptions[0])
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1307,11 +1332,15 @@ async def test_network_config_from_vpc_with_no_subnets(
         vpc_id=vpc.id,
     )
 
-    with pytest.raises(
-        ValueError, match=f"Failed to find subnets for VPC with ID {vpc.id}"
-    ):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
             await run_then_stop_task(worker, configuration, flow_run)
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], ValueError)
+    assert f"Failed to find subnets for VPC with ID {vpc.id}" in str(
+        exc.value.exceptions[0]
+    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1327,15 +1356,16 @@ async def test_bridge_network_mode_raises_on_fargate(
         template_overrides=dict(task_definition={"networkMode": "bridge"}),
     )
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            "Found network mode 'bridge' which is not compatible with launch type "
-            f"{launch_type!r}"
-        ),
-    ):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
             await run_then_stop_task(worker, configuration, flow_run)
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], ValueError)
+    assert (
+        "Found network mode 'bridge' which is not compatible with launch type "
+        f"{launch_type!r}"
+    ) in str(exc.value.exceptions[0])
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2280,9 +2310,12 @@ async def test_kill_infrastructure_with_invalid_identifier(aws_credentials):
         aws_credentials=aws_credentials,
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(configuration, "test")
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], ValueError)
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2292,15 +2325,16 @@ async def test_kill_infrastructure_with_mismatched_cluster(aws_credentials):
         cluster="foo",
     )
 
-    with pytest.raises(
-        InfrastructureNotAvailable,
-        match=(
-            "Cannot stop ECS task: this infrastructure block has access to cluster "
-            "'foo' but the task is running in cluster 'bar'."
-        ),
-    ):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(configuration, "bar:::task_arn")
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], InfrastructureNotAvailable)
+    assert (
+        "Cannot stop ECS task: this infrastructure block has access to cluster "
+        "'foo' but the task is running in cluster 'bar'."
+    ) in str(exc.value.exceptions[0])
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2310,12 +2344,15 @@ async def test_kill_infrastructure_with_cluster_that_does_not_exist(aws_credenti
         cluster="foo",
     )
 
-    with pytest.raises(
-        InfrastructureNotFound,
-        match="Cannot stop ECS task: the cluster 'foo' could not be found.",
-    ):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(configuration, "foo::task_arn")
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], InfrastructureNotFound)
+    assert ("Cannot stop ECS task: the cluster 'foo' could not be found.") in str(
+        exc.value.exceptions[0]
+    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2348,12 +2385,15 @@ async def test_kill_infrastructure_with_cluster_that_has_no_tasks(aws_credential
         cluster="default",
     )
 
-    with pytest.raises(
-        InfrastructureNotFound,
-        match="Cannot stop ECS task: the cluster 'default' has no tasks.",
-    ):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(configuration, "default::foo")
+
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], InfrastructureNotFound)
+    assert ("Cannot stop ECS task: the cluster 'default' has no tasks.") in str(
+        exc.value.exceptions[0]
+    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2417,10 +2457,12 @@ async def test_retry_on_failed_task_start(
         },
     )
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ExceptionGroup) as exc:  # novermin
         async with ECSWorker(work_pool_name="test") as worker:
             await run_then_stop_task(worker, configuration, flow_run)
 
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], RuntimeError)
     assert run_task_mock.call_count == 3
 
 
