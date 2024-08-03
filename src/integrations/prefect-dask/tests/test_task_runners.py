@@ -107,6 +107,13 @@ class TestDaskTaskRunner(TaskRunnerStandardTestSuite):
             request.param._pytestfixturefunction.name or request.param.__name__
         )
 
+    @pytest.mark.skip("Deadlocks")
+    async def test_successful_flow_run(self, task_runner):
+        """
+        This inherited test is deadlocking.
+        """
+        pass
+
     def test_sync_task_timeout(self, task_runner):
         """
         This test is inherited from the prefect testing module and it may not
@@ -159,7 +166,7 @@ class TestDaskTaskRunner(TaskRunnerStandardTestSuite):
             assert isinstance(state, State), "wait should return a state"
             assert state.type == StateType.CRASHED
 
-    @pytest.mark.skip("Deadlocks on 2.19.9")
+    @pytest.mark.skip("Deadlocks")
     @pytest.mark.parametrize(
         "exceptions",
         [
