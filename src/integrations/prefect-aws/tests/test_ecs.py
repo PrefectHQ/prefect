@@ -11,7 +11,7 @@ import anyio
 import pytest
 import yaml
 from botocore.exceptions import ClientError
-from exceptiongroup import BaseExceptionGroup, ExceptionGroup  # novermin
+from exceptiongroup import BaseExceptionGroup  # novermin
 from moto import mock_ec2, mock_ecs, mock_logs
 from moto.ec2.utils import generate_instance_identity_document
 from prefect_aws.workers.ecs_worker import ECSWorker
@@ -1074,11 +1074,8 @@ async def test_network_config_missing_default_vpc(aws_credentials):
 
     task = ECSTask(aws_credentials=aws_credentials)
 
-    with pytest.raises(ExceptionGroup) as exc:  # novermin
+    with pytest.raises(ValueError, match="Failed to find the default VPC"):
         await run_then_stop_task(task)
-
-    assert len(exc.value.exceptions) == 1
-    assert "Failed to find the default VPC" in str(exc.value.exceptions[0])
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1094,13 +1091,10 @@ async def test_network_config_from_vpc_with_no_subnets(aws_credentials):
     )
     print(task.preview())
 
-    with pytest.raises(ExceptionGroup) as exc:  # novermin
+    with pytest.raises(
+        ValueError, match=f"Failed to find subnets for VPC with ID {vpc.id}"
+    ):
         await run_then_stop_task(task)
-
-    assert len(exc.value.exceptions) == 1
-    assert f"Failed to find subnets for VPC with ID {vpc.id}" in str(
-        exc.value.exceptions[0]
-    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1298,11 +1292,8 @@ async def test_bridge_network_mode_warns_on_fargate(aws_credentials, launch_type
             f"{launch_type!r}"
         ),
     ):
-        with pytest.raises(ExceptionGroup) as exc:  # novermin
+        with pytest.raises(ClientError):
             await run_then_stop_task(task)
-
-        assert len(exc.value.exceptions) == 1
-        assert isinstance(exc.value.exceptions[0], ClientError)
 
 
 @pytest.mark.usefixtures("ecs_mocks")
