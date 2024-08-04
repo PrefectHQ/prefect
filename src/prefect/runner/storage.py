@@ -278,6 +278,7 @@ class GitRepository:
             "prefect.deployments.steps.git_clone": {
                 "repository": self._url,
                 "branch": self._branch,
+                "include_submodules": self._include_submodules,
             }
         }
         if isinstance(self._credentials, Block):
