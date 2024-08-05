@@ -351,6 +351,7 @@ def warn_on_database_password_value_without_usage(values):
     if (
         value
         and not value.startswith(OBFUSCATED_PREFIX)
+        and values["PREFECT_API_DATABASE_CONNECTION_URL"] is not None
         and (
             "PREFECT_API_DATABASE_PASSWORD"
             not in values["PREFECT_API_DATABASE_CONNECTION_URL"]
@@ -403,7 +404,38 @@ def warn_on_misconfigured_api_url(values):
     return values
 
 
-def default_database_connection_url(settings, value):
+def default_database_connection_url(settings: "Settings", value: Optional[str]):
+    driver = PREFECT_API_DATABASE_DRIVER.value_from(settings)
+    if driver == "postgresql+asyncpg":
+        required = [
+            PREFECT_API_DATABASE_HOST,
+            PREFECT_API_DATABASE_USER,
+            PREFECT_API_DATABASE_NAME,
+            PREFECT_API_DATABASE_PASSWORD,
+        ]
+        missing = [
+            setting.name for setting in required if not setting.value_from(settings)
+        ]
+        if missing:
+            raise ValueError(
+                f"Missing required database connection settings: {', '.join(missing)}"
+            )
+
+        host = PREFECT_API_DATABASE_HOST.value_from(settings)
+        port = PREFECT_API_DATABASE_PORT.value_from(settings) or 5432
+        user = PREFECT_API_DATABASE_USER.value_from(settings)
+        name = PREFECT_API_DATABASE_NAME.value_from(settings)
+        password = PREFECT_API_DATABASE_PASSWORD.value_from(settings)
+
+        return f"{driver}://{user}:{password}@{host}:{port}/{name}"
+
+    elif driver == "sqlite+aiosqlite":
+        path = PREFECT_API_DATABASE_NAME.value_from(settings)
+        if path:
+            return f"{driver}:///{path}"
+    elif driver:
+        raise ValueError(f"Unsupported database driver: {driver}")
+
     templater = template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD)
 
     # If the user has provided a value, use it
@@ -941,17 +973,6 @@ backend on application startup. If not set, block types must be manually
 registered.
 """
 
-PREFECT_API_DATABASE_PASSWORD = Setting(
-    Optional[str],
-    default=None,
-    is_secret=True,
-)
-"""
-Password to template into the `PREFECT_API_DATABASE_CONNECTION_URL`.
-This is useful if the password must be provided separately from the connection URL.
-To use this setting, you must include it in your connection URL.
-"""
-
 PREFECT_API_DATABASE_CONNECTION_URL = Setting(
     Optional[str],
     default=None,
@@ -979,6 +1000,46 @@ the `PREFECT_API_DATABASE_PASSWORD` setting. For example:
 PREFECT_API_DATABASE_PASSWORD='mypassword'
 PREFECT_API_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_API_DATABASE_PASSWORD}@localhost/prefect'
 ```
+"""
+
+PREFECT_API_DATABASE_DRIVER = Setting(
+    Optional[Literal["postgresql+asyncpg", "sqlite+aiosqlite"]],
+    default=None,
+)
+"""
+The database driver to use when connecting to the database.
+"""
+
+PREFECT_API_DATABASE_HOST = Setting(Optional[str], default=None)
+"""
+The database server host.
+"""
+
+PREFECT_API_DATABASE_PORT = Setting(Optional[int], default=None)
+"""
+The database server port.
+"""
+
+PREFECT_API_DATABASE_USER = Setting(Optional[str], default=None)
+"""
+The user to use when connecting to the database.
+"""
+
+PREFECT_API_DATABASE_NAME = Setting(Optional[str], default=None)
+"""
+The name of the Prefect database on the remote server, or the path to the database file
+for SQLite.
+"""
+
+PREFECT_API_DATABASE_PASSWORD = Setting(
+    Optional[str],
+    default=None,
+    is_secret=True,
+)
+"""
+Password to template into the `PREFECT_API_DATABASE_CONNECTION_URL`.
+This is useful if the password must be provided separately from the connection URL.
+To use this setting, you must include it in your connection URL.
 """
 
 PREFECT_API_DATABASE_ECHO = Setting(
