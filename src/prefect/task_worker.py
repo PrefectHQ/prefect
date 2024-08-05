@@ -103,6 +103,11 @@ class TaskWorker:
         self._client = get_client()
         self._exit_stack = AsyncExitStack()
 
+        if not asyncio.get_event_loop().is_running():
+            raise RuntimeError(
+                "TaskWorker must be initialized within an async context."
+            )
+
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
