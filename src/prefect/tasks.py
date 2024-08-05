@@ -67,7 +67,6 @@ from prefect.utilities.callables import (
     get_call_parameters,
     raise_for_reserved_arguments,
 )
-from prefect.utilities.engine import emit_task_run_state_change_event
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.urls import url_for
@@ -1450,6 +1449,8 @@ class Task(Generic[P, R]):
                 extra_task_inputs=dependencies,
             )
         )  # type: ignore
+
+        from prefect.utilities.engine import emit_task_run_state_change_event
 
         # emit a `SCHEDULED` event for the task run
         emit_task_run_state_change_event(
