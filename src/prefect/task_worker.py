@@ -416,7 +416,6 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     return status_app
 
 
-@sync_compatible
 async def serve(
     *tasks: Task, limit: Optional[int] = 10, status_server_port: Optional[int] = None
 ):
@@ -481,8 +480,8 @@ async def serve(
     except StopTaskWorker:
         logger.info("Task worker stopped.")
 
-    except (asyncio.CancelledError, KeyboardInterrupt):
-        logger.info("Task worker interrupted, stopping...")
+    except (asyncio.CancelledError, KeyboardInterrupt) as exc:
+        logger.info(f"Received {type(exc).__name__}, shutting down...")
 
     finally:
         if status_server_task:
