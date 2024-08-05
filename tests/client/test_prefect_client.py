@@ -1,6 +1,5 @@
 import json
 import os
-import subprocess
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Generator, List
@@ -104,18 +103,15 @@ class TestGetClient:
     def test_get_client_starts_subprocess_server_when_enabled(
         self, enable_ephemeral_server, monkeypatch
     ):
-        popen_spy = MagicMock()
-        orig_popen = subprocess.Popen
+        subprocess_server_mock = MagicMock()
 
-        def popen_stub(*args, **kwargs):
-            popen_spy(*args, **kwargs)
-            return orig_popen(*args, **kwargs)
-
-        monkeypatch.setattr("prefect.server.api.server.subprocess.Popen", popen_stub)
+        monkeypatch.setattr(
+            prefect.server.api.server, "SubprocessASGIServer", subprocess_server_mock
+        )
 
         get_client()
-        assert popen_spy.call_count == 1
-        assert "prefect.server.api.server:create_app" in popen_spy.call_args[1]["args"]
+        assert subprocess_server_mock.call_count == 1
+        assert subprocess_server_mock.return_value.start.call_count == 1
 
     def test_get_client_rasises_error_when_no_api_url_and_no_ephemeral_mode(
         self, disable_hosted_api_server
