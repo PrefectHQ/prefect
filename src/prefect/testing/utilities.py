@@ -17,6 +17,7 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
+from prefect.logging.handlers import APILogWorker
 from prefect.results import PersistedResult
 from prefect.serializers import Serializer
 from prefect.server.api.server import SubprocessASGIServer
@@ -131,23 +132,30 @@ def prefect_test_harness():
     with ExitStack() as stack:
         # temporarily override any database interface components
         stack.enter_context(temporary_database_interface())
-        # start a subprocess server to test against
-        test_server = SubprocessASGIServer()
-        test_server.start(timeout=30)
 
         DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
         stack.enter_context(
             prefect.settings.temporary_settings(
-                # Clear the PREFECT_API_URL
-                restore_defaults={prefect.settings.PREFECT_API_URL},
                 # Use a temporary directory for the database
                 updates={
                     prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
+                },
+            )
+        )
+        # start a subprocess server to test against
+        test_server = SubprocessASGIServer()
+        test_server.start(timeout=30)
+        stack.enter_context(
+            prefect.settings.temporary_settings(
+                # Use a temporary directory for the database
+                updates={
                     prefect.settings.PREFECT_API_URL: test_server.api_url,
                 },
             )
         )
         yield
+        # drain the logs before stopping the server to avoid connection errors on shutdown
+        APILogWorker.instance().drain()
         test_server.stop()
 
 
