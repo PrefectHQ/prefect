@@ -132,9 +132,9 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_UNIT_TEST_MODE,
 )
-from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -144,18 +144,12 @@ from prefect.client.base import (
     ASGIApp,
     PrefectHttpxAsyncClient,
     PrefectHttpxSyncClient,
-    PrefectHttpxSyncEphemeralClient,
+    ServerType,
     app_lifespan_context,
 )
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-
-class ServerType(AutoEnum):
-    EPHEMERAL = AutoEnum.auto()
-    SERVER = AutoEnum.auto()
-    CLOUD = AutoEnum.auto()
 
 
 @overload
@@ -194,8 +188,6 @@ def get_client(
     """
     import prefect.context
 
-    settings_ctx = prefect.context.get_settings_context()
-
     # try to load clients from a client context, if possible
     # only load clients that match the provided config / loop
     try:
@@ -217,24 +209,36 @@ def get_client(
                 return client_ctx.client
 
     api = PREFECT_API_URL.value()
+    server_type = None
 
-    if not api:
+    if not api and PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         # create an ephemeral API if none was provided
-        from prefect.server.api.server import create_app
+        from prefect.server.api.server import SubprocessASGIServer
 
-        api = create_app(settings_ctx.settings, ephemeral=True)
+        server = SubprocessASGIServer()
+        server.start()
+        assert server.server_process is not None, "Server process did not start"
+
+        api = server.api_url
+        server_type = ServerType.EPHEMERAL
+    elif not api and not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+        raise ValueError(
+            "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
+        )
 
     if sync_client:
         return SyncPrefectClient(
             api,
             api_key=PREFECT_API_KEY.value(),
             httpx_settings=httpx_settings,
+            server_type=server_type,
         )
     else:
         return PrefectClient(
             api,
             api_key=PREFECT_API_KEY.value(),
             httpx_settings=httpx_settings,
+            server_type=server_type,
         )
 
 
@@ -271,6 +275,7 @@ class PrefectClient:
         api_key: Optional[str] = None,
         api_version: Optional[str] = None,
         httpx_settings: Optional[Dict[str, Any]] = None,
+        server_type: Optional[ServerType] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
@@ -333,11 +338,14 @@ class PrefectClient:
             # client will use a standard HTTP/1.1 connection instead.
             httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
-            self.server_type = (
-                ServerType.CLOUD
-                if api.startswith(PREFECT_CLOUD_API_URL.value())
-                else ServerType.SERVER
-            )
+            if server_type:
+                self.server_type = server_type
+            else:
+                self.server_type = (
+                    ServerType.CLOUD
+                    if api.startswith(PREFECT_CLOUD_API_URL.value())
+                    else ServerType.SERVER
+                )
 
         # Connect to an in-process application
         elif isinstance(api, ASGIApp):
@@ -3386,6 +3394,7 @@ class SyncPrefectClient:
         api_key: Optional[str] = None,
         api_version: Optional[str] = None,
         httpx_settings: Optional[Dict[str, Any]] = None,
+        server_type: Optional[ServerType] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
@@ -3444,11 +3453,14 @@ class SyncPrefectClient:
             # client will use a standard HTTP/1.1 connection instead.
             httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
-            self.server_type = (
-                ServerType.CLOUD
-                if api.startswith(PREFECT_CLOUD_API_URL.value())
-                else ServerType.SERVER
-            )
+            if server_type:
+                self.server_type = server_type
+            else:
+                self.server_type = (
+                    ServerType.CLOUD
+                    if api.startswith(PREFECT_CLOUD_API_URL.value())
+                    else ServerType.SERVER
+                )
 
         # Connect to an in-process application
         elif isinstance(api, ASGIApp):
@@ -3480,14 +3492,9 @@ class SyncPrefectClient:
             and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
         )
 
-        if self.server_type == ServerType.EPHEMERAL:
-            self._client = PrefectHttpxSyncEphemeralClient(
-                api, base_url="http://ephemeral-prefect/api"
-            )
-        else:
-            self._client = PrefectHttpxSyncClient(
-                **httpx_settings, enable_csrf_support=enable_csrf_support
-            )
+        self._client = PrefectHttpxSyncClient(
+            **httpx_settings, enable_csrf_support=enable_csrf_support
+        )
 
         # See https://www.python-httpx.org/advanced/#custom-transports
         #
@@ -4060,6 +4067,33 @@ class SyncPrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+        return DeploymentResponse.model_validate(response.json())
+
+    def read_deployment_by_name(
+        self,
+        name: str,
+    ) -> DeploymentResponse:
+        """
+        Query the Prefect API for a deployment by name.
+
+        Args:
+            name: A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            a Deployment model representation of the deployment
+        """
+        try:
+            response = self._client.get(f"/deployments/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
         return DeploymentResponse.model_validate(response.json())
 
     def create_artifact(

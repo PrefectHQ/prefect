@@ -1,7 +1,10 @@
+import warnings
 from functools import wraps
 from pathlib import Path
 from threading import Lock
 from typing import Optional
+
+from sqlalchemy.exc import SAWarning
 
 import prefect.server
 
@@ -51,7 +54,14 @@ def alembic_upgrade(revision: str = "head", dry_run: bool = False):
     # lazy import for performance
     import alembic.command
 
-    alembic.command.upgrade(alembic_config(), revision, sql=dry_run)
+    # don't display reflection warnings that pop up during schema migrations
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Skipped unsupported reflection of expression-based index",
+            category=SAWarning,
+        )
+        alembic.command.upgrade(alembic_config(), revision, sql=dry_run)
 
 
 @with_alembic_lock

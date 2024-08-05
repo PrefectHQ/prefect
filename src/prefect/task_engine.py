@@ -31,7 +31,7 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
-from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.concurrency.asyncio import concurrency as aconcurrency
@@ -409,6 +409,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.state_id = new_state.id
             self.task_run.state_type = new_state.type
             self.task_run.state_name = new_state.name
+
+            if new_state.is_final():
+                if (
+                    isinstance(state.data, BaseResult)
+                    and state.data.has_cached_object()
+                ):
+                    # Avoid fetching the result unless it is cached, otherwise we defeat
+                    # the purpose of disabling `cache_result_in_memory`
+                    result = state.result(raise_on_failure=False, fetch=True)
+                    if inspect.isawaitable(result):
+                        result = run_coro_as_sync(result)
+                else:
+                    result = state.data
+
+                link_state_to_result(state, result)
+
         else:
             try:
                 new_state = propose_state_sync(
@@ -966,6 +982,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.state_id = new_state.id
             self.task_run.state_type = new_state.type
             self.task_run.state_name = new_state.name
+
+            if new_state.is_final():
+                if (
+                    isinstance(new_state.data, BaseResult)
+                    and new_state.data.has_cached_object()
+                ):
+                    # Avoid fetching the result unless it is cached, otherwise we defeat
+                    # the purpose of disabling `cache_result_in_memory`
+                    result = await new_state.result(raise_on_failure=False, fetch=True)
+                else:
+                    result = new_state.data
+
+                link_state_to_result(new_state, result)
+
         else:
             try:
                 new_state = await propose_state(
@@ -1192,8 +1222,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
-            async with AsyncClientContext.get_or_create() as client_ctx:
-                self._client = client_ctx.client
+            async with AsyncClientContext.get_or_create():
+                self._client = get_client()
                 self._is_started = True
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:

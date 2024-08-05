@@ -11,13 +11,29 @@ from httpx import Response
 from prefect import flow
 from prefect.context import FlowRunContext
 from prefect.deployments import run_deployment
+from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import TaskRunResult
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
+    temporary_settings,
+)
 from prefect.tasks import task
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+
+
+@pytest.fixture(autouse=True, params=[False, True])
+def enable_client_side_task_run_orchestration(
+    request, asserting_events_worker: EventsWorker
+):
+    enabled = request.param
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
+    ):
+        yield enabled
 
 
 class TestRunDeployment:
@@ -347,7 +363,7 @@ class TestRunDeployment:
         assert slugify(f"foo/{deployment.name}") in task_run.task_key
 
     async def test_tracks_dependencies_when_used_in_flow(
-        self, test_deployment, use_hosted_api_server, prefect_client
+        self, test_deployment, use_hosted_api_server, prefect_client, events_pipeline
     ):
         deployment = test_deployment
 
@@ -370,6 +386,7 @@ class TestRunDeployment:
         parent_state = await foo(return_state=True)
         upstream_task_state, child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
+
         task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.task_inputs == {
             "x": [

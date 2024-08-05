@@ -1,25 +1,32 @@
+import contextlib
+import socket
 import sqlite3
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
+import httpx
 import pytest
 import sqlalchemy as sa
 import toml
-from fastapi import APIRouter, status, testclient
+from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
 from prefect.client.constants import SERVER_API_VERSION
+from prefect.client.orchestration import get_client
+from prefect.flows import flow
 from prefect.server.api.server import (
     API_ROUTERS,
     SQLITE_LOCKED_MSG,
+    SubprocessASGIServer,
     _memoize_block_auto_registration,
     create_api_app,
     create_app,
-    method_paths_from_routes,
 )
+from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_URL,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     temporary_settings,
@@ -162,103 +169,6 @@ class TestCreateOrionAPI:
             expected.update(method_paths_from_routes(router.routes))
 
         assert method_paths_from_routes(app.router.routes) == expected
-
-    def test_allows_router_omission_with_null_override(self):
-        app = create_api_app(router_overrides={"/logs": None})
-
-        routes = method_paths_from_routes(app.router.routes)
-        assert all("/logs" not in route for route in routes)
-        client = testclient.TestClient(app)
-        with client:
-            assert client.post("/logs").status_code == status.HTTP_404_NOT_FOUND
-
-    def test_checks_for_router_paths_during_override(self):
-        router = APIRouter(prefix="/logs")
-
-        with pytest.raises(
-            ValueError,
-            match="override for '/logs' is missing paths",
-        ) as exc:
-            create_api_app(router_overrides={"/logs": router})
-
-        # These are displayed in a non-deterministic order
-        assert exc.match("POST /logs/filter")
-        assert exc.match("POST /logs/")
-
-    def test_checks_for_changed_prefix_during_override(self):
-        router = APIRouter(prefix="/foo")
-
-        with pytest.raises(
-            ValueError,
-            match="Router override for '/logs' defines a different prefix '/foo'",
-        ):
-            create_api_app(router_overrides={"/logs": router})
-
-    def test_checks_for_new_prefix_during_override(self):
-        router = APIRouter(prefix="/foo")
-
-        with pytest.raises(
-            KeyError,
-            match="Router override provided for prefix that does not exist: '/foo'",
-        ):
-            create_api_app(router_overrides={"/foo": router})
-
-    def test_only_includes_missing_paths_in_override_error(self):
-        router = APIRouter(prefix="/logs")
-
-        @router.post("/")
-        def foo():
-            pass
-
-        with pytest.raises(
-            ValueError,
-            match="override for '/logs' is missing paths.* {'POST /logs/filter'}",
-        ):
-            create_api_app(router_overrides={"/logs": router})
-
-    def test_override_uses_new_router(self):
-        router = APIRouter(prefix="/logs")
-
-        logs = MagicMock()
-
-        @router.post("/")
-        def foo():
-            logs()
-
-        logs_filter = MagicMock()
-        router.post("/filter")(logs_filter)
-
-        app = create_api_app(router_overrides={"/logs": router})
-        client = testclient.TestClient(app)
-        client.post("/logs")
-        logs.assert_called_once()
-        client.post("/logs/filter")
-        logs.assert_called_once()
-
-    def test_override_may_include_new_routes(self):
-        router = APIRouter(prefix="/logs")
-
-        logs = MagicMock(return_value=1)
-        logs_get = MagicMock(return_value=1)
-        logs_filter = MagicMock(return_value=1)
-
-        @router.post("/")
-        def foo():
-            return logs()
-
-        @router.post("/filter")
-        def bar():
-            return logs_filter()
-
-        @router.get("/")
-        def foobar():
-            return logs_get()
-
-        app = create_api_app(router_overrides={"/logs": router})
-
-        client = testclient.TestClient(app)
-        client.get("/logs/").raise_for_status()
-        logs_get.assert_called_once()
 
 
 class TestMemoizeBlockAutoRegistration:
@@ -405,3 +315,123 @@ class TestMemoizeBlockAutoRegistration:
             await _memoize_block_auto_registration(test_func)()
 
         assert test_func.call_count == 2
+
+
+class TestSubprocessASGIServer:
+    def test_singleton_on_port(self):
+        server_8000 = SubprocessASGIServer(port=8000)
+        assert server_8000 is SubprocessASGIServer(port=8000)
+
+        server_random = SubprocessASGIServer()
+        assert server_random is SubprocessASGIServer()
+
+        assert server_8000 is not server_random
+
+    def test_find_available_port_returns_available_port(self):
+        server = SubprocessASGIServer()
+        port = server.find_available_port()
+        assert server.is_port_available(port)
+        assert 8000 <= port < 9000
+
+    def test_is_port_available_returns_true_for_available_port(self):
+        server = SubprocessASGIServer()
+        port = server.find_available_port()
+        assert server.is_port_available(port)
+
+    def test_is_port_available_returns_false_for_unavailable_port(self):
+        server = SubprocessASGIServer()
+        with contextlib.closing(
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ) as sock:
+            sock.bind(("127.0.0.1", 12345))
+            assert not server.is_port_available(12345)
+
+    def test_start_is_idempotent(self, respx_mock, monkeypatch):
+        popen_mock = MagicMock()
+        monkeypatch.setattr("prefect.server.api.server.subprocess.Popen", popen_mock)
+        respx_mock.get("http://127.0.0.1:8000/api/health").respond(status_code=200)
+        server = SubprocessASGIServer(port=8000)
+        server.start()
+        server.start()
+
+        assert popen_mock.call_count == 1
+
+    def test_address_returns_correct_address(self):
+        server = SubprocessASGIServer(port=8000)
+        assert server.address == "http://127.0.0.1:8000"
+
+    def test_address_returns_correct_api_url(self):
+        server = SubprocessASGIServer(port=8000)
+        assert server.api_url == "http://127.0.0.1:8000/api"
+
+    def test_start_and_stop_server(self):
+        server = SubprocessASGIServer()
+        server.start()
+        health_response = httpx.get(f"{server.address}/api/health")
+        assert health_response.status_code == 200
+
+        server.stop()
+        with pytest.raises(httpx.RequestError):
+            httpx.get(f"{server.api_url}/health")
+
+    def test_run_as_context_manager(self):
+        with SubprocessASGIServer() as server:
+            health_response = httpx.get(f"{server.api_url}/health")
+            assert health_response.status_code == 200
+
+        with pytest.raises(httpx.RequestError):
+            httpx.get(f"{server.api_url}/health")
+
+    def test_run_a_flow_against_subprocess_server(self):
+        @flow
+        def f():
+            return 42
+
+        server = SubprocessASGIServer()
+        server.start()
+
+        with temporary_settings({PREFECT_API_URL: server.api_url}):
+            assert f() == 42
+
+            client = get_client(sync_client=True)
+            assert len(client.read_flow_runs()) == 1
+
+        server.stop()
+
+    def test_run_with_temp_db(self):
+        """
+        This test ensures that the format of the database connection URL used for the default
+        test profile does not retain state between subprocess server runs.
+        """
+
+        @flow
+        def f():
+            return 42
+
+        with temporary_settings(
+            {PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///:memory:"}
+        ):
+            SubprocessASGIServer._instances = {}
+            server = SubprocessASGIServer()
+            server.start(timeout=30)
+
+            with temporary_settings({PREFECT_API_URL: server.api_url}):
+                assert f() == 42
+
+                client = get_client(sync_client=True)
+                assert len(client.read_flow_runs()) == 1
+
+            server.stop()
+
+            # do it again to ensure the db is recreated
+
+            server = SubprocessASGIServer()
+            server.start(timeout=30)
+
+            with temporary_settings({PREFECT_API_URL: server.api_url}):
+                assert f() == 42
+
+                client = get_client(sync_client=True)
+                assert len(client.read_flow_runs()) == 1
+
+            server.stop()

@@ -1508,14 +1508,14 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/download-logs-csv": {
+        "/api/flow_runs/{id}/logs/download": {
             "get": {
                 "tags": [
                     "Flow Runs"
                 ],
                 "summary": "Download Logs",
                 "description": "Download all flow run logs as a CSV file, collecting all logs until there are no more logs to retrieve.",
-                "operationId": "download_logs_flow_runs__id__download_logs_csv_get",
+                "operationId": "download_logs_flow_runs__id__logs_download_get",
                 "parameters": [
                     {
                         "name": "id",
@@ -22086,17 +22086,6 @@
                         "title": "Prefect Api Blocks Register On Start",
                         "default": true
                     },
-                    "PREFECT_API_DATABASE_PASSWORD": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Prefect Api Database Password"
-                    },
                     "PREFECT_API_DATABASE_CONNECTION_URL": {
                         "anyOf": [
                             {
@@ -22107,6 +22096,76 @@
                             }
                         ],
                         "title": "Prefect Api Database Connection Url"
+                    },
+                    "PREFECT_API_DATABASE_DRIVER": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "postgresql+asyncpg",
+                                    "sqlite+aiosqlite"
+                                ]
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Driver"
+                    },
+                    "PREFECT_API_DATABASE_HOST": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Host"
+                    },
+                    "PREFECT_API_DATABASE_PORT": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Port"
+                    },
+                    "PREFECT_API_DATABASE_USER": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database User"
+                    },
+                    "PREFECT_API_DATABASE_NAME": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Name"
+                    },
+                    "PREFECT_API_DATABASE_PASSWORD": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Password"
                     },
                     "PREFECT_API_DATABASE_ECHO": {
                         "type": "boolean",
@@ -22270,6 +22329,16 @@
                         "format": "duration",
                         "title": "Prefect Server Csrf Token Expiration",
                         "default": "PT1H"
+                    },
+                    "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {
+                        "type": "boolean",
+                        "title": "Prefect Server Allow Ephemeral Mode",
+                        "default": false
+                    },
+                    "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {
+                        "type": "integer",
+                        "title": "Prefect Server Ephemeral Startup Timeout Seconds",
+                        "default": 10
                     },
                     "PREFECT_UI_ENABLED": {
                         "type": "boolean",

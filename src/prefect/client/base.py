@@ -26,7 +26,6 @@ import httpx
 from asgi_lifespan import LifespanManager
 from httpx import HTTPStatusError, Request, Response
 from starlette import status
-from starlette.testclient import TestClient
 from typing_extensions import Self
 
 import prefect
@@ -35,10 +34,14 @@ from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
+from prefect.utilities.collections import AutoEnum
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
 # Datastores for lifespan management, keys should be a tuple of thread and app
@@ -612,28 +615,31 @@ class PrefectHttpxSyncClient(httpx.Client):
         request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)
 
 
-class PrefectHttpxSyncEphemeralClient(TestClient, PrefectHttpxSyncClient):
+class ServerType(AutoEnum):
+    EPHEMERAL = AutoEnum.auto()
+    SERVER = AutoEnum.auto()
+    CLOUD = AutoEnum.auto()
+    UNCONFIGURED = AutoEnum.auto()
+
+
+def determine_server_type() -> ServerType:
     """
-    This client is a synchronous httpx client that can be used to talk directly
-    to an ASGI app, such as an ephemeral Prefect API.
+    Determine the server type based on the current settings.
 
-    It is a subclass of both Starlette's `TestClient` and Prefect's
-    `PrefectHttpxSyncClient`, so it combines the synchronous testing
-    capabilities of `TestClient` with the Prefect-specific behaviors of
-    `PrefectHttpxSyncClient`.
+    Returns:
+        - `ServerType.EPHEMERAL` if the ephemeral server is enabled
+        - `ServerType.SERVER` if a API URL is configured and it is not a cloud URL
+        - `ServerType.CLOUD` if an API URL is configured and it is a cloud URL
+        - `ServerType.UNCONFIGURED` if no API URL is configured and ephemeral mode is
+            not enabled
     """
-
-    def __init__(
-        self,
-        *args,
-        # override TestClient default
-        raise_server_exceptions=False,
-        **kwargs,
-    ):
-        super().__init__(
-            *args,
-            raise_server_exceptions=raise_server_exceptions,
-            **kwargs,
-        )
-
-    pass
+    api_url = PREFECT_API_URL.value()
+    if api_url is None:
+        if PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value():
+            return ServerType.EPHEMERAL
+        else:
+            return ServerType.UNCONFIGURED
+    if api_url.startswith(PREFECT_CLOUD_API_URL.value()):
+        return ServerType.CLOUD
+    else:
+        return ServerType.SERVER
