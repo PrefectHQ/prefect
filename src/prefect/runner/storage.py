@@ -280,6 +280,10 @@ class GitRepository:
                 "branch": self._branch,
             }
         }
+        if self._include_submodules:
+            pull_step["prefect.deployments.steps.git_clone"][
+                "include_submodules"
+            ] = self._include_submodules
         if isinstance(self._credentials, Block):
             pull_step["prefect.deployments.steps.git_clone"][
                 "credentials"

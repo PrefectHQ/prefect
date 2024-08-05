@@ -470,6 +470,21 @@ class TestGitRepository:
             result = repo.to_pull_step()
             assert result == expected_output
 
+        def test_to_pull_step_with_submodules(self):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git", include_submodules=True
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": None,
+                    "include_submodules": True,
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
         def test_to_pull_step_with_unsaved_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")
 
