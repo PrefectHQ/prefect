@@ -851,8 +851,8 @@ class SubprocessASGIServer:
         )
 
     def stop(self):
-        subprocess_server_logger.info(f"Stopping server on {self.address}")
         if self.server_process:
+            subprocess_server_logger.info(f"Stopping server on {self.address}")
             self.server_process.terminate()
             try:
                 self.server_process.wait(timeout=5)
