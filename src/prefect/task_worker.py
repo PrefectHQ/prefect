@@ -103,14 +103,10 @@ class TaskWorker:
         self._client = get_client()
         self._exit_stack = AsyncExitStack()
 
-        if not asyncio.get_event_loop().is_running():
-            raise RuntimeError(
-                "TaskWorker must be initialized within an async context."
-            )
-
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
-        self._limiter = anyio.CapacityLimiter(limit) if limit else None
+        self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
+        self._provided_limit: Optional[int] = limit
+        self._limiter: Optional[anyio.CapacityLimiter] = None
 
         self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
             task_key: {} for task_key in self.task_keys
@@ -384,6 +380,10 @@ class TaskWorker:
         if self._client._closed:
             self._client = get_client()
 
+        self._runs_task_group = anyio.create_task_group()
+        if self._provided_limit:
+            self._limiter = anyio.CapacityLimiter(self._provided_limit)
+
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
@@ -418,11 +418,6 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
         }
 
     return status_app
-
-
-async def _make_task_worker(*args, **kwargs) -> TaskWorker:
-    """Utility function to create a TaskWorker instance in an async context."""
-    return TaskWorker(*args, **kwargs)
 
 
 def serve(
@@ -460,9 +455,7 @@ def serve(
         ```
     """
 
-    task_worker = run_coro_as_sync(_make_task_worker(*tasks, limit=limit))
-
-    assert isinstance(task_worker, TaskWorker)
+    task_worker = TaskWorker(*tasks, limit=limit)
 
     status_server_task = None
     if status_server_port is not None:
