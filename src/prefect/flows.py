@@ -66,6 +66,7 @@ from prefect.exceptions import (
     ObjectNotFound,
     ParameterTypeError,
     ScriptError,
+    TerminationSignal,
     UnspecifiedFlowError,
 )
 from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
@@ -946,10 +947,15 @@ class Flow(Generic[P, R]):
             else:
                 raise
 
-        if loop is not None:
-            loop.run_until_complete(runner.start(webserver=webserver))
-        else:
-            asyncio.run(runner.start(webserver=webserver))
+        try:
+            if loop is not None:
+                loop.run_until_complete(runner.start(webserver=webserver))
+            else:
+                asyncio.run(runner.start(webserver=webserver))
+        except (KeyboardInterrupt, TerminationSignal) as exc:
+            logger.info(f"Received {type(exc).__name__}, shutting down...")
+            if loop is not None:
+                loop.stop()
 
     @classmethod
     @sync_compatible
