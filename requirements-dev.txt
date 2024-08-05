@@ -9,7 +9,7 @@ numpy
 pillow
 pre-commit
 pluggy >= 1.4.0
-pytest > 7, < 8 # Datadog's ddtrace does not support pytest 8 yet. See https://github.com/DataDog/dd-trace-py/issues/8220
+pytest > 7, < 9
 pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0 # Cannot override event loop in 0.23.0. See https://github.com/pytest-dev/pytest-asyncio/issues/706 for more details.
 pytest-benchmark
 pytest-codspeed
