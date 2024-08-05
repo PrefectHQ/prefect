@@ -299,6 +299,7 @@ class TaskWorker:
             new_state.state_details.task_run_id = task_run.id
             new_state.state_details.flow_run_id = task_run.flow_run_id
             state = new_state
+            task_run.state = state
         else:
             try:
                 new_state = Pending()
