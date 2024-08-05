@@ -952,7 +952,8 @@ class Flow(Generic[P, R]):
                 loop.run_until_complete(runner.start(webserver=webserver))
             else:
                 asyncio.run(runner.start(webserver=webserver))
-        except (KeyboardInterrupt, TerminationSignal):
+        except (KeyboardInterrupt, TerminationSignal) as exc:
+            logger.info(f"Received {type(exc).__name__}, shutting down...")
             if loop is not None:
                 loop.stop()
 
