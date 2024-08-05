@@ -578,6 +578,7 @@ class TestProfilesPopulateDefaults:
                 "Add 'ephemeral'",
                 "Add 'local'",
                 "Add 'cloud'",
+                "Add 'test'",
                 f"Profiles updated in {temporary_profiles_path}",
                 "Use with prefect profile use [PROFILE-NAME]",
             ],
@@ -590,7 +591,7 @@ class TestProfilesPopulateDefaults:
         assert populated_profiles.names == default_profiles.names
         assert populated_profiles.active_name == default_profiles.active_name
 
-        assert {"local", "ephemeral", "cloud"} == set(populated_profiles.names)
+        assert {"local", "ephemeral", "cloud", "test"} == set(populated_profiles.names)
 
         for name in default_profiles.names:
             assert populated_profiles[name].settings == default_profiles[name].settings
@@ -617,7 +618,9 @@ class TestProfilesPopulateDefaults:
         )
 
         new_profiles = load_profiles()
-        assert {"local", "ephemeral", "cloud", "existing"} == set(new_profiles.names)
+        assert {"local", "ephemeral", "cloud", "test", "existing"} == set(
+            new_profiles.names
+        )
 
         backup_profiles = _read_profiles_from(
             temporary_profiles_path.with_suffix(".toml.bak")
@@ -663,7 +666,9 @@ class TestProfilesPopulateDefaults:
         )
 
         new_profiles = load_profiles()
-        assert {"ephemeral", "local", "cloud", "custom"} == set(new_profiles.names)
+        assert {"ephemeral", "local", "cloud", "test", "custom"} == set(
+            new_profiles.names
+        )
         assert "default" not in new_profiles.names
         assert new_profiles.active_name == "ephemeral"
         assert new_profiles["ephemeral"].settings == {

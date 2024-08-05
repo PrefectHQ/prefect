@@ -2771,11 +2771,11 @@ class TestDownloadFlowRunLogs:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(
-            "prefect.server.api.flow_runs.FLOW_RUN_LOGS_CSV_PAGE_LIMIT", 3
+            "prefect.server.api.flow_runs.FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT", 3
         )
 
         async with client.stream(
-            "GET", f"/flow_runs/{flow_run_1.id}/download-logs-csv"
+            "GET", f"/flow_runs/{flow_run_1.id}/logs/download"
         ) as response:
             response_body = [
                 str(chunk, "UTF-8") async for chunk in response.aiter_bytes()

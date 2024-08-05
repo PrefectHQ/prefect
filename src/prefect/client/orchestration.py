@@ -144,7 +144,6 @@ from prefect.client.base import (
     ASGIApp,
     PrefectHttpxAsyncClient,
     PrefectHttpxSyncClient,
-    PrefectHttpxSyncEphemeralClient,
     ServerType,
     app_lifespan_context,
 )
@@ -220,7 +219,7 @@ def get_client(
         server.start()
         assert server.server_process is not None, "Server process did not start"
 
-        api = f"{server.address()}/api"
+        api = server.api_url
         server_type = ServerType.EPHEMERAL
     elif not api and not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         raise ValueError(
@@ -3493,14 +3492,9 @@ class SyncPrefectClient:
             and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
         )
 
-        if self.server_type == ServerType.EPHEMERAL:
-            self._client = PrefectHttpxSyncEphemeralClient(
-                api, base_url="http://ephemeral-prefect/api"
-            )
-        else:
-            self._client = PrefectHttpxSyncClient(
-                **httpx_settings, enable_csrf_support=enable_csrf_support
-            )
+        self._client = PrefectHttpxSyncClient(
+            **httpx_settings, enable_csrf_support=enable_csrf_support
+        )
 
         # See https://www.python-httpx.org/advanced/#custom-transports
         #

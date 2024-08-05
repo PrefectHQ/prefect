@@ -341,7 +341,12 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             # ensure a long-lasting pool is used with in-memory databases
             # because they disappear when the last connection closes
             if ":memory:" in self.connection_url:
-                kwargs.update(poolclass=sa.pool.SingletonThreadPool)
+                kwargs.update(
+                    poolclass=sa.pool.AsyncAdaptedQueuePool,
+                    pool_size=1,
+                    max_overflow=0,
+                    pool_recycle=-1,
+                )
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
             sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
@@ -420,6 +425,11 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             cursor.execute("PRAGMA busy_timeout = 5000;")  # 5s
         else:
             cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+
+        # `PRAGMA temp_store = memory;` moves temporary tables from disk into RAM
+        # this supposedly speeds up reads, but it seems to actually
+        # decrease overall performance, see https://github.com/PrefectHQ/prefect/pull/14812
+        # cursor.execute("PRAGMA temp_store = memory;")
 
         cursor.close()
 

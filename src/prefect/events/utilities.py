@@ -8,7 +8,6 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from .clients import (
     AssertingEventsClient,
     PrefectCloudEventsClient,
-    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from .schemas.events import Event, RelatedResource
@@ -53,7 +52,6 @@ def emit_event(
         AssertingEventsClient,
         PrefectCloudEventsClient,
         PrefectEventsClient,
-        PrefectEphemeralEventsClient,
     ]
     worker_instance = EventsWorker.instance()
 
