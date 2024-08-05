@@ -955,7 +955,7 @@ class TestTaskWorkerLimit:
 
         # only one should run at a time, so we'll move on after 1 second
         # to ensure that the second task hasn't started
-        with anyio.move_on_after(1.1):
+        with anyio.move_on_after(1):
             serve(slow_task, limit=1)
 
         await events_pipeline.process_events()

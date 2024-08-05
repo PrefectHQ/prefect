@@ -21,7 +21,7 @@ from websockets.exceptions import InvalidStatusCode
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.cache_policies import DEFAULT, NONE
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.exceptions import Abort, PrefectHTTPStatusError
@@ -85,7 +85,7 @@ class TaskWorker:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks = []
+        self.tasks: list[Task] = []
         for t in tasks:
             if isinstance(t, Task):
                 if t.cache_policy in [None, NONE, NotSet]:
@@ -95,17 +95,19 @@ class TaskWorker:
                 else:
                     self.tasks.append(t.with_options(persist_result=True))
 
-        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
+        self.task_keys: set[str] = set(t.task_key for t in tasks if isinstance(t, Task))
+        self.limit: Optional[int] = limit
 
         self._started_at: Optional[pendulum.DateTime] = None
         self.stopping: bool = False
 
-        self._client = get_client()
-        self._exit_stack = AsyncExitStack()
+        self._client: PrefectClient = get_client()
+        self._exit_stack: AsyncExitStack = AsyncExitStack()
 
-        self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
+        self._executor: ThreadPoolExecutor = ThreadPoolExecutor(
+            max_workers=limit if limit else None
+        )
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
-        self._provided_limit: Optional[int] = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
 
         self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
@@ -126,10 +128,6 @@ class TaskWorker:
     @property
     def started(self) -> bool:
         return self._started_at is not None
-
-    @property
-    def limit(self) -> Optional[int]:
-        return int(self._limiter.total_tokens) if self._limiter else None
 
     @property
     def current_tasks(self) -> Optional[int]:
@@ -381,8 +379,8 @@ class TaskWorker:
             self._client = get_client()
 
         self._runs_task_group = anyio.create_task_group()
-        if self._provided_limit:
-            self._limiter = anyio.CapacityLimiter(self._provided_limit)
+        if self.limit is not None:
+            self._limiter = anyio.CapacityLimiter(self.limit)
 
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
