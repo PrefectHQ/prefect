@@ -383,9 +383,12 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
 async def events_pipeline(asserting_events_worker: EventsWorker):
     class AssertingEventsPipeline(EventsPipeline):
         @sync_compatible
-        async def process_events(self):
+        async def process_events(self, dequeue_events: bool = True):
             asserting_events_worker.wait_until_empty()
-            events = asserting_events_worker._client.pop_events()
+            if dequeue_events:
+                events = asserting_events_worker._client.pop_events()
+            else:
+                events = asserting_events_worker._client.events
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
 
