@@ -35,7 +35,11 @@ from prefect.settings import (
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import (
+    asyncnullcontext,
+    run_coro_as_sync,
+    sync_compatible,
+)
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
 from prefect.utilities.services import start_client_metrics_server
@@ -98,11 +102,6 @@ class TaskWorker:
 
         self._client = get_client()
         self._exit_stack = AsyncExitStack()
-
-        if not asyncio.get_event_loop().is_running():
-            raise RuntimeError(
-                "TaskWorker must be initialized within an async context."
-            )
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
@@ -416,7 +415,12 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     return status_app
 
 
-async def serve(
+async def _make_task_worker(*args, **kwargs) -> TaskWorker:
+    """Utility function to create a TaskWorker instance in an async context."""
+    return TaskWorker(*args, **kwargs)
+
+
+def serve(
     *tasks: Task, limit: Optional[int] = 10, status_server_port: Optional[int] = None
 ):
     """Serve the provided tasks so that their runs may be submitted to and executed.
@@ -450,7 +454,10 @@ async def serve(
             serve(say, yell)
         ```
     """
-    task_worker = TaskWorker(*tasks, limit=limit)
+
+    task_worker = run_coro_as_sync(_make_task_worker(*tasks, limit=limit))
+
+    assert isinstance(task_worker, TaskWorker)
 
     status_server_task = None
     if status_server_port is not None:
@@ -467,7 +474,7 @@ async def serve(
         status_server_task = loop.create_task(server.serve())
 
     try:
-        await task_worker.start()
+        task_worker.start()
 
     except BaseExceptionGroup as exc:  # novermin
         exceptions = exc.exceptions
@@ -487,6 +494,6 @@ async def serve(
         if status_server_task:
             status_server_task.cancel()
             try:
-                await status_server_task
+                run_coro_as_sync(status_server_task)
             except asyncio.CancelledError:
                 pass

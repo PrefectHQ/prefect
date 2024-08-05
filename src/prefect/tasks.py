@@ -4,7 +4,6 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
-import asyncio
 import datetime
 import inspect
 from copy import copy
@@ -1525,7 +1524,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        asyncio.run(serve(self))
+        serve(self)
 
 
 @overload

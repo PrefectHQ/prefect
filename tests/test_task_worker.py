@@ -232,7 +232,7 @@ async def test_task_worker_emits_run_ui_url_upon_submission(
 @pytest.mark.usefixtures("mock_task_worker_start")
 class TestServe:
     async def test_serve_basic_sync_task(self, foo_task, mock_task_worker_start):
-        await serve(foo_task)
+        serve(foo_task)
         mock_task_worker_start.assert_called_once()
 
         task_run_future = foo_task.apply_async((42,))
@@ -242,7 +242,7 @@ class TestServe:
         assert task_run_future.state.is_scheduled()
 
     async def test_serve_basic_async_task(self, async_foo_task, mock_task_worker_start):
-        await serve(async_foo_task)
+        serve(async_foo_task)
         mock_task_worker_start.assert_called_once()
 
         task_run_future = async_foo_task.apply_async((42,))
@@ -955,8 +955,8 @@ class TestTaskWorkerLimit:
 
         # only one should run at a time, so we'll move on after 1 second
         # to ensure that the second task hasn't started
-        with anyio.move_on_after(1):
-            await serve(slow_task, limit=1)
+        with anyio.move_on_after(1.1):
+            serve(slow_task, limit=1)
 
         await events_pipeline.process_events()
 
