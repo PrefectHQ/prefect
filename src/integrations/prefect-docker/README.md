@@ -111,3 +111,19 @@ pip install -e ".[dev]"
 # Install linting pre-commit hooks
 pre-commit install
 ```
+
+### Testing
+The `prefect-docker` tests assume that you have a development image of Prefect
+available on the Docker daemon, and that it includes an installation of the same
+version of both Python and `prefect` that you are currently testing. You can build a
+compatible image from your source tree with:
+
+```bash
+prefect dev build-image
+```
+
+To run the tests, use the following command:
+
+```
+pytest
+```

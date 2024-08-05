@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 dependencies = [
-    "prefect>=2.13.5, < 3.0.0",
+    "exceptiongroup",
+    "prefect>=2.20.0, < 3.0.0",
     "kubernetes-asyncio>=29.0.0",
     "tenacity>=8.2.3",
     "pyopenssl>=24.1.0",

@@ -1451,7 +1451,7 @@ class ECSWorker(BaseWorker):
         if not all(conf_sn in subnet_ids for conf_sn in config_subnets):
             raise ValueError(
                 f"Subnets {config_subnets} not found within {vpc_message}."
-                + "Please check that VPC is associated with supplied subnets."
+                + " Please check that VPC is associated with supplied subnets."
             )
 
         return {"awsvpcConfiguration": network_configuration}

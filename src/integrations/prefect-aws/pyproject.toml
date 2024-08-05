@@ -24,11 +24,12 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
+  "exceptiongroup",
   "boto3>=1.24.53",
   "botocore>=1.27.53",
   "mypy_boto3_s3>=1.24.94",
   "mypy_boto3_secretsmanager>=1.26.49",
-  "prefect >=2.16.4, <3.0.0",
+  "prefect>=2.20.0, <3.0.0",
   "pyparsing>=3.1.1",
   "tenacity>=8.0.0",
 ]
