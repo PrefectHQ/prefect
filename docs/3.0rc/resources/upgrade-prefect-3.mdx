@@ -334,3 +334,64 @@ print(my_flow())  # Output: Failed(message='Flow failed due to task failure')
 </CodeGroup>
 
 Choose the strategy that best fits your specific use case and error handling requirements.
+
+## Breaking changes: Errors and resolutions
+
+#### `can't be used in 'await' expression`
+
+In Prefect 3, certain methods that were contextually sync/async in Prefect 2 are now synchronous:
+
+##### `Task`
+- `submit`
+- `map`
+
+##### `PrefectFuture`
+- `result`
+- `wait`
+
+Attempting to use `await` with these methods will result in a `TypeError`, like:
+
+```python
+TypeError: object PrefectConcurrentFuture can't be used in 'await' expression
+```
+
+**Example and Resolution**
+
+You should **remove the `await` keyword** from calls of these methods in Prefect 3:
+
+```python
+from prefect import flow, task
+import asyncio
+
+@task
+async def fetch_user_data(user_id):
+    return {"id": user_id, "score": user_id * 10}
+
+@task
+def calculate_average(user_data):
+    return sum(user["score"] for user in user_data) / len(user_data)
+
+@flow
+async def prefect_2_flow(n_users: int = 10):  # ❌
+    users = await fetch_user_data.map(range(1, n_users + 1))
+    avg = calculate_average.submit(users)
+    print(f"Users: {await users.result()}")
+    print(f"Average score: {await avg.result()}")
+
+@flow
+def prefect_3_flow(n_users: int = 10):  # ✅
+    users = fetch_user_data.map(range(1, n_users + 1))
+    avg = calculate_average.submit(users)
+    print(f"Users: {users.result()}")
+    print(f"Average score: {avg.result()}")
+
+try:
+    asyncio.run(prefect_2_flow())
+    raise AssertionError("Expected a TypeError")
+except TypeError as e:
+    assert "can't be used in 'await' expression" in str(e)
+
+prefect_3_flow()
+# Users: [{'id': 1, 'score': 10}, ... , {'id': 10, 'score': 100}]
+# Average score: 55.0
+```

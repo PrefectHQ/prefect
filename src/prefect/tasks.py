@@ -33,9 +33,6 @@ from uuid import UUID, uuid4
 from typing_extensions import Literal, ParamSpec
 
 import prefect.states
-from prefect._internal.compatibility.deprecated import (
-    deprecated_async_method,
-)
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -1038,7 +1035,6 @@ class Task(Generic[P, R]):
     ) -> State[T]:
         ...
 
-    @deprecated_async_method
     def submit(
         self,
         *args: Any,
@@ -1203,7 +1199,6 @@ class Task(Generic[P, R]):
     ) -> PrefectFutureList[State[T]]:
         ...
 
-    @deprecated_async_method
     def map(
         self,
         *args: Any,
