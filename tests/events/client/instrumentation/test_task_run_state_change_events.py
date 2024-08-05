@@ -849,7 +849,7 @@ async def test_background_task_state_changes(
 
 
 async def test_apply_async_emits_scheduled_event(
-    asserting_events_worker, prefect_client
+    asserting_events_worker, prefect_client, enable_client_side_task_run_orchestration
 ):
     @task
     def happy_little_tree():
@@ -881,7 +881,9 @@ async def test_apply_async_emits_scheduled_event(
             "prefect.state-type": "SCHEDULED",
             "prefect.state-name": "Scheduled",
             "prefect.state-timestamp": task_run_states[0].timestamp.isoformat(),
-            "prefect.orchestration": "server",
+            "prefect.orchestration": "client"
+            if enable_client_side_task_run_orchestration
+            else "server",
         }
     )
 
