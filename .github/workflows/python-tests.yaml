@@ -56,7 +56,7 @@ jobs:
           - name: Server Tests
             modules: tests/server/ tests/events/server
           - name: Client Tests
-            modules: tests/ --ignore tests/server/ tests/events/server
+            modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
         database:
           - "postgres:14"
           - "sqlite"
@@ -69,7 +69,7 @@ jobs:
           - database: "sqlite"
             test-type: 
               name: Client Tests
-              modules: tests/ --ignore tests/server/ tests/events/server
+              modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
 
       fail-fast: true
 
