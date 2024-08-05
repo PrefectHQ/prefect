@@ -1376,9 +1376,7 @@ The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
 
-PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION = Setting(
-    bool, default=False
-)
+PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION = Setting(bool, default=True)
 """
 Whether or not to enable experimental client side task run orchestration.
 """
