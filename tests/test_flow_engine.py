@@ -25,6 +25,7 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
+from prefect.events.worker import EventsWorker
 from prefect.exceptions import (
     CrashedRun,
     FlowPauseTimeout,
@@ -44,9 +45,24 @@ from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
+    temporary_settings,
+)
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
+
+
+@pytest.fixture(autouse=True, params=[False, True])
+def enable_client_side_task_run_orchestration(
+    request, asserting_events_worker: EventsWorker
+):
+    enabled = request.param
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
+    ):
+        yield enabled
 
 
 @flow
@@ -984,7 +1000,9 @@ class TestPauseFlowRun:
         pausing_flow(return_state=True)
         assert not completed
 
-    async def test_paused_flows_block_execution_in_async_flows(self, prefect_client):
+    async def test_paused_flows_block_execution_in_async_flows(
+        self, prefect_client, events_pipeline
+    ):
         @task
         async def foo():
             return 42
@@ -998,12 +1016,13 @@ class TestPauseFlowRun:
 
         flow_run_state = await pausing_flow(return_state=True)
         flow_run_id = flow_run_state.state_details.flow_run_id
+        await events_pipeline.process_events()
         task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
         )
         assert len(task_runs) == 2, "only two tasks should have completed"
 
-    async def test_paused_flows_can_be_resumed(self, prefect_client):
+    async def test_paused_flows_can_be_resumed(self, prefect_client, events_pipeline):
         @task
         async def foo():
             return 42
@@ -1029,6 +1048,7 @@ class TestPauseFlowRun:
             flow_resumer(),
         )
         flow_run_id = flow_run_state.state_details.flow_run_id
+        await events_pipeline.process_events()
         task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
         )
@@ -1133,7 +1153,14 @@ class TestPauseFlowRun:
         )
         assert schema is not None
 
-    async def test_paused_task_polling(self, prefect_client):
+    async def test_paused_task_polling(
+        self, prefect_client, enable_client_side_task_run_orchestration
+    ):
+        if enable_client_side_task_run_orchestration:
+            pytest.xfail(
+                "Client-side task run orchestration does not prevent tasks from running in paused flows yet"
+            )
+
         sleeper = AsyncMock(side_effect=[None, None, None, None, None])
 
         @task
@@ -1502,7 +1529,7 @@ class TestGenerators:
             next(gen)
 
     async def test_generator_flow_with_exception_is_failed(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, events_pipeline
     ):
         @task
         def g():
@@ -1513,6 +1540,8 @@ class TestGenerators:
         tr_id = next(gen)
         with pytest.raises(ValueError, match="xyz"):
             next(gen)
+
+        await events_pipeline.process_events()
         tr = await prefect_client.read_task_run(tr_id)
         assert tr.state.is_failed()
 
