@@ -1450,6 +1450,15 @@ class Task(Generic[P, R]):
             )
         )  # type: ignore
 
+        from prefect.utilities.engine import emit_task_run_state_change_event
+
+        # emit a `SCHEDULED` event for the task run
+        emit_task_run_state_change_event(
+            task_run=task_run,
+            initial_state=None,
+            validated_state=task_run.state,
+        )
+
         if task_run_url := url_for(task_run):
             logger.info(
                 f"Created task run {task_run.name!r}. View it in the UI at {task_run_url!r}"

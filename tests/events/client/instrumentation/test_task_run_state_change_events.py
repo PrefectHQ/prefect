@@ -59,7 +59,6 @@ async def test_task_state_change_happy_path(
         pendulum.parse(pending.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
-    assert pending.payload["task_run"].pop("estimated_start_time_delta") > 0.0
     assert pending.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert pending.payload == {
         "initial_state": None,
@@ -79,7 +78,6 @@ async def test_task_state_change_happy_path(
                 "retry_delay": 0,
                 "retry_delay_seconds": 0.0,
             },
-            "estimated_run_time": 0.0,
             "flow_run_run_count": 0,
             "name": "happy_little_tree-0",
             "run_count": 0,
@@ -107,7 +105,6 @@ async def test_task_state_change_happy_path(
         pendulum.parse(running.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
-    assert running.payload["task_run"].pop("estimated_start_time_delta") > 0.0
     assert running.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert running.payload == {
         "intended": {"from": "PENDING", "to": "RUNNING"},
@@ -132,7 +129,6 @@ async def test_task_state_change_happy_path(
                 "retry_delay": 0,
                 "retry_delay_seconds": 0.0,
             },
-            "estimated_run_time": 0.0,
             "flow_run_run_count": 0,
             "name": "happy_little_tree-0",
             "run_count": 0,
@@ -160,9 +156,7 @@ async def test_task_state_change_happy_path(
         pendulum.parse(completed.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
-    assert completed.payload["task_run"].pop("estimated_start_time_delta") > 0.0
     assert completed.payload["task_run"].pop("task_key").startswith("happy_little_tree")
-    assert completed.payload["task_run"].pop("estimated_run_time") > 0.0
     assert (
         pendulum.parse(completed.payload["task_run"].pop("start_time"))
         == task_run.start_time
@@ -249,7 +243,6 @@ async def test_task_state_change_task_failure(
         pendulum.parse(pending.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
-    assert pending.payload["task_run"].pop("estimated_start_time_delta") > 0.0
     assert pending.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert pending.payload == {
         "initial_state": None,
@@ -269,7 +262,6 @@ async def test_task_state_change_task_failure(
                 "retry_delay": 0,
                 "retry_delay_seconds": 0.0,
             },
-            "estimated_run_time": 0.0,
             "flow_run_run_count": 0,
             "name": "happy_little_tree-0",
             "run_count": 0,
@@ -297,7 +289,6 @@ async def test_task_state_change_task_failure(
         pendulum.parse(running.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
-    assert running.payload["task_run"].pop("estimated_start_time_delta") > 0.0
     assert running.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert running.payload == {
         "intended": {"from": "PENDING", "to": "RUNNING"},
@@ -322,7 +313,6 @@ async def test_task_state_change_task_failure(
                 "retry_delay": 0,
                 "retry_delay_seconds": 0.0,
             },
-            "estimated_run_time": 0.0,
             "flow_run_run_count": 0,
             "name": "happy_little_tree-0",
             "run_count": 0,
@@ -353,9 +343,7 @@ async def test_task_state_change_task_failure(
         pendulum.parse(failed.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
-    assert failed.payload["task_run"].pop("estimated_start_time_delta") > 0.0
     assert failed.payload["task_run"].pop("task_key").startswith("happy_little_tree")
-    assert failed.payload["task_run"].pop("estimated_run_time") > 0.0
     assert (
         pendulum.parse(failed.payload["task_run"].pop("start_time"))
         == task_run.start_time
@@ -448,3 +436,90 @@ async def test_background_task_state_changes(
         ("RUNNING", "COMPLETED"),
     ]
     assert observed == expected
+
+
+async def test_apply_async_emits_scheduled_event(
+    asserting_events_worker, prefect_client
+):
+    @task
+    def happy_little_tree():
+        return "🌳"
+
+    future = happy_little_tree.apply_async()
+    task_run_id = future.task_run_id
+
+    await asserting_events_worker.drain()
+
+    events = asserting_events_worker._client.events
+    assert len(events) == 1
+    scheduled = events[0]
+
+    task_run = await prefect_client.read_task_run(task_run_id)
+    assert task_run
+    assert task_run.id == task_run_id
+    task_run_states = await prefect_client.read_task_run_states(task_run_id)
+    assert len(task_run_states) == 1
+
+    assert scheduled.event == "prefect.task-run.Scheduled"
+    assert scheduled.id == task_run_states[0].id
+    assert scheduled.occurred == task_run_states[0].timestamp
+    assert scheduled.resource == Resource(
+        {
+            "prefect.resource.id": f"prefect.task-run.{task_run_id}",
+            "prefect.resource.name": task_run.name,
+            "prefect.state-message": "",
+            "prefect.state-type": "SCHEDULED",
+            "prefect.state-name": "Scheduled",
+            "prefect.state-timestamp": task_run_states[0].timestamp.isoformat(),
+            "prefect.orchestration": "server",
+        }
+    )
+
+    assert (
+        pendulum.parse(
+            scheduled.payload["validated_state"]["state_details"].pop("scheduled_time")
+        )
+        == task_run.expected_start_time
+    )
+    assert (
+        pendulum.parse(scheduled.payload["task_run"].pop("next_scheduled_start_time"))
+        == task_run.next_scheduled_start_time
+    )
+    assert (
+        pendulum.parse(scheduled.payload["task_run"].pop("expected_start_time"))
+        == task_run.expected_start_time
+    )
+
+    assert scheduled.payload["task_run"].pop("name").startswith("happy_little_tree")
+    assert (
+        scheduled.payload["task_run"].pop("dynamic_key").startswith("happy_little_tree")
+    )
+    assert scheduled.payload["task_run"].pop("task_key").startswith("happy_little_tree")
+    assert scheduled.payload == {
+        "initial_state": None,
+        "intended": {"from": None, "to": "SCHEDULED"},
+        "validated_state": {
+            "type": "SCHEDULED",
+            "name": "Scheduled",
+            "message": "",
+            "state_details": {
+                "pause_reschedule": False,
+                "untrackable_result": False,
+                "deferred": True,
+            },
+            "data": None,
+        },
+        "task_run": {
+            "empirical_policy": {
+                "max_retries": 0,
+                "retries": 0,
+                "retry_delay": 0,
+                "retry_delay_seconds": 0.0,
+            },
+            "flow_run_run_count": 0,
+            "run_count": 0,
+            "tags": [],
+            "task_inputs": {},
+            "total_run_time": 0.0,
+        },
+    }

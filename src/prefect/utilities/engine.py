@@ -783,6 +783,9 @@ def emit_task_run_state_change_event(
                     "state_type",
                     "state_name",
                     "state",
+                    # server materialized fields
+                    "estimated_start_time_delta",
+                    "estimated_run_time",
                 },
             ),
         },

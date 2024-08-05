@@ -690,6 +690,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                     task_run_name=task_run_name,
                                 )
                             )
+                            # Emit an event to capture that the task run was in the `PENDING` state.
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
                     else:
                         if not self.task_run:
                             self.task_run = run_coro_as_sync(
@@ -702,12 +708,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                     extra_task_inputs=dependencies,
                                 )
                             )
-                    # Emit an event to capture that the task run was in the `PENDING` state.
-                    self._last_event = emit_task_run_state_change_event(
-                        task_run=self.task_run,
-                        initial_state=None,
-                        validated_state=self.task_run.state,
-                    )
+                            # Emit an event to capture that the task run was in the `PENDING` state.
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
 
                     with self.setup_run_context():
                         # setup_run_context might update the task run name, so log creation here
@@ -1252,6 +1258,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 extra_task_inputs=dependencies,
                                 task_run_name=task_run_name,
                             )
+                            # Emit an event to capture that the task run was in the `PENDING` state.
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
                     else:
                         if not self.task_run:
                             self.task_run = await self.task.create_run(
@@ -1262,12 +1274,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 wait_for=self.wait_for,
                                 extra_task_inputs=dependencies,
                             )
-                    # Emit an event to capture that the task run was in the `PENDING` state.
-                    self._last_event = emit_task_run_state_change_event(
-                        task_run=self.task_run,
-                        initial_state=None,
-                        validated_state=self.task_run.state,
-                    )
+                            # Emit an event to capture that the task run was in the `PENDING` state.
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
 
                     async with self.setup_run_context():
                         # setup_run_context might update the task run name, so log creation here
