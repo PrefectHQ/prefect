@@ -22086,17 +22086,6 @@
                         "title": "Prefect Api Blocks Register On Start",
                         "default": true
                     },
-                    "PREFECT_API_DATABASE_PASSWORD": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Prefect Api Database Password"
-                    },
                     "PREFECT_API_DATABASE_CONNECTION_URL": {
                         "anyOf": [
                             {
@@ -22107,6 +22096,76 @@
                             }
                         ],
                         "title": "Prefect Api Database Connection Url"
+                    },
+                    "PREFECT_API_DATABASE_DRIVER": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "postgresql+asyncpg",
+                                    "sqlite+aiosqlite"
+                                ]
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Driver"
+                    },
+                    "PREFECT_API_DATABASE_HOST": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Host"
+                    },
+                    "PREFECT_API_DATABASE_PORT": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Port"
+                    },
+                    "PREFECT_API_DATABASE_USER": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database User"
+                    },
+                    "PREFECT_API_DATABASE_NAME": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Name"
+                    },
+                    "PREFECT_API_DATABASE_PASSWORD": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Api Database Password"
                     },
                     "PREFECT_API_DATABASE_ECHO": {
                         "type": "boolean",
