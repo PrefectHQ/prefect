@@ -19,7 +19,6 @@ jobs:
           - "3.11"
           - "3.12"
 
-      fail-fast: true
 
     permissions:
       contents: read

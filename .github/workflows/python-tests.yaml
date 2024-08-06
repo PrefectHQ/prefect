@@ -71,8 +71,6 @@ jobs:
               name: Client Tests
               modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
 
-      fail-fast: true
-
     timeout-minutes: 20
 
     steps:
@@ -196,7 +194,6 @@ jobs:
           - "3.11"
           - "3.12"
 
-      fail-fast: true
 
     timeout-minutes: 45
 
