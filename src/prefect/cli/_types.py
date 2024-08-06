@@ -5,7 +5,7 @@ Custom Prefect CLI types
 import asyncio
 import functools
 import sys
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import typer
 from rich.console import Console
@@ -96,7 +96,7 @@ class PrefectTyper(typer.Typer):
         typer_instance: "PrefectTyper",
         *args,
         no_args_is_help: bool = True,
-        aliases: List[str] = None,
+        aliases: Optional[List[str]] = None,
         **kwargs,
     ) -> None:
         """
@@ -121,7 +121,7 @@ class PrefectTyper(typer.Typer):
         self,
         name: Optional[str] = None,
         *args,
-        aliases: List[str] = None,
+        aliases: Optional[List[str]] = None,
         deprecated: bool = False,
         deprecated_start_date: Optional[str] = None,
         deprecated_help: str = "",
@@ -136,7 +136,7 @@ class PrefectTyper(typer.Typer):
         `deprecated_name` and `deprecated_start_date` must be provided.
         """
 
-        def wrapper(fn):
+        def wrapper(original_fn: Callable):
             # click doesn't support async functions, so we wrap them in
             # asyncio.run(). This has the advantage of keeping the function in
             # the main thread, which means signal handling works for e.g. the
@@ -145,16 +145,19 @@ class PrefectTyper(typer.Typer):
             # can not be called nested). In that (rare) circumstance, refactor
             # the CLI command so its business logic can be invoked separately
             # from its entrypoint.
-            if is_async_fn(fn):
-                _fn = fn
+            if is_async_fn(original_fn):
+                async_fn = original_fn
 
-                @functools.wraps(fn)
-                def fn(*args, **kwargs):
-                    return asyncio.run(_fn(*args, **kwargs))
+                @functools.wraps(original_fn)
+                def sync_fn(*args, **kwargs):
+                    return asyncio.run(async_fn(*args, **kwargs))
 
-                fn.aio = _fn
+                sync_fn.aio = async_fn
+                wrapped_fn = sync_fn
+            else:
+                wrapped_fn = original_fn
 
-            fn = with_cli_exception_handling(fn)
+            wrapped_fn = with_cli_exception_handling(wrapped_fn)
             if deprecated:
                 if not deprecated_name or not deprecated_start_date:
                     raise ValueError(
@@ -165,15 +168,19 @@ class PrefectTyper(typer.Typer):
                     start_date=deprecated_start_date,
                     help=deprecated_help,
                 )
-                fn = with_deprecated_message(command_deprecated_message)(fn)
+                wrapped_fn = with_deprecated_message(command_deprecated_message)(
+                    wrapped_fn
+                )
             elif self.deprecated:
-                fn = with_deprecated_message(self.deprecated_message)(fn)
+                wrapped_fn = with_deprecated_message(self.deprecated_message)(
+                    wrapped_fn
+                )
 
             # register fn with its original name
             command_decorator = super(PrefectTyper, self).command(
                 name=name, *args, **kwargs
             )
-            original_command = command_decorator(fn)
+            original_command = command_decorator(wrapped_fn)
 
             # register fn for each alias, e.g. @marvin_app.command(aliases=["r"])
             if aliases:
@@ -182,7 +189,7 @@ class PrefectTyper(typer.Typer):
                         name=alias,
                         *args,
                         **{k: v for k, v in kwargs.items() if k != "aliases"},
-                    )(fn)
+                    )(wrapped_fn)
 
             return original_command
 
