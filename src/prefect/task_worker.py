@@ -35,7 +35,7 @@ from prefect.settings import (
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
 from prefect.utilities.services import start_client_metrics_server
@@ -147,7 +147,6 @@ class TaskWorker:
 
         sys.exit(0)
 
-    @sync_compatible
     async def start(self) -> None:
         """
         Starts a task worker, which runs the tasks provided in the constructor.
@@ -171,7 +170,6 @@ class TaskWorker:
                 else:
                     raise
 
-    @sync_compatible
     async def stop(self):
         """Stops the task worker's polling cycle."""
         if not self.started:
@@ -417,7 +415,6 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     return status_app
 
 
-@sync_compatible
 async def serve(
     *tasks: Task, limit: Optional[int] = 10, status_server_port: Optional[int] = None
 ):
