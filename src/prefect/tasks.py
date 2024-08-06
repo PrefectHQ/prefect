@@ -1505,22 +1505,17 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    def serve(
-        self, limit: Optional[int] = 10, status_server_port: Optional[int] = None
-    ):
-        """Serve the task and listen for scheduled task runs to execute. This method is used to
+    def serve(self):
+        """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
 
         Args:
-            limit: The maximum number of tasks that can be run concurrently. Defaults to 10.
-                Pass `None` to remove the limit.
-            status_server_port: An optional port on which to start an HTTP server
-                exposing status information about the task worker. If not provided, no
-                status server will run.
+            task_runner: The task runner to use for serving the task. If not provided,
+                the default task runner will be used.
 
         Examples:
-            Serve a task
+            Serve a task using the default task runner
             >>> @task
             >>> def my_task():
             >>>     return 1
@@ -1529,7 +1524,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        serve(self, limit=limit, status_server_port=status_server_port)
+        serve(self)
 
 
 @overload

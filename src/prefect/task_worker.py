@@ -21,7 +21,7 @@ from websockets.exceptions import InvalidStatusCode
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.cache_policies import DEFAULT, NONE
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.exceptions import Abort, PrefectHTTPStatusError
@@ -38,6 +38,7 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     run_coro_as_sync,
+    sync_compatible,
 )
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
@@ -84,7 +85,7 @@ class TaskWorker:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks: list[Task] = []
+        self.tasks = []
         for t in tasks:
             if isinstance(t, Task):
                 if t.cache_policy in [None, NONE, NotSet]:
@@ -94,20 +95,22 @@ class TaskWorker:
                 else:
                     self.tasks.append(t.with_options(persist_result=True))
 
-        self.task_keys: set[str] = set(t.task_key for t in tasks if isinstance(t, Task))
-        self.limit: Optional[int] = limit
+        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
 
         self._started_at: Optional[pendulum.DateTime] = None
         self.stopping: bool = False
 
-        self._client: PrefectClient = get_client()
-        self._exit_stack: AsyncExitStack = AsyncExitStack()
+        self._client = get_client()
+        self._exit_stack = AsyncExitStack()
 
-        self._executor: ThreadPoolExecutor = ThreadPoolExecutor(
-            max_workers=limit if limit else None
-        )
-        self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
-        self._limiter: Optional[anyio.CapacityLimiter] = None
+        if not asyncio.get_event_loop().is_running():
+            raise RuntimeError(
+                "TaskWorker must be initialized within an async context."
+            )
+
+        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
+        self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
         self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
             task_key: {} for task_key in self.task_keys
@@ -127,6 +130,10 @@ class TaskWorker:
     @property
     def started(self) -> bool:
         return self._started_at is not None
+
+    @property
+    def limit(self) -> Optional[int]:
+        return int(self._limiter.total_tokens) if self._limiter else None
 
     @property
     def current_tasks(self) -> Optional[int]:
@@ -149,6 +156,7 @@ class TaskWorker:
 
         sys.exit(0)
 
+    @sync_compatible
     async def start(self) -> None:
         """
         Starts a task worker, which runs the tasks provided in the constructor.
@@ -158,6 +166,7 @@ class TaskWorker:
         start_client_metrics_server()
 
         async with asyncnullcontext() if self.started else self:
+            logger.info("Starting task worker...")
             try:
                 await self._subscribe_to_task_scheduling()
             except InvalidStatusCode as exc:
@@ -171,6 +180,7 @@ class TaskWorker:
                 else:
                     raise
 
+    @sync_compatible
     async def stop(self):
         """Stops the task worker's polling cycle."""
         if not self.started:
@@ -215,7 +225,6 @@ class TaskWorker:
             task_key.split(".")[-1].split("-")[0] for task_key in sorted(self.task_keys)
         )
         logger.info(f"Subscribing to runs of task(s): {task_keys_repr}")
-
         async for task_run in Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
@@ -375,10 +384,6 @@ class TaskWorker:
         if self._client._closed:
             self._client = get_client()
 
-        self._runs_task_group = anyio.create_task_group()
-        if self.limit is not None:
-            self._limiter = anyio.CapacityLimiter(self.limit)
-
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
@@ -413,6 +418,11 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
         }
 
     return status_app
+
+
+async def _make_task_worker(*args, **kwargs) -> TaskWorker:
+    """Utility function to create a TaskWorker instance in an async context."""
+    return TaskWorker(*args, **kwargs)
 
 
 def serve(
@@ -450,7 +460,9 @@ def serve(
         ```
     """
 
-    task_worker = TaskWorker(*tasks, limit=limit)
+    task_worker = run_coro_as_sync(_make_task_worker(*tasks, limit=limit))
+
+    assert isinstance(task_worker, TaskWorker)
 
     status_server_task = None
     if status_server_port is not None:
@@ -467,7 +479,7 @@ def serve(
         status_server_task = loop.create_task(server.serve())
 
     try:
-        run_coro_as_sync(task_worker.start())
+        task_worker.start()
 
     except BaseExceptionGroup as exc:  # novermin
         exceptions = exc.exceptions

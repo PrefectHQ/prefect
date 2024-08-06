@@ -1,6 +1,5 @@
 import asyncio
 import signal
-import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -13,6 +12,7 @@ from pydantic import BaseModel
 from prefect import flow, task
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
+from prefect.futures import PrefectDistributedFuture
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
@@ -20,7 +20,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Running
-from prefect.task_worker import TaskWorker
+from prefect.task_worker import TaskWorker, serve
 from prefect.tasks import task_input_hash
 
 pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
@@ -227,6 +227,29 @@ async def test_task_worker_emits_run_ui_url_upon_submission(
         await task_worker.execute_task_run(task_run)
 
     assert "in the UI: http://test/api/runs/task-run/" in caplog.text
+
+
+@pytest.mark.usefixtures("mock_task_worker_start")
+class TestServe:
+    async def test_serve_basic_sync_task(self, foo_task, mock_task_worker_start):
+        serve(foo_task)
+        mock_task_worker_start.assert_called_once()
+
+        task_run_future = foo_task.apply_async((42,))
+
+        assert isinstance(task_run_future, PrefectDistributedFuture)
+
+        assert task_run_future.state.is_scheduled()
+
+    async def test_serve_basic_async_task(self, async_foo_task, mock_task_worker_start):
+        serve(async_foo_task)
+        mock_task_worker_start.assert_called_once()
+
+        task_run_future = async_foo_task.apply_async((42,))
+
+        assert isinstance(task_run_future, PrefectDistributedFuture)
+
+        assert task_run_future.state.is_scheduled()
 
 
 async def test_task_worker_can_execute_a_single_async_single_task_run(
@@ -715,6 +738,8 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
+            import time
+
             time.sleep(1)
 
         task_worker = TaskWorker(slow_task, limit=1)
@@ -745,6 +770,8 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
+            import time
+
             time.sleep(1)
 
         task_worker = TaskWorker(slow_task, limit=1)
@@ -780,6 +807,8 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
+            import time
+
             time.sleep(1)
 
         task_worker = TaskWorker(slow_task, limit=None)
@@ -871,6 +900,8 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
+            import time
+
             time.sleep(1)
 
         task_worker = TaskWorker(slow_task, limit=1)
@@ -891,6 +922,41 @@ class TestTaskWorkerLimit:
         except asyncio.exceptions.CancelledError:
             # We want to cancel the second task run, so this is expected
             pass
+
+        await events_pipeline.process_events()
+
+        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+
+        assert updated_task_run_1.state.is_completed()
+        assert updated_task_run_2.state.is_scheduled()
+
+    async def test_serve_respects_limit(
+        self, prefect_client, mock_subscription, events_pipeline
+    ):
+        @task
+        def slow_task():
+            import time
+
+            time.sleep(1)
+
+        task_run_future_1 = slow_task.apply_async()
+        task_run_1 = await prefect_client.read_task_run(task_run_future_1.task_run_id)
+        task_run_future_2 = slow_task.apply_async()
+        task_run_2 = await prefect_client.read_task_run(task_run_future_2.task_run_id)
+
+        async def mock_iter():
+            yield task_run_1
+            yield task_run_2
+            # sleep for a second to ensure that task execution starts
+            await asyncio.sleep(1)
+
+        mock_subscription.return_value = mock_iter()
+
+        # only one should run at a time, so we'll move on after 1 second
+        # to ensure that the second task hasn't started
+        with anyio.move_on_after(1.1):
+            serve(slow_task, limit=1)
 
         await events_pipeline.process_events()
 
