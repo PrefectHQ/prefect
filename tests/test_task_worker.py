@@ -13,7 +13,6 @@ from pydantic import BaseModel
 from prefect import flow, task
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
-from prefect.futures import PrefectDistributedFuture
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
@@ -21,7 +20,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Running
-from prefect.task_worker import TaskWorker, serve
+from prefect.task_worker import TaskWorker
 from prefect.tasks import task_input_hash
 
 pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
@@ -228,29 +227,6 @@ async def test_task_worker_emits_run_ui_url_upon_submission(
         await task_worker.execute_task_run(task_run)
 
     assert "in the UI: http://test/api/runs/task-run/" in caplog.text
-
-
-@pytest.mark.usefixtures("mock_task_worker_start")
-class TestServe:
-    async def test_serve_basic_sync_task(self, foo_task, mock_task_worker_start):
-        serve(foo_task)
-        mock_task_worker_start.assert_called_once()
-
-        task_run_future = foo_task.apply_async((42,))
-
-        assert isinstance(task_run_future, PrefectDistributedFuture)
-
-        assert task_run_future.state.is_scheduled()
-
-    async def test_serve_basic_async_task(self, async_foo_task, mock_task_worker_start):
-        serve(async_foo_task)
-        mock_task_worker_start.assert_called_once()
-
-        task_run_future = async_foo_task.apply_async((42,))
-
-        assert isinstance(task_run_future, PrefectDistributedFuture)
-
-        assert task_run_future.state.is_scheduled()
 
 
 async def test_task_worker_can_execute_a_single_async_single_task_run(

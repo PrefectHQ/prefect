@@ -158,16 +158,8 @@ class TaskWorker:
         start_client_metrics_server()
 
         async with asyncnullcontext() if self.started else self:
-            logger.info("Starting task worker...")
             try:
                 await self._subscribe_to_task_scheduling()
-
-            except ExceptionGroup as exc:  # novermin
-                description = "Encountered an error while subscribing to task runs."
-                for e in exc.exceptions:
-                    description += f"\n\n{e}"
-                raise ValueError(description) from exc
-
             except InvalidStatusCode as exc:
                 if exc.status_code == 403:
                     logger.error(
@@ -223,6 +215,7 @@ class TaskWorker:
             task_key.split(".")[-1].split("-")[0] for task_key in sorted(self.task_keys)
         )
         logger.info(f"Subscribing to runs of task(s): {task_keys_repr}")
+
         async for task_run in Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
