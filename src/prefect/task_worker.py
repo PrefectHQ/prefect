@@ -35,7 +35,11 @@ from prefect.settings import (
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import (
+    asyncnullcontext,
+    run_coro_as_sync,
+    sync_compatible,
+)
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
 from prefect.utilities.services import start_client_metrics_server
@@ -81,7 +85,7 @@ class TaskWorker:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks = []
+        self.tasks: list[Task] = []
         for t in tasks:
             if isinstance(t, Task):
                 if t.cache_policy in [None, NONE, NotSet]:
@@ -91,22 +95,18 @@ class TaskWorker:
                 else:
                     self.tasks.append(t.with_options(persist_result=True))
 
-        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
+        self.task_keys: set[str] = set(t.task_key for t in tasks if isinstance(t, Task))
+        self.limit: Optional[int] = limit
 
         self._started_at: Optional[pendulum.DateTime] = None
         self.stopping: bool = False
 
         self._client = get_client()
-        self._exit_stack = AsyncExitStack()
+        self._exit_stack: AsyncExitStack = AsyncExitStack()
 
-        if not asyncio.get_event_loop().is_running():
-            raise RuntimeError(
-                "TaskWorker must be initialized within an async context."
-            )
-
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
-        self._limiter = anyio.CapacityLimiter(limit) if limit else None
+        self._limiter: Optional[anyio.CapacityLimiter] = None
+        self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
 
         self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
             task_key: {} for task_key in self.task_keys
@@ -126,10 +126,6 @@ class TaskWorker:
     @property
     def started(self) -> bool:
         return self._started_at is not None
-
-    @property
-    def limit(self) -> Optional[int]:
-        return int(self._limiter.total_tokens) if self._limiter else None
 
     @property
     def current_tasks(self) -> Optional[int]:
@@ -162,7 +158,6 @@ class TaskWorker:
         start_client_metrics_server()
 
         async with asyncnullcontext() if self.started else self:
-            logger.info("Starting task worker...")
             try:
                 await self._subscribe_to_task_scheduling()
             except InvalidStatusCode as exc:
@@ -379,9 +374,15 @@ class TaskWorker:
 
         if self._client._closed:
             self._client = get_client()
-
         await self._exit_stack.enter_async_context(self._client)
+
+        if not self._runs_task_group:
+            self._runs_task_group = anyio.create_task_group()
         await self._exit_stack.enter_async_context(self._runs_task_group)
+
+        if not self._limiter and self.limit:
+            self._limiter = anyio.CapacityLimiter(self.limit)
+
         self._exit_stack.enter_context(self._executor)
 
         self._started_at = pendulum.now()
@@ -416,7 +417,7 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     return status_app
 
 
-async def serve(
+def serve(
     *tasks: Task, limit: Optional[int] = 10, status_server_port: Optional[int] = None
 ):
     """Serve the provided tasks so that their runs may be submitted to and executed.
@@ -467,7 +468,7 @@ async def serve(
         status_server_task = loop.create_task(server.serve())
 
     try:
-        await task_worker.start()
+        task_worker.start()
 
     except BaseExceptionGroup as exc:  # novermin
         exceptions = exc.exceptions
@@ -487,6 +488,6 @@ async def serve(
         if status_server_task:
             status_server_task.cancel()
             try:
-                await status_server_task
+                run_coro_as_sync(status_server_task)
             except asyncio.CancelledError:
                 pass

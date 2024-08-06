@@ -232,7 +232,7 @@ async def test_task_worker_emits_run_ui_url_upon_submission(
 @pytest.mark.usefixtures("mock_task_worker_start")
 class TestServe:
     async def test_serve_basic_sync_task(self, foo_task, mock_task_worker_start):
-        await serve(foo_task)
+        serve(foo_task)
         mock_task_worker_start.assert_called_once()
 
         task_run_future = foo_task.apply_async((42,))
@@ -242,7 +242,7 @@ class TestServe:
         assert task_run_future.state.is_scheduled()
 
     async def test_serve_basic_async_task(self, async_foo_task, mock_task_worker_start):
-        await serve(async_foo_task)
+        serve(async_foo_task)
         mock_task_worker_start.assert_called_once()
 
         task_run_future = async_foo_task.apply_async((42,))
@@ -931,37 +931,15 @@ class TestTaskWorkerLimit:
         assert updated_task_run_1.state.is_completed()
         assert updated_task_run_2.state.is_scheduled()
 
-    async def test_serve_respects_limit(
-        self, prefect_client, mock_subscription, events_pipeline
-    ):
+    async def test_serve_passes_through_limit(self, monkeypatch):
+        mock_task_worker = MagicMock()
+        monkeypatch.setattr("prefect.task_worker.TaskWorker", mock_task_worker)
+
         @task
-        def slow_task():
-            import time
+        def one_task():
+            pass
 
-            time.sleep(1)
+        with anyio.move_on_after(0.1):
+            serve(one_task, limit=1)
 
-        task_run_future_1 = slow_task.apply_async()
-        task_run_1 = await prefect_client.read_task_run(task_run_future_1.task_run_id)
-        task_run_future_2 = slow_task.apply_async()
-        task_run_2 = await prefect_client.read_task_run(task_run_future_2.task_run_id)
-
-        async def mock_iter():
-            yield task_run_1
-            yield task_run_2
-            # sleep for a second to ensure that task execution starts
-            await asyncio.sleep(1)
-
-        mock_subscription.return_value = mock_iter()
-
-        # only one should run at a time, so we'll move on after 1 second
-        # to ensure that the second task hasn't started
-        with anyio.move_on_after(1):
-            await serve(slow_task, limit=1)
-
-        await events_pipeline.process_events()
-
-        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
-        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
-
-        assert updated_task_run_1.state.is_completed()
-        assert updated_task_run_2.state.is_scheduled()
+        mock_task_worker.assert_called_once_with(one_task, limit=1)
