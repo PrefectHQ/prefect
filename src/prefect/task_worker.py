@@ -38,7 +38,6 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     run_coro_as_sync,
-    sync_compatible,
 )
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
@@ -150,7 +149,6 @@ class TaskWorker:
 
         sys.exit(0)
 
-    @sync_compatible
     async def start(self) -> None:
         """
         Starts a task worker, which runs the tasks provided in the constructor.
@@ -174,7 +172,6 @@ class TaskWorker:
                 else:
                     raise
 
-    @sync_compatible
     async def stop(self):
         """Stops the task worker's polling cycle."""
         if not self.started:
@@ -470,7 +467,7 @@ def serve(
         status_server_task = loop.create_task(server.serve())
 
     try:
-        task_worker.start()
+        run_coro_as_sync(task_worker.start())
 
     except BaseExceptionGroup as exc:  # novermin
         exceptions = exc.exceptions

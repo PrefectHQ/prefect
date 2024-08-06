@@ -1508,7 +1508,7 @@ class Task(Generic[P, R]):
     def serve(
         self, limit: Optional[int] = 10, status_server_port: Optional[int] = None
     ):
-        """Serve the task using the provided task runner. This method is used to
+        """Serve the task and listen for scheduled task runs to execute. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
 
@@ -1520,7 +1520,7 @@ class Task(Generic[P, R]):
                 status server will run.
 
         Examples:
-            Serve a task using the default task runner
+            Serve a task
             >>> @task
             >>> def my_task():
             >>>     return 1

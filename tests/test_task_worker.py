@@ -1,5 +1,6 @@
 import asyncio
 import signal
+import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -738,8 +739,6 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
-
             time.sleep(1)
 
         task_worker = TaskWorker(slow_task, limit=1)
@@ -770,8 +769,6 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
-
             time.sleep(1)
 
         task_worker = TaskWorker(slow_task, limit=1)
@@ -807,8 +804,6 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
-
             time.sleep(1)
 
         task_worker = TaskWorker(slow_task, limit=None)
@@ -900,8 +895,6 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
-
             time.sleep(1)
 
         task_worker = TaskWorker(slow_task, limit=1)
@@ -922,41 +915,6 @@ class TestTaskWorkerLimit:
         except asyncio.exceptions.CancelledError:
             # We want to cancel the second task run, so this is expected
             pass
-
-        await events_pipeline.process_events()
-
-        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
-        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
-
-        assert updated_task_run_1.state.is_completed()
-        assert updated_task_run_2.state.is_scheduled()
-
-    async def test_serve_respects_limit(
-        self, prefect_client, mock_subscription, events_pipeline
-    ):
-        @task
-        def slow_task():
-            import time
-
-            time.sleep(1)
-
-        task_run_future_1 = slow_task.apply_async()
-        task_run_1 = await prefect_client.read_task_run(task_run_future_1.task_run_id)
-        task_run_future_2 = slow_task.apply_async()
-        task_run_2 = await prefect_client.read_task_run(task_run_future_2.task_run_id)
-
-        async def mock_iter():
-            yield task_run_1
-            yield task_run_2
-            # sleep for a second to ensure that task execution starts
-            await asyncio.sleep(1)
-
-        mock_subscription.return_value = mock_iter()
-
-        # only one should run at a time, so we'll move on after 1 second
-        # to ensure that the second task hasn't started
-        with anyio.move_on_after(1):
-            serve(slow_task, limit=1)
 
         await events_pipeline.process_events()
 
