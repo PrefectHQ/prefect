@@ -391,7 +391,13 @@ class TaskWorker:
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task worker...")
         self._started_at = None
-        await self._exit_stack.__aexit__(*exc_info)
+        try:
+            await self._exit_stack.__aexit__(*exc_info)
+        except BaseExceptionGroup as exc:  # novermin
+            description = f"Task worker stopped with {len(exc.exceptions)} exceptions"
+            for exception in exc.exceptions:
+                description += f"\n{exception}"
+            logger.error(description)
 
 
 def create_status_server(task_worker: TaskWorker) -> FastAPI:
