@@ -91,11 +91,12 @@ def hydrated_context(
             client = client or get_client(sync_client=True)
             if flow_run_context := serialized_context.get("flow_run_context"):
                 flow = flow_run_context["flow"]
+                task_runner = stack.enter_context(flow.task_runner.duplicate())
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
                     result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
-                    task_runner=flow.task_runner.duplicate(),
+                    task_runner=task_runner,
                     detached=True,
                 )
                 stack.enter_context(flow_run_context)
