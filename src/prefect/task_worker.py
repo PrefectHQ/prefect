@@ -161,6 +161,13 @@ class TaskWorker:
             logger.info("Starting task worker...")
             try:
                 await self._subscribe_to_task_scheduling()
+
+            except ExceptionGroup as exc:  # novermin
+                description = "Encountered an error while subscribing to task runs."
+                for e in exc.exceptions:
+                    description += f"\n\n{e}"
+                raise ValueError(description) from exc
+
             except InvalidStatusCode as exc:
                 if exc.status_code == 403:
                     logger.error(
