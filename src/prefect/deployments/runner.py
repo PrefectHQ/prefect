@@ -67,7 +67,7 @@ from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
-from prefect.runner.storage import RunnerStorage
+from prefect.runner.storage import LocalStorage, RunnerStorage
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -664,6 +664,7 @@ class RunnerDeployment(BaseModel):
         storage: RunnerStorage,
         entrypoint: str,
         name: str,
+        local_storage: Optional[LocalStorage] = None,
         interval: Optional[
             Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
         ] = None,
@@ -693,6 +694,8 @@ class RunnerDeployment(BaseModel):
             name: A name for the deployment
             storage: A storage object to use for retrieving flow code. If not provided, a
                 URL must be provided.
+            local_storage: A LocalStorage object to use for retrieving flow code, which must already 
+            exist at the path of this object. If not provided, then 'storage' will be used.
             interval: An interval on which to execute the current flow. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
@@ -730,14 +733,20 @@ class RunnerDeployment(BaseModel):
 
         job_variables = job_variables or {}
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            storage.set_base_path(Path(tmpdir))
-            await storage.pull_code()
-
-            full_entrypoint = str(storage.destination / entrypoint)
+        if local_storage:
+            full_entrypoint = str(local_storage.destination / entrypoint)
             flow = await from_async.wait_for_call_in_new_thread(
                 create_call(load_flow_from_entrypoint, full_entrypoint)
             )
+        else:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                storage.set_base_path(Path(tmpdir))
+                await storage.pull_code()
+
+                full_entrypoint = str(storage.destination / entrypoint)
+                flow = await from_async.wait_for_call_in_new_thread(
+                    create_call(load_flow_from_entrypoint, full_entrypoint)
+                )
 
         deployment = cls(
             name=Path(name).stem,
@@ -759,7 +768,7 @@ class RunnerDeployment(BaseModel):
             job_variables=job_variables,
         )
         deployment._path = str(storage.destination).replace(
-            tmpdir, "$STORAGE_BASE_PATH"
+            str(local_storage._path.absolute()) if local_storage else tmpdir, "$STORAGE_BASE_PATH"
         )
 
         cls._set_defaults_from_flow(deployment, flow)
