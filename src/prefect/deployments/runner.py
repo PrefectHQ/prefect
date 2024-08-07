@@ -694,7 +694,7 @@ class RunnerDeployment(BaseModel):
             name: A name for the deployment
             storage: A storage object to use for retrieving flow code. If not provided, a
                 URL must be provided.
-            local_storage: A LocalStorage object to use for retrieving flow code, which must already 
+            local_storage: A LocalStorage object to use for retrieving flow code, which must already
             exist at the path of this object. If not provided, then 'storage' will be used.
             interval: An interval on which to execute the current flow. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
@@ -768,7 +768,8 @@ class RunnerDeployment(BaseModel):
             job_variables=job_variables,
         )
         deployment._path = str(storage.destination).replace(
-            str(local_storage._path.absolute()) if local_storage else tmpdir, "$STORAGE_BASE_PATH"
+            str(local_storage._path.absolute()) if local_storage else tmpdir,
+            "$STORAGE_BASE_PATH",
         )
 
         cls._set_defaults_from_flow(deployment, flow)

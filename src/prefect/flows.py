@@ -673,7 +673,7 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
-            local_storage: A LocalStorage object to use for retrieving flow code, which must already 
+            local_storage: A LocalStorage object to use for retrieving flow code, which must already
                 exist at the path of this object. If not provided, then 'source' will be used.
             interval: An interval on which to execute the new deployment. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
@@ -976,7 +976,7 @@ class Flow(Generic[P, R]):
             source: Either a URL to a git repository or a storage object.
             entrypoint:  The path to a file containing a flow and the name of the flow function in
                 the format `./path/to/file.py:flow_func_name`.
-            local_storage: A LocalStorage object to use for retrieving flow code, which must already 
+            local_storage: A LocalStorage object to use for retrieving flow code, which must already
             exist at the path of this object. If not provided, then 'source' will be used.
 
         Returns:
@@ -1067,7 +1067,7 @@ class Flow(Generic[P, R]):
             flow: Flow = await from_async.wait_for_call_in_new_thread(
                 create_call(load_flow_from_entrypoint, full_entrypoint)
             )
-        else:    
+        else:
             with tempfile.TemporaryDirectory() as tmpdir:
                 if not isinstance(storage, LocalStorage):
                     storage.set_base_path(Path(tmpdir))
