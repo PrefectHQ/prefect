@@ -119,7 +119,7 @@ if TYPE_CHECKING:
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
     from prefect.flows import FlowRun
-    from prefect.runner.storage import RunnerStorage
+    from prefect.runner.storage import LocalStorage, RunnerStorage
 
 
 class Flow(Generic[P, R]):
@@ -642,6 +642,7 @@ class Flow(Generic[P, R]):
     async def to_deployment(
         self,
         name: str,
+        local_storage: Optional["LocalStorage"] = None,
         interval: Optional[
             Union[
                 Iterable[Union[int, float, datetime.timedelta]],
@@ -672,6 +673,8 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
+            local_storage: A LocalStorage object to use for retrieving flow code, which must already 
+                exist at the path of this object. If not provided, then 'source' will be used.
             interval: An interval on which to execute the new deployment. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this deployment.
@@ -728,6 +731,7 @@ class Flow(Generic[P, R]):
         if self._storage and self._entrypoint:
             return await RunnerDeployment.from_storage(
                 storage=self._storage,
+                local_storage=local_storage,
                 entrypoint=self._entrypoint,
                 name=name,
                 interval=interval,
@@ -963,6 +967,7 @@ class Flow(Generic[P, R]):
         cls: Type["Flow[P, R]"],
         source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
+        local_storage: Optional["LocalStorage"] = None,
     ) -> "Flow[P, R]":
         """
         Loads a flow from a remote source.
@@ -971,6 +976,8 @@ class Flow(Generic[P, R]):
             source: Either a URL to a git repository or a storage object.
             entrypoint:  The path to a file containing a flow and the name of the flow function in
                 the format `./path/to/file.py:flow_func_name`.
+            local_storage: A LocalStorage object to use for retrieving flow code, which must already 
+            exist at the path of this object. If not provided, then 'source' will be used.
 
         Returns:
             A new `Flow` instance.
@@ -1054,19 +1061,27 @@ class Flow(Generic[P, R]):
                 f"Unsupported source type {type(source).__name__!r}. Please provide a"
                 " URL to remote storage or a storage object."
             )
-        with tempfile.TemporaryDirectory() as tmpdir:
-            if not isinstance(storage, LocalStorage):
-                storage.set_base_path(Path(tmpdir))
-                await storage.pull_code()
-            storage.set_base_path(Path(tmpdir))
-            await storage.pull_code()
 
-            full_entrypoint = str(storage.destination / entrypoint)
+        if local_storage:
+            full_entrypoint = str(local_storage.destination / entrypoint)
             flow: Flow = await from_async.wait_for_call_in_new_thread(
                 create_call(load_flow_from_entrypoint, full_entrypoint)
             )
-            flow._storage = storage
-            flow._entrypoint = entrypoint
+        else:    
+            with tempfile.TemporaryDirectory() as tmpdir:
+                if not isinstance(storage, LocalStorage):
+                    storage.set_base_path(Path(tmpdir))
+                    await storage.pull_code()
+                storage.set_base_path(Path(tmpdir))
+                await storage.pull_code()
+
+                full_entrypoint = str(storage.destination / entrypoint)
+                flow: Flow = await from_async.wait_for_call_in_new_thread(
+                    create_call(load_flow_from_entrypoint, full_entrypoint)
+                )
+
+        flow._storage = storage
+        flow._entrypoint = entrypoint
 
         return flow
 
