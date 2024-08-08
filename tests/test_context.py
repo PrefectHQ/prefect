@@ -7,6 +7,7 @@ from pendulum.datetime import DateTime
 
 import prefect.settings
 from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.context import (
     GLOBAL_SETTINGS_CONTEXT,
     ContextModel,
@@ -30,11 +31,13 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     Profile,
     ProfilesCollection,
     save_profiles,
     temporary_settings,
 )
+from prefect.states import Running
 from prefect.task_runners import ThreadPoolTaskRunner
 
 
@@ -243,7 +246,7 @@ class TestSettingsContext:
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
         )
-        with use_profile("default"):
+        with use_profile("ephemeral"):
             setup_logging.assert_not_called()
 
     def test_settings_context_nesting(self, temporary_profiles_path):
@@ -296,7 +299,11 @@ class TestSettingsContext:
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         result = root_settings_context()
         use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            Profile(
+                name="ephemeral",
+                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
+                source=DEFAULT_PROFILES_PATH,
+            ),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once()
@@ -319,7 +326,11 @@ class TestSettingsContext:
         monkeypatch.setattr("sys.argv", cli_command)
         result = root_settings_context()
         use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            Profile(
+                name="ephemeral",
+                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
+                source=DEFAULT_PROFILES_PATH,
+            ),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once_with()
@@ -527,6 +538,48 @@ class TestHydratedContext:
             )  # this won't be the same object as the original result factory
             assert isinstance(hydrated_flow_run_context.start_time, DateTime)
             assert hydrated_flow_run_context.parameters == {"x": "y"}
+
+    async def test_task_runner_started_when_hydrating_context(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        This test ensures the task runner for a flow run context is started when
+        the context is hydrated. This enables calling .submit and .map on tasks
+        running in remote environments like Dask and Ray.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14788
+        """
+
+        @flow
+        def foo():
+            pass
+
+        @task
+        def bar():
+            return 42
+
+        test_task_runner = ThreadPoolTaskRunner()
+        flow_run = await prefect_client.create_flow_run(foo, state=Running())
+        result_factory = await ResultFactory.from_flow(foo)
+        flow_run_context = FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
+            client=prefect_client,
+            task_runner=test_task_runner,
+            result_factory=result_factory,
+            parameters={"x": "y"},
+        )
+
+        with hydrated_context(
+            {
+                "flow_run_context": flow_run_context.serialize(),
+            }
+        ):
+            hydrated_flow_run_context = FlowRunContext.get()
+            assert hydrated_flow_run_context
+
+            future = hydrated_flow_run_context.task_runner.submit(bar, parameters={})
+            assert future.result() == 42
 
     async def test_with_task_run_context(self, prefect_client, flow_run):
         @task

@@ -293,12 +293,15 @@ class TaskWorker:
                     await self._client._client.delete(f"/task_runs/{task_run.id}")
                 return
 
+        initial_state = task_run.state
+
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
             new_state = Pending()
             new_state.state_details.deferred = True
             new_state.state_details.task_run_id = task_run.id
             new_state.state_details.flow_run_id = task_run.flow_run_id
             state = new_state
+            task_run.state = state
         else:
             try:
                 new_state = Pending()
@@ -330,7 +333,7 @@ class TaskWorker:
 
         emit_task_run_state_change_event(
             task_run=task_run,
-            initial_state=task_run.state,
+            initial_state=initial_state,
             validated_state=state,
         )
 

@@ -26,7 +26,7 @@ import prefect
 import prefect.exceptions
 from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -3944,7 +3944,7 @@ class TestFlowServe:
         )
         assert "$ prefect deployment run 'test-flow/test'" in captured.out
 
-    def test_serve_creates_deployment(self, prefect_client: PrefectClient):
+    def test_serve_creates_deployment(self, sync_prefect_client: SyncPrefectClient):
         self.flow.serve(
             name="test",
             tags=["price", "luggage"],
@@ -3955,9 +3955,7 @@ class TestFlowServe:
             paused=True,
         )
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
         # Flow.serve should created deployments without a work queue or work pool
@@ -3971,36 +3969,32 @@ class TestFlowServe:
         assert deployment.enforce_parameter_schema
         assert deployment.paused
 
-    def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
+    def test_serve_can_user_a_module_path_entrypoint(self, sync_prefect_client):
         deployment = self.flow.serve(
             name="test", entrypoint_type=EntrypointType.MODULE_PATH
         )
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment.entrypoint == f"{self.flow.__module__}.{self.flow.__name__}"
 
-    def test_serve_handles__file__(self, prefect_client: PrefectClient):
+    def test_serve_handles__file__(self, sync_prefect_client: SyncPrefectClient):
         self.flow.serve(__file__)
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test_flows")
+        deployment = sync_prefect_client.read_deployment_by_name(
+            name="test-flow/test_flows"
         )
 
         assert deployment.name == "test_flows"
 
     def test_serve_creates_deployment_with_interval_schedule(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         self.flow.serve(
             "test",
             interval=3600,
         )
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
         assert len(deployment.schedules) == 1
@@ -4010,26 +4004,22 @@ class TestFlowServe:
         )
 
     def test_serve_creates_deployment_with_cron_schedule(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         self.flow.serve("test", cron="* * * * *")
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
         assert len(deployment.schedules) == 1
         assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
 
     def test_serve_creates_deployment_with_rrule_schedule(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         self.flow.serve("test", rrule="FREQ=MINUTELY")
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
         assert len(deployment.schedules) == 1

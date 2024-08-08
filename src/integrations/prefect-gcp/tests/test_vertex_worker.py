@@ -20,6 +20,7 @@ def job_config(service_account_info, gcp_credentials):
         region="ashenvale",
         credentials=gcp_credentials,
         job_spec={
+            "service_account_name": "my-service-account",
             "maximum_run_time_hours": 1,
             "worker_pool_specs": [
                 {
@@ -141,6 +142,12 @@ class TestVertexAIWorker:
                 job_config.credentials.job_service_async_client.create_custom_job.call_count
                 == 1
             )
+            custom_job_spec = job_config.credentials.job_service_async_client.create_custom_job.call_args[
+                1
+            ]["custom_job"].job_spec
+
+            assert custom_job_spec.service_account == "my-service-account"
+
             assert (
                 job_config.credentials.job_service_async_client.get_custom_job.call_count
                 == 1

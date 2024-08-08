@@ -60,13 +60,14 @@ async def mock_stream(*args, **kwargs):
 
 @pytest.fixture
 def mock_cluster_config(monkeypatch):
-    mock = AsyncMock()
+    mock = MagicMock()
     # We cannot mock this or the `except` clause will complain
-    mock.return_value.ConfigException.return_value = ConfigException
-    mock.return_value.list_kube_config_contexts.return_value = (
+    mock.ConfigException.return_value = ConfigException
+    mock.list_kube_config_contexts.return_value = (
         [],
         {"context": {"cluster": FAKE_CLUSTER}},
     )
+    mock.new_client_from_config = AsyncMock()
     monkeypatch.setattr("prefect_kubernetes.worker.config", mock)
     monkeypatch.setattr(
         "prefect_kubernetes.worker.config.ConfigException", ConfigException
@@ -2130,7 +2131,7 @@ class TestKubernetesWorker:
             await k8s_worker.run(flow_run, default_configuration)
 
             mock_cluster_config.load_incluster_config.assert_called_once()
-            assert not mock_cluster_config.load_kube_config.called
+            assert not mock_cluster_config.load_kube_config_from_dict.called
 
     async def test_uses_cluster_config_if_not_in_cluster(
         self,
@@ -2152,6 +2153,7 @@ class TestKubernetesWorker:
 
         mock_watch.return_value.stream = mock_stream
         mock_cluster_config.load_incluster_config.side_effect = ConfigException()
+
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, default_configuration)
             mock_cluster_config.new_client_from_config.assert_called_once()

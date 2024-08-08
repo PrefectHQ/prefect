@@ -11,7 +11,12 @@ import prefect.settings
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_DATABASE_DRIVER,
+    PREFECT_API_DATABASE_HOST,
+    PREFECT_API_DATABASE_NAME,
     PREFECT_API_DATABASE_PASSWORD,
+    PREFECT_API_DATABASE_PORT,
+    PREFECT_API_DATABASE_USER,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
@@ -23,6 +28,7 @@ from prefect.settings import (
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
     PREFECT_TEST_MODE,
@@ -344,47 +350,6 @@ class TestSettingAccess:
     def test_ui_api_url_from_defaults(self):
         assert PREFECT_UI_API_URL.value() == "/api"
 
-    def test_database_connection_url_templates_password(self):
-        with temporary_settings(
-            {
-                PREFECT_API_DATABASE_CONNECTION_URL: (
-                    "${PREFECT_API_DATABASE_PASSWORD}/test"
-                ),
-                PREFECT_API_DATABASE_PASSWORD: "password",
-            }
-        ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "password/test"
-
-    def test_database_connection_url_templates_null_password(self):
-        # Not exactly beautiful behavior here, but I think it's clear.
-        # In the future, we may want to consider raising if attempting to template
-        # a null value.
-        with temporary_settings(
-            {
-                PREFECT_API_DATABASE_CONNECTION_URL: (
-                    "${PREFECT_API_DATABASE_PASSWORD}/test"
-                )
-            }
-        ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "None/test"
-
-    def test_warning_if_database_password_set_without_template_string(self):
-        with pytest.warns(
-            UserWarning,
-            match=(
-                "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
-                "PREFECT_API_DATABASE_CONNECTION_URL. "
-                "The provided password will be ignored."
-            ),
-        ):
-            with temporary_settings(
-                {
-                    PREFECT_API_DATABASE_CONNECTION_URL: "test",
-                    PREFECT_API_DATABASE_PASSWORD: "password",
-                }
-            ):
-                pass
-
     @pytest.mark.parametrize(
         "value,expected",
         [
@@ -492,6 +457,119 @@ class TestSettingAccess:
                 PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
 
 
+class TestDatabaseSettings:
+    def test_database_connection_url_templates_password(self):
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_API_DATABASE_PASSWORD}/test"
+                ),
+                PREFECT_API_DATABASE_PASSWORD: "password",
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "password/test"
+
+    def test_database_connection_url_templates_null_password(self):
+        # Not exactly beautiful behavior here, but I think it's clear.
+        # In the future, we may want to consider raising if attempting to template
+        # a null value.
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_API_DATABASE_PASSWORD}/test"
+                )
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "None/test"
+
+    def test_warning_if_database_password_set_without_template_string(self):
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
+                "PREFECT_API_DATABASE_CONNECTION_URL. "
+                "The provided password will be ignored."
+            ),
+        ):
+            with temporary_settings(
+                {
+                    PREFECT_API_DATABASE_CONNECTION_URL: "test",
+                    PREFECT_API_DATABASE_PASSWORD: "password",
+                }
+            ):
+                pass
+
+    def test_postgres_database_settings_may_be_set_individually(self):
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
+                PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
+                PREFECT_API_DATABASE_PORT: 15432,
+                PREFECT_API_DATABASE_USER: "the-user",
+                PREFECT_API_DATABASE_NAME: "the-database",
+                PREFECT_API_DATABASE_PASSWORD: "the-password",
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
+                "postgresql+asyncpg://"
+                "the-user:the-password@"
+                "the-database-server.example.com:15432"
+                "/the-database"
+            )
+
+    def test_postgres_database_settings_defaults_port(self):
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
+                PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
+                PREFECT_API_DATABASE_USER: "the-user",
+                PREFECT_API_DATABASE_NAME: "the-database",
+                PREFECT_API_DATABASE_PASSWORD: "the-password",
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
+                "postgresql+asyncpg://"
+                "the-user:the-password@"
+                "the-database-server.example.com:5432"
+                "/the-database"
+            )
+
+    def test_sqlite_database_settings_may_be_set_individually(self):
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_API_DATABASE_DRIVER: "sqlite+aiosqlite",
+                PREFECT_API_DATABASE_NAME: "/the/database/file/path.db",
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
+                "sqlite+aiosqlite:////the/database/file/path.db"
+            )
+
+    def test_sqlite_database_driver_uses_default_path(self):
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_API_DATABASE_DRIVER: "sqlite+aiosqlite",
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
+                f"sqlite+aiosqlite:///{PREFECT_HOME.value()}/prefect.db"
+            )
+
+    def test_unknown_driver_raises(self):
+        with pytest.raises(pydantic.ValidationError, match="literal_error"):
+            with temporary_settings(
+                {
+                    PREFECT_API_DATABASE_CONNECTION_URL: None,
+                    PREFECT_API_DATABASE_DRIVER: "wat",
+                }
+            ):
+                pass
+
+
 class TestTemporarySettings:
     def test_temporary_settings(self):
         assert PREFECT_TEST_MODE.value() is True
@@ -539,7 +617,7 @@ class TestLoadProfiles:
     def test_load_profiles_no_profiles_file(self):
         assert load_profiles()
 
-    def test_load_profiles_missing_default(self, temporary_profiles_path):
+    def test_load_profiles_missing_ephemeral(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
@@ -549,28 +627,28 @@ class TestLoadProfiles:
             )
         )
         assert load_profiles()["foo"].settings == {PREFECT_API_KEY: "bar"}
-        assert isinstance(load_profiles()["default"].settings, dict)
+        assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
     def test_load_profiles_only_active_key(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                active = "default"
+                active = "ephemeral"
                 """
             )
         )
-        assert load_profiles().active_name == "default"
-        assert isinstance(load_profiles()["default"].settings, dict)
+        assert load_profiles().active_name == "ephemeral"
+        assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
     def test_load_profiles_empty_file(self, temporary_profiles_path):
         temporary_profiles_path.touch()
-        assert load_profiles().active_name == "default"
-        assert isinstance(load_profiles()["default"].settings, dict)
+        assert load_profiles().active_name == "ephemeral"
+        assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
-    def test_load_profiles_with_default(self, temporary_profiles_path):
+    def test_load_profiles_with_ephemeral(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             """
-            [profiles.default]
+            [profiles.ephemeral]
             PREFECT_API_KEY = "foo"
 
             [profiles.bar]
@@ -579,16 +657,21 @@ class TestLoadProfiles:
         )
         profiles = load_profiles()
         expected = {
-            "default": {PREFECT_API_KEY: "foo"},
+            "ephemeral": {
+                PREFECT_API_KEY: "foo",
+                PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",  # default value
+            },
             "bar": {PREFECT_API_KEY: "bar"},
         }
         for name, settings in expected.items():
             assert profiles[name].settings == settings
             assert profiles[name].source == temporary_profiles_path
 
-    def test_load_profile_default(self):
-        assert load_profile("default") == Profile(
-            name="default", settings={}, source=DEFAULT_PROFILES_PATH
+    def test_load_profile_ephemeral(self):
+        assert load_profile("ephemeral") == Profile(
+            name="ephemeral",
+            settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
+            source=DEFAULT_PROFILES_PATH,
         )
 
     def test_load_profile_missing(self):

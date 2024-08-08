@@ -11,6 +11,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_TEST_SETTING,
     SETTING_VARIABLES,
     Profile,
@@ -54,18 +55,21 @@ def temporary_profiles_path(tmp_path):
 
 
 def test_set_using_default_profile():
-    with use_profile("default"):
+    with use_profile("ephemeral"):
         invoke_and_assert(
             ["config", "set", "PREFECT_TEST_SETTING=DEBUG"],
             expected_output="""
                 Set 'PREFECT_TEST_SETTING' to 'DEBUG'.
-                Updated profile 'default'.
+                Updated profile 'ephemeral'.
                 """,
         )
 
     profiles = load_profiles()
-    assert "default" in profiles
-    assert profiles["default"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
+    assert "ephemeral" in profiles
+    assert profiles["ephemeral"].settings == {
+        PREFECT_TEST_SETTING: "DEBUG",
+        PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",
+    }
 
 
 def test_set_using_profile_flag():

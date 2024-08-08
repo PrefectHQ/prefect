@@ -31,7 +31,7 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
-from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.concurrency.asyncio import concurrency as aconcurrency
@@ -409,6 +409,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.state_id = new_state.id
             self.task_run.state_type = new_state.type
             self.task_run.state_name = new_state.name
+
+            if new_state.is_final():
+                if (
+                    isinstance(state.data, BaseResult)
+                    and state.data.has_cached_object()
+                ):
+                    # Avoid fetching the result unless it is cached, otherwise we defeat
+                    # the purpose of disabling `cache_result_in_memory`
+                    result = state.result(raise_on_failure=False, fetch=True)
+                    if inspect.isawaitable(result):
+                        result = run_coro_as_sync(result)
+                else:
+                    result = state.data
+
+                link_state_to_result(state, result)
+
         else:
             try:
                 new_state = propose_state_sync(
@@ -674,6 +690,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                     task_run_name=task_run_name,
                                 )
                             )
+                            # Emit an event to capture that the task run was in the `PENDING` state.
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
                     else:
                         if not self.task_run:
                             self.task_run = run_coro_as_sync(
@@ -686,12 +708,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                     extra_task_inputs=dependencies,
                                 )
                             )
-                    # Emit an event to capture that the task run was in the `PENDING` state.
-                    self._last_event = emit_task_run_state_change_event(
-                        task_run=self.task_run,
-                        initial_state=None,
-                        validated_state=self.task_run.state,
-                    )
+                            # Emit an event to capture that the task run was in the `PENDING` state.
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
 
                     with self.setup_run_context():
                         # setup_run_context might update the task run name, so log creation here
@@ -966,6 +988,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.state_id = new_state.id
             self.task_run.state_type = new_state.type
             self.task_run.state_name = new_state.name
+
+            if new_state.is_final():
+                if (
+                    isinstance(new_state.data, BaseResult)
+                    and new_state.data.has_cached_object()
+                ):
+                    # Avoid fetching the result unless it is cached, otherwise we defeat
+                    # the purpose of disabling `cache_result_in_memory`
+                    result = await new_state.result(raise_on_failure=False, fetch=True)
+                else:
+                    result = new_state.data
+
+                link_state_to_result(new_state, result)
+
         else:
             try:
                 new_state = await propose_state(
@@ -1192,8 +1228,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
-            async with AsyncClientContext.get_or_create() as client_ctx:
-                self._client = client_ctx.client
+            async with AsyncClientContext.get_or_create():
+                self._client = get_client()
                 self._is_started = True
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
@@ -1222,6 +1258,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 extra_task_inputs=dependencies,
                                 task_run_name=task_run_name,
                             )
+                            # Emit an event to capture that the task run was in the `PENDING` state.
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
                     else:
                         if not self.task_run:
                             self.task_run = await self.task.create_run(
@@ -1232,12 +1274,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 wait_for=self.wait_for,
                                 extra_task_inputs=dependencies,
                             )
-                    # Emit an event to capture that the task run was in the `PENDING` state.
-                    self._last_event = emit_task_run_state_change_event(
-                        task_run=self.task_run,
-                        initial_state=None,
-                        validated_state=self.task_run.state,
-                    )
+                            # Emit an event to capture that the task run was in the `PENDING` state.
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
 
                     async with self.setup_run_context():
                         # setup_run_context might update the task run name, so log creation here

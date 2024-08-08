@@ -2,11 +2,13 @@
 Internal utilities for tests.
 """
 
+import atexit
+import shutil
 import warnings
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
-from tempfile import TemporaryDirectory
+from tempfile import mkdtemp
 from typing import TYPE_CHECKING, Dict, List, Union
 
 import prefect.context
@@ -15,8 +17,10 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
+from prefect.logging.handlers import APILogWorker
 from prefect.results import PersistedResult
 from prefect.serializers import Serializer
+from prefect.server.api.server import SubprocessASGIServer
 from prefect.states import State
 
 if TYPE_CHECKING:
@@ -118,24 +122,41 @@ def prefect_test_harness():
     from prefect.server.database.dependencies import temporary_database_interface
 
     # create temp directory for the testing database
-    with TemporaryDirectory() as temp_dir:
-        with ExitStack() as stack:
-            # temporarily override any database interface components
-            stack.enter_context(temporary_database_interface())
+    temp_dir = mkdtemp()
 
-            DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
-            stack.enter_context(
-                prefect.settings.temporary_settings(
-                    # Clear the PREFECT_API_URL
-                    restore_defaults={prefect.settings.PREFECT_API_URL},
-                    # Use a temporary directory for the database
-                    updates={
-                        prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
-                        prefect.settings.PREFECT_API_URL: None,
-                    },
-                )
+    def cleanup_temp_dir(temp_dir):
+        shutil.rmtree(temp_dir)
+
+    atexit.register(cleanup_temp_dir, temp_dir)
+
+    with ExitStack() as stack:
+        # temporarily override any database interface components
+        stack.enter_context(temporary_database_interface())
+
+        DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
+        stack.enter_context(
+            prefect.settings.temporary_settings(
+                # Use a temporary directory for the database
+                updates={
+                    prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
+                },
             )
-            yield
+        )
+        # start a subprocess server to test against
+        test_server = SubprocessASGIServer()
+        test_server.start(timeout=30)
+        stack.enter_context(
+            prefect.settings.temporary_settings(
+                # Use a temporary directory for the database
+                updates={
+                    prefect.settings.PREFECT_API_URL: test_server.api_url,
+                },
+            )
+        )
+        yield
+        # drain the logs before stopping the server to avoid connection errors on shutdown
+        APILogWorker.instance().drain()
+        test_server.stop()
 
 
 async def get_most_recent_flow_run(client: "PrefectClient" = None):
