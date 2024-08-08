@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import socket
@@ -383,12 +384,21 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
 async def events_pipeline(asserting_events_worker: EventsWorker):
     class AssertingEventsPipeline(EventsPipeline):
         @sync_compatible
-        async def process_events(self, dequeue_events: bool = True):
+        async def process_events(
+            self, dequeue_events: bool = True, min_events: int = 0
+        ):
+            # wait until the current queue is empty
             asserting_events_worker.wait_until_empty()
+
+            # additionally, wait until we've seen at least min_events
+            while len(asserting_events_worker._client.events) < min_events:
+                await asyncio.sleep(0.1)
+
             if dequeue_events:
                 events = asserting_events_worker._client.pop_events()
             else:
                 events = asserting_events_worker._client.events
+
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
 
