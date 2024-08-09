@@ -133,7 +133,7 @@ def say_hi():
     print("Hello!")
 
 if __name__=="__main__":
-    say_hi.serve(name="Greeting from daemonized .serve")
+    say_hi.serve(name="served and daemonized deployment")
 ```
 
 To make changes to your flow code without restarting your process, push your
@@ -181,13 +181,13 @@ To save the file and exit Vim, hit the escape key, type `:wq!`, then press the r
 Next, make systemd aware of your new service by running:
 
 ```bash
-sudo systemctl daemon-reload` to 
+sudo systemctl daemon-reload
 ```
 
 Then, enable the service by running:
 
 ```bash
-run `sudo systemctl enable my-prefect-service` to 
+sudo systemctl enable my-prefect-service
 ```
 
 This command ensures it runs when your system boots.
