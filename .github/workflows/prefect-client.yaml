@@ -58,7 +58,7 @@ jobs:
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package
-        run: pip install dist/*.tar.gz
+        run: pip install dist/*.whl
         working-directory: ${{ env.TMPDIR }}
 
       - name: Run the smoke test flow using the built client
