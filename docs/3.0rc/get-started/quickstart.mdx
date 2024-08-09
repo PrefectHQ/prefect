@@ -160,9 +160,11 @@ Deploy your flow to Cloud using a managed work pool.
 
 1. View your new work pool on the **Work Pools** page of the UI.
   </Tab>
+  
   <Tab title="Local server">
 
 Deploy your flow to a self-hosted Prefect server instance using a Process type work pool.
+This flow will run in a local subprocess, but the mechanics are similar for other work pool types that run on remote infrastructure.
 
 1. Create a Process type work pool:
 
@@ -176,7 +178,7 @@ Deploy your flow to a self-hosted Prefect server instance using a Process type w
    prefect work-pool ls
    ```
 
-1. Start a worker in the work pool:
+1. Start a worker to poll the work pool:
 
    ```bash
    prefect worker start --pool my-work-pool
@@ -255,7 +257,8 @@ Now consider reading:
 
 * [Write flows](/3.0rc/develop/write-flows)
 * [Write tasks](/3.0rc/develop/write-tasks)
-* [Self-host](/3.0rc/manage/self-host) your Prefect server
+* [Cloud and server](/3.0rc/manage/manage-overview)
+* [Manage infrastructure with work pools](/3.0rc/deploy/infrastructure-concepts/work-pools) to learn about running workflows on Kubernetes, Docker, and serverless infrastructure.
 
 <Tip>
 Need help? [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.
