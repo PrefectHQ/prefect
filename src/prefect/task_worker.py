@@ -21,7 +21,7 @@ from websockets.exceptions import InvalidStatusCode
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.cache_policies import DEFAULT, NONE
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.exceptions import Abort, PrefectHTTPStatusError
@@ -35,7 +35,7 @@ from prefect.settings import (
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext, run_coro_as_sync
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
 from prefect.utilities.services import start_client_metrics_server
@@ -81,7 +81,7 @@ class TaskWorker:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks = []
+        self.tasks: list[Task] = []
         for t in tasks:
             if isinstance(t, Task):
                 if t.cache_policy in [None, NONE, NotSet]:
@@ -91,22 +91,21 @@ class TaskWorker:
                 else:
                     self.tasks.append(t.with_options(persist_result=True))
 
-        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
+        self.task_keys: set[str] = set(t.task_key for t in tasks if isinstance(t, Task))
+        self.limit: Optional[int] = limit
 
         self._started_at: Optional[pendulum.DateTime] = None
         self.stopping: bool = False
 
-        self._client = get_client()
-        self._exit_stack = AsyncExitStack()
+        self._client: PrefectClient = get_client()
+        self._exit_stack: AsyncExitStack = AsyncExitStack()
 
-        if not asyncio.get_event_loop().is_running():
-            raise RuntimeError(
-                "TaskWorker must be initialized within an async context."
-            )
+        self._executor: ThreadPoolExecutor = ThreadPoolExecutor(
+            max_workers=limit if limit else None
+        )
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
-        self._limiter = anyio.CapacityLimiter(limit) if limit else None
+        self._limiter: Optional[anyio.CapacityLimiter] = None
+        self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
 
         self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
             task_key: {} for task_key in self.task_keys
@@ -126,10 +125,6 @@ class TaskWorker:
     @property
     def started(self) -> bool:
         return self._started_at is not None
-
-    @property
-    def limit(self) -> Optional[int]:
-        return int(self._limiter.total_tokens) if self._limiter else None
 
     @property
     def current_tasks(self) -> Optional[int]:
@@ -152,7 +147,6 @@ class TaskWorker:
 
         sys.exit(0)
 
-    @sync_compatible
     async def start(self) -> None:
         """
         Starts a task worker, which runs the tasks provided in the constructor.
@@ -176,7 +170,6 @@ class TaskWorker:
                 else:
                     raise
 
-    @sync_compatible
     async def stop(self):
         """Stops the task worker's polling cycle."""
         if not self.started:
@@ -380,6 +373,12 @@ class TaskWorker:
         if self._client._closed:
             self._client = get_client()
 
+        if self._runs_task_group is None:
+            self._runs_task_group = anyio.create_task_group()
+
+        if self._limiter is None and self.limit:
+            self._limiter = anyio.CapacityLimiter(self.limit)
+
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
@@ -416,8 +415,7 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     return status_app
 
 
-@sync_compatible
-async def serve(
+def serve(
     *tasks: Task, limit: Optional[int] = 10, status_server_port: Optional[int] = None
 ):
     """Serve the provided tasks so that their runs may be submitted to and executed.
@@ -468,7 +466,7 @@ async def serve(
         status_server_task = loop.create_task(server.serve())
 
     try:
-        await task_worker.start()
+        run_coro_as_sync(task_worker.start())
 
     except BaseExceptionGroup as exc:  # novermin
         exceptions = exc.exceptions
@@ -488,6 +486,6 @@ async def serve(
         if status_server_task:
             status_server_task.cancel()
             try:
-                await status_server_task
+                run_coro_as_sync(status_server_task)
             except asyncio.CancelledError:
                 pass
