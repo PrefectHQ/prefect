@@ -2413,6 +2413,32 @@ class TestSchedules:
         }
 
     @pytest.mark.usefixtures("project_dir")
+    async def test_yaml_with_null_value_for_schedules(self, prefect_client, work_pool):
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["schedules"] = None
+
+        with prefect_yaml.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+            expected_code=0,
+            expected_output_contains=[
+                "Deployment 'An important name/test-name' successfully created"
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule is None
+
+    @pytest.mark.usefixtures("project_dir")
     async def test_yaml_with_schedule_and_schedules_raises_error(self, work_pool):
         prefect_yaml = Path("prefect.yaml")
         with prefect_yaml.open(mode="r") as f:
