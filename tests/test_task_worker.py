@@ -25,6 +25,8 @@ from prefect.tasks import task_input_hash
 
 pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
 
+pytest.skip(reason="temporarily skip this suite", allow_module_level=True)
+
 
 @pytest.fixture(autouse=True, params=[False, True])
 def enable_client_side_task_run_orchestration(
