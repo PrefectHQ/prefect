@@ -34,6 +34,7 @@ jobs:
     name: Build and run prefect-client python:${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version:
           - "3.8"
