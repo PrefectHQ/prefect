@@ -207,11 +207,11 @@ async def trigger_dbt_cli_command(
             )
     else:
         logger.debug(
-            f"Artifacts were not created for dbt {command} this task \
-                     due to create_artifact=False or the dbt command did not \
-                     return any RunExecutionResults. \
-                     See https://docs.getdbt.com/reference/programmatic-invocations \
-                     for more details on dbtRunnerResult."
+            f"Artifacts were not created for dbt {command} this task "
+            "due to create_artifact=False or the dbt command did not "
+            "return any RunExecutionResults. "
+            "See https://docs.getdbt.com/reference/programmatic-invocations "
+            "for more details on dbtRunnerResult."
         )
     if isinstance(result.result, RunExecutionResult) and not result.success:
         return Failed(
