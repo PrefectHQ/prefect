@@ -127,7 +127,7 @@ class TestCreateDeployment:
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
-            schedule=schedule,
+            schedules=[schemas.actions.DeploymentScheduleCreate(schedule=schedule)],
         ).model_dump(mode="json")
         response = await client.post(
             "/deployments/",
@@ -139,7 +139,10 @@ class TestCreateDeployment:
 
         assert response.status_code == 201
         assert data["name"] == "My Deployment"
-        assert schemas.schedules.IntervalSchedule(**data["schedule"]) == schedule
+        assert len(data["schedules"]) == 1
+        assert (
+            schemas.core.DeploymentSchedule(**data["schedules"][0]).schedule == schedule
+        )
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session,
@@ -147,11 +150,7 @@ class TestCreateDeployment:
         )
 
         assert len(schedules) == 1
-        assert schedules[0] == schemas.core.DeploymentSchedule(
-            schedule=data["schedule"],
-            active=data["is_schedule_active"],
-            deployment_id=deployment_id,
-        )
+        assert schedules[0] == schemas.core.DeploymentSchedule(**data["schedules"][0])
 
     async def test_create_deployment_with_multiple_schedules(
         self,
@@ -266,46 +265,12 @@ class TestCreateDeployment:
         assert response.status_code == 200
 
         data = response.json()
-        deployment_id = data["id"]
         schedules = [schemas.core.DeploymentSchedule(**s) for s in data["schedules"]]
 
         assert data["name"] == "My Deployment"
 
         assert len(schedules) == 2
         assert schedules[0].id == first_schedule.id
-
-        # When a deployment has multiple schedules, we still populate `schedule`
-        # and with the most recently updated schedule and `is_schedule_active`
-        # with the opposite value of `paused`.
-
-        assert (
-            schemas.schedules.IntervalSchedule(**data["schedule"])
-            == schedules[0].schedule
-        )
-        assert data["is_schedule_active"] is not data["paused"]
-
-    async def test_create_deployment_with_no_schedules_flag_on_populates_legacy_schedule_as_none(
-        self,
-        client,
-        flow,
-    ):
-        data = DeploymentCreate(  # type: ignore
-            name="My Deployment",
-            version="mint",
-            flow_id=flow.id,
-            tags=["foo"],
-            parameters={"foo": "bar"},
-            schedules=[],
-        ).model_dump(mode="json")
-        response = await client.post(
-            "/deployments/",
-            json=data,
-        )
-        assert response.status_code == 201
-
-        data = response.json()
-        assert data["schedule"] is None
-        assert data["is_schedule_active"] == (not data["paused"])
 
     async def test_default_work_queue_name_is_none(self, session, client, flow):
         data = DeploymentCreate(name="My Deployment", flow_id=flow.id).model_dump(
@@ -345,7 +310,6 @@ class TestCreateDeployment:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["paused"]
-        assert not response.json()["is_schedule_active"]
         assert response.json()["storage_document_id"] == str(storage_document_id)
 
         # post different data, upsert should be respected
@@ -360,7 +324,6 @@ class TestCreateDeployment:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert not response.json()["paused"]
-        assert response.json()["is_schedule_active"]
 
     async def test_create_deployment_populates_and_returned_created(
         self,
@@ -390,11 +353,15 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1),
-                    anchor_date=pendulum.datetime(2020, 1, 1),
-                ),
-                is_schedule_active=False,
+                schedules=[
+                    schemas.actions.DeploymentScheduleCreate(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1),
+                            anchor_date=pendulum.datetime(2020, 1, 1),
+                        ),
+                        active=False,
+                    )
+                ],
             ).model_dump(mode="json"),
         )
 
@@ -414,7 +381,7 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
-                is_schedule_active=True,
+                paused=False,
             ).model_dump(mode="json"),
         )
 
@@ -446,14 +413,18 @@ class TestCreateDeployment:
         )
         await session.commit()
 
-        # upsert the deployment with schedule inactive
+        # upsert the deployment to be paused and have no schedules
         await client.post(
             "/deployments/",
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
-                schedule=deployment.schedule,
-                is_schedule_active=False,
+                schedules=[
+                    schemas.actions.DeploymentScheduleCreate(
+                        schedule=deployment.schedules[0].schedule, active=False
+                    )
+                ],
+                paused=True,
             ).model_dump(mode="json"),
         )
 
@@ -487,17 +458,22 @@ class TestCreateDeployment:
         )
         await session.commit()
 
-        # upsert the deployment with schedule active
+        # upsert the deployment a new schedule active
         await client.post(
             "/deployments/",
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(seconds=1),
-                    anchor_date=pendulum.datetime(2020, 1, 1),
-                ),
-                is_schedule_active=True,
+                schedules=[
+                    schemas.actions.DeploymentScheduleCreate(
+                        active=True,
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(seconds=1),
+                            anchor_date=pendulum.datetime(2020, 1, 1),
+                        ),
+                    )
+                ],
+                paused=False,
             ).model_dump(mode="json"),
         )
 
@@ -1021,27 +997,6 @@ class TestCreateDeployment:
         )
         assert response.status_code == 201
 
-    async def test_can_pause_deployment_by_upserting_is_schedule_active_legacy_client_support(
-        self,
-        client,
-        deployment,
-    ):
-        assert deployment.paused is False
-
-        data = DeploymentCreate(  # type: ignore
-            name=deployment.name,
-            flow_id=deployment.flow_id,
-            is_schedule_active=False,
-        ).model_dump(mode="json")
-
-        # Imitate a legacy client that does not support the `paused` field
-        del data["paused"]
-
-        response = await client.post("/deployments/", json=data)
-        assert response.status_code == 200
-        assert response.json()["paused"] is True
-        assert response.json()["is_schedule_active"] is False
-
     async def test_can_pause_deployment_by_upserting_paused(
         self,
         client,
@@ -1058,7 +1013,6 @@ class TestCreateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 200
         assert response.json()["paused"] is True
-        assert response.json()["is_schedule_active"] is False
 
 
 class TestReadDeployment:
@@ -1169,7 +1123,7 @@ class TestReadDeployments:
                 id=deployment_id_1,
                 name="My Deployment X",
                 flow_id=flow.id,
-                is_schedule_active=True,
+                paused=False,
             ),
         )
 
@@ -1179,7 +1133,7 @@ class TestReadDeployments:
                 id=deployment_id_2,
                 name="My Deployment Y",
                 flow_id=flow.id,
-                is_schedule_active=False,
+                paused=True,
             ),
         )
         await session.commit()
@@ -1310,7 +1264,7 @@ class TestPaginateDeployments:
                 id=deployment_id_1,
                 name="My Deployment X",
                 flow_id=flow.id,
-                is_schedule_active=True,
+                paused=False,
             ),
         )
 
@@ -1320,7 +1274,7 @@ class TestPaginateDeployments:
                 id=deployment_id_2,
                 name="My Deployment Y",
                 flow_id=flow.id,
-                is_schedule_active=False,
+                paused=True,
             ),
         )
         await session.commit()
@@ -1637,29 +1591,6 @@ class TestUpdateDeployment:
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.json()["parameters"] == {"x": value}
 
-    async def test_update_deployment_with_schedule_populates_schedules(
-        self,
-        client,
-        deployment,
-        session,
-    ):
-        update_data = DeploymentUpdate(
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1)
-            )
-        ).model_dump(mode="json", exclude_unset=True)
-
-        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
-        assert response.status_code == 204
-
-        schedules = await models.deployments.read_deployment_schedules(
-            session=session,
-            deployment_id=deployment.id,
-        )
-        assert len(schedules) == 1
-        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
-        assert schedules[0].schedule.interval == datetime.timedelta(days=1)
-
     async def test_update_deployment_can_remove_schedules(
         self,
         client,
@@ -1699,7 +1630,6 @@ class TestUpdateDeployment:
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.status_code == 200
         assert response.json()["schedules"] == []
-        assert response.json()["schedule"] is None
 
     async def test_update_deployment_with_multiple_schedules(
         self, session, client, flow, simple_parameter_schema
@@ -1781,75 +1711,6 @@ class TestUpdateDeployment:
         assert schedules[1].schedule.interval == schedule3.interval
         assert schedules[1].active is True
 
-    async def test_update_deployment_with_multiple_schedules_legacy_schedule_422(
-        self,
-        session,
-        client,
-        flow,
-    ):
-        schedule1 = schemas.schedules.IntervalSchedule(
-            interval=datetime.timedelta(days=1)
-        )
-        schedule2 = schemas.schedules.IntervalSchedule(
-            interval=datetime.timedelta(days=2)
-        )
-
-        data = DeploymentCreate(  # type: ignore
-            name="My Deployment",
-            version="mint",
-            flow_id=flow.id,
-            tags=["foo"],
-            parameters={"foo": "bar"},
-            schedules=[
-                schemas.actions.DeploymentScheduleCreate(
-                    schedule=schedule1,
-                    active=True,
-                ),
-                schemas.actions.DeploymentScheduleCreate(
-                    schedule=schedule2,
-                    active=False,
-                ),
-            ],
-        ).model_dump(mode="json")
-        response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
-
-        deployment_id = response.json()["id"]
-
-        # This deployment now has multiple schedules, now if an older client
-        # tries to update this deployment with a single schedule, we should
-        # raise a 422 as we're unable to determine which schedule they're
-        # trying to update.
-
-        update_data = DeploymentUpdate(
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=3)
-            )
-        ).model_dump(mode="json", exclude_unset=True)
-
-        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
-        assert response.status_code == 422
-        assert b"multiple schedules" in response.content
-
-    async def test_can_pause_deployment_by_updating_is_schedule_active(
-        self,
-        client,
-        deployment,
-        session,
-    ):
-        assert deployment.paused is False
-
-        response = await client.patch(
-            f"/deployments/{deployment.id}", json={"is_schedule_active": False}
-        )
-        assert response.status_code == 204
-
-        await session.refresh(deployment)
-
-        assert deployment
-        assert deployment.paused is True
-        assert deployment.is_schedule_active is False
-
     async def test_can_pause_deployment_by_updating_paused(
         self,
         client,
@@ -1867,7 +1728,6 @@ class TestUpdateDeployment:
 
         assert deployment
         assert deployment.paused is True
-        assert deployment.is_schedule_active is False
 
     async def test_updating_paused_does_not_change_schedule(
         self,
@@ -1885,7 +1745,14 @@ class TestUpdateDeployment:
         )
         response = await client.patch(
             f"/deployments/{deployment.id}",
-            json={"schedule": legacy_schedule.model_dump(mode="json")},
+            json={
+                "schedules": [
+                    {
+                        "schedule": legacy_schedule.model_dump(mode="json"),
+                        "active": True,
+                    }
+                ]
+            },
         )
         assert response.status_code == 204
 
@@ -1896,8 +1763,8 @@ class TestUpdateDeployment:
         )
 
         assert deployment.paused is False
-        assert deployment.schedule is not None
-        assert deployment.schedule.interval != new_schedule.interval
+        assert len(deployment.schedules) > 0
+        assert deployment.schedules[0].schedule.interval != new_schedule.interval
 
         await models.deployments.delete_schedules_for_deployment(
             session=session, deployment_id=deployment.id
@@ -2256,35 +2123,29 @@ class TestDeleteDeployment:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-class TestSetScheduleActive:
-    async def test_set_schedule_inactive(self, client, deployment, session):
-        assert deployment.is_schedule_active is True
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_inactive"
-        )
+class TestPauseAndResumeDeployment:
+    async def test_pause_deployment(self, client, deployment, session):
+        assert deployment.paused is False
+        response = await client.post(f"/deployments/{deployment.id}/pause_deployment")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is False
+        assert deployment.paused is True
 
-    async def test_set_schedule_inactive_can_be_called_multiple_times(
-        self, client, deployment, session
-    ):
-        assert deployment.is_schedule_active is True
-        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_inactive"
-        )
+    async def test_pause_deployment_multiple_times(self, client, deployment, session):
+        assert deployment.paused is False
+        await client.post(f"/deployments/{deployment.id}/pause_deployment")
+        response = await client.post(f"/deployments/{deployment.id}/pause_deployment")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is False
+        assert deployment.paused is True
 
-    async def test_set_schedule_inactive_with_missing_deployment(self, client):
-        response = await client.post(f"/deployments/{uuid4()}/set_schedule_inactive")
+    async def test_pause_deployment_with_missing_deployment(self, client):
+        response = await client.post(f"/deployments/{uuid4()}/pause_deployment")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_set_schedule_inactive_sets_child_schedule_inactive(
+    async def test_pause_deployment_does_not_set_child_schedule_inactive(
         self,
         client,
         deployment,
@@ -2297,7 +2158,6 @@ class TestSetScheduleActive:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment.id
         )
-        deployment.is_schedule_active = True
         deployment.paused = False
 
         await models.deployments.create_deployment_schedules(
@@ -2315,112 +2175,44 @@ class TestSetScheduleActive:
 
         await session.commit()
 
-        # When updating a deployment the `set_schedule_inactive` endpoint
-        # should also attempt to update the `active` field of the child
-        # `DeploymentSchedule` object.
-
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_inactive"
-        )
+        # The child deployment schedules should be untouched when pausing the deployment
+        response = await client.post(f"/deployments/{deployment.id}/pause_deployment")
         assert response.status_code == 200
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session, deployment_id=deployment.id
         )
         assert len(schedules) == 1
-        assert schedules[0].active is False
+        assert schedules[0].active is True
 
-    async def test_set_schedule_inactive_multiple_schedules(
-        self,
-        client,
-        deployment,
-        session,
-    ):
-        deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment.id
-        )
-        deployment.is_schedule_active = True
-        deployment.paused = False
-
-        await models.deployments.create_deployment_schedules(
-            session=session,
-            deployment_id=deployment.id,
-            schedules=[
-                schemas.actions.DeploymentScheduleCreate(
-                    active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
-                        interval=datetime.timedelta(hours=1)
-                    ),
-                ),
-                schemas.actions.DeploymentScheduleCreate(
-                    active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
-                        interval=datetime.timedelta(hours=2)
-                    ),
-                ),
-            ],
-        )
-
+    async def test_resume_deployment(self, client, deployment, session):
+        deployment.paused = True
         await session.commit()
 
-        # When updating a deployment the `set_schedule_inactive` endpoint
-        # should not attempt update the `active` field if there are multiple
-        # schedules.
-
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_inactive"
-        )
-        assert response.status_code == 422
-        assert b"multiple schedules" in response.content
-
-    async def test_set_schedule_active(self, client, deployment, session):
-        deployment.is_schedule_active = False
-        await session.commit()
-
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
-        )
+        response = await client.post(f"/deployments/{deployment.id}/resume_deployment")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is False
 
-    async def test_set_schedule_active_can_be_called_multiple_times(
+    async def test_resume_deployment_can_be_called_multiple_times(
         self, client, deployment, session
     ):
-        deployment.is_schedule_active = False
+        deployment.paused = True
         await session.commit()
 
-        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
-        )
+        await client.post(f"/deployments/{deployment.id}/resume_deployment")
+        response = await client.post(f"/deployments/{deployment.id}/resume_deployment")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is False
 
-    async def test_set_schedule_active_with_missing_deployment(self, client):
-        response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
+    async def test_resume_deployment_with_missing_deployment(self, client):
+        response = await client.post(f"/deployments/{uuid4()}/resume_deployment")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_set_schedule_active_toggles_active_flag(
-        self, client, deployment, session
-    ):
-        n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 0
-
-        deployment.is_schedule_active = False
-        await session.commit()
-
-        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
-        n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 0
-
-        await session.refresh(deployment)
-        assert deployment.is_schedule_active is True
-
-    async def test_set_schedule_active_updates_child_schedule(
+    async def test_resume_deployment_does_not_update_child_schedule(
         self,
         client,
         deployment,
@@ -2433,7 +2225,6 @@ class TestSetScheduleActive:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment.id
         )
-        deployment.is_schedule_active = False
         deployment.paused = True
 
         await models.deployments.create_deployment_schedules(
@@ -2451,81 +2242,32 @@ class TestSetScheduleActive:
 
         await session.commit()
 
-        # When updating a deployment the `set_schedule_active` endpoint
-        # should also attempt to update the `active` field of the child
-        # `DeploymentSchedule` object.
-
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
-        )
+        response = await client.post(f"/deployments/{deployment.id}/resume_deployment")
         assert response.status_code == 200
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session, deployment_id=deployment.id
         )
         assert len(schedules) == 1
-        assert schedules[0].active is True
+        assert schedules[0].active is False
 
-    async def test_set_schedule_active_multiple_schedules(
-        self,
-        client,
-        deployment,
-        session,
-    ):
-        deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment.id
-        )
-        deployment.is_schedule_active = False
-        deployment.paused = True
-
-        await models.deployments.create_deployment_schedules(
-            session=session,
-            deployment_id=deployment.id,
-            schedules=[
-                schemas.actions.DeploymentScheduleCreate(
-                    active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
-                        interval=datetime.timedelta(hours=1)
-                    ),
-                ),
-                schemas.actions.DeploymentScheduleCreate(
-                    active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
-                        interval=datetime.timedelta(hours=2)
-                    ),
-                ),
-            ],
-        )
-
-        await session.commit()
-
-        # When updating a deployment the `set_schedule_active` endpoint should
-        # not attempt to update the `active` field if there are multiple
-        # schedules.
-
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
-        )
-        assert response.status_code == 422
-        assert b"multiple schedules" in response.content
-
-    async def test_set_schedule_active_doesnt_schedule_runs_if_no_schedule_set(
+    async def test_resume_deployment_doesnt_schedule_runs_if_no_schedule_set(
         self, client, deployment, session
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
         deployment.schedule = None
-        deployment.is_schedule_active = False
+        deployment.paused = True
         await session.commit()
 
-        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
+        await client.post(f"/deployments/{deployment.id}/resume_deployment")
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is False
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
-    async def test_set_schedule_inactive_deletes_auto_scheduled_runs(
+    async def test_pause_deployment_deletes_auto_scheduled_runs(
         self, client, deployment, session
     ):
         # schedule runs
@@ -2548,7 +2290,7 @@ class TestSetScheduleActive:
         )
         await session.commit()
 
-        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        await client.post(f"/deployments/{deployment.id}/pause_deployment")
 
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 1

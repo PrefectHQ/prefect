@@ -17,7 +17,6 @@ from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     remove_old_deployment_fields,
-    set_deployment_schedules,
     validate_cache_key_length,
     validate_max_metadata_length,
     validate_message_template_variables,
@@ -163,9 +162,6 @@ class DeploymentCreate(ActionBaseModel):
     flow_id: UUID = Field(
         default=..., description="The ID of the flow associated with the deployment."
     )
-    is_schedule_active: bool = Field(
-        default=True, description="Whether the schedule is active."
-    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
@@ -202,9 +198,6 @@ class DeploymentCreate(ActionBaseModel):
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
-        None, description="The schedule for the deployment."
-    )
     description: Optional[str] = Field(None)
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
@@ -239,10 +232,6 @@ class DeploymentCreate(ActionBaseModel):
             )
 
     @model_validator(mode="before")
-    def populate_schedules(cls, values):
-        return set_deployment_schedules(values)
-
-    @model_validator(mode="before")
     @classmethod
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
@@ -267,13 +256,7 @@ class DeploymentUpdate(ActionBaseModel):
         return remove_old_deployment_fields(values)
 
     version: Optional[str] = Field(None)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
-        None, description="The schedule for the deployment."
-    )
     description: Optional[str] = Field(None)
-    is_schedule_active: bool = Field(
-        default=True, description="Whether the schedule is active."
-    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )

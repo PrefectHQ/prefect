@@ -3134,59 +3134,6 @@
                 }
             }
         },
-        "/api/deployments/{id}/set_schedule_active": {
-            "post": {
-                "tags": [
-                    "Deployments"
-                ],
-                "summary": "Resume Deployment",
-                "description": "Set a deployment schedule to active. Runs will be scheduled immediately.",
-                "operationId": "resume_deployment_deployments__id__set_schedule_active_post",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "description": "The deployment id",
-                            "title": "Id"
-                        },
-                        "description": "The deployment id"
-                    },
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/deployments/{id}/pause_deployment": {
             "post": {
                 "tags": [
@@ -3195,59 +3142,6 @@
                 "summary": "Pause Deployment",
                 "description": "Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled\nstate will be deleted.",
                 "operationId": "pause_deployment_deployments__id__pause_deployment_post",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "description": "The deployment id",
-                            "title": "Id"
-                        },
-                        "description": "The deployment id"
-                    },
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/deployments/{id}/set_schedule_inactive": {
-            "post": {
-                "tags": [
-                    "Deployments"
-                ],
-                "summary": "Pause Deployment",
-                "description": "Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled\nstate will be deleted.",
-                "operationId": "pause_deployment_deployments__id__set_schedule_inactive_post",
                 "parameters": [
                     {
                         "name": "id",
@@ -15549,12 +15443,6 @@
                         "title": "Flow Id",
                         "description": "The ID of the flow associated with the deployment."
                     },
-                    "is_schedule_active": {
-                        "type": "boolean",
-                        "title": "Is Schedule Active",
-                        "description": "Whether the schedule is active.",
-                        "default": true
-                    },
                     "paused": {
                         "type": "boolean",
                         "title": "Paused",
@@ -15670,24 +15558,6 @@
                         ],
                         "title": "Infrastructure Document Id"
                     },
-                    "schedule": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/IntervalSchedule"
-                            },
-                            {
-                                "$ref": "#/components/schemas/CronSchedule"
-                            },
-                            {
-                                "$ref": "#/components/schemas/RRuleSchedule"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Schedule",
-                        "description": "The schedule for the deployment."
-                    },
                     "description": {
                         "anyOf": [
                             {
@@ -15802,17 +15672,6 @@
                         ],
                         "description": "Filter criteria for `Deployment.paused`"
                     },
-                    "is_schedule_active": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/DeploymentFilterIsScheduleActive"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Filter criteria for `Deployment.is_schedule_active`"
-                    },
                     "tags": {
                         "anyOf": [
                             {
@@ -15864,26 +15723,6 @@
                 "type": "object",
                 "title": "DeploymentFilterId",
                 "description": "Filter by `Deployment.id`."
-            },
-            "DeploymentFilterIsScheduleActive": {
-                "properties": {
-                    "eq_": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Eq ",
-                        "description": "Only returns where deployment schedule is/is not active"
-                    }
-                },
-                "additionalProperties": false,
-                "type": "object",
-                "title": "DeploymentFilterIsScheduleActive",
-                "description": "Legacy filter to filter by `Deployment.is_schedule_active` which\nis always the opposite of `Deployment.paused`."
             },
             "DeploymentFilterName": {
                 "properties": {
@@ -16276,30 +16115,6 @@
                         "format": "uuid",
                         "title": "Flow Id",
                         "description": "The flow id associated with the deployment."
-                    },
-                    "schedule": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/IntervalSchedule"
-                            },
-                            {
-                                "$ref": "#/components/schemas/CronSchedule"
-                            },
-                            {
-                                "$ref": "#/components/schemas/RRuleSchedule"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Schedule",
-                        "description": "A schedule for the deployment."
-                    },
-                    "is_schedule_active": {
-                        "type": "boolean",
-                        "title": "Is Schedule Active",
-                        "description": "Whether or not the deployment schedule is active.",
-                        "default": true
                     },
                     "paused": {
                         "type": "boolean",
@@ -16776,24 +16591,6 @@
                         ],
                         "title": "Version"
                     },
-                    "schedule": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/IntervalSchedule"
-                            },
-                            {
-                                "$ref": "#/components/schemas/CronSchedule"
-                            },
-                            {
-                                "$ref": "#/components/schemas/RRuleSchedule"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Schedule",
-                        "description": "The schedule for the deployment."
-                    },
                     "description": {
                         "anyOf": [
                             {
@@ -16804,12 +16601,6 @@
                             }
                         ],
                         "title": "Description"
-                    },
-                    "is_schedule_active": {
-                        "type": "boolean",
-                        "title": "Is Schedule Active",
-                        "description": "Whether the schedule is active.",
-                        "default": true
                     },
                     "paused": {
                         "type": "boolean",

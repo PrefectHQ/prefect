@@ -35,7 +35,6 @@ async def take_a_picture(session: AsyncSession) -> Deployment:
         deployment=Deployment(
             name="Take a picture on demand",
             flow_id=snap_a_pic.id,
-            is_schedule_active=True,
             paused=False,
         ),
     )

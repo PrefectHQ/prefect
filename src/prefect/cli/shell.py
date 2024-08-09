@@ -16,6 +16,7 @@ from typing_extensions import Annotated
 from prefect import flow
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.context import tags
 from prefect.exceptions import FailedRun
@@ -218,7 +219,7 @@ async def serve(
             "stream_stdout": stream_stdout,
         },
         entrypoint_type=EntrypointType.MODULE_PATH,
-        schedule=schedule,
+        schedules=[DeploymentScheduleCreate(schedule=schedule)] if schedule else [],
         tags=(deployment_tags or []) + ["shell"],
     )
 

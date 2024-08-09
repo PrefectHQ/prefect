@@ -258,15 +258,6 @@ def _format_deployment_for_saving_to_prefect_file(
     # Only want entrypoint to avoid errors
     deployment.pop("flow_name", None)
 
-    if deployment.get("schedule"):
-        if isinstance(deployment["schedule"], IntervalSchedule):
-            deployment["schedule"] = _interval_schedule_to_dict(deployment["schedule"])
-        else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
-            deployment["schedule"] = deployment["schedule"].model_dump()
-
-        if "is_schedule_active" in deployment:
-            deployment["schedule"]["active"] = deployment.pop("is_schedule_active")
-
     if deployment.get("schedules"):
         schedules = []
         for deployment_schedule in cast(

@@ -281,9 +281,6 @@ async def test_scheduler_respects_paused(flow, session):
                     active=True,
                 )
             ],
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(hours=1)
-            ),
             paused=True,
         ),
     )

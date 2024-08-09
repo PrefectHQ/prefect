@@ -993,12 +993,6 @@ class Deployment(ObjectBaseModel):
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
     )
-    schedule: Optional[SCHEDULE_TYPES] = Field(
-        default=None, description="A schedule for the deployment."
-    )
-    is_schedule_active: bool = Field(
-        default=True, description="Whether or not the deployment schedule is active."
-    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
