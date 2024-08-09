@@ -9,6 +9,7 @@ on:
       - requirements.txt
       - requirements-client.txt
       - setup.cfg
+      - .github/workflows/prefect-client.yaml
   push:
     branches:
       - 2.x
