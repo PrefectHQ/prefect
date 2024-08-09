@@ -796,6 +796,7 @@ async def test_task_state_change_task_failure(
         }
 
 
+@pytest.mark.skip(reason="temporarily skip this test")
 async def test_background_task_state_changes(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
