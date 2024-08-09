@@ -9,6 +9,7 @@ on:
       - requirements.txt
       - requirements-client.txt
       - setup.cfg
+      - .github/workflows/prefect-client.yaml
   push:
     branches:
       - 2.x
@@ -30,8 +31,18 @@ on:
 
 jobs:
   prefect-client-smoke-test:
-    name: Build and run prefect-client
+    name: Build and run prefect-client python:${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,10 +50,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python 3.8
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: ${{ matrix.python-version }}
+
           cache: "pip"
           cache-dependency-path: "requirements-client.txt"
 
@@ -55,7 +67,7 @@ jobs:
           TMPDIR: ${{ env.TMPDIR }}
 
       - name: Build a binary wheel and a source tarball
-        run: pip install wheel && python setup.py sdist bdist_wheel
+        run: pip install setuptools wheel && python setup.py sdist bdist_wheel
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package
