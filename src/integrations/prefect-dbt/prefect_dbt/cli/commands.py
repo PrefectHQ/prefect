@@ -144,8 +144,8 @@ async def trigger_dbt_cli_command(
     if overwrite_profiles or not Path(profiles_path).expanduser().exists():
         if dbt_cli_profile is None:
             raise ValueError(
-                f"Profile not found. Provide `dbt_cli_profile` or\
-                             ensure profiles.yml exists at {profiles_path}."
+                "Profile not found. Provide `dbt_cli_profile` or"
+                f" ensure profiles.yml exists at {profiles_path}."
             )
         profile = dbt_cli_profile.get_profile()
         Path(profiles_dir).expanduser().mkdir(exist_ok=True)
