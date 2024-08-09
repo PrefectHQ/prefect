@@ -2791,6 +2791,32 @@ class TestSchedules:
         assert deployment.schedules[0].max_active_runs == 5
         assert deployment.schedules[0].catchup is True
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_yaml_null_schedules(self, prefect_client, work_pool):
+        prefect_yaml_content = f"""
+        deployments:
+          - name: test-name
+            entrypoint: flows/hello.py:my_flow
+            work_pool:
+              name: {work_pool.name}
+            schedules: null
+        """
+
+        with open("prefect.yaml", "w") as f:
+            f.write(prefect_yaml_content)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.schedules == []
+
 
 class TestMultiDeploy:
     @pytest.mark.usefixtures("project_dir")
