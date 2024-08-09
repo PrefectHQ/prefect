@@ -33,6 +33,7 @@ async def trigger_dbt_cli_command(
     create_summary_artifact: bool = False,
     summary_artifact_key: Optional[str] = "dbt-cli-command-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ) -> Optional[dbtRunnerResult]:
     """
     Task for running dbt commands.
@@ -63,6 +64,7 @@ async def trigger_dbt_cli_command(
         extra_command_args: Additional command arguments to pass to the dbt command.
             These arguments get appended to the command that gets passed to the dbtRunner client.
             Example: extra_command_args=["--model", "foo_model"]
+        stream_output: Whether to stream output.
 
     Returns:
         last_line_cli_output (str): The last line of the CLI output will be returned
@@ -169,8 +171,18 @@ async def trigger_dbt_cli_command(
         for value in extra_command_args:
             cli_args.append(value)
 
+    # Add the dbt event log callback if enabled
+    callbacks = []
+    if stream_output:
+
+        def _stream_output(event):
+            if event.info.level != "debug":
+                logger.info(event.info.msg)
+
+        callbacks.append(_stream_output)
+
     # fix up empty shell_run_command_kwargs
-    dbt_runner_client = dbtRunner()
+    dbt_runner_client = dbtRunner(callbacks=callbacks)
     logger.info(f"Running dbt command: {cli_args}")
     result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
 
@@ -410,6 +422,7 @@ async def run_dbt_build(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-build-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt build' command within a Prefect task,
@@ -435,6 +448,7 @@ async def run_dbt_build(
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-build-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt build command.
+        stream_output: Whether to stream output.
 
     Example:
     ```python
@@ -465,6 +479,7 @@ async def run_dbt_build(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
     return results
 
@@ -478,6 +493,7 @@ async def run_dbt_model(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-run-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt run' command within a Prefect task,
@@ -503,6 +519,7 @@ async def run_dbt_model(
             the dbt run results artifact in Prefect.
             Defaults to 'dbt-run-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt run command.
+        stream_output: Whether to stream output.
 
     Example:
     ```python
@@ -533,6 +550,7 @@ async def run_dbt_model(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -547,6 +565,7 @@ async def run_dbt_test(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-test-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt test' command within a Prefect task,
@@ -572,6 +591,7 @@ async def run_dbt_test(
             the dbt test results artifact in Prefect.
             Defaults to 'dbt-test-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt test command.
+        stream_output: Whether to stream output.
 
     Example:
     ```python
@@ -602,6 +622,7 @@ async def run_dbt_test(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -616,6 +637,7 @@ async def run_dbt_snapshot(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-snapshot-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt snapshot' command within a Prefect task,
@@ -641,6 +663,7 @@ async def run_dbt_snapshot(
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-snapshot-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt snapshot command.
+        stream_output: Whether to stream output.
 
     Example:
     ```python
@@ -671,6 +694,7 @@ async def run_dbt_snapshot(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -685,6 +709,7 @@ async def run_dbt_seed(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-seed-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt seed' command within a Prefect task,
@@ -710,6 +735,7 @@ async def run_dbt_seed(
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-seed-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt seed command.
+        stream_output: Whether to stream output.
 
     Example:
     ```python
@@ -740,6 +766,7 @@ async def run_dbt_seed(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
