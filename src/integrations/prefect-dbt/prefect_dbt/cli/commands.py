@@ -143,7 +143,10 @@ async def trigger_dbt_cli_command(
     # write the profile if overwrite or no profiles exist
     if overwrite_profiles or not Path(profiles_path).expanduser().exists():
         if dbt_cli_profile is None:
-            raise ValueError("Provide `dbt_cli_profile` keyword for writing profiles")
+            raise ValueError(
+                "Profile not found. Provide `dbt_cli_profile` or"
+                f" ensure profiles.yml exists at {profiles_path}."
+            )
         profile = dbt_cli_profile.get_profile()
         Path(profiles_dir).expanduser().mkdir(exist_ok=True)
         with open(profiles_path, "w+") as f:
@@ -204,11 +207,11 @@ async def trigger_dbt_cli_command(
             )
     else:
         logger.debug(
-            f"Artifacts were not created for dbt {command} this task \
-                     due to create_artifact=False or the dbt command did not \
-                     return any RunExecutionResults. \
-                     See https://docs.getdbt.com/reference/programmatic-invocations \
-                     for more details on dbtRunnerResult."
+            f"Artifacts were not created for dbt {command} this task "
+            "due to create_artifact=False or the dbt command did not "
+            "return any RunExecutionResults. "
+            "See https://docs.getdbt.com/reference/programmatic-invocations "
+            "for more details on dbtRunnerResult."
         )
     if isinstance(result.result, RunExecutionResult) and not result.success:
         return Failed(
