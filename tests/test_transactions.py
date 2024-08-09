@@ -340,3 +340,41 @@ class TestDefaultTransactionStorage:
             return result
 
         await test_task() == {"foo": "bar"}
+
+
+class TestHooks:
+    def test_get_and_set_data(self):
+        with transaction(key="test") as txn:
+            txn.set("x", 42)
+            assert txn.get("x") == 42
+
+    def test_get_is_safe(self):
+        with transaction(key="test") as txn:
+            assert txn.get("y") is None
+
+    def test_hook_prep_with_defaults(self):
+        def hook(txn, x=42):
+            pass
+
+        txn = Transaction()
+        assert txn._prepare_args_kwargs_for_hook(hook) == ((txn, 42), {})
+
+    def test_hook_prep_with_set_data(self):
+        def hook(txn, y, x=42):
+            pass
+
+        txn = Transaction()
+        txn.set("y", True)
+        assert txn._prepare_args_kwargs_for_hook(hook) == ((txn, True, 42), {})
+        txn.set("x", 5)
+        assert txn._prepare_args_kwargs_for_hook(hook) == ((txn, True, 5), {})
+
+    def test_hook_prep_with_extraneous_data(self):
+        def hook(txn, y, x=42):
+            pass
+
+        txn = Transaction()
+        txn.set("y", True)
+        txn.set("x", 5)
+        txn.set("z", False)  # should be ignored
+        assert txn._prepare_args_kwargs_for_hook(hook) == ((txn, True, 5), {})
