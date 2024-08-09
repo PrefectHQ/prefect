@@ -31,8 +31,17 @@ on:
 
 jobs:
   prefect-client-smoke-test:
-    name: Build and run prefect-client
+    name: Build and run prefect-client python:${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,7 +52,10 @@ jobs:
       - name: Set up Python 3.8
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
+
+          cache: "pip"
+          cache-dependency-path: "requirements-client.txt"
 
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
@@ -58,7 +70,7 @@ jobs:
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package
-        run: pip install dist/*.whl
+        run: pip install dist/*.tar.gz
         working-directory: ${{ env.TMPDIR }}
 
       - name: Run the smoke test flow using the built client
