@@ -281,9 +281,10 @@ def add_together(x, y):
 @flow
 def sum_it(numbers, static_value):
     futures = add_together.map(numbers, static_value)
-    return futures
+    return futures.result()
 
-sum_it([1, 2, 3], 5)
+resulting_sum = sum_it([1, 2, 3], 5)
+assert resulting_sum == [6, 7, 8]
 ```
 
 If your static argument is an iterable, wrap it with `unmapped` to tell Prefect to treat it 
@@ -298,8 +299,9 @@ def sum_plus(x, static_iterable):
 
 @flow
 def sum_it(numbers, static_iterable):
-    futures = sum_plus.map(numbers, static_iterable)
-    return futures
+    futures = sum_plus.map(numbers, unmapped(static_iterable))
+    return futures.result()
 
-sum_it([4, 5, 6], unmapped([1, 2, 3]))
+resulting_sum = sum_it([4, 5, 6], [1, 2, 3])
+assert resulting_sum == [10, 11, 12]
 ```
