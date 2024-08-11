@@ -235,7 +235,7 @@ class BaseTaskRunEngine(Generic[P, R]):
 
                         @flow
                         def example_flow():
-                            future = say_hello.submit(name="Marvin)
+                            future = say_hello.submit(name="Marvin")
                             future.wait()
 
                         example_flow()
