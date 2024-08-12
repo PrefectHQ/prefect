@@ -562,14 +562,13 @@ async def test_root_flow_explicit_result_storage_settings_overrides_default():
 
 
 def test_flow_version_result_storage_key():
-    @task(result_storage_key="{flow_run.flow_version}")
+    @task(result_storage_key="{flow_run.flow_version}", persist_result=True)
     def some_task():
         return "hello"
 
     @flow(version="somespecialflowversion")
     def some_flow() -> Block:
         some_task()
-        breakpoint()
         return get_run_context().result_factory.storage_block
 
     storage_block = some_flow()
