@@ -131,8 +131,7 @@ class TestCreateDeployment:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                schedule=schedule,
-                is_schedule_active=False,
+                schedules=[schemas.core.DeploymentSchedule(schedule=schedule)],
                 parameters={"foo": "bar"},
                 parameter_openapi_schema=openapi_schema,
                 tags=["foo", "bar"],
@@ -141,8 +140,9 @@ class TestCreateDeployment:
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert not deployment.is_schedule_active
-        assert deployment.schedule == schedule
+        assert not deployment.paused
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == schedule
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.parameter_openapi_schema == openapi_schema
         assert deployment.tags == ["foo", "bar"]
@@ -157,12 +157,13 @@ class TestCreateDeployment:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                schedule=schedule,
+                schedules=[schemas.core.DeploymentSchedule(schedule=schedule)],
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.schedule == schedule
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == schedule
 
     async def test_create_deployment_with_created_by(self, session, flow):
         created_by = schemas.core.CreatedBy(
@@ -359,7 +360,6 @@ class TestReadDeployments:
                 name="My Deployment",
                 flow_id=flow.id,
                 paused=False,
-                is_schedule_active=True,
             ),
         )
         await models.deployments.create_deployment(
@@ -370,7 +370,6 @@ class TestReadDeployments:
                 flow_id=flow.id,
                 tags=["tb12"],
                 paused=False,
-                is_schedule_active=True,
             ),
         )
         await models.deployments.create_deployment(
@@ -381,7 +380,6 @@ class TestReadDeployments:
                 flow_id=flow.id,
                 tags=["tb12", "goat"],
                 paused=True,
-                is_schedule_active=False,
             ),
         )
 
@@ -437,17 +435,6 @@ class TestReadDeployments:
             session=session,
             deployment_filter=filters.DeploymentFilter(
                 paused=filters.DeploymentFilterPaused(eq_=True)
-            ),
-        )
-        assert {res.id for res in result} == {deployment_id_3}
-
-    async def test_read_deployment_filters_by_schedule_active(
-        self, filter_data, deployment_id_3, session
-    ):
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                is_schedule_active=filters.DeploymentFilterIsScheduleActive(eq_=False)
             ),
         )
         assert {res.id for res in result} == {deployment_id_3}
@@ -893,9 +880,13 @@ class TestScheduledRuns:
             deployment=schemas.core.Deployment(
                 name="My second deployment",
                 flow_id=flow.id,
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1)
-                ),
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1)
+                        )
+                    )
+                ],
             ),
         )
 

@@ -7,7 +7,6 @@ This will be subject to consolidation and refactoring over the next few months.
 """
 
 import json
-import logging
 import re
 import urllib.parse
 import warnings
@@ -21,7 +20,6 @@ import yaml
 from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.exceptions import InvalidRepositoryURLError
-from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import isiterable
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -219,92 +217,14 @@ def convert_to_strings(value: Union[Any, List[Any]]) -> Union[str, List[str]]:
 ### SCHEDULE SCHEMA VALIDATORS ###
 
 
-def validate_deprecated_schedule_fields(values: dict, logger: logging.Logger) -> dict:
-    """
-    Validate and log deprecation warnings for deprecated schedule fields.
-    """
-    if values.get("schedule") and not values.get("schedules"):
-        logger.warning(
-            "The field 'schedule' in 'Deployment' has been deprecated. It will not be "
-            "available after Sep 2024. Define schedules in the `schedules` list instead."
-        )
-    elif values.get("is_schedule_active") and not values.get("schedules"):
-        logger.warning(
-            "The field 'is_schedule_active' in 'Deployment' has been deprecated. It will "
-            "not be available after Sep 2024. Use the `active` flag within a schedule in "
-            "the `schedules` list instead and the `pause` flag in 'Deployment' to pause "
-            "all schedules."
-        )
-    return values
-
-
-def reconcile_schedules(cls, values: dict) -> dict:
-    """
-    Reconcile the `schedule` and `schedules` fields in a deployment.
-    """
-
-    from prefect.deployments.schedules import (
-        create_deployment_schedule_create,
-        normalize_to_deployment_schedule_create,
-    )
-
-    schedule = values.get("schedule", NotSet)
-    schedules = values.get("schedules", NotSet)
-
-    if schedules is not NotSet:
-        values["schedules"] = normalize_to_deployment_schedule_create(schedules)
-    elif schedule is not NotSet:
-        values["schedule"] = None
-
-        if schedule is None:
-            values["schedules"] = []
-        else:
-            values["schedules"] = [
-                create_deployment_schedule_create(
-                    schedule=schedule, active=values.get("is_schedule_active")
-                )
-            ]
-
-    for schedule in values.get("schedules", []):
-        cls._validate_schedule(schedule.schedule)
-
-    return values
-
-
-# TODO: consolidate with above if possible
 def reconcile_schedules_runner(values: dict) -> dict:
-    """
-    Similar to above, we reconcile the `schedule` and `schedules` fields in a deployment.
-    """
     from prefect.deployments.schedules import (
-        create_deployment_schedule_create,
         normalize_to_deployment_schedule_create,
     )
 
-    schedule = values.get("schedule")
     schedules = values.get("schedules")
-
-    if schedules is None and schedule is not None:
-        values["schedules"] = [create_deployment_schedule_create(schedule)]
-    elif schedules is not None and len(schedules) > 0:
+    if schedules is not None and len(schedules) > 0:
         values["schedules"] = normalize_to_deployment_schedule_create(schedules)
-
-    return values
-
-
-def set_deployment_schedules(values: dict) -> dict:
-    from prefect.server.schemas.actions import DeploymentScheduleCreate
-
-    if not values.get("schedules") and values.get("schedule"):
-        kwargs = {
-            key: values[key]
-            for key in ["schedule", "is_schedule_active"]
-            if key in values
-        }
-        if "is_schedule_active" in kwargs:
-            kwargs["active"] = kwargs.pop("is_schedule_active")
-
-        values["schedules"] = [DeploymentScheduleCreate(**kwargs)]
 
     return values
 
@@ -350,17 +270,9 @@ def remove_old_deployment_fields(values: dict) -> dict:
 
 def reconcile_paused_deployment(values):
     paused = values.get("paused")
-    is_schedule_active = values.get("is_schedule_active")
 
-    if paused is not None:
-        values["paused"] = paused
-        values["is_schedule_active"] = not paused
-    elif is_schedule_active is not None:
-        values["paused"] = not is_schedule_active
-        values["is_schedule_active"] = is_schedule_active
-    else:
+    if paused is None:
         values["paused"] = False
-        values["is_schedule_active"] = True
 
     return values
 

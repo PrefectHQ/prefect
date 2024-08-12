@@ -299,7 +299,6 @@ class TestRunner:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
                             DeploymentScheduleCreate(
@@ -316,7 +315,9 @@ class TestRunner:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            expected_message = (
+                "Only one of interval, cron, rrule, or schedules can be provided."
+            )
             runner = Runner()
             with pytest.raises(ValueError, match=expected_message):
                 await runner.add_flow(dummy_flow_1, __file__, **kwargs)
@@ -362,9 +363,9 @@ class TestRunner:
             name="dummy-flow-2/test_runner"
         )
 
-        assert deployment_1.is_schedule_active
+        assert not deployment_1.paused
 
-        assert deployment_2.is_schedule_active
+        assert not deployment_2.paused
 
         await runner.start(run_once=True)
 
@@ -375,9 +376,9 @@ class TestRunner:
             name="dummy-flow-2/test_runner"
         )
 
-        assert not deployment_1.is_schedule_active
+        assert deployment_1.paused
 
-        assert not deployment_2.is_schedule_active
+        assert deployment_2.paused
 
         assert "Pausing all deployments" in caplog.text
         assert "All deployments have been paused" in caplog.text
@@ -918,7 +919,7 @@ class TestRunnerDeployment:
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is False
         assert deployment.enforce_parameter_schema
 
     async def test_from_flow_can_produce_a_module_path_entrypoint(self):
@@ -1027,19 +1028,6 @@ class TestRunnerDeployment:
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, paused=value)
 
         assert deployment.paused is expected
-        # `is_schedule_active` is the opposite of `paused`
-        assert deployment.is_schedule_active is not expected
-
-    @pytest.mark.parametrize(
-        "value,expected",
-        [(True, True), (False, False), (None, True)],
-    )
-    def test_from_flow_accepts_is_schedule_active(self, value, expected):
-        deployment = RunnerDeployment.from_flow(
-            dummy_flow_1, __file__, is_schedule_active=value
-        )
-
-        assert deployment.is_schedule_active is expected
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -1050,7 +1038,6 @@ class TestRunnerDeployment:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
                             DeploymentScheduleCreate(
@@ -1065,7 +1052,7 @@ class TestRunnerDeployment:
     )
     def test_from_flow_raises_on_multiple_schedule_parameters(self, kwargs):
         expected_message = (
-            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            "Only one of interval, cron, rrule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_flow(dummy_flow_1, __file__, **kwargs)
@@ -1229,21 +1216,6 @@ class TestRunnerDeployment:
         )
 
         assert deployment.paused is expected
-        # `is_schedule_active` is the opposite of `paused`
-        assert deployment.is_schedule_active is not expected
-
-    @pytest.mark.parametrize(
-        "value,expected",
-        [(True, True), (False, False), (None, True)],
-    )
-    def test_from_entrypoint_accepts_is_schedule_active(
-        self, dummy_flow_1_entrypoint, value, expected
-    ):
-        deployment = RunnerDeployment.from_entrypoint(
-            dummy_flow_1_entrypoint, __file__, is_schedule_active=value
-        )
-
-        assert deployment.is_schedule_active is expected
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -1254,7 +1226,6 @@ class TestRunnerDeployment:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
                             DeploymentScheduleCreate(
@@ -1271,7 +1242,7 @@ class TestRunnerDeployment:
         self, dummy_flow_1_entrypoint, kwargs
     ):
         expected_message = (
-            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            "Only one of interval, cron, rrule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_entrypoint(
@@ -1305,7 +1276,7 @@ class TestRunnerDeployment:
         assert deployment.path == "."
         assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is False
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(
@@ -1326,16 +1297,16 @@ class TestRunnerDeployment:
         }
         assert deployment.work_queue_name == "default"
 
-    async def test_apply_inactive_schedule(self, prefect_client: PrefectClient):
+    async def test_apply_paused(self, prefect_client: PrefectClient):
         deployment = RunnerDeployment.from_flow(
-            dummy_flow_1, __file__, interval=3600, is_schedule_active=False
+            dummy_flow_1, __file__, interval=3600, paused=True
         )
 
         deployment_id = await deployment.apply()
 
         deployment = await prefect_client.read_deployment(deployment_id)
 
-        assert deployment.is_schedule_active is False
+        assert deployment.paused is True
 
     @pytest.mark.parametrize(
         "from_flow_kwargs, apply_kwargs, expected_message",
@@ -1468,15 +1439,14 @@ class TestRunnerDeployment:
         )
 
         assert deployment.paused is expected
-        assert deployment.is_schedule_active is not expected
 
-    async def test_init_runner_deployment_with_schedule(self):
+    async def test_init_runner_deployment_with_schedules(self):
         schedule = CronSchedule(cron="* * * * *")
 
         deployment = RunnerDeployment(
             flow=dummy_flow_1,
             name="test-deployment",
-            schedule=schedule,
+            schedules=[schedule],
         )
 
         assert deployment.schedules

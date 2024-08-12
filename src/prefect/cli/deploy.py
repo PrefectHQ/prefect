@@ -1685,8 +1685,4 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
             style="yellow",
         )
 
-    # Pop the legacy schedule keys if they exist
-    deploy_config.pop("schedule", None)
-    deploy_config.pop("is_schedule_active", None)
-
     return deploy_config

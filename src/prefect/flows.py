@@ -47,16 +47,12 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.compatibility.deprecated import (
-    deprecated_parameter,
-)
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
@@ -627,18 +623,6 @@ class Flow(Generic[P, R]):
         return serialized_parameters
 
     @sync_compatible
-    @deprecated_parameter(
-        "schedule",
-        start_date="Mar 2024",
-        when=lambda p: p is not None,
-        help="Use `schedules` instead.",
-    )
-    @deprecated_parameter(
-        "is_schedule_active",
-        start_date="Mar 2024",
-        when=lambda p: p is not None,
-        help="Use `paused` instead.",
-    )
     async def to_deployment(
         self,
         name: str,
@@ -654,8 +638,6 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List["FlexibleScheduleList"]] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -679,10 +661,6 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             triggers: A list of triggers that will kick off runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
@@ -735,8 +713,6 @@ class Flow(Generic[P, R]):
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
-                schedule=schedule,
-                is_schedule_active=is_schedule_active,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -756,8 +732,6 @@ class Flow(Generic[P, R]):
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
-                schedule=schedule,
-                is_schedule_active=is_schedule_active,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -815,8 +789,6 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -846,11 +818,6 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment. Used to
-                define additional scheduling options such as `timezone`.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -914,8 +881,6 @@ class Flow(Generic[P, R]):
             rrule=rrule,
             paused=paused,
             schedules=schedules,
-            schedule=schedule,
-            is_schedule_active=is_schedule_active,
             parameters=parameters,
             description=description,
             tags=tags,
@@ -1085,8 +1050,6 @@ class Flow(Generic[P, R]):
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -1133,11 +1096,6 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment. Used to
-                define additional scheduling options like `timezone`.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -1213,8 +1171,6 @@ class Flow(Generic[P, R]):
             rrule=rrule,
             schedules=schedules,
             paused=paused,
-            schedule=schedule,
-            is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
             description=description,

@@ -489,15 +489,6 @@ class DeploymentFilterWorkQueueName(PrefectBaseModel):
     )
 
 
-class DeploymentFilterIsScheduleActive(PrefectBaseModel):
-    """Filter by `Deployment.is_schedule_active`."""
-
-    eq_: Optional[bool] = Field(
-        default=None,
-        description="Only returns where deployment schedule is/is not active",
-    )
-
-
 class DeploymentFilterTags(PrefectBaseModel, OperatorMixin):
     """Filter by `Deployment.tags`."""
 
@@ -522,9 +513,6 @@ class DeploymentFilter(PrefectBaseModel, OperatorMixin):
     )
     name: Optional[DeploymentFilterName] = Field(
         default=None, description="Filter criteria for `Deployment.name`"
-    )
-    is_schedule_active: Optional[DeploymentFilterIsScheduleActive] = Field(
-        default=None, description="Filter criteria for `Deployment.is_schedule_active`"
     )
     tags: Optional[DeploymentFilterTags] = Field(
         default=None, description="Filter criteria for `Deployment.tags`"

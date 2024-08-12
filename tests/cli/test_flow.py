@@ -71,7 +71,9 @@ class TestFlowServe:
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
 
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert len(deployment.schedules) == 1
+        schedule = deployment.schedules[0].schedule
+        assert schedule.interval == datetime.timedelta(seconds=3600)
 
     async def test_flow_serve_cli_accepts_cron(
         self, prefect_client: PrefectClient, mock_runner_start
@@ -91,8 +93,8 @@ class TestFlowServe:
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
-
-        assert deployment.schedule.cron == "* * * * *"
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
 
     async def test_flow_serve_cli_accepts_rrule(
         self, prefect_client: PrefectClient, mock_runner_start
@@ -112,8 +114,8 @@ class TestFlowServe:
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
-
-        assert deployment.schedule.rrule == "FREQ=MINUTELY;COUNT=5"
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY;COUNT=5"
 
     async def test_flow_serve_cli_accepts_metadata_fields(
         self, prefect_client: PrefectClient, mock_runner_start

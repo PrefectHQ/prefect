@@ -762,8 +762,12 @@ class TestCancellation:
         work_queue_2,
     ):
         # Update queue name, but not work pool name
-        deployment.work_queue_name = work_queue_2.name
-        await prefect_client.update_deployment(deployment)
+        await prefect_client.update_deployment(
+            deployment_id=deployment.id,
+            deployment=client_schemas.actions.DeploymentUpdate(
+                work_queue_name=work_queue_2.name
+            ),
+        )
 
         await prefect_client.create_flow_run_from_deployment(
             deployment.id,

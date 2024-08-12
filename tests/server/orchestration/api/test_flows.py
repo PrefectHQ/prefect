@@ -299,7 +299,6 @@ class TestReadFlows:
             deployment=schemas.core.Deployment(
                 name="My Deployment X",
                 flow_id=flow_1.id,
-                is_schedule_active=True,
                 work_queue_id=work_queue.id,
             ),
         )
@@ -544,7 +543,6 @@ class TestPaginateFlows:
             deployment=schemas.core.Deployment(
                 name="My Deployment X",
                 flow_id=flow_1.id,
-                is_schedule_active=True,
                 work_queue_id=work_queue.id,
             ),
         )
