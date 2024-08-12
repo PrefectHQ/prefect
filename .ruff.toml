@@ -1,7 +1,9 @@
 src = ["src"]
 
 # Use Ruff for sorting imports
-lint.extend-select = ["I"]
+lint.preview = true
+lint.extend-select = ["I", "PLC2701"]
+lint.explicit-preview-rules = true
 
 # Do not enforce line length; black does this for code and we do not care about comments / docs
 lint.ignore = ["E501"]
