@@ -1,4 +1,3 @@
-import inspect
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
@@ -13,7 +12,7 @@ from typing import (
     Union,
 )
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
@@ -27,7 +26,6 @@ from prefect.results import (
     get_default_result_storage,
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
 
@@ -67,15 +65,17 @@ class Transaction(ContextModel):
     )
     overwrite: bool = False
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
-    hook_data: Dict[str, Any] = Field(default_factory=dict)
+    _hook_data: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
 
     def set(self, name: str, value: Any) -> None:
-        self.hook_data[name] = value
+        self._hook_data[name] = value
 
     def get(self, name: str) -> Any:
-        return self.hook_data.get(name)
+        if name not in self._hook_data:
+            raise ValueError(f"Could not retrieve unknown key: {name}")
+        return self._hook_data.get(name)
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED
@@ -242,23 +242,6 @@ class Transaction(ContextModel):
             self.on_rollback_hooks += on_rollback_hooks
             self.on_commit_hooks += on_commit_hooks
             self.state = TransactionState.STAGED
-
-    def _prepare_args_kwargs_for_hook(self, hook) -> dict:
-        signature = inspect.signature(hook)
-        try:
-            params = signature.bind(self, **self.hook_data)
-        except TypeError:
-            # in this case, we are more surgical
-            hook_params = dict(signature.parameters).keys()
-            partial_data = {
-                key: value
-                for key, value in self.hook_data.items()
-                if key in hook_params
-            }
-            params = signature.bind(self, **partial_data)
-
-        params.apply_defaults()
-        return parameters_to_args_kwargs(hook, dict(params.arguments))
 
     def rollback(self) -> bool:
         if self.state in [TransactionState.ROLLED_BACK, TransactionState.COMMITTED]:
