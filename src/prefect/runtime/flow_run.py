@@ -123,11 +123,9 @@ def get_id() -> Optional[str]:
     flow_run_ctx = FlowRunContext.get()
     task_run_ctx = TaskRunContext.get()
     if flow_run_ctx is not None:
-        return str(run.id) if (run := flow_run_ctx.flow_run) and run.id else None
+        return str(flow_run_ctx.flow_run.id)
     if task_run_ctx is not None:
-        return (
-            str(run.id) if (run := task_run_ctx.task_run) and run.flow_run_id else None
-        )
+        return str(task_run_ctx.task_run.flow_run_id)
     else:
         return os.getenv("PREFECT__FLOW_RUN_ID")
 
