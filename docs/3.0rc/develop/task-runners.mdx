@@ -281,10 +281,30 @@ def add_together(x, y):
 @flow
 def sum_it(numbers, static_value):
     futures = add_together.map(numbers, static_value)
-    return futures
+    return futures.result()
 
-sum_it([1, 2, 3], 5)
+resulting_sum = sum_it([1, 2, 3], 5)
+assert resulting_sum == [6, 7, 8]
 ```
+
+<Tip>
+**Get the results from a list of mapped futures**
+
+When using `.map` as in the above example, the result of the task is a list of futures. 
+You can wait for or retrieve the results from these futures with `wait` or `result` methods:
+
+```python
+futures = some_task.map(some_iterable)
+results = futures.result()
+```
+which is shorthand for:
+
+```python
+futures = some_task.map(some_iterable)
+results = [future.result() for future in futures]
+```
+</Tip>
+
 
 If your static argument is an iterable, wrap it with `unmapped` to tell Prefect to treat it 
 as a static value.
@@ -298,8 +318,9 @@ def sum_plus(x, static_iterable):
 
 @flow
 def sum_it(numbers, static_iterable):
-    futures = sum_plus.map(numbers, static_iterable)
-    return futures
+    futures = sum_plus.map(numbers, unmapped(static_iterable))
+    return futures.result()
 
-sum_it([4, 5, 6], unmapped([1, 2, 3]))
+resulting_sum = sum_it([4, 5, 6], [1, 2, 3])
+assert resulting_sum == [10, 11, 12]
 ```
