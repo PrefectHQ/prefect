@@ -5,7 +5,6 @@ import time
 from asyncio import CancelledError
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
-from functools import wraps
 from textwrap import dedent
 from typing import (
     Any,
@@ -496,15 +495,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[self.handle_rollback]
-            + [
-                _with_transaction_hook_logging(hook, "rollback", self.logger)
-                for hook in self.task.on_rollback_hooks
-            ],
-            on_commit_hooks=[
-                _with_transaction_hook_logging(hook, "commit", self.logger)
-                for hook in self.task.on_commit_hooks
-            ],
+            on_rollback_hooks=[self.handle_rollback] + self.task.on_rollback_hooks,
+            on_commit_hooks=self.task.on_commit_hooks,
         )
         if transaction.is_committed():
             terminal_state.name = "Cached"
@@ -1068,15 +1060,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[self.handle_rollback]
-            + [
-                _with_transaction_hook_logging(hook, "rollback", self.logger)
-                for hook in self.task.on_rollback_hooks
-            ],
-            on_commit_hooks=[
-                _with_transaction_hook_logging(hook, "commit", self.logger)
-                for hook in self.task.on_commit_hooks
-            ],
+            on_rollback_hooks=[self.handle_rollback] + self.task.on_rollback_hooks,
+            on_commit_hooks=self.task.on_commit_hooks,
         )
         if transaction.is_committed():
             terminal_state.name = "Cached"
@@ -1622,28 +1607,3 @@ def run_task(
         return run_task_async(**kwargs)
     else:
         return run_task_sync(**kwargs)
-
-
-def _with_transaction_hook_logging(
-    hook: Callable[[Transaction], None],
-    hook_type: Literal["rollback", "commit"],
-    logger: logging.Logger,
-) -> Callable[[Transaction], None]:
-    @wraps(hook)
-    def _hook(txn: Transaction) -> None:
-        hook_name = _get_hook_name(hook)
-        logger.info(f"Running {hook_type} hook {hook_name!r}")
-
-        try:
-            hook(txn)
-        except Exception as exc:
-            logger.error(
-                f"An error was encountered while running {hook_type} hook {hook_name!r}",
-            )
-            raise exc
-        else:
-            logger.info(
-                f"{hook_type.capitalize()} hook {hook_name!r} finished running successfully"
-            )
-
-    return _hook
