@@ -74,7 +74,7 @@ class Transaction(ContextModel):
 
     def get(self, name: str) -> Any:
         if name not in self._hook_data:
-            raise ValueError(f"Could not retrieve unknown key: {name}")
+            raise ValueError(f"Could not retrieve value for unknown key: {name}")
         return self._hook_data.get(name)
 
     def is_committed(self) -> bool:
