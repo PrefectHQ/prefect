@@ -106,7 +106,6 @@ class RunnerDeployment(BaseModel):
             are used only for organizational purposes. For delegating work to agents,
             see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
-        is_schedule_active: Whether or not the schedule is active
         parameters: A dictionary of parameter values to pass to runs created from this
             deployment
         path: The path to the working directory for the workflow, relative to remote
@@ -144,12 +143,8 @@ class RunnerDeployment(BaseModel):
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
-    schedule: Optional[SCHEDULE_TYPES] = None
     paused: Optional[bool] = Field(
         default=None, description="Whether or not the deployment is paused."
-    )
-    is_schedule_active: Optional[bool] = Field(
-        default=None, description="DEPRECATED: Whether or not the schedule is active."
     )
     parameters: Dict[str, Any] = Field(default_factory=dict)
     entrypoint: Optional[str] = Field(
@@ -383,7 +378,7 @@ class RunnerDeployment(BaseModel):
         )
         if num_schedules > 1:
             raise ValueError(
-                "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+                "Only one of interval, cron, rrule, or schedules can be provided."
             )
         elif num_schedules == 0:
             return []
@@ -437,8 +432,6 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -463,11 +456,6 @@ class RunnerDeployment(BaseModel):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
-            schedule: A schedule object of when to execute runs of this flow. Used for
-                advanced scheduling options like timezone.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -488,7 +476,6 @@ class RunnerDeployment(BaseModel):
             interval=interval,
             cron=cron,
             rrule=rrule,
-            schedule=schedule,
             schedules=schedules,
         )
 
@@ -497,9 +484,7 @@ class RunnerDeployment(BaseModel):
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow.name,
-            schedule=schedule,
             schedules=constructed_schedules,
-            is_schedule_active=is_schedule_active,
             paused=paused,
             tags=tags or [],
             triggers=triggers or [],
@@ -573,8 +558,6 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -599,11 +582,6 @@ class RunnerDeployment(BaseModel):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
-            schedule: A schedule object of when to execute runs of this flow. Used for
-                advanced scheduling options like timezone.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -629,17 +607,14 @@ class RunnerDeployment(BaseModel):
             interval=interval,
             cron=cron,
             rrule=rrule,
-            schedule=schedule,
             schedules=schedules,
         )
 
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow.name,
-            schedule=schedule,
             schedules=constructed_schedules,
             paused=paused,
-            is_schedule_active=is_schedule_active,
             tags=tags or [],
             triggers=triggers or [],
             parameters=parameters or {},
@@ -671,8 +646,6 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -697,11 +670,6 @@ class RunnerDeployment(BaseModel):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
-            schedule: A schedule object of when to execute runs of this flow. Used for
-                advanced scheduling options like timezone.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -724,7 +692,6 @@ class RunnerDeployment(BaseModel):
             interval=interval,
             cron=cron,
             rrule=rrule,
-            schedule=schedule,
             schedules=schedules,
         )
 
@@ -742,10 +709,8 @@ class RunnerDeployment(BaseModel):
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow.name,
-            schedule=schedule,
             schedules=constructed_schedules,
             paused=paused,
-            is_schedule_active=is_schedule_active,
             tags=tags or [],
             triggers=triggers or [],
             parameters=parameters or {},

@@ -9,7 +9,6 @@ from typing_extensions import Literal
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
@@ -313,12 +312,6 @@ class DeploymentResponse(ObjectBaseModel):
     )
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
-    )
-    schedule: Optional[SCHEDULE_TYPES] = Field(
-        default=None, description="A schedule for the deployment."
-    )
-    is_schedule_active: bool = Field(
-        default=True, description="Whether or not the deployment schedule is active."
     )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."

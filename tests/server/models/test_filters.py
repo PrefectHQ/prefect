@@ -103,8 +103,11 @@ async def data(flow_function, db):
                 id=d_1_1_id,
                 name="d-1-1",
                 flow_id=f_1.id,
-                schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
-                is_schedule_active=True,
+                schedules=[
+                    core.DeploymentSchedule(
+                        schedule=schedules.IntervalSchedule(interval=timedelta(days=1))
+                    )
+                ],
                 paused=False,
             )
         )
@@ -113,7 +116,6 @@ async def data(flow_function, db):
                 id=d_1_2_id,
                 name="d-1-2",
                 flow_id=f_1.id,
-                is_schedule_active=False,
                 paused=True,
                 work_queue_name="test-queue-for-filters",
             )
@@ -123,8 +125,11 @@ async def data(flow_function, db):
                 id=d_3_1_id,
                 name="d-3-1",
                 flow_id=f_3.id,
-                schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
-                is_schedule_active=True,
+                schedules=[
+                    core.DeploymentSchedule(
+                        schedule=schedules.IntervalSchedule(interval=timedelta(days=1))
+                    )
+                ],
                 paused=False,
                 work_queue_id=wp.default_queue_id,
             )
@@ -846,22 +851,6 @@ class TestCountDeploymentModels:
                 deployment_filter=filters.DeploymentFilter(name=dict(any_=["zaphod"]))
             ),
             0,
-        ],
-        [
-            dict(
-                deployment_filter=filters.DeploymentFilter(
-                    is_schedule_active=dict(eq_=True)
-                )
-            ),
-            2,
-        ],
-        [
-            dict(
-                deployment_filter=filters.DeploymentFilter(
-                    is_schedule_active=dict(eq_=False)
-                )
-            ),
-            1,
         ],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 2],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 2],
