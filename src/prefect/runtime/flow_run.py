@@ -12,6 +12,7 @@ Available attributes:
     - `scheduled_start_time`: the flow run's expected scheduled start time; defaults to now if not present
     - `name`: the name of the flow run
     - `flow_name`: the name of the flow
+    - `flow_version`: the version of the flow
     - `parameters`: the parameters that were passed to this run; note that these do not necessarily
         include default values set on the flow function, only the parameter values explicitly passed for the run
     - `parent_flow_run_id`: the ID of the flow run that triggered this run, if any
@@ -35,6 +36,7 @@ __all__ = [
     "scheduled_start_time",
     "name",
     "flow_name",
+    "flow_version",
     "parameters",
     "parent_flow_run_id",
     "parent_deployment_id",
