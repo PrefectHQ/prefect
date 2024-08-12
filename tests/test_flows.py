@@ -77,7 +77,7 @@ from prefect.testing.utilities import (
     exceptions_equal,
     get_most_recent_flow_run,
 )
-from prefect.transactions import transaction
+from prefect.transactions import get_transaction, transaction
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
@@ -4416,6 +4416,37 @@ class TestTransactions:
         assert data2["called"] is True
         assert data1["called"] is True
 
+    def test_isolated_shared_state_on_txn_between_tasks(self):
+        data1, data2 = {}, {}
+
+        @task
+        def task1():
+            get_transaction().set("task", 1)
+
+        @task1.on_rollback
+        def rollback(txn):
+            data1["hook"] = txn.get("task")
+
+        @task
+        def task2():
+            get_transaction().set("task", 2)
+
+        @task2.on_rollback
+        def rollback2(txn):
+            data2["hook"] = txn.get("task")
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+                raise ValueError("oopsie")
+
+        main(return_state=True)
+
+        assert data2["hook"] == 2
+        assert data1["hook"] == 1
+
     def test_task_failure_causes_previous_to_rollback(self):
         data1, data2 = {}, {}
 
@@ -4904,8 +4935,8 @@ class TestSafeLoadFlowFromEntrypoint:
         source_code = dedent(
             """
         import pendulum
-        import datetime  
-        from prefect import flow               
+        import datetime
+        from prefect import flow
 
         @flow
         def f(
@@ -5033,7 +5064,7 @@ class TestSafeLoadFlowFromEntrypoint:
             def f(
                 param: Optional[MyModel] = None,
             ) -> None:
-                return MyModel()        
+                return MyModel()
             """
         )
         tmp_path.joinpath("test.py").write_text(source_code)
@@ -5052,7 +5083,7 @@ class TestSafeLoadFlowFromEntrypoint:
 
         @flow(description="Says woof!")
         def dog():
-            return not_a_function('dog')        
+            return not_a_function('dog')
             """
         )
 
