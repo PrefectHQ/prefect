@@ -501,6 +501,73 @@ class TestSettingAccess:
                 PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
 
 
+class TestDatabaseSettings:
+    def test_database_connection_url_templates_password(self):
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_API_DATABASE_PASSWORD}/test"
+                ),
+                PREFECT_API_DATABASE_PASSWORD: "password",
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "password/test"
+
+    def test_database_connection_url_templates_null_password(self):
+        # Not exactly beautiful behavior here, but I think it's clear.
+        # In the future, we may want to consider raising if attempting to template
+        # a null value.
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_API_DATABASE_PASSWORD}/test"
+                )
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "None/test"
+
+    def test_warning_if_database_password_set_without_template_string(self):
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
+                "PREFECT_API_DATABASE_CONNECTION_URL. "
+                "The provided password will be ignored."
+            ),
+        ):
+            with temporary_settings(
+                {
+                    PREFECT_API_DATABASE_CONNECTION_URL: "test",
+                    PREFECT_API_DATABASE_PASSWORD: "password",
+                }
+            ):
+                pass
+
+    def test_connection_string_with_dollar_sign(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/11067.
+
+        This test ensures that passwords with dollar signs do not cause issues when
+        templating the connection string.
+        """
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "postgresql+asyncpg://"
+                    "the-user:the-$password@"
+                    "the-database-server.example.com:5432"
+                    "/the-database"
+                ),
+            }
+        ):
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
+                "postgresql+asyncpg://"
+                "the-user:the-$password@"
+                "the-database-server.example.com:5432"
+                "/the-database"
+            )
+
+
 class TestTemporarySettings:
     def test_temporary_settings(self):
         assert PREFECT_TEST_MODE.value() is True
