@@ -119,13 +119,15 @@ async def _get_flow_from_run(flow_run_id):
         return await client.read_flow(flow_run.flow_id)
 
 
-def get_id() -> str:
+def get_id() -> Optional[str]:
     flow_run_ctx = FlowRunContext.get()
     task_run_ctx = TaskRunContext.get()
     if flow_run_ctx is not None:
-        return str(flow_run_ctx.flow_run.id)
+        return str(run.id) if (run := flow_run_ctx.flow_run) and run.id else None
     if task_run_ctx is not None:
-        return str(task_run_ctx.task_run.flow_run_id)
+        return (
+            str(run.id) if (run := task_run_ctx.task_run) and run.flow_run_id else None
+        )
     else:
         return os.getenv("PREFECT__FLOW_RUN_ID")
 
@@ -188,6 +190,21 @@ def get_flow_name() -> Optional[str]:
         return flow.name
     else:
         return flow_run_ctx.flow.name
+
+
+def get_flow_version() -> Optional[str]:
+    flow_run_ctx = FlowRunContext.get()
+    run_id = get_id()
+    if flow_run_ctx is None and run_id is None:
+        return None
+    elif flow_run_ctx is None:
+        flow = from_sync.call_soon_in_loop_thread(
+            create_call(_get_flow_from_run, run_id)
+        ).result()
+
+        return flow.version
+    else:
+        return flow_run_ctx.flow.version
 
 
 def get_scheduled_start_time() -> pendulum.DateTime:
@@ -313,4 +330,5 @@ FIELDS = {
     "run_count": get_run_count,
     "api_url": get_flow_run_api_url,
     "ui_url": get_flow_run_ui_url,
+    "flow_version": get_flow_version,
 }

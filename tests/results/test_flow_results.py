@@ -8,7 +8,11 @@ from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
-from prefect.results import PersistedResultBlob, UnpersistedResult
+from prefect.results import (
+    PersistedResultBlob,
+    ResultFactory,
+    UnpersistedResult,
+)
 from prefect.serializers import (
     CompressedSerializer,
     JSONSerializer,
@@ -440,3 +444,26 @@ async def test_root_flow_explicit_result_storage_settings_overrides_default():
         result = await foo()
 
     assert_blocks_equal(result, await LocalFileSystem.load("explicit-storage"))
+
+
+def test_flow_version_result_storage_key():
+    @task(result_storage_key="{prefect.runtime.flow_run.flow_version}")
+    def some_task():
+        return "hello"
+
+    @flow(version="somespecialflowversion")
+    def some_flow() -> ResultFactory:
+        some_task()
+        return get_run_context().result_factory
+
+    result_factory = some_flow()
+
+    assert isinstance(result_factory.storage_block, LocalFileSystem)
+    result = pickle.loads(
+        base64.b64decode(
+            PersistedResultBlob.model_validate_json(
+                result_factory.storage_block.read_path("somespecialflowversion")
+            ).data
+        )
+    )
+    assert result == "hello"
