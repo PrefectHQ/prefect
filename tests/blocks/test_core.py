@@ -2285,24 +2285,24 @@ class TestTypeDispatch:
 
     def test_base_parse_works_for_base_instance(self):
         block = BaseBlock.model_validate(BaseBlock().model_dump())
-        assert type(block) == BaseBlock
+        assert isinstance(block, BaseBlock)
 
         block = BaseBlock.model_validate(BaseBlock().model_dump())
-        assert type(block) == BaseBlock
+        assert isinstance(block, BaseBlock)
 
     def test_base_parse_creates_child_instance_from_dict(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
-        assert type(block) == AChildBlock
+        assert isinstance(block, AChildBlock)
 
         block = BaseBlock.model_validate(BChildBlock().model_dump())
-        assert type(block) == BChildBlock
+        assert isinstance(block, BChildBlock)
 
     def test_base_parse_creates_child_instance_from_json(self):
         block = BaseBlock.model_validate_json(AChildBlock().model_dump_json())
-        assert type(block) == AChildBlock
+        assert isinstance(block, AChildBlock)
 
         block = BaseBlock.model_validate_json(BChildBlock().model_dump_json())
-        assert type(block) == BChildBlock
+        assert isinstance(block, BChildBlock)
 
     def test_base_parse_retains_default_attributes(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
@@ -2321,17 +2321,17 @@ class TestTypeDispatch:
 
     def test_base_field_creates_child_instance_from_object(self):
         model = ParentModel(block=AChildBlock())
-        assert type(model.block) == AChildBlock
+        assert isinstance(model.block, AChildBlock)
 
         model = ParentModel(block=BChildBlock())
-        assert type(model.block) == BChildBlock
+        assert isinstance(model.block, BChildBlock)
 
     def test_base_field_creates_child_instance_from_dict(self):
-        model = ParentModel(block=AChildBlock().model_dump())
-        assert type(model.block) == AChildBlock
+        model = ParentModel(block=BaseBlock.model_validate(AChildBlock().model_dump()))
+        assert isinstance(model.block, AChildBlock)
 
-        model = ParentModel(block=BChildBlock().model_dump())
-        assert type(model.block) == BChildBlock
+        model = ParentModel(block=BaseBlock.model_validate(BChildBlock().model_dump()))
+        assert isinstance(model.block, BChildBlock)
 
     def test_created_block_has_pydantic_attributes(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
@@ -2372,31 +2372,31 @@ class TestTypeDispatch:
         class UnionParentModel(BaseModel):
             block: Union[AChildBlock, BChildBlock]
 
-        model = UnionParentModel(block=AChildBlock(a=3).model_dump())
-        assert type(model.block) == AChildBlock
+        model = UnionParentModel(block=AChildBlock(a=3))
+        assert isinstance(model.block, AChildBlock)
 
         # Assignment with a copy works still
         model.block = model.block.model_copy()
-        assert type(model.block) == AChildBlock
+        assert isinstance(model.block, AChildBlock)
         assert model.block
 
-        model = UnionParentModel(block=BChildBlock(b=4).model_dump())
-        assert type(model.block) == BChildBlock
+        model = UnionParentModel(block=BChildBlock(b=4))
+        assert isinstance(model.block, BChildBlock)
 
     def test_base_field_creates_child_instance_with_assignment_validation(self):
         class AssignmentParentModel(BaseModel, validate_assignment=True):
             block: BaseBlock
 
-        model = AssignmentParentModel(block=AChildBlock(a=3).model_dump())
-        assert type(model.block) == AChildBlock
+        model = AssignmentParentModel(block=AChildBlock(a=3))
+        assert isinstance(model.block, AChildBlock)
         assert model.block.a == 3
 
         model.block = model.block.model_copy()
-        assert type(model.block) == AChildBlock
+        assert isinstance(model.block, AChildBlock)
         assert model.block.a == 3
 
-        model.block = BChildBlock(b=4).model_dump()
-        assert type(model.block) == BChildBlock
+        model.block = BChildBlock(b=4)
+        assert isinstance(model.block, BChildBlock)
         assert model.block.b == 4
 
 

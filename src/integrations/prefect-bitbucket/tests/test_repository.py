@@ -255,7 +255,7 @@ class TestBitBucketRepository:
         sub_dir_name = "puppy"
 
         with TemporaryDirectory() as tmp_src:
-            parent_contents, child_contents = self.setup_test_directory(
+            _parent_contents, child_contents = self.setup_test_directory(
                 tmp_src, sub_dir_name
             )
             self.MockTmpDir.dir = tmp_src

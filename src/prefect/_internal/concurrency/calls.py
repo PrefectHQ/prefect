@@ -13,10 +13,10 @@ import inspect
 import threading
 import weakref
 from concurrent.futures._base import (
-    CANCELLED,
-    CANCELLED_AND_NOTIFIED,
-    FINISHED,
-    RUNNING,
+    CANCELLED,  # noqa PLC2701
+    CANCELLED_AND_NOTIFIED,  # noqa PLC2701
+    FINISHED,  # noqa PLC2701
+    RUNNING,  # noqa PLC2701
 )
 from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
 

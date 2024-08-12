@@ -564,7 +564,7 @@ class TestCheckWorkQueuesForDeployment:
 
     # NO TAG DEPLOYMENTS with no-tag queues
     async def test_no_tag_picks_up_no_filter_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function
         )
         match_q = [[[], []]]
@@ -585,7 +585,7 @@ class TestCheckWorkQueuesForDeployment:
     async def test_no_tag_picks_up_no_tags_no_id_with_runners_match(
         self, session, flow, flow_function
     ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function
         )
         match_q = [
@@ -611,7 +611,7 @@ class TestCheckWorkQueuesForDeployment:
     async def test_no_tag_picks_up_only_number_of_expected_queues(
         self, session, flow, flow_function
     ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function
         )
 
@@ -630,7 +630,7 @@ class TestCheckWorkQueuesForDeployment:
 
     # ONE TAG DEPLOYMENTS with no-tag queues
     async def test_one_tag_picks_up_no_filter_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a"]
         )
         match_q = [[[], []]]
@@ -650,7 +650,7 @@ class TestCheckWorkQueuesForDeployment:
 
     # ONE TAG DEPLOYMENTS with one-tag queues
     async def test_one_tag_picks_up_one_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a"]
         )
         match_q = [[["a"], []]]
@@ -671,7 +671,7 @@ class TestCheckWorkQueuesForDeployment:
     async def test_one_tag_picks_up_only_number_of_expected_queues(
         self, session, flow, flow_function
     ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a"]
         )
 
@@ -710,7 +710,7 @@ class TestCheckWorkQueuesForDeployment:
 
     # TWO TAG DEPLOYMENTS with one-tag queues
     async def test_two_tag_picks_up_one_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
         match_q = [[["a"], []]]
@@ -730,7 +730,7 @@ class TestCheckWorkQueuesForDeployment:
 
     # TWO TAG DEPLOYMENTS with two-tag queues
     async def test_two_tag_picks_up_two_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
         match_q = [[["a", "b"], []]]
@@ -751,7 +751,7 @@ class TestCheckWorkQueuesForDeployment:
     async def test_two_tag_picks_up_only_number_of_expected_queues(
         self, session, flow, flow_function
     ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
+        match_id, _miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
 

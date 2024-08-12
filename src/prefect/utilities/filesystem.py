@@ -83,7 +83,7 @@ def filename(path: str) -> str:
     return path.split(sep)[-1]
 
 
-def is_local_path(path: Union[str, pathlib.Path, OpenFile]):
+def is_local_path(path: Union[str, pathlib.Path, OpenFile]) -> bool:
     """Check if the given path points to a local or remote file system"""
     if isinstance(path, str):
         try:
@@ -98,7 +98,7 @@ def is_local_path(path: Union[str, pathlib.Path, OpenFile]):
     else:
         raise TypeError(f"Invalid path of type {type(path).__name__!r}")
 
-    return type(of.fs) == LocalFileSystem
+    return isinstance(of.fs, LocalFileSystem)
 
 
 def to_display_path(

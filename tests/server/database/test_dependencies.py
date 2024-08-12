@@ -32,7 +32,7 @@ from prefect.server.schemas.graph import Graph
 async def test_injecting_an_existing_database_database_config(ConnectionConfig):
     with dependencies.temporary_database_config(ConnectionConfig(None)):
         db = dependencies.provide_database_interface()
-        assert type(db.database_config) == ConnectionConfig
+        assert isinstance(db.database_config, ConnectionConfig)
 
 
 async def test_injecting_a_really_dumb_database_database_config():
@@ -59,7 +59,7 @@ async def test_injecting_a_really_dumb_database_database_config():
         UselessConfiguration(connection_url=None)
     ):
         db = dependencies.provide_database_interface()
-        assert type(db.database_config) == UselessConfiguration
+        assert isinstance(db.database_config, UselessConfiguration)
 
 
 @pytest.mark.parametrize(
@@ -68,7 +68,7 @@ async def test_injecting_a_really_dumb_database_database_config():
 async def test_injecting_existing_query_components(QueryComponents):
     with dependencies.temporary_query_components(QueryComponents()):
         db = dependencies.provide_database_interface()
-        assert type(db.queries) == QueryComponents
+        assert isinstance(db.queries, QueryComponents)
 
 
 async def test_injecting_really_dumb_query_components():
@@ -139,7 +139,7 @@ async def test_injecting_really_dumb_query_components():
 
     with dependencies.temporary_query_components(ReallyBrokenQueries()):
         db = dependencies.provide_database_interface()
-        assert type(db.queries) == ReallyBrokenQueries
+        assert isinstance(db.queries, ReallyBrokenQueries)
 
 
 @pytest.mark.parametrize(
@@ -148,7 +148,7 @@ async def test_injecting_really_dumb_query_components():
 async def test_injecting_existing_orm_configs(ORMConfig):
     with dependencies.temporary_orm_config(ORMConfig()):
         db = dependencies.provide_database_interface()
-        assert type(db.orm) == ORMConfig
+        assert isinstance(db.orm, ORMConfig)
 
 
 async def test_inject_db(db):

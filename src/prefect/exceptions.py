@@ -7,7 +7,7 @@ import traceback
 from types import ModuleType, TracebackType
 from typing import Callable, Dict, Iterable, List, Optional, Type
 
-from httpx._exceptions import HTTPStatusError
+from httpx._exceptions import HTTPStatusError  # noqa PLC2701
 from pydantic import ValidationError
 from rich.traceback import Traceback
 from typing_extensions import Self

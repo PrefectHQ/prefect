@@ -10,7 +10,9 @@ from google.cloud.storage import Client as StorageClient
 from google.oauth2.service_account import Credentials
 from typing_extensions import TypedDict
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.compatibility.deprecated import (
+    deprecated_callable,  # noqa PLC2701
+)
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
 
 

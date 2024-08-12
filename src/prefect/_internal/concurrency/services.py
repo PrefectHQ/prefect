@@ -66,7 +66,7 @@ class QueueService(abc.ABC, Generic[T]):
             #  _before_ the normal `atexit` hook is called resulting in failure to
             # process items. This is particularly relevant for services which use an
             # httpx client.
-            from threading import _register_atexit
+            from threading import _register_atexit  # noqa PLC2701
 
             _register_atexit(self._at_exit)
 

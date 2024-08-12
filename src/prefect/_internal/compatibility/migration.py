@@ -34,7 +34,7 @@ Removed objects:
     ```python
     # at top
     from prefect._internal.compatibility.migration import getattr_migration
-    
+
     # at bottom
     __getattr__ = getattr_migration(__name__)
     ```
@@ -104,7 +104,7 @@ def import_string_class_method(new_location: str) -> Callable:
     Raises:
         PrefectImportError: If the method is not found in the class.
     """
-    from pydantic._internal._validators import import_string
+    from pydantic._internal._validators import import_string  # noqa PLC2701
 
     class_name, method_name = new_location.rsplit(".", 1)
 
@@ -134,7 +134,7 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
             raise AttributeError(f"{module_name!r} object has no attribute {name!r}")
         import warnings
 
-        from pydantic._internal._validators import import_string
+        from pydantic._internal._validators import import_string  # noqa PLC2701
 
         import_path = f"{module_name}:{name}"
 

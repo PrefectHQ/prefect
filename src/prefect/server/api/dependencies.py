@@ -21,7 +21,7 @@ def provide_request_api_version(x_prefect_api_version: str = Header(None)):
 
     # parse version
     try:
-        major, minor, patch = [int(v) for v in x_prefect_api_version.split(".")]
+        _major, _minor, _patch = [int(v) for v in x_prefect_api_version.split(".")]
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -148,7 +148,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
 
     elif not defines_dispatch_key and defines_type_field:
         field_type_annotation = model_cls.model_fields["type"].annotation
-        if field_type_annotation != str:
+        if field_type_annotation is not str:
             raise TypeError(
                 f"Model class {model_cls.__name__!r} defines a 'type' field with "
                 f"type {field_type_annotation.__name__!r} but it must be 'str'."

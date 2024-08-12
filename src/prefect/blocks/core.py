@@ -902,9 +902,7 @@ class Block(BaseModel, ABC):
             loaded_block.save("my-custom-message", overwrite=True)
             ```
         """
-        block_document, block_document_name = await cls._get_block_document(
-            name, client=client
-        )
+        block_document, _ = await cls._get_block_document(name, client=client)
 
         return cls._load_from_block_document(block_document, validate=validate)
 
@@ -1207,7 +1205,7 @@ class Block(BaseModel, ABC):
         name: str,
         client: Optional["PrefectClient"] = None,
     ):
-        block_document, block_document_name = await cls._get_block_document(name)
+        block_document, _ = await cls._get_block_document(name)
 
         await client.delete_block_document(block_document.id)
 

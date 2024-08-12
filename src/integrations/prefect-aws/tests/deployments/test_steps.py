@@ -299,7 +299,7 @@ def test_s3_session_with_params():
 
 
 def test_custom_credentials_and_client_parameters(s3_setup, tmp_files):
-    s3, bucket_name = s3_setup
+    _s3, bucket_name = s3_setup
     folder = "my-project"
 
     # Custom credentials and client parameters
@@ -341,7 +341,7 @@ def test_custom_credentials_and_client_parameters(s3_setup, tmp_files):
 
 
 def test_custom_credentials_and_client_parameters_minio(s3_setup, tmp_files):
-    s3, bucket_name = s3_setup
+    _s3, bucket_name = s3_setup
     folder = "my-project"
 
     # Custom credentials and client parameters
@@ -382,7 +382,7 @@ def test_custom_credentials_and_client_parameters_minio(s3_setup, tmp_files):
 
 
 def test_without_prefectignore_file(s3_setup, tmp_files: Path, mock_aws_credentials):
-    s3, bucket_name = s3_setup
+    _s3, bucket_name = s3_setup
     folder = "my-project"
 
     # Remove the .prefectignore file
@@ -408,7 +408,7 @@ def test_without_prefectignore_file(s3_setup, tmp_files: Path, mock_aws_credenti
 def test_prefectignore_with_comments_and_empty_lines(
     s3_setup, tmp_files: Path, mock_aws_credentials
 ):
-    s3, bucket_name = s3_setup
+    _s3, bucket_name = s3_setup
     folder = "my-project"
 
     # Update the .prefectignore file with comments and empty lines
