@@ -5,12 +5,12 @@ from pathlib import Path
 import pytest
 
 from prefect import flow, task
+from prefect.blocks.core import Block
 from prefect.context import get_run_context
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
     PersistedResultBlob,
-    ResultFactory,
     UnpersistedResult,
 )
 from prefect.serializers import (
@@ -452,17 +452,17 @@ def test_flow_version_result_storage_key():
         return "hello"
 
     @flow(version="somespecialflowversion")
-    def some_flow() -> ResultFactory:
+    def some_flow() -> Block:
         some_task()
-        return get_run_context().result_factory
+        return get_run_context().result_factory.storage_block
 
-    result_factory = some_flow()
+    storage_block = some_flow()
 
-    assert isinstance(result_factory.storage_block, LocalFileSystem)
+    assert isinstance(storage_block, LocalFileSystem)
     result = pickle.loads(
         base64.b64decode(
             PersistedResultBlob.model_validate_json(
-                result_factory.storage_block.read_path("somespecialflowversion")
+                storage_block.read_path("somespecialflowversion")
             ).data
         )
     )
