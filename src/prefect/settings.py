@@ -323,7 +323,11 @@ def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings",
             setting.name: setting.value_from(settings) for setting in upstream_settings
         }
         template = string.Template(str(value))
-        return original_type(template.substitute(template_values))
+        # Note the use of `safe_substitute` to avoid raising an exception if a
+        # template value is missing. In this case, template values will be left
+        # as-is in the string. Using `safe_substitute` prevents us raising when
+        # the DB password contains a `$` character.
+        return original_type(template.safe_substitute(template_values))
 
     return templater
 
