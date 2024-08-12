@@ -231,11 +231,11 @@ class BaseTaskRunEngine(Generic[P, R]):
 
                         @task
                         def say_hello(name):
-                            print f"Hello, {name}!"
+                            print(f"Hello, {name}!")
 
                         @flow
                         def example_flow():
-                            future = say_hello.submit(name="Marvin)
+                            future = say_hello.submit(name="Marvin")
                             future.wait()
 
                         example_flow()
