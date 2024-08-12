@@ -26,7 +26,7 @@ from prefect.results import (
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
-from prefect.utilities.engine import _get_hook_name
+from prefect.utilities.engine import get_hook_name
 
 
 class IsolationLevel(AutoEnum):
@@ -200,7 +200,7 @@ class Transaction(ContextModel):
             return False
 
     def run_hook(self, hook, hook_type: str) -> None:
-        hook_name = _get_hook_name(hook)
+        hook_name = get_hook_name(hook)
         self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
