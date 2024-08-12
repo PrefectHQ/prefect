@@ -78,8 +78,8 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
-    _get_hook_name,
     emit_task_run_state_change_event,
+    get_hook_name,
     link_state_to_result,
     propose_state,
     propose_state_sync,
@@ -322,7 +322,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             hooks = None
 
         for hook in hooks or []:
-            hook_name = _get_hook_name(hook)
+            hook_name = get_hook_name(hook)
 
             try:
                 self.logger.info(
@@ -894,7 +894,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             hooks = None
 
         for hook in hooks or []:
-            hook_name = _get_hook_name(hook)
+            hook_name = get_hook_name(hook)
 
             try:
                 self.logger.info(
