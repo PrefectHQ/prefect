@@ -159,7 +159,7 @@ def test_build_docker_image(
     additional_tags = kwargs.get("additional_tags", None)
     path = kwargs.get("path", os.getcwd())
     result = build_docker_image(
-        **kwargs | {"ignore_cache": True}
+        **{**kwargs, "ignore_cache": True}
     )  # ignore_cache=True to avoid caching here
 
     assert result["image"] == expected_image
