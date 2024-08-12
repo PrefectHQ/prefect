@@ -4,6 +4,7 @@ from contextvars import ContextVar, Token
 from typing import (
     Any,
     Callable,
+    Dict,
     Generator,
     List,
     Optional,
@@ -11,7 +12,7 @@ from typing import (
     Union,
 )
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
@@ -64,8 +65,17 @@ class Transaction(ContextModel):
     )
     overwrite: bool = False
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
+    _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
+
+    def set(self, name: str, value: Any) -> None:
+        self._stored_values[name] = value
+
+    def get(self, name: str) -> Any:
+        if name not in self._stored_values:
+            raise ValueError(f"Could not retrieve value for unknown key: {name}")
+        return self._stored_values.get(name)
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED

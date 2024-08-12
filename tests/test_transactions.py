@@ -340,3 +340,24 @@ class TestDefaultTransactionStorage:
             return result
 
         await test_task() == {"foo": "bar"}
+
+
+class TestHooks:
+    def test_get_and_set_data(self):
+        with transaction(key="test") as txn:
+            txn.set("x", 42)
+            assert txn.get("x") == 42
+
+    def test_get_and_set_data_in_nested_context(self):
+        with transaction(key="test") as top:
+            top.set("key", 42)
+            with transaction(key="nested") as inner:
+                inner.set("key", "string")
+                assert inner.get("key") == "string"
+                assert top.get("key") == 42
+            assert top.get("key") == 42
+
+    def test_get_raises_on_unknown(self):
+        with transaction(key="test") as txn:
+            with pytest.raises(ValueError, match="foobar"):
+                txn.get("foobar")
