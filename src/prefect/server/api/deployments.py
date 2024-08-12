@@ -162,12 +162,6 @@ async def create_deployment(
                     ),
                 )
 
-        # Ensure that `paused` and `is_schedule_active` are consistent.
-        if "paused" in data:
-            deployment.is_schedule_active = not data["paused"]
-        elif "is_schedule_active" in data:
-            deployment.paused = not data["is_schedule_active"]
-
         now = pendulum.now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
@@ -195,44 +189,6 @@ async def update_deployment(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
-
-        # We need to make sure that when a user PATCHes a deployment with
-        # `schedule` and `is_schedule_active` fields, that we populate the
-        # `schedules` field so that the one-to-many relationship is updated.
-        # This is support for legacy clients that don't know about the
-        # `schedules` field.
-
-        update_data = deployment.model_dump(exclude_unset=True)
-
-        if "schedule" in update_data or "is_schedule_active" in update_data:
-            if len(existing_deployment.schedules) > 1:
-                raise _multiple_schedules_error(deployment_id)
-
-            schedule = (
-                update_data["schedule"]
-                if "schedule" in update_data
-                else existing_deployment.schedule
-            )
-            active = (
-                update_data["is_schedule_active"]
-                if "is_schedule_active" in update_data
-                else existing_deployment.is_schedule_active
-            )
-
-            if schedule is not None:
-                deployment.schedules = [
-                    schemas.actions.DeploymentScheduleCreate(
-                        schedule=schedule, active=active
-                    )
-                ]
-            elif schedule is None:
-                deployment.schedules = []
-
-        # Ensure that `paused` and `is_schedule_active` are consistent.
-        if "paused" in update_data:
-            deployment.is_schedule_active = not update_data["paused"]
-        elif "is_schedule_active" in update_data:
-            deployment.paused = not update_data["is_schedule_active"]
 
         if deployment.work_pool_name:
             # Make sure that deployment is valid before beginning creation process
@@ -588,7 +544,6 @@ async def schedule_deployment(
         )
 
 
-@router.post("/{id:uuid}/set_schedule_active")  # Legacy route
 @router.post("/{id:uuid}/resume_deployment")
 async def resume_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
@@ -605,22 +560,9 @@ async def resume_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
-        deployment.is_schedule_active = True
         deployment.paused = False
 
-        # Ensure that we're updating the replicated schedule's `active` field,
-        # if there is only a single schedule. This is support for legacy
-        # clients.
 
-        number_of_schedules = len(deployment.schedules)
-
-        if number_of_schedules == 1:
-            deployment.schedules[0].active = True
-        elif number_of_schedules > 1:
-            raise _multiple_schedules_error(deployment_id)
-
-
-@router.post("/{id:uuid}/set_schedule_inactive")  # Legacy route
 @router.post("/{id:uuid}/pause_deployment")
 async def pause_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
@@ -638,19 +580,7 @@ async def pause_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
-        deployment.is_schedule_active = False
         deployment.paused = True
-
-        # Ensure that we're updating the replicated schedule's `active` field,
-        # if there is only a single schedule. This is support for legacy
-        # clients.
-
-        number_of_schedules = len(deployment.schedules)
-
-        if number_of_schedules == 1:
-            deployment.schedules[0].active = False
-        elif number_of_schedules > 1:
-            raise _multiple_schedules_error(deployment_id)
 
         # commit here to make the inactive schedule "visible" to the scheduler service
         await session.commit()

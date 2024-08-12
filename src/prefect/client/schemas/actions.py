@@ -11,7 +11,6 @@ from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     convert_to_strings,
     remove_old_deployment_fields,
-    return_none_schedule,
     validate_artifact_key,
     validate_block_document_name,
     validate_block_type_slug,
@@ -153,7 +152,6 @@ class DeploymentCreate(ActionBaseModel):
 
     name: str = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
-    is_schedule_active: Optional[bool] = Field(None)
     paused: Optional[bool] = Field(None)
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
@@ -181,7 +179,6 @@ class DeploymentCreate(ActionBaseModel):
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
-    schedule: Optional[SCHEDULE_TYPES] = Field(None)
     description: Optional[str] = Field(None)
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
@@ -219,18 +216,18 @@ class DeploymentUpdate(ActionBaseModel):
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
 
-    @field_validator("schedule")
-    @classmethod
-    def validate_none_schedule(cls, v):
-        return return_none_schedule(v)
-
     version: Optional[str] = Field(None)
-    schedule: Optional[SCHEDULE_TYPES] = Field(None)
     description: Optional[str] = Field(None)
-    is_schedule_active: bool = Field(None)
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
+    )
+    paused: Optional[bool] = Field(
+        default=None, description="Whether or not the deployment is paused."
+    )
+    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
+        default=None,
+        description="A list of schedules for the deployment.",
     )
     tags: List[str] = Field(default_factory=list)
     work_queue_name: Optional[str] = Field(None)
