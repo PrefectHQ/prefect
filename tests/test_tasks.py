@@ -1829,7 +1829,7 @@ class TestCacheFunctionBuiltins:
                 self.x = x
 
             def __eq__(self, other) -> bool:
-                return type(self) == type(other) and self.x == other.x
+                return type(self) is type(other) and self.x == other.x
 
         @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(x):
@@ -1857,7 +1857,7 @@ class TestCacheFunctionBuiltins:
                 self.x = x
 
             def __eq__(self, other) -> bool:
-                return type(self) == type(other) and self.x == other.x
+                return type(self) is type(other) and self.x == other.x
 
         @task(cache_key_fn=task_input_hash, persist_result=True)
         def foo(instance):
@@ -4389,8 +4389,7 @@ class TestTaskHooksOnFailure:
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
-            def my_task():
-                ...
+            def my_task(): ...
 
 
 class TestNestedTasks:

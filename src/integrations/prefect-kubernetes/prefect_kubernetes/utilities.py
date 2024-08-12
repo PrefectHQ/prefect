@@ -39,9 +39,9 @@ def enable_socket_keep_alive(client: ApiClient) -> None:
         TCP_KEEP_ALIVE = 0x10
         socket_options.append((socket.IPPROTO_TCP, TCP_KEEP_ALIVE, 30))
 
-    client.rest_client.pool_manager.connection_pool_kw[
-        "socket_options"
-    ] = socket_options
+    client.rest_client.pool_manager.connection_pool_kw["socket_options"] = (
+        socket_options
+    )
 
 
 def _slugify_name(name: str, max_length: int = 45) -> Optional[str]:

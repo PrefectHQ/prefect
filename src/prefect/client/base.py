@@ -66,8 +66,7 @@ Send = Callable[[Message], Awaitable[None]]
 
 @runtime_checkable
 class ASGIApp(Protocol):
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        ...
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None: ...
 
 
 @asynccontextmanager

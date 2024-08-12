@@ -36,7 +36,7 @@ def exceptions_equal(a, b):
     """
     if a == b:
         return True
-    return type(a) == type(b) and getattr(a, "args", None) == getattr(b, "args", None)
+    return type(a) is type(b) and getattr(a, "args", None) == getattr(b, "args", None)
 
 
 # AsyncMock has a new import path in Python 3.9+

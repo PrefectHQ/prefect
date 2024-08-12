@@ -655,7 +655,7 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
     return flow_or_task.log_prints
 
 
-def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
+def resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
     if callable(flow.flow_run_name):
         flow_run_name = flow.flow_run_name()
         if not isinstance(flow_run_name, str):
@@ -674,7 +674,7 @@ def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str
     return flow_run_name
 
 
-def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
+def resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
     if callable(task.task_run_name):
         task_run_name = task.task_run_name()
         if not isinstance(task_run_name, str):
@@ -693,7 +693,7 @@ def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str
     return task_run_name
 
 
-def _get_hook_name(hook: Callable) -> str:
+def get_hook_name(hook: Callable) -> str:
     return (
         hook.__name__
         if hasattr(hook, "__name__")

@@ -199,9 +199,9 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         Populates the job body with the image if not present.
         """
         if "image" not in self.job_body["template"]["template"]["containers"][0]:
-            self.job_body["template"]["template"]["containers"][0][
-                "image"
-            ] = f"docker.io/{get_prefect_image_name()}"
+            self.job_body["template"]["template"]["containers"][0]["image"] = (
+                f"docker.io/{get_prefect_image_name()}"
+            )
 
     def _populate_or_format_command(self):
         """
@@ -210,13 +210,13 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         command = self.job_body["template"]["template"]["containers"][0].get("command")
 
         if command is None:
-            self.job_body["template"]["template"]["containers"][0][
-                "command"
-            ] = shlex.split(self._base_flow_run_command())
+            self.job_body["template"]["template"]["containers"][0]["command"] = (
+                shlex.split(self._base_flow_run_command())
+            )
         elif isinstance(command, str):
-            self.job_body["template"]["template"]["containers"][0][
-                "command"
-            ] = shlex.split(command)
+            self.job_body["template"]["template"]["containers"][0]["command"] = (
+                shlex.split(command)
+            )
 
     def _format_args_if_present(self):
         """
@@ -225,9 +225,9 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         args = self.job_body["template"]["template"]["containers"][0].get("args")
 
         if args is not None and isinstance(args, str):
-            self.job_body["template"]["template"]["containers"][0][
-                "args"
-            ] = shlex.split(args)
+            self.job_body["template"]["template"]["containers"][0]["args"] = (
+                shlex.split(args)
+            )
 
     def _remove_vpc_access_if_unset(self):
         """

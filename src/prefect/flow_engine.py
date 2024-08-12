@@ -66,11 +66,11 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
-    _get_hook_name,
-    _resolve_custom_flow_run_name,
     capture_sigterm,
+    get_hook_name,
     link_state_to_result,
     propose_state_sync,
+    resolve_custom_flow_run_name,
     resolve_to_final_result,
 )
 from prefect.utilities.timeout import timeout, timeout_async
@@ -456,7 +456,7 @@ class FlowRunEngine(Generic[P, R]):
             hooks = None
 
         for hook in hooks or []:
-            hook_name = _get_hook_name(hook)
+            hook_name = get_hook_name(hook)
 
             try:
                 self.logger.info(
@@ -513,7 +513,7 @@ class FlowRunEngine(Generic[P, R]):
 
             # update the flow run name if necessary
             if not self._flow_run_name_set and self.flow.flow_run_name:
-                flow_run_name = _resolve_custom_flow_run_name(
+                flow_run_name = resolve_custom_flow_run_name(
                     flow=self.flow, parameters=self.parameters
                 )
                 self.client.set_flow_run_name(

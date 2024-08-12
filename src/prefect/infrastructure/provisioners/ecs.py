@@ -587,9 +587,9 @@ class ClusterResource:
             )
             advance()
 
-        base_job_template["variables"]["properties"]["cluster"][
-            "default"
-        ] = self._cluster_name
+        base_job_template["variables"]["properties"]["cluster"]["default"] = (
+            self._cluster_name
+        )
 
     @property
     def next_steps(self):

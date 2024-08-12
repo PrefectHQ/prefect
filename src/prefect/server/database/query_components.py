@@ -95,8 +95,7 @@ class BaseQueryComponents(ABC):
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         interval: datetime.timedelta,
-    ):
-        ...
+    ): ...
 
     @abstractmethod
     def set_state_id_on_inserted_flow_runs_statement(
@@ -105,8 +104,7 @@ class BaseQueryComponents(ABC):
         frs_model,
         inserted_flow_run_ids,
         insert_flow_run_states,
-    ):
-        ...
+    ): ...
 
     @abstractmethod
     async def get_flow_run_notifications_from_queue(

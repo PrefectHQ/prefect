@@ -93,10 +93,10 @@ async def create_block_schema(
             insert_values["fields"], definitions
         )
         if non_block_definitions:
-            insert_values["fields"][
-                "definitions"
-            ] = _get_non_block_reference_definitions(
-                insert_values["fields"], definitions
+            insert_values["fields"]["definitions"] = (
+                _get_non_block_reference_definitions(
+                    insert_values["fields"], definitions
+                )
             )
         else:
             # Prevent storing definitions for blocks. Those are reconstructed on read.
@@ -540,9 +540,9 @@ def _construct_block_schema_fields_with_block_references(
             }
             # A block reference for this key does not yet exist
             if name not in block_schema_fields_copy["block_schema_references"]:
-                block_schema_fields_copy["block_schema_references"][
-                    name
-                ] = new_block_schema_reference
+                block_schema_fields_copy["block_schema_references"][name] = (
+                    new_block_schema_reference
+                )
             else:
                 # List of block references for this key already exist and the block
                 # reference that we are attempting add isn't present

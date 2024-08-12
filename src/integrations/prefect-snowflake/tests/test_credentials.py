@@ -136,9 +136,9 @@ def test_snowflake_credentials_validate_private_key_password(
 def test_snowflake_credentials_validate_private_key_passphrase(
     private_credentials_params,
 ):
-    private_credentials_params[
-        "private_key_passphrase"
-    ] = private_credentials_params.pop("password")
+    private_credentials_params["private_key_passphrase"] = (
+        private_credentials_params.pop("password")
+    )
     credentials_params_missing = private_credentials_params.copy()
     password = credentials_params_missing.pop("private_key_passphrase")
     private_key = credentials_params_missing.pop("private_key")
@@ -155,9 +155,9 @@ def test_snowflake_credentials_validate_private_key_path(
     private_key_path = tmp_path / "private_key.pem"
     private_key_path.write_bytes(private_credentials_params.pop("private_key"))
     private_credentials_params["private_key_path"] = private_key_path
-    private_credentials_params[
-        "private_key_passphrase"
-    ] = private_credentials_params.pop("password")
+    private_credentials_params["private_key_passphrase"] = (
+        private_credentials_params.pop("password")
+    )
     credentials = SnowflakeCredentials(**private_credentials_params)
     assert credentials.resolve_private_key() is not None
 

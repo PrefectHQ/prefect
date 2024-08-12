@@ -16,6 +16,7 @@ The output can be used with pip
     pip install $(./scripts/precommit-versions.py)
 
 """
+
 import os
 import sys
 

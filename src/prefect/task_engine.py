@@ -594,7 +594,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
         from prefect.utilities.engine import (
-            _resolve_custom_task_run_name,
+            resolve_custom_task_run_name,
             should_log_prints,
         )
 
@@ -625,7 +625,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
                 # update the task run name if necessary
                 if not self._task_name_set and self.task.task_run_name:
-                    task_run_name = _resolve_custom_task_run_name(
+                    task_run_name = resolve_custom_task_run_name(
                         task=self.task, parameters=self.parameters
                     )
                     self.client.set_task_run_name(
@@ -656,11 +656,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
                         from prefect.utilities.engine import (
-                            _resolve_custom_task_run_name,
+                            resolve_custom_task_run_name,
                         )
 
                         task_run_name = (
-                            _resolve_custom_task_run_name(
+                            resolve_custom_task_run_name(
                                 task=self.task, parameters=self.parameters
                             )
                             if self.task.task_run_name
@@ -1157,7 +1157,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @asynccontextmanager
     async def setup_run_context(self, client: Optional[PrefectClient] = None):
         from prefect.utilities.engine import (
-            _resolve_custom_task_run_name,
+            resolve_custom_task_run_name,
             should_log_prints,
         )
 
@@ -1188,7 +1188,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
                 # update the task run name if necessary
                 if not self._task_name_set and self.task.task_run_name:
-                    task_run_name = _resolve_custom_task_run_name(
+                    task_run_name = resolve_custom_task_run_name(
                         task=self.task, parameters=self.parameters
                     )
                     await self.client.set_task_run_name(
@@ -1219,11 +1219,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
                         from prefect.utilities.engine import (
-                            _resolve_custom_task_run_name,
+                            resolve_custom_task_run_name,
                         )
 
                         task_run_name = (
-                            _resolve_custom_task_run_name(
+                            resolve_custom_task_run_name(
                                 task=self.task, parameters=self.parameters
                             )
                             if self.task.task_run_name

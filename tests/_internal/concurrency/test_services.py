@@ -467,8 +467,7 @@ def test_queue_service_start_failure_contains_traceback_only_at_debug(
     class ExceptionOnHandleService(QueueService[int]):
         exception_msg = "Oh no!"
 
-        async def _handle(self):
-            ...
+        async def _handle(self): ...
 
         async def _main_loop(self):
             raise Exception(self.exception_msg)

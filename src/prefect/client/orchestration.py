@@ -154,15 +154,13 @@ R = TypeVar("R")
 @overload
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[False] = False
-) -> "PrefectClient":
-    ...
+) -> "PrefectClient": ...
 
 
 @overload
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[True] = True
-) -> "SyncPrefectClient":
-    ...
+) -> "SyncPrefectClient": ...
 
 
 def get_client(

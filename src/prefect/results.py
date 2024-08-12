@@ -390,7 +390,9 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
     type: str
 
     def __init__(self, **data: Any) -> None:
-        type_string = get_dispatch_key(self) if type(self) != BaseResult else "__base__"
+        type_string = (
+            get_dispatch_key(self) if type(self) is not BaseResult else "__base__"
+        )
         data.setdefault("type", type_string)
         super().__init__(**data)
 
@@ -414,8 +416,7 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
 
     @abc.abstractmethod
     @sync_compatible
-    async def get(self) -> R:
-        ...
+    async def get(self) -> R: ...
 
     @abc.abstractclassmethod
     @sync_compatible
@@ -423,8 +424,7 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         cls: "Type[BaseResult[R]]",
         obj: R,
         **kwargs: Any,
-    ) -> "BaseResult[R]":
-        ...
+    ) -> "BaseResult[R]": ...
 
     @classmethod
     def __dispatch_key__(cls, **kwargs):

@@ -2310,9 +2310,9 @@ class TestSchedules:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["schedule"][
-            "rrule"
-        ] = "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
+        deploy_config["deployments"][0]["schedule"]["rrule"] = (
+            "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
+        )
 
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)

@@ -55,15 +55,13 @@ def _unreduce_model(model_name, json):
 
 
 @overload
-def add_cloudpickle_reduction(__model_cls: Type[M]) -> Type[M]:
-    ...
+def add_cloudpickle_reduction(__model_cls: Type[M]) -> Type[M]: ...
 
 
 @overload
 def add_cloudpickle_reduction(
     **kwargs: Any,
-) -> Callable[[Type[M]], Type[M]]:
-    ...
+) -> Callable[[Type[M]], Type[M]]: ...
 
 
 def add_cloudpickle_reduction(__model_cls: Optional[Type[M]] = None, **kwargs: Any):
@@ -173,7 +171,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     def __init__(__pydantic_self__, **data: Any) -> None:
         type_string = (
             get_dispatch_key(__pydantic_self__)
-            if type(__pydantic_self__) != model_cls
+            if type(__pydantic_self__) is not model_cls
             else "__base__"
         )
         data.setdefault("type", type_string)

@@ -25,8 +25,7 @@ class EventsClient(abc.ABC):
     """The abstract interface for a Prefect Events client"""
 
     @abc.abstractmethod
-    async def emit(self, event: Event) -> Optional[Event]:
-        ...
+    async def emit(self, event: Event) -> Optional[Event]: ...
 
     async def __aenter__(self) -> Self:
         return self

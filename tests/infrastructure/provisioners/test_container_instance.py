@@ -1537,9 +1537,9 @@ async def test_aci_provision_no_existing_credentials_block(
         "client_secret": "<MY_SECRET>",
     }
 
-    new_base_job_template["variables"]["properties"]["subscription_id"][
-        "default"
-    ] = "12345678-1234-1234-1234-123456789012"
+    new_base_job_template["variables"]["properties"]["subscription_id"]["default"] = (
+        "12345678-1234-1234-1234-123456789012"
+    )
 
     new_base_job_template["variables"]["properties"]["resource_group_name"][
         "default"
@@ -1843,9 +1843,9 @@ async def test_aci_provision_existing_credentials_block(
         unexpected_call not in provisioner.azure_cli.run_command.mock_calls
     ), "Unexpected call made: {call}"
 
-    new_base_job_template["variables"]["properties"]["subscription_id"][
-        "default"
-    ] = "12345678-1234-1234-1234-123456789012"
+    new_base_job_template["variables"]["properties"]["subscription_id"]["default"] = (
+        "12345678-1234-1234-1234-123456789012"
+    )
 
     new_base_job_template["variables"]["properties"]["resource_group_name"][
         "default"
@@ -2189,9 +2189,9 @@ async def test_aci_provision_interactive_default_provisioning(
         "client_secret": "<MY_SECRET>",
     }
 
-    new_base_job_template["variables"]["properties"]["subscription_id"][
-        "default"
-    ] = "12345678-1234-1234-1234-123456789012"
+    new_base_job_template["variables"]["properties"]["subscription_id"]["default"] = (
+        "12345678-1234-1234-1234-123456789012"
+    )
 
     new_base_job_template["variables"]["properties"]["resource_group_name"][
         "default"
@@ -2537,9 +2537,9 @@ async def test_aci_provision_interactive_custom_resource_names(
         "client_secret": "<MY_SECRET>",
     }
 
-    new_base_job_template["variables"]["properties"]["subscription_id"][
-        "default"
-    ] = "12345678-1234-1234-1234-123456789012"
+    new_base_job_template["variables"]["properties"]["subscription_id"]["default"] = (
+        "12345678-1234-1234-1234-123456789012"
+    )
 
     new_base_job_template["variables"]["properties"]["resource_group_name"][
         "default"

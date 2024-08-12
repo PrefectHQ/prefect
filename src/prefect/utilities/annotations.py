@@ -22,7 +22,7 @@ class BaseAnnotation(
         return type(self)(value)
 
     def __eq__(self, other: object) -> bool:
-        if not type(self) == type(other):
+        if type(self) is not type(other):
             return False
         return self.unwrap() == other.unwrap()
 

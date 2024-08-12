@@ -666,7 +666,7 @@ class TestAPICompatibility:
         )
 
         block = Block._from_block_document(api_block)
-        assert type(block) == self.MyRegisteredBlock
+        assert type(block) is self.MyRegisteredBlock
         assert block.x == "x"
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id
@@ -683,7 +683,7 @@ class TestAPICompatibility:
         )
 
         block = Block._from_block_document(api_block)
-        assert type(block) == self.MyRegisteredBlock
+        assert type(block) is self.MyRegisteredBlock
         assert block.x == "x"
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id
@@ -704,7 +704,7 @@ class TestAPICompatibility:
         )
 
         block = BlockyMcBlock._from_block_document(api_block)
-        assert type(block) == BlockyMcBlock
+        assert type(block) is BlockyMcBlock
         assert block.fizz == "buzz"
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id

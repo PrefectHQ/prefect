@@ -171,12 +171,12 @@ class State(ObjectBaseModel, Generic[R]):
     )
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = True) -> R:
-        ...
+    def result(self: "State[R]", raise_on_failure: bool = True) -> R: ...
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
-        ...
+    def result(
+        self: "State[R]", raise_on_failure: bool = False
+    ) -> Union[R, Exception]: ...
 
     def result(
         self,

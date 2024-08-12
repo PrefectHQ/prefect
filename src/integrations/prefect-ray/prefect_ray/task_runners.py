@@ -243,8 +243,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectRayFuture[R]:
-        ...
+    ) -> PrefectRayFuture[R]: ...
 
     @overload
     def submit(
@@ -253,8 +252,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectRayFuture[R]:
-        ...
+    ) -> PrefectRayFuture[R]: ...
 
     def submit(
         self,
@@ -301,8 +299,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectRayFuture[R]]:
-        ...
+    ) -> PrefectFutureList[PrefectRayFuture[R]]: ...
 
     @overload
     def map(
@@ -310,8 +307,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         task: "Task[Any, R]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectRayFuture[R]]:
-        ...
+    ) -> PrefectFutureList[PrefectRayFuture[R]]: ...
 
     def map(
         self,

@@ -315,15 +315,13 @@ def in_async_main_thread() -> bool:
 @overload
 def sync_compatible(
     async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
-) -> Callable[..., R]:
-    ...
+) -> Callable[..., R]: ...
 
 
 @overload
 def sync_compatible(
     async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
-) -> Callable[..., Coroutine[Any, Any, R]]:
-    ...
+) -> Callable[..., Coroutine[Any, Any, R]]: ...
 
 
 def sync_compatible(

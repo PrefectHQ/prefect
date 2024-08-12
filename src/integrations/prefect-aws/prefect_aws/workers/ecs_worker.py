@@ -1552,12 +1552,12 @@ class ECSWorker(BaseWorker):
             and configuration.network_configuration
             and configuration.vpc_id
         ):
-            task_run_request[
-                "networkConfiguration"
-            ] = self._custom_network_configuration(
-                configuration.vpc_id,
-                configuration.network_configuration,
-                configuration,
+            task_run_request["networkConfiguration"] = (
+                self._custom_network_configuration(
+                    configuration.vpc_id,
+                    configuration.network_configuration,
+                    configuration,
+                )
             )
 
         # Ensure the container name is set if not provided at template time

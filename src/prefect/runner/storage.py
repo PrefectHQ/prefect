@@ -281,13 +281,13 @@ class GitRepository:
             }
         }
         if self._include_submodules:
-            pull_step["prefect.deployments.steps.git_clone"][
-                "include_submodules"
-            ] = self._include_submodules
+            pull_step["prefect.deployments.steps.git_clone"]["include_submodules"] = (
+                self._include_submodules
+            )
         if isinstance(self._credentials, Block):
-            pull_step["prefect.deployments.steps.git_clone"][
-                "credentials"
-            ] = f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
+            pull_step["prefect.deployments.steps.git_clone"]["credentials"] = (
+                f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
+            )
         elif isinstance(self._credentials, dict):
             if isinstance(self._credentials.get("access_token"), Secret):
                 pull_step["prefect.deployments.steps.git_clone"]["credentials"] = {
@@ -480,9 +480,9 @@ class RemoteStorage:
             }
         }
         if required_package:
-            step["prefect.deployments.steps.pull_from_remote_storage"][
-                "requires"
-            ] = required_package
+            step["prefect.deployments.steps.pull_from_remote_storage"]["requires"] = (
+                required_package
+            )
         return step
 
     def __eq__(self, __value) -> bool:

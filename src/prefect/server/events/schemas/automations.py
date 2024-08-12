@@ -105,8 +105,7 @@ class Trigger(PrefectBaseModel, abc.ABC):
     @abc.abstractmethod
     def create_automation_state_change_event(
         self, firing: "Firing", trigger_state: TriggerState
-    ) -> ReceivedEvent:
-        ...
+    ) -> ReceivedEvent: ...
 
 
 class CompositeTrigger(Trigger, abc.ABC):
@@ -170,8 +169,7 @@ class CompositeTrigger(Trigger, abc.ABC):
         return len(self.triggers)
 
     @abc.abstractmethod
-    def ready_to_fire(self, firings: Sequence["Firing"]) -> bool:
-        ...
+    def ready_to_fire(self, firings: Sequence["Firing"]) -> bool: ...
 
 
 class CompoundTrigger(CompositeTrigger):
