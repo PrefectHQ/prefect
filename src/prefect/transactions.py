@@ -26,6 +26,7 @@ from prefect.results import (
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.engine import _get_hook_name
 
 
 class IsolationLevel(AutoEnum):
@@ -183,7 +184,7 @@ class Transaction(ContextModel):
                 child.commit()
 
             for hook in self.on_commit_hooks:
-                hook(self)
+                self.run_hook(hook, "commit")
 
             if self.store and self.key:
                 self.store.write(key=self.key, value=self._staged_value)
@@ -197,6 +198,22 @@ class Transaction(ContextModel):
                 )
             self.rollback()
             return False
+
+    def run_hook(self, hook, hook_type: str) -> None:
+        hook_name = _get_hook_name(hook)
+        self.logger.info(f"Running {hook_type} hook {hook_name!r}")
+
+        try:
+            hook(self)
+        except Exception as exc:
+            self.logger.error(
+                f"An error was encountered while running {hook_type} hook {hook_name!r}",
+            )
+            raise exc
+        else:
+            self.logger.info(
+                f"{hook_type.capitalize()} hook {hook_name!r} finished running successfully"
+            )
 
     def stage(
         self,
@@ -222,7 +239,7 @@ class Transaction(ContextModel):
 
         try:
             for hook in reversed(self.on_rollback_hooks):
-                hook(self)
+                self.run_hook(hook, "rollback")
 
             self.state = TransactionState.ROLLED_BACK
 
