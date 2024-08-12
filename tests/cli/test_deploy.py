@@ -1909,7 +1909,7 @@ class TestProjectDeploy:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule is None
+        assert len(deployment.schedules) == 0
 
     @pytest.mark.parametrize("build_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
@@ -2222,8 +2222,10 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule.cron == "0 4 * * *"
-        assert deployment.schedule.timezone == "Europe/Berlin"
+        assert len(deployment.schedules) == 1
+        schedule = deployment.schedules[0].schedule
+        assert schedule.cron == "0 4 * * *"
+        assert schedule.timezone == "Europe/Berlin"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_passing_interval_schedules_to_deploy(
@@ -2242,9 +2244,11 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
-        assert deployment.schedule.timezone == "America/New_York"
+        assert len(deployment.schedules) == 1
+        schedule = deployment.schedules[0].schedule
+        assert schedule.interval == timedelta(seconds=42)
+        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.timezone == "America/New_York"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_interval_schedule_deployment_yaml(self, prefect_client, work_pool):
@@ -2271,9 +2275,11 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
-        assert deployment.schedule.timezone == "America/Chicago"
+        assert len(deployment.schedules) == 1
+        schedule = deployment.schedules[0].schedule
+        assert schedule.interval == timedelta(seconds=42)
+        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.timezone == "America/Chicago"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_parsing_rrule_schedule_string_literal(
@@ -2292,8 +2298,9 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
@@ -2323,8 +2330,9 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
@@ -2676,7 +2684,7 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule is None
+        assert len(deployment.schedules) == 0
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_inactive_schedule(self, work_pool, prefect_client):
@@ -2790,6 +2798,32 @@ class TestSchedules:
 
         assert deployment.schedules[0].max_active_runs == 5
         assert deployment.schedules[0].catchup is True
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_yaml_null_schedules(self, prefect_client, work_pool):
+        prefect_yaml_content = f"""
+        deployments:
+          - name: test-name
+            entrypoint: flows/hello.py:my_flow
+            work_pool:
+              name: {work_pool.name}
+            schedules: null
+        """
+
+        with open("prefect.yaml", "w") as f:
+            f.write(prefect_yaml_content)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.schedules == []
 
 
 class TestMultiDeploy:
@@ -3019,7 +3053,8 @@ class TestMultiDeploy:
 
         assert deployment.name == "test-name-1"
         assert deployment.work_pool_name == work_pool.name
-        assert deployment.schedule == CronSchedule(cron="0 * * * *")
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == CronSchedule(cron="0 * * * *")
 
         # Check if the second deployment was not created
         with pytest.raises(ObjectNotFound):
@@ -3080,11 +3115,11 @@ class TestMultiDeploy:
 
         assert deployment1.name == "test-name-1"
         assert deployment1.work_pool_name == work_pool.name
-        assert deployment1.schedule is None
+        assert len(deployment1.schedules) == 0
 
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
-        assert deployment2.schedule is None
+        assert len(deployment2.schedules) == 0
 
     async def test_deploy_with_cli_option_name(
         self, project_dir, prefect_client, work_pool

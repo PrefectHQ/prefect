@@ -216,7 +216,7 @@ def test_trigger_dbt_cli_command_missing_profile(profiles_dir):
         )
 
     with pytest.raises(
-        ValueError, match="Provide `dbt_cli_profile` keyword for writing profiles"
+        ValueError, match="Profile not found. Provide `dbt_cli_profile` or"
     ):
         test_flow()
 

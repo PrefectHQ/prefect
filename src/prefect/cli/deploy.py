@@ -830,7 +830,7 @@ def _construct_schedules(
     Returns:
         A list of schedule objects
     """
-    schedule_configs = deploy_config.get("schedules", NotSet)
+    schedule_configs = deploy_config.get("schedules", NotSet) or []
 
     if schedule_configs is not NotSet:
         schedules = [
@@ -1524,7 +1524,7 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
     timezone = cli_options.get("timezone")
 
     # Apply anchor_date and timezone to new and existing schedules
-    for schedule_config in deploy_config.get("schedules", []):
+    for schedule_config in deploy_config.get("schedules") or []:
         if anchor_date and schedule_config.get("interval"):
             schedule_config["anchor_date"] = anchor_date
         if timezone:
@@ -1684,9 +1684,5 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
             ),
             style="yellow",
         )
-
-    # Pop the legacy schedule keys if they exist
-    deploy_config.pop("schedule", None)
-    deploy_config.pop("is_schedule_active", None)
 
     return deploy_config
