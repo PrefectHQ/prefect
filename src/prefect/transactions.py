@@ -65,17 +65,17 @@ class Transaction(ContextModel):
     )
     overwrite: bool = False
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
-    _hook_data: Dict[str, Any] = PrivateAttr(default_factory=dict)
+    _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
 
     def set(self, name: str, value: Any) -> None:
-        self._hook_data[name] = value
+        self._stored_values[name] = value
 
     def get(self, name: str) -> Any:
-        if name not in self._hook_data:
+        if name not in self._stored_values:
             raise ValueError(f"Could not retrieve unknown key: {name}")
-        return self._hook_data.get(name)
+        return self._stored_values.get(name)
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED
