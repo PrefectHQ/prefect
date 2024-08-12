@@ -1,5 +1,5 @@
 # global
-*                                    @cicdw
+*                                    @cicdw @desertaxle @zzstoatzz
 
 # ui
 /ui                                  @znicholasbrown
@@ -10,6 +10,3 @@
 # imports
 /src/prefect/__init__.py              @aaazzam @chrisguidry
 /src/prefect/main.py                  @aaazzam @chrisguidry
-
-# integrations
-/src/integrations                     @desertaxle @zzstoatzz
