@@ -153,6 +153,14 @@ def test_building_a_job_is_idempotent():
     assert first_time == second_time
 
 
+def test_building_a_job_with_null_command():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/14918
+    """
+    k8s_job = KubernetesJob(command=None)
+    k8s_job.build_job()
+
+
 def test_creates_job_by_building_a_manifest(
     mock_k8s_batch_client,
     mock_k8s_client,
