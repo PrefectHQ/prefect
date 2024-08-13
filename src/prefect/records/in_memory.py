@@ -24,7 +24,7 @@ class _LockInfo(TypedDict):
 _locks: Dict[str, _LockInfo] = {}
 
 
-class InMemoryTransactionRecord(TransactionRecord):
+class MemoryTransactionRecord(TransactionRecord):
     """
     A transaction record that stores locks in memory.
     """
