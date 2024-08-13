@@ -54,7 +54,7 @@ from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
 
 
-@pytest.fixture(autouse=True, params=[False])
+@pytest.fixture(autouse=True, params=[False, True])
 def enable_client_side_task_run_orchestration(
     request, asserting_events_worker: EventsWorker
 ):
