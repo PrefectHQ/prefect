@@ -4,6 +4,7 @@ from contextvars import ContextVar, Token
 from typing import (
     Any,
     Callable,
+    Dict,
     Generator,
     List,
     Optional,
@@ -11,7 +12,7 @@ from typing import (
     Union,
 )
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
@@ -26,6 +27,7 @@ from prefect.results import (
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.engine import _get_hook_name
 
 
 class IsolationLevel(AutoEnum):
@@ -63,8 +65,17 @@ class Transaction(ContextModel):
     )
     overwrite: bool = False
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
+    _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
+
+    def set(self, name: str, value: Any) -> None:
+        self._stored_values[name] = value
+
+    def get(self, name: str) -> Any:
+        if name not in self._stored_values:
+            raise ValueError(f"Could not retrieve value for unknown key: {name}")
+        return self._stored_values.get(name)
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED
@@ -183,7 +194,7 @@ class Transaction(ContextModel):
                 child.commit()
 
             for hook in self.on_commit_hooks:
-                hook(self)
+                self.run_hook(hook, "commit")
 
             if self.store and self.key:
                 self.store.write(key=self.key, value=self._staged_value)
@@ -197,6 +208,22 @@ class Transaction(ContextModel):
                 )
             self.rollback()
             return False
+
+    def run_hook(self, hook, hook_type: str) -> None:
+        hook_name = _get_hook_name(hook)
+        self.logger.info(f"Running {hook_type} hook {hook_name!r}")
+
+        try:
+            hook(self)
+        except Exception as exc:
+            self.logger.error(
+                f"An error was encountered while running {hook_type} hook {hook_name!r}",
+            )
+            raise exc
+        else:
+            self.logger.info(
+                f"{hook_type.capitalize()} hook {hook_name!r} finished running successfully"
+            )
 
     def stage(
         self,
@@ -222,7 +249,7 @@ class Transaction(ContextModel):
 
         try:
             for hook in reversed(self.on_rollback_hooks):
-                hook(self)
+                self.run_hook(hook, "rollback")
 
             self.state = TransactionState.ROLLED_BACK
 
