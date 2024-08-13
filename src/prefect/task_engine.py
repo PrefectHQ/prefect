@@ -211,39 +211,40 @@ class BaseTaskRunEngine(Generic[P, R]):
         return task_run.state.is_running() or task_run.state.is_scheduled()
 
     def log_finished_message(self):
-        # If debugging, use the more complete `repr` than the usual `str` description
-        display_state = repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
-        level = logging.INFO if self.state.is_completed() else logging.ERROR
-        msg = f"Finished in state {display_state}"
-        if self.state.is_pending():
-            msg += (
-                "\nPlease wait for all submitted tasks to complete"
-                " before exiting your flow by calling `.wait()` on the "
-                "`PrefectFuture` returned from your `.submit()` calls."
+        if self.task_run:
+            # If debugging, use the more complete `repr` than the usual `str` description
+            display_state = repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
+            level = logging.INFO if self.state.is_completed() else logging.ERROR
+            msg = f"Finished in state {display_state}"
+            if self.state.is_pending():
+                msg += (
+                    "\nPlease wait for all submitted tasks to complete"
+                    " before exiting your flow by calling `.wait()` on the "
+                    "`PrefectFuture` returned from your `.submit()` calls."
+                )
+                msg += dedent(
+                    """
+    
+                            Example:
+    
+                            from prefect import flow, task
+    
+                            @task
+                            def say_hello(name):
+                                print(f"Hello, {name}!")
+    
+                            @flow
+                            def example_flow():
+                                future = say_hello.submit(name="Marvin")
+                                future.wait()
+    
+                            example_flow()
+                                        """
+                )
+            self.logger.log(
+                level=level,
+                msg=msg,
             )
-            msg += dedent(
-                """
-
-                        Example:
-
-                        from prefect import flow, task
-
-                        @task
-                        def say_hello(name):
-                            print(f"Hello, {name}!")
-
-                        @flow
-                        def example_flow():
-                            future = say_hello.submit(name="Marvin")
-                            future.wait()
-
-                        example_flow()
-                                    """
-            )
-        self.logger.log(
-            level=level,
-            msg=msg,
-        )
 
     def handle_rollback(self, txn: Transaction) -> None:
         assert self.task_run is not None
