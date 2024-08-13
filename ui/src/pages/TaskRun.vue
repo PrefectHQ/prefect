@@ -37,7 +37,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { PageHeadingTaskRun, TaskRunArtifacts, TaskRunLogs, TaskRunDetails, CopyableWrapper, useFavicon, useWorkspaceApi, localization, ExtraInfoModal, useTabs } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingTaskRun, TaskRunArtifacts, TaskRunLogs, TaskRunDetails, CopyableWrapper, useWorkspaceApi, localization, ExtraInfoModal, useTabs, useTaskRunFavicon } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useRouteQueryParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -74,8 +74,7 @@
     router.push(routes.flowRun(flowRunId.value!))
   }
 
-  const stateType = computed(() => taskRun.value?.stateType)
-  useFavicon(stateType)
+  useTaskRunFavicon(taskRun)
 
   const title = computed(() => {
     if (!taskRun.value) {
