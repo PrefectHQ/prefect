@@ -50,7 +50,7 @@
     FlowRunLogs,
     FlowRunTaskRuns,
     FlowRunFilteredList,
-    useFavicon,
+    useFlowRunFavicon,
     CopyableWrapper,
     isPendingStateType,
     useTabs,
@@ -102,8 +102,7 @@
     router.push(routes.runs())
   }
 
-  const stateType = computed(() => flowRun.value?.stateType)
-  useFavicon(stateType)
+  useFlowRunFavicon(flowRun)
 
   const title = computed(() => {
     if (!flowRun.value) {
