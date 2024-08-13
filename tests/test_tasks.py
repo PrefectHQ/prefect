@@ -1787,17 +1787,18 @@ class TestTaskCaching:
     async def test_changing_result_storage_key_busts_cache(
         self, enable_client_side_task_run_orchestration
     ):
+        cstro_enabled = str(enable_client_side_task_run_orchestration)
+
         @task(
-            cache_key_fn=lambda *_: "cache-hit-10"
-            + str(enable_client_side_task_run_orchestration),
-            result_storage_key="before",
+            cache_key_fn=lambda *_: "cache-hit-10" + cstro_enabled,
+            result_storage_key="before" + cstro_enabled,
             persist_result=True,
         )
         def foo(x):
             return x
 
         first_state = foo(1, return_state=True)
-        second_state = foo.with_options(result_storage_key="after")(
+        second_state = foo.with_options(result_storage_key="after" + cstro_enabled)(
             2, return_state=True
         )
         assert first_state.name == "Completed"
