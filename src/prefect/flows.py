@@ -611,11 +611,12 @@ class Flow(Generic[P, R]):
             # do not serialize the bound self object
             if self.ismethod and value is self.fn.__prefect_self__:
                 continue
+            elif isinstance(value, (PrefectFuture, State)):
+                # Don't call jsonable_encoder() on a PrefectFuture or State to
+                # avoid triggering a __getitem__ call
+                serialized_parameters[key] = f"<{type(value).__name__}>"
+                continue
             try:
-                if isinstance(value, (PrefectFuture, State)):
-                    # Don't call jsonable_encoder() on a PrefectFuture or State to
-                    # avoid triggering a __getitem__ call
-                    raise TypeError
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
                 logger.debug(
@@ -623,7 +624,7 @@ class Flow(Generic[P, R]):
                     f"Type {type(value).__name__!r} and will not be stored "
                     "in the backend."
                 )
-                serialized_parameters[key] = f"<{type(value).__name__}>"
+            serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
     @sync_compatible
