@@ -364,7 +364,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.run_count += 1
 
             flow_run_context = FlowRunContext.get()
-            if flow_run_context:
+            if flow_run_context and flow_run_context.flow_run:
                 # Carry forward any task run information from the flow run
                 flow_run = flow_run_context.flow_run
                 self.task_run.flow_run_run_count = flow_run.run_count
@@ -623,9 +623,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                # update the task run name if necessary
-                if not self._task_name_set and self.task.task_run_name:
+            # update the task run name if necessary
+            if not self._task_name_set and self.task.task_run_name:
+                if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                    task_run_name = _resolve_custom_task_run_name(
+                        task=self.task, parameters=self.parameters
+                    )
+                    self.task_run.name = task_run_name
+                else:
                     task_run_name = _resolve_custom_task_run_name(
                         task=self.task, parameters=self.parameters
                     )
@@ -940,6 +945,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 # Carry forward any task run information from the flow run
                 flow_run = flow_run_context.flow_run
                 self.task_run.flow_run_run_count = flow_run.run_count
+
+                if not flow_run_context.flow_run.state.is_running():
+                    self.logger
+                    return
 
         state = await self.set_state(new_state)
 

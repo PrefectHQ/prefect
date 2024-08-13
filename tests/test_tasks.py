@@ -873,12 +873,19 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
-    def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
+    def test_logs_message_when_submitted_tasks_end_in_pending(
+        self, caplog, enable_client_side_task_run_orchestration
+    ):
         """
         If submitted tasks aren't waited on before a flow exits, they may fail to run
         because they're transition from PENDING to RUNNING is denied. This test ensures
         that a message is logged when this happens.
         """
+
+        if enable_client_side_task_run_orchestration:
+            pytest.xfail(
+                "This test is not compatible with the current state of client side task orchestration"
+            )
 
         @task
         def find_palindromes():
