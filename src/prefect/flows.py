@@ -612,11 +612,15 @@ class Flow(Generic[P, R]):
             if self.ismethod and value is self.fn.__prefect_self__:
                 continue
             try:
+                if isinstance(value, (PrefectFuture, State)):
+                    # Don't call jsonable_encoder() on a PrefectFuture or State to
+                    # avoid triggering a __getitem__ call
+                    raise TypeError
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
                 logger.debug(
-                    f"Parameter {key!r} for flow {self.name!r} is of unserializable "
-                    f"type {type(value).__name__!r} and will not be stored "
+                    f"Parameter {key!r} for flow {self.name!r} is of unserializable. "
+                    f"Type {type(value).__name__!r} and will not be stored "
                     "in the backend."
                 )
                 serialized_parameters[key] = f"<{type(value).__name__}>"
