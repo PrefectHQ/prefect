@@ -22195,7 +22195,7 @@
                     "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION": {
                         "type": "boolean",
                         "title": "Prefect Experimental Enable Client Side Task Orchestration",
-                        "default": false
+                        "default": true
                     },
                     "PREFECT_RUNNER_PROCESS_LIMIT": {
                         "type": "integer",
