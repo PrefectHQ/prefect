@@ -2,11 +2,16 @@ from pathlib import Path
 
 import pytest
 
+from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.serializers import JSONSerializer, PickleSerializer
-from prefect.settings import PREFECT_HOME
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
+    PREFECT_HOME,
+    temporary_settings,
+)
 from prefect.tasks import task
 from prefect.testing.utilities import (
     assert_uses_result_serializer,
@@ -15,8 +20,21 @@ from prefect.testing.utilities import (
 from prefect.utilities.annotations import quote
 
 
+@pytest.fixture(autouse=True, params=[False, True])
+def enable_client_side_task_run_orchestration(
+    request, asserting_events_worker: EventsWorker
+):
+    enabled = request.param
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
+    ):
+        yield enabled
+
+
 @pytest.mark.parametrize("options", [{"retries": 3}])
-async def test_task_persisted_result_due_to_flow_feature(prefect_client, options):
+async def test_task_persisted_result_due_to_flow_feature(
+    prefect_client, options, events_pipeline
+):
     @flow(**options)
     def foo():
         return bar(return_state=True)
@@ -29,6 +47,8 @@ async def test_task_persisted_result_due_to_flow_feature(prefect_client, options
     task_state = await flow_state.result()
     assert await task_state.result() == 1
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -36,7 +56,9 @@ async def test_task_persisted_result_due_to_flow_feature(prefect_client, options
 
 
 @pytest.mark.parametrize("options", [{"cache_key_fn": lambda *_: "xyz"}])
-async def test_task_persisted_result_due_to_task_feature(prefect_client, options):
+async def test_task_persisted_result_due_to_task_feature(
+    prefect_client, options, events_pipeline
+):
     @flow()
     def foo():
         return bar(return_state=True)
@@ -49,13 +71,15 @@ async def test_task_persisted_result_due_to_task_feature(prefect_client, options
     task_state = await flow_state.result()
     assert await task_state.result() == 1
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() == 1
 
 
-async def test_task_persisted_result_due_to_opt_in(prefect_client):
+async def test_task_persisted_result_due_to_opt_in(prefect_client, events_pipeline):
     @flow
     def foo():
         return bar(return_state=True)
@@ -68,13 +92,17 @@ async def test_task_persisted_result_due_to_opt_in(prefect_client):
     task_state = await flow_state.result()
     assert await task_state.result() == 1
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() == 1
 
 
-async def test_task_with_uncached_and_unpersisted_result(prefect_client):
+async def test_task_with_uncached_and_unpersisted_result(
+    prefect_client, events_pipeline
+):
     @flow
     def foo():
         return bar(return_state=True)
@@ -88,6 +116,8 @@ async def test_task_with_uncached_and_unpersisted_result(prefect_client):
     with pytest.raises(MissingResult):
         await task_state.result()
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -95,7 +125,9 @@ async def test_task_with_uncached_and_unpersisted_result(prefect_client):
         await api_state.result()
 
 
-async def test_task_with_uncached_and_unpersisted_null_result(prefect_client):
+async def test_task_with_uncached_and_unpersisted_null_result(
+    prefect_client, events_pipeline
+):
     @flow
     def foo():
         return bar(return_state=True)
@@ -109,6 +141,8 @@ async def test_task_with_uncached_and_unpersisted_null_result(prefect_client):
     # Nulls do not consume memory and are still available
     assert await task_state.result() is None
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -116,7 +150,7 @@ async def test_task_with_uncached_and_unpersisted_null_result(prefect_client):
         await api_state.result()
 
 
-async def test_task_with_uncached_but_persisted_result(prefect_client):
+async def test_task_with_uncached_but_persisted_result(prefect_client, events_pipeline):
     @flow
     def foo():
         return bar(return_state=True)
@@ -130,6 +164,8 @@ async def test_task_with_uncached_but_persisted_result(prefect_client):
     assert not task_state.data.has_cached_object()
     assert await task_state.result() == 1
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -137,7 +173,7 @@ async def test_task_with_uncached_but_persisted_result(prefect_client):
 
 
 async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
-    prefect_client,
+    prefect_client, events_pipeline
 ):
     @flow
     def foo():
@@ -156,6 +192,8 @@ async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
     task_state = await flow_state.result()
     assert not task_state.data.has_cached_object()
     assert await task_state.result() == 1
+
+    await events_pipeline.process_events()
 
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
@@ -181,7 +219,7 @@ async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
 )
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_task_result_serializer(
-    prefect_client, source, serializer, tmp_path: Path
+    prefect_client, events_pipeline, source, serializer, tmp_path: Path
 ):
     storage = LocalFileSystem(basepath=tmp_path)
     await storage.save("tmp-test")
@@ -206,6 +244,8 @@ async def test_task_result_serializer(
     assert await task_state.result() == 1
     await assert_uses_result_serializer(task_state, serializer)
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -214,7 +254,7 @@ async def test_task_result_serializer(
 
 
 @pytest.mark.parametrize("source", ["child", "parent"])
-async def test_task_result_storage(prefect_client, source):
+async def test_task_result_storage(prefect_client, source, events_pipeline):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
     await storage.save("tmp-test-storage")
 
@@ -231,6 +271,8 @@ async def test_task_result_storage(prefect_client, source):
     assert await task_state.result() == 1
     await assert_uses_result_storage(task_state, storage)
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -238,7 +280,9 @@ async def test_task_result_storage(prefect_client, source):
     await assert_uses_result_storage(api_state, storage)
 
 
-async def test_task_result_static_storage_key(prefect_client, tmp_path):
+async def test_task_result_static_storage_key(
+    prefect_client, tmp_path, events_pipeline
+):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
     await storage.save("tmp-test-storage")
 
@@ -255,6 +299,8 @@ async def test_task_result_static_storage_key(prefect_client, tmp_path):
     assert await task_state.result() == 1
     assert task_state.data.storage_key == "test"
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -262,7 +308,9 @@ async def test_task_result_static_storage_key(prefect_client, tmp_path):
     assert task_state.data.storage_key == "test"
 
 
-async def test_task_result_parameter_formatted_storage_key(prefect_client, tmp_path):
+async def test_task_result_parameter_formatted_storage_key(
+    prefect_client, tmp_path, events_pipeline
+):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
     await storage.save("tmp-test-storage-again")
 
@@ -283,6 +331,8 @@ async def test_task_result_parameter_formatted_storage_key(prefect_client, tmp_p
     assert await task_state.result() == 1
     assert task_state.data.storage_key == "1-foo-bar"
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -290,7 +340,9 @@ async def test_task_result_parameter_formatted_storage_key(prefect_client, tmp_p
     assert task_state.data.storage_key == "1-foo-bar"
 
 
-async def test_task_result_flow_run_formatted_storage_key(prefect_client, tmp_path):
+async def test_task_result_flow_run_formatted_storage_key(
+    prefect_client, tmp_path, events_pipeline
+):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
     await storage.save("tmp-test-storage-again")
 
@@ -311,6 +363,8 @@ async def test_task_result_flow_run_formatted_storage_key(prefect_client, tmp_pa
     assert await task_state.result() == 1
     assert task_state.data.storage_key == "foo__bar"
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -318,7 +372,7 @@ async def test_task_result_flow_run_formatted_storage_key(prefect_client, tmp_pa
     assert task_state.data.storage_key == "foo__bar"
 
 
-async def test_task_result_with_null_return(prefect_client):
+async def test_task_result_with_null_return(prefect_client, events_pipeline):
     @flow
     def foo():
         return bar(return_state=True)
@@ -331,6 +385,8 @@ async def test_task_result_with_null_return(prefect_client):
     task_state = await flow_state.result()
     assert await task_state.result() is None
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
@@ -338,7 +394,9 @@ async def test_task_result_with_null_return(prefect_client):
 
 
 @pytest.mark.parametrize("value", [True, False, None])
-async def test_task_literal_result_is_handled_the_same(prefect_client, value):
+async def test_task_literal_result_is_handled_the_same(
+    prefect_client, value, events_pipeline
+):
     @flow
     def foo():
         return bar(return_state=True)
@@ -354,13 +412,15 @@ async def test_task_literal_result_is_handled_the_same(prefect_client, value):
     task_state = await flow_state.result()
     assert await task_state.result() is value
 
+    await events_pipeline.process_events()
+
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() is value
 
 
-async def test_task_exception_is_persisted(prefect_client):
+async def test_task_exception_is_persisted(prefect_client, events_pipeline):
     @flow
     def foo():
         return quote(bar(return_state=True))
@@ -373,6 +433,8 @@ async def test_task_exception_is_persisted(prefect_client):
     task_state = (await flow_state.result()).unquote()
     with pytest.raises(ValueError, match="Hello world"):
         await task_state.result()
+
+    await events_pipeline.process_events()
 
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
