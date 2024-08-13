@@ -385,14 +385,24 @@ async def events_pipeline(asserting_events_worker: EventsWorker):
     class AssertingEventsPipeline(EventsPipeline):
         @sync_compatible
         async def process_events(
-            self, dequeue_events: bool = True, min_events: int = 0
+            self,
+            dequeue_events: bool = True,
+            min_events: int = 0,
+            timeout: int = 10,
         ):
-            # wait until the current queue is empty
-            asserting_events_worker.wait_until_empty()
+            async def wait_for_min_events():
+                while len(asserting_events_worker._client.events) < min_events:
+                    await asyncio.sleep(0.1)
 
-            # additionally, wait until we've seen at least min_events
-            while len(asserting_events_worker._client.events) < min_events:
-                await asyncio.sleep(0.1)
+            if min_events:
+                try:
+                    await asyncio.wait_for(wait_for_min_events(), timeout=timeout)
+                except TimeoutError:
+                    raise TimeoutError(
+                        f"Timed out waiting for {min_events} events after {timeout} seconds. Only observed {len(asserting_events_worker._client.events)} events."
+                    )
+            else:
+                asserting_events_worker.wait_until_empty()
 
             if dequeue_events:
                 events = asserting_events_worker._client.pop_events()
