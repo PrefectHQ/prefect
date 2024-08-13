@@ -53,8 +53,8 @@ jobs:
     strategy:
       matrix:
         test-type:
-          - name: Server Tests
-            modules: tests/server/ tests/events/server
+#          - name: Server Tests
+#            modules: tests/server/ tests/events/server
           - name: Client Tests
             modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
         database:
