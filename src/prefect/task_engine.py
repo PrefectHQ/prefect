@@ -624,21 +624,23 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
             # update the task run name if necessary
-            if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                # update the task run name if necessary
-                if not self._task_name_set and self.task.task_run_name:
-                    task_run_name = _resolve_custom_task_run_name(
-                        task=self.task, parameters=self.parameters
-                    )
+            if not self._task_name_set and self.task.task_run_name:
+                task_run_name = _resolve_custom_task_run_name(
+                    task=self.task, parameters=self.parameters
+                )
+
+                if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                    # update the task run name if necessary
                     self.client.set_task_run_name(
                         task_run_id=self.task_run.id, name=task_run_name
                     )
-                    self.logger.extra["task_run_name"] = task_run_name
-                    self.logger.debug(
-                        f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                    )
-                    self.task_run.name = task_run_name
-                    self._task_name_set = True
+
+                self.logger.extra["task_run_name"] = task_run_name
+                self.logger.debug(
+                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+                )
+                self.task_run.name = task_run_name
+                self._task_name_set = True
             yield
 
     @contextmanager
@@ -1187,21 +1189,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                # update the task run name if necessary
-                if not self._task_name_set and self.task.task_run_name:
-                    task_run_name = _resolve_custom_task_run_name(
-                        task=self.task, parameters=self.parameters
-                    )
+            if not self._task_name_set and self.task.task_run_name:
+                task_run_name = _resolve_custom_task_run_name(
+                    task=self.task, parameters=self.parameters
+                )
+                if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                    # update the task run name if necessary
                     await self.client.set_task_run_name(
                         task_run_id=self.task_run.id, name=task_run_name
                     )
-                    self.logger.extra["task_run_name"] = task_run_name
-                    self.logger.debug(
-                        f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                    )
-                    self.task_run.name = task_run_name
-                    self._task_name_set = True
+                self.logger.extra["task_run_name"] = task_run_name
+                self.logger.debug(
+                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+                )
+                self.task_run.name = task_run_name
+                self._task_name_set = True
             yield
 
     @asynccontextmanager
