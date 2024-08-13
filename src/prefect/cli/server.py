@@ -173,7 +173,7 @@ async def start(
 ):
     """Start a Prefect server instance"""
 
-    if is_interactive:
+    if is_interactive():
         try:
             prestart_check()
         except Exception:
