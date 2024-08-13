@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from prefect import flow, task
+from prefect.blocks.core import Block
 from prefect.context import get_run_context
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
@@ -558,3 +559,26 @@ async def test_root_flow_explicit_result_storage_settings_overrides_default():
         result = await foo()
 
     assert_blocks_equal(result, await LocalFileSystem.load("explicit-storage"))
+
+
+def test_flow_version_result_storage_key():
+    @task(result_storage_key="{flow_run.flow_version}", persist_result=True)
+    def some_task():
+        return "hello"
+
+    @flow(version="somespecialflowversion")
+    def some_flow() -> Block:
+        some_task()
+        return get_run_context().result_factory.storage_block
+
+    storage_block = some_flow()
+
+    assert isinstance(storage_block, LocalFileSystem)
+    result = pickle.loads(
+        base64.b64decode(
+            PersistedResultBlob.parse_raw(
+                storage_block.read_path("somespecialflowversion")
+            ).data
+        )
+    )
+    assert result == "hello"
