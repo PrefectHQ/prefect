@@ -630,6 +630,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     task_run_name = _resolve_custom_task_run_name(
                         task=self.task, parameters=self.parameters
                     )
+                    self.client.set_task_run_name(
+                        task_run_id=self.task_run.id, name=task_run_name
+                    )
                     self.logger.extra["task_run_name"] = task_run_name
                     self.logger.debug(
                         f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
