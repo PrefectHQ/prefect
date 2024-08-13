@@ -814,7 +814,6 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
         deferred: bool = False,
-        task_run_name: Optional[str] = None,
     ) -> TaskRun:
         if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
             raise RuntimeError(
@@ -839,12 +838,12 @@ class Task(Generic[P, R]):
         async with client:
             if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
-                task_run_name = task_run_name or self.name
+                task_run_name = self.name
             else:
                 dynamic_key = _dynamic_key_for_task_run(
                     context=flow_run_context, task=self
                 )
-                task_run_name = task_run_name or f"{self.name}-{dynamic_key}"
+                task_run_name = f"{self.name}-{dynamic_key}"
 
             if deferred:
                 state = Scheduled()

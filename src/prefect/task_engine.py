@@ -659,21 +659,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 self._is_started = True
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                        from prefect.utilities.engine import (
-                            _resolve_custom_task_run_name,
-                        )
-
-                        task_run_name = (
-                            _resolve_custom_task_run_name(
-                                task=self.task, parameters=self.parameters
-                            )
-                            if self.task.task_run_name
-                            else None
-                        )
-
-                        if self.task_run and task_run_name:
-                            self.task_run.name = task_run_name
-
                         if not self.task_run:
                             self.task_run = run_coro_as_sync(
                                 self.task.create_local_run(
@@ -683,7 +668,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                     parent_task_run_context=TaskRunContext.get(),
                                     wait_for=self.wait_for,
                                     extra_task_inputs=dependencies,
-                                    task_run_name=task_run_name,
+                                    task_run_name=None,
                                 )
                             )
                             # Emit an event to capture that the task run was in the `PENDING` state.
