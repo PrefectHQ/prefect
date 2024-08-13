@@ -624,7 +624,7 @@ class Flow(Generic[P, R]):
                     f"Type {type(value).__name__!r} and will not be stored "
                     "in the backend."
                 )
-            serialized_parameters[key] = f"<{type(value).__name__}>"
+                serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
     @sync_compatible
