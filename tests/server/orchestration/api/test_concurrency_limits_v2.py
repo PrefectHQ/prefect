@@ -1,6 +1,6 @@
 import base64
 import uuid
-from typing import Generator, List, Literal
+from typing import Dict, Generator, List, Literal, Optional
 from unittest import mock
 
 import pytest
@@ -26,7 +26,27 @@ def make_received_event(
     event_type: Literal["acquired", "released"],
     concurrency_limit: ConcurrencyLimitV2,
     index: int,
+    related: Optional[List[Dict[str, str]]] = None,
 ) -> ReceivedEvent:
+    if related is None:
+        related = [
+            {
+                "prefect.resource.id": f"prefect.flow-run.{uuid.UUID(int=index)}",
+                "prefect.resource.name": "something-special",
+                "prefect.resource.role": "flow-run",
+            },
+            {
+                "prefect.resource.id": f"prefect.task-run.{uuid.UUID(int=index + 100)}",
+                "prefect.resource.name": "process_data",
+                "prefect.resource.role": "task-run",
+            },
+            {
+                "prefect.resource.id": f"prefect.flow.{uuid.UUID(int=index + 200)}",
+                "prefect.resource.name": "my-flow",
+                "prefect.resource.role": "flow",
+            },
+        ]
+
     return ReceivedEvent(
         event=f"prefect.concurrency-limit.{event_type}",
         resource={
@@ -36,147 +56,61 @@ def make_received_event(
             "prefect.resource.name": "database",
         },
         occurred=DateTime(2023, 3, 1, 12, 39, 28),
-        related=[
-            {
-                "prefect.resource.id": f"prefect.flow-run.{uuid.UUID(int=index)}",
-                "prefect.resource.name": "something-special",
-                "prefect.resource.role": "flow-run",
-            },
-            {
-                "prefect.resource.id": f"prefect.task-run.{uuid.UUID(int=index)}",
-                "prefect.resource.name": "process_data-10",
-                "prefect.resource.role": "task-run",
-            },
-            {
-                "prefect.resource.id": f"prefect.flow.{uuid.UUID(int=index)}",
-                "prefect.resource.name": "my-flow-2",
-                "prefect.resource.role": "flow",
-            },
-        ],
+        related=related,
         payload={},
         id=uuid.UUID(int=1),
     )
 
 
 @pytest.fixture
-def acquired_events_page_one(concurrency_limit) -> List[ReceivedEvent]:
+def acquired_events(concurrency_limit) -> List[ReceivedEvent]:
     return [make_received_event("acquired", concurrency_limit, i) for i in range(5)]
 
 
 @pytest.fixture
-def acquired_events_page_two(concurrency_limit) -> List[ReceivedEvent]:
-    return [make_received_event("acquired", concurrency_limit, i) for i in range(5)]
-
-
-@pytest.fixture
-def released_events_page_one(concurrency_limit) -> List[ReceivedEvent]:
+def released_events(concurrency_limit) -> List[ReceivedEvent]:
     return [make_received_event("released", concurrency_limit, i) for i in range(5)]
 
 
 @pytest.fixture
-def released_events_page_two(concurrency_limit) -> List[ReceivedEvent]:
-    return [make_received_event("released", concurrency_limit, i) for i in range(5)]
-
-
-@pytest.fixture
-def acquired_events_page_three(concurrency_limit) -> List[ReceivedEvent]:
-    return [
-        ReceivedEvent(
-            event="prefect.concurrency-limit.acquired",
-            resource={
-                "limit": "1",
-                "slots-acquired": "1",
-                "prefect.resource.id": f"prefect.concurrency-limit.{concurrency_limit.id}",
-                "prefect.resource.name": "database",
-            },
-            occurred=DateTime(2023, 3, 1, 13, 39, 28),
-            related=[
-                {
-                    "prefect.resource.id": f"prefect.flow-run.{uuid.UUID(int=42)}",
-                    "prefect.resource.name": "something-special",
-                    "prefect.resource.role": "flow-run",
-                },
-                {
-                    "prefect.resource.id": f"prefect.task-run.{uuid.UUID(int=42)}",
-                    "prefect.resource.name": "process_data-10",
-                    "prefect.resource.role": "task-run",
-                },
-                {
-                    "prefect.resource.id": f"prefect.flow.{uuid.UUID(int=42)}",
-                    "prefect.resource.name": "my-flow-2",
-                    "prefect.resource.role": "flow",
-                },
-            ],
-            payload={},
-            id=uuid.UUID(int=1),
-        )
-    ]
-
-
-@pytest.fixture
-def query_events(
-    acquired_events_page_one, released_events_page_one
-) -> Generator[mock.AsyncMock, None, None]:
+def query_events() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch("prefect.server.api.events.database.query_events") as query_events:
-        query_events.side_effect = [
-            (
-                acquired_events_page_one,
-                123,
-                ENCODED_MOCK_PAGE_TOKEN,
-            ),
-            (
-                released_events_page_one,
-                123,
-                ENCODED_MOCK_PAGE_TOKEN,
-            ),
-        ]
         yield query_events
 
 
 @pytest.fixture
-def query_next_page(
-    acquired_events_page_two, released_events_page_two
-) -> Generator[mock.AsyncMock, None, None]:
+def query_next_page() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
         "prefect.server.api.events.database.query_next_page",
         new_callable=mock.AsyncMock,
     ) as query_next_page:
-        query_next_page.side_effect = [
-            (
-                acquired_events_page_two,
-                123,
-                ENCODED_MOCK_PAGE_TOKEN,
-            ),
-            (
-                released_events_page_two,
-                123,
-                ENCODED_MOCK_PAGE_TOKEN,
-            ),
-        ]
         yield query_next_page
 
 
 @pytest.fixture
-def last_events_page(
-    acquired_events_page_three,
-) -> Generator[mock.AsyncMock, None, None]:
-    with mock.patch(
-        "prefect.server.api.events.database.query_next_page",
-        new_callable=mock.AsyncMock,
-    ) as query_next_page:
-        query_next_page.side_effect = [
-            (
-                acquired_events_page_three,
-                123,
-                None,
-            ),
-            (
-                [],
-                123,
-                None,
-            ),
-        ]
-        yield query_next_page
+def equal_acquired_and_released_events(
+    acquired_events,
+    released_events,
+) -> List[ReceivedEvent]:
+    return acquired_events + released_events
+
+
+@pytest.fixture
+def released_without_acquired_events(
+    concurrency_limit,
+    acquired_events,
+    released_events,
+) -> List[ReceivedEvent]:
+    return acquired_events[:3] + released_events
+
+
+@pytest.fixture
+def acquired_without_released_events(
+    concurrency_limit,
+    acquired_events,
+    released_events,
+) -> List[ReceivedEvent]:
+    return acquired_events + released_events[:3]
 
 
 @pytest.fixture
@@ -412,35 +346,218 @@ async def test_increment_concurrency_limit_simple(
     assert refreshed_limit.active_slots == 1
 
 
-async def test_get_concurrency_limit_active_owners(
+async def test_get_concurrency_limit_active_holders(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
-    query_events,
-    query_next_page,
-    last_events_page,
+    query_events: mock.AsyncMock,
+    acquired_without_released_events: List[ReceivedEvent],
 ):
+    query_events.return_value = (
+        acquired_without_released_events,
+        len(acquired_without_released_events),
+        None,
+    )
+
     response = await client.post(
-        "/v2/concurrency_limits/active_owners",
+        "/v2/concurrency_limits/active_holders",
         json={"names": [concurrency_limit.name]},
     )
     assert response.status_code == 200
     data = response.json()
     assert list(data) == ["database"]
-    assert sorted(data["database"], key=lambda x: x["name"]) == sorted(
+    assert sorted(data["database"], key=lambda x: x["id"]) == sorted(
         [
             {
-                "id": "00000000-0000-0000-0000-00000000002a",
+                "held_since": "2023-03-01T12:39:28Z",
+                "id": "00000000-0000-0000-0000-000000000068",
+                "name": "process_data",
+                "type": "task-run",
+            },
+            {
+                "held_since": "2023-03-01T12:39:28Z",
+                "id": "00000000-0000-0000-0000-000000000067",
+                "name": "process_data",
+                "type": "task-run",
+            },
+            {
+                "held_since": "2023-03-01T12:39:28Z",
+                "id": "00000000-0000-0000-0000-000000000003",
                 "name": "something-special",
                 "type": "flow-run",
             },
             {
-                "id": "00000000-0000-0000-0000-00000000002a",
-                "name": "process_data-10",
+                "held_since": "2023-03-01T12:39:28Z",
+                "id": "00000000-0000-0000-0000-000000000004",
+                "name": "something-special",
+                "type": "flow-run",
+            },
+        ],
+        key=lambda x: x["id"],
+    )
+
+
+async def test_get_concurrency_limit_active_holders_multiple_pages(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    query_events: mock.AsyncMock,
+    query_next_page: mock.AsyncMock,
+    acquired_events: List[ReceivedEvent],
+    released_events: List[ReceivedEvent],
+):
+    # Four matching pairs, plus one acquired without a paired released event.
+    total = 5
+    query_events.return_value = (
+        acquired_events[:1] + released_events[:1],
+        total,
+        ENCODED_MOCK_PAGE_TOKEN,
+    )
+
+    query_next_page.side_effect = [
+        (
+            acquired_events[1:2] + released_events[1:2],
+            total,
+            ENCODED_MOCK_PAGE_TOKEN,
+        ),
+        (acquired_events[2:3], total, None),
+    ]
+
+    response = await client.post(
+        "/v2/concurrency_limits/active_holders",
+        json={"names": [concurrency_limit.name]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert list(data) == ["database"]
+    assert sorted(data["database"], key=lambda x: x["id"]) == sorted(
+        [
+            {
+                "held_since": "2023-03-01T12:39:28Z",
+                "id": "00000000-0000-0000-0000-000000000002",
+                "name": "something-special",
+                "type": "flow-run",
+            },
+            {
+                "held_since": "2023-03-01T12:39:28Z",
+                "id": "00000000-0000-0000-0000-000000000066",
+                "name": "process_data",
                 "type": "task-run",
             },
         ],
-        key=lambda x: x["name"],
+        key=lambda x: x["id"],
     )
+
+
+async def test_get_concurrency_limit_active_holders_mismatched_pairs(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    query_events: mock.AsyncMock,
+):
+    # A released event for a different resource should not clear
+    # a holder from a different resource
+    acquired_events_mismatched = [
+        make_received_event("acquired", concurrency_limit, 1),
+        make_received_event(
+            "released",
+            concurrency_limit,
+            2,
+            related=[
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{uuid.UUID(int=2)}",
+                    "prefect.resource.name": "some-other-run",
+                    "prefect.resource.role": "flow-run",
+                }
+            ],
+        ),
+    ]
+
+    query_events.return_value = (acquired_events_mismatched, 2, None)
+
+    response = await client.post(
+        "/v2/concurrency_limits/active_holders",
+        json={"names": [concurrency_limit.name]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert list(data) == ["database"]
+    assert sorted(data["database"], key=lambda x: x["id"]) == sorted(
+        [
+            {
+                "held_since": "2023-03-01T12:39:28Z",
+                "id": "00000000-0000-0000-0000-000000000001",
+                "name": "something-special",
+                "type": "flow-run",
+            },
+            {
+                "held_since": "2023-03-01T12:39:28Z",
+                "id": "00000000-0000-0000-0000-000000000065",
+                "name": "process_data",
+                "type": "task-run",
+            },
+        ],
+        key=lambda x: x["id"],
+    )
+
+
+async def test_get_concurrency_limit_holders_no_limits(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/active_holders",
+        json={"names": ["non_existent_limit"]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {}
+
+
+async def test_get_concurrency_limit_holders_no_events(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    query_events: mock.AsyncMock,
+):
+    query_events.return_value = ([], 0, None)
+    response = await client.post(
+        "/v2/concurrency_limits/active_holders",
+        json={"names": [concurrency_limit.name]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {}
+
+
+async def test_get_concurrency_limit_holders_released_without_acquired(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    query_events: mock.AsyncMock,
+    released_events: List[ReceivedEvent],
+):
+    query_events.return_value = (released_events, len(released_events), None)
+    response = await client.post(
+        "/v2/concurrency_limits/active_holders",
+        json={"names": [concurrency_limit.name]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {}
+
+
+async def test_get_concurrency_limit_holders_acquired_without_released(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    query_events: mock.AsyncMock,
+    acquired_events: List[ReceivedEvent],
+):
+    query_events.return_value = (acquired_events, len(acquired_events), None)
+    response = await client.post(
+        "/v2/concurrency_limits/active_holders",
+        json={"names": [concurrency_limit.name]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert list(data) == ["database"]
+
+    # Two related resources per event
+    assert len(data["database"]) == len(acquired_events) * 2
 
 
 async def test_increment_concurrency_limit_multi(

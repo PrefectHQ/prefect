@@ -4689,13 +4689,14 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/active_owners": {
+        "/api/v2/concurrency_limits/active_holders": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
                 ],
-                "summary": "Read Concurrency Limit Owners",
-                "operationId": "read_concurrency_limit_owners_v2_concurrency_limits_active_owners_post",
+                "summary": "Read Concurrency Limit Active Holders",
+                "description": "Get the flow runs and task runs that are currently using a slot in the\nspecified concurrency limits.",
+                "operationId": "read_concurrency_limit_active_holders_v2_concurrency_limits_active_holders_post",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4712,7 +4713,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_concurrency_limit_owners_v2_concurrency_limits_active_owners_post"
+                                "$ref": "#/components/schemas/Body_read_concurrency_limit_active_holders_v2_concurrency_limits_active_holders_post"
                             }
                         }
                     }
@@ -4724,7 +4725,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "object",
-                                    "title": "Response Read Concurrency Limit Owners V2 Concurrency Limits Active Owners Post"
+                                    "title": "Response Read Concurrency Limit Active Holders V2 Concurrency Limits Active Holders Post"
                                 }
                             }
                         }
@@ -13748,7 +13749,7 @@
                 "type": "object",
                 "title": "Body_read_block_types_block_types_filter_post"
             },
-            "Body_read_concurrency_limit_owners_v2_concurrency_limits_active_owners_post": {
+            "Body_read_concurrency_limit_active_holders_v2_concurrency_limits_active_holders_post": {
                 "properties": {
                     "names": {
                         "items": {
@@ -13769,7 +13770,7 @@
                 "required": [
                     "names"
                 ],
-                "title": "Body_read_concurrency_limit_owners_v2_concurrency_limits_active_owners_post"
+                "title": "Body_read_concurrency_limit_active_holders_v2_concurrency_limits_active_holders_post"
             },
             "Body_read_concurrency_limits_concurrency_limits_filter_post": {
                 "properties": {

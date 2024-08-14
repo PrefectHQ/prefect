@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from uuid import UUID
 
 import anyio
@@ -21,12 +21,36 @@ from prefect.server.utilities.server import PrefectRouter
 router = PrefectRouter(prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"])
 
 
-async def get_all_events(
+async def _get_limit_events(
     event_filter: EventFilter,
     db: PrefectDBInterface,
     page_size: int = 50,
-) -> List[ReceivedEvent]:
+) -> Tuple[List[ReceivedEvent], List[ReceivedEvent]]:
+    """
+    Get all acquired and released events for concurrency limits
+    specified in the event filter.
+
+    This function will attempt to paginate through all matching
+    events and then separate them by acquired and released events.
+    If gathering all events takes longer than 5 seconds, the
+    function will return the events it has gathered so far.
+
+    Args:
+        event_filter (EventFilter): The event filter to use
+            when querying events.
+        db (PrefectDBInterface): The database interface to use
+            when querying events.
+        page_size (int, optional): The number of events to
+            query per page. Defaults to 50.
+
+    Returns:
+        Tuple[List[ReceivedEvent], List[ReceivedEvent]]: A tuple
+            containing the acquired and released events, respectively.
+    """
     all_events = []
+    acquired_events = []
+    released_events = []
+
     async with db.session_context() as session:
         events, total, next_token = await database.query_events(
             session=session,
@@ -42,7 +66,14 @@ async def get_all_events(
                     page_token=next_token,
                 )
                 all_events.extend(events)
-    return events
+
+    for event in all_events:
+        if event.event == "prefect.concurrency-limit.acquired":
+            acquired_events.append(event)
+        elif event.event == "prefect.concurrency-limit.released":
+            released_events.append(event)
+
+    return acquired_events, released_events
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -301,12 +332,16 @@ async def bulk_decrement_active_slots(
 ONE_HOUR = 60 * 60
 
 
-@router.post("/active_owners", status_code=status.HTTP_200_OK)
-async def read_concurrency_limit_owners(
+@router.post("/active_holders", status_code=status.HTTP_200_OK)
+async def read_concurrency_limit_active_holders(
     names: List[str] = Body(..., min_items=1),
     time_window: int = Body(ONE_HOUR, le=ONE_HOUR),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> Dict[str, Any]:
+    """
+    Get the flow runs and task runs that are currently using a slot in the
+    specified concurrency limits.
+    """
     async with db.session_context(begin_transaction=True) as session:
         limits = (
             await models.concurrency_limits_v2.bulk_read_or_create_concurrency_limits(
@@ -322,19 +357,17 @@ async def read_concurrency_limit_owners(
     since = datetime.now() - timedelta(seconds=time_window)
 
     limit_ids = [f"prefect.concurrency-limit.{limit.id}" for limit in limits]
-    acquired_filter = EventFilter(
+    event_filter = EventFilter(
         occurred={"since": since},
-        event={"name": ["prefect.concurrency-limit.acquired"]},
+        event={
+            "name": [
+                "prefect.concurrency-limit.acquired",
+                "prefect.concurrency-limit.released",
+            ]
+        },
         resource={"id": limit_ids},
     )
-    released_filter = EventFilter(
-        occurred={"since": since},
-        event={"name": ["prefect.concurrency-limit.released"]},
-        resource={"id": limit_ids},
-    )
-
-    acquired_events = await get_all_events(acquired_filter, db)
-    released_events = await get_all_events(released_filter, db)
+    acquired_events, released_events = await _get_limit_events(event_filter, db)
     limit_acquirers = defaultdict(set)
     seen_related_resources = {}
 
@@ -345,22 +378,30 @@ async def read_concurrency_limit_owners(
                 and r.id not in limit_acquirers[event.resource.name]
             ):
                 limit_acquirers[event.resource.name].add(r.id)
-                seen_related_resources[r.id] = r
+                seen_related_resources[r.id] = {
+                    "held_since": event.occurred,
+                    "resource": r,
+                }
 
     for event in released_events:
-        print(event)
         for r in event.related:
-            if r.role in ("flow-run", "task-run"):
+            if (
+                r.role in ("flow-run", "task-run")
+                and r.id in limit_acquirers[event.resource.name]
+            ):
                 limit_acquirers[event.resource.name].remove(r.id)
 
-    return {
+    holders = {
         limit: [
             {
                 "id": resource_id.split(".")[2],
-                "type": seen_related_resources[resource_id].role,
-                "name": seen_related_resources[resource_id].name,
+                "type": seen_related_resources[resource_id]["resource"].role,
+                "name": seen_related_resources[resource_id]["resource"].name,
+                "held_since": seen_related_resources[resource_id]["held_since"],
             }
             for resource_id in limit_acquirers.get(limit, [])
         ]
         for limit in limit_acquirers
+        if limit_acquirers.get(limit, [])
     }
+    return {limit: resources for limit, resources in holders.items() if resources}
