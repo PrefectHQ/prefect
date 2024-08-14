@@ -930,7 +930,12 @@ class BaseWorker(abc.ABC):
 
         deployment_vars = deployment.job_variables or {}
         flow_run_vars = flow_run.job_variables or {}
-        job_variables = {**deployment_vars, **flow_run_vars}
+        job_variables = {**deployment_vars}
+
+        # merge environment variables carefully, otherwise full override
+        if isinstance(job_variables.get("env"), dict):
+            job_variables["env"].update(flow_run_vars.pop("env", {}))
+        job_variables.update(flow_run_vars)
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
