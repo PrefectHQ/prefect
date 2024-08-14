@@ -1,3 +1,4 @@
+import copy
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
@@ -107,6 +108,7 @@ class Transaction(ContextModel):
             # either inherit from parent or set a default of eager
             if parent:
                 self.commit_mode = parent.commit_mode
+                self._stored_values = copy.deepcopy(parent._stored_values)
             else:
                 self.commit_mode = CommitMode.LAZY
 
