@@ -1191,9 +1191,9 @@ class LogFilterTaskRunId(PrefectFilterBaseModel):
             filters.append(orm_models.Log.task_run_id.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
-                orm_models.Log.task_run_id == None
+                orm_models.Log.task_run_id is None
                 if self.is_null_
-                else orm_models.Log.task_run_id != None
+                else orm_models.Log.task_run_id is not None
             )
         return filters
 
