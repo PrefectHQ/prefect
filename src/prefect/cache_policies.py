@@ -143,8 +143,8 @@ class TaskSource(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: Optional[Dict[str, Any]],
+        flow_parameters: Optional[Dict[str, Any]],
         **kwargs,
     ) -> Optional[str]:
         if not task_ctx:
