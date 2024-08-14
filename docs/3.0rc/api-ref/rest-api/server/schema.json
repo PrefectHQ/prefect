@@ -20424,6 +20424,18 @@
                         ],
                         "title": "Any ",
                         "description": "A list of task run IDs to include"
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null ",
+                        "description": "If true, only include logs without a task run id"
                     }
                 },
                 "additionalProperties": false,

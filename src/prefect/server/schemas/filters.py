@@ -1180,10 +1180,21 @@ class LogFilterTaskRunId(PrefectFilterBaseModel):
         default=None, description="A list of task run IDs to include"
     )
 
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include logs without a task run id",
+    )
+
     def _get_filter_list(self) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(orm_models.Log.task_run_id.in_(self.any_))
+        if self.is_null_ is not None:
+            filters.append(
+                orm_models.Log.task_run_id.is_(None)
+                if self.is_null_
+                else orm_models.Log.task_run_id.is_not(None)
+            )
         return filters
 
 
