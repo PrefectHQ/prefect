@@ -2,6 +2,7 @@ import threading
 from typing import Dict, Optional, TypedDict
 
 from prefect.results import BaseResult
+from prefect.transactions import IsolationLevel
 
 from .base import RecordStore, TransactionRecord
 
@@ -41,7 +42,7 @@ class MemoryRecordStore(RecordStore):
     def read(self, key: str) -> Optional[TransactionRecord]:
         return self._records.get(key)
 
-    def write(self, key: str, value: BaseResult, holder: Optional[str] = None) -> None:
+    def write(self, key: str, result: BaseResult, holder: Optional[str] = None) -> None:
         holder = holder or self.generate_default_holder()
 
         with self._locks_dict_lock:
@@ -49,10 +50,16 @@ class MemoryRecordStore(RecordStore):
                 raise ValueError(
                     f"Cannot write to transaction with key {key} because it is locked by another holder."
                 )
-        self._records[key] = TransactionRecord(key=key, result=value)
+        self._records[key] = TransactionRecord(key=key, result=result)
 
     def exists(self, key: str) -> bool:
         return key in self._records
+
+    def supports_isolation_level(self, isolation_level: IsolationLevel) -> bool:
+        return isolation_level in {
+            IsolationLevel.READ_COMMITTED,
+            IsolationLevel.SERIALIZABLE,
+        }
 
     def _expire_lock(self, key: str):
         """

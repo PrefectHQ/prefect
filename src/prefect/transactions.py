@@ -2,6 +2,7 @@ import copy
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -18,9 +19,8 @@ from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
 from prefect.exceptions import MissingContextError
-from prefect.logging.loggers import PrefectLogAdapter, get_logger, get_run_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
-from prefect.records.result_store import ResultFactoryStore
 from prefect.results import (
     BaseResult,
     ResultFactory,
@@ -60,13 +60,16 @@ class Transaction(ContextModel):
     key: Optional[str] = None
     children: List["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
+    isolation_level: Optional[IsolationLevel] = IsolationLevel.READ_COMMITTED
     state: TransactionState = TransactionState.PENDING
     on_commit_hooks: List[Callable[["Transaction"], None]] = Field(default_factory=list)
     on_rollback_hooks: List[Callable[["Transaction"], None]] = Field(
         default_factory=list
     )
     overwrite: bool = False
-    logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
+    logger: Union[logging.Logger, logging.LoggerAdapter] = Field(
+        default_factory=partial(get_logger, "transactions")
+    )
     _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
@@ -101,16 +104,27 @@ class Transaction(ContextModel):
             raise RuntimeError(
                 "Context already entered. Context enter calls cannot be nested."
             )
-        # set default commit behavior
+        parent = get_transaction()
+        if parent:
+            self._stored_values = copy.deepcopy(parent._stored_values)
+        # set default commit behavior; either inherit from parent or set a default of eager
         if self.commit_mode is None:
-            parent = get_transaction()
+            self.commit_mode = parent.commit_mode if parent else CommitMode.LAZY
+        # set default isolation level; either inherit from parent or set a default of read committed
+        if self.isolation_level is None:
+            self.isolation_level = (
+                parent.isolation_level if parent else IsolationLevel.READ_COMMITTED
+            )
 
-            # either inherit from parent or set a default of eager
-            if parent:
-                self.commit_mode = parent.commit_mode
-                self._stored_values = copy.deepcopy(parent._stored_values)
-            else:
-                self.commit_mode = CommitMode.LAZY
+        assert self.isolation_level is not None, "Isolation level was not set correctly"
+        if (
+            self.store
+            and self.key
+            and not self.store.supports_isolation_level(self.isolation_level)
+        ):
+            raise ValueError(
+                f"Isolation level {self.isolation_level.name} is not supported by record store type {self.store.__class__.__name__}"
+            )
 
         # this needs to go before begin, which could set the state to committed
         self.state = TransactionState.ACTIVE
@@ -158,11 +172,12 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> BaseResult:
+    def read(self) -> Optional[BaseResult]:
         if self.store and self.key:
-            return self.store.read(key=self.key)
-        else:
-            return {}  # TODO: Determine what this should be
+            record = self.store.read(key=self.key)
+            if record is not None:
+                return record.result
+        return None
 
     def reset(self) -> None:
         parent = self.get_parent()
@@ -202,7 +217,7 @@ class Transaction(ContextModel):
                 self.run_hook(hook, "commit")
 
             if self.store and self.key:
-                self.store.write(key=self.key, value=self._staged_value)
+                self.store.write(key=self.key, result=self._staged_value)
             self.state = TransactionState.COMMITTED
             return True
         except Exception:
@@ -284,8 +299,9 @@ def transaction(
     key: Optional[str] = None,
     store: Optional[RecordStore] = None,
     commit_mode: Optional[CommitMode] = None,
+    isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
-    logger: Optional[PrefectLogAdapter] = None,
+    logger: Union[logging.Logger, logging.LoggerAdapter, None] = None,
 ) -> Generator[Transaction, None, None]:
     """
     A context manager for opening and managing a transaction.
@@ -309,6 +325,7 @@ def transaction(
             flow_run_context, "result_factory", None
         )
 
+        new_factory: ResultFactory
         if existing_factory and existing_factory.storage_block_id:
             new_factory = existing_factory.model_copy(
                 update={
@@ -332,6 +349,8 @@ def transaction(
                         result_storage=default_storage,
                     )
                 )
+        from prefect.records.result_store import ResultFactoryStore
+
         store = ResultFactoryStore(
             result_factory=new_factory,
         )
@@ -345,6 +364,7 @@ def transaction(
         key=key,
         store=store,
         commit_mode=commit_mode,
+        isolation_level=isolation_level,
         overwrite=overwrite,
         logger=logger,
     ) as txn:

@@ -6,6 +6,7 @@ import pytest
 
 from prefect.records.memory import MemoryRecordStore
 from prefect.results import ResultFactory
+from prefect.transactions import IsolationLevel
 
 
 class TestInMemoryRecordStore:
@@ -177,3 +178,8 @@ class TestInMemoryRecordStore:
 
         # the lock should have been acquired by the thread
         assert store.is_locked
+
+    def test_supports_serialization_level(self):
+        store = MemoryRecordStore()
+        assert store.supports_isolation_level(IsolationLevel.READ_COMMITTED)
+        assert store.supports_isolation_level(IsolationLevel.SERIALIZABLE)
