@@ -1,17 +1,182 @@
+import base64
 import uuid
+from typing import Generator, List, Literal
+from unittest import mock
 
 import pytest
 from httpx import AsyncClient
+from pendulum import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.client import schemas as client_schemas
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events import ReceivedEvent
 from prefect.server.models.concurrency_limits_v2 import (
     bulk_update_denied_slots,
     create_concurrency_limit,
     read_concurrency_limit,
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
+
+MOCK_PAGE_TOKEN = "THAT:SWEETSWEETTOKEN"
+ENCODED_MOCK_PAGE_TOKEN = base64.b64encode(MOCK_PAGE_TOKEN.encode()).decode()
+
+
+def make_received_event(
+    event_type: Literal["acquired", "released"],
+    concurrency_limit: ConcurrencyLimitV2,
+    index: int,
+) -> ReceivedEvent:
+    return ReceivedEvent(
+        event=f"prefect.concurrency-limit.{event_type}",
+        resource={
+            "limit": "1",
+            "slots-acquired": "1",
+            "prefect.resource.id": f"prefect.concurrency-limit.{concurrency_limit.id}",
+            "prefect.resource.name": "database",
+        },
+        occurred=DateTime(2023, 3, 1, 12, 39, 28),
+        related=[
+            {
+                "prefect.resource.id": f"prefect.flow-run.{uuid.UUID(int=index)}",
+                "prefect.resource.name": "something-special",
+                "prefect.resource.role": "flow-run",
+            },
+            {
+                "prefect.resource.id": f"prefect.task-run.{uuid.UUID(int=index)}",
+                "prefect.resource.name": "process_data-10",
+                "prefect.resource.role": "task-run",
+            },
+            {
+                "prefect.resource.id": f"prefect.flow.{uuid.UUID(int=index)}",
+                "prefect.resource.name": "my-flow-2",
+                "prefect.resource.role": "flow",
+            },
+        ],
+        payload={},
+        id=uuid.UUID(int=1),
+    )
+
+
+@pytest.fixture
+def acquired_events_page_one(concurrency_limit) -> List[ReceivedEvent]:
+    return [make_received_event("acquired", concurrency_limit, i) for i in range(5)]
+
+
+@pytest.fixture
+def acquired_events_page_two(concurrency_limit) -> List[ReceivedEvent]:
+    return [make_received_event("acquired", concurrency_limit, i) for i in range(5)]
+
+
+@pytest.fixture
+def released_events_page_one(concurrency_limit) -> List[ReceivedEvent]:
+    return [make_received_event("released", concurrency_limit, i) for i in range(5)]
+
+
+@pytest.fixture
+def released_events_page_two(concurrency_limit) -> List[ReceivedEvent]:
+    return [make_received_event("released", concurrency_limit, i) for i in range(5)]
+
+
+@pytest.fixture
+def acquired_events_page_three(concurrency_limit) -> List[ReceivedEvent]:
+    return [
+        ReceivedEvent(
+            event="prefect.concurrency-limit.acquired",
+            resource={
+                "limit": "1",
+                "slots-acquired": "1",
+                "prefect.resource.id": f"prefect.concurrency-limit.{concurrency_limit.id}",
+                "prefect.resource.name": "database",
+            },
+            occurred=DateTime(2023, 3, 1, 13, 39, 28),
+            related=[
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{uuid.UUID(int=42)}",
+                    "prefect.resource.name": "something-special",
+                    "prefect.resource.role": "flow-run",
+                },
+                {
+                    "prefect.resource.id": f"prefect.task-run.{uuid.UUID(int=42)}",
+                    "prefect.resource.name": "process_data-10",
+                    "prefect.resource.role": "task-run",
+                },
+                {
+                    "prefect.resource.id": f"prefect.flow.{uuid.UUID(int=42)}",
+                    "prefect.resource.name": "my-flow-2",
+                    "prefect.resource.role": "flow",
+                },
+            ],
+            payload={},
+            id=uuid.UUID(int=1),
+        )
+    ]
+
+
+@pytest.fixture
+def query_events(
+    acquired_events_page_one, released_events_page_one
+) -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch("prefect.server.api.events.database.query_events") as query_events:
+        query_events.side_effect = [
+            (
+                acquired_events_page_one,
+                123,
+                ENCODED_MOCK_PAGE_TOKEN,
+            ),
+            (
+                released_events_page_one,
+                123,
+                ENCODED_MOCK_PAGE_TOKEN,
+            ),
+        ]
+        yield query_events
+
+
+@pytest.fixture
+def query_next_page(
+    acquired_events_page_two, released_events_page_two
+) -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.server.api.events.database.query_next_page",
+        new_callable=mock.AsyncMock,
+    ) as query_next_page:
+        query_next_page.side_effect = [
+            (
+                acquired_events_page_two,
+                123,
+                ENCODED_MOCK_PAGE_TOKEN,
+            ),
+            (
+                released_events_page_two,
+                123,
+                ENCODED_MOCK_PAGE_TOKEN,
+            ),
+        ]
+        yield query_next_page
+
+
+@pytest.fixture
+def last_events_page(
+    acquired_events_page_three,
+) -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.server.api.events.database.query_next_page",
+        new_callable=mock.AsyncMock,
+    ) as query_next_page:
+        query_next_page.side_effect = [
+            (
+                acquired_events_page_three,
+                123,
+                None,
+            ),
+            (
+                [],
+                123,
+                None,
+            ),
+        ]
+        yield query_next_page
 
 
 @pytest.fixture
@@ -245,6 +410,37 @@ async def test_increment_concurrency_limit_simple(
     )
     assert refreshed_limit
     assert refreshed_limit.active_slots == 1
+
+
+async def test_get_concurrency_limit_active_owners(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    query_events,
+    query_next_page,
+    last_events_page,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/active_owners",
+        json={"names": [concurrency_limit.name]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert list(data) == ["database"]
+    assert sorted(data["database"], key=lambda x: x["name"]) == sorted(
+        [
+            {
+                "id": "00000000-0000-0000-0000-00000000002a",
+                "name": "something-special",
+                "type": "flow-run",
+            },
+            {
+                "id": "00000000-0000-0000-0000-00000000002a",
+                "name": "process_data-10",
+                "type": "task-run",
+            },
+        ],
+        key=lambda x: x["name"],
+    )
 
 
 async def test_increment_concurrency_limit_multi(

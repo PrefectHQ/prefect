@@ -516,7 +516,8 @@
                     "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/update-concurrency-limit-v2",
                     "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/read-all-concurrency-limits-v2",
                     "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots"
+                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots",
+                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/read-concurrency-limit-owners"
                   ]
                 },
                 {

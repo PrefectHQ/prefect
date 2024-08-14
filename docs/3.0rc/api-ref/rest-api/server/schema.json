@@ -4689,6 +4689,59 @@
                 }
             }
         },
+        "/api/v2/concurrency_limits/active_owners": {
+            "post": {
+                "tags": [
+                    "Concurrency Limits V2"
+                ],
+                "summary": "Read Concurrency Limit Owners",
+                "operationId": "read_concurrency_limit_owners_v2_concurrency_limits_active_owners_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_read_concurrency_limit_owners_v2_concurrency_limits_active_owners_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Read Concurrency Limit Owners V2 Concurrency Limits Active Owners Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/block_types/": {
             "post": {
                 "tags": [
@@ -13694,6 +13747,29 @@
                 },
                 "type": "object",
                 "title": "Body_read_block_types_block_types_filter_post"
+            },
+            "Body_read_concurrency_limit_owners_v2_concurrency_limits_active_owners_post": {
+                "properties": {
+                    "names": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Names",
+                        "min_items": 1
+                    },
+                    "time_window": {
+                        "type": "integer",
+                        "maximum": 3600.0,
+                        "title": "Time Window",
+                        "default": 3600
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "names"
+                ],
+                "title": "Body_read_concurrency_limit_owners_v2_concurrency_limits_active_owners_post"
             },
             "Body_read_concurrency_limits_concurrency_limits_filter_post": {
                 "properties": {

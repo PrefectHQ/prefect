@@ -1,6 +1,9 @@
-from typing import List, Literal, Optional, Union
+from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import UUID
 
+import anyio
 from fastapi import Body, Depends, HTTPException, Path, status
 
 import prefect.server.models as models
@@ -8,11 +11,38 @@ import prefect.server.schemas as schemas
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events import ReceivedEvent
+from prefect.server.events.filters import EventFilter
+from prefect.server.events.storage import database
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"])
+
+
+async def get_all_events(
+    event_filter: EventFilter,
+    db: PrefectDBInterface,
+    page_size: int = 50,
+) -> List[ReceivedEvent]:
+    all_events = []
+    async with db.session_context() as session:
+        events, total, next_token = await database.query_events(
+            session=session,
+            filter=event_filter,
+            page_size=page_size,
+        )
+        all_events.extend(events)
+
+        with anyio.move_on_after(5):
+            while next_token:
+                events, total, next_token = await database.query_next_page(
+                    session=session,
+                    page_token=next_token,
+                )
+                all_events.extend(events)
+    return events
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -266,3 +296,71 @@ async def bulk_decrement_active_slots(
         )
         for limit in limits
     ]
+
+
+ONE_HOUR = 60 * 60
+
+
+@router.post("/active_owners", status_code=status.HTTP_200_OK)
+async def read_concurrency_limit_owners(
+    names: List[str] = Body(..., min_items=1),
+    time_window: int = Body(ONE_HOUR, le=ONE_HOUR),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> Dict[str, Any]:
+    async with db.session_context(begin_transaction=True) as session:
+        limits = (
+            await models.concurrency_limits_v2.bulk_read_or_create_concurrency_limits(
+                session=session, names=names, create_if_missing=False
+            )
+        )
+
+        if not limits:
+            return {}
+
+    # Create an EventFilter to find all concurrency limit acquired and released events for
+    # resources matching the concurrency limit names in `limits`
+    since = datetime.now() - timedelta(seconds=time_window)
+
+    limit_ids = [f"prefect.concurrency-limit.{limit.id}" for limit in limits]
+    acquired_filter = EventFilter(
+        occurred={"since": since},
+        event={"name": ["prefect.concurrency-limit.acquired"]},
+        resource={"id": limit_ids},
+    )
+    released_filter = EventFilter(
+        occurred={"since": since},
+        event={"name": ["prefect.concurrency-limit.released"]},
+        resource={"id": limit_ids},
+    )
+
+    acquired_events = await get_all_events(acquired_filter, db)
+    released_events = await get_all_events(released_filter, db)
+    limit_acquirers = defaultdict(set)
+    seen_related_resources = {}
+
+    for event in acquired_events:
+        for r in event.related:
+            if (
+                r.role in ("flow-run", "task-run")
+                and r.id not in limit_acquirers[event.resource.name]
+            ):
+                limit_acquirers[event.resource.name].add(r.id)
+                seen_related_resources[r.id] = r
+
+    for event in released_events:
+        print(event)
+        for r in event.related:
+            if r.role in ("flow-run", "task-run"):
+                limit_acquirers[event.resource.name].remove(r.id)
+
+    return {
+        limit: [
+            {
+                "id": resource_id.split(".")[2],
+                "type": seen_related_resources[resource_id].role,
+                "name": seen_related_resources[resource_id].name,
+            }
+            for resource_id in limit_acquirers.get(limit, [])
+        ]
+        for limit in limit_acquirers
+    }
