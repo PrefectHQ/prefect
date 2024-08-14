@@ -274,7 +274,8 @@ class TestTaskRunsAsync:
         result = await run_task_async(my_log_task)
 
         assert result is None
-        record = caplog.records[0]
+        record = next((r for r in caplog.records if r.message == "hey yall"), None)
+        assert record is not None, "Couldn't find expected log record"
 
         assert record.task_name == "my_log_task"
         assert record.task_run_name == "test-run"
@@ -596,7 +597,8 @@ class TestTaskRunsSync:
         result = run_task_sync(my_log_task)
 
         assert result is None
-        record = caplog.records[0]
+        record = next((r for r in caplog.records if r.message == "hey yall"), None)
+        assert record is not None, "Couldn't find expected log record"
 
         assert record.task_name == "my_log_task"
         assert record.task_run_name == "test-run"
