@@ -18,7 +18,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import flow
 from prefect.server import models
-from prefect.server.schemas.core import Flow, WorkPool
+from prefect.server.schemas.core import Deployment, Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
@@ -1644,3 +1644,34 @@ class TestBaseWorkerStart:
 
         worker.run.assert_awaited_once()
         assert worker.run.call_args[1]["flow_run"].id == flow_run.id
+
+
+async def test_env_merge_logic_is_deep(prefect_client, session, flow):
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="env-testing",
+            tags=["test"],
+            flow_id=flow.id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema={},
+            job_variables={"env": {"test-var": "foo"}},
+        ),
+    )
+    await session.commit()
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=Pending(),
+        job_variables={"env": {"another-var": "boo"}},
+    )
+    async with WorkerTestImpl(
+        name="test",
+        work_pool_name="test-work-pool",
+    ) as worker:
+        await worker.sync_with_backend()
+        config = await worker._get_configuration(flow_run)
+
+    assert config.env["test-var"] == "foo"
+    assert config.env["another-var"] == "boo"
