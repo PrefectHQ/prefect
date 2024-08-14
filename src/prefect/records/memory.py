@@ -75,9 +75,9 @@ class MemoryRecordStore(RecordStore):
     def acquire_lock(
         self,
         key: str,
-        holder: str | None = None,
-        acquire_timeout: float | None = None,
-        hold_timeout: float | None = None,
+        holder: Optional[str] = None,
+        acquire_timeout: Optional[float] = None,
+        hold_timeout: Optional[float] = None,
     ) -> bool:
         holder = holder or self.generate_default_holder()
         with self._locks_dict_lock:
@@ -126,7 +126,7 @@ class MemoryRecordStore(RecordStore):
             return True
         return False
 
-    def release_lock(self, key: str, holder: str | None = None) -> None:
+    def release_lock(self, key: str, holder: Optional[str] = None) -> None:
         holder = holder or self.generate_default_holder()
         with self._locks_dict_lock:
             if key in self._locks and self._locks[key]["holder"] == holder:
@@ -153,7 +153,7 @@ class MemoryRecordStore(RecordStore):
             and lock_info["holder"] == holder
         )
 
-    def wait_for_lock(self, key: str, timeout: float | None = None) -> bool:
+    def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         if lock := self._locks.get(key, {}).get("lock"):
             if timeout is not None:
                 lock_acquired = lock.acquire(timeout=timeout)
