@@ -6,7 +6,7 @@ import pendulum
 from prefect.results import BaseResult, PersistedResult, ResultFactory
 from prefect.utilities.asyncutils import run_coro_as_sync
 
-from .store import RecordStore
+from .base import RecordStore
 
 
 @dataclass
