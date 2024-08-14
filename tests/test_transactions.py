@@ -360,6 +360,15 @@ class TestHooks:
                 assert top.get("key") == 42
             assert top.get("key") == 42
 
+    def test_get_and_set_data_doesnt_mutate_parent(self):
+        with transaction(key="test") as top:
+            top.set("key", {"x": [42]})
+            with transaction(key="nested") as inner:
+                inner.get("key")["x"].append(43)
+                assert inner.get("key") == {"x": [42, 43]}
+                assert top.get("key") == {"x": [42]}
+            assert top.get("key") == {"x": [42]}
+
     def test_get_raises_on_unknown_but_allows_default(self):
         with transaction(key="test") as txn:
             with pytest.raises(ValueError, match="foobar"):
