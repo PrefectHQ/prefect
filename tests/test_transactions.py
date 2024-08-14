@@ -360,7 +360,9 @@ class TestHooks:
                 assert top.get("key") == 42
             assert top.get("key") == 42
 
-    def test_get_raises_on_unknown(self):
+    def test_get_raises_on_unknown_but_allows_default(self):
         with transaction(key="test") as txn:
             with pytest.raises(ValueError, match="foobar"):
                 txn.get("foobar")
+            assert txn.get("foobar", None) is None
+            assert txn.get("foobar", "string") == "string"
