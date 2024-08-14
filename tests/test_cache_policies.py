@@ -1,6 +1,7 @@
 import itertools
 from dataclasses import dataclass
 from typing import Callable
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,6 +14,7 @@ from prefect.cache_policies import (
     TaskSource,
     _None,
 )
+from prefect.context import TaskRunContext
 
 
 class TestBaseClass:
@@ -183,6 +185,37 @@ class TestTaskSourcePolicy:
         )
 
         assert key != new_key
+
+    def test_source_fallback_behavior(self):
+        policy = TaskSource()
+
+        def task_a_fn():
+            pass
+
+        def task_b_fn():
+            return 1
+
+        mock_task_a = MagicMock()
+        mock_task_b = MagicMock()
+
+        mock_task_a.fn = task_a_fn
+        mock_task_b.fn = task_b_fn
+
+        task_ctx_a = TaskRunContext.model_construct(task=mock_task_a)
+        task_ctx_b = TaskRunContext.model_construct(task=mock_task_b)
+
+        with patch(
+            "inspect.getsource", side_effect=OSError("could not get source code")
+        ):
+            fallback_key_a = policy.compute_key(
+                task_ctx=task_ctx_a, inputs=None, flow_parameters=None
+            )
+            fallback_key_b = policy.compute_key(
+                task_ctx=task_ctx_b, inputs=None, flow_parameters=None
+            )
+
+        assert fallback_key_a and fallback_key_b
+        assert fallback_key_a != fallback_key_b
 
 
 class TestDefaultPolicy:
