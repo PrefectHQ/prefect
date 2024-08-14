@@ -1046,7 +1046,7 @@ class Block(BaseModel, ABC):
     @classmethod
     @sync_compatible
     @inject_client
-    async def register_type_and_schema(cls, client: "PrefectClient" = None):
+    async def register_type_and_schema(cls, client: Optional["PrefectClient"] = None):
         """
         Makes block available for configuration with current Prefect API.
         Recursively registers all nested blocks. Registration is idempotent.

@@ -1,9 +1,11 @@
+import copy
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import (
     Any,
     Callable,
+    Dict,
     Generator,
     List,
     Optional,
@@ -11,7 +13,7 @@ from typing import (
     Union,
 )
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
@@ -24,6 +26,7 @@ from prefect.results import (
     ResultFactory,
     get_default_result_storage,
 )
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
@@ -64,8 +67,19 @@ class Transaction(ContextModel):
     )
     overwrite: bool = False
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
+    _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
+
+    def set(self, name: str, value: Any) -> None:
+        self._stored_values[name] = value
+
+    def get(self, name: str, default: Any = NotSet) -> Any:
+        if name not in self._stored_values:
+            if default is not NotSet:
+                return default
+            raise ValueError(f"Could not retrieve value for unknown key: {name}")
+        return self._stored_values.get(name)
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED
@@ -94,6 +108,7 @@ class Transaction(ContextModel):
             # either inherit from parent or set a default of eager
             if parent:
                 self.commit_mode = parent.commit_mode
+                self._stored_values = copy.deepcopy(parent._stored_values)
             else:
                 self.commit_mode = CommitMode.LAZY
 

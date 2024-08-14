@@ -1,1 +1,1 @@
-from .store import RecordStore
+from .base import RecordStore
