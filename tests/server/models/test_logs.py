@@ -8,7 +8,7 @@ from sqlalchemy import select
 from prefect.server import models
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import Log
-from prefect.server.schemas.filters import LogFilter
+from prefect.server.schemas.filters import LogFilter, LogFilterTaskRunId
 from prefect.server.schemas.sorting import LogSort
 
 NOW = pendulum.now("UTC")
@@ -117,3 +117,24 @@ class TestReadLogs:
 
         assert len(logs) == 1
         assert all([log.task_run_id == task_run_id for log in logs])
+
+    async def test_read_logs_task_run_id_is_null(self, session, logs, flow_run_id):
+        log_filter = LogFilter(
+            flow_run_id={"any_": [flow_run_id]},
+            task_run_id=LogFilterTaskRunId(is_null_=True),
+        )
+        logs_filtered = await models.logs.read_logs(
+            session=session, log_filter=log_filter
+        )
+
+        assert len(logs_filtered) == 2
+        assert all([log.task_run_id is None for log in logs_filtered])
+
+    async def test_read_logs_task_run_id_is_not_null(self, session, logs, flow_run_id):
+        log_filter = LogFilter(
+            flow_run_id={"any_": [flow_run_id]}, task_run_id={"is_null_": False}
+        )
+        logs = await models.logs.read_logs(session=session, log_filter=log_filter)
+
+        assert len(logs) == 1
+        assert all([log.task_run_id is not None for log in logs])
