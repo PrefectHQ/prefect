@@ -997,7 +997,7 @@ class Deployment(ObjectBaseModel):
         default=False, description="Whether or not the deployment is paused."
     )
     concurrency_limit: Optional[int] = Field(
-        default=..., description="The concurrency limit for the deployment."
+        default=None, description="The concurrency limit for the deployment."
     )
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
