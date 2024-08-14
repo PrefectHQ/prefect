@@ -21,11 +21,38 @@ class TestInMemoryRecordStore:
         factory = await ResultFactory.default_factory(
             persist_result=True,
         )
-        result = factory.create_result(obj={"test": "value"})
+        result = await factory.create_result(obj={"test": "value"})
         store.write(key, value=result)
         assert (record := store.read(key)) is not None
         assert record.key == key
         assert record.result == result
+
+    async def test_write_to_key_with_same_lock_holder(self):
+        key = str(uuid4())
+        store = MemoryRecordStore()
+        assert store.acquire_lock(key)
+        factory = await ResultFactory.default_factory(
+            persist_result=True,
+        )
+        result = await factory.create_result(obj={"test": "value"})
+        # can write to key because holder is the same
+        store.write(key, value=result)
+        assert (record := store.read(key)) is not None
+        assert record.result == result
+
+    async def test_write_to_key_with_different_lock_holder(self):
+        key = str(uuid4())
+        store = MemoryRecordStore()
+        assert store.acquire_lock(key, holder="holder1")
+        factory = await ResultFactory.default_factory(
+            persist_result=True,
+        )
+        result = await factory.create_result(obj={"test": "value"})
+        with pytest.raises(
+            ValueError,
+            match=f"Cannot write to transaction with key {key} because it is locked by another holder.",
+        ):
+            store.write(key, value=result, holder="holder2")
 
     async def test_exists(self):
         key = str(uuid4())
@@ -34,7 +61,7 @@ class TestInMemoryRecordStore:
         factory = await ResultFactory.default_factory(
             persist_result=True,
         )
-        result = factory.create_result(obj={"test": "value"})
+        result = await factory.create_result(obj={"test": "value"})
         store.write(key, value=result)
         assert store.exists(key)
 
@@ -100,6 +127,14 @@ class TestInMemoryRecordStore:
             assert store.is_locked(key)
         assert not store.is_locked(key)
 
+    def test_is_lock_holder(self):
+        key = str(uuid4())
+        store = MemoryRecordStore()
+        assert not store.is_lock_holder(key, holder="holder1")
+        assert store.acquire_lock(key, holder="holder1")
+        assert store.is_lock_holder(key, holder="holder1")
+        assert not store.is_lock_holder(key, holder="holder2")
+
     def test_wait_for_lock(self):
         key = str(uuid4())
         store = MemoryRecordStore()
@@ -110,35 +145,35 @@ class TestInMemoryRecordStore:
 
     def test_wait_for_lock_with_timeout(self):
         key = str(uuid4())
-        record = MemoryRecordStore()
-        assert record.acquire_lock(key, holder="holder1")
-        assert record.is_locked(key)
-        assert not record.wait_for_lock(key, timeout=0.1)
-        assert record.is_locked(key)
-        record.release_lock(key, holder="holder1")
-        assert not record.is_locked(key)
+        store = MemoryRecordStore()
+        assert store.acquire_lock(key, holder="holder1")
+        assert store.is_locked(key)
+        assert not store.wait_for_lock(key, timeout=0.1)
+        assert store.is_locked(key)
+        store.release_lock(key, holder="holder1")
+        assert not store.is_locked(key)
 
     def test_wait_for_lock_never_been_locked(self):
         key = str(uuid4())
-        record = MemoryRecordStore()
-        assert not record.is_locked(key)
-        assert record.wait_for_lock(key)
+        store = MemoryRecordStore()
+        assert not store.is_locked(key)
+        assert store.wait_for_lock(key)
 
     def test_locking_works_across_threads(self):
         key = str(uuid4())
-        record = MemoryRecordStore()
-        assert record.acquire_lock(key)
-        assert record.is_locked(key)
+        store = MemoryRecordStore()
+        assert store.acquire_lock(key)
+        assert store.is_locked(key)
 
         def get_lock():
-            assert record.acquire_lock(key)
-            assert record.is_locked(key)
+            assert store.acquire_lock(key)
+            assert store.is_locked(key)
 
         thread = threading.Thread(target=get_lock)
         thread.start()
 
-        record.release_lock(key)
+        store.release_lock(key)
         thread.join()
 
         # the lock should have been acquired by the thread
-        assert record.is_locked
+        assert store.is_locked

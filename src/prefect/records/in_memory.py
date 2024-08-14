@@ -41,7 +41,14 @@ class MemoryRecordStore(RecordStore):
     def read(self, key: str) -> Optional[TransactionRecord]:
         return self._records.get(key)
 
-    def write(self, key: str, value: BaseResult) -> None:
+    def write(self, key: str, value: BaseResult, holder: Optional[str] = None) -> None:
+        holder = holder or self.generate_default_holder()
+
+        with self._locks_dict_lock:
+            if self.is_locked(key) and not self.is_lock_holder(key, holder):
+                raise ValueError(
+                    f"Cannot write to transaction with key {key} because it is locked by another holder."
+                )
         self._records[key] = TransactionRecord(key=key, result=value)
 
     def exists(self, key: str) -> bool:
@@ -136,6 +143,15 @@ class MemoryRecordStore(RecordStore):
 
     def is_locked(self, key: str) -> bool:
         return key in self._locks and self._locks[key]["lock"].locked()
+
+    def is_lock_holder(self, key: str, holder: Optional[str] = None) -> bool:
+        holder = holder or self.generate_default_holder()
+        lock_info = self._locks.get(key)
+        return (
+            lock_info is not None
+            and lock_info["lock"].locked()
+            and lock_info["holder"] == holder
+        )
 
     def wait_for_lock(self, key: str, timeout: float | None = None) -> bool:
         if lock := self._locks.get(key, {}).get("lock"):

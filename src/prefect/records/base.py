@@ -70,6 +70,21 @@ class RecordStore:
         """
         raise NotImplementedError
 
+    def is_lock_holder(self, key: str, holder: Optional[str] = None) -> bool:
+        """
+        Check if the current holder is the lock holder for the transaction record.
+
+        Args:
+            key: Unique identifier for the transaction record.
+            holder: Unique identifier for the holder of the lock. If not provided,
+                a default holder based on the current host, process, and thread will
+                be used.
+
+        Returns:
+            bool: True if the current holder is the lock holder; False otherwise.
+        """
+        raise NotImplementedError
+
     def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         """
         Wait for the corresponding transaction record to become free.
