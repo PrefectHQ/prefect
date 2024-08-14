@@ -211,6 +211,9 @@ class BaseTaskRunEngine(Generic[P, R]):
         return task_run.state.is_running() or task_run.state.is_scheduled()
 
     def log_finished_message(self):
+        if not self.task_run:
+            return
+
         # If debugging, use the more complete `repr` than the usual `str` description
         display_state = repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
         level = logging.INFO if self.state.is_completed() else logging.ERROR
@@ -363,7 +366,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.run_count += 1
 
             flow_run_context = FlowRunContext.get()
-            if flow_run_context:
+            if flow_run_context and flow_run_context.flow_run:
                 # Carry forward any task run information from the flow run
                 flow_run = flow_run_context.flow_run
                 self.task_run.flow_run_run_count = flow_run.run_count
@@ -622,21 +625,24 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                # update the task run name if necessary
-                if not self._task_name_set and self.task.task_run_name:
-                    task_run_name = _resolve_custom_task_run_name(
-                        task=self.task, parameters=self.parameters
-                    )
+            # update the task run name if necessary
+            if not self._task_name_set and self.task.task_run_name:
+                task_run_name = _resolve_custom_task_run_name(
+                    task=self.task, parameters=self.parameters
+                )
+
+                if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                    # update the task run name if necessary
                     self.client.set_task_run_name(
                         task_run_id=self.task_run.id, name=task_run_name
                     )
-                    self.logger.extra["task_run_name"] = task_run_name
-                    self.logger.debug(
-                        f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                    )
-                    self.task_run.name = task_run_name
-                    self._task_name_set = True
+
+                self.logger.extra["task_run_name"] = task_run_name
+                self.logger.debug(
+                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+                )
+                self.task_run.name = task_run_name
+                self._task_name_set = True
             yield
 
     @contextmanager
@@ -655,21 +661,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 self._is_started = True
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                        from prefect.utilities.engine import (
-                            _resolve_custom_task_run_name,
-                        )
-
-                        task_run_name = (
-                            _resolve_custom_task_run_name(
-                                task=self.task, parameters=self.parameters
-                            )
-                            if self.task.task_run_name
-                            else None
-                        )
-
-                        if self.task_run and task_run_name:
-                            self.task_run.name = task_run_name
-
                         if not self.task_run:
                             self.task_run = run_coro_as_sync(
                                 self.task.create_local_run(
@@ -679,7 +670,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                     parent_task_run_context=TaskRunContext.get(),
                                     wait_for=self.wait_for,
                                     extra_task_inputs=dependencies,
-                                    task_run_name=task_run_name,
                                 )
                             )
                             # Emit an event to capture that the task run was in the `PENDING` state.
@@ -1185,21 +1175,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                # update the task run name if necessary
-                if not self._task_name_set and self.task.task_run_name:
-                    task_run_name = _resolve_custom_task_run_name(
-                        task=self.task, parameters=self.parameters
-                    )
+            if not self._task_name_set and self.task.task_run_name:
+                task_run_name = _resolve_custom_task_run_name(
+                    task=self.task, parameters=self.parameters
+                )
+                if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
+                    # update the task run name if necessary
                     await self.client.set_task_run_name(
                         task_run_id=self.task_run.id, name=task_run_name
                     )
-                    self.logger.extra["task_run_name"] = task_run_name
-                    self.logger.debug(
-                        f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                    )
-                    self.task_run.name = task_run_name
-                    self._task_name_set = True
+                self.logger.extra["task_run_name"] = task_run_name
+                self.logger.debug(
+                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+                )
+                self.task_run.name = task_run_name
+                self._task_name_set = True
             yield
 
     @asynccontextmanager
@@ -1218,21 +1208,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 self._is_started = True
                 try:
                     if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                        from prefect.utilities.engine import (
-                            _resolve_custom_task_run_name,
-                        )
-
-                        task_run_name = (
-                            _resolve_custom_task_run_name(
-                                task=self.task, parameters=self.parameters
-                            )
-                            if self.task.task_run_name
-                            else None
-                        )
-
-                        if self.task_run and task_run_name:
-                            self.task_run.name = task_run_name
-
                         if not self.task_run:
                             self.task_run = await self.task.create_local_run(
                                 id=task_run_id,
@@ -1241,7 +1216,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 parent_task_run_context=TaskRunContext.get(),
                                 wait_for=self.wait_for,
                                 extra_task_inputs=dependencies,
-                                task_run_name=task_run_name,
                             )
                             # Emit an event to capture that the task run was in the `PENDING` state.
                             self._last_event = emit_task_run_state_change_event(
