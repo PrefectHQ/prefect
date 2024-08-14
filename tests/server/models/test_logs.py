@@ -117,3 +117,17 @@ class TestReadLogs:
 
         assert len(logs) == 1
         assert all([log.task_run_id == task_run_id for log in logs])
+
+    async def test_read_logs_task_run_id_is_null(self, session, logs):
+        log_filter = LogFilter(task_run_id={"is_null_": True})
+        logs = await models.logs.read_logs(session=session, log_filter=log_filter)
+
+        assert len(logs) == 2
+        assert all([log.task_run_id is None for log in logs])
+
+    async def test_read_logs_task_run_id_is_not_null(self, session, logs):
+        log_filter = LogFilter(task_run_id={"is_null_": False})
+        logs = await models.logs.read_logs(session=session, log_filter=log_filter)
+
+        assert len(logs) == 1
+        assert all([log.task_run_id is not None for log in logs])
