@@ -240,7 +240,8 @@ class TestFlowRunsAsync:
         result = await run_flow(my_log_flow)
 
         assert result is None
-        record = caplog.records[0]
+        record = next((r for r in caplog.records if r.message == "hey yall"), None)
+        assert record is not None, "Couldn't find expected log record"
 
         assert record.flow_name == "my-log-flow"
         assert record.flow_run_name == "test-run"
@@ -410,7 +411,8 @@ class TestFlowRunsSync:
         result = run_flow_sync(my_log_flow)
 
         assert result is None
-        record = caplog.records[0]
+        record = next((r for r in caplog.records if r.message == "hey yall"), None)
+        assert record is not None, "Couldn't find expected log record"
 
         assert record.flow_name == "my-log-flow"
         assert record.flow_run_name == "test-run"
