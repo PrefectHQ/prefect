@@ -390,7 +390,9 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
     type: str
 
     def __init__(self, **data: Any) -> None:
-        type_string = get_dispatch_key(self) if type(self) != BaseResult else "__base__"
+        type_string = (
+            get_dispatch_key(self) if type(self) is not BaseResult else "__base__"
+        )
         data.setdefault("type", type_string)
         super().__init__(**data)
 

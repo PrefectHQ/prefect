@@ -3,6 +3,7 @@ import warnings
 from functools import partial
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Dict,
     Generic,
@@ -20,6 +21,7 @@ from pydantic import (
     Field,
     HttpUrl,
     SerializationInfo,
+    WrapValidator,
     field_validator,
     model_serializer,
     model_validator,
@@ -156,6 +158,23 @@ class StateDetails(PrefectBaseModel):
     task_parameters_id: Optional[UUID] = None
 
 
+def is_none_or_data(v, handler, info):
+    if v is None:
+        return v
+
+    try:
+        return handler(v, info)
+    except TypeError as e:
+        # allow backwards compatibility, i.e. `Completed(data={"A": 1})`
+        if "Can't instantiate abstract class" in str(e):
+            return v
+        else:
+            raise e
+
+
+DataType = Annotated[Union["BaseResult[R]", Any], WrapValidator(is_none_or_data)]
+
+
 class State(ObjectBaseModel, Generic[R]):
     """
     The state of a run.
@@ -166,9 +185,7 @@ class State(ObjectBaseModel, Generic[R]):
     timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", Any] = Field(
-        default=None,
-    )
+    data: DataType = Field(default=None)
 
     @overload
     def result(self: "State[R]", raise_on_failure: bool = True) -> R:
