@@ -17,7 +17,10 @@ class ResultFactoryStore(RecordStore):
 
     def exists(self, key: str) -> bool:
         try:
-            result = self.read(key)
+            record = self.read(key)
+            if not record:
+                return False
+            result = record.result
             result.get(_sync=True)
             if result.expiration:
                 # if the result has an expiration,
