@@ -1,4 +1,3 @@
-import abc
 import os
 import socket
 import threading
@@ -19,25 +18,20 @@ class RecordStore:
     def exists(self, key: str) -> bool:
         return False
 
-
-@dataclass
-class TransactionRecord(abc.ABC):
-    key: str
-    result: Optional[BaseResult] = None
-
-    @abc.abstractmethod
     def acquire_lock(
         self,
+        key: str,
         holder: Optional[str] = None,
         acquire_timeout: Optional[float] = None,
         hold_timeout: Optional[float] = None,
     ) -> bool:
         """
-        Acquire a lock for the given transaction record. Will block other
+        Acquire a lock for a transaction record with the given key. Will block other
         actors from updating this transaction record until the lock is
         released.
 
         Args:
+            key: Unique identifier for the transaction record.
             holder: Unique identifier for the holder of the lock. If not provided,
                 a default holder based on the current host, process, and thread will
                 be used.
@@ -51,36 +45,37 @@ class TransactionRecord(abc.ABC):
         Returns:
             bool: True if the lock was successfully acquired; False otherwise.
         """
-        ...
+        raise NotImplementedError
 
-    @abc.abstractmethod
-    def release_lock(self, holder: Optional[str] = None):
+    def release_lock(self, key: str, holder: Optional[str] = None):
         """
-        Releases the lock on the record.
+        Releases the lock on the corresponding transaction record.
 
         Args:
+            key: Unique identifier for the transaction record.
             holder: Unique identifier for the holder of the lock. Must match the
                 holder provided when acquiring the lock.
         """
-        ...
+        raise NotImplementedError
 
-    @property
-    @abc.abstractmethod
-    def is_locked(self) -> bool:
+    def is_locked(self, key: str) -> bool:
         """
-        Simple check to see if the record is currently locked.
+        Simple check to see if the corresponding record is currently locked.
+
+        Args:
+            key: Unique identifier for the transaction record.
 
         Returns:
             True is the record is locked; False otherwise.
         """
-        ...
+        raise NotImplementedError
 
-    @abc.abstractmethod
-    def wait_for_lock(self, timeout: Optional[float] = None) -> bool:
+    def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         """
-        Wait for the lock to become free.
+        Wait for the corresponding transaction record to become free.
 
         Args:
+            key: Unique identifier for the transaction record.
             timeout: Maximum time to wait. None means to wait indefinitely.
 
         Returns:
@@ -106,6 +101,7 @@ class TransactionRecord(abc.ABC):
     @contextmanager
     def lock(
         self,
+        key: str,
         holder: Optional[str] = None,
         acquire_timeout: Optional[float] = None,
         hold_timeout: Optional[float] = None,
@@ -115,6 +111,7 @@ class TransactionRecord(abc.ABC):
         of the nested code block.
 
         Args:
+            key: Unique identifier for the transaction record.
             holder: Unique identifier for the holder of the lock. If not provided,
                 a default holder based on the current host, process, and thread will
                 be used.
@@ -132,9 +129,24 @@ class TransactionRecord(abc.ABC):
                         do_stuff()
                 ```
         """
-        self.acquire_lock(holder, acquire_timeout, hold_timeout)
+        self.acquire_lock(
+            key=key,
+            holder=holder,
+            acquire_timeout=acquire_timeout,
+            hold_timeout=hold_timeout,
+        )
 
         try:
             yield
         finally:
-            self.release_lock(holder)
+            self.release_lock(key=key, holder=holder)
+
+
+@dataclass
+class TransactionRecord:
+    """
+    A dataclass representation of a transaction record.
+    """
+
+    key: str
+    result: Optional[BaseResult] = None

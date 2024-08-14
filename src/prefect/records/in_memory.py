@@ -1,9 +1,9 @@
 import threading
 from typing import Dict, Optional, TypedDict
 
-from .base import TransactionRecord
+from prefect.results import BaseResult
 
-_locks_dict_lock = threading.Lock()
+from .base import RecordStore, TransactionRecord
 
 
 class _LockInfo(TypedDict):
@@ -21,16 +21,33 @@ class _LockInfo(TypedDict):
     expiration_timer: Optional[threading.Timer]
 
 
-_locks: Dict[str, _LockInfo] = {}
-
-
-class MemoryTransactionRecord(TransactionRecord):
+class MemoryRecordStore(RecordStore):
     """
-    A transaction record that stores locks in memory.
+    A record store that stores data in memory.
     """
 
-    @staticmethod
-    def _expire_lock(key: str):
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        self._locks_dict_lock = threading.Lock()
+        self._locks: Dict[str, _LockInfo] = {}
+        self._records: Dict[str, TransactionRecord] = {}
+
+    def read(self, key: str) -> Optional[TransactionRecord]:
+        return self._records.get(key)
+
+    def write(self, key: str, value: BaseResult) -> None:
+        self._records[key] = TransactionRecord(key=key, result=value)
+
+    def exists(self, key: str) -> bool:
+        return key in self._records
+
+    def _expire_lock(self, key: str):
         """
         Expire the lock for the given key.
 
@@ -39,40 +56,41 @@ class MemoryTransactionRecord(TransactionRecord):
         Args:
             key: The key of the lock to expire.
         """
-        with _locks_dict_lock:
-            if key in _locks:
-                lock_info = _locks[key]
+        with self._locks_dict_lock:
+            if key in self._locks:
+                lock_info = self._locks[key]
                 if lock_info["lock"].locked():
                     lock_info["lock"].release()
                 if lock_info["expiration_timer"]:
                     lock_info["expiration_timer"].cancel()
-                del _locks[key]
+                del self._locks[key]
 
     def acquire_lock(
         self,
+        key: str,
         holder: str | None = None,
         acquire_timeout: float | None = None,
         hold_timeout: float | None = None,
     ) -> bool:
         holder = holder or self.generate_default_holder()
-        with _locks_dict_lock:
-            if self.key not in _locks:
+        with self._locks_dict_lock:
+            if key not in self._locks:
                 lock = threading.Lock()
                 lock.acquire()
                 expiration_timer = None
                 if hold_timeout is not None:
                     expiration_timer = threading.Timer(
-                        hold_timeout, self._expire_lock, args=(self.key,)
+                        hold_timeout, self._expire_lock, args=(key,)
                     )
                     expiration_timer.start()
-                _locks[self.key] = _LockInfo(
+                self._locks[key] = _LockInfo(
                     holder=holder, lock=lock, expiration_timer=expiration_timer
                 )
                 return True
-            elif _locks[self.key]["holder"] == holder:
+            elif self._locks[key]["holder"] == holder:
                 return True
             else:
-                existing_lock_info = _locks[self.key]
+                existing_lock_info = self._locks[key]
 
         if acquire_timeout is not None:
             existing_lock_acquired = existing_lock_info["lock"].acquire(
@@ -82,7 +100,7 @@ class MemoryTransactionRecord(TransactionRecord):
             existing_lock_acquired = existing_lock_info["lock"].acquire()
 
         if existing_lock_acquired:
-            with _locks_dict_lock:
+            with self._locks_dict_lock:
                 if (
                     expiration_timer := existing_lock_info["expiration_timer"]
                 ) is not None:
@@ -90,10 +108,10 @@ class MemoryTransactionRecord(TransactionRecord):
                 expiration_timer = None
                 if hold_timeout is not None:
                     expiration_timer = threading.Timer(
-                        hold_timeout, self._expire_lock, args=(self.key,)
+                        hold_timeout, self._expire_lock, args=(key,)
                     )
                     expiration_timer.start()
-                _locks[self.key] = _LockInfo(
+                self._locks[key] = _LockInfo(
                     holder=holder,
                     lock=existing_lock_info["lock"],
                     expiration_timer=expiration_timer,
@@ -101,27 +119,26 @@ class MemoryTransactionRecord(TransactionRecord):
             return True
         return False
 
-    def release_lock(self, holder: str | None = None) -> None:
+    def release_lock(self, key: str, holder: str | None = None) -> None:
         holder = holder or self.generate_default_holder()
-        with _locks_dict_lock:
-            if self.key in _locks and _locks[self.key]["holder"] == holder:
+        with self._locks_dict_lock:
+            if key in self._locks and self._locks[key]["holder"] == holder:
                 if (
-                    expiration_timer := _locks[self.key]["expiration_timer"]
+                    expiration_timer := self._locks[key]["expiration_timer"]
                 ) is not None:
                     expiration_timer.cancel()
-                _locks[self.key]["lock"].release()
-                del _locks[self.key]
+                self._locks[key]["lock"].release()
+                del self._locks[key]
             else:
                 raise ValueError(
-                    f"No lock held by {holder} for transaction with key {self.key}"
+                    f"No lock held by {holder} for transaction with key {key}"
                 )
 
-    @property
-    def is_locked(self) -> bool:
-        return self.key in _locks and _locks[self.key]["lock"].locked()
+    def is_locked(self, key: str) -> bool:
+        return key in self._locks and self._locks[key]["lock"].locked()
 
-    def wait_for_lock(self, timeout: float | None = None) -> bool:
-        if lock := _locks.get(self.key, {}).get("lock"):
+    def wait_for_lock(self, key: str, timeout: float | None = None) -> bool:
+        if lock := self._locks.get(key, {}).get("lock"):
             if timeout is not None:
                 lock_acquired = lock.acquire(timeout=timeout)
             else:
