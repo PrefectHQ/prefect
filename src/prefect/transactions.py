@@ -1,3 +1,4 @@
+import copy
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
@@ -25,6 +26,7 @@ from prefect.results import (
     ResultFactory,
     get_default_result_storage,
 )
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
@@ -72,8 +74,10 @@ class Transaction(ContextModel):
     def set(self, name: str, value: Any) -> None:
         self._stored_values[name] = value
 
-    def get(self, name: str) -> Any:
+    def get(self, name: str, default: Any = NotSet) -> Any:
         if name not in self._stored_values:
+            if default is not NotSet:
+                return default
             raise ValueError(f"Could not retrieve value for unknown key: {name}")
         return self._stored_values.get(name)
 
@@ -104,6 +108,7 @@ class Transaction(ContextModel):
             # either inherit from parent or set a default of eager
             if parent:
                 self.commit_mode = parent.commit_mode
+                self._stored_values = copy.deepcopy(parent._stored_values)
             else:
                 self.commit_mode = CommitMode.LAZY
 

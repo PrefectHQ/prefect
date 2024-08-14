@@ -352,12 +352,26 @@ class TestHooks:
         with transaction(key="test") as top:
             top.set("key", 42)
             with transaction(key="nested") as inner:
-                inner.set("key", "string")
+                assert (
+                    inner.get("key") == 42
+                )  # children inherit from their parents first
+                inner.set("key", "string")  # and can override
                 assert inner.get("key") == "string"
                 assert top.get("key") == 42
             assert top.get("key") == 42
 
-    def test_get_raises_on_unknown(self):
+    def test_get_and_set_data_doesnt_mutate_parent(self):
+        with transaction(key="test") as top:
+            top.set("key", {"x": [42]})
+            with transaction(key="nested") as inner:
+                inner.get("key")["x"].append(43)
+                assert inner.get("key") == {"x": [42, 43]}
+                assert top.get("key") == {"x": [42]}
+            assert top.get("key") == {"x": [42]}
+
+    def test_get_raises_on_unknown_but_allows_default(self):
         with transaction(key="test") as txn:
             with pytest.raises(ValueError, match="foobar"):
                 txn.get("foobar")
+            assert txn.get("foobar", None) is None
+            assert txn.get("foobar", "string") == "string"
