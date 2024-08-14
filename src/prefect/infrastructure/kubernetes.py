@@ -586,7 +586,7 @@ class KubernetesJob(Infrastructure):
                         "prefect-job-"
                         # We generate a name using a hash of the primary job settings
                         + stable_hash(
-                            *self.command,
+                            *self.command if self.command else "",
                             *self.env.keys(),
                             *[v for v in self.env.values() if v is not None],
                         )
