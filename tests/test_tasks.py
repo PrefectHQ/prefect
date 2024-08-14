@@ -21,7 +21,8 @@ from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE, CachePoli
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
-from prefect.context import FlowRunContext, TaskRunContext, get_run_context
+from prefect.context import FlowRunContext, TaskRunContext
+from prefect.events.worker import EventsWorker
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -37,6 +38,7 @@ from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -50,6 +52,17 @@ from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
+
+
+@pytest.fixture(autouse=True, params=[False, True])
+def enable_client_side_task_run_orchestration(
+    request, asserting_events_worker: EventsWorker
+):
+    enabled = request.param
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
+    ):
+        yield enabled
 
 
 def comparable_inputs(d):
@@ -860,12 +873,19 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
-    def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
+    def test_logs_message_when_submitted_tasks_end_in_pending(
+        self, caplog, enable_client_side_task_run_orchestration
+    ):
         """
         If submitted tasks aren't waited on before a flow exits, they may fail to run
         because they're transition from PENDING to RUNNING is denied. This test ensures
         that a message is logged when this happens.
         """
+
+        if enable_client_side_task_run_orchestration:
+            pytest.xfail(
+                "This test is not compatible with the current state of client side task orchestration"
+            )
 
         @task
         def find_palindromes():
@@ -941,7 +961,9 @@ class TestTaskVersion:
 
         assert my_task.version == "test-dev-experimental"
 
-    async def test_task_version_is_set_in_backend(self, prefect_client):
+    async def test_task_version_is_set_in_backend(
+        self, prefect_client, events_pipeline
+    ):
         @task(version="test-dev-experimental")
         def my_task():
             pass
@@ -951,6 +973,9 @@ class TestTaskVersion:
             return my_task(return_state=True)
 
         task_state = test()
+
+        await events_pipeline.process_events()
+
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -1101,7 +1126,9 @@ class TestTaskRetries:
     """
 
     @pytest.mark.parametrize("always_fail", [True, False])
-    async def test_task_respects_retry_count(self, always_fail, prefect_client):
+    async def test_task_respects_retry_count(
+        self, always_fail, prefect_client, events_pipeline
+    ):
         mock = MagicMock()
         exc = ValueError()
 
@@ -1136,6 +1163,8 @@ class TestTaskRetries:
             assert await task_run_state.result() is True
             assert mock.call_count == 4
 
+        await events_pipeline.process_events()
+
         states = await prefect_client.read_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
@@ -1149,7 +1178,9 @@ class TestTaskRetries:
             "Failed" if always_fail else "Completed",
         ]
 
-    async def test_task_only_uses_necessary_retries(self, prefect_client):
+    async def test_task_only_uses_necessary_retries(
+        self, prefect_client, events_pipeline
+    ):
         mock = MagicMock()
         exc = ValueError()
 
@@ -1173,6 +1204,8 @@ class TestTaskRetries:
         assert await task_run_state.result() is True
         assert mock.call_count == 2
 
+        await events_pipeline.process_events()
+
         states = await prefect_client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         # task retries are client side in the new engine
@@ -1183,12 +1216,19 @@ class TestTaskRetries:
             "Completed",
         ]
 
-    async def test_task_retries_receive_latest_task_run_in_context(self):
-        contexts: List[TaskRunContext] = []
+    async def test_task_retries_receive_latest_task_run_in_context(
+        self, events_pipeline
+    ):
+        state_names: List[str] = []
+        run_counts = []
+        start_times = []
 
         @task(retries=3)
         def flaky_function():
-            contexts.append(get_run_context())
+            ctx = TaskRunContext.get()
+            state_names.append(ctx.task_run.state_name)
+            run_counts.append(ctx.task_run.run_count)
+            start_times.append(ctx.start_time)
             raise ValueError()
 
         @flow
@@ -1204,15 +1244,15 @@ class TestTaskRetries:
             "Retrying",
             "Retrying",
         ]
-        assert len(contexts) == len(expected_state_names)
-        for i, context in enumerate(contexts):
-            assert context.task_run.run_count == i + 1
-            assert context.task_run.state_name == expected_state_names[i]
+        assert len(state_names) == len(expected_state_names) == len(run_counts)
+        for i in range(len(state_names)):
+            assert run_counts[i] == i + 1
+            assert state_names[i] == expected_state_names[i]
 
             if i > 0:
-                last_context = contexts[i - 1]
+                last_start_time = start_times[i - 1]
                 assert (
-                    last_context.start_time < context.start_time
+                    last_start_time < start_times[i]
                 ), "Timestamps should be increasing"
 
     async def test_global_task_retry_config(self):
@@ -1345,8 +1385,14 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert await second_state.result() == await first_state.result()
 
-    async def test_cache_hits_within_flows_are_cached(self):
-        @task(cache_key_fn=lambda *_: "cache_hit-1", persist_result=True)
+    async def test_cache_hits_within_flows_are_cached(
+        self, enable_client_side_task_run_orchestration
+    ):
+        @task(
+            cache_key_fn=lambda *_: "cache_hit-1"
+            + str(enable_client_side_task_run_orchestration),
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1359,8 +1405,14 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert await second_state.result() == await first_state.result()
 
-    def test_many_repeated_cache_hits_within_flows_cached(self):
-        @task(cache_key_fn=lambda *_: "cache_hit-2", persist_result=True)
+    def test_many_repeated_cache_hits_within_flows_cached(
+        self, enable_client_side_task_run_orchestration
+    ):
+        @task(
+            cache_key_fn=lambda *_: "cache_hit-2"
+            + str(enable_client_side_task_run_orchestration),
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1372,8 +1424,14 @@ class TestTaskCaching:
         states = bar()
         assert all(state.name == "Cached" for state in states), states
 
-    async def test_cache_hits_between_flows_are_cached(self):
-        @task(cache_key_fn=lambda *_: "cache_hit-3", persist_result=True)
+    async def test_cache_hits_between_flows_are_cached(
+        self, enable_client_side_task_run_orchestration
+    ):
+        @task(
+            cache_key_fn=lambda *_: "cache_hit-3"
+            + str(enable_client_side_task_run_orchestration),
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1387,11 +1445,15 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert await second_state.result() == await first_state.result() == 1
 
-    def test_cache_misses_arent_cached(self):
+    def test_cache_misses_arent_cached(self, enable_client_side_task_run_orchestration):
         # this hash fn won't return the same value twice
         def mutating_key(*_, tally=[]):
             tally.append("x")
-            return "call tally:" + "".join(tally)
+            return (
+                "call tally:"
+                + "".join(tally)
+                + str(enable_client_side_task_run_orchestration)
+            )
 
         @task(cache_key_fn=mutating_key, persist_result=True)
         def foo(x):
@@ -1432,11 +1494,13 @@ class TestTaskCaching:
         assert await third_state.result() == "something"
         assert await fourth_state.result() == "something"
 
-    async def test_cache_key_fn_receives_resolved_futures(self):
+    async def test_cache_key_fn_receives_resolved_futures(
+        self, enable_client_side_task_run_orchestration
+    ):
         def check_args(context, params):
             assert params["x"] == "something"
             assert len(params) == 1
-            return params["x"]
+            return params["x"] + str(enable_client_side_task_run_orchestration)
 
         @task
         def foo(x):
@@ -1459,9 +1523,11 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert await second_state.result() == "something"
 
-    async def test_cache_key_fn_arg_inputs_are_stable(self):
+    async def test_cache_key_fn_arg_inputs_are_stable(
+        self, enable_client_side_task_run_orchestration
+    ):
         def stringed_inputs(context, args):
-            return str(args)
+            return str(args) + str(enable_client_side_task_run_orchestration)
 
         @task(cache_key_fn=stringed_inputs, persist_result=True)
         def foo(a, b, c=3):
@@ -1485,9 +1551,12 @@ class TestTaskCaching:
         assert await second_state.result() == 6
         assert await third_state.result() == 6
 
-    async def test_cache_key_hits_with_future_expiration_are_cached(self):
+    async def test_cache_key_hits_with_future_expiration_are_cached(
+        self, enable_client_side_task_run_orchestration
+    ):
         @task(
-            cache_key_fn=lambda *_: "cache-hit-4",
+            cache_key_fn=lambda *_: "cache-hit-4"
+            + str(enable_client_side_task_run_orchestration),
             cache_expiration=datetime.timedelta(seconds=5),
             persist_result=True,
         )
@@ -1539,9 +1608,12 @@ class TestTaskCaching:
         assert second_state.name == "Completed"
         assert await second_state.result() != await first_state.result()
 
-    async def test_cache_hits_wo_refresh_cache(self):
+    async def test_cache_hits_wo_refresh_cache(
+        self, enable_client_side_task_run_orchestration
+    ):
         @task(
-            cache_key_fn=lambda *_: "cache-hit-7",
+            cache_key_fn=lambda *_: "cache-hit-7"
+            + str(enable_client_side_task_run_orchestration),
             refresh_cache=False,
             persist_result=True,
         )
@@ -1649,7 +1721,9 @@ class TestTaskCaching:
         assert await s3.result() == 105
         assert await s4.result() == 105
 
-    async def test_instance_methods_can_share_a_cache(self):
+    async def test_instance_methods_can_share_a_cache(
+        self, enable_client_side_task_run_orchestration
+    ):
         """
         Test that instance methods can share a cache by using a cache key function that
         ignores the bound instance argument
@@ -1659,7 +1733,7 @@ class TestTaskCaching:
             # remove the self arg from the cache key
             cache_args = args.copy()
             cache_args.pop("self")
-            return str(cache_args)
+            return str(cache_args) + str(enable_client_side_task_run_orchestration)
 
         class Foo:
             def __init__(self, x):
@@ -1717,17 +1791,21 @@ class TestTaskCaching:
         assert await second_state.result() == await first_state.result()
         assert "`cache_key_fn` will be used" in caplog.text
 
-    async def test_changing_result_storage_key_busts_cache(self):
+    async def test_changing_result_storage_key_busts_cache(
+        self, enable_client_side_task_run_orchestration
+    ):
+        cstro_enabled = str(enable_client_side_task_run_orchestration)
+
         @task(
-            cache_key_fn=lambda *_: "cache-hit-10",
-            result_storage_key="before",
+            cache_key_fn=lambda *_: "cache-hit-10" + cstro_enabled,
+            result_storage_key="before" + cstro_enabled,
             persist_result=True,
         )
         def foo(x):
             return x
 
         first_state = foo(1, return_state=True)
-        second_state = foo.with_options(result_storage_key="after")(
+        second_state = foo.with_options(result_storage_key="after" + cstro_enabled)(
             2, return_state=True
         )
         assert first_state.name == "Completed"
@@ -1774,8 +1852,14 @@ class TestTaskCaching:
 
 
 class TestCacheFunctionBuiltins:
-    async def test_task_input_hash_within_flows(self):
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+    async def test_task_input_hash_within_flows(
+        self, enable_client_side_task_run_orchestration
+    ):
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1796,8 +1880,14 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result()
         assert await first_state.result() == 1
 
-    async def test_task_input_hash_between_flows(self):
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+    async def test_task_input_hash_between_flows(
+        self, enable_client_side_task_run_orchestration
+    ):
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1814,7 +1904,9 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() != await second_state.result()
         assert await first_state.result() == await third_state.result() == 1
 
-    async def test_task_input_hash_works_with_object_return_types(self):
+    async def test_task_input_hash_works_with_object_return_types(
+        self, enable_client_side_task_run_orchestration
+    ):
         """
         This is a regression test for a weird bug where `task_input_hash` would always
         use cloudpickle to generate the hash since we were passing in the raw function
@@ -1831,7 +1923,11 @@ class TestCacheFunctionBuiltins:
             def __eq__(self, other) -> bool:
                 return type(self) == type(other) and self.x == other.x
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def foo(x):
             return TestClass(x)
 
@@ -1851,7 +1947,9 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() != await second_state.result()
         assert await first_state.result() == await third_state.result()
 
-    async def test_task_input_hash_works_with_object_input_types(self):
+    async def test_task_input_hash_works_with_object_input_types(
+        self, enable_client_side_task_run_orchestration
+    ):
         class TestClass:
             def __init__(self, x):
                 self.x = x
@@ -1859,7 +1957,11 @@ class TestCacheFunctionBuiltins:
             def __eq__(self, other) -> bool:
                 return type(self) == type(other) and self.x == other.x
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def foo(instance):
             return instance.x
 
@@ -1879,13 +1981,19 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() != await second_state.result()
         assert await first_state.result() == await third_state.result() == 1
 
-    async def test_task_input_hash_works_with_block_input_types(self):
+    async def test_task_input_hash_works_with_block_input_types(
+        self, enable_client_side_task_run_orchestration
+    ):
         class TestBlock(Block):
             x: int
             y: int
             z: int
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def foo(instance):
             return instance.x
 
@@ -1905,8 +2013,14 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() != await second_state.result()
         assert await first_state.result() == await third_state.result() == 1
 
-    async def test_task_input_hash_depends_on_task_key_and_code(self):
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+    async def test_task_input_hash_depends_on_task_key_and_code(
+        self, enable_client_side_task_run_orchestration
+    ):
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -1916,7 +2030,11 @@ class TestCacheFunctionBuiltins:
         def foo_same_code(x):
             return x
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def bar(x):
             return x
 
@@ -1948,13 +2066,19 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() != await third_state.result()
         assert await fourth_state.result() == await fifth_state.result() == 1
 
-    async def test_task_input_hash_works_with_block_input_types_and_bytes(self):
+    async def test_task_input_hash_works_with_block_input_types_and_bytes(
+        self, enable_client_side_task_run_orchestration
+    ):
         class TestBlock(Block):
             x: int
             y: int
             z: bytes
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def foo(instance):
             return instance.x
 
@@ -2034,7 +2158,9 @@ class TestTaskTimeouts:
 
 
 class TestTaskRunTags:
-    async def test_task_run_tags_added_at_submission(self, prefect_client):
+    async def test_task_run_tags_added_at_submission(
+        self, prefect_client, events_pipeline
+    ):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -2047,12 +2173,14 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
+        await events_pipeline.process_events()
+
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    async def test_task_run_tags_added_at_run(self, prefect_client):
+    async def test_task_run_tags_added_at_run(self, prefect_client, events_pipeline):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -2065,12 +2193,13 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    async def test_task_run_tags_added_at_call(self, prefect_client):
+    async def test_task_run_tags_added_at_call(self, prefect_client, events_pipeline):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -2083,12 +2212,15 @@ class TestTaskRunTags:
             return "foo"
 
         task_state = my_flow()
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    async def test_task_run_tags_include_tags_on_task_object(self, prefect_client):
+    async def test_task_run_tags_include_tags_on_task_object(
+        self, prefect_client, events_pipeline
+    ):
         @flow
         def my_flow():
             with tags("c", "d"):
@@ -2101,12 +2233,15 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b", "c", "d"}
 
-    async def test_task_run_tags_include_flow_run_tags(self, prefect_client):
+    async def test_task_run_tags_include_flow_run_tags(
+        self, prefect_client, events_pipeline
+    ):
         @flow
         def my_flow():
             with tags("c", "d"):
@@ -2121,12 +2256,15 @@ class TestTaskRunTags:
         with tags("a", "b"):
             task_state = my_flow()
 
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b", "c", "d"}
 
-    async def test_task_run_tags_not_added_outside_context(self, prefect_client):
+    async def test_task_run_tags_not_added_outside_context(
+        self, prefect_client, events_pipeline
+    ):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -2140,12 +2278,15 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert not task_run.tags
 
-    async def test_task_run_tags_respects_nesting(self, prefect_client):
+    async def test_task_run_tags_respects_nesting(
+        self, prefect_client, events_pipeline
+    ):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -2159,6 +2300,7 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -2192,7 +2334,9 @@ class TestTaskInputs:
 
         return upstream_downstream_flow
 
-    async def test_task_inputs_populated_with_no_upstreams(self, prefect_client):
+    async def test_task_inputs_populated_with_no_upstreams(
+        self, prefect_client, events_pipeline
+    ):
         @task
         def foo(x):
             return x
@@ -2203,13 +2347,14 @@ class TestTaskInputs:
 
         flow_state = test_flow(return_state=True)
         x = await flow_state.result()
+        await events_pipeline.process_events()
 
         task_run = await prefect_client.read_task_run(x.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(x=[])
 
     async def test_task_inputs_populated_with_no_upstreams_and_multiple_parameters(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def foo(x, *a, **k):
@@ -2221,13 +2366,14 @@ class TestTaskInputs:
 
         flow_state = test_flow(return_state=True)
         x = await flow_state.result()
+        await events_pipeline.process_events()
 
         task_run = await prefect_client.read_task_run(x.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(x=[], a=[], k=[])
 
     async def test_task_inputs_populated_with_one_upstream_positional_future(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def foo(x):
@@ -2247,6 +2393,7 @@ class TestTaskInputs:
         flow_state = test_flow(return_state=True)
         a, b, c = await flow_state.result()
 
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
@@ -2255,7 +2402,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_one_upstream_keyword_future(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def foo(x):
@@ -2275,6 +2422,7 @@ class TestTaskInputs:
         flow_state = test_flow(return_state=True)
         a, b, c = await flow_state.result()
 
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
@@ -2283,7 +2431,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_two_upstream_futures(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def foo(x):
@@ -2302,7 +2450,7 @@ class TestTaskInputs:
 
         flow_state = test_flow(return_state=True)
         a, b, c = await flow_state.result()
-
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
@@ -2311,7 +2459,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_two_upstream_futures_from_same_task(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def foo(x):
@@ -2330,6 +2478,7 @@ class TestTaskInputs:
         flow_state = test_flow(return_state=True)
         a, c = await flow_state.result()
 
+        await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
@@ -2338,7 +2487,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_nested_upstream_futures(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def foo(x):
@@ -2360,6 +2509,8 @@ class TestTaskInputs:
 
         a, b, c, d = await flow_state.result()
 
+        await events_pipeline.process_events()
+
         task_run = await prefect_client.read_task_run(d.state_details.task_run_id)
 
         assert comparable_inputs(task_run.task_inputs) == dict(
@@ -2373,7 +2524,9 @@ class TestTaskInputs:
             },
         )
 
-    async def test_task_inputs_populated_with_subflow_upstream(self, prefect_client):
+    async def test_task_inputs_populated_with_subflow_upstream(
+        self, prefect_client, events_pipeline
+    ):
         @task
         def foo(x):
             return x
@@ -2390,6 +2543,8 @@ class TestTaskInputs:
         parent_state = parent(return_state=True)
         child_state, task_state = await parent_state.result()
 
+        await events_pipeline.process_events()
+
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -2399,7 +2554,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_result_upstream(
-        self, sync_prefect_client
+        self, sync_prefect_client, events_pipeline
     ):
         @task
         def name():
@@ -2418,6 +2573,8 @@ class TestTaskInputs:
         flow_state = test_flow(return_state=True)
         name_state, hi_state = await flow_state.result()
 
+        await events_pipeline.process_events()
+
         task_run = sync_prefect_client.read_task_run(hi_state.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
@@ -2425,7 +2582,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_result_upstream_from_future(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def upstream(x):
@@ -2445,6 +2602,8 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
+        await events_pipeline.process_events()
+
         task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
@@ -2454,7 +2613,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_result_upstream_from_state(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def upstream(x):
@@ -2473,9 +2632,13 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
+        await events_pipeline.process_events()
+
         await prefect_client.read_task_run(downstream_state.state_details.task_run_id)
 
-    async def test_task_inputs_populated_with_state_upstream(self, prefect_client):
+    async def test_task_inputs_populated_with_state_upstream(
+        self, prefect_client, events_pipeline
+    ):
         @task
         def upstream(x):
             return x
@@ -2492,6 +2655,8 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
+        await events_pipeline.process_events()
+
         task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
@@ -2501,7 +2666,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_state_upstream_wrapped_with_allow_failure(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def upstream(x):
@@ -2521,6 +2686,8 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
+        await events_pipeline.process_events()
+
         task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
@@ -2531,10 +2698,12 @@ class TestTaskInputs:
 
     @pytest.mark.parametrize("result", [["Fred"], {"one": 1}, {1, 2, 2}, (1, 2)])
     async def test_task_inputs_populated_with_collection_result_upstream(
-        self, result, prefect_client, flow_with_upstream_downstream
+        self, result, prefect_client, flow_with_upstream_downstream, events_pipeline
     ):
         flow_state = flow_with_upstream_downstream(result, return_state=True)
         upstream_state, downstream_state = await flow_state.result()
+
+        await events_pipeline.process_events()
 
         task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
@@ -2546,10 +2715,12 @@ class TestTaskInputs:
 
     @pytest.mark.parametrize("result", ["Fred", 5.1])
     async def test_task_inputs_populated_with_basic_result_types_upstream(
-        self, result, prefect_client, flow_with_upstream_downstream
+        self, result, prefect_client, flow_with_upstream_downstream, events_pipeline
     ):
         flow_state = flow_with_upstream_downstream(result, return_state=True)
         upstream_state, downstream_state = await flow_state.result()
+
+        await events_pipeline.process_events()
 
         task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
@@ -2560,10 +2731,12 @@ class TestTaskInputs:
 
     @pytest.mark.parametrize("result", [True, False, None, ..., NotImplemented])
     async def test_task_inputs_not_populated_with_singleton_results_upstream(
-        self, result, prefect_client, flow_with_upstream_downstream
+        self, result, prefect_client, flow_with_upstream_downstream, events_pipeline
     ):
         flow_state = flow_with_upstream_downstream(result, return_state=True)
         _, downstream_state = await flow_state.result()
+
+        await events_pipeline.process_events()
 
         task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
@@ -2572,7 +2745,7 @@ class TestTaskInputs:
         assert task_run.task_inputs == dict(value=[])
 
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_trackables(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def task_1():
@@ -2599,6 +2772,8 @@ class TestTaskInputs:
 
         t1_state, t2_state, t3_state = unpacking_flow()
 
+        await events_pipeline.process_events()
+
         task_3_run = await prefect_client.read_task_run(
             t3_state.state_details.task_run_id
         )
@@ -2616,7 +2791,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_mixed_untrackable_types(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def task_1():
@@ -2643,6 +2818,8 @@ class TestTaskInputs:
 
         t1_state, t2_state, t3_state = unpacking_flow()
 
+        await events_pipeline.process_events()
+
         task_3_run = await prefect_client.read_task_run(
             t3_state.state_details.task_run_id
         )
@@ -2660,7 +2837,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_no_trackable_types(
-        self, prefect_client
+        self, prefect_client, events_pipeline
     ):
         @task
         def task_1():
@@ -2685,6 +2862,8 @@ class TestTaskInputs:
             return t1_state, t2_state, t3_state
 
         t1_state, t2_state, t3_state = unpacking_flow()
+
+        await events_pipeline.process_events()
 
         task_3_run = await prefect_client.read_task_run(
             t3_state.state_details.task_run_id
@@ -2894,7 +3073,9 @@ class TestTaskWaitFor:
 
         assert test_flow() == 2
 
-    async def test_backend_task_inputs_includes_wait_for_tasks(self, prefect_client):
+    async def test_backend_task_inputs_includes_wait_for_tasks(
+        self, prefect_client, events_pipeline
+    ):
         @task
         def foo(x):
             return x
@@ -2907,6 +3088,7 @@ class TestTaskWaitFor:
             return (a, b, c, d)
 
         a, b, c, d = test_flow()
+        await events_pipeline.process_events()
         d_task_run = await prefect_client.read_task_run(d.state_details.task_run_id)
 
         assert d_task_run.task_inputs["x"] == [
@@ -3220,8 +3402,14 @@ class TestTaskWithOptions:
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
 
-    async def test_with_options_refresh_cache(self):
-        @task(cache_key_fn=lambda *_: "cache hit", persist_result=True)
+    async def test_with_options_refresh_cache(
+        self, enable_client_side_task_run_orchestration
+    ):
+        @task(
+            cache_key_fn=lambda *_: "cache hit"
+            + str(enable_client_side_task_run_orchestration),
+            persist_result=True,
+        )
         def foo(x):
             return x
 
@@ -3367,7 +3555,7 @@ class TestTaskMap:
         return {x["id"]: [d.id for d in x["upstream_dependencies"]] for x in graph}
 
     async def test_map_preserves_dependencies_between_futures_all_mapped_children(
-        self, session
+        self, session, events_pipeline
     ):
         @flow
         def my_flow():
@@ -3381,6 +3569,8 @@ class TestTaskMap:
             return numbers, TestTaskMap.add_together.map(numbers, y=0)
 
         numbers_state, add_task_states = my_flow()
+        await events_pipeline.process_events()
+
         dependency_ids = await self.get_dependency_ids(
             session, numbers_state.state_details.flow_run_id
         )
@@ -3395,7 +3585,7 @@ class TestTaskMap:
         )
 
     async def test_map_preserves_dependencies_between_futures_all_mapped_children_multiple(
-        self, session
+        self, session, events_pipeline
     ):
         @flow
         def my_flow():
@@ -3412,6 +3602,7 @@ class TestTaskMap:
             )
 
         numbers_states, add_task_states = my_flow()
+        await events_pipeline.process_events()
         dependency_ids = await self.get_dependency_ids(
             session, numbers_states[0].state_details.flow_run_id
         )
@@ -3429,7 +3620,7 @@ class TestTaskMap:
         )
 
     async def test_map_preserves_dependencies_between_futures_differing_parents(
-        self, session
+        self, session, events_pipeline
     ):
         @flow
         def my_flow():
@@ -3443,6 +3634,7 @@ class TestTaskMap:
             return (x1, x2), TestTaskMap.add_together.map([x1, x2], y=0)
 
         echo_futures, add_task_states = my_flow()
+        await events_pipeline.process_events()
         dependency_ids = await self.get_dependency_ids(
             session, echo_futures[0].state_details.flow_run_id
         )
@@ -3457,7 +3649,9 @@ class TestTaskMap:
             for a, e in zip(add_task_states, echo_futures)
         )
 
-    async def test_map_preserves_dependencies_between_futures_static_arg(self, session):
+    async def test_map_preserves_dependencies_between_futures_static_arg(
+        self, session, events_pipeline
+    ):
         @flow
         def my_flow():
             """
@@ -3470,6 +3664,8 @@ class TestTaskMap:
             return x, TestTaskMap.add_together.map([1, 2, 3], y=x)
 
         echo_future, add_task_states = my_flow()
+        await events_pipeline.process_events()
+
         dependency_ids = await self.get_dependency_ids(
             session, echo_future.state_details.flow_run_id
         )
@@ -3483,7 +3679,9 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    async def test_map_preserves_dependencies_between_futures_mixed_map(self, session):
+    async def test_map_preserves_dependencies_between_futures_mixed_map(
+        self, session, events_pipeline
+    ):
         @flow
         def my_flow():
             """
@@ -3495,6 +3693,7 @@ class TestTaskMap:
             return x, TestTaskMap.add_together.map([x, 2], y=1)
 
         echo_future, add_task_states = my_flow()
+        await events_pipeline.process_events()
         dependency_ids = await self.get_dependency_ids(
             session, echo_future.state_details.flow_run_id
         )
@@ -3508,7 +3707,7 @@ class TestTaskMap:
         assert dependency_ids[add_task_states[1].state_details.task_run_id] == []
 
     async def test_map_preserves_dependencies_between_futures_deep_nesting(
-        self, session
+        self, session, events_pipeline
     ):
         @flow
         def my_flow():
@@ -3524,6 +3723,7 @@ class TestTaskMap:
             )
 
         echo_futures, add_task_futures = my_flow()
+        await events_pipeline.process_events()
         dependency_ids = await self.get_dependency_ids(
             session, echo_futures[0].state_details.flow_run_id
         )
@@ -3802,7 +4002,7 @@ class TestTaskConstructorValidation:
                 raise RuntimeError("try again!")
 
 
-async def test_task_run_name_is_set(prefect_client):
+async def test_task_run_name_is_set(prefect_client, events_pipeline):
     @task(task_run_name="fixed-name")
     def my_task(name):
         return name
@@ -3812,6 +4012,7 @@ async def test_task_run_name_is_set(prefect_client):
         return my_task(name, return_state=True)
 
     tr_state = my_flow(name="chris")
+    await events_pipeline.process_events()
 
     # Check that the state completed happily
     assert tr_state.is_completed()
@@ -3819,7 +4020,9 @@ async def test_task_run_name_is_set(prefect_client):
     assert task_run.name == "fixed-name"
 
 
-async def test_task_run_name_is_set_with_kwargs_including_defaults(prefect_client):
+async def test_task_run_name_is_set_with_kwargs_including_defaults(
+    prefect_client, events_pipeline
+):
     @task(task_run_name="{name}-wuz-{where}")
     def my_task(name, where="here"):
         return name
@@ -3829,6 +4032,7 @@ async def test_task_run_name_is_set_with_kwargs_including_defaults(prefect_clien
         return my_task(name, return_state=True)
 
     tr_state = my_flow(name="chris")
+    await events_pipeline.process_events()
 
     # Check that the state completed happily
     assert tr_state.is_completed()
@@ -3836,7 +4040,7 @@ async def test_task_run_name_is_set_with_kwargs_including_defaults(prefect_clien
     assert task_run.name == "chris-wuz-here"
 
 
-async def test_task_run_name_is_set_with_function(prefect_client):
+async def test_task_run_name_is_set_with_function(prefect_client, events_pipeline):
     def generate_task_run_name():
         return "is-this-a-bird"
 
@@ -3849,6 +4053,7 @@ async def test_task_run_name_is_set_with_function(prefect_client):
         return my_task(name, return_state=True)
 
     tr_state = my_flow(name="butterfly")
+    await events_pipeline.process_events()
 
     # Check that the state completed happily
     assert tr_state.is_completed()
@@ -3856,7 +4061,9 @@ async def test_task_run_name_is_set_with_function(prefect_client):
     assert task_run.name == "is-this-a-bird"
 
 
-async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_client):
+async def test_task_run_name_is_set_with_function_using_runtime_context(
+    prefect_client, events_pipeline
+):
     def generate_task_run_name():
         params = task_run_ctx.parameters
         tokens = []
@@ -3875,6 +4082,7 @@ async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_
         return my_task(name, return_state=True)
 
     tr_state = my_flow(name="chris")
+    await events_pipeline.process_events()
 
     # Check that the state completed happily
     assert tr_state.is_completed()
@@ -4566,12 +4774,16 @@ class TestNestedTasks:
 
         assert await my_flow() == 10
 
-    async def test_nested_cache_key_fn(self):
+    async def test_nested_cache_key_fn(self, enable_client_side_task_run_orchestration):
         @task
         def inner_task(x):
             return x * 2
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def outer_task(x):
             return inner_task(x)
 
@@ -4590,12 +4802,18 @@ class TestNestedTasks:
         assert await state1.result() == 4
         assert await state2.result() == 4
 
-    async def test_nested_async_cache_key_fn(self):
+    async def test_nested_async_cache_key_fn(
+        self, enable_client_side_task_run_orchestration
+    ):
         @task
         async def inner_task(x):
             return x * 2
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         async def outer_task(x):
             return await inner_task(x)
 
@@ -4614,14 +4832,19 @@ class TestNestedTasks:
         assert await state1.result() == 4
         assert await state2.result() == 4
 
-    async def test_nested_cache_key_fn_inner_task_cached_default(self):
+    async def test_nested_cache_key_fn_inner_task_cached_default(
+        self, enable_client_side_task_run_orchestration
+    ):
         """
         By default, task transactions are LAZY committed and therefore
         inner tasks do not persist data (i.e., create a cache) until
         the outer task is complete.
         """
 
-        @task(cache_key_fn=task_input_hash)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}"
+        )
         def inner_task(x):
             return x * 2
 
@@ -4645,7 +4868,9 @@ class TestNestedTasks:
         assert await inner_state1.result() == 4
         assert await inner_state2.result() == 4
 
-    async def test_nested_cache_key_fn_inner_task_cached_eager(self):
+    async def test_nested_cache_key_fn_inner_task_cached_eager(
+        self, enable_client_side_task_run_orchestration
+    ):
         """
         By default, task transactions are LAZY committed and therefore
         inner tasks do not persist data (i.e., create a cache) until
@@ -4654,7 +4879,11 @@ class TestNestedTasks:
         This behavior can be modified by using a transaction context manager.
         """
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         def inner_task(x):
             return x * 2
 
@@ -4679,7 +4908,9 @@ class TestNestedTasks:
         assert await inner_state1.result() == 8
         assert await inner_state2.result() == 8
 
-    async def test_nested_async_cache_key_fn_inner_task_cached_default(self):
+    async def test_nested_async_cache_key_fn_inner_task_cached_default(
+        self, enable_client_side_task_run_orchestration
+    ):
         """
         By default, task transactions are LAZY committed and therefore
         inner tasks do not persist data (i.e., create a cache) until
@@ -4688,7 +4919,10 @@ class TestNestedTasks:
         This behavior can be modified by using a transaction context manager.
         """
 
-        @task(cache_key_fn=task_input_hash)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}"
+        )
         async def inner_task(x):
             return x * 2
 
@@ -4712,7 +4946,9 @@ class TestNestedTasks:
         assert await inner_state1.result() == 4
         assert await inner_state2.result() == 4
 
-    async def test_nested_async_cache_key_fn_inner_task_cached_eager(self):
+    async def test_nested_async_cache_key_fn_inner_task_cached_eager(
+        self, enable_client_side_task_run_orchestration
+    ):
         """
         By default, task transactions are LAZY committed and therefore
         inner tasks do not persist data (i.e., create a cache) until
@@ -4721,7 +4957,11 @@ class TestNestedTasks:
         This behavior can be modified by using a transaction context manager.
         """
 
-        @task(cache_key_fn=task_input_hash, persist_result=True)
+        @task(
+            cache_key_fn=lambda ctx,
+            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            persist_result=True,
+        )
         async def inner_task(x):
             return x * 2
 
