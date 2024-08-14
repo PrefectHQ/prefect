@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from prefect.records.in_memory import MemoryRecordStore
+from prefect.records.memory import MemoryRecordStore
 from prefect.results import ResultFactory
 
 
