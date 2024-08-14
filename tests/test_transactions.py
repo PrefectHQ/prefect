@@ -352,7 +352,10 @@ class TestHooks:
         with transaction(key="test") as top:
             top.set("key", 42)
             with transaction(key="nested") as inner:
-                inner.set("key", "string")
+                assert (
+                    inner.get("key") == 42
+                )  # children inherit from their parents first
+                inner.set("key", "string")  # and can override
                 assert inner.get("key") == "string"
                 assert top.get("key") == 42
             assert top.get("key") == 42

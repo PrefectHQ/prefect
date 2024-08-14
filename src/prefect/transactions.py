@@ -104,6 +104,7 @@ class Transaction(ContextModel):
             # either inherit from parent or set a default of eager
             if parent:
                 self.commit_mode = parent.commit_mode
+                self._stored_values = parent._stored_values.copy()
             else:
                 self.commit_mode = CommitMode.LAZY
 
