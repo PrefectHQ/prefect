@@ -567,7 +567,7 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> Union[int,
         )
 
     elif task.task_key not in context.task_run_dynamic_keys:
-        context.task_run_dynamic_keys[task.task_key] = 0
+        context.task_run_dynamic_keys[task.task_key] = context.flow_run.run_count
     else:
         context.task_run_dynamic_keys[task.task_key] += 1
 
