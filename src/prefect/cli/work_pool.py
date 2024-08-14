@@ -411,7 +411,7 @@ async def update(
                 work_pool=wp,
             )
         except ObjectNotFound:
-            exit_with_error("Work pool named {name!r} does not exist.")
+            exit_with_error(f"Work pool named {name!r} does not exist.")
 
         exit_with_success(f"Updated work pool {name!r}")
 
