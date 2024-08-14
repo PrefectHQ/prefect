@@ -20429,13 +20429,10 @@
                         "anyOf": [
                             {
                                 "type": "boolean"
-
                             },
                             {
                                 "type": "null"
-
                             }
-
                         ],
                         "title": "Is Null ",
                         "description": "If true, only include logs without a task run id"
