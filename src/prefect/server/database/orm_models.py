@@ -875,6 +875,7 @@ class Deployment(Base):
         order_by=sa.desc(sa.text("updated")),
     )
 
+    concurrency_limit = sa.Column(sa.Integer, default=None, nullable=True)
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
