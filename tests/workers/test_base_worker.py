@@ -30,7 +30,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import flow
 from prefect.server import models
-from prefect.server.schemas.core import Flow
+from prefect.server.schemas.core import Deployment, Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
@@ -2073,3 +2073,34 @@ async def test_worker_last_polled_health_check(
 
             # cleanup mock
             pendulum.set_test_now()
+
+
+async def test_env_merge_logic_is_deep(prefect_client, session, flow):
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="env-testing",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=None,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=None,
+            job_variables={"env": {"test-var": "foo"}},
+        ),
+    )
+    await session.commit()
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=Pending(),
+        job_variables={"env": {"another-var": "boo"}},
+    )
+    async with WorkerTestImpl(
+        name="test",
+        work_pool_name="test-work-pool",
+    ) as worker:
+        await worker.sync_with_backend()
+        config = await worker._get_configuration(flow_run)
+
+    assert config.env["test-var"] == "foo"
+    assert config.env["another-var"] == "boo"

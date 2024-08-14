@@ -981,7 +981,14 @@ class BaseWorker(abc.ABC):
 
         deployment_vars = deployment.job_variables or {}
         flow_run_vars = flow_run.job_variables or {}
-        job_variables = {**deployment_vars, **flow_run_vars}
+        job_variables = {**deployment_vars}
+
+        # merge any dictionaries, otherwise full override
+        for key, val in flow_run_vars.items():
+            if isinstance(job_variables.get(key), dict):
+                job_variables[key].update(val)
+            else:
+                job_variables[key] = val
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
