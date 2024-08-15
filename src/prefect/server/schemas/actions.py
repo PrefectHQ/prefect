@@ -169,6 +169,9 @@ class DeploymentCreate(ActionBaseModel):
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
+        default=None, description="The deployment's concurrency limit."
+    )
     enforce_parameter_schema: bool = Field(
         default=True,
         description=(
@@ -263,6 +266,9 @@ class DeploymentUpdate(ActionBaseModel):
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
+    )
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
+        default=None, description="The deployment's concurrency limit."
     )
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,

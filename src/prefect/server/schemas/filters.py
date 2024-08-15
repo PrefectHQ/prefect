@@ -996,6 +996,38 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
         return filters
 
 
+class DeploymentFilterConcurrencyLimit(PrefectFilterBaseModel):
+    """Filter by `Deployment.concurrency_limit`."""
+
+    ge_: Optional[int] = Field(
+        default=None,
+        description="Only include deployments with a concurrency limit greater than or equal to this value",
+    )
+
+    le_: Optional[int] = Field(
+        default=None,
+        description="Only include deployments with a concurrency limit less than or equal to this value",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include deployments without a concurrency limit",
+    )
+
+    def _get_filter_list(self) -> List:
+        filters = []
+        if self.ge_ is not None:
+            filters.append(orm_models.Deployment.concurrency_limit >= self.ge_)
+        if self.le_ is not None:
+            filters.append(orm_models.Deployment.concurrency_limit <= self.le_)
+        if self.is_null_ is not None:
+            filters.append(
+                orm_models.Deployment.concurrency_limit.is_(None)
+                if self.is_null_
+                else orm_models.Deployment.concurrency_limit.is_not(None)
+            )
+        return filters
+
+
 class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Deployment.tags`."""
 
@@ -1047,10 +1079,12 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     work_queue_name: Optional[DeploymentFilterWorkQueueName] = Field(
         default=None, description="Filter criteria for `Deployment.work_queue_name`"
     )
+    concurrency_limit: Optional[DeploymentFilterConcurrencyLimit] = Field(
+        default=None, description="Filter criteria for `Deployment.concurrency`"
+    )
 
     def _get_filter_list(self) -> List:
         filters = []
-
         if self.id is not None:
             filters.append(self.id.as_sql_filter())
         if self.name is not None:
@@ -1063,7 +1097,8 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.tags.as_sql_filter())
         if self.work_queue_name is not None:
             filters.append(self.work_queue_name.as_sql_filter())
-
+        if self.concurrency_limit is not None:
+            filters.append(self.concurrency_limit.as_sql_filter())
         return filters
 
 
