@@ -35,7 +35,7 @@ async def install_system_block_types(session):
 def test_register_blocks_from_module_with_ui_url():
     with temporary_settings(set_defaults={PREFECT_UI_URL: "https://app.prefect.cloud"}):
         invoke_and_assert(
-            ["block", "register", "-m", "prefect.blocks.core"],
+            ["block", "register", "-m", "prefect.blocks.system"],
             expected_code=0,
             expected_output_contains=[
                 "Successfully registered",
@@ -50,7 +50,7 @@ def test_register_blocks_from_module_without_ui_url(
 ):
     with temporary_settings(set_defaults={PREFECT_UI_URL: None}):
         invoke_and_assert(
-            ["block", "register", "-m", "prefect.blocks.core"],
+            ["block", "register", "-m", "prefect.blocks.system"],
             expected_code=0,
             expected_output_contains=[
                 "Successfully registered",
@@ -59,6 +59,17 @@ def test_register_blocks_from_module_without_ui_url(
             ],
             expected_output_does_not_contain=["Prefect UI: https://"],
         )
+
+
+def test_register_blocks_no_blocks_found_to_register():
+    invoke_and_assert(
+        ["block", "register", "-m", "prefect.blocks.core"],
+        expected_code=1,
+        expected_output_contains=[
+            "No blocks were registered from module 'prefect.blocks.core'",
+            "Please make sure the module 'prefect.blocks.core' contains valid blocks",
+        ],
+    )
 
 
 def test_register_blocks_from_nonexistent_module():
