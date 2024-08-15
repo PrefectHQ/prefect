@@ -505,6 +505,23 @@ class DeploymentFilterTags(PrefectBaseModel, OperatorMixin):
     )
 
 
+class DeploymentFilterConcurrencyLimit(PrefectBaseModel):
+    """Filter by `Deployment.concurrency_limit`."""
+
+    ge_: Optional[int] = Field(
+        default=None,
+        description="Only include deployments with a concurrency limit greater than or equal to this value",
+    )
+    le_: Optional[int] = Field(
+        default=None,
+        description="Only include deployments with a concurrency limit less than or equal to this value",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include deployments without a concurrency limit",
+    )
+
+
 class DeploymentFilter(PrefectBaseModel, OperatorMixin):
     """Filter for deployments. Only deployments matching all criteria will be returned."""
 
@@ -519,6 +536,9 @@ class DeploymentFilter(PrefectBaseModel, OperatorMixin):
     )
     work_queue_name: Optional[DeploymentFilterWorkQueueName] = Field(
         default=None, description="Filter criteria for `Deployment.work_queue_name`"
+    )
+    concurrency_limit: Optional[DeploymentFilterConcurrencyLimit] = Field(
+        default=None, description="Filter criteria for `Deployment.concurrency_limit`"
     )
 
 

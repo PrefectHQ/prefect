@@ -15457,6 +15457,19 @@
                         "title": "Schedules",
                         "description": "A list of schedules for the deployment."
                     },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit",
+                        "description": "The deployment's concurrency limit."
+                    },
                     "enforce_parameter_schema": {
                         "type": "boolean",
                         "title": "Enforce Parameter Schema",
@@ -15693,12 +15706,67 @@
                             }
                         ],
                         "description": "Filter criteria for `Deployment.work_queue_name`"
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilterConcurrencyLimit"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `Deployment.concurrency`"
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "DeploymentFilter",
                 "description": "Filter for deployments. Only deployments matching all criteria will be returned."
+            },
+            "DeploymentFilterConcurrencyLimit": {
+                "properties": {
+                    "ge_": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ge ",
+                        "description": "Only include deployments with a concurrency limit greater than or equal to this value"
+                    },
+                    "le_": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Le ",
+                        "description": "Only include deployments with a concurrency limit less than or equal to this value"
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null ",
+                        "description": "If true, only include deployments without a concurrency limit"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "DeploymentFilterConcurrencyLimit",
+                "description": "Filter by `Deployment.concurrency_limit`."
             },
             "DeploymentFilterId": {
                 "properties": {
@@ -16129,6 +16197,18 @@
                         "type": "array",
                         "title": "Schedules",
                         "description": "A list of schedules for the deployment."
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit",
+                        "description": "The maximum number of flow runs that can be active at once."
                     },
                     "job_variables": {
                         "type": "object",
@@ -16615,6 +16695,19 @@
                         "type": "array",
                         "title": "Schedules",
                         "description": "A list of schedules for the deployment."
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit",
+                        "description": "The deployment's concurrency limit."
                     },
                     "parameters": {
                         "anyOf": [
@@ -20424,6 +20517,18 @@
                         ],
                         "title": "Any ",
                         "description": "A list of task run IDs to include"
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null ",
+                        "description": "If true, only include logs without a task run id"
                     }
                 },
                 "additionalProperties": false,

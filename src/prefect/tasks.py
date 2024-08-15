@@ -834,9 +834,9 @@ class Task(Generic[P, R]):
                 task_run_name = self.name
             else:
                 dynamic_key = _dynamic_key_for_task_run(
-                    context=flow_run_context, task=self
+                    context=flow_run_context, task=self, stable=False
                 )
-                task_run_name = f"{self.name}-{dynamic_key}"
+                task_run_name = f"{self.name}-{dynamic_key[:3]}"
 
             if deferred:
                 state = Scheduled()

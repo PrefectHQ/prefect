@@ -49,7 +49,7 @@ from prefect.types import (
     StrictVariableValue,
 )
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
-from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
+from prefect.utilities.names import generate_slug, obfuscate
 
 if TYPE_CHECKING:
     from prefect.server.database import orm_models
@@ -546,6 +546,9 @@ class Deployment(ORMBaseModel):
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
+        default=None, description="The concurrency limit for the deployment."
+    )
     job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
@@ -778,7 +781,7 @@ class BlockDocument(ORMBaseModel):
             ):
                 secret_key = tuple(secret_field.split("."))
                 if flat_data.get(secret_key) is not None:
-                    flat_data[secret_key] = obfuscate_string(flat_data[secret_key])
+                    flat_data[secret_key] = obfuscate(flat_data[secret_key])
                 # If a wildcard (*) is in the current secret key path, we take the portion
                 # of the path before the wildcard and compare it to the same level of each
                 # key. A match means that the field is nested under the secret key and should

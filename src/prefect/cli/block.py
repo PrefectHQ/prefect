@@ -207,6 +207,14 @@ async def register(
 
     registered_blocks = await _register_blocks_in_module(imported_module)
     number_of_registered_blocks = len(registered_blocks)
+
+    if number_of_registered_blocks == 0:
+        source = f"module {module_name!r}" if module_name else f"file {file_path!r}"
+        exit_with_error(
+            f"No blocks were registered from {source}.\n\nPlease make sure the {source} "
+            "contains valid blocks.\n"
+        )
+
     block_text = "block" if 0 < number_of_registered_blocks < 2 else "blocks"
     app.console.print(
         f"[green]Successfully registered {number_of_registered_blocks} {block_text}\n"

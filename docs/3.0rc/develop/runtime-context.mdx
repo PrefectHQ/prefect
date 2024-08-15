@@ -23,7 +23,7 @@ Mock values in runtime through an environment variable using the schema
 
 ```bash
 export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
-$ python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
+python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
 ```
 
 If the environment variable mocks an existing runtime attribute, the value is cast to the same type. 
