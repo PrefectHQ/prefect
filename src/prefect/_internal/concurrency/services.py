@@ -159,7 +159,7 @@ class QueueService(abc.ABC, Generic[T]):
 
                 if current_time - last_log_time >= log_interval and queue_size > 0:
                     self._logger.warning(
-                        f"Still processing items. {queue_size} items remaining..."
+                        f"Still processing items: {queue_size} items remaining..."
                     )
                     last_log_time = current_time
 
