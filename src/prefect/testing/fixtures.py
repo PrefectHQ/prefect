@@ -369,7 +369,6 @@ def mock_should_emit_events(monkeypatch) -> mock.Mock:
     return m
 
 
-@pytest.fixture(autouse=True)
 def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
     worker = EventsWorker.instance(AssertingEventsClient)
     # Always yield the asserting worker when new instances are retrieved
