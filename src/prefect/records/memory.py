@@ -39,7 +39,13 @@ class MemoryRecordStore(RecordStore):
         self._locks: Dict[str, _LockInfo] = {}
         self._records: Dict[str, TransactionRecord] = {}
 
-    def read(self, key: str) -> Optional[TransactionRecord]:
+    def read(
+        self, key: str, holder: Optional[str] = None
+    ) -> Optional[TransactionRecord]:
+        holder = holder or self.generate_default_holder()
+
+        if self.is_locked(key) and not self.is_lock_holder(key, holder):
+            self.wait_for_lock(key)
         return self._records.get(key)
 
     def write(self, key: str, result: BaseResult, holder: Optional[str] = None) -> None:

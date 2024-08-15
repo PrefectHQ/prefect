@@ -1,4 +1,6 @@
+import threading
 import uuid
+from time import sleep
 
 import pytest
 
@@ -367,6 +369,120 @@ class TestDefaultTransactionStorage:
             return await result.get()
 
         assert await test_task() == {"foo": "bar"}
+
+
+class TestWithMemoryRecordStore:
+    @pytest.fixture()
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
+        ):
+            yield
+
+    @pytest.fixture
+    async def result_1(self, default_storage_setting):
+        result_factory = await ResultFactory.default_factory(persist_result=True)
+        return await result_factory.create_result(obj={"foo": "bar"})
+
+    @pytest.fixture
+    async def result_2(self, default_storage_setting):
+        result_factory = await ResultFactory.default_factory(persist_result=True)
+        return await result_factory.create_result(obj={"fizz": "buzz"})
+
+    async def test_basic_transaction(self, result_1):
+        store = MemoryRecordStore()
+        with transaction(key="test_basic_transaction", store=store) as txn:
+            assert isinstance(txn.store, MemoryRecordStore)
+            txn.stage(result_1)
+
+        result_1 = txn.read()
+        assert result_1
+        assert await result_1.get() == {"foo": "bar"}
+
+        record = store.read("test_basic_transaction")
+        assert record
+        assert record.result == result_1
+        assert record.key == "test_basic_transaction"
+
+    async def test_competing_read_transaction(self, result_1):
+        transaction_1_open = threading.Event()
+        transaction_2_open = threading.Event()
+
+        def competing_transaction(
+            store, key, result, transaction_1_open, transaction_2_open
+        ):
+            # isolation level is SERIALIZABLE, so a lock will be taken
+            with transaction(
+                key=key, store=store, isolation_level=IsolationLevel.SERIALIZABLE
+            ) as txn:
+                transaction_1_open.set()
+                transaction_2_open.wait()
+                # artificial delay to ensure the other transaction waits on read
+                sleep(1)
+                txn.stage(result)
+
+        store = MemoryRecordStore()
+        thread = threading.Thread(
+            target=competing_transaction,
+            args=(
+                store,
+                "test_competing_read_transaction",
+                result_1,
+                transaction_1_open,
+                transaction_2_open,
+            ),
+        )
+        thread.start()
+        transaction_1_open.wait()
+        with transaction(key="test_competing_read_transaction", store=store) as txn:
+            transaction_2_open.set()
+            read_result = txn.read()
+
+        assert read_result == result_1
+        thread.join()
+
+    async def test_competing_write_transaction(self, result_1, result_2):
+        transaction_1_open = threading.Event()
+
+        def competing_transaction(store, key, result, transaction_1_open):
+            with transaction(
+                key=key, store=store, isolation_level=IsolationLevel.SERIALIZABLE
+            ) as txn:
+                transaction_1_open.set()
+                # artificial delay to ensure the other transaction waits on open
+                sleep(1)
+                txn.stage(result)
+
+        store = MemoryRecordStore()
+        thread = threading.Thread(
+            target=competing_transaction,
+            args=(
+                store,
+                "test_competing_write_transaction",
+                result_1,
+                transaction_1_open,
+            ),
+        )
+        thread.start()
+        transaction_1_open.wait()
+        with transaction(
+            key="test_competing_write_transaction",
+            store=store,
+            isolation_level=IsolationLevel.SERIALIZABLE,
+        ) as txn:
+            txn.stage(result_2)
+
+        thread.join()
+        record = store.read("test_competing_write_transaction")
+        assert record
+        # the first transaction should have written its result
+        # and the second transaction should not have written on exit
+        assert record.result == result_1
 
 
 class TestHooks:

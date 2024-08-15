@@ -162,8 +162,13 @@ class Transaction(ContextModel):
         self.reset()
 
     def begin(self):
-        # currently we only support READ_COMMITTED isolation
-        # i.e., no locking behavior
+        if (
+            self.store
+            and self.key
+            and self.isolation_level == IsolationLevel.SERIALIZABLE
+        ):
+            self.logger.debug(f"Acquiring lock for transaction {self.key!r}")
+            self.store.acquire_lock(self.key)
         if (
             not self.overwrite
             and self.store
@@ -207,6 +212,14 @@ class Transaction(ContextModel):
 
     def commit(self) -> bool:
         if self.state in [TransactionState.ROLLED_BACK, TransactionState.COMMITTED]:
+            if (
+                self.store
+                and self.key
+                and self.isolation_level == IsolationLevel.SERIALIZABLE
+            ):
+                self.logger.debug(f"Releasing lock for transaction {self.key!r}")
+                self.store.release_lock(self.key)
+
             return False
 
         try:
@@ -219,6 +232,13 @@ class Transaction(ContextModel):
             if self.store and self.key:
                 self.store.write(key=self.key, result=self._staged_value)
             self.state = TransactionState.COMMITTED
+            if (
+                self.store
+                and self.key
+                and self.isolation_level == IsolationLevel.SERIALIZABLE
+            ):
+                self.logger.debug(f"Releasing lock for transaction {self.key!r}")
+                self.store.release_lock(self.key)
             return True
         except Exception:
             if self.logger:
@@ -284,6 +304,14 @@ class Transaction(ContextModel):
                     exc_info=True,
                 )
             return False
+        finally:
+            if (
+                self.store
+                and self.key
+                and self.isolation_level == IsolationLevel.SERIALIZABLE
+            ):
+                self.logger.debug(f"Releasing lock for transaction {self.key!r}")
+                self.store.release_lock(self.key)
 
     @classmethod
     def get_active(cls: Type[Self]) -> Optional[Self]:
