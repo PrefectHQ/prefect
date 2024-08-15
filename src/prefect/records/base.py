@@ -23,12 +23,19 @@ class TransactionRecord:
 
 class RecordStore(abc.ABC):
     @abc.abstractmethod
-    def read(self, key: str) -> Optional[TransactionRecord]:
+    def read(
+        self, key: str, holder: Optional[str] = None
+    ) -> Optional[TransactionRecord]:
         """
         Read the transaction record with the given key.
 
         Args:
             key: Unique identifier for the transaction record.
+            holder: Unique identifier for the holder of the lock. If a lock exists on
+                the record being written, the read will be block until the lock is
+                released if the provided holder does not match the holder of the lock.
+                If not provided, a default holder based on the current host, process,
+                and thread will be used.
 
         Returns:
             TransactionRecord: The transaction record with the given key.
