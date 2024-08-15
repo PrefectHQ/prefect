@@ -607,11 +607,11 @@ class WorkQueueCreate(ActionBaseModel):
         default=False,
         description="Whether the work queue is paused.",
     )
-    concurrency_limit: Optional[int] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None,
         description="A concurrency limit for the work queue.",
     )
-    priority: Optional[int] = Field(
+    priority: Optional[PositiveInteger] = Field(
         default=None,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -635,8 +635,8 @@ class WorkQueueUpdate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[int] = Field(None)
-    priority: Optional[int] = Field(None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
+    priority: Optional[PositiveInteger] = Field(description="The queue's priority.")
     last_polled: Optional[DateTime] = Field(None)
 
     # DEPRECATED
