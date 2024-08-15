@@ -10,6 +10,7 @@ from prefect.records.filesystem import FileSystemRecordStore
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_RECORD_STORE_PATH,
     temporary_settings,
 )
 from prefect.transactions import IsolationLevel
@@ -45,6 +46,13 @@ class TestFileSystemRecordStore:
     def store(self):
         return FileSystemRecordStore()
 
+    def test_default_records_directory(self, store):
+        assert store.records_directory == PREFECT_RECORD_STORE_PATH.value()
+
+    def test_custom_records_directory(self, tmp_path):
+        store = FileSystemRecordStore(records_directory=tmp_path)
+        assert store.records_directory == tmp_path
+
     def test_read_write(self, store, result):
         key = str(uuid4())
         assert store.read(key) is None
@@ -53,13 +61,8 @@ class TestFileSystemRecordStore:
         assert record.key == key
         assert record.result == result
 
-    async def test_read_locked_key(self):
+    async def test_read_locked_key(self, store, result):
         key = str(uuid4())
-        store = FileSystemRecordStore()
-        factory = await ResultFactory.default_factory(
-            persist_result=True,
-        )
-        result = await factory.create_result(obj={"test": "value"})
 
         process = multiprocessing.Process(
             target=read_locked_key,
@@ -77,27 +80,17 @@ class TestFileSystemRecordStore:
         # the read should have been blocked until the lock was released
         assert read_queue.get_nowait() == result
 
-    async def test_write_to_key_with_same_lock_holder(self):
+    async def test_write_to_key_with_same_lock_holder(self, store, result):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key)
-        factory = await ResultFactory.default_factory(
-            persist_result=True,
-        )
-        result = await factory.create_result(obj={"test": "value"})
         # can write to key because holder is the same
         store.write(key, result=result)
         assert (record := store.read(key)) is not None
         assert record.result == result
 
-    async def test_write_to_key_with_different_lock_holder(self):
+    async def test_write_to_key_with_different_lock_holder(self, store, result):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key, holder="holder1")
-        factory = await ResultFactory.default_factory(
-            persist_result=True,
-        )
-        result = await factory.create_result(obj={"test": "value"})
         with pytest.raises(
             ValueError,
             match=f"Cannot write to transaction with key {key} because it is locked by another holder.",
@@ -110,43 +103,38 @@ class TestFileSystemRecordStore:
         store.write(key, result=result)
         assert store.exists(key)
 
-    def test_acquire_lock(self):
+    def test_acquire_lock(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key)
         assert store.is_locked(key)
         store.release_lock(key)
         assert not store.is_locked(key)
 
-    def test_acquire_lock_idempotent(self):
+    def test_acquire_lock_idempotent(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key)
         assert store.acquire_lock(key)
         assert store.is_locked(key)
         store.release_lock(key)
         assert not store.is_locked(key)
 
-    def test_acquire_lock_with_hold_timeout(self):
+    def test_acquire_lock_with_hold_timeout(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key=key, hold_timeout=0.1)
         assert store.is_locked(key)
         sleep(0.2)
         assert not store.is_locked(key)
 
-    def test_acquire_lock_with_acquire_timeout(self):
+    def test_acquire_lock_with_acquire_timeout(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key=key, holder="holder1")
         assert store.is_locked(key)
         assert not store.acquire_lock(key=key, holder="holder2", acquire_timeout=0.1)
         store.release_lock(key=key, holder="holder1")
         assert not store.is_locked(key=key)
 
-    def test_acquire_lock_when_previously_holder_timed_out(self):
+    def test_acquire_lock_when_previously_holder_timed_out(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key=key, holder="holder1", hold_timeout=0.1)
         assert store.is_locked(key=key)
         # blocks and acquires the lock
@@ -155,9 +143,8 @@ class TestFileSystemRecordStore:
         store.release_lock(key=key, holder="holder2")
         assert not store.is_locked(key=key)
 
-    def test_raises_if_releasing_with_wrong_holder(self):
+    def test_raises_if_releasing_with_wrong_holder(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key=key, holder="holder1")
         assert store.is_locked(key=key)
         with pytest.raises(
@@ -165,32 +152,28 @@ class TestFileSystemRecordStore:
         ):
             store.release_lock(key=key, holder="holder2")
 
-    def test_is_lock_holder(self):
+    def test_is_lock_holder(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert not store.is_lock_holder(key, holder="holder1")
         assert store.acquire_lock(key, holder="holder1")
         assert store.is_lock_holder(key, holder="holder1")
         assert not store.is_lock_holder(key, holder="holder2")
 
-    def test_wait_for_lock(self):
+    def test_wait_for_lock(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key, holder="holder1", hold_timeout=1)
         assert store.is_locked(key)
         assert store.wait_for_lock(key)
         assert not store.is_locked(key)
 
-    def test_lock(self):
+    def test_lock(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         with store.lock(key):
             assert store.is_locked(key)
         assert not store.is_locked(key)
 
-    def test_wait_for_lock_with_timeout(self):
+    def test_wait_for_lock_with_timeout(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key, holder="holder1")
         assert store.is_locked(key)
         assert not store.wait_for_lock(key, timeout=0.1)
@@ -198,15 +181,13 @@ class TestFileSystemRecordStore:
         store.release_lock(key, holder="holder1")
         assert not store.is_locked(key)
 
-    def test_wait_for_lock_never_been_locked(self):
+    def test_wait_for_lock_never_been_locked(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert not store.is_locked(key)
         assert store.wait_for_lock(key)
 
-    def test_locking_works_across_threads(self):
+    def test_locking_works_across_threads(self, store):
         key = str(uuid4())
-        store = FileSystemRecordStore()
         assert store.acquire_lock(key)
         assert store.is_locked(key)
 
@@ -223,8 +204,7 @@ class TestFileSystemRecordStore:
         # the lock should have been acquired by the thread
         assert store.is_locked
 
-    def test_supports_serialization_level(self):
-        store = FileSystemRecordStore()
+    def test_supports_serialization_level(self, store):
         assert store.supports_isolation_level(IsolationLevel.READ_COMMITTED)
         assert store.supports_isolation_level(IsolationLevel.SERIALIZABLE)
         assert not store.supports_isolation_level("UNKNOWN")
