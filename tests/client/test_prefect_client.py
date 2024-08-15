@@ -1862,6 +1862,7 @@ class TestWorkPools:
         await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(
                 name=work_pool.name,
+                type=work_pool.type,
                 description="new description",
             ),
             overwrite=True,
@@ -1879,7 +1880,7 @@ class TestWorkPools:
             await prefect_client.create_work_pool(
                 work_pool=WorkPoolCreate(
                     name=work_pool.name,
-                    type="test-type",
+                    type="kubernetes",
                     description=work_pool.description,
                 ),
                 overwrite=True,
