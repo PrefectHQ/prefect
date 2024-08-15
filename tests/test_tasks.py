@@ -22,7 +22,6 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.events.worker import EventsWorker
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -38,7 +37,6 @@ from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -52,17 +50,6 @@ from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
-
-
-@pytest.fixture(autouse=True, params=[False, True])
-def enable_client_side_task_run_orchestration(
-    request, asserting_events_worker: EventsWorker
-):
-    enabled = request.param
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
-    ):
-        yield enabled
 
 
 def comparable_inputs(d):
@@ -873,19 +860,15 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
-    def test_logs_message_when_submitted_tasks_end_in_pending(
-        self, caplog, enable_client_side_task_run_orchestration
-    ):
+    @pytest.mark.xfail(
+        reason="This test is not compatible with the current state of client side task orchestration"
+    )
+    def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
         """
         If submitted tasks aren't waited on before a flow exits, they may fail to run
         because they're transition from PENDING to RUNNING is denied. This test ensures
         that a message is logged when this happens.
         """
-
-        if enable_client_side_task_run_orchestration:
-            pytest.xfail(
-                "This test is not compatible with the current state of client side task orchestration"
-            )
 
         @task
         def find_palindromes():
@@ -1386,11 +1369,10 @@ class TestTaskCaching:
         assert await second_state.result() == await first_state.result()
 
     async def test_cache_hits_within_flows_are_cached(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda *_: "cache_hit-1"
-            + str(enable_client_side_task_run_orchestration),
+            cache_key_fn=lambda *_: "cache_hit-1",
             persist_result=True,
         )
         def foo(x):
@@ -1406,11 +1388,10 @@ class TestTaskCaching:
         assert await second_state.result() == await first_state.result()
 
     def test_many_repeated_cache_hits_within_flows_cached(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda *_: "cache_hit-2"
-            + str(enable_client_side_task_run_orchestration),
+            cache_key_fn=lambda *_: "cache_hit-2",
             persist_result=True,
         )
         def foo(x):
@@ -1425,11 +1406,10 @@ class TestTaskCaching:
         assert all(state.name == "Cached" for state in states), states
 
     async def test_cache_hits_between_flows_are_cached(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda *_: "cache_hit-3"
-            + str(enable_client_side_task_run_orchestration),
+            cache_key_fn=lambda *_: "cache_hit-3",
             persist_result=True,
         )
         def foo(x):
@@ -1445,15 +1425,13 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert await second_state.result() == await first_state.result() == 1
 
-    def test_cache_misses_arent_cached(self, enable_client_side_task_run_orchestration):
+    def test_cache_misses_arent_cached(
+        self,
+    ):
         # this hash fn won't return the same value twice
         def mutating_key(*_, tally=[]):
             tally.append("x")
-            return (
-                "call tally:"
-                + "".join(tally)
-                + str(enable_client_side_task_run_orchestration)
-            )
+            return "call tally:" + "".join(tally)
 
         @task(cache_key_fn=mutating_key, persist_result=True)
         def foo(x):
@@ -1495,12 +1473,12 @@ class TestTaskCaching:
         assert await fourth_state.result() == "something"
 
     async def test_cache_key_fn_receives_resolved_futures(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         def check_args(context, params):
             assert params["x"] == "something"
             assert len(params) == 1
-            return params["x"] + str(enable_client_side_task_run_orchestration)
+            return params["x"]
 
         @task
         def foo(x):
@@ -1524,10 +1502,10 @@ class TestTaskCaching:
         assert await second_state.result() == "something"
 
     async def test_cache_key_fn_arg_inputs_are_stable(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         def stringed_inputs(context, args):
-            return str(args) + str(enable_client_side_task_run_orchestration)
+            return str(args)
 
         @task(cache_key_fn=stringed_inputs, persist_result=True)
         def foo(a, b, c=3):
@@ -1552,11 +1530,10 @@ class TestTaskCaching:
         assert await third_state.result() == 6
 
     async def test_cache_key_hits_with_future_expiration_are_cached(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda *_: "cache-hit-4"
-            + str(enable_client_side_task_run_orchestration),
+            cache_key_fn=lambda *_: "cache-hit-4",
             cache_expiration=datetime.timedelta(seconds=5),
             persist_result=True,
         )
@@ -1609,11 +1586,10 @@ class TestTaskCaching:
         assert await second_state.result() != await first_state.result()
 
     async def test_cache_hits_wo_refresh_cache(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda *_: "cache-hit-7"
-            + str(enable_client_side_task_run_orchestration),
+            cache_key_fn=lambda *_: "cache-hit-7",
             refresh_cache=False,
             persist_result=True,
         )
@@ -1722,7 +1698,7 @@ class TestTaskCaching:
         assert await s4.result() == 105
 
     async def test_instance_methods_can_share_a_cache(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         """
         Test that instance methods can share a cache by using a cache key function that
@@ -1733,7 +1709,7 @@ class TestTaskCaching:
             # remove the self arg from the cache key
             cache_args = args.copy()
             cache_args.pop("self")
-            return str(cache_args) + str(enable_client_side_task_run_orchestration)
+            return str(cache_args)
 
         class Foo:
             def __init__(self, x):
@@ -1792,20 +1768,18 @@ class TestTaskCaching:
         assert "`cache_key_fn` will be used" in caplog.text
 
     async def test_changing_result_storage_key_busts_cache(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
-        cstro_enabled = str(enable_client_side_task_run_orchestration)
-
         @task(
-            cache_key_fn=lambda *_: "cache-hit-10" + cstro_enabled,
-            result_storage_key="before" + cstro_enabled,
+            cache_key_fn=lambda *_: "cache-hit-10",
+            result_storage_key="before",
             persist_result=True,
         )
         def foo(x):
             return x
 
         first_state = foo(1, return_state=True)
-        second_state = foo.with_options(result_storage_key="after" + cstro_enabled)(
+        second_state = foo.with_options(result_storage_key="after")(
             2, return_state=True
         )
         assert first_state.name == "Completed"
@@ -1853,11 +1827,10 @@ class TestTaskCaching:
 
 class TestCacheFunctionBuiltins:
     async def test_task_input_hash_within_flows(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def foo(x):
@@ -1881,11 +1854,10 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == 1
 
     async def test_task_input_hash_between_flows(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def foo(x):
@@ -1905,7 +1877,7 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result() == 1
 
     async def test_task_input_hash_works_with_object_return_types(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         """
         This is a regression test for a weird bug where `task_input_hash` would always
@@ -1924,8 +1896,7 @@ class TestCacheFunctionBuiltins:
                 return type(self) == type(other) and self.x == other.x
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def foo(x):
@@ -1948,7 +1919,7 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result()
 
     async def test_task_input_hash_works_with_object_input_types(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         class TestClass:
             def __init__(self, x):
@@ -1958,8 +1929,7 @@ class TestCacheFunctionBuiltins:
                 return type(self) == type(other) and self.x == other.x
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def foo(instance):
@@ -1982,7 +1952,7 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result() == 1
 
     async def test_task_input_hash_works_with_block_input_types(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         class TestBlock(Block):
             x: int
@@ -1990,8 +1960,7 @@ class TestCacheFunctionBuiltins:
             z: int
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def foo(instance):
@@ -2014,11 +1983,10 @@ class TestCacheFunctionBuiltins:
         assert await first_state.result() == await third_state.result() == 1
 
     async def test_task_input_hash_depends_on_task_key_and_code(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def foo(x):
@@ -2031,8 +1999,7 @@ class TestCacheFunctionBuiltins:
             return x
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def bar(x):
@@ -2067,7 +2034,7 @@ class TestCacheFunctionBuiltins:
         assert await fourth_state.result() == await fifth_state.result() == 1
 
     async def test_task_input_hash_works_with_block_input_types_and_bytes(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         class TestBlock(Block):
             x: int
@@ -2075,8 +2042,7 @@ class TestCacheFunctionBuiltins:
             z: bytes
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def foo(instance):
@@ -3403,11 +3369,10 @@ class TestTaskWithOptions:
         assert task_with_options.retry_delay_seconds == 0
 
     async def test_with_options_refresh_cache(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task(
-            cache_key_fn=lambda *_: "cache hit"
-            + str(enable_client_side_task_run_orchestration),
+            cache_key_fn=lambda *_: "cache hit",
             persist_result=True,
         )
         def foo(x):
@@ -4774,14 +4739,15 @@ class TestNestedTasks:
 
         assert await my_flow() == 10
 
-    async def test_nested_cache_key_fn(self, enable_client_side_task_run_orchestration):
+    async def test_nested_cache_key_fn(
+        self,
+    ):
         @task
         def inner_task(x):
             return x * 2
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def outer_task(x):
@@ -4803,15 +4769,14 @@ class TestNestedTasks:
         assert await state2.result() == 4
 
     async def test_nested_async_cache_key_fn(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         @task
         async def inner_task(x):
             return x * 2
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         async def outer_task(x):
@@ -4833,7 +4798,7 @@ class TestNestedTasks:
         assert await state2.result() == 4
 
     async def test_nested_cache_key_fn_inner_task_cached_default(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         """
         By default, task transactions are LAZY committed and therefore
@@ -4842,8 +4807,7 @@ class TestNestedTasks:
         """
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}"
+            cache_key_fn=task_input_hash,
         )
         def inner_task(x):
             return x * 2
@@ -4869,7 +4833,7 @@ class TestNestedTasks:
         assert await inner_state2.result() == 4
 
     async def test_nested_cache_key_fn_inner_task_cached_eager(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         """
         By default, task transactions are LAZY committed and therefore
@@ -4880,8 +4844,7 @@ class TestNestedTasks:
         """
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         def inner_task(x):
@@ -4909,7 +4872,7 @@ class TestNestedTasks:
         assert await inner_state2.result() == 8
 
     async def test_nested_async_cache_key_fn_inner_task_cached_default(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         """
         By default, task transactions are LAZY committed and therefore
@@ -4920,8 +4883,7 @@ class TestNestedTasks:
         """
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}"
+            cache_key_fn=task_input_hash,
         )
         async def inner_task(x):
             return x * 2
@@ -4947,7 +4909,7 @@ class TestNestedTasks:
         assert await inner_state2.result() == 4
 
     async def test_nested_async_cache_key_fn_inner_task_cached_eager(
-        self, enable_client_side_task_run_orchestration
+        self,
     ):
         """
         By default, task transactions are LAZY committed and therefore
@@ -4958,8 +4920,7 @@ class TestNestedTasks:
         """
 
         @task(
-            cache_key_fn=lambda ctx,
-            *args: f"{task_input_hash(ctx, *args)}:{enable_client_side_task_run_orchestration}",
+            cache_key_fn=task_input_hash,
             persist_result=True,
         )
         async def inner_task(x):
