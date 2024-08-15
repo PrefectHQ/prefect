@@ -1856,6 +1856,39 @@ class TestWorkPools:
             work_pool_2.id,
         }
 
+    async def test_create_work_pool_overwriting_existing_work_pool(
+        self, prefect_client, work_pool
+    ):
+        await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(
+                name=work_pool.name,
+                type=work_pool.type,
+                description="new description",
+            ),
+            overwrite=True,
+        )
+
+        updated_work_pool = await prefect_client.read_work_pool(work_pool.name)
+        assert updated_work_pool.description == "new description"
+
+    async def test_create_work_pool_with_attempt_to_overwrite_type(
+        self, prefect_client, work_pool
+    ):
+        with pytest.warns(
+            UserWarning, match="Overwriting work pool type is not supported"
+        ):
+            await prefect_client.create_work_pool(
+                work_pool=WorkPoolCreate(
+                    name=work_pool.name,
+                    type="kubernetes",
+                    description=work_pool.description,
+                ),
+                overwrite=True,
+            )
+
+        updated_work_pool = await prefect_client.read_work_pool(work_pool.name)
+        assert updated_work_pool.type == work_pool.type
+
     async def test_update_work_pool(self, prefect_client):
         work_pool = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-pool-1")
