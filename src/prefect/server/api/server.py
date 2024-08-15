@@ -47,6 +47,7 @@ from prefect.server.events.services.actions import Actions
 from prefect.server.events.services.event_persister import EventPersister
 from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveTriggers
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.services.task_run_recorder import TaskRunRecorder
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -569,8 +570,8 @@ def create_app(
         if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
             service_instances.append(stream.Distributor())
 
-        # if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
-        #     service_instances.append(TaskRunRecorder())
+        if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
+            service_instances.append(TaskRunRecorder())
 
         loop = asyncio.get_running_loop()
 
