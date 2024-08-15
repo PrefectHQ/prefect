@@ -30,6 +30,7 @@ class TestCreateDeployment:
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
+        assert deployment.concurrency_limit is None
 
     async def test_creating_a_deployment_with_existing_work_queue_is_ok(
         self, session, flow, work_queue
