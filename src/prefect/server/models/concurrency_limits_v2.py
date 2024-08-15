@@ -249,7 +249,7 @@ async def bulk_increment_active_slots(
     result = await session.execute(query)
     success = result.rowcount == len(concurrency_limit_ids)
 
-    if success:
+    if success and holder:
         for concurrency_limit_id in concurrency_limit_ids:
             LIMIT_HOLDERS[concurrency_limit_id].add(holder)
 
@@ -307,7 +307,7 @@ async def bulk_decrement_active_slots(
     result = await session.execute(query)
     success = result.rowcount == len(concurrency_limit_ids)
 
-    if success:
+    if success and holder:
         for concurrency_limit_id in concurrency_limit_ids:
             LIMIT_HOLDERS[concurrency_limit_id].discard(holder)
 
@@ -343,4 +343,8 @@ def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
     Args:
         *concurrency_limit_ids: The concurrency limit IDs for which to get holders.
     """
-    return {_id: list(LIMIT_HOLDERS[_id]) for _id in concurrency_limit_ids}  # type: ignore
+    return {
+        _id: list(LIMIT_HOLDERS[_id])
+        for _id in concurrency_limit_ids
+        if _id in LIMIT_HOLDERS
+    }

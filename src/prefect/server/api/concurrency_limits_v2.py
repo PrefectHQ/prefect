@@ -59,7 +59,7 @@ async def read_concurrency_limit_v2(
         model
     )
     holders = models.concurrency_limits_v2.get_limit_holders(model.id)
-    response_model.holders = holders.get(model.id, None)
+    response_model.holders = holders.get(model.id, [])
 
     return response_model
 
@@ -215,7 +215,7 @@ async def bulk_increment_active_slots(
                 id=limit.id,
                 name=str(limit.name),
                 limit=limit.limit,
-                holders=holders.get(limit.id, None),
+                holders=holders.get(limit.id, []),
             )
             for limit in limits
         ]
