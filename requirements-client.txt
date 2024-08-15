@@ -6,6 +6,7 @@ coolname >= 1.0.4, < 3.0.0
 croniter >= 1.0.12, < 4.0.0
 exceptiongroup >= 1.0.0
 fastapi >= 0.111.0, < 1.0.0
+filelock >= 3.15.0, < 4.0.0
 fsspec >= 2022.5.0
 graphviz >= 0.20.1
 griffe >= 0.20.0, <0.48.0
