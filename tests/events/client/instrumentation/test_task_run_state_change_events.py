@@ -75,7 +75,7 @@ async def test_task_state_change_happy_path(
             "data": None,
         },
         "task_run": {
-            "dynamic_key": "0",
+            "dynamic_key": task_run.dynamic_key,
             "empirical_policy": {
                 "max_retries": 0,
                 "retries": 0,
@@ -83,7 +83,7 @@ async def test_task_state_change_happy_path(
                 "retry_delay_seconds": 0.0,
             },
             "flow_run_run_count": 0,
-            "name": "happy_little_tree-0",
+            "name": task_run.name,
             "run_count": 0,
             "tags": [],
             "task_inputs": {},
@@ -130,7 +130,7 @@ async def test_task_state_change_happy_path(
             "data": None,
         },
         "task_run": {
-            "dynamic_key": "0",
+            "dynamic_key": task_run.dynamic_key,
             "empirical_policy": {
                 "max_retries": 0,
                 "retries": 0,
@@ -138,7 +138,7 @@ async def test_task_state_change_happy_path(
                 "retry_delay_seconds": 0.0,
             },
             "flow_run_run_count": 1,
-            "name": "happy_little_tree-0",
+            "name": task_run.name,
             "run_count": 1,
             "tags": [],
             "task_inputs": {},
@@ -190,7 +190,7 @@ async def test_task_state_change_happy_path(
             "data": {"type": "unpersisted"},
         },
         "task_run": {
-            "dynamic_key": "0",
+            "dynamic_key": task_run.dynamic_key,
             "empirical_policy": {
                 "max_retries": 0,
                 "retries": 0,
@@ -198,7 +198,7 @@ async def test_task_state_change_happy_path(
                 "retry_delay_seconds": 0.0,
             },
             "flow_run_run_count": 1,
-            "name": "happy_little_tree-0",
+            "name": task_run.name,
             "run_count": 1,
             "tags": [],
             "task_inputs": {},
@@ -270,7 +270,7 @@ async def test_task_state_change_task_failure(
             "data": None,
         },
         "task_run": {
-            "dynamic_key": "0",
+            "dynamic_key": task_run.dynamic_key,
             "empirical_policy": {
                 "max_retries": 0,
                 "retries": 0,
@@ -278,7 +278,7 @@ async def test_task_state_change_task_failure(
                 "retry_delay_seconds": 0.0,
             },
             "flow_run_run_count": 0,
-            "name": "happy_little_tree-0",
+            "name": task_run.name,
             "run_count": 0,
             "tags": [],
             "task_inputs": {},
@@ -325,7 +325,7 @@ async def test_task_state_change_task_failure(
             "data": None,
         },
         "task_run": {
-            "dynamic_key": "0",
+            "dynamic_key": task_run.dynamic_key,
             "empirical_policy": {
                 "max_retries": 0,
                 "retries": 0,
@@ -333,7 +333,7 @@ async def test_task_state_change_task_failure(
                 "retry_delay_seconds": 0.0,
             },
             "flow_run_run_count": 1,
-            "name": "happy_little_tree-0",
+            "name": task_run.name,
             "run_count": 1,
             "tags": [],
             "task_inputs": {},
@@ -390,7 +390,7 @@ async def test_task_state_change_task_failure(
             "data": {"type": "unpersisted"},
         },
         "task_run": {
-            "dynamic_key": "0",
+            "dynamic_key": task_run.dynamic_key,
             "empirical_policy": {
                 "max_retries": 0,
                 "retries": 0,
@@ -398,7 +398,7 @@ async def test_task_state_change_task_failure(
                 "retry_delay_seconds": 0.0,
             },
             "flow_run_run_count": 1,
-            "name": "happy_little_tree-0",
+            "name": task_run.name,
             "run_count": 1,
             "tags": [],
             "task_inputs": {},
