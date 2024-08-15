@@ -309,7 +309,7 @@ async def bulk_decrement_active_slots(
 
     if success:
         for concurrency_limit_id in concurrency_limit_ids:
-            LIMIT_HOLDERS[concurrency_limit_id].remove(holder)
+            LIMIT_HOLDERS[concurrency_limit_id].discard(holder)
 
     return success
 
@@ -337,4 +337,10 @@ async def bulk_update_denied_slots(
 
 
 def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
+    """
+    Get holders of the given concurrency limit IDs.
+
+    Args:
+        *concurrency_limit_ids: The concurrency limit IDs for which to get holders.
+    """
     return {_id: list(LIMIT_HOLDERS[_id]) for _id in concurrency_limit_ids}  # type: ignore
