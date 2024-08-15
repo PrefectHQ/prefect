@@ -75,7 +75,7 @@
       "group": "Develop",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/develop/develop-overview",
+        "3.0rc/develop/index",
         {
           "group": "Write and run workflows",
           "version": "3.0rc",
@@ -156,7 +156,7 @@
       "group": "Automate",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/automate/automate-overview",
+        "3.0rc/automate/index",
         "3.0rc/automate/add-schedules",
         "3.0rc/automate/events/events",
         "3.0rc/automate/events/automations-triggers",
@@ -169,7 +169,7 @@
       "group": "Cloud and Server",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/manage/manage-overview",
+        "3.0rc/manage/index",
         {
           "group": "Use Prefect Cloud",
           "version": "3.0rc",
@@ -698,5 +698,11 @@
     "slack": "https://communityinviter.com/apps/prefect-community/prefect-community",
     "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
     "youtube": "https://www.youtube.com/c/PrefectIO"
-  }
+  },
+  "redirects": [
+    {
+      "source": "/latest/:slug*",
+      "destination": "/3.0rc/:slug*"
+    }
+  ]
 }
