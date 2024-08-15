@@ -19,7 +19,6 @@ from prefect.server.schemas.actions import BlockDocumentReferenceCreate
 from prefect.server.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
-from prefect.server.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 from prefect.utilities.names import obfuscate
 
@@ -486,7 +485,7 @@ async def update_block_document(
             secret_key = tuple(secret_field.split("."))
             current_secret = flat_current_data.get(secret_key)
             if current_secret is not None:
-                if flat_update_data.get(secret_key) == obfuscate_string(current_secret):
+                if flat_update_data.get(secret_key) == obfuscate(current_secret):
                     flat_update_data[secret_key] = current_secret
             # Looks for obfuscated values nested under a secret field with a wildcard.
             # If any obfuscated values are found, we assume that it shouldn't be update,
