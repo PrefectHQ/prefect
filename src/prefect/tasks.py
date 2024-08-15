@@ -733,7 +733,9 @@ class Task(Generic[P, R]):
                 task_run_name = self.name
             else:
                 dynamic_key = _dynamic_key_for_task_run(
-                    context=flow_run_context, task=self
+                    context=flow_run_context,
+                    task=self,
+                    starts_at=0,
                 )
                 task_run_name = f"{self.name}-{dynamic_key}"
 
