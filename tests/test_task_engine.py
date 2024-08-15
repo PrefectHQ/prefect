@@ -29,14 +29,12 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.events.worker import EventsWorker
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
 from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
@@ -52,17 +50,6 @@ from prefect.testing.utilities import exceptions_equal
 from prefect.transactions import transaction
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
-
-
-@pytest.fixture(autouse=True, params=[False, True])
-def enable_client_side_task_run_orchestration(
-    request, asserting_events_worker: EventsWorker
-):
-    enabled = request.param
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
-    ):
-        yield enabled
 
 
 @task
@@ -1690,15 +1677,8 @@ class TestPersistence:
         assert isinstance(state.data, PersistedResult)
         assert state.data.storage_key == "foo-bar"
 
-    async def test_task_result_persistence_references_absolute_path(
-        self, enable_client_side_task_run_orchestration
-    ):
-        # temporarily use a dynamic key to avoid conflicts
-        # from running this test twice in a row
-        # with enable_client_side_task_run_orchestration
-        key = f"test-absolute-path-{enable_client_side_task_run_orchestration}"
-
-        @task(result_storage_key=key, persist_result=True)
+    async def test_task_result_persistence_references_absolute_path(self):
+        @task(result_storage_key="test-absolute-path", persist_result=True)
         async def async_task():
             return 42
 
@@ -1709,7 +1689,7 @@ class TestPersistence:
 
         key_path = Path(state.data.storage_key)
         assert key_path.is_absolute()
-        assert key_path.name == key
+        assert key_path.name == "test-absolute-path"
 
 
 class TestCachePolicy:
@@ -2290,7 +2270,7 @@ class TestAsyncGenerators:
 
 
 class TestTaskConcurrencyLimits:
-    async def test_tag_concurrency(self, enable_client_side_task_run_orchestration):
+    async def test_tag_concurrency(self):
         @task(tags=["limit-tag"])
         async def bar():
             return 42
@@ -2305,19 +2285,16 @@ class TestTaskConcurrencyLimits:
             ) as release_spy:
                 await bar()
 
-                if enable_client_side_task_run_orchestration:
-                    acquire_spy.assert_called_once_with(
-                        ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-                    )
+                acquire_spy.assert_called_once_with(
+                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                )
 
-                    names, occupy, occupy_seconds = release_spy.call_args[0]
-                    assert names == ["limit-tag"]
-                    assert occupy == 1
-                    assert occupy_seconds > 0
-                else:
-                    assert acquire_spy.call_count == 0
+                names, occupy, occupy_seconds = release_spy.call_args[0]
+                assert names == ["limit-tag"]
+                assert occupy == 1
+                assert occupy_seconds > 0
 
-    def test_tag_concurrency_sync(self, enable_client_side_task_run_orchestration):
+    def test_tag_concurrency_sync(self):
         @task(tags=["limit-tag"])
         def bar():
             return 42
@@ -2332,17 +2309,14 @@ class TestTaskConcurrencyLimits:
             ) as release_spy:
                 bar()
 
-                if enable_client_side_task_run_orchestration:
-                    acquire_spy.assert_called_once_with(
-                        ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-                    )
+                acquire_spy.assert_called_once_with(
+                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                )
 
-                    names, occupy, occupy_seconds = release_spy.call_args[0]
-                    assert names == ["limit-tag"]
-                    assert occupy == 1
-                    assert occupy_seconds > 0
-                else:
-                    assert acquire_spy.call_count == 0
+                names, occupy, occupy_seconds = release_spy.call_args[0]
+                assert names == ["limit-tag"]
+                assert occupy == 1
+                assert occupy_seconds > 0
 
     async def test_no_tags_no_concurrency(self):
         @task
@@ -2380,9 +2354,7 @@ class TestTaskConcurrencyLimits:
                 assert acquire_spy.call_count == 0
                 assert release_spy.call_count == 0
 
-    async def test_tag_concurrency_does_not_create_limits(
-        self, enable_client_side_task_run_orchestration, prefect_client
-    ):
+    async def test_tag_concurrency_does_not_create_limits(self, prefect_client):
         @task(tags=["limit-tag"])
         async def bar():
             return 42
@@ -2393,15 +2365,12 @@ class TestTaskConcurrencyLimits:
         ) as acquire_spy:
             await bar()
 
-            if enable_client_side_task_run_orchestration:
-                acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-                )
+            acquire_spy.assert_called_once_with(
+                ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+            )
 
-                limits = await prefect_client.read_concurrency_limits(10, 0)
-                assert len(limits) == 0
-            else:
-                assert acquire_spy.call_count == 0
+            limits = await prefect_client.read_concurrency_limits(10, 0)
+            assert len(limits) == 0
 
 
 class TestRunStateIsDenormalized:
@@ -2619,13 +2588,7 @@ class TestTransactionHooks:
         self,
         events_pipeline,
         prefect_client,
-        enable_client_side_task_run_orchestration,
     ):
-        if not enable_client_side_task_run_orchestration:
-            pytest.xfail(
-                "The Task Run Recorder is not enabled to handle state transitions via events"
-            )
-
         task_run_state = None
 
         @task
@@ -2662,13 +2625,7 @@ class TestTransactionHooks:
         self,
         events_pipeline,
         prefect_client,
-        enable_client_side_task_run_orchestration,
     ):
-        if not enable_client_side_task_run_orchestration:
-            pytest.xfail(
-                "The Task Run Recorder is not enabled to handle state transitions via events"
-            )
-
         task_run_state = None
 
         @task

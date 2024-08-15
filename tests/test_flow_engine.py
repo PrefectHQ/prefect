@@ -25,7 +25,6 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.events.worker import EventsWorker
 from prefect.exceptions import (
     CrashedRun,
     FlowPauseTimeout,
@@ -45,24 +44,9 @@ from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
-    temporary_settings,
-)
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
-
-
-@pytest.fixture(autouse=True, params=[False, True])
-def enable_client_side_task_run_orchestration(
-    request, asserting_events_worker: EventsWorker
-):
-    enabled = request.param
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
-    ):
-        yield enabled
 
 
 @flow
@@ -1155,14 +1139,10 @@ class TestPauseFlowRun:
         )
         assert schema is not None
 
-    async def test_paused_task_polling(
-        self, prefect_client, enable_client_side_task_run_orchestration
-    ):
-        if enable_client_side_task_run_orchestration:
-            pytest.xfail(
-                "Client-side task run orchestration does not prevent tasks from running in paused flows yet"
-            )
-
+    @pytest.mark.xfail(
+        reason="Client-side task run orchestration does not prevent tasks from running in paused flows yet"
+    )
+    async def test_paused_task_polling(self, prefect_client):
         sleeper = AsyncMock(side_effect=[None, None, None, None, None])
 
         @task

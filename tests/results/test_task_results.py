@@ -2,15 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_HOME,
-    temporary_settings,
 )
 from prefect.tasks import task
 from prefect.testing.utilities import (
@@ -18,17 +15,6 @@ from prefect.testing.utilities import (
     assert_uses_result_storage,
 )
 from prefect.utilities.annotations import quote
-
-
-@pytest.fixture(autouse=True, params=[False, True])
-def enable_client_side_task_run_orchestration(
-    request, asserting_events_worker: EventsWorker
-):
-    enabled = request.param
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
-    ):
-        yield enabled
 
 
 @pytest.mark.parametrize("options", [{"retries": 3}])
