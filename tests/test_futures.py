@@ -8,7 +8,6 @@ from typing import Any, List, Optional
 import pytest
 
 from prefect import task
-from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingResult
 from prefect.futures import (
     PrefectConcurrentFuture,
@@ -20,24 +19,9 @@ from prefect.futures import (
     resolve_futures_to_states,
     wait,
 )
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
-    temporary_settings,
-)
 from prefect.states import Completed, Failed
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.task_runners import ThreadPoolTaskRunner
-
-
-@pytest.fixture(autouse=True, params=[False, True])
-def enable_client_side_task_run_orchestration(
-    request, asserting_events_worker: EventsWorker
-):
-    enabled = request.param
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
-    ):
-        yield enabled
 
 
 class MockFuture(PrefectWrappedFuture):
@@ -405,9 +389,7 @@ class TestPrefectDistributedFuture:
         with pytest.raises(ValueError, match="oops"):
             future.result(raise_on_failure=True)
 
-    async def test_final_state_missing_result(
-        self, events_pipeline, enable_client_side_task_run_orchestration
-    ):
+    async def test_final_state_missing_result(self, events_pipeline):
         @task(persist_result=False)
         def my_task():
             return 42
@@ -426,12 +408,10 @@ class TestPrefectDistributedFuture:
 
         await events_pipeline.process_events()
 
-        match_str = (
-            "The result was not persisted and is no longer available."
-            if enable_client_side_task_run_orchestration
-            else "State data is missing"
-        )
-        with pytest.raises(MissingResult, match=match_str):
+        with pytest.raises(
+            MissingResult,
+            match="The result was not persisted and is no longer available.",
+        ):
             future.result()
 
 

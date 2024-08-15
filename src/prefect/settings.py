@@ -1379,14 +1379,6 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
 The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
-
-PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION = Setting(
-    bool, default=False
-)
-"""
-Whether or not to enable experimental client side task run orchestration.
-"""
-
 # Prefect Events feature flags
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)

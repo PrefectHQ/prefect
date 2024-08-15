@@ -24,19 +24,17 @@ from prefect.cache_policies import DEFAULT, NONE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
-from prefect.exceptions import Abort, PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
-from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
+from prefect.utilities.engine import emit_task_run_state_change_event
 from prefect.utilities.processutils import _register_signal
 from prefect.utilities.services import start_client_metrics_server
 from prefect.utilities.urls import url_for
@@ -294,42 +292,12 @@ class TaskWorker:
                 return
 
         initial_state = task_run.state
-
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            new_state = Pending()
-            new_state.state_details.deferred = True
-            new_state.state_details.task_run_id = task_run.id
-            new_state.state_details.flow_run_id = task_run.flow_run_id
-            state = new_state
-            task_run.state = state
-        else:
-            try:
-                new_state = Pending()
-                new_state.state_details.deferred = True
-                state = await propose_state(
-                    client=get_client(),  # TODO prove that we cannot use self._client here
-                    state=new_state,
-                    task_run_id=task_run.id,
-                )
-            except Abort as exc:
-                logger.exception(
-                    f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
-                )
-                return
-            except PrefectHTTPStatusError as exc:
-                if exc.response.status_code == 404:
-                    logger.warning(
-                        f"Task run {task_run.id!r} not found. It may have been deleted."
-                    )
-                    return
-                raise
-
-        if not state.is_pending():
-            logger.warning(
-                f"Cancelling submission of task run {task_run.id!r} -"
-                f" server returned a non-pending state {state.type.value!r}."
-            )
-            return
+        new_state = Pending()
+        new_state.state_details.deferred = True
+        new_state.state_details.task_run_id = task_run.id
+        new_state.state_details.flow_run_id = task_run.flow_run_id
+        state = new_state
+        task_run.state = state
 
         emit_task_run_state_change_event(
             task_run=task_run,
