@@ -8,6 +8,8 @@ from pydantic.types import SecretStr
 
 from prefect.filesystems import WritableFileSystem
 
+DEFAULT_PORT = 6379
+
 
 class RedisCredentials(WritableFileSystem):
     """
@@ -47,8 +49,6 @@ class RedisCredentials(WritableFileSystem):
     """
 
     _logo_url = "https://stprododpcmscdnendpoint.azureedge.net/assets/icons/redis.png"
-
-    DEFAULT_PORT = 6379
 
     host: Optional[str] = Field(default=None, description="Redis hostname")
     port: int = Field(default=DEFAULT_PORT, description="Redis port")
