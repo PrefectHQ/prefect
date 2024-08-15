@@ -1,4 +1,5 @@
 """Test Redis tasks"""
+
 import os
 import random
 import string
@@ -23,11 +24,11 @@ def environ_credentials() -> Dict:
         Redis credentials as a dict, can be piped directly into `RedisCredentials`
     """
     return {
-        "host": os.environ["TEST_REDIS_HOST"],
-        "port": os.environ["TEST_REDIS_PORT"],
-        "db": os.environ.get("TEST_REDIS_DB", "0"),
-        "username": os.environ["TEST_REDIS_USERNAME"],
-        "password": os.environ["TEST_REDIS_PASSWORD"],
+        "host": os.environ.get("TEST_REDIS_HOST", "localhost"),
+        "port": int(os.environ.get("TEST_REDIS_PORT", 6379)),
+        "db": int(os.environ.get("TEST_REDIS_DB", 0)),
+        "username": os.environ.get("TEST_REDIS_USERNAME"),
+        "password": os.environ.get("TEST_REDIS_PASSWORD"),
     }
 
 
@@ -64,9 +65,7 @@ async def test_from_credentials(redis_credentials: RedisCredentials):
 async def test_from_connection_string(environ_credentials: Dict):
     """Test instantiating from connection string"""
 
-    connection_string = "redis://{username}:{password}@{host}:{port}/{db}".format(
-        **environ_credentials
-    )
+    connection_string = "redis://@{host}:{port}/{db}".format(**environ_credentials)
     redis_credentials = RedisCredentials.from_connection_string(connection_string)
 
     client = redis_credentials.get_client()
