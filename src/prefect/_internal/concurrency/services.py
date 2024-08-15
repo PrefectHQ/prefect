@@ -144,10 +144,23 @@ class QueueService(abc.ABC, Generic[T]):
             self._done_event.set()
 
     async def _main_loop(self):
+        last_log_time = 0
+        log_interval = 3  # log every 3 seconds
+
         while True:
             item: T = await self._queue_get_thread.submit(
                 create_call(self._queue.get)
             ).aresult()
+
+            if self._stopped:
+                current_time = asyncio.get_event_loop().time()
+                queue_size = self._queue.qsize()
+
+                if current_time - last_log_time >= log_interval and queue_size > 0:
+                    logger.warning(
+                        f"{type(self).__name__} is still processing: {queue_size} items remaining..."
+                    )
+                    last_log_time = current_time
 
             if item is None:
                 logger.debug("Exiting service %r", self)
