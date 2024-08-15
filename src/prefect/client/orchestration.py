@@ -2631,7 +2631,10 @@ class PrefectClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 if overwrite:
-                    if "type" in work_pool.model_fields_set:
+                    existing_work_pool = await self.read_work_pool(
+                        work_pool_name=work_pool.name
+                    )
+                    if existing_work_pool.type != work_pool.type:
                         warnings.warn(
                             "Overwriting work pool type is not supported. Ignoring provided type.",
                             category=UserWarning,
