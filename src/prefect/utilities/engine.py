@@ -560,7 +560,7 @@ def propose_state_sync(
 
 
 def _dynamic_key_for_task_run(
-    context: FlowRunContext, task: Task, stable: bool = False
+    context: FlowRunContext, task: Task, stable: bool = True
 ) -> Union[int, str]:
     if (
         stable is False or context.detached
