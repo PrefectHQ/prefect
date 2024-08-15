@@ -1324,15 +1324,16 @@ class PrefectClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
+        block_document_data = block_document.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude={"id", "block_schema", "block_type"},
+            context={"include_secrets": include_secrets},
+        )
         try:
             response = await self._client.post(
                 "/block_documents/",
-                json=block_document.model_dump(
-                    mode="json",
-                    exclude_unset=True,
-                    exclude={"id", "block_schema", "block_type"},
-                    context={"include_secrets": include_secrets},
-                ),
+                json=block_document_data,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:

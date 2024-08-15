@@ -150,7 +150,9 @@ def _collect_secret_fields(
             _collect_secret_fields(f"{name}.{field_name}", field.annotation, secrets)
         return
 
-    if type_ in (SecretStr, SecretBytes):
+    if type_ in (SecretStr, SecretBytes) or (
+        type_.__module__ == "pydantic.types" and type_.__name__ == "Secret"
+    ):
         secrets.append(name)
     elif type_ == SecretDict:
         # Append .* to field name to signify that all values under this

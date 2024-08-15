@@ -24,6 +24,7 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+from pydantic.functional_validators import ModelWrapValidatorHandler
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self, TypeVar
 
@@ -938,7 +939,9 @@ class BlockDocument(ObjectBaseModel):
         return validate_name_present_on_nonanonymous_blocks(values)
 
     @model_serializer(mode="wrap")
-    def serialize_data(self, handler, info: SerializationInfo):
+    def serialize_data(
+        self, handler: ModelWrapValidatorHandler, info: SerializationInfo
+    ):
         self.data = visit_collection(
             self.data,
             visit_fn=partial(handle_secret_render, context=info.context or {}),
