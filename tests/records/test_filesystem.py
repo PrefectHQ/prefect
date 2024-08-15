@@ -16,10 +16,10 @@ from prefect.settings import (
 from prefect.transactions import IsolationLevel
 
 
-def read_locked_key(key, store, queue):
+def read_locked_key(key, store, queue: multiprocessing.Queue):
     record = store.read(key)
     assert record is not None
-    queue.put(record.result)
+    queue.put(record.result, block=False)
 
 
 class TestFileSystemRecordStore:
@@ -71,14 +71,15 @@ class TestFileSystemRecordStore:
                 store,
                 (read_queue := multiprocessing.Queue()),
             ),
+            daemon=True,
         )
         assert store.acquire_lock(key, holder="holder1")
         process.start()
         store.write(key, result=result, holder="holder1")
         store.release_lock(key, holder="holder1")
-        process.join()
         # the read should have been blocked until the lock was released
         assert read_queue.get_nowait() == result
+        process.join(timeout=1)
 
     async def test_write_to_key_with_same_lock_holder(self, store, result):
         key = str(uuid4())
