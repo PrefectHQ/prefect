@@ -597,7 +597,7 @@ async def test_task_state_change_task_failure(
                     "Here's a happy little accident."
                 ),
                 "state_details": {"retriable": False},
-                "data": {"type": "unpersisted"},
+                "data": None,
             },
             "task_run": {
                 "dynamic_key": task_run.dynamic_key,
@@ -776,7 +776,7 @@ async def test_task_state_change_task_failure(
                     "retriable": False,
                     "untrackable_result": False,
                 },
-                "data": {"type": "unpersisted"},
+                "data": None,
             },
             "task_run": {
                 "dynamic_key": "0",

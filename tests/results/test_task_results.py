@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from prefect.events.worker import EventsWorker
-from prefect.exceptions import MissingResult
+from prefect.exceptions import FailedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.serializers import JSONSerializer, PickleSerializer
@@ -420,7 +420,7 @@ async def test_task_literal_result_is_handled_the_same(
     assert await api_state.result() is value
 
 
-async def test_task_exception_is_persisted(prefect_client, events_pipeline):
+async def test_task_exception_is_not_persisted(prefect_client, events_pipeline):
     @flow
     def foo():
         return quote(bar(return_state=True))
@@ -439,7 +439,7 @@ async def test_task_exception_is_persisted(prefect_client, events_pipeline):
     api_state = (
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
-    with pytest.raises(ValueError, match="Hello world"):
+    with pytest.raises(FailedRun, match="Hello world"):
         await api_state.result()
 
 

@@ -7,7 +7,7 @@ import pytest
 from prefect import flow, task
 from prefect.blocks.core import Block
 from prefect.context import get_run_context
-from prefect.exceptions import MissingResult
+from prefect.exceptions import FailedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
     PersistedResultBlob,
@@ -142,7 +142,7 @@ async def test_flow_literal_result_is_available_but_not_serialized_or_persisted(
     assert await api_state.result() is value
 
 
-async def test_flow_exception_is_persisted(prefect_client):
+async def test_flow_exception_is_not_persisted(prefect_client):
     @flow(persist_result=True)
     def foo():
         raise ValueError("Hello world")
@@ -154,7 +154,7 @@ async def test_flow_exception_is_persisted(prefect_client):
     api_state = (
         await prefect_client.read_flow_run(state.state_details.flow_run_id)
     ).state
-    with pytest.raises(ValueError, match="Hello world"):
+    with pytest.raises(FailedRun, match="Hello world"):
         await api_state.result()
 
 
