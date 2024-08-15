@@ -1,6 +1,5 @@
 import threading
 import uuid
-from time import sleep
 
 import pytest
 
@@ -412,31 +411,20 @@ class TestWithMemoryRecordStore:
     async def test_competing_read_transaction(self, result_1):
         transaction_1_open = threading.Event()
         transaction_2_open = threading.Event()
+        store = MemoryRecordStore()
 
-        def competing_transaction(
-            store, key, result, transaction_1_open, transaction_2_open
-        ):
+        def writing_transaction():
             # isolation level is SERIALIZABLE, so a lock will be taken
             with transaction(
-                key=key, store=store, isolation_level=IsolationLevel.SERIALIZABLE
+                key="test_competing_read_transaction",
+                store=store,
+                isolation_level=IsolationLevel.SERIALIZABLE,
             ) as txn:
                 transaction_1_open.set()
                 transaction_2_open.wait()
-                # artificial delay to ensure the other transaction waits on read
-                sleep(1)
-                txn.stage(result)
+                txn.stage(result_1)
 
-        store = MemoryRecordStore()
-        thread = threading.Thread(
-            target=competing_transaction,
-            args=(
-                store,
-                "test_competing_read_transaction",
-                result_1,
-                transaction_1_open,
-                transaction_2_open,
-            ),
-        )
+        thread = threading.Thread(target=writing_transaction)
         thread.start()
         transaction_1_open.wait()
         with transaction(key="test_competing_read_transaction", store=store) as txn:
@@ -448,26 +436,18 @@ class TestWithMemoryRecordStore:
 
     async def test_competing_write_transaction(self, result_1, result_2):
         transaction_1_open = threading.Event()
+        store = MemoryRecordStore()
 
-        def competing_transaction(store, key, result, transaction_1_open):
+        def winning_transaction():
             with transaction(
-                key=key, store=store, isolation_level=IsolationLevel.SERIALIZABLE
+                key="test_competing_write_transaction",
+                store=store,
+                isolation_level=IsolationLevel.SERIALIZABLE,
             ) as txn:
                 transaction_1_open.set()
-                # artificial delay to ensure the other transaction waits on open
-                sleep(1)
-                txn.stage(result)
+                txn.stage(result_1)
 
-        store = MemoryRecordStore()
-        thread = threading.Thread(
-            target=competing_transaction,
-            args=(
-                store,
-                "test_competing_write_transaction",
-                result_1,
-                transaction_1_open,
-            ),
-        )
+        thread = threading.Thread(target=winning_transaction)
         thread.start()
         transaction_1_open.wait()
         with transaction(
