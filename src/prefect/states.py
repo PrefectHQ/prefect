@@ -232,13 +232,6 @@ async def exception_to_failed_state(
     else:
         pass
 
-    if result_factory:
-        data = await result_factory.create_result(exc)
-    else:
-        # Attach the exception for local usage, will not be available when retrieved
-        # from the API
-        data = exc
-
     existing_message = kwargs.pop("message", "")
     if existing_message and not existing_message.endswith(" "):
         existing_message += " "
@@ -247,7 +240,7 @@ async def exception_to_failed_state(
     #       excluded from messages for now
     message = existing_message + format_exception(exc)
 
-    state = Failed(data=data, message=message, **kwargs)
+    state = Failed(data=exc, message=message, **kwargs)
     state.state_details.retriable = False
 
     return state
