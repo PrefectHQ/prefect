@@ -5,10 +5,13 @@ from typing import Optional
 
 import pendulum
 
+from prefect.logging.loggers import get_logger
 from prefect.records.base import RecordStore, TransactionRecord
 from prefect.results import BaseResult
 from prefect.settings import PREFECT_HOME
 from prefect.transactions import IsolationLevel
+
+logger = get_logger(__name__)
 
 
 class FileSystemRecordStore(RecordStore):
@@ -28,6 +31,9 @@ class FileSystemRecordStore(RecordStore):
 
     def _ensure_records_directory_exists(self):
         self.records_directory.mkdir(parents=True, exist_ok=True)
+
+    def _lock_path_for_key(self, key: str) -> Path:
+        return self.records_directory.joinpath(key).with_suffix(".lock")
 
     def read(
         self, key: str, holder: Optional[str] = None
@@ -76,13 +82,21 @@ class FileSystemRecordStore(RecordStore):
         holder = holder or self.generate_default_holder()
 
         self._ensure_records_directory_exists()
-        record_path = self.records_directory.joinpath(key)
-        lock_path = str(record_path) + ".lock"
+        lock_path = self._lock_path_for_key(key)
 
         if self.is_locked(key) and not self.is_lock_holder(key, holder):
             lock_free = self.wait_for_lock(key, acquire_timeout)
             if not lock_free:
                 return False
+
+        try:
+            Path(lock_path).touch(exist_ok=False)
+        except FileExistsError:
+            if not self.is_lock_holder(key, holder):
+                logger.debug(
+                    f"Another actor acquired the lock for record with key {key}. Trying again."
+                )
+                return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
 
         with open(Path(lock_path), "w") as lock_file:
             lock_info = {"holder": holder}
@@ -96,7 +110,7 @@ class FileSystemRecordStore(RecordStore):
 
     def release_lock(self, key: str, holder: Optional[str] = None) -> None:
         holder = holder or self.generate_default_holder()
-        lock_path = str(self.records_directory.joinpath(key)) + ".lock"
+        lock_path = self._lock_path_for_key(key)
         if not self.is_locked(key):
             ValueError(f"No lock for transaction with key {key}")
         if self.is_lock_holder(key, holder):
@@ -105,7 +119,7 @@ class FileSystemRecordStore(RecordStore):
             raise ValueError(f"No lock held by {holder} for transaction with key {key}")
 
     def is_locked(self, key: str) -> bool:
-        lock_path = str(self.records_directory.joinpath(key)) + ".lock"
+        lock_path = self._lock_path_for_key(key)
         try:
             with open(Path(lock_path)) as lock_file:
                 lock_info = json.load(lock_file)
@@ -127,7 +141,7 @@ class FileSystemRecordStore(RecordStore):
             return False
 
         holder = holder or self.generate_default_holder()
-        lock_path = str(self.records_directory.joinpath(key)) + ".lock"
+        lock_path = self._lock_path_for_key(key)
         if not self.is_locked(key):
             return False
         with open(Path(lock_path), "r") as lock_file:
