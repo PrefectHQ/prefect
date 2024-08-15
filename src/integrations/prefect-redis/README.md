@@ -24,11 +24,11 @@ Prefect integrations for working with Redis
 
 ### Python setup
 
-Requires an installation of Python 3.7+.
+Requires an installation of Python 3.9+.
 
 We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
 
-These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://orion-docs.prefect.io/).
+These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
 
 ### Installation
 
@@ -38,13 +38,13 @@ Install `prefect-redis` with `pip`:
 pip install prefect-redis
 ```
 
-Then, register to [view the block](https://orion-docs.prefect.io/ui/blocks/) on Prefect Cloud:
+Then, register to view the block on Prefect Cloud:
 
 ```bash
 prefect block register -m prefect_redis.credentials
 ```
 
-Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://orion-docs.prefect.io/concepts/blocks/#saving-blocks) or [saved through the UI](https://orion-docs.prefect.io/ui/blocks/).
+Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or [saved through the UI](https://docs.prefect.io/ui/blocks/).
 
 ### Write and run a flow
 
@@ -80,19 +80,4 @@ If you encounter any bugs while using `prefect-redis`, feel free to open an issu
 
 If you have any questions or issues while using `prefect-redis`, you can find help in either the [Prefect Discourse forum](https://discourse.prefect.io/) or the [Prefect Slack community](https://prefect.io/slack).
 
-Feel free to ⭐️ or watch [`prefect-redis`](https://github.com/C4IROcean/prefect-redis) for updates too!
 
-## Development
-
-If you'd like to install a version of `prefect-redis` for development, clone the repository and perform an editable install with `pip`:
-
-```bash
-git clone https://github.com/C4IROcean/prefect-redis.git
-
-cd prefect-redis/
-
-pip install -e ".[dev]"
-
-# Install linting pre-commit hooks
-pre-commit install
-```
