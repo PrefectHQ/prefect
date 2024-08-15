@@ -39,6 +39,7 @@ class QueueService(abc.ABC, Generic[T]):
             daemon=True,
             name=f"{type(self).__name__}Thread",
         )
+        self._logger = logging.getLogger(f"{type(self).__name__}")
 
     def start(self):
         logger.debug("Starting service %r", self)
@@ -157,8 +158,8 @@ class QueueService(abc.ABC, Generic[T]):
                 queue_size = self._queue.qsize()
 
                 if current_time - last_log_time >= log_interval and queue_size > 0:
-                    logger.warning(
-                        f"{type(self).__name__} is still processing: {queue_size} items remaining..."
+                    self._logger.warning(
+                        f"Still processing items. {queue_size} items remaining..."
                     )
                     last_log_time = current_time
 
