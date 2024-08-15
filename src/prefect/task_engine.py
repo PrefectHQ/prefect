@@ -196,7 +196,11 @@ class BaseTaskRunEngine(Generic[P, R]):
 
     def record_terminal_state_timing(self, state: State) -> None:
         if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            if self.task_run.start_time and not self.task_run.end_time:
+            if (
+                self.task_run
+                and self.task_run.start_time
+                and not self.task_run.end_time
+            ):
                 self.task_run.end_time = state.timestamp
 
                 if self.task_run.state.is_running():
