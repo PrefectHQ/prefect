@@ -17,7 +17,7 @@ from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
 from prefect.events import Event
-from prefect.events.clients import AssertingEventsClient
+from prefect.events.clients import AssertingEventsClient, AssertingPrefectEventsClient
 from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
 from prefect.server.api.server import SubprocessASGIServer
@@ -381,6 +381,19 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
 
 
 @pytest.fixture
+def asserting_and_emitting_events_worker(
+    monkeypatch,
+) -> Generator[EventsWorker, None, None]:
+    worker = EventsWorker.instance(AssertingPrefectEventsClient)
+    # Always yield the asserting worker when new instances are retrieved
+    monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
+    try:
+        yield worker
+    finally:
+        worker.drain()
+
+
+@pytest.fixture
 async def events_pipeline(asserting_events_worker: EventsWorker):
     class AssertingEventsPipeline(EventsPipeline):
         @sync_compatible
@@ -413,6 +426,20 @@ async def events_pipeline(asserting_events_worker: EventsWorker):
             await self.process_messages(messages)
 
     yield AssertingEventsPipeline()
+
+
+@pytest.fixture
+async def emitting_events_pipeline(asserting_and_emitting_events_worker: EventsWorker):
+    class AssertingAndEmittingEventsPipeline(EventsPipeline):
+        @sync_compatible
+        async def process_events(self):
+            asserting_and_emitting_events_worker.wait_until_empty()
+            events = asserting_and_emitting_events_worker._client.pop_events()
+
+            messages = self.events_to_messages(events)
+            await self.process_messages(messages)
+
+    yield AssertingAndEmittingEventsPipeline()
 
 
 @pytest.fixture

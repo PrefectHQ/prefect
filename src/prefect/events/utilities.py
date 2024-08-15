@@ -7,6 +7,7 @@ from pydantic_extra_types.pendulum_dt import DateTime
 
 from .clients import (
     AssertingEventsClient,
+    AssertingPrefectEventsClient,
     PrefectCloudEventsClient,
     PrefectEventsClient,
 )
@@ -49,6 +50,7 @@ def emit_event(
         return None
 
     operational_clients = [
+        AssertingPrefectEventsClient,
         AssertingEventsClient,
         PrefectCloudEventsClient,
         PrefectEventsClient,
