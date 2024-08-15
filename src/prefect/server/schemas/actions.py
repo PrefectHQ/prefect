@@ -267,9 +267,6 @@ class DeploymentUpdate(ActionBaseModel):
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
-    concurrency_limit: Optional[NonNegativeInteger] = Field(
-        default=None, description="The deployment's concurrency limit."
-    )
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
@@ -634,6 +631,7 @@ class ConcurrencyLimitV2Update(ActionBaseModel):
     active_slots: Optional[NonNegativeInteger] = Field(None)
     denied_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+    holders: Optional[List[str]] = Field(None)
 
 
 class BlockTypeCreate(ActionBaseModel):

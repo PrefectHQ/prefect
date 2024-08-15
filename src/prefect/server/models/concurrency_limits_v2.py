@@ -1,4 +1,5 @@
-from typing import List, Optional, Sequence, Union
+from collections import defaultdict
+from typing import Dict, List, Optional, Sequence, Union
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -9,6 +10,8 @@ import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+
+LIMIT_HOLDERS = defaultdict(set)
 
 
 def greatest(
@@ -223,6 +226,7 @@ async def bulk_increment_active_slots(
     session: AsyncSession,
     concurrency_limit_ids: List[UUID],
     slots: int,
+    holder: Optional[str] = None,
 ) -> bool:
     active_slots = active_slots_after_decay(db)
     denied_slots = denied_slots_after_decay(db)
@@ -243,7 +247,13 @@ async def bulk_increment_active_slots(
     ).execution_options(synchronize_session=False)
 
     result = await session.execute(query)
-    return result.rowcount == len(concurrency_limit_ids)
+    success = result.rowcount == len(concurrency_limit_ids)
+
+    if success:
+        for concurrency_limit_id in concurrency_limit_ids:
+            LIMIT_HOLDERS[concurrency_limit_id].add(holder)
+
+    return success
 
 
 @db_injector
@@ -253,6 +263,7 @@ async def bulk_decrement_active_slots(
     concurrency_limit_ids: List[UUID],
     slots: int,
     occupancy_seconds: Optional[float] = None,
+    holder: Optional[str] = None,
 ) -> bool:
     query = (
         sa.update(orm_models.ConcurrencyLimitV2)
@@ -294,7 +305,13 @@ async def bulk_decrement_active_slots(
         )
 
     result = await session.execute(query)
-    return result.rowcount == len(concurrency_limit_ids)
+    success = result.rowcount == len(concurrency_limit_ids)
+
+    if success:
+        for concurrency_limit_id in concurrency_limit_ids:
+            LIMIT_HOLDERS[concurrency_limit_id].remove(holder)
+
+    return success
 
 
 @db_injector
@@ -317,3 +334,7 @@ async def bulk_update_denied_slots(
 
     result = await session.execute(query)
     return result.rowcount == len(concurrency_limit_ids)
+
+
+def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
+    return {_id: list(LIMIT_HOLDERS[_id]) for _id in concurrency_limit_ids}  # type: ignore

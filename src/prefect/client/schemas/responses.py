@@ -411,6 +411,7 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     id: UUID
     name: str
     limit: int
+    holders: List[str]
 
 
 class GlobalConcurrencyLimitResponse(ObjectBaseModel):

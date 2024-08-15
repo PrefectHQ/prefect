@@ -105,6 +105,7 @@ async def test_read_concurrency_limit_by_name(
 
     data = response.json()
     assert data["id"] == str(concurrency_limit.id)
+    assert data["holders"] == []
 
 
 async def test_read_concurrency_non_existent_limit(

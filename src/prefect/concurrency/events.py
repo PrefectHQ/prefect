@@ -10,6 +10,7 @@ def _emit_concurrency_event(
     primary_limit: MinimalConcurrencyLimitResponse,
     related_limits: List[MinimalConcurrencyLimitResponse],
     slots: int,
+    holder: Optional[str] = None,
     follows: Union[Event, None] = None,
 ) -> Union[Event, None]:
     resource: Dict[str, str] = {
@@ -18,6 +19,9 @@ def _emit_concurrency_event(
         "slots-acquired": str(slots),
         "limit": str(primary_limit.limit),
     }
+
+    if holder:
+        resource["holder"] = str(holder)
 
     related = [
         RelatedResource.model_validate(
