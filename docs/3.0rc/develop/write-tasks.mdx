@@ -652,7 +652,7 @@ if __name__ == "__main__":
 ```
 
 Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. 
-Prefect includes an [`exponential_backoff`](/api-ref/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. 
+Prefect includes an [`exponential_backoff`](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. 
 The following flow will wait for 10, 20, then 40 seconds before each retry.
 
 ```python
