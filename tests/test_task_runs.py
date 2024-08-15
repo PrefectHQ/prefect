@@ -25,7 +25,7 @@ class TestTaskRunWaiter:
 
     @pytest.mark.timeout(20)
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_wait_for_task_run(self, prefect_client):
+    async def test_wait_for_task_run(self, prefect_client, events_pipeline):
         """This test will fail with a timeout error if waiting is not working correctly."""
 
         @task
@@ -34,6 +34,8 @@ class TestTaskRunWaiter:
 
         task_run_id = uuid.uuid4()
         asyncio.create_task(run_task_async(task=test_task, task_run_id=task_run_id))
+
+        await events_pipeline.process_events(min_events=3)
 
         await TaskRunWaiter.wait_for_task_run(task_run_id)
 
