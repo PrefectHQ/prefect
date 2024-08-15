@@ -24,7 +24,7 @@ Prefect is a workflow orchestration framework for building data pipelines in Pyt
 It's the simplest way to elevate a script into a resilient production workflow.
 With Prefect, you can build resilient, dynamic data pipelines that react to the world around them and recover from unexpected changes.
 
-With just a few lines of code, data teams can confidently automate any data process with features like scheduling, caching, retries, event-based automation, and more.
+With just a few lines of code, data teams can confidently automate any data process with features such as scheduling, caching, retries, and event-based automations.
 
 Workflow activity is tracked and can be monitored with a self-hosted [Prefect server](https://docs.prefect.io/latest/guides/host/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
 
