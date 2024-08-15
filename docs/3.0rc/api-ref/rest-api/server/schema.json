@@ -21868,6 +21868,12 @@
                         "title": "Prefect Local Storage Path",
                         "default": "${PREFECT_HOME}/storage"
                     },
+                    "PREFECT_RECORD_STORE_PATH": {
+                        "type": "string",
+                        "format": "path",
+                        "title": "Prefect Record Store Path",
+                        "default": "${PREFECT_HOME}/records"
+                    },
                     "PREFECT_MEMO_STORE_PATH": {
                         "type": "string",
                         "format": "path",
