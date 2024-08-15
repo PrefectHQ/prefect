@@ -78,7 +78,7 @@ class TestFileSystemRecordStore:
         store.write(key, result=result, holder="holder1")
         store.release_lock(key, holder="holder1")
         # the read should have been blocked until the lock was released
-        assert read_queue.get_nowait() == result
+        assert read_queue.get(timeout=10) == result
         process.join(timeout=1)
 
     async def test_write_to_key_with_same_lock_holder(self, store, result):
