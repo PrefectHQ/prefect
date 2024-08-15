@@ -149,8 +149,7 @@ class TestCreate:
             f"work-pool create {pool_name} -t process",
             expected_code=1,
             expected_output_contains=[
-                f"Work pool named {pool_name!r} already exists. Please try creating"
-                " your work pool again with a different name."
+                f"Work pool named {pool_name!r} already exists. Use --overwrite to update it."
             ],
         )
 
