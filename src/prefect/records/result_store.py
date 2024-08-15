@@ -47,14 +47,12 @@ class ResultFactoryStore(RecordStore):
             # this is a bit of a bandaid for functionality
             raise ValueError("Result could not be read")
 
-    def write(self, key: str, result: Any):
+    def write(self, key: str, result: Any, holder: Optional[str] = None) -> None:
         if isinstance(result, PersistedResult):
             # if the value is already a persisted result, write it
             result.write(_sync=True)
-            return result
-        elif isinstance(result, BaseResult):
-            return result
-        run_coro_as_sync(self.result_factory.create_result(obj=result, key=key))
+        elif not isinstance(result, BaseResult):
+            run_coro_as_sync(self.result_factory.create_result(obj=result, key=key))
 
     def supports_isolation_level(self, isolation_level: IsolationLevel) -> bool:
         return isolation_level == IsolationLevel.READ_COMMITTED
