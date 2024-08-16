@@ -1329,6 +1329,7 @@ class PrefectClient:
             exclude_unset=True,
             exclude={"id", "block_schema", "block_type"},
             context={"include_secrets": include_secrets},
+            serialize_as_any=True,
         )
         try:
             response = await self._client.post(

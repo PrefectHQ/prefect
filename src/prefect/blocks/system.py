@@ -1,7 +1,8 @@
-from typing import Any, Dict, Generic, TypeVar, Union
+from typing import Any, Dict, Generic, List, TypeVar, Union
 
 from pydantic import (
     Field,
+    SecretStr,
     StrictFloat,
     StrictInt,
     StrictStr,
@@ -12,7 +13,7 @@ from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.core import Block
 
-SecretValueType = Union[StrictStr, StrictInt, StrictFloat, Dict[str, Any]]
+SecretValueType = Union[StrictStr, SecretStr, StrictInt, StrictFloat, Dict, List]
 
 T = TypeVar("T", bound=SecretValueType)
 
@@ -127,8 +128,7 @@ class Secret(Block, Generic[T]):
     value: PydanticSecret[T] = Field(
         default=...,
         description="A value that should be kept secret.",
-        examples=["sk-1234567890", '{"username": "johndoe", "password": "s3cr3t"}'],
-        # json_schema_extra=dict(format="password"),
+        examples=["sk-1234567890", {"username": "johndoe", "password": "s3cr3t"}],
     )
 
     def get(self):
