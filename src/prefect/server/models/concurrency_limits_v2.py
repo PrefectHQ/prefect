@@ -417,7 +417,7 @@ def decrement_limit_holder(
 
         # The decrement proceeded, but we didn't know the holder
         if holder and holder not in _limit_holders[_id] and slots > 0:
-            logger.warning("Decremented slots for unknown holder %s", holder)
+            logger.warning("Decremented slots for unknown holder")
 
 
 def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
