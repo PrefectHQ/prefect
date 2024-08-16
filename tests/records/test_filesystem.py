@@ -10,7 +10,6 @@ from prefect.records.filesystem import FileSystemRecordStore
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
-    PREFECT_RECORD_STORE_PATH,
     temporary_settings,
 )
 from prefect.transactions import IsolationLevel
@@ -43,15 +42,8 @@ class TestFileSystemRecordStore:
         return result
 
     @pytest.fixture
-    def store(self):
-        return FileSystemRecordStore()
-
-    def test_default_records_directory(self, store):
-        assert store.records_directory == PREFECT_RECORD_STORE_PATH.value()
-
-    def test_custom_records_directory(self, tmp_path):
-        store = FileSystemRecordStore(records_directory=tmp_path)
-        assert store.records_directory == tmp_path
+    def store(self, tmp_path):
+        return FileSystemRecordStore(records_directory=tmp_path)
 
     def test_read_write(self, store, result):
         key = str(uuid4())

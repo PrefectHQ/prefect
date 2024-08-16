@@ -9,7 +9,6 @@ from typing_extensions import TypedDict
 from prefect.logging.loggers import get_logger
 from prefect.records.base import RecordStore, TransactionRecord
 from prefect.results import BaseResult
-from prefect.settings import PREFECT_RECORD_STORE_PATH
 from prefect.transactions import IsolationLevel
 
 logger = get_logger(__name__)
@@ -42,8 +41,8 @@ class FileSystemRecordStore(RecordStore):
             `{PREFECT_HOME}/records`
     """
 
-    def __init__(self, records_directory: Optional[Path] = None):
-        self.records_directory = records_directory or PREFECT_RECORD_STORE_PATH.value()
+    def __init__(self, records_directory: Path):
+        self.records_directory = records_directory
         self._locks: Dict[str, _LockInfo] = {}
 
     def _ensure_records_directory_exists(self):

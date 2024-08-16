@@ -798,16 +798,6 @@ PREFECT_LOCAL_STORAGE_PATH = Setting(
 )
 """The path to a block storage directory to store things in."""
 
-PREFECT_RECORD_STORE_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / "records",
-    value_callback=template_with_settings(PREFECT_HOME),
-)
-"""
-The path to a directory to store transaction records in when using a
-`FileSystemRecordStore`.
-"""
-
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "memo_store.toml",
