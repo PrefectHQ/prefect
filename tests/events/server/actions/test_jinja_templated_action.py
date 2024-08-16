@@ -1432,7 +1432,7 @@ async def test_concurrency_limit_is_available_in_templates_with_holders(
         == """
     Name: my-limit
     Limit: 42
-    Holders: 'the-holder'
+    Holders: the-holder
     """
     )
 
