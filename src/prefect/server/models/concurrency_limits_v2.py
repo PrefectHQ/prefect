@@ -1,4 +1,4 @@
-from collections import defaultdict, deque
+from collections import defaultdict
 from typing import Dict, List, Optional, Sequence, Union
 from uuid import UUID
 
@@ -15,7 +15,6 @@ from prefect.server.database.interface import PrefectDBInterface
 logger = get_logger(__name__)
 
 _limit_holders: Dict[UUID, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-_holder_fifo: Dict[UUID, deque] = defaultdict(deque)
 
 
 def greatest(
@@ -360,7 +359,6 @@ def increment_limit_holder(
     """
     for _id in concurrency_limit_ids:
         _limit_holders[_id][holder] += slots
-        _holder_fifo[_id].append(holder)
 
 
 def decrement_limit_holder(
@@ -373,8 +371,10 @@ def decrement_limit_holder(
     Decrement the active slots of the given holder for the given concurrency
     limits.
 
-    If `holder` is not provided or does not match an existing holder, we will
-    drop the oldest holder from the FIFO queue.
+    Decrement the active slots of the given holder for the given concurrency limits.
+
+    If `holder` is not provided or does not match an existing holder, decrement
+    slots proportionally among the holders based on their active slots.
 
     Args:
         concurrency_limit_ids: The concurrency limit IDs from which to
@@ -387,22 +387,37 @@ def decrement_limit_holder(
         if active_slots <= 0:
             # If the limit has no active slots, we shouldn't have holders.
             _limit_holders[_id] = defaultdict(int)
-            _holder_fifo[_id] = deque()
         elif holder and holder in _limit_holders[_id]:
             # Decrement a known holder's active slot count.
             _limit_holders[_id][holder] -= slots
             if _limit_holders[_id][holder] <= 0:
-                del _limit_holders[_id][holder]
-                _holder_fifo[_id].remove(holder)
+                _limit_holders[_id].pop(holder)
         else:
-            # If we receive a decrement without a holder or for a holder we
-            # don't know about, drop the oldest holder from the FIFO queue. We
-            # know we decremented successfully, so the dict now has too many
-            # holders.
-            if active_slots < len(_limit_holders[_id]):
-                holder_to_drop = _holder_fifo[_id].popleft()
-                del _limit_holders[_id][holder_to_drop]
-            logger.warning("Decremented slots for unknown or null holder %s", holder)
+            # We don't know what to do here, but we know we decremented,
+            # so distribute the decrement across all holders
+            remaining_holders = list(_limit_holders[_id].keys())
+
+            while slots > 0 and remaining_holders:
+                # Determine the number of holders to decrement from
+                num_holders = len(remaining_holders)
+                # Distribute slots evenly across remaining holders
+                decrement_per_holder = max(1, slots // num_holders)
+
+                for h in remaining_holders[:]:
+                    if slots <= 0:
+                        break
+
+                    decrement_value = min(decrement_per_holder, _limit_holders[_id][h])
+                    _limit_holders[_id][h] -= decrement_value
+                    slots -= decrement_value
+
+                    if _limit_holders[_id][h] <= 0:
+                        _limit_holders[_id].pop(h)
+                        remaining_holders.remove(h)
+
+        # The decrement proceeded, but we didn't know the holder
+        if holder and holder not in _limit_holders[_id] and slots > 0:
+            logger.warning("Decremented slots for unknown holder %s", holder)
 
 
 def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
