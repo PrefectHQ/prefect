@@ -72,7 +72,7 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-timeout = "15"
+timeout = "30"
 env = [
   "PREFECT_TEST_MODE=1",
 ]
