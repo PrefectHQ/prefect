@@ -1,3 +1,0 @@
-# prefect.logging
-
-::: prefect.logging

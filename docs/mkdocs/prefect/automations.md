@@ -1,3 +1,0 @@
-# prefect.automations
-
-::: prefect.automations

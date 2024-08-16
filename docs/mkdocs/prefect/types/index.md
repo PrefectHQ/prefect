@@ -1,3 +1,0 @@
-# prefect.types
-
-::: prefect.types

@@ -1,3 +1,0 @@
-# prefect.settings
-
-::: prefect.settings
