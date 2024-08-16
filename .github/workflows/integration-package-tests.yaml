@@ -90,6 +90,15 @@ jobs:
         if: matrix.package == 'prefect-docker'
         run : prefect dev build-image
 
+      - name: Start redis
+        if: matrix.package == 'prefect-redis'
+        run: >
+          docker run
+          --name "redis"
+          --detach
+          --publish 6379:6379
+          redis:latest
+
       - name: Run tests
         if: matrix.package != 'prefect-ray'
         env:
