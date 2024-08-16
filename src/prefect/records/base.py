@@ -32,7 +32,7 @@ class RecordStore(abc.ABC):
         Args:
             key: Unique identifier for the transaction record.
             holder: Unique identifier for the holder of the lock. If a lock exists on
-                the record being written, the read will be block until the lock is
+                the record being written, the read will be blocked until the lock is
                 released if the provided holder does not match the holder of the lock.
                 If not provided, a default holder based on the current host, process,
                 and thread will be used.
