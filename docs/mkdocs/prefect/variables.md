@@ -1,3 +1,0 @@
-# prefect.variables
-
-::: prefect.variables
