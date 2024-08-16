@@ -371,10 +371,8 @@ def decrement_limit_holder(
     Decrement the active slots of the given holder for the given concurrency
     limits.
 
-    Decrement the active slots of the given holder for the given concurrency limits.
-
-    If `holder` is not provided or does not match an existing holder, decrement
-    slots proportionally among the holders based on their active slots.
+    If `holder` does not match an existing holder, but only slots with holders
+    remain, distribute decremented slots among existing holders.
 
     Args:
         concurrency_limit_ids: The concurrency limit IDs from which to
