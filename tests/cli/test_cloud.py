@@ -1665,3 +1665,67 @@ def test_open_current_workspace_in_browser_failure_no_workspace_set(respx_mock):
             expected_code=1,
             expected_output_contains="There is no current workspace set - set one with",
         )
+
+
+def test_list_ip_allowlist(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    expected_ip_allowlist_entries = [
+        {
+            "ip_network": "192.168.1.1",
+            "enabled": True,
+            "description": "Perimeter81 Gateway",
+            "last_seen": "2024-08-13T16:22:01",
+        },
+        {
+            "ip_network": "192.168.1.0/24",
+            "enabled": True,
+            "description": "CIDR block for 192.168.0.0 to 192.168.1.255",
+            "last_seen": None,
+        },
+        {
+            "ip_network": "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+            "enabled": False,
+            "description": "An IPv6 address",
+            "last_seen": None,
+        },
+        {
+            "ip_network": "2001:0db8:85a3::/64",
+            "enabled": True,
+            "description": "An IPv6 CIDR block",
+            "last_seen": None,
+        },
+    ]
+
+    url = f"{PREFECT_CLOUD_API_URL.value()}/accounts/{foo_workspace.account_id}/ip_allowlist"
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json={"entries": expected_ip_allowlist_entries},
+        )
+    )
+
+    every_expected_entry_ip = [
+        entry["ip_network"] for entry in expected_ip_allowlist_entries
+    ]
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "ls"],
+            expected_code=0,
+            expected_output_contains=every_expected_entry_ip,
+        )
