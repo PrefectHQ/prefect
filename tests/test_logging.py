@@ -1001,7 +1001,7 @@ async def test_run_logger_in_nested_flow(prefect_client):
     }
 
 
-async def test_run_logger_in_task(prefect_client):
+async def test_run_logger_in_task(prefect_client, events_pipeline):
     @task
     def test_task():
         return get_run_logger()
@@ -1013,6 +1013,9 @@ async def test_run_logger_in_task(prefect_client):
     flow_state = test_flow(return_state=True)
     flow_run = await prefect_client.read_flow_run(flow_state.state_details.flow_run_id)
     task_state = await flow_state.result()
+
+    await events_pipeline.process_events()
+
     task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
     logger = await task_state.result()
     assert logger.name == "prefect.task_runs"

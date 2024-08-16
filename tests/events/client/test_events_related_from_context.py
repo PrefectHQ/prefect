@@ -135,7 +135,7 @@ async def test_can_exclude_by_resource_id(prefect_client):
     assert f"prefect.flow-run.{flow_run.id}" not in related
 
 
-async def test_gets_related_from_task_run_context(prefect_client):
+async def test_gets_related_from_task_run_context(prefect_client, events_pipeline):
     @task
     async def test_task():
         # Clear the FlowRunContext to simulated a task run in a remote worker.
@@ -149,10 +149,14 @@ async def test_gets_related_from_task_run_context(prefect_client):
         return await test_task(return_state=True)
 
     state = await test_flow(return_state=True)
+
+    await events_pipeline.process_events()
+
     task_state = await state.result()
 
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     db_flow = await prefect_client.read_flow(flow_run.flow_id)
+
     task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
 
     related = await task_state.result()
