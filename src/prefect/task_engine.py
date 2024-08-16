@@ -57,14 +57,12 @@ from prefect.records.result_store import ResultFactoryStore
 from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
     AwaitingRetry,
     Completed,
     Failed,
-    Paused,
     Pending,
     Retrying,
     Running,
@@ -81,8 +79,6 @@ from prefect.utilities.engine import (
     _get_hook_name,
     emit_task_run_state_change_event,
     link_state_to_result,
-    propose_state,
-    propose_state_sync,
     resolve_to_final_result,
 )
 from prefect.utilities.math import clamped_poisson_interval
@@ -195,14 +191,13 @@ class BaseTaskRunEngine(Generic[P, R]):
         )
 
     def record_terminal_state_timing(self, state: State) -> None:
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            if self.task_run.start_time and not self.task_run.end_time:
-                self.task_run.end_time = state.timestamp
+        if self.task_run and self.task_run.start_time and not self.task_run.end_time:
+            self.task_run.end_time = state.timestamp
 
-                if self.task_run.state.is_running():
-                    self.task_run.total_run_time += (
-                        state.timestamp - self.task_run.state.timestamp
-                    )
+            if self.task_run.state.is_running():
+                self.task_run.total_run_time += (
+                    state.timestamp - self.task_run.state.timestamp
+                )
 
     def is_running(self) -> bool:
         """Whether or not the engine is currently running a task."""
@@ -361,15 +356,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         new_state = Running()
 
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            self.task_run.start_time = new_state.timestamp
-            self.task_run.run_count += 1
+        self.task_run.start_time = new_state.timestamp
+        self.task_run.run_count += 1
 
-            flow_run_context = FlowRunContext.get()
-            if flow_run_context and flow_run_context.flow_run:
-                # Carry forward any task run information from the flow run
-                flow_run = flow_run_context.flow_run
-                self.task_run.flow_run_run_count = flow_run.run_count
+        flow_run_context = FlowRunContext.get()
+        if flow_run_context and flow_run_context.flow_run:
+            # Carry forward any task run information from the flow run
+            flow_run = flow_run_context.flow_run
+            self.task_run.flow_run_run_count = flow_run.run_count
 
         state = self.set_state(new_state)
 
@@ -400,51 +394,28 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
 
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            self.task_run.state = new_state = state
+        self.task_run.state = new_state = state
 
-            # Ensure that the state_details are populated with the current run IDs
-            new_state.state_details.task_run_id = self.task_run.id
-            new_state.state_details.flow_run_id = self.task_run.flow_run_id
+        # Ensure that the state_details are populated with the current run IDs
+        new_state.state_details.task_run_id = self.task_run.id
+        new_state.state_details.flow_run_id = self.task_run.flow_run_id
 
-            # Predictively update the de-normalized task_run.state_* attributes
-            self.task_run.state_id = new_state.id
-            self.task_run.state_type = new_state.type
-            self.task_run.state_name = new_state.name
+        # Predictively update the de-normalized task_run.state_* attributes
+        self.task_run.state_id = new_state.id
+        self.task_run.state_type = new_state.type
+        self.task_run.state_name = new_state.name
 
-            if new_state.is_final():
-                if (
-                    isinstance(state.data, BaseResult)
-                    and state.data.has_cached_object()
-                ):
-                    # Avoid fetching the result unless it is cached, otherwise we defeat
-                    # the purpose of disabling `cache_result_in_memory`
-                    result = state.result(raise_on_failure=False, fetch=True)
-                    if inspect.isawaitable(result):
-                        result = run_coro_as_sync(result)
-                else:
-                    result = state.data
+        if new_state.is_final():
+            if isinstance(state.data, BaseResult) and state.data.has_cached_object():
+                # Avoid fetching the result unless it is cached, otherwise we defeat
+                # the purpose of disabling `cache_result_in_memory`
+                result = state.result(raise_on_failure=False, fetch=True)
+                if inspect.isawaitable(result):
+                    result = run_coro_as_sync(result)
+            else:
+                result = state.data
 
-                link_state_to_result(state, result)
-
-        else:
-            try:
-                new_state = propose_state_sync(
-                    self.client, state, task_run_id=self.task_run.id, force=force
-                )
-            except Pause as exc:
-                # We shouldn't get a pause signal without a state, but if this happens,
-                # just use a Paused state to assume an in-process pause.
-                new_state = exc.state if exc.state else Paused()
-                if new_state.state_details.pause_reschedule:
-                    # If we're being asked to pause and reschedule, we should exit the
-                    # task and expect to be resumed later.
-                    raise
-
-            # currently this is a hack to keep a reference to the state object
-            # that has an in-memory result attached to it; using the API state
-            # could result in losing that reference
-            self.task_run.state = new_state
+            link_state_to_result(state, result)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -531,8 +502,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
-                if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                    self.task_run.run_count += 1
+                self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
@@ -606,8 +576,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
 
-        if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            self.task_run = client.read_task_run(self.task_run.id)
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
@@ -630,12 +598,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 task_run_name = _resolve_custom_task_run_name(
                     task=self.task, parameters=self.parameters
                 )
-
-                if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                    # update the task run name if necessary
-                    self.client.set_task_run_name(
-                        task_run_id=self.task_run.id, name=task_run_name
-                    )
 
                 self.logger.extra["task_run_name"] = task_run_name
                 self.logger.debug(
@@ -660,42 +622,23 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 self._client = client_ctx.client
                 self._is_started = True
                 try:
-                    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                        if not self.task_run:
-                            self.task_run = run_coro_as_sync(
-                                self.task.create_local_run(
-                                    id=task_run_id,
-                                    parameters=self.parameters,
-                                    flow_run_context=FlowRunContext.get(),
-                                    parent_task_run_context=TaskRunContext.get(),
-                                    wait_for=self.wait_for,
-                                    extra_task_inputs=dependencies,
-                                )
+                    if not self.task_run:
+                        self.task_run = run_coro_as_sync(
+                            self.task.create_local_run(
+                                id=task_run_id,
+                                parameters=self.parameters,
+                                flow_run_context=FlowRunContext.get(),
+                                parent_task_run_context=TaskRunContext.get(),
+                                wait_for=self.wait_for,
+                                extra_task_inputs=dependencies,
                             )
-                            # Emit an event to capture that the task run was in the `PENDING` state.
-                            self._last_event = emit_task_run_state_change_event(
-                                task_run=self.task_run,
-                                initial_state=None,
-                                validated_state=self.task_run.state,
-                            )
-                    else:
-                        if not self.task_run:
-                            self.task_run = run_coro_as_sync(
-                                self.task.create_run(
-                                    id=task_run_id,
-                                    parameters=self.parameters,
-                                    flow_run_context=FlowRunContext.get(),
-                                    parent_task_run_context=TaskRunContext.get(),
-                                    wait_for=self.wait_for,
-                                    extra_task_inputs=dependencies,
-                                )
-                            )
-                            # Emit an event to capture that the task run was in the `PENDING` state.
-                            self._last_event = emit_task_run_state_change_event(
-                                task_run=self.task_run,
-                                initial_state=None,
-                                validated_state=self.task_run.state,
-                            )
+                        )
+                        # Emit an event to capture that the task run was in the `PENDING` state.
+                        self._last_event = emit_task_run_state_change_event(
+                            task_run=self.task_run,
+                            initial_state=None,
+                            validated_state=self.task_run.state,
+                        )
 
                     with self.setup_run_context():
                         # setup_run_context might update the task run name, so log creation here
@@ -808,10 +751,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if (
-                PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value()
-                and self.task.tags
-            ):
+            if self.task.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
                 with concurrency(
@@ -920,15 +860,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         new_state = Running()
 
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            self.task_run.start_time = new_state.timestamp
-            self.task_run.run_count += 1
+        self.task_run.start_time = new_state.timestamp
+        self.task_run.run_count += 1
 
-            flow_run_context = FlowRunContext.get()
-            if flow_run_context:
-                # Carry forward any task run information from the flow run
-                flow_run = flow_run_context.flow_run
-                self.task_run.flow_run_run_count = flow_run.run_count
+        flow_run_context = FlowRunContext.get()
+        if flow_run_context:
+            # Carry forward any task run information from the flow run
+            flow_run = flow_run_context.flow_run
+            self.task_run.flow_run_run_count = flow_run.run_count
 
         state = await self.set_state(new_state)
 
@@ -959,49 +898,29 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
 
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            self.task_run.state = new_state = state
+        self.task_run.state = new_state = state
 
-            # Ensure that the state_details are populated with the current run IDs
-            new_state.state_details.task_run_id = self.task_run.id
-            new_state.state_details.flow_run_id = self.task_run.flow_run_id
+        # Ensure that the state_details are populated with the current run IDs
+        new_state.state_details.task_run_id = self.task_run.id
+        new_state.state_details.flow_run_id = self.task_run.flow_run_id
 
-            # Predictively update the de-normalized task_run.state_* attributes
-            self.task_run.state_id = new_state.id
-            self.task_run.state_type = new_state.type
-            self.task_run.state_name = new_state.name
+        # Predictively update the de-normalized task_run.state_* attributes
+        self.task_run.state_id = new_state.id
+        self.task_run.state_type = new_state.type
+        self.task_run.state_name = new_state.name
 
-            if new_state.is_final():
-                if (
-                    isinstance(new_state.data, BaseResult)
-                    and new_state.data.has_cached_object()
-                ):
-                    # Avoid fetching the result unless it is cached, otherwise we defeat
-                    # the purpose of disabling `cache_result_in_memory`
-                    result = await new_state.result(raise_on_failure=False, fetch=True)
-                else:
-                    result = new_state.data
+        if new_state.is_final():
+            if (
+                isinstance(new_state.data, BaseResult)
+                and new_state.data.has_cached_object()
+            ):
+                # Avoid fetching the result unless it is cached, otherwise we defeat
+                # the purpose of disabling `cache_result_in_memory`
+                result = await new_state.result(raise_on_failure=False, fetch=True)
+            else:
+                result = new_state.data
 
-                link_state_to_result(new_state, result)
-
-        else:
-            try:
-                new_state = await propose_state(
-                    self.client, state, task_run_id=self.task_run.id, force=force
-                )
-            except Pause as exc:
-                # We shouldn't get a pause signal without a state, but if this happens,
-                # just use a Paused state to assume an in-process pause.
-                new_state = exc.state if exc.state else Paused()
-                if new_state.state_details.pause_reschedule:
-                    # If we're being asked to pause and reschedule, we should exit the
-                    # task and expect to be resumed later.
-                    raise
-
-            # currently this is a hack to keep a reference to the state object
-            # that has an in-memory result attached to it; using the API state
-            # could result in losing that reference
-            self.task_run.state = new_state
+            link_state_to_result(new_state, result)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1083,8 +1002,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
-                if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                    self.task_run.run_count += 1
+                self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
@@ -1156,8 +1074,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
 
-        if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            self.task_run = await client.read_task_run(self.task_run.id)
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
@@ -1179,11 +1095,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 task_run_name = _resolve_custom_task_run_name(
                     task=self.task, parameters=self.parameters
                 )
-                if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                    # update the task run name if necessary
-                    await self.client.set_task_run_name(
-                        task_run_id=self.task_run.id, name=task_run_name
-                    )
                 self.logger.extra["task_run_name"] = task_run_name
                 self.logger.debug(
                     f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
@@ -1207,38 +1118,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 self._client = get_client()
                 self._is_started = True
                 try:
-                    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-                        if not self.task_run:
-                            self.task_run = await self.task.create_local_run(
-                                id=task_run_id,
-                                parameters=self.parameters,
-                                flow_run_context=FlowRunContext.get(),
-                                parent_task_run_context=TaskRunContext.get(),
-                                wait_for=self.wait_for,
-                                extra_task_inputs=dependencies,
-                            )
-                            # Emit an event to capture that the task run was in the `PENDING` state.
-                            self._last_event = emit_task_run_state_change_event(
-                                task_run=self.task_run,
-                                initial_state=None,
-                                validated_state=self.task_run.state,
-                            )
-                    else:
-                        if not self.task_run:
-                            self.task_run = await self.task.create_run(
-                                id=task_run_id,
-                                parameters=self.parameters,
-                                flow_run_context=FlowRunContext.get(),
-                                parent_task_run_context=TaskRunContext.get(),
-                                wait_for=self.wait_for,
-                                extra_task_inputs=dependencies,
-                            )
-                            # Emit an event to capture that the task run was in the `PENDING` state.
-                            self._last_event = emit_task_run_state_change_event(
-                                task_run=self.task_run,
-                                initial_state=None,
-                                validated_state=self.task_run.state,
-                            )
+                    if not self.task_run:
+                        self.task_run = await self.task.create_local_run(
+                            id=task_run_id,
+                            parameters=self.parameters,
+                            flow_run_context=FlowRunContext.get(),
+                            parent_task_run_context=TaskRunContext.get(),
+                            wait_for=self.wait_for,
+                            extra_task_inputs=dependencies,
+                        )
+                        # Emit an event to capture that the task run was in the `PENDING` state.
+                        self._last_event = emit_task_run_state_change_event(
+                            task_run=self.task_run,
+                            initial_state=None,
+                            validated_state=self.task_run.state,
+                        )
 
                     async with self.setup_run_context():
                         # setup_run_context might update the task run name, so log creation here
@@ -1353,10 +1247,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if (
-                PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION.value()
-                and self.task.tags
-            ):
+            if self.task.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
                 async with aconcurrency(

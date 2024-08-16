@@ -157,6 +157,10 @@ class DeploymentCreate(ActionBaseModel):
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
+    concurrency_limit: Optional[int] = Field(
+        default=None,
+        description="The concurrency limit for the deployment.",
+    )
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(
@@ -228,6 +232,10 @@ class DeploymentUpdate(ActionBaseModel):
     schedules: Optional[List[DeploymentScheduleCreate]] = Field(
         default=None,
         description="A list of schedules for the deployment.",
+    )
+    concurrency_limit: Optional[int] = Field(
+        default=None,
+        description="The concurrency limit for the deployment.",
     )
     tags: List[str] = Field(default_factory=list)
     work_queue_name: Optional[str] = Field(None)
@@ -607,11 +615,11 @@ class WorkQueueCreate(ActionBaseModel):
         default=False,
         description="Whether the work queue is paused.",
     )
-    concurrency_limit: Optional[int] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None,
         description="A concurrency limit for the work queue.",
     )
-    priority: Optional[int] = Field(
+    priority: Optional[PositiveInteger] = Field(
         default=None,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -635,8 +643,10 @@ class WorkQueueUpdate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[int] = Field(None)
-    priority: Optional[int] = Field(None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
+    priority: Optional[PositiveInteger] = Field(
+        None, description="The queue's priority."
+    )
     last_polled: Optional[DateTime] = Field(None)
 
     # DEPRECATED

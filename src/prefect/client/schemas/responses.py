@@ -313,6 +313,9 @@ class DeploymentResponse(ObjectBaseModel):
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
     )
+    concurrency_limit: Optional[int] = Field(
+        default=None, description="The concurrency limit for the deployment."
+    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
