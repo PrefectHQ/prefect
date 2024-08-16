@@ -672,6 +672,17 @@ class PersistedResult(BaseResult):
 
         return result
 
+    def __eq__(self, other):
+        if not isinstance(other, PersistedResult):
+            return False
+        return (
+            self.type == other.type
+            and self.serializer_type == other.serializer_type
+            and self.storage_key == other.storage_key
+            and self.storage_block_id == other.storage_block_id
+            and self.expiration == other.expiration
+        )
+
 
 class PersistedResultBlob(BaseModel):
     """

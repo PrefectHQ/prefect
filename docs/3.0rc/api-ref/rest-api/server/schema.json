@@ -22399,6 +22399,48 @@
                         "title": "Prefect Experimental Enable Schedule Concurrency",
                         "default": false
                     },
+                    "PREFECT_RECORD_STORE_REDIS_HOST": {
+                        "type": "string",
+                        "title": "Prefect Record Store Redis Host",
+                        "default": "localhost"
+                    },
+                    "PREFECT_RECORD_STORE_REDIS_PORT": {
+                        "type": "integer",
+                        "title": "Prefect Record Store Redis Port",
+                        "default": 6379
+                    },
+                    "PREFECT_RECORD_STORE_REDIS_DB": {
+                        "type": "integer",
+                        "title": "Prefect Record Store Redis Db",
+                        "default": 0
+                    },
+                    "PREFECT_RECORD_STORE_REDIS_USERNAME": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Record Store Redis Username"
+                    },
+                    "PREFECT_RECORD_STORE_REDIS_PASSWORD": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefect Record Store Redis Password"
+                    },
+                    "PREFECT_RECORD_STORE_REDIS_SSL": {
+                        "type": "boolean",
+                        "title": "Prefect Record Store Redis Ssl",
+                        "default": false
+                    },
                     "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK": {
                         "anyOf": [
                             {
