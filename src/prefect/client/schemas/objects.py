@@ -848,6 +848,23 @@ class Workspace(PrefectBaseModel):
         return hash(self.handle)
 
 
+class IPAllowlistEntry(PrefectBaseModel):
+    ip_network: str
+    description: Optional[str]
+    enabled: bool
+    last_seen: Optional[str]
+
+
+class IPAllowlist(PrefectBaseModel):
+    """
+    A Prefect Cloud IP allowlist.
+
+    Expected payload for an IP allowlist from the Prefect Cloud API.
+    """
+
+    entries: List[IPAllowlistEntry]
+
+
 class BlockType(ObjectBaseModel):
     """An ORM representation of a block type"""
 

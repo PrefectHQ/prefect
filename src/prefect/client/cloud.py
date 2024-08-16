@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -9,7 +10,7 @@ from starlette import status
 import prefect.context
 import prefect.settings
 from prefect.client.base import PrefectHttpxAsyncClient
-from prefect.client.schemas.objects import Workspace
+from prefect.client.schemas.objects import IPAllowlist, Workspace
 from prefect.exceptions import ObjectNotFound, PrefectException
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -91,6 +92,14 @@ class CloudClient:
         return await self.get(
             f"accounts/{account_id}/workspaces/{workspace_id}/collections/work_pool_types"
         )
+
+    async def read_account_ip_allowlist(self) -> IPAllowlist:
+        account_base_url = prefect.settings.PREFECT_API_URL.value().split(
+            "/workspaces"
+        )[0]
+
+        response = await self.get(os.path.join(account_base_url, "ip_allowlist"))
+        return IPAllowlist.model_validate(response)
 
     async def __aenter__(self):
         await self._client.__aenter__()
