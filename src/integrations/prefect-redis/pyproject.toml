@@ -39,6 +39,7 @@ dev = [
   "pytest-asyncio",
   "pytest",
   "pytest-env",
+  "pytest-timeout",
   "pytest-xdist",
 ]
 
@@ -71,6 +72,7 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+timeout = "30"
 env = [
   "PREFECT_TEST_MODE=1",
 ]
