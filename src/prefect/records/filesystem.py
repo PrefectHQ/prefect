@@ -54,8 +54,8 @@ class FileSystemRecordStore(RecordStore):
             return lock_info["path"]
         return self.records_directory.joinpath(key).with_suffix(".lock")
 
-    def _get_lock_info(self, key: str, from_disk=False) -> Optional[_LockInfo]:
-        if not from_disk:
+    def _get_lock_info(self, key: str, use_cache=True) -> Optional[_LockInfo]:
+        if use_cache:
             if (lock_info := self._locks.get(key)) is not None:
                 print("Got lock info from cache")
                 return lock_info
@@ -172,8 +172,8 @@ class FileSystemRecordStore(RecordStore):
         else:
             raise ValueError(f"No lock held by {holder} for transaction with key {key}")
 
-    def is_locked(self, key: str) -> bool:
-        if (lock_info := self._get_lock_info(key, from_disk=True)) is None:
+    def is_locked(self, key: str, use_cache: bool = False) -> bool:
+        if (lock_info := self._get_lock_info(key, use_cache=use_cache)) is None:
             return False
 
         if (expiration := lock_info.get("expiration")) is None:
@@ -200,7 +200,7 @@ class FileSystemRecordStore(RecordStore):
 
     def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         seconds_waited = 0
-        while self.is_locked(key):
+        while self.is_locked(key, use_cache=False):
             if timeout and seconds_waited >= timeout:
                 return False
             seconds_waited += 0.1
