@@ -431,3 +431,6 @@ class GlobalConcurrencyLimitResponse(ObjectBaseModel):
         default=2.0,
         description="The decay rate for active slots when used as a rate limit.",
     )
+    holders: List[str] = Field(
+        default_factory=list, description="The holders of the global concurrency limit."
+    )

@@ -108,6 +108,53 @@ async def test_read_concurrency_limit_by_name(
     assert data["holders"] == []
 
 
+async def test_read_concurrency_limit_by_name_with_holders(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.name}")
+    assert response.status_code == 200
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={"names": [concurrency_limit.name], "holder": "test-holder", "slots": 1},
+    )
+    assert response.status_code == 200
+
+    response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.name}")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["id"] == str(concurrency_limit.id)
+    assert data["holders"] == ["test-holder"]
+    assert data["active_slots"] == 1
+
+
+async def test_read_concurrency_limit_by_name_with_holders_removed(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={"names": [concurrency_limit.name], "holder": "test-holder", "slots": 1},
+    )
+    assert response.status_code == 200
+
+    response = await client.post(
+        "/v2/concurrency_limits/decrement",
+        json={"names": [concurrency_limit.name], "holder": "test-holder", "slots": 1},
+    )
+    assert response.status_code == 200
+
+    response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.name}")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["id"] == str(concurrency_limit.id)
+    assert data["active_slots"] == 0
+    assert data["holders"] == []
+
+
 async def test_read_concurrency_non_existent_limit(
     client: AsyncClient,
 ):

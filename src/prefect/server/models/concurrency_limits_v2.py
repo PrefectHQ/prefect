@@ -336,6 +336,21 @@ async def bulk_update_denied_slots(
     return result.rowcount == len(concurrency_limit_ids)
 
 
+def add_limit_holder(
+    holder: str,
+    *concurrency_limit_ids: UUID,
+) -> None:
+    """
+    Record a holder for the given concurrency limit IDs.
+
+    Args:
+        concurrency_limit_ids: The concurrency limit IDs to which to add the holder.
+        holder: The holder to add.
+    """
+    for _id in concurrency_limit_ids:
+        LIMIT_HOLDERS[_id].add(holder)
+
+
 def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
     """
     Get holders of the given concurrency limit IDs.
