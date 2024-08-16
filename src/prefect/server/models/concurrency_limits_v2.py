@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import Dict, List, Optional, Sequence, Union
 from uuid import UUID
 
@@ -7,11 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 import prefect.server.schemas as schemas
+from prefect.logging.loggers import get_logger
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 
-LIMIT_HOLDERS = defaultdict(set)
+logger = get_logger(__name__)
+
+_limit_holders: Dict[UUID, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+_holder_fifo: Dict[UUID, deque] = defaultdict(deque)
 
 
 def greatest(
@@ -250,8 +254,7 @@ async def bulk_increment_active_slots(
     success = result.rowcount == len(concurrency_limit_ids)
 
     if success and holder:
-        for concurrency_limit_id in concurrency_limit_ids:
-            LIMIT_HOLDERS[concurrency_limit_id].add(holder)
+        increment_limit_holder(holder, slots, *concurrency_limit_ids)
 
     return success
 
@@ -283,6 +286,9 @@ async def bulk_decrement_active_slots(
             ),
             denied_slots=denied_slots_after_decay(db),
         )
+        .returning(
+            orm_models.ConcurrencyLimitV2.active_slots, orm_models.ConcurrencyLimitV2.id
+        )
     )
 
     if occupancy_seconds:
@@ -305,11 +311,12 @@ async def bulk_decrement_active_slots(
         )
 
     result = await session.execute(query)
-    success = result.rowcount == len(concurrency_limit_ids)
+    updated_limits = result.fetchall()
+    success = len(updated_limits) == len(concurrency_limit_ids)
 
-    if success and holder:
-        for concurrency_limit_id in concurrency_limit_ids:
-            LIMIT_HOLDERS[concurrency_limit_id].discard(holder)
+    if success:
+        for limit in updated_limits:
+            decrement_limit_holder(holder, slots, limit[0], limit[1])
 
     return success
 
@@ -336,19 +343,66 @@ async def bulk_update_denied_slots(
     return result.rowcount == len(concurrency_limit_ids)
 
 
-def add_limit_holder(
+def increment_limit_holder(
     holder: str,
+    slots: int,
     *concurrency_limit_ids: UUID,
 ) -> None:
     """
-    Record a holder for the given concurrency limit IDs.
+    Increment the active slots of the given user for the given concurrency
+    limits.
 
     Args:
-        concurrency_limit_ids: The concurrency limit IDs to which to add the holder.
-        holder: The holder to add.
+        concurrency_limit_ids: The concurrency limit IDs whose holder's active
+            slots we should increment.
+        holder: The holder whose active slots we should increment.
+        slots: The number of slots to increment.
     """
     for _id in concurrency_limit_ids:
-        LIMIT_HOLDERS[_id].add(holder)
+        _limit_holders[_id][holder] += slots
+        _holder_fifo[_id].append(holder)
+
+
+def decrement_limit_holder(
+    holder: Optional[str],
+    slots: int,
+    active_slots: int,
+    *concurrency_limit_ids: UUID,
+) -> None:
+    """
+    Decrement the active slots of the given holder for the given concurrency
+    limits.
+
+    If `holder` is not provided or does not match an existing holder, we will
+    drop the oldest holder from the FIFO queue.
+
+    Args:
+        concurrency_limit_ids: The concurrency limit IDs from which to
+             decrement the holder's active slots.
+        holder: The holder from whose active slots to decrement.
+        slots: The number of slots to decrement.
+        active_slots: The current number of active slots the limit has.
+    """
+    for _id in concurrency_limit_ids:
+        if active_slots <= 0:
+            # If the limit has no active slots, we shouldn't have holders.
+            _limit_holders[_id] = defaultdict(int)
+            _holder_fifo[_id] = deque()
+        elif holder and holder in _limit_holders[_id]:
+            # Decrement a known holder's active slot count.
+            _limit_holders[_id][holder] -= slots
+            if _limit_holders[_id][holder] <= 0:
+                del _limit_holders[_id][holder]
+                _holder_fifo[_id].remove(holder)
+        else:
+            # If we receive a decrement without a holder or for a holder we
+            # don't know about, drop the oldest holder from the FIFO queue. We
+            # know we decremented successfully, so the dict now has too many
+            # holders.
+            if active_slots < len(_limit_holders[_id]):
+                holder_to_drop = _holder_fifo[_id].popleft()
+                del _limit_holders[_id][holder_to_drop]
+            logger.warning("Decremented slots for unknown or null holder %s", holder)
 
 
 def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
@@ -359,7 +413,7 @@ def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
         *concurrency_limit_ids: The concurrency limit IDs for which to get holders.
     """
     return {
-        _id: list(LIMIT_HOLDERS[_id])
+        _id: list(_limit_holders[_id])
         for _id in concurrency_limit_ids
-        if _id in LIMIT_HOLDERS
+        if _id in _limit_holders
     }
