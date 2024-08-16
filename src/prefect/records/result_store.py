@@ -33,7 +33,7 @@ class ResultFactoryStore(RecordStore):
         except Exception:
             return False
 
-    def read(self, key: str) -> TransactionRecord:
+    def read(self, key: str, holder: Optional[str] = None) -> TransactionRecord:
         if self.cache:
             return TransactionRecord(key=key, result=self.cache)
         try:
