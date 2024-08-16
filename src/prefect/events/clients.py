@@ -346,12 +346,12 @@ class PrefectEventsClient(EventsClient):
                     await asyncio.sleep(1)
 
 
-class AssertingPrefectEventsClient(PrefectEventsClient):
+class AssertingPassthroughEventsClient(PrefectEventsClient):
     """A Prefect Events client that BOTH records all events sent to it for inspection
     during tests AND sends them to a Prefect server."""
 
-    last: ClassVar["Optional[AssertingPrefectEventsClient]"] = None
-    all: ClassVar[List["AssertingPrefectEventsClient"]] = []
+    last: ClassVar["Optional[AssertingPassthroughEventsClient]"] = None
+    all: ClassVar[List["AssertingPassthroughEventsClient"]] = []
 
     args: Tuple
     kwargs: Dict[str, Any]
@@ -359,8 +359,8 @@ class AssertingPrefectEventsClient(PrefectEventsClient):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        AssertingPrefectEventsClient.last = self
-        AssertingPrefectEventsClient.all.append(self)
+        AssertingPassthroughEventsClient.last = self
+        AssertingPassthroughEventsClient.all.append(self)
         self.args = args
         self.kwargs = kwargs
 

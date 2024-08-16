@@ -17,7 +17,10 @@ from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
 from prefect.events import Event
-from prefect.events.clients import AssertingEventsClient, AssertingPrefectEventsClient
+from prefect.events.clients import (
+    AssertingEventsClient,
+    AssertingPassthroughEventsClient,
+)
 from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
 from prefect.server.api.server import SubprocessASGIServer
@@ -384,7 +387,7 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
 def asserting_and_emitting_events_worker(
     monkeypatch,
 ) -> Generator[EventsWorker, None, None]:
-    worker = EventsWorker.instance(AssertingPrefectEventsClient)
+    worker = EventsWorker.instance(AssertingPassthroughEventsClient)
     # Always yield the asserting worker when new instances are retrieved
     monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
     try:
