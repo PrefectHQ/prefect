@@ -1,3 +1,0 @@
-# prefect.blocks
-
-::: prefect.blocks

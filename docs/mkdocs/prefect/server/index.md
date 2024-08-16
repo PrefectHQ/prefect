@@ -1,3 +1,0 @@
-# prefect.server
-
-::: prefect.server
