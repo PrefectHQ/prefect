@@ -144,9 +144,12 @@ class FileSystemRecordStore(RecordStore):
         lock_path = self._lock_path_for_key(key)
         if not self.is_locked(key):
             return False
-        with open(Path(lock_path), "r") as lock_file:
-            lock_info = json.load(lock_file)
-            return lock_info.get("holder") == holder
+        try:
+            with open(Path(lock_path), "r") as lock_file:
+                lock_info = json.load(lock_file)
+                return lock_info.get("holder") == holder
+        except FileNotFoundError:
+            return False
 
     def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         seconds_waited = 0
