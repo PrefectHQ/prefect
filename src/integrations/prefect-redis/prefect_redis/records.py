@@ -8,19 +8,64 @@ from redis.lock import Lock
 from prefect.records import RecordStore
 from prefect.records.base import TransactionRecord
 from prefect.results import BaseResult
+from prefect.settings import (
+    PREFECT_RECORD_STORE_REDIS_DB,
+    PREFECT_RECORD_STORE_REDIS_HOST,
+    PREFECT_RECORD_STORE_REDIS_PASSWORD,
+    PREFECT_RECORD_STORE_REDIS_PORT,
+    PREFECT_RECORD_STORE_REDIS_SSL,
+    PREFECT_RECORD_STORE_REDIS_USERNAME,
+)
 from prefect.transactions import IsolationLevel
 
 
 class RedisRecordStore(RecordStore):
+    """
+    A record store that uses Redis as a backend.
+
+    Attributes:
+        client: The Redis client used to communicate with the Redis server
+        host: The host of the Redis server
+        port: The port the Redis server is running on
+        db: The database to write to and read from
+        username: The username to use when connecting to the Redis server
+        password: The password to use when connecting to the Redis server
+        ssl: Whether to use SSL when connecting to the Redis server
+    """
+
     def __init__(
-        self, host: str, port: int, db: int, username: str, password: str
+        self,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        db: Optional[int] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        ssl: Optional[bool] = None,
     ) -> None:
-        self.host = host
-        self.port = port
-        self.db = db
-        self.username = username
-        self.password = password
-        self._client = Redis(
+        """
+        Args:
+            host: The host of the Redis server; defaults to the value of the
+                PREFECT_RECORD_STORE_REDIS_HOST setting if not provided
+            port: The port the Redis server is running on; defaults to the value of the
+                PREFECT_RECORD_STORE_REDIS_PORT setting if not provided
+            db: The database to write to and read from; defaults to the value of the
+                PREFECT_RECORD_STORE_REDIS_DB setting if not provided
+            username: The username to use when connecting to the Redis server; defaults
+                to the value of the PREFECT_RECORD_STORE_REDIS_USERNAME setting if not
+                provided
+            password: The password to use when connecting to the Redis server; defaults
+                to the value of the PREFECT_RECORD_STORE_REDIS_PASSWORD setting if not
+                provided
+            ssl: Whether to use SSL when connecting to the Redis server; defaults to the
+                value of the PREFECT_RECORD_STORE_REDIS_SSL setting if not provided
+        """
+        self.host = host or PREFECT_RECORD_STORE_REDIS_HOST.value()
+        self.port = port or PREFECT_RECORD_STORE_REDIS_PORT.value()
+        self.db = db or PREFECT_RECORD_STORE_REDIS_DB.value()
+        self.username = username or PREFECT_RECORD_STORE_REDIS_USERNAME.value()
+        self.password = password or PREFECT_RECORD_STORE_REDIS_PASSWORD.value()
+        self.ssl = ssl or PREFECT_RECORD_STORE_REDIS_SSL.value()
+        self.client = Redis(
             host=self.host,
             port=self.port,
             db=self.db,
@@ -41,7 +86,7 @@ class RedisRecordStore(RecordStore):
         if self.is_locked(key) and not self.is_lock_holder(key, holder):
             self.wait_for_lock(key)
 
-        serialized_result = self._client.get(name=key)
+        serialized_result = self.client.get(name=key)
         if serialized_result is None:
             return None
         assert isinstance(serialized_result, bytes)
@@ -60,10 +105,10 @@ class RedisRecordStore(RecordStore):
         ) is not None and isinstance(expiration, pendulum.DateTime):
             ex = math.ceil((expiration - pendulum.now()).total_seconds())
         serialized_result = result.model_dump_json()
-        self._client.set(name=key, value=serialized_result, ex=ex)
+        self.client.set(name=key, value=serialized_result, ex=ex)
 
     def exists(self, key: str) -> bool:
-        return bool(self._client.exists(key))
+        return bool(self.client.exists(key))
 
     def supports_isolation_level(self, isolation_level: IsolationLevel) -> bool:
         return isolation_level in {
@@ -84,7 +129,7 @@ class RedisRecordStore(RecordStore):
         if lock is not None and self.is_lock_holder(key, holder):
             return True
         else:
-            lock = Lock(self._client, lock_name, timeout=hold_timeout)
+            lock = Lock(self.client, lock_name, timeout=hold_timeout)
         lock_acquired = lock.acquire(token=holder, blocking_timeout=acquire_timeout)
         if lock_acquired:
             self._locks[lock_name] = lock
@@ -101,7 +146,7 @@ class RedisRecordStore(RecordStore):
 
     def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         lock_name = self._lock_name_for_key(key)
-        lock = Lock(self._client, lock_name)
+        lock = Lock(self.client, lock_name)
         lock_freed = lock.acquire(blocking_timeout=timeout)
         if lock_freed:
             lock.release()
@@ -109,10 +154,10 @@ class RedisRecordStore(RecordStore):
 
     def is_locked(self, key: str) -> bool:
         lock_name = self._lock_name_for_key(key)
-        lock = Lock(self._client, lock_name)
+        lock = Lock(self.client, lock_name)
         return lock.locked()
 
-    def is_lock_holder(self, key: str, holder: str | None = None) -> bool:
+    def is_lock_holder(self, key: str, holder: Optional[str] = None) -> bool:
         holder = holder or self.generate_default_holder()
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)

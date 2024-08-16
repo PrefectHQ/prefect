@@ -1,8 +1,6 @@
-import os
 import queue
 import threading
 import time
-from typing import Dict
 from uuid import uuid4
 
 import pendulum
@@ -11,24 +9,17 @@ from prefect_redis.records import RedisRecordStore
 
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_DEFAULT_RESULT_STORAGE_BLOCK, temporary_settings
+from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_RECORD_STORE_REDIS_DB,
+    PREFECT_RECORD_STORE_REDIS_HOST,
+    PREFECT_RECORD_STORE_REDIS_PASSWORD,
+    PREFECT_RECORD_STORE_REDIS_PORT,
+    PREFECT_RECORD_STORE_REDIS_SSL,
+    PREFECT_RECORD_STORE_REDIS_USERNAME,
+    temporary_settings,
+)
 from prefect.transactions import IsolationLevel
-
-
-@pytest.fixture
-def environ_credentials() -> Dict:
-    """Get redis credentials from environment
-
-    Returns:
-        Redis credentials as a dict, can be piped directly into `RedisCredentials`
-    """
-    return {
-        "host": os.environ.get("TEST_REDIS_HOST", "localhost"),
-        "port": int(os.environ.get("TEST_REDIS_PORT", 6379)),
-        "db": int(os.environ.get("TEST_REDIS_DB", 0)),
-        "username": os.environ.get("TEST_REDIS_USERNAME"),
-        "password": os.environ.get("TEST_REDIS_PASSWORD"),
-    }
 
 
 class TestRedisRecordStore:
@@ -52,8 +43,34 @@ class TestRedisRecordStore:
         return result
 
     @pytest.fixture
-    def store(self, environ_credentials):
-        return RedisRecordStore(**environ_credentials)
+    def store(self):
+        return RedisRecordStore()
+
+    def test_init_respects_settings(self, store):
+        assert store.host == PREFECT_RECORD_STORE_REDIS_HOST.value()
+        assert store.port == PREFECT_RECORD_STORE_REDIS_PORT.value()
+        assert store.db == PREFECT_RECORD_STORE_REDIS_DB.value()
+        assert store.username == PREFECT_RECORD_STORE_REDIS_USERNAME.value()
+        assert store.password == PREFECT_RECORD_STORE_REDIS_PASSWORD.value()
+        assert store.ssl == PREFECT_RECORD_STORE_REDIS_SSL.value()
+
+        with temporary_settings(
+            {
+                PREFECT_RECORD_STORE_REDIS_HOST: "new-host",
+                PREFECT_RECORD_STORE_REDIS_PORT: 1234,
+                PREFECT_RECORD_STORE_REDIS_DB: 1,
+                PREFECT_RECORD_STORE_REDIS_USERNAME: "new-username",
+                PREFECT_RECORD_STORE_REDIS_PASSWORD: "new-password",
+                PREFECT_RECORD_STORE_REDIS_SSL: True,
+            }
+        ):
+            store = RedisRecordStore()
+            assert store.host == "new-host"
+            assert store.port == 1234
+            assert store.db == 1
+            assert store.username == "new-username"
+            assert store.password == "new-password"
+            assert store.ssl
 
     def test_read_write(self, store, result):
         key = str(uuid4())
