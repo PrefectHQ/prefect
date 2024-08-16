@@ -34,6 +34,7 @@ async def ls():
                 entry.description,
                 str(entry.enabled),
                 entry.last_seen or "Never",
+                style="dim" if not entry.enabled else None,
             )
 
         app.console.print(table)
