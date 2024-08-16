@@ -9,14 +9,12 @@ import pytest
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.context import TagsContext, tags
-from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.results import _default_storages
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
 )
@@ -24,17 +22,6 @@ from prefect.states import Completed, Running
 from prefect.task_runners import PrefectTaskRunner, ThreadPoolTaskRunner
 from prefect.task_worker import serve
 from prefect.tasks import task
-
-
-@pytest.fixture(autouse=True, params=[True, False])
-def enable_client_side_task_run_orchestration(
-    request, asserting_events_worker: EventsWorker
-):
-    enabled = request.param
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
-    ):
-        yield enabled
 
 
 @task

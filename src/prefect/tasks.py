@@ -52,7 +52,6 @@ from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutu
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -815,12 +814,6 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            raise RuntimeError(
-                "Cannot call `Task.create_local_run` unless "
-                "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION is True"
-            )
-
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
             collect_task_run_inputs_sync,
@@ -841,9 +834,9 @@ class Task(Generic[P, R]):
                 task_run_name = self.name
             else:
                 dynamic_key = _dynamic_key_for_task_run(
-                    context=flow_run_context, task=self
+                    context=flow_run_context, task=self, stable=False
                 )
-                task_run_name = f"{self.name}-{dynamic_key}"
+                task_run_name = f"{self.name}-{dynamic_key[:3]}"
 
             if deferred:
                 state = Scheduled()
