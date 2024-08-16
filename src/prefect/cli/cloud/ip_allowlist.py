@@ -23,10 +23,10 @@ async def ls():
 
         table = Table(title="IP Allowlist")
 
-        table.add_column("IP Address")
-        table.add_column("Description")
-        table.add_column("Enabled")
-        table.add_column("Last Seen")
+        table.add_column("IP Address", style="cyan", no_wrap=True)
+        table.add_column("Description", style="blue", no_wrap=False)
+        table.add_column("Enabled", style="green", justify="right", no_wrap=True)
+        table.add_column("Last Seen", style="magenta", justify="right", no_wrap=True)
 
         for entry in ip_allowlist.entries:
             table.add_row(
