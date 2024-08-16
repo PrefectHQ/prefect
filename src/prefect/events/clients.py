@@ -346,6 +346,47 @@ class PrefectEventsClient(EventsClient):
                     await asyncio.sleep(1)
 
 
+class AssertingPassthroughEventsClient(PrefectEventsClient):
+    """A Prefect Events client that BOTH records all events sent to it for inspection
+    during tests AND sends them to a Prefect server."""
+
+    last: ClassVar["Optional[AssertingPassthroughEventsClient]"] = None
+    all: ClassVar[List["AssertingPassthroughEventsClient"]] = []
+
+    args: Tuple
+    kwargs: Dict[str, Any]
+    events: List[Event]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        AssertingPassthroughEventsClient.last = self
+        AssertingPassthroughEventsClient.all.append(self)
+        self.args = args
+        self.kwargs = kwargs
+
+    @classmethod
+    def reset(cls) -> None:
+        cls.last = None
+        cls.all = []
+
+    def pop_events(self) -> List[Event]:
+        events = self.events
+        self.events = []
+        return events
+
+    async def _emit(self, event: Event) -> None:
+        # actually send the event to the server
+        await super()._emit(event)
+
+        # record the event for inspection
+        self.events.append(event)
+
+    async def __aenter__(self) -> Self:
+        await super().__aenter__()
+        self.events = []
+        return self
+
+
 class PrefectCloudEventsClient(PrefectEventsClient):
     """A Prefect Events client that streams events to a Prefect Cloud Workspace"""
 

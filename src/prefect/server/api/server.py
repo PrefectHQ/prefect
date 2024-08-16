@@ -564,14 +564,14 @@ def create_app(
             service_instances.append(ProactiveTriggers())
             service_instances.append(Actions())
 
+        if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
+            service_instances.append(TaskRunRecorder())
+
         if prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED:
             service_instances.append(EventPersister())
 
         if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
             service_instances.append(stream.Distributor())
-
-        if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
-            service_instances.append(TaskRunRecorder())
 
         loop = asyncio.get_running_loop()
 
