@@ -2665,12 +2665,14 @@ class PrefectClient:
     async def create_work_pool(
         self,
         work_pool: WorkPoolCreate,
+        overwrite: bool = False,
     ) -> WorkPool:
         """
         Creates a work pool with the provided configuration.
 
         Args:
             work_pool: Desired configuration for the new work pool.
+            overwrite: Whether to overwrite an existing work pool with the same name.
 
         Returns:
             Information about the newly created work pool.
@@ -2682,7 +2684,24 @@ class PrefectClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
-                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+                if overwrite:
+                    existing_work_pool = await self.read_work_pool(
+                        work_pool_name=work_pool.name
+                    )
+                    if existing_work_pool.type != work_pool.type:
+                        warnings.warn(
+                            "Overwriting work pool type is not supported. Ignoring provided type.",
+                            category=UserWarning,
+                        )
+                    await self.update_work_pool(
+                        work_pool_name=work_pool.name,
+                        work_pool=WorkPoolUpdate.parse_obj(
+                            work_pool.dict(exclude={"name", "type"})
+                        ),
+                    )
+                    response = await self._client.get(f"/work_pools/{work_pool.name}")
+                else:
+                    raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
 
