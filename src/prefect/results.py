@@ -674,7 +674,7 @@ class PersistedResult(BaseResult):
 
     def __eq__(self, other):
         if not isinstance(other, PersistedResult):
-            return NotImplemented
+            return False
         return (
             self.type == other.type
             and self.serializer_type == other.serializer_type
