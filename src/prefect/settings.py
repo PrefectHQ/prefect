@@ -1493,6 +1493,57 @@ PENDING for a while is a sign that the task worker may have crashed.
 
 PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 
+# Record store settings ----------------------------------------------------------------
+
+PREFECT_RECORD_STORE_REDIS_HOST = Setting(
+    str,
+    default="localhost",
+)
+"""
+The host address of the Redis server to use as the record store.
+"""
+
+PREFECT_RECORD_STORE_REDIS_PORT = Setting(
+    int,
+    default=6379,
+)
+"""
+The port of the Redis server to use as the record store.
+"""
+
+PREFECT_RECORD_STORE_REDIS_DB = Setting(
+    int,
+    default=0,
+)
+"""
+The Redis database index to use as the record store.
+"""
+
+PREFECT_RECORD_STORE_REDIS_USERNAME = Setting(
+    Optional[str],
+    default=None,
+)
+"""
+The username to use when connecting to the Redis server used as the record store.
+"""
+
+PREFECT_RECORD_STORE_REDIS_PASSWORD = Setting(
+    Optional[str],
+    default=None,
+    is_secret=True,
+)
+"""
+The password to use when connecting to the Redis server used as the record store.
+"""
+
+PREFECT_RECORD_STORE_REDIS_SSL = Setting(
+    bool,
+    default=False,
+)
+"""
+Whether or not to use SSL when connecting to the Redis server used as the record store.
+"""
+
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
