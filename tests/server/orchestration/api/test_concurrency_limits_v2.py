@@ -638,7 +638,7 @@ async def test_decrement_concurrency_limit_without_holder_removes_horder_in_lifo
     assert response.json()[0]["holders"] == ["holder-2"]
 
 
-async def test_decrement_concurrency_limit_ignores_unknown_holder(
+async def test_decrement_concurrency_limit_unknown_holder(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
 ):
@@ -667,6 +667,7 @@ async def test_decrement_concurrency_limit_ignores_unknown_holder(
     assert response.status_code == 200
     assert response.json()[0]["holders"] == ["test-holder-1", "test-holder-2"]
 
+    # This one is the unknown holder, the others were just setup
     response = await client.post(
         "/v2/concurrency_limits/decrement",
         json={
@@ -679,8 +680,14 @@ async def test_decrement_concurrency_limit_ignores_unknown_holder(
 
     response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.name}")
     assert response.status_code == 200
+
+    # We err on the side of preserving the correct active slot count even if
+    # we lose track of the holders when incoming data is incorrect. Here,
+    # we received a decrement for a holder that didn't exist. Instead of
+    # ignoring it, we decrement a different holder so that the counts are
+    # correct.
     assert response.json()["active_slots"] == 2
-    assert response.json()["holders"] == ["test-holder-1", "test-holder-2"]
+    assert response.json()["holders"] == ["test-holder-2"]
 
 
 async def test_decrement_concurrency_limit_resets_holders_without_holder_if_active_limits_is_zero(

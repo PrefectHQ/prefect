@@ -396,6 +396,16 @@ def decrement_limit_holder(
             # We don't know what to do here, but we know we decremented,
             # so distribute the decrement across all holders
             remaining_holders = list(_limit_holders[_id].keys())
+            all_holder_slots = sum(_limit_holders[_id].values())
+            more_active_slots_than_holder_slots = (
+                active_slots - slots >= all_holder_slots
+            )
+
+            if more_active_slots_than_holder_slots and not holder:
+                # This decrement did not have a holder, and there are more
+                # active slots on this limit than the sum of all holders. We can
+                # assume this is a decrement for one of the non-holder slots.
+                continue
 
             while slots > 0 and remaining_holders:
                 # Determine the number of holders to decrement from
