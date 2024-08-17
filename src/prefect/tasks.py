@@ -805,7 +805,7 @@ class Task(Generic[P, R]):
 
     async def create_local_run(
         self,
-        client: Optional["PrefectClient"] = None,
+        client: Optional["PrefectClient"],
         id: Optional[UUID] = None,
         parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
@@ -825,100 +825,97 @@ class Task(Generic[P, R]):
             parent_task_run_context = TaskRunContext.get()
         if parameters is None:
             parameters = {}
-        if client is None:
-            client = get_client()
 
-        async with client:
-            if not flow_run_context:
-                dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
-                task_run_name = self.name
-            else:
-                dynamic_key = _dynamic_key_for_task_run(
-                    context=flow_run_context, task=self, stable=False
-                )
-                task_run_name = f"{self.name}-{dynamic_key[:3]}"
+        if not flow_run_context:
+            dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
+            task_run_name = self.name
+        else:
+            dynamic_key = _dynamic_key_for_task_run(
+                context=flow_run_context, task=self, stable=False
+            )
+            task_run_name = f"{self.name}-{dynamic_key[:3]}"
 
-            if deferred:
-                state = Scheduled()
-                state.state_details.deferred = True
-            else:
-                state = Pending()
+        if deferred:
+            state = Scheduled()
+            state.state_details.deferred = True
+        else:
+            state = Pending()
 
-            # store parameters for background tasks so that task worker
-            # can retrieve them at runtime
-            if deferred and (parameters or wait_for):
-                parameters_id = uuid4()
-                state.state_details.task_parameters_id = parameters_id
+        # store parameters for background tasks so that task worker
+        # can retrieve them at runtime
+        if deferred and (parameters or wait_for):
+            parameters_id = uuid4()
+            state.state_details.task_parameters_id = parameters_id
 
-                # TODO: Improve use of result storage for parameter storage / reference
-                self.persist_result = True
+            # TODO: Improve use of result storage for parameter storage / reference
+            self.persist_result = True
 
-                factory = await ResultFactory.from_autonomous_task(self, client=client)
-                context = serialize_context()
-                data: Dict[str, Any] = {"context": context}
-                if parameters:
-                    data["parameters"] = parameters
-                if wait_for:
-                    data["wait_for"] = wait_for
-                await factory.store_parameters(parameters_id, data)
-
-            # collect task inputs
-            task_inputs = {
-                k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
-            }
-
-            # collect all parent dependencies
-            if task_parents := _infer_parent_task_runs(
-                flow_run_context=flow_run_context,
-                task_run_context=parent_task_run_context,
-                parameters=parameters,
-            ):
-                task_inputs["__parents__"] = task_parents
-
-            # check wait for dependencies
+            factory = await ResultFactory.from_autonomous_task(self, client=client)
+            context = serialize_context()
+            data: Dict[str, Any] = {"context": context}
+            if parameters:
+                data["parameters"] = parameters
             if wait_for:
-                task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
+                data["wait_for"] = wait_for
+            await factory.store_parameters(parameters_id, data)
 
-            # Join extra task inputs
-            for k, extras in (extra_task_inputs or {}).items():
-                task_inputs[k] = task_inputs[k].union(extras)
+        # collect task inputs
+        task_inputs = {
+            k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
+        }
 
-            flow_run_id = (
-                getattr(flow_run_context.flow_run, "id", None)
-                if flow_run_context and flow_run_context.flow_run
-                else None
-            )
-            task_run_id = id or uuid4()
-            state = prefect.states.Pending(
-                state_details=StateDetails(
-                    task_run_id=task_run_id,
-                    flow_run_id=flow_run_id,
-                )
-            )
-            task_run = TaskRun(
-                id=task_run_id,
-                name=task_run_name,
+        # collect all parent dependencies
+        if task_parents := _infer_parent_task_runs(
+            flow_run_context=flow_run_context,
+            task_run_context=parent_task_run_context,
+            parameters=parameters,
+        ):
+            task_inputs["__parents__"] = task_parents
+
+        # check wait for dependencies
+        if wait_for:
+            task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
+
+        # Join extra task inputs
+        for k, extras in (extra_task_inputs or {}).items():
+            task_inputs[k] = task_inputs[k].union(extras)
+
+        flow_run_id = (
+            getattr(flow_run_context.flow_run, "id", None)
+            if flow_run_context and flow_run_context.flow_run
+            else None
+        )
+        task_run_id = id or uuid4()
+        state = prefect.states.Pending(
+            state_details=StateDetails(
+                task_run_id=task_run_id,
                 flow_run_id=flow_run_id,
-                task_key=self.task_key,
-                dynamic_key=str(dynamic_key),
-                task_version=self.version,
-                empirical_policy=TaskRunPolicy(
-                    retries=self.retries,
-                    retry_delay=self.retry_delay_seconds,
-                    retry_jitter_factor=self.retry_jitter_factor,
-                ),
-                tags=list(set(self.tags).union(TagsContext.get().current_tags or [])),
-                task_inputs=task_inputs or {},
-                expected_start_time=state.timestamp,
-                state_id=state.id,
-                state_type=state.type,
-                state_name=state.name,
-                state=state,
-                created=state.timestamp,
-                updated=state.timestamp,
             )
+        )
+        task_run = TaskRun(
+            id=task_run_id,
+            name=task_run_name,
+            flow_run_id=flow_run_id,
+            task_key=self.task_key,
+            dynamic_key=str(dynamic_key),
+            task_version=self.version,
+            empirical_policy=TaskRunPolicy(
+                retries=self.retries,
+                retry_delay=self.retry_delay_seconds,
+                retry_jitter_factor=self.retry_jitter_factor,
+            ),
+            tags=list(set(self.tags).union(TagsContext.get().current_tags or [])),
+            task_inputs=task_inputs or {},
+            expected_start_time=state.timestamp,
+            state_id=state.id,
+            state_type=state.type,
+            state_name=state.name,
+            state=state,
+            created=state.timestamp,
+            updated=state.timestamp,
+        )
 
-            return task_run
+        return task_run
 
     @overload
     def __call__(
