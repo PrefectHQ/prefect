@@ -110,7 +110,7 @@ class DateTime(Block):
 class Secret(Block, Generic[T]):
     """
     A block that represents a secret value. The value stored in this block will be obfuscated when
-    this block is logged or shown in the UI.
+    this block is viewed or edited in the UI.
 
     Attributes:
         value: A value that should be kept secret.
@@ -119,7 +119,9 @@ class Secret(Block, Generic[T]):
         ```python
         from prefect.blocks.system import Secret
 
-        secret_block = Secret.load("BLOCK_NAME")
+        Secret(value="sk-1234567890").save("test-secret", overwrite=True)
+
+        secret_block = Secret.load("test-secret")
 
         # Access the stored secret
         secret_block.get()
@@ -140,7 +142,9 @@ class Secret(Block, Generic[T]):
     )
 
     @field_validator("value", mode="before")
-    def validate_value(cls, value: Union[T, PydanticSecret[T]]) -> PydanticSecret[T]:
+    def validate_value(
+        cls, value: Union[T, SecretStr, PydanticSecret[T]]
+    ) -> Union[SecretStr, PydanticSecret[T]]:
         if isinstance(value, (PydanticSecret, SecretStr)):
             return value
         else:
@@ -148,6 +152,7 @@ class Secret(Block, Generic[T]):
 
     def get(self) -> T:
         try:
-            return json.loads(value := self.value.get_secret_value())
+            value = self.value.get_secret_value()
+            return json.loads(value)
         except (TypeError, json.JSONDecodeError):
             return value
