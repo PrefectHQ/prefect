@@ -1,11 +1,12 @@
-from typing import Any, Dict, Generic, List, TypeVar, Union
+import json
+from typing import Annotated, Any, Generic, TypeVar, Union
 
 from pydantic import (
     Field,
+    JsonValue,
     SecretStr,
-    StrictFloat,
-    StrictInt,
     StrictStr,
+    field_validator,
 )
 from pydantic import Secret as PydanticSecret
 from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
@@ -13,9 +14,12 @@ from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.core import Block
 
-SecretValueType = Union[StrictStr, SecretStr, StrictInt, StrictFloat, Dict, List]
+_SecretValueType = Union[
+    Annotated[StrictStr, Field(title="string")],
+    Annotated[JsonValue, Field(title="JSON")],
+]
 
-T = TypeVar("T", bound=SecretValueType)
+T = TypeVar("T", bound=_SecretValueType)
 
 
 @deprecated_class(
@@ -125,11 +129,25 @@ class Secret(Block, Generic[T]):
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c6f20e556dd16effda9df16551feecfb5822092b-48x48.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret"
 
-    value: PydanticSecret[T] = Field(
+    value: Union[SecretStr, PydanticSecret[T]] = Field(
         default=...,
         description="A value that should be kept secret.",
         examples=["sk-1234567890", {"username": "johndoe", "password": "s3cr3t"}],
+        json_schema_extra={
+            "writeOnly": True,
+            "format": "password",
+        },
     )
 
-    def get(self):
-        return self.value.get_secret_value()
+    @field_validator("value", mode="before")
+    def validate_value(cls, value: Union[T, PydanticSecret[T]]) -> PydanticSecret[T]:
+        if isinstance(value, (PydanticSecret, SecretStr)):
+            return value
+        else:
+            return PydanticSecret[type(value)](value)
+
+    def get(self) -> T:
+        try:
+            return json.loads(value := self.value.get_secret_value())
+        except (TypeError, json.JSONDecodeError):
+            return value
