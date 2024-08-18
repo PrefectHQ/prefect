@@ -6,9 +6,11 @@ from uuid import uuid4
 import pytest
 
 from prefect.filesystems import LocalFileSystem
+from prefect.records.base import get_default_record_store
 from prefect.records.filesystem import FileSystemRecordStore
 from prefect.results import ResultFactory
 from prefect.settings import (
+    PREFECT_DEFAULT_RECORD_STORE,
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     temporary_settings,
 )
@@ -201,3 +203,18 @@ class TestFileSystemRecordStore:
         assert store.supports_isolation_level(IsolationLevel.READ_COMMITTED)
         assert store.supports_isolation_level(IsolationLevel.SERIALIZABLE)
         assert not store.supports_isolation_level("UNKNOWN")
+
+    def test_works_as_default_record_store(self):
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RECORD_STORE: {
+                    "fully_qualified_name": "prefect.records.filesystem.FileSystemRecordStore",
+                    "init_kwargs": {
+                        "records_directory": "/tmp/prefect/records",
+                    },
+                }
+            }
+        ):
+            store = get_default_record_store()
+            assert isinstance(store, FileSystemRecordStore)
+            assert store.records_directory == "/tmp/prefect/records"

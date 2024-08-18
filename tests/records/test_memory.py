@@ -5,8 +5,10 @@ from uuid import uuid4
 
 import pytest
 
+from prefect.records.base import get_default_record_store
 from prefect.records.memory import MemoryRecordStore
 from prefect.results import ResultFactory
+from prefect.settings import PREFECT_DEFAULT_RECORD_STORE, temporary_settings
 from prefect.transactions import IsolationLevel
 
 
@@ -209,3 +211,14 @@ class TestInMemoryRecordStore:
         assert store.supports_isolation_level(IsolationLevel.READ_COMMITTED)
         assert store.supports_isolation_level(IsolationLevel.SERIALIZABLE)
         assert not store.supports_isolation_level("UNKNOWN")
+
+    def test_works_as_default_record_store(self):
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RECORD_STORE: {
+                    "fully_qualified_name": "prefect.records.memory.MemoryRecordStore",
+                }
+            }
+        ):
+            store = get_default_record_store()
+            assert isinstance(store, MemoryRecordStore)

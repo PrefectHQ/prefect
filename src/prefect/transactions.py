@@ -17,17 +17,15 @@ from typing import (
 from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
-from prefect.context import ContextModel, FlowRunContext, TaskRunContext
+from prefect.context import ContextModel
 from prefect.exceptions import MissingContextError
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
+from prefect.records.base import get_default_record_store
 from prefect.results import (
     BaseResult,
-    ResultFactory,
-    get_default_result_storage,
 )
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
 
@@ -347,41 +345,7 @@ def transaction(
     """
     # if there is no key, we won't persist a record
     if key and not store:
-        flow_run_context = FlowRunContext.get()
-        task_run_context = TaskRunContext.get()
-        existing_factory = getattr(task_run_context, "result_factory", None) or getattr(
-            flow_run_context, "result_factory", None
-        )
-
-        new_factory: ResultFactory
-        if existing_factory and existing_factory.storage_block_id:
-            new_factory = existing_factory.model_copy(
-                update={
-                    "persist_result": True,
-                }
-            )
-        else:
-            default_storage = get_default_result_storage(_sync=True)
-            if existing_factory:
-                new_factory = existing_factory.model_copy(
-                    update={
-                        "persist_result": True,
-                        "storage_block": default_storage,
-                        "storage_block_id": default_storage._block_document_id,
-                    }
-                )
-            else:
-                new_factory = run_coro_as_sync(
-                    ResultFactory.default_factory(
-                        persist_result=True,
-                        result_storage=default_storage,
-                    )
-                )
-        from prefect.records.result_store import ResultFactoryStore
-
-        store = ResultFactoryStore(
-            result_factory=new_factory,
-        )
+        store = get_default_record_store()
 
     try:
         logger = logger or get_run_logger()

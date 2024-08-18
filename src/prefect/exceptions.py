@@ -412,3 +412,7 @@ class PrefectImportError(ImportError):
 
     def __init__(self, message: str) -> None:
         super().__init__(message)
+
+
+class ConfigurationError(PrefectException):
+    """Raised when a failure occurs due to incorrect configuration"""

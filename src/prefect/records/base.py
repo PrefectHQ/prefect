@@ -6,6 +6,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
+from prefect.exceptions import ConfigurationError
+from prefect.settings import PREFECT_DEFAULT_RECORD_STORE
+from prefect.utilities.importtools import import_object
+
 if TYPE_CHECKING:
     from prefect.results import BaseResult
     from prefect.transactions import IsolationLevel
@@ -221,3 +225,26 @@ class RecordStore(abc.ABC):
             yield
         finally:
             self.release_lock(key=key, holder=holder)
+
+
+def get_default_record_store() -> RecordStore:
+    """
+    Returns an instance of the default record store class.
+
+    Record store type and configuration is determined by the
+    PREFECT_DEFAULT_RECORD_STORE setting.
+    """
+    record_store_config = PREFECT_DEFAULT_RECORD_STORE.value()
+    try:
+        record_store_cls = import_object(record_store_config.fully_qualified_name)
+    except Exception as exc:
+        raise ConfigurationError(
+            "Could not import record store class with fully qualified name"
+            f" {record_store_config.fully_qualified_name!r}"
+        ) from exc
+    try:
+        return record_store_cls(**record_store_config.init_kwargs)
+    except Exception as exc:
+        raise ConfigurationError(
+            "Could not initialize default record store with provided init kwargs."
+        ) from exc

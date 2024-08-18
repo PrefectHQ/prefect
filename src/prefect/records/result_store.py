@@ -1,18 +1,59 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import pendulum
 
-from prefect.results import BaseResult, PersistedResult, ResultFactory
+from prefect.context import FlowRunContext, TaskRunContext
+from prefect.results import (
+    BaseResult,
+    PersistedResult,
+    ResultFactory,
+    get_default_result_storage,
+)
 from prefect.transactions import IsolationLevel
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 from .base import RecordStore, TransactionRecord
 
 
+def create_default_result_factory() -> ResultFactory:
+    flow_run_context = FlowRunContext.get()
+    task_run_context = TaskRunContext.get()
+    existing_factory = getattr(task_run_context, "result_factory", None) or getattr(
+        flow_run_context, "result_factory", None
+    )
+
+    new_factory: ResultFactory
+    if existing_factory and existing_factory.storage_block_id:
+        new_factory = existing_factory.model_copy(
+            update={
+                "persist_result": True,
+            }
+        )
+    else:
+        default_storage = get_default_result_storage(_sync=True)
+        if existing_factory:
+            new_factory = existing_factory.model_copy(
+                update={
+                    "persist_result": True,
+                    "storage_block": default_storage,
+                    "storage_block_id": default_storage._block_document_id,
+                }
+            )
+        else:
+            new_factory = run_coro_as_sync(
+                ResultFactory.default_factory(
+                    persist_result=True,
+                    result_storage=default_storage,
+                )
+            )
+
+    return new_factory
+
+
 @dataclass
 class ResultFactoryStore(RecordStore):
-    result_factory: ResultFactory
+    result_factory: ResultFactory = field(default_factory=create_default_result_factory)
     cache: Optional[PersistedResult] = None
 
     def exists(self, key: str) -> bool:

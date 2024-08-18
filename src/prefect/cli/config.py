@@ -2,6 +2,7 @@
 Command line interface for working with profiles
 """
 
+import json
 import os
 from typing import List, Optional
 
@@ -46,6 +47,10 @@ def set_(settings: List[str]):
                 "Use an environment variable instead."
             )
 
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            pass
         parsed_settings[setting] = value
 
     try:

@@ -8,14 +8,6 @@ from redis.lock import Lock
 from prefect.records import RecordStore
 from prefect.records.base import TransactionRecord
 from prefect.results import BaseResult
-from prefect.settings import (
-    PREFECT_RECORD_STORE_REDIS_DB,
-    PREFECT_RECORD_STORE_REDIS_HOST,
-    PREFECT_RECORD_STORE_REDIS_PASSWORD,
-    PREFECT_RECORD_STORE_REDIS_PORT,
-    PREFECT_RECORD_STORE_REDIS_SSL,
-    PREFECT_RECORD_STORE_REDIS_USERNAME,
-)
 from prefect.transactions import IsolationLevel
 
 
@@ -35,12 +27,12 @@ class RedisRecordStore(RecordStore):
 
     def __init__(
         self,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        db: Optional[int] = None,
+        host: str = "localhost",
+        port: int = 6379,
+        db: int = 0,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        ssl: Optional[bool] = None,
+        ssl: bool = False,
     ) -> None:
         """
         Args:
@@ -59,12 +51,12 @@ class RedisRecordStore(RecordStore):
             ssl: Whether to use SSL when connecting to the Redis server; defaults to the
                 value of the PREFECT_RECORD_STORE_REDIS_SSL setting if not provided
         """
-        self.host = host or PREFECT_RECORD_STORE_REDIS_HOST.value()
-        self.port = port or PREFECT_RECORD_STORE_REDIS_PORT.value()
-        self.db = db or PREFECT_RECORD_STORE_REDIS_DB.value()
-        self.username = username or PREFECT_RECORD_STORE_REDIS_USERNAME.value()
-        self.password = password or PREFECT_RECORD_STORE_REDIS_PASSWORD.value()
-        self.ssl = ssl or PREFECT_RECORD_STORE_REDIS_SSL.value()
+        self.host = host
+        self.port = port
+        self.db = db
+        self.username = username
+        self.password = password
+        self.ssl = ssl
         self.client = Redis(
             host=self.host,
             port=self.port,

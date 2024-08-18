@@ -1495,53 +1495,20 @@ PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 
 # Record store settings ----------------------------------------------------------------
 
-PREFECT_RECORD_STORE_REDIS_HOST = Setting(
-    str,
-    default="localhost",
-)
-"""
-The host address of the Redis server to use as the record store.
-"""
 
-PREFECT_RECORD_STORE_REDIS_PORT = Setting(
-    int,
-    default=6379,
-)
-"""
-The port of the Redis server to use as the record store.
-"""
+class RecordStoreConfig(BaseModel):
+    fully_qualified_name: str = Field(
+        default="prefect.records.result_store.ResultFactoryStore"
+    )
+    init_kwargs: Dict[str, Any] = Field(default_factory=dict)
 
-PREFECT_RECORD_STORE_REDIS_DB = Setting(
-    int,
-    default=0,
-)
-"""
-The Redis database index to use as the record store.
-"""
 
-PREFECT_RECORD_STORE_REDIS_USERNAME = Setting(
-    Optional[str],
-    default=None,
+PREFECT_DEFAULT_RECORD_STORE = Setting(
+    RecordStoreConfig,
+    default_factory=RecordStoreConfig,
 )
 """
-The username to use when connecting to the Redis server used as the record store.
-"""
-
-PREFECT_RECORD_STORE_REDIS_PASSWORD = Setting(
-    Optional[str],
-    default=None,
-    is_secret=True,
-)
-"""
-The password to use when connecting to the Redis server used as the record store.
-"""
-
-PREFECT_RECORD_STORE_REDIS_SSL = Setting(
-    bool,
-    default=False,
-)
-"""
-Whether or not to use SSL when connecting to the Redis server used as the record store.
+The record store configuration to use for storing transaction records.
 """
 
 # Defaults -----------------------------------------------------------------------------

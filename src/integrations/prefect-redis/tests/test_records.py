@@ -8,15 +8,11 @@ import pytest
 from prefect_redis.records import RedisRecordStore
 
 from prefect.filesystems import LocalFileSystem
+from prefect.records.base import get_default_record_store
 from prefect.results import ResultFactory
 from prefect.settings import (
+    PREFECT_DEFAULT_RECORD_STORE,
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
-    PREFECT_RECORD_STORE_REDIS_DB,
-    PREFECT_RECORD_STORE_REDIS_HOST,
-    PREFECT_RECORD_STORE_REDIS_PASSWORD,
-    PREFECT_RECORD_STORE_REDIS_PORT,
-    PREFECT_RECORD_STORE_REDIS_SSL,
-    PREFECT_RECORD_STORE_REDIS_USERNAME,
     temporary_settings,
 )
 from prefect.transactions import IsolationLevel
@@ -46,31 +42,21 @@ class TestRedisRecordStore:
     def store(self):
         return RedisRecordStore()
 
-    def test_init_respects_settings(self, store):
-        assert store.host == PREFECT_RECORD_STORE_REDIS_HOST.value()
-        assert store.port == PREFECT_RECORD_STORE_REDIS_PORT.value()
-        assert store.db == PREFECT_RECORD_STORE_REDIS_DB.value()
-        assert store.username == PREFECT_RECORD_STORE_REDIS_USERNAME.value()
-        assert store.password == PREFECT_RECORD_STORE_REDIS_PASSWORD.value()
-        assert store.ssl == PREFECT_RECORD_STORE_REDIS_SSL.value()
-
-        with temporary_settings(
-            {
-                PREFECT_RECORD_STORE_REDIS_HOST: "new-host",
-                PREFECT_RECORD_STORE_REDIS_PORT: 1234,
-                PREFECT_RECORD_STORE_REDIS_DB: 1,
-                PREFECT_RECORD_STORE_REDIS_USERNAME: "new-username",
-                PREFECT_RECORD_STORE_REDIS_PASSWORD: "new-password",
-                PREFECT_RECORD_STORE_REDIS_SSL: True,
-            }
-        ):
-            store = RedisRecordStore()
-            assert store.host == "new-host"
-            assert store.port == 1234
-            assert store.db == 1
-            assert store.username == "new-username"
-            assert store.password == "new-password"
-            assert store.ssl
+    def test_init(self):
+        store = RedisRecordStore(
+            host="host",
+            port=123,
+            db=1,
+            username="username",
+            password="password",
+            ssl=True,
+        )
+        assert store.host == "host"
+        assert store.port == 123
+        assert store.db == 1
+        assert store.username == "username"
+        assert store.password == "password"
+        assert store.ssl
 
     def test_read_write(self, store, result):
         key = str(uuid4())
@@ -236,3 +222,28 @@ class TestRedisRecordStore:
         assert store.supports_isolation_level(IsolationLevel.READ_COMMITTED)
         assert store.supports_isolation_level(IsolationLevel.SERIALIZABLE)
         assert not store.supports_isolation_level("UNKNOWN")
+
+    def test_works_as_default_record_store(self):
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RECORD_STORE: {
+                    "fully_qualified_name": "prefect_redis.records.RedisRecordStore",
+                    "init_kwargs": {
+                        "host": "host",
+                        "port": 123,
+                        "db": 1,
+                        "username": "username",
+                        "password": "password",
+                        "ssl": True,
+                    },
+                }
+            }
+        ):
+            store: RedisRecordStore = get_default_record_store()
+            assert isinstance(store, RedisRecordStore)
+            assert store.host == "host"
+            assert store.port == 123
+            assert store.db == 1
+            assert store.username == "username"
+            assert store.password == "password"
+            assert store.ssl
