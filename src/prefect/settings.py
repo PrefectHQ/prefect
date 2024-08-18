@@ -1866,8 +1866,7 @@ class Settings(SettingsFieldsMixin):
             if value is not None:
                 if isinstance(value, dict):
                     value = json.dumps(value)
-                else:
-                    cast_env[key] = str(value)
+                cast_env[key] = str(value)
         return cast_env
 
     model_config = ConfigDict(frozen=True)
