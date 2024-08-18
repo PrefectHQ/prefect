@@ -40,6 +40,7 @@ dependent on the value of other settings or perform other dynamic effects.
 
 """
 
+import json
 import logging
 import os
 import re
@@ -1860,7 +1861,14 @@ class Settings(SettingsFieldsMixin):
         )
 
         # Cast to strings and drop null values
-        return {key: str(value) for key, value in env.items() if value is not None}
+        cast_env = {}
+        for key, value in env.items():
+            if value is not None:
+                if isinstance(value, dict):
+                    value = json.dumps(value)
+                else:
+                    cast_env[key] = str(value)
+        return cast_env
 
     model_config = ConfigDict(frozen=True)
 
