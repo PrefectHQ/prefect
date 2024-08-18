@@ -805,7 +805,6 @@ class Task(Generic[P, R]):
 
     async def create_local_run(
         self,
-        client: Optional["PrefectClient"],
         id: Optional[UUID] = None,
         parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
@@ -850,7 +849,7 @@ class Task(Generic[P, R]):
             # TODO: Improve use of result storage for parameter storage / reference
             self.persist_result = True
 
-            factory = await ResultFactory.from_autonomous_task(self, client=client)
+            factory = await ResultFactory.from_autonomous_task(self)
             context = serialize_context()
             data: Dict[str, Any] = {"context": context}
             if parameters:

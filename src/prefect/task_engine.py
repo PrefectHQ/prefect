@@ -625,7 +625,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     if not self.task_run:
                         self.task_run = run_coro_as_sync(
                             self.task.create_local_run(
-                                client=self._client,
                                 id=task_run_id,
                                 parameters=self.parameters,
                                 flow_run_context=FlowRunContext.get(),
@@ -1121,7 +1120,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 try:
                     if not self.task_run:
                         self.task_run = await self.task.create_local_run(
-                            client=self._client,
                             id=task_run_id,
                             parameters=self.parameters,
                             flow_run_context=FlowRunContext.get(),
