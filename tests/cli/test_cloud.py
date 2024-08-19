@@ -1670,6 +1670,28 @@ def test_open_current_workspace_in_browser_failure_no_workspace_set(respx_mock):
         )
 
 
+@pytest.fixture
+def workspace_with_logged_in_profile():
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    profile_name = "logged-in-profile"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=profile_name,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    return foo_workspace, profile_name
+
+
 example_allowlist = IPAllowlist(
     entries=[
         IPAllowlistEntry(
@@ -1697,24 +1719,11 @@ example_allowlist = IPAllowlist(
 )
 
 
-def test_ip_allowlist_ls(respx_mock):
-    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
-    save_profiles(
-        ProfilesCollection(
-            [
-                Profile(
-                    name="logged-in-profile",
-                    settings={
-                        PREFECT_API_URL: foo_workspace.api_url(),
-                        PREFECT_API_KEY: "foo",
-                    },
-                )
-            ],
-            active=None,
-        )
+def test_ip_allowlist_ls(respx_mock, workspace_with_logged_in_profile):
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-
-    url = f"{PREFECT_CLOUD_API_URL.value()}/accounts/{foo_workspace.account_id}/ip_allowlist"
     respx_mock.get(url).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
@@ -1724,7 +1733,7 @@ def test_ip_allowlist_ls(respx_mock):
 
     every_expected_entry_ip = [entry.ip_network for entry in example_allowlist.entries]
 
-    with use_profile("logged-in-profile"):
+    with use_profile(profile):
         invoke_and_assert(
             ["cloud", "ip-allowlist", "ls"],
             expected_code=0,
@@ -1733,24 +1742,13 @@ def test_ip_allowlist_ls(respx_mock):
 
 
 @pytest.mark.parametrize("description", [None, "some short description"])
-def test_ip_allowlist_add(description: Optional[str], respx_mock):
-    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
-    save_profiles(
-        ProfilesCollection(
-            [
-                Profile(
-                    name="logged-in-profile",
-                    settings={
-                        PREFECT_API_URL: foo_workspace.api_url(),
-                        PREFECT_API_KEY: "foo",
-                    },
-                )
-            ],
-            active=None,
-        )
+def test_ip_allowlist_add(
+    description: Optional[str], workspace_with_logged_in_profile, respx_mock
+):
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     )
-
-    url = f"{PREFECT_CLOUD_API_URL.value()}/accounts/{foo_workspace.account_id}/ip_allowlist"
     respx_mock.get(url).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
@@ -1762,7 +1760,7 @@ def test_ip_allowlist_add(description: Optional[str], respx_mock):
         return_value=httpx.Response(status.HTTP_200_OK, json={})
     )
 
-    with use_profile("logged-in-profile"):
+    with use_profile(profile):
         invoke_and_assert(
             ["cloud", "ip-allowlist", "add", "192.188.1.5"]
             + (["-d", description] if description else []),
@@ -1780,3 +1778,35 @@ def test_ip_allowlist_add(description: Optional[str], respx_mock):
             ip_network="192.188.1.5", enabled=True, description=description
         )
     ]
+
+
+def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
+    )
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=example_allowlist.model_dump(),
+        )
+    )
+
+    mocked_patch = respx_mock.patch(url).mock(
+        return_value=httpx.Response(status.HTTP_200_OK, json={})
+    )
+
+    entry_to_remove = example_allowlist.entries[0]
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "remove", entry_to_remove.ip_network],
+            expected_code=0,
+        )
+
+    intercepted_request = IPAllowlist.model_validate_json(
+        mocked_patch.calls[-1].request.content
+    )
+
+    assert entry_to_remove.ip_network not in (
+        entry.ip_network for entry in intercepted_request.entries
+    )

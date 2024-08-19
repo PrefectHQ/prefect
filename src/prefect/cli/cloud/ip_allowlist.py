@@ -1,3 +1,4 @@
+import ipaddress
 from typing import Optional
 
 import typer
@@ -17,9 +18,7 @@ cloud_app.add_typer(ip_allowlist_app, aliases=["ip-allowlists"])
 
 @ip_allowlist_app.command()
 async def ls():
-    """
-    Fetch and list all IP allowlist entries in your account.
-    """
+    """Fetch and list all IP allowlist entries in your account."""
     confirm_logged_in()
 
     async with get_cloud_client() as client:
@@ -38,9 +37,7 @@ async def add(
         help="A short description to annotate the entry with.",
     ),
 ):
-    """
-    Add a new IP allowlist entry to your account.
-    """
+    """Add a new IP entry to your account IP allowlist."""
     confirm_logged_in()
 
     new_entry = IPAllowlistEntry(
@@ -50,6 +47,25 @@ async def add(
     async with get_cloud_client() as client:
         ip_allowlist = await client.read_account_ip_allowlist()
         ip_allowlist.entries.append(new_entry)
+        await client.update_account_ip_allowlist(ip_allowlist)
+
+        updated_ip_allowlist = await client.read_account_ip_allowlist()
+        _print_ip_allowlist_table(updated_ip_allowlist)
+
+
+@ip_allowlist_app.command()
+async def remove(ip_network: str):
+    """Remove an IP entry from your account IP allowlist."""
+    confirm_logged_in()
+
+    async with get_cloud_client() as client:
+        ip_allowlist = await client.read_account_ip_allowlist()
+        ip_allowlist.entries = [
+            entry
+            for entry in ip_allowlist.entries
+            if ipaddress.ip_network(entry.ip_network)
+            != ipaddress.ip_network(ip_network)
+        ]
         await client.update_account_ip_allowlist(ip_allowlist)
 
         updated_ip_allowlist = await client.read_account_ip_allowlist()
