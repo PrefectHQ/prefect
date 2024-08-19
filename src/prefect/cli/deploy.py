@@ -240,10 +240,7 @@ async def deploy(
         None,
         "-cl",
         "--concurrency-limit",
-        help=(
-            "The maximum number of concurrent runs for this"
-            " deployment."
-        ),
+        help=("The maximum number of concurrent runs for this deployment."),
     ),
     work_pool_name: str = SettingsOption(
         PREFECT_DEFAULT_WORK_POOL_NAME,
