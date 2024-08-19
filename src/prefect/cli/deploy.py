@@ -241,7 +241,7 @@ async def deploy(
         "-cl",
         "--concurrency-limit",
         help=(
-            "The maximum number of runs that can be executed concurrently by this"
+            "The maximum number of concurrent runs for this"
             " deployment."
         ),
     ),
