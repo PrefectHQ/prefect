@@ -4710,7 +4710,10 @@ class TestSaveUserInputs:
         assert len(config["deployments"]) == 2
         assert config["deployments"][1]["name"] == new_deployment["name"]
         assert config["deployments"][1]["entrypoint"] == new_deployment["entrypoint"]
-        assert config["deployments"][1]["concurrency_limit"] == 42
+        assert (
+            config["deployments"][1]["concurrency_limit"]
+            == new_deployment["concurrency_limit"]
+        )
         assert (
             config["deployments"][1]["work_pool"]["name"]
             == new_deployment["work_pool"]["name"]
