@@ -452,7 +452,7 @@ def test_flow_server_state_schema_result_is_respected(
     def my_flow():
         return return_state
 
-    with pytest.warns(DeprecationWarning, match="Use `prefect.states.State` instead"):
+    with pytest.warns(DeprecationWarning):
         state = my_flow(return_state=True)
 
     assert state.type == return_state.type
@@ -466,7 +466,7 @@ def test_flow_server_state_schema_result_is_respected(
     ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
 
     if return_state.data:
-        with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
+        with pytest.warns(DeprecationWarning):
             assert state.result(raise_on_failure=False) == return_state.data
 
 

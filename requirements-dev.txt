@@ -1,7 +1,6 @@
 ruff
 cairosvg
 codespell>=2.2.6
-ddtrace
 # Pin IPython to 8.12 when building on Python 3.8
 # https://github.com/ipython/ipython/blob/main/README.rst
 ipython == 8.12.*; python_version == '3.8'
@@ -19,7 +18,7 @@ numpy
 pillow
 pre-commit
 pluggy >= 1.4.0
-pytest > 7, < 8 # Datadog's ddtrace does not support pytest 8 yet. See https://github.com/DataDog/dd-trace-py/issues/8220
+pytest > 7, < 9 
 pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0 # Cannot override event loop in 0.23.0. See https://github.com/pytest-dev/pytest-asyncio/issues/706 for more details.
 pytest-cov
 pytest-benchmark
@@ -29,7 +28,6 @@ pytest-timeout
 pytest-xdist < 3.4.0 # 3.5.0 introduces some flakiness. Need to investigate and resolve.
 pytkdocs >= 0.14.2
 pyyaml
-requests<2.32.0  # `requests` renamed `get_connection` to `_get_connection`, which is a method docker-py monkeypatches. See https://github.com/docker/docker-py/issues/3256 Should be able to un-pin when docker-py hotfix is out.
 setuptools != 60.9.0; python_version < '3.8'
 vermin
 virtualenv
