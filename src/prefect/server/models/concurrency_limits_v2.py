@@ -348,7 +348,7 @@ def increment_limit_holder(
     *concurrency_limit_ids: UUID,
 ) -> None:
     """
-    Increment the active slots of the given user for the given concurrency
+    Increment the active slots of the given holder of the given concurrency
     limits.
 
     Args:
@@ -368,7 +368,7 @@ def decrement_limit_holder(
     *concurrency_limit_ids: UUID,
 ) -> None:
     """
-    Decrement the active slots of the given holder for the given concurrency
+    Decrement the active slots of the given holder of the given concurrency
     limits.
 
     If `holder` does not match an existing holder, but only slots with holders
