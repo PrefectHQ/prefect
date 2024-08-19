@@ -49,6 +49,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED,
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_API_URL,
     PREFECT_ASYNC_FETCH_STATE_RESULT,
@@ -335,6 +336,8 @@ def pytest_sessionstart(session):
             # lock the DB during tests while writing events
             PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
             PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
+            # Disable the task run recorder service
+            PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED: False,
         },
         source=__file__,
     )

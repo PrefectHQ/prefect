@@ -21,6 +21,7 @@ from .schemas.events import RelatedResource
 
 if TYPE_CHECKING:
     from prefect._internal.schemas.bases import ObjectBaseModel
+    from prefect.client.orchestration import PrefectClient
 
 ResourceCacheEntry = Dict[str, Union[str, "ObjectBaseModel", None]]
 RelatedResourceCache = Dict[str, Tuple[ResourceCacheEntry, DateTime]]
@@ -54,9 +55,9 @@ def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedReso
 
 
 async def related_resources_from_run_context(
+    client: "PrefectClient",
     exclude: Optional[Set[str]] = None,
 ) -> List[RelatedResource]:
-    from prefect.client.orchestration import get_client
     from prefect.client.schemas.objects import FlowRun
     from prefect.context import FlowRunContext, TaskRunContext
 
@@ -77,86 +78,84 @@ async def related_resources_from_run_context(
 
     related_objects: List[ResourceCacheEntry] = []
 
-    async with get_client() as client:
+    async def dummy_read():
+        return {}
 
-        async def dummy_read():
-            return {}
-
-        if flow_run_context:
-            related_objects.append(
-                {
-                    "kind": "flow-run",
-                    "role": "flow-run",
-                    "object": flow_run_context.flow_run,
-                },
+    if flow_run_context:
+        related_objects.append(
+            {
+                "kind": "flow-run",
+                "role": "flow-run",
+                "object": flow_run_context.flow_run,
+            },
+        )
+    else:
+        related_objects.append(
+            await _get_and_cache_related_object(
+                kind="flow-run",
+                role="flow-run",
+                client_method=client.read_flow_run,
+                obj_id=flow_run_id,
+                cache=RESOURCE_CACHE,
             )
-        else:
-            related_objects.append(
-                await _get_and_cache_related_object(
-                    kind="flow-run",
-                    role="flow-run",
-                    client_method=client.read_flow_run,
-                    obj_id=flow_run_id,
+        )
+
+    if task_run_context:
+        related_objects.append(
+            {
+                "kind": "task-run",
+                "role": "task-run",
+                "object": task_run_context.task_run,
+            },
+        )
+
+    flow_run = related_objects[0]["object"]
+
+    if isinstance(flow_run, FlowRun):
+        related_objects += list(
+            await asyncio.gather(
+                _get_and_cache_related_object(
+                    kind="flow",
+                    role="flow",
+                    client_method=client.read_flow,
+                    obj_id=flow_run.flow_id,
                     cache=RESOURCE_CACHE,
-                )
-            )
-
-        if task_run_context:
-            related_objects.append(
-                {
-                    "kind": "task-run",
-                    "role": "task-run",
-                    "object": task_run_context.task_run,
-                },
-            )
-
-        flow_run = related_objects[0]["object"]
-
-        if isinstance(flow_run, FlowRun):
-            related_objects += list(
-                await asyncio.gather(
+                ),
+                (
                     _get_and_cache_related_object(
-                        kind="flow",
-                        role="flow",
-                        client_method=client.read_flow,
-                        obj_id=flow_run.flow_id,
+                        kind="deployment",
+                        role="deployment",
+                        client_method=client.read_deployment,
+                        obj_id=flow_run.deployment_id,
                         cache=RESOURCE_CACHE,
-                    ),
-                    (
-                        _get_and_cache_related_object(
-                            kind="deployment",
-                            role="deployment",
-                            client_method=client.read_deployment,
-                            obj_id=flow_run.deployment_id,
-                            cache=RESOURCE_CACHE,
-                        )
-                        if flow_run.deployment_id
-                        else dummy_read()
-                    ),
-                    (
-                        _get_and_cache_related_object(
-                            kind="work-queue",
-                            role="work-queue",
-                            client_method=client.read_work_queue,
-                            obj_id=flow_run.work_queue_id,
-                            cache=RESOURCE_CACHE,
-                        )
-                        if flow_run.work_queue_id
-                        else dummy_read()
-                    ),
-                    (
-                        _get_and_cache_related_object(
-                            kind="work-pool",
-                            role="work-pool",
-                            client_method=client.read_work_pool,
-                            obj_id=flow_run.work_pool_name,
-                            cache=RESOURCE_CACHE,
-                        )
-                        if flow_run.work_pool_name
-                        else dummy_read()
-                    ),
-                )
+                    )
+                    if flow_run.deployment_id
+                    else dummy_read()
+                ),
+                (
+                    _get_and_cache_related_object(
+                        kind="work-queue",
+                        role="work-queue",
+                        client_method=client.read_work_queue,
+                        obj_id=flow_run.work_queue_id,
+                        cache=RESOURCE_CACHE,
+                    )
+                    if flow_run.work_queue_id
+                    else dummy_read()
+                ),
+                (
+                    _get_and_cache_related_object(
+                        kind="work-pool",
+                        role="work-pool",
+                        client_method=client.read_work_pool,
+                        obj_id=flow_run.work_pool_name,
+                        cache=RESOURCE_CACHE,
+                    )
+                    if flow_run.work_pool_name
+                    else dummy_read()
+                ),
             )
+        )
 
     related = []
     tags = set()
