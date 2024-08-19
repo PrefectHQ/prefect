@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 import prefect
-from prefect.server.events.actions import ActionTypes
-from prefect.server.events.schemas.automations import Firing, TriggerTypes
+from prefect.server.events.actions import ServerActionTypes
+from prefect.server.events.schemas.automations import Firing, ServerTriggerTypes
 from prefect.server.events.schemas.events import ReceivedEvent
 
 # revision identifiers, used by Alembic.
@@ -31,23 +31,23 @@ def upgrade():
         sa.Column("enabled", sa.Boolean(), server_default="1", nullable=False),
         sa.Column(
             "trigger",
-            prefect.server.utilities.database.Pydantic(TriggerTypes),
+            prefect.server.utilities.database.Pydantic(ServerTriggerTypes),
             nullable=False,
         ),
         sa.Column(
             "actions",
-            prefect.server.utilities.database.Pydantic(List[ActionTypes]),
+            prefect.server.utilities.database.Pydantic(List[ServerActionTypes]),
             nullable=False,
         ),
         sa.Column(
             "actions_on_trigger",
-            prefect.server.utilities.database.Pydantic(List[ActionTypes]),
+            prefect.server.utilities.database.Pydantic(List[ServerActionTypes]),
             server_default="[]",
             nullable=False,
         ),
         sa.Column(
             "actions_on_resolve",
-            prefect.server.utilities.database.Pydantic(List[ActionTypes]),
+            prefect.server.utilities.database.Pydantic(List[ServerActionTypes]),
             server_default="[]",
             nullable=False,
         ),

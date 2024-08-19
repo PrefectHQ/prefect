@@ -398,7 +398,7 @@ async def test_migrating_to_templates():
     assert isinstance(action.payload, str)
     assert action.payload == '{\n  "message": "hello world"\n}'
 
-    actions_adapter = TypeAdapter(actions.ActionTypes)
+    actions_adapter = TypeAdapter(actions.ServerActionTypes)
 
     # The form it will be when read from the database
     action = actions_adapter.validate_python(
