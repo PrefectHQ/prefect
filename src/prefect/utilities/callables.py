@@ -12,9 +12,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
 import pydantic
-from griffe.dataclasses import Docstring
-from griffe.docstrings.dataclasses import DocstringSectionKind
-from griffe.docstrings.parsers import Parser, parse
+from griffe import Docstring, DocstringSectionKind, Parser, parse
 from typing_extensions import Literal
 
 from prefect._internal.pydantic.v1_schema import has_v1_type_as_param
