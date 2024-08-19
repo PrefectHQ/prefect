@@ -1269,49 +1269,6 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert umbrella_block_schema is not None
 
-    async def test_register_nested_block_union_type(self, prefect_client: PrefectClient):
-        class A(Block):
-            a: str
-
-        class B(Block):
-            b: str
-
-        class C(Block):
-            c: str
-
-        class Umbrella(Block):
-            a_b_or_c: A | B | C
-
-        await Umbrella.register_type_and_schema()
-
-        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
-        assert a_block_type is not None
-        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
-        assert b_block_type is not None
-        c_block_type = await prefect_client.read_block_type_by_slug(slug="c")
-        assert c_block_type is not None
-        umbrella_block_type = await prefect_client.read_block_type_by_slug(
-            slug="umbrella"
-        )
-        assert umbrella_block_type is not None
-
-        a_block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=A._calculate_schema_checksum()
-        )
-        assert a_block_schema is not None
-        b_block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=B._calculate_schema_checksum()
-        )
-        assert b_block_schema is not None
-        c_block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=C._calculate_schema_checksum()
-        )
-        assert c_block_schema is not None
-        umbrella_block_schema = await prefect_client.read_block_schema_by_checksum(
-            checksum=Umbrella._calculate_schema_checksum()
-        )
-        assert umbrella_block_schema is not None
-
     async def test_register_nested_block_list(self, prefect_client: PrefectClient):
         class A(Block):
             a: str

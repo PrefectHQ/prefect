@@ -7,7 +7,6 @@ import warnings
 from abc import ABC
 from functools import partial
 from textwrap import dedent
-from types import UnionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1070,7 +1069,7 @@ class Block(BaseModel, ABC):
             """Walk through the annotation and register any nested blocks."""
             if Block.is_block_class(annotation):
                 await annotation.register_type_and_schema(client=client)
-            elif get_origin(annotation) in (Union, UnionType, tuple, list, dict):
+            elif get_origin(annotation) in (Union, tuple, list, dict):
                 for inner_annotation in get_args(annotation):
                     await register_blocks_in_annotation(inner_annotation)
 
