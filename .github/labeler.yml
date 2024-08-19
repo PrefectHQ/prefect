@@ -1,3 +1,13 @@
 migration:
   - changed-files:
       - any-glob-to-any-file: src/**/migrations/**/*.py
+
+upstream dependency:
+  - changed-files:
+      - any-glob-to-any-file: 
+        - requirements.txt
+        - requirements-client.txt
+        - requirements-dev.txt
+
+2.x:
+  - base-branch: '2.x'
