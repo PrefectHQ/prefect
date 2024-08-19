@@ -58,7 +58,7 @@ async def test_from_credentials(redis_credentials: RedisCredentials):
     client = redis_credentials.get_client()
     await client.ping()
 
-    await client.close()
+    await client.aclose()
 
 
 @pytest.mark.asyncio
@@ -71,7 +71,7 @@ async def test_from_connection_string(environ_credentials: Dict):
     client = redis_credentials.get_client()
     await client.ping()
 
-    await client.close()
+    await client.aclose()
 
 
 @pytest.mark.asyncio
