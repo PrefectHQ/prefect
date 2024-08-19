@@ -5,7 +5,6 @@ from uuid import UUID
 import anyio
 import pendulum
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
@@ -24,11 +23,6 @@ logger = get_logger(__name__)
 
 
 @sync_compatible
-@deprecated_parameter(
-    "infra_overrides",
-    start_date="Apr 2024",
-    help="Use `job_variables` instead.",
-)
 @inject_client
 async def run_deployment(
     name: Union[str, UUID],
@@ -42,7 +36,6 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
-    infra_overrides: Optional[dict] = None,
     job_variables: Optional[dict] = None,
 ) -> "FlowRun":
     """
