@@ -276,7 +276,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool -cl 42 --version"
                 " 1.0.0 -v env=prod -t foo-bar"
             ),
             expected_code=0,
@@ -294,6 +294,7 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
+        assert deployment.concurrency_limit == 42
         assert deployment.enforce_parameter_schema
 
     async def test_deploy_with_wrapped_flow_decorator(
