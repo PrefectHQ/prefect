@@ -16872,6 +16872,19 @@
                         "title": "Schedules",
                         "description": "A list of schedules for the deployment."
                     },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit",
+                        "description": "The deployment's concurrency limit."
+                    },
                     "parameters": {
                         "anyOf": [
                             {
