@@ -1,9 +1,13 @@
+from typing import Optional
+
+import typer
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli.cloud import cloud_app, confirm_logged_in
 from prefect.cli.root import app
 from prefect.client.cloud import get_cloud_client
+from prefect.client.schemas.objects import IPAllowlist, IPAllowlistEntry
 
 ip_allowlist_app = PrefectTyper(
     name="ip-allowlist", help="Manage Prefect Cloud IP Allowlists"
@@ -21,20 +25,49 @@ async def ls():
     async with get_cloud_client() as client:
         ip_allowlist = await client.read_account_ip_allowlist()
 
-        table = Table(title="IP Allowlist")
+        _print_ip_allowlist_table(ip_allowlist)
 
-        table.add_column("IP Address", style="cyan", no_wrap=True)
-        table.add_column("Description", style="blue", no_wrap=False)
-        table.add_column("Enabled", style="green", justify="right", no_wrap=True)
-        table.add_column("Last Seen", style="magenta", justify="right", no_wrap=True)
 
-        for entry in ip_allowlist.entries:
-            table.add_row(
-                entry.ip_network,
-                entry.description,
-                str(entry.enabled),
-                entry.last_seen or "Never",
-                style="dim" if not entry.enabled else None,
-            )
+@ip_allowlist_app.command()
+async def add(
+    ip_network: str,
+    description: Optional[str] = typer.Option(
+        None, help="A short description to annotate the entry with."
+    ),
+):
+    """
+    Add a new IP allowlist entry to your account.
+    """
+    confirm_logged_in()
 
-        app.console.print(table)
+    new_entry = IPAllowlistEntry(
+        ip_network=ip_network, description=description, enabled=True
+    )
+
+    async with get_cloud_client() as client:
+        ip_allowlist = await client.read_account_ip_allowlist()
+        ip_allowlist.entries.append(new_entry)
+        await client.update_account_ip_allowlist(ip_allowlist)
+
+        updated_ip_allowlist = await client.read_account_ip_allowlist()
+        _print_ip_allowlist_table(updated_ip_allowlist)
+
+
+def _print_ip_allowlist_table(ip_allowlist: IPAllowlist):
+    table = Table(title="IP Allowlist")
+
+    table.add_column("IP Address", style="cyan", no_wrap=True)
+    table.add_column("Description", style="blue", no_wrap=False)
+    table.add_column("Enabled", style="green", justify="right", no_wrap=True)
+    table.add_column("Last Seen", style="magenta", justify="right", no_wrap=True)
+
+    for entry in ip_allowlist.entries:
+        table.add_row(
+            entry.ip_network,
+            entry.description,
+            str(entry.enabled),
+            entry.last_seen or "Never",
+            style="dim" if not entry.enabled else None,
+        )
+
+    app.console.print(table)

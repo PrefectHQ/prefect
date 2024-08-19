@@ -852,7 +852,10 @@ class IPAllowlistEntry(PrefectBaseModel):
     ip_network: str
     description: Optional[str]
     enabled: bool
-    last_seen: Optional[str]
+    last_seen: Optional[str] = Field(
+        default=None,
+        description="The last time this IP was seen accessing Prefect Cloud.",
+    )
 
 
 class IPAllowlist(PrefectBaseModel):

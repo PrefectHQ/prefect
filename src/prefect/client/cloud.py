@@ -101,6 +101,17 @@ class CloudClient:
         response = await self.get(os.path.join(account_base_url, "ip_allowlist"))
         return IPAllowlist.model_validate(response)
 
+    async def update_account_ip_allowlist(self, updated_allowlist: IPAllowlist):
+        account_base_url = prefect.settings.PREFECT_API_URL.value().split(
+            "/workspaces"
+        )[0]
+
+        await self.request(
+            "PATCH",
+            os.path.join(account_base_url, "ip_allowlist"),
+            json=updated_allowlist.model_dump(),
+        )
+
     async def __aenter__(self):
         await self._client.__aenter__()
         return self
