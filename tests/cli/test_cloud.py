@@ -1,6 +1,7 @@
 import sys
 import urllib.parse
 import uuid
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import httpx
@@ -11,6 +12,7 @@ from typer import Exit
 
 from prefect.cli.cloud import LoginFailed, LoginSuccess
 from prefect.client.schemas import Workspace
+from prefect.client.schemas.objects import IPAllowlist, IPAllowlistEntry
 from prefect.context import get_settings_context, use_profile
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
@@ -1667,7 +1669,34 @@ def test_open_current_workspace_in_browser_failure_no_workspace_set(respx_mock):
         )
 
 
-def test_list_ip_allowlist(respx_mock):
+example_allowlist = IPAllowlist(
+    entries=[
+        IPAllowlistEntry(
+            ip_network="192.168.1.1",
+            enabled=True,
+            description="Perimeter81 Gateway",
+            last_seen=str(datetime(2024, 8, 13, 16)),
+        ),
+        IPAllowlistEntry(
+            ip_network="192.168.1.0/24",
+            enabled=True,
+            description="CIDR block for 192.168.0.0 to 192.168.1.255",
+        ),
+        IPAllowlistEntry(
+            ip_network="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+            enabled=False,
+            description="An IPv6 address",
+        ),
+        IPAllowlistEntry(
+            ip_network="2001:0db8:85a3::/64",
+            enabled=True,
+            description="An IPv6 CIDR block",
+        ),
+    ]
+)
+
+
+def test_ip_allowlist_ls(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     save_profiles(
         ProfilesCollection(
@@ -1684,44 +1713,15 @@ def test_list_ip_allowlist(respx_mock):
         )
     )
 
-    expected_ip_allowlist_entries = [
-        {
-            "ip_network": "192.168.1.1",
-            "enabled": True,
-            "description": "Perimeter81 Gateway",
-            "last_seen": "2024-08-13T16:22:01",
-        },
-        {
-            "ip_network": "192.168.1.0/24",
-            "enabled": True,
-            "description": "CIDR block for 192.168.0.0 to 192.168.1.255",
-            "last_seen": None,
-        },
-        {
-            "ip_network": "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
-            "enabled": False,
-            "description": "An IPv6 address",
-            "last_seen": None,
-        },
-        {
-            "ip_network": "2001:0db8:85a3::/64",
-            "enabled": True,
-            "description": "An IPv6 CIDR block",
-            "last_seen": None,
-        },
-    ]
-
     url = f"{PREFECT_CLOUD_API_URL.value()}/accounts/{foo_workspace.account_id}/ip_allowlist"
     respx_mock.get(url).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json={"entries": expected_ip_allowlist_entries},
+            json=example_allowlist.model_dump(),
         )
     )
 
-    every_expected_entry_ip = [
-        entry["ip_network"] for entry in expected_ip_allowlist_entries
-    ]
+    every_expected_entry_ip = [entry.ip_network for entry in example_allowlist.entries]
 
     with use_profile("logged-in-profile"):
         invoke_and_assert(
@@ -1729,3 +1729,49 @@ def test_list_ip_allowlist(respx_mock):
             expected_code=0,
             expected_output_contains=every_expected_entry_ip,
         )
+
+
+def test_ip_allowlist_add(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    url = f"{PREFECT_CLOUD_API_URL.value()}/accounts/{foo_workspace.account_id}/ip_allowlist"
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=example_allowlist.model_dump(),
+        )
+    )
+
+    mocked_patch = respx_mock.patch(url).mock(
+        return_value=httpx.Response(status.HTTP_200_OK, json={})
+    )
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "add", "192.188.1.5"],
+            expected_code=0,
+        )
+
+    assert mocked_patch.call_count == 1
+
+    intercepted_request = IPAllowlist.model_validate_json(
+        mocked_patch.calls[-1].request.content
+    )
+
+    assert intercepted_request.entries == example_allowlist.entries + [
+        IPAllowlistEntry(ip_network="192.188.1.5", enabled=True)
+    ]

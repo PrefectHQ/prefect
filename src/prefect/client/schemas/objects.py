@@ -850,7 +850,9 @@ class Workspace(PrefectBaseModel):
 
 class IPAllowlistEntry(PrefectBaseModel):
     ip_network: str
-    description: Optional[str]
+    description: Optional[str] = Field(
+        default=None, description="A description of the IP entry."
+    )
     enabled: bool
     last_seen: Optional[str] = Field(
         default=None,
