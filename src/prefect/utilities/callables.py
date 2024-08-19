@@ -24,9 +24,7 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-from griffe.dataclasses import Docstring
-from griffe.docstrings.dataclasses import DocstringSectionKind
-from griffe.docstrings.parsers import Parser, parse
+from griffe import Docstring, DocstringSectionKind, Parser, parse
 from typing_extensions import Literal
 
 from prefect.exceptions import (
