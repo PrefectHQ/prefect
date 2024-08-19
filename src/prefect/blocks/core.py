@@ -7,6 +7,7 @@ import warnings
 from abc import ABC
 from functools import partial
 from textwrap import dedent
+from types import UnionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1065,13 +1066,16 @@ class Block(BaseModel, ABC):
                 "subclass and not on a Block interface class directly."
             )
 
+        async def register_blocks_in_annotation(annotation: type) -> None:
+            """Walk through the annotation and register any nested blocks."""
+            if Block.is_block_class(annotation):
+                await annotation.register_type_and_schema(client=client)
+            elif get_origin(annotation) in (Union, UnionType, tuple, list, dict):
+                for inner_annotation in get_args(annotation):
+                    await register_blocks_in_annotation(inner_annotation)
+
         for field in cls.model_fields.values():
-            if Block.is_block_class(field.annotation):
-                await field.annotation.register_type_and_schema(client=client)
-            if get_origin(field.annotation) is Union:
-                for annotation in get_args(field.annotation):
-                    if Block.is_block_class(annotation):
-                        await annotation.register_type_and_schema(client=client)
+            await register_blocks_in_annotation(field.annotation)
 
         try:
             block_type = await client.read_block_type_by_slug(
