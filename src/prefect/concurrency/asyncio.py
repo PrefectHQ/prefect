@@ -80,7 +80,7 @@ async def concurrency(
         holder=holder,
     )
     acquisition_time = pendulum.now("UTC")
-    emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
+    emitted_events = _emit_concurrency_acquisition_events(limits, occupy, holder=holder)
 
     try:
         yield
