@@ -1,38 +1,20 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Prefect",
-  "logo": {
-    "light": "/logos/logo-word-black.svg",
-    "dark": "/logos/logo-word-white.svg"
-  },
-  "modeToggle": {
-    "default": "light",
-    "isHidden": false
-  },
-  "favicon": "/logos/favicon.png",
-  "colors": {
-    "primary": "#2D6DF6",
-    "light": "#5F92FF",
-    "dark": "#2D6DF6"
-  },
-  "versions": [
-    "3.0rc"
-  ],
-  "feedback": {
-    "thumbsRating": true
-  },
-  "tabs": [
+  "anchors": [
     {
-      "name": "APIs & SDK",
-      "url": "3.0rc/api-ref"
+      "icon": "github",
+      "name": "GitHub",
+      "url": "https://github.com/PrefectHQ/prefect"
     },
     {
-      "name": "Integrations",
-      "url": "integrations"
+      "icon": "slack",
+      "name": "Community",
+      "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
     },
     {
-      "name": "Contribute",
-      "url": "contribute"
+      "icon": "cloud",
+      "name": "Prefect Cloud",
+      "url": "https://app.prefect.cloud"
     }
   ],
   "api": {
@@ -40,55 +22,58 @@
       "mode": "simple"
     }
   },
-  "topbarCtaButton": {
-    "name": "TRY PREFECT CLOUD",
-    "url": "https://app.prefect.cloud/"
+  "colors": {
+    "dark": "#2D6DF6",
+    "light": "#5F92FF",
+    "primary": "#2D6DF6"
   },
-  "anchors": [
-    {
-      "name": "GitHub",
-      "icon": "github",
-      "url": "https://github.com/PrefectHQ/prefect"
-    },
-    {
-      "name": "Community",
-      "icon": "slack",
-      "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
-    },
-    {
-      "name": "Prefect.io",
-      "icon": "link",
-      "url": "https://www.prefect.io/"
-    }
-  ],
+  "favicon": "/logos/favicon.png",
+  "feedback": {
+    "thumbsRating": true
+  },
+  "footerSocials": {
+    "github": "https://github.com/PrefectHQ/prefect",
+    "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
+    "slack": "https://communityinviter.com/apps/prefect-community/prefect-community",
+    "twitter": "https://x.com/prefectio",
+    "youtube": "https://www.youtube.com/c/PrefectIO"
+  },
+  "logo": {
+    "dark": "/logos/logo-word-white.svg",
+    "light": "/logos/logo-word-black.svg"
+  },
+  "modeToggle": {
+    "default": "light",
+    "isHidden": false
+  },
+  "name": "Prefect",
   "navigation": [
     {
       "group": "Get started",
-      "version": "3.0rc",
       "pages": [
         "3.0rc/get-started/index",
+        "3.0rc/resources/whats-new-prefect-3",
         "3.0rc/get-started/install",
         "3.0rc/get-started/quickstart"
-      ]
+      ],
+      "version": "3.0rc"
     },
     {
       "group": "Develop",
-      "version": "3.0rc",
       "pages": [
         "3.0rc/develop/index",
         {
           "group": "Write and run workflows",
-          "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-flows",
             "3.0rc/develop/write-tasks",
             "3.0rc/develop/deferred-tasks",
             "3.0rc/develop/logging"
-          ]
+          ],
+          "version": "3.0rc"
         },
         {
           "group": "Configure runtime behavior",
-          "version": "3.0rc",
           "pages": [
             "3.0rc/develop/task-caching",
             "3.0rc/develop/transactions",
@@ -96,11 +81,11 @@
             "3.0rc/develop/pause-resume",
             "3.0rc/develop/inputs",
             "3.0rc/develop/runtime-context"
-          ]
+          ],
+          "version": "3.0rc"
         },
         {
           "group": "Manage state and configuration",
-          "version": "3.0rc",
           "pages": [
             "3.0rc/develop/results",
             "3.0rc/develop/manage-states",
@@ -108,29 +93,29 @@
             "3.0rc/develop/variables",
             "3.0rc/develop/blocks",
             "3.0rc/develop/interact-with-data"
-          ]
+          ],
+          "version": "3.0rc"
         },
         {
           "group": "Manage concurrency",
-          "version": "3.0rc",
           "pages": [
             "3.0rc/develop/task-runners",
             "3.0rc/develop/task-run-limits",
             "3.0rc/develop/global-concurrency-limits"
-          ]
+          ],
+          "version": "3.0rc"
         },
         "3.0rc/develop/test-workflows"
-      ]
+      ],
+      "version": "3.0rc"
     },
     {
       "group": "Deploy",
-      "version": "3.0rc",
       "pages": [
         "3.0rc/deploy/index",
         "3.0rc/deploy/run-flows-in-local-processes",
         {
           "group": "Run flows on infrastructure",
-          "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/infrastructure-concepts/work-pools",
             "3.0rc/deploy/infrastructure-concepts/workers",
@@ -138,23 +123,24 @@
             "3.0rc/deploy/infrastructure-concepts/prefect-yaml",
             "3.0rc/deploy/infrastructure-concepts/deploy-ci-cd",
             "3.0rc/deploy/infrastructure-concepts/customize"
-          ]
+          ],
+          "version": "3.0rc"
         },
         {
           "group": "Infrastructure-specific examples",
-          "version": "3.0rc",
           "pages": [
             "3.0rc/deploy/infrastructure-examples/managed",
             "3.0rc/deploy/infrastructure-examples/serverless",
             "3.0rc/deploy/infrastructure-examples/docker",
             "3.0rc/deploy/infrastructure-examples/kubernetes"
-          ]
+          ],
+          "version": "3.0rc"
         }
-      ]
+      ],
+      "version": "3.0rc"
     },
     {
       "group": "Automate",
-      "version": "3.0rc",
       "pages": [
         "3.0rc/automate/index",
         "3.0rc/automate/add-schedules",
@@ -163,23 +149,21 @@
         "3.0rc/automate/events/custom-triggers",
         "3.0rc/automate/events/webhook-triggers",
         "3.0rc/automate/incidents"
-      ]
+      ],
+      "version": "3.0rc"
     },
     {
       "group": "Cloud and Server",
-      "version": "3.0rc",
       "pages": [
         "3.0rc/manage/index",
         {
           "group": "Use Prefect Cloud",
-          "version": "3.0rc",
           "pages": [
             "3.0rc/manage/cloud/index",
             "3.0rc/manage/cloud/connect-to-cloud",
             "3.0rc/manage/cloud/workspaces",
             {
               "group": "Manage accounts",
-              "version": "3.0rc",
               "pages": [
                 "3.0rc/manage/cloud/manage-users/index",
                 "3.0rc/manage/cloud/manage-users/service-accounts",
@@ -189,23 +173,25 @@
                 "3.0rc/manage/cloud/manage-users/configure-sso",
                 "3.0rc/manage/cloud/manage-users/audit-logs",
                 "3.0rc/manage/cloud/manage-users/object-access-control-lists"
-              ]
+              ],
+              "version": "3.0rc"
             },
             "3.0rc/manage/cloud/rate-limits",
             "3.0rc/manage/cloud/terraform-provider",
             "3.0rc/manage/cloud/troubleshoot-cloud"
-          ]
+          ],
+          "version": "3.0rc"
         },
         "3.0rc/manage/self-host",
         "3.0rc/manage/settings-and-profiles",
         "3.0rc/manage/interact-with-api"
-      ]
+      ],
+      "version": "3.0rc"
     },
     {
       "group": "Resources",
-      "version": "3.0rc",
       "pages": [
-        "3.0rc/resources/upgrade-prefect-3",
+        "3.0rc/resources/upgrading-to-prefect-3",
         "3.0rc/resources/upgrade-agents-to-workers",
         "3.0rc/resources/cancel",
         "3.0rc/resources/visualize-flow-structure",
@@ -213,7 +199,8 @@
         "3.0rc/resources/big-data",
         "3.0rc/resources/cli-shell",
         "3.0rc/resources/secrets"
-      ]
+      ],
+      "version": "3.0rc"
     },
     {
       "group": "Integrations",
@@ -347,25 +334,22 @@
     },
     {
       "group": "APIs & SDK",
-      "version": "3.0rc",
       "pages": [
         "3.0rc/api-ref/index",
         "3.0rc/api-ref/python/index",
         {
           "group": "REST API",
-          "version": "3.0rc",
           "pages": [
             "3.0rc/api-ref/rest-api/index",
             {
               "group": "Cloud API",
-              "version": "3.0rc",
               "pages": [
                 "3.0rc/api-ref/rest-api/cloud/index"
-              ]
+              ],
+              "version": "3.0rc"
             },
             {
               "group": "Server API",
-              "version": "3.0rc",
               "pages": [
                 "3.0rc/api-ref/rest-api/server/index",
                 {
@@ -674,11 +658,14 @@
                     "3.0rc/api-ref/rest-api/server/admin/create-database"
                   ]
                 }
-              ]
+              ],
+              "version": "3.0rc"
             }
-          ]
+          ],
+          "version": "3.0rc"
         }
-      ]
+      ],
+      "version": "3.0rc"
     },
     {
       "group": "Contribute",
@@ -692,17 +679,31 @@
       ]
     }
   ],
-  "footerSocials": {
-    "github": "https://github.com/PrefectHQ/prefect",
-    "twitter": "https://x.com/prefectio",
-    "slack": "https://communityinviter.com/apps/prefect-community/prefect-community",
-    "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
-    "youtube": "https://www.youtube.com/c/PrefectIO"
-  },
   "redirects": [
     {
-      "source": "/latest/:slug*",
-      "destination": "/3.0rc/:slug*"
+      "destination": "/3.0rc/:slug*",
+      "source": "/latest/:slug*"
     }
+  ],
+  "tabs": [
+    {
+      "name": "APIs & SDK",
+      "url": "3.0rc/api-ref"
+    },
+    {
+      "name": "Integrations",
+      "url": "integrations"
+    },
+    {
+      "name": "Contribute",
+      "url": "contribute"
+    }
+  ],
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/PrefectHQ/Prefect"
+  },
+  "versions": [
+    "3.0rc"
   ]
 }

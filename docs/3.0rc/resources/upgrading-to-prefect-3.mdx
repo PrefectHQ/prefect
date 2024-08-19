@@ -1,0 +1,75 @@
+---
+title: Upgrading to Prefect 3
+description: Learn how to upgrade from Prefect 2 to Prefect 3.
+---
+
+Prefect 3 introduces exciting new features and improvements while maintaining compatibility with most Prefect 2 workflows. For the majority of users, upgrading to Prefect 3 will be a seamless process that requires few or no code changes. This guide highlights key changes that you may need to consider when upgrading.
+
+## Quick Start
+
+To upgrade to Prefect 3, run:
+
+```bash
+pip install prefect>=3.0.0rc1 --pre
+```
+
+Note that the `--pre` flag is required to install the release candidate until the final release is available.
+
+
+If you self-host a Prefect server, run this command to update your database:
+
+```bash
+prefect server database upgrade
+```
+
+If you use a Prefect integration or extra, remember to upgrade it as well. For example:
+
+```bash
+pip install prefect[aws]>=3.0.0rc1 --pre
+```
+
+## Upgrade Notes
+
+### Pydantic V2
+
+<info>
+This change affects you if: You use custom Pydantic models with Prefect features.
+</info>
+
+Prefect 3 is built with Pydantic 2 for improved performance. All Prefect objects will automatically upgrade, but if you use custom Pydantic models for flow parameters or custom blocks, you'll need to ensure they are compatible with Pydantic 2. You can continue to use Pydantic 1 models in your own code if they do not interact directly with Prefect.
+
+Refer to [Pydantic's migration guide](https://docs.pydantic.dev/latest/migration/) for detailed information on necessary changes.
+
+### Module Location and Name Changes
+
+Some less-commonly used modules have been renamed, reorganized, or removed for clarity. The old import paths will continue to be supported for 6 months, but emit deprecation warnings. You can look at the [deprecation code](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/compatibility/migration.py) to see a full list of affected paths.
+
+### Async Behavior
+
+<info>
+This change affects you if: you use advanced asynchronous behaviors in your flows.
+</info>
+
+Prefect 3 makes a few changes to handling async There are three key changes to be aware of:
+
+1. **Async Tasks**: In Prefect 2, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3 removes this ability to reduce complexity and potential issues. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
+
+2. **PrefectFutures**: PrefectFutures now have a synchronous interface instead of an asynchronous one.
+
+3. **Future Resolution in Flows**: In Prefect 2, futures were fire-and-forget and the flow would automatically block until they completed. In Prefect 3, you must explicitly wait for futures to complete before exiting a flow. This change ensures that all tasks are complete before the flow finishes.
+
+### Caching Behavior
+
+<info>
+This change affects you if: You rely on side effects in your tasks
+</info>
+
+Prefect 3 introduces a powerful idempotency engine. By default, tasks in a flow run are automatically cached if they are called more than once with the same inputs. If you rely on tasks with side effects, this may result in surprising behavior. To disable caching, pass `cache_policy=NONE` to your task.
+
+### Workers
+
+<info>
+This change affects you if: You're using agents from an early version of Prefect 2.
+</info>
+
+In Prefect 2, agents were deprecated in favor of next-generation workers. Workers are now standard in Prefect 3. For detailed information on upgrading from agents to workers, please refer to our [upgrade guide](https://docs-3.prefect.io/3.0rc/resources/upgrade-agents-to-workers).
