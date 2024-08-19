@@ -66,9 +66,7 @@ class TestState:
 
     def test_state_result_warns_and_uses_client_result(self):
         state = State(data=DataDocument(encoding="text", blob=b"abc"), type="COMPLETED")
-        with pytest.warns(
-            DeprecationWarning, match="data documents has been deprecated"
-        ):
+        with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
             assert state.result() == "abc"
 
 
