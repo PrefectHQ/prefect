@@ -32,7 +32,10 @@ async def ls():
 async def add(
     ip_network: str,
     description: Optional[str] = typer.Option(
-        None, help="A short description to annotate the entry with."
+        None,
+        "--description",
+        "-d",
+        help="A short description to annotate the entry with.",
     ),
 ):
     """

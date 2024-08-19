@@ -2,6 +2,7 @@ import sys
 import urllib.parse
 import uuid
 from datetime import datetime
+from typing import Optional
 from unittest.mock import MagicMock
 
 import httpx
@@ -1731,7 +1732,8 @@ def test_ip_allowlist_ls(respx_mock):
         )
 
 
-def test_ip_allowlist_add(respx_mock):
+@pytest.mark.parametrize("description", [None, "some short description"])
+def test_ip_allowlist_add(description: Optional[str], respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     save_profiles(
         ProfilesCollection(
@@ -1762,7 +1764,8 @@ def test_ip_allowlist_add(respx_mock):
 
     with use_profile("logged-in-profile"):
         invoke_and_assert(
-            ["cloud", "ip-allowlist", "add", "192.188.1.5"],
+            ["cloud", "ip-allowlist", "add", "192.188.1.5"]
+            + (["-d", description] if description else []),
             expected_code=0,
         )
 
@@ -1773,5 +1776,7 @@ def test_ip_allowlist_add(respx_mock):
     )
 
     assert intercepted_request.entries == example_allowlist.entries + [
-        IPAllowlistEntry(ip_network="192.188.1.5", enabled=True)
+        IPAllowlistEntry(
+            ip_network="192.188.1.5", enabled=True, description=description
+        )
     ]
