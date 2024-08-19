@@ -3208,7 +3208,7 @@ class PrefectClient:
         return pydantic.TypeAdapter(List[Automation]).validate_python(response.json())
 
     async def find_automation(
-        self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
+        self, id_or_name: Union[str, UUID]
     ) -> Optional[Automation]:
         if isinstance(id_or_name, str):
             try:
