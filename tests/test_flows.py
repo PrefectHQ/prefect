@@ -3823,6 +3823,7 @@ class TestFlowToDeployment:
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
+            concurrency_limit=42,
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
@@ -3844,6 +3845,7 @@ class TestFlowToDeployment:
         assert deployment.name == "test"
         assert deployment.tags == ["price", "luggage"]
         assert deployment.parameters == {"name": "Arthur"}
+        assert deployment.concurrency_limit == 42
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
@@ -4231,6 +4233,7 @@ class TestFlowDeploy:
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
+            concurrency_limit=42,
             description="This is a test",
             version="alpha",
             work_pool_name=work_pool.name,
@@ -4248,6 +4251,7 @@ class TestFlowDeploy:
                 name="test",
                 tags=["price", "luggage"],
                 parameters={"name": "Arthur"},
+                concurrency_limit=42,
                 description="This is a test",
                 version="alpha",
                 work_queue_name="line",

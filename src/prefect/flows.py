@@ -643,6 +643,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List["FlexibleScheduleList"]] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -666,6 +667,7 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
+            concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             triggers: A list of triggers that will kick off runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
@@ -718,6 +720,7 @@ class Flow(Generic[P, R]):
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
+                concurrency_limit=concurrency_limit,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -737,6 +740,7 @@ class Flow(Generic[P, R]):
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
+                concurrency_limit=concurrency_limit,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -1055,6 +1059,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        concurrency_limit: Optional[int] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -1101,6 +1106,7 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
+            concurrency_limit: The maximum number of runs that can be executed concurrently.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -1175,6 +1181,7 @@ class Flow(Generic[P, R]):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            concurrency_limit=concurrency_limit,
             paused=paused,
             triggers=triggers,
             parameters=parameters,

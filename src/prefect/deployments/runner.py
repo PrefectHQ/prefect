@@ -143,6 +143,10 @@ class RunnerDeployment(BaseModel):
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
+    concurrency_limit: Optional[int] = Field(
+        default=None,
+        description="The maximum number of concurrent runs of this deployment.",
+    )
     paused: Optional[bool] = Field(
         default=None, description="Whether or not the deployment is paused."
     )
@@ -274,6 +278,7 @@ class RunnerDeployment(BaseModel):
                 version=self.version,
                 paused=self.paused,
                 schedules=self.schedules,
+                concurrency_limit=self.concurrency_limit,
                 parameters=self.parameters,
                 description=self.description,
                 tags=self.tags,
@@ -432,6 +437,7 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -485,6 +491,7 @@ class RunnerDeployment(BaseModel):
             name=Path(name).stem,
             flow_name=flow.name,
             schedules=constructed_schedules,
+            concurrency_limit=concurrency_limit,
             paused=paused,
             tags=tags or [],
             triggers=triggers or [],
@@ -558,6 +565,7 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -614,6 +622,7 @@ class RunnerDeployment(BaseModel):
             name=Path(name).stem,
             flow_name=flow.name,
             schedules=constructed_schedules,
+            concurrency_limit=concurrency_limit,
             paused=paused,
             tags=tags or [],
             triggers=triggers or [],
@@ -646,6 +655,7 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -710,6 +720,7 @@ class RunnerDeployment(BaseModel):
             name=Path(name).stem,
             flow_name=flow.name,
             schedules=constructed_schedules,
+            concurrency_limit=concurrency_limit,
             paused=paused,
             tags=tags or [],
             triggers=triggers or [],
