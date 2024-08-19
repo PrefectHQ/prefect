@@ -80,12 +80,12 @@ async def read_all_concurrency_limits_v2(
         )
 
     limits = []
-    for limit in concurrency_limits:
+    for _limit in concurrency_limits:
         response_model = (
-            schemas.responses.GlobalConcurrencyLimitResponse.model_validate(limit)
+            schemas.responses.GlobalConcurrencyLimitResponse.model_validate(_limit)
         )
-        holders = models.concurrency_limits_v2.get_limit_holders(limit.id)
-        response_model.holders = holders.get(limit.id, None)
+        holders = models.concurrency_limits_v2.get_limit_holders(_limit.id)
+        response_model.holders = holders.get(_limit.id, [])
         limits.append(response_model)
 
     return limits
