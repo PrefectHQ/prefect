@@ -1575,7 +1575,7 @@ class ResumeAutomation(AutomationCommandAction):
 # The actual action types that we support.  It's important to update this
 # Union when adding new subclasses of Action so that they are available for clients
 # and in the OpenAPI docs
-ActionTypes: TypeAlias = Union[
+ServerActionTypes: TypeAlias = Union[
     DoNothing,
     RunDeployment,
     PauseDeployment,

@@ -27,7 +27,7 @@ from prefect.logging import get_logger
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import messaging
-from prefect.server.events.actions import ActionTypes
+from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.models.automations import (
     automations_session,
     read_automation,
@@ -306,7 +306,7 @@ async def act(firing: Firing):
     await messaging.publish(state_change_events.values())
 
     # By default, all `automation.actions` are fired
-    source_actions: List[Tuple[Optional[ReceivedEvent], ActionTypes]] = [
+    source_actions: List[Tuple[Optional[ReceivedEvent], ServerActionTypes]] = [
         (firing.triggering_event, action) for action in automation.actions
     ]
 
