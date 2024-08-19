@@ -37,6 +37,7 @@ async def concurrency(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
+    holder: Optional[str] = None,
 ) -> AsyncGenerator[None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -47,6 +48,7 @@ async def concurrency(
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
         create_if_missing: Whether to create the concurrency limits if they do not exist.
+        holder: The name of the holder that is incrementing the slots.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -75,9 +77,10 @@ async def concurrency(
         occupy,
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
+        holder=holder,
     )
     acquisition_time = pendulum.now("UTC")
-    emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
+    emitted_events = _emit_concurrency_acquisition_events(limits, occupy, holder=holder)
 
     try:
         yield
@@ -85,7 +88,7 @@ async def concurrency(
         occupancy_period = cast(Interval, (pendulum.now("UTC") - acquisition_time))
         try:
             await _release_concurrency_slots(
-                names, occupy, occupancy_period.total_seconds()
+                names, occupy, occupancy_period.total_seconds(), holder
             )
         except anyio.get_cancelled_exc_class():
             # The task was cancelled before it could release the slots. Add the
@@ -137,9 +140,10 @@ async def _acquire_concurrency_slots(
     mode: Union[Literal["concurrency"], Literal["rate_limit"]] = "concurrency",
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
+    holder: Optional[str] = None,
 ) -> List[MinimalConcurrencyLimitResponse]:
     service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
-    future = service.send((slots, mode, timeout_seconds, create_if_missing))
+    future = service.send((slots, mode, timeout_seconds, create_if_missing, holder))
     response_or_exception = await asyncio.wrap_future(future)
 
     if isinstance(response_or_exception, Exception):
@@ -156,11 +160,17 @@ async def _acquire_concurrency_slots(
 
 
 async def _release_concurrency_slots(
-    names: List[str], slots: int, occupancy_seconds: float
+    names: List[str],
+    slots: int,
+    occupancy_seconds: float,
+    holder: Optional[str],
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with get_client() as client:
         response = await client.release_concurrency_slots(
-            names=names, slots=slots, occupancy_seconds=occupancy_seconds
+            names=names,
+            slots=slots,
+            occupancy_seconds=occupancy_seconds,
+            holder=holder,
         )
         return _response_to_minimal_concurrency_limit_response(response)
 

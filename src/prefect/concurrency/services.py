@@ -36,13 +36,18 @@ class ConcurrencySlotAcquisitionService(QueueService):
     async def _handle(
         self,
         item: Tuple[
-            int, str, Optional[float], concurrent.futures.Future, Optional[bool]
+            int,
+            str,
+            Optional[float],
+            concurrent.futures.Future,
+            Optional[bool],
+            Optional[str],
         ],
     ) -> None:
-        occupy, mode, timeout_seconds, future, create_if_missing = item
+        occupy, mode, timeout_seconds, future, create_if_missing, holder = item
         try:
             response = await self.acquire_slots(
-                occupy, mode, timeout_seconds, create_if_missing
+                occupy, mode, timeout_seconds, create_if_missing, holder
             )
         except Exception as exc:
             # If the request to the increment endpoint fails in a non-standard
@@ -59,6 +64,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
         mode: str,
         timeout_seconds: Optional[float] = None,
         create_if_missing: Optional[bool] = False,
+        holder: Optional[str] = None,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
@@ -68,6 +74,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         slots=slots,
                         mode=mode,
                         create_if_missing=create_if_missing,
+                        holder=holder,
                     )
                 except Exception as exc:
                     if (
@@ -82,7 +89,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                     return response
 
     def send(
-        self, item: Tuple[int, str, Optional[float], Optional[bool]]
+        self, item: Tuple[int, str, Optional[float], Optional[bool], Optional[str]]
     ) -> concurrent.futures.Future:
         with self._lock:
             if self._stopped:
@@ -91,9 +98,9 @@ class ConcurrencySlotAcquisitionService(QueueService):
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()
 
-            occupy, mode, timeout_seconds, create_if_missing = item
+            occupy, mode, timeout_seconds, create_if_missing, holder = item
             self._queue.put_nowait(
-                (occupy, mode, timeout_seconds, future, create_if_missing)
+                (occupy, mode, timeout_seconds, future, create_if_missing, holder)
             )
 
         return future

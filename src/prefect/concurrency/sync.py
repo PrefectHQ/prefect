@@ -41,6 +41,7 @@ def concurrency(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
+    holder: Optional[str] = None,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -51,6 +52,7 @@ def concurrency(
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
         create_if_missing: Whether to create the concurrency limits if they do not exist.
+        holder: An optional identifier for the holder of the slots.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -80,6 +82,7 @@ def concurrency(
         occupy,
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
+        holder=holder,
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
@@ -93,6 +96,7 @@ def concurrency(
             names,
             occupy,
             occupancy_period.total_seconds(),
+            holder,
         )
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
