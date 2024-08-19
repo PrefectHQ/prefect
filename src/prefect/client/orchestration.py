@@ -1599,6 +1599,7 @@ class PrefectClient:
         name: str,
         version: Optional[str] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -1656,6 +1657,7 @@ class PrefectClient:
             parameter_openapi_schema=parameter_openapi_schema,
             paused=paused,
             schedules=schedules or [],
+            concurrency_limit=concurrency_limit,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
         )
