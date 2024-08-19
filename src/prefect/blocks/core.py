@@ -18,9 +18,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from griffe.dataclasses import Docstring
-from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
-from griffe.docstrings.parsers import Parser, parse
+from griffe import Docstring, DocstringSection, DocstringSectionKind, Parser, parse
 from packaging.version import InvalidVersion, Version
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
