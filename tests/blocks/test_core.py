@@ -2,7 +2,7 @@ import abc
 import json
 import warnings
 from textwrap import dedent
-from typing import Any, Dict, List, Type, Union, Tuple
+from typing import Any, Dict, List, Tuple, Type, Union
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
@@ -1348,8 +1348,10 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert c_block_schema is not None
 
-        tuple_collection_block_type = await prefect_client.read_block_schema_by_checksum(
-            checksum=TupleCollection._calculate_schema_checksum()
+        tuple_collection_block_type = (
+            await prefect_client.read_block_schema_by_checksum(
+                checksum=TupleCollection._calculate_schema_checksum()
+            )
         )
         assert tuple_collection_block_type is not None
 
@@ -1389,7 +1391,9 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert dict_collection_block_type is not None
 
-    async def test_register_nested_block_type_nested(self, prefect_client: PrefectClient):
+    async def test_register_nested_block_type_nested(
+        self, prefect_client: PrefectClient
+    ):
         class A(Block):
             a: str
 
@@ -1400,7 +1404,7 @@ class TestRegisterBlockTypeAndSchema:
             c: str
 
         class Depth(Block):
-            depths: List[Union[A, List[Union[B, Tuple[C,...]]]]]
+            depths: List[Union[A, List[Union[B, Tuple[C, ...]]]]]
 
         await Depth.register_type_and_schema()
 
@@ -1411,9 +1415,7 @@ class TestRegisterBlockTypeAndSchema:
         c_block_type = await prefect_client.read_block_type_by_slug(slug="c")
         assert c_block_type is not None
 
-        depth_block_type = await prefect_client.read_block_type_by_slug(
-            slug="depth"
-        )
+        depth_block_type = await prefect_client.read_block_type_by_slug(slug="depth")
         assert depth_block_type is not None
 
         a_block_schema = await prefect_client.read_block_schema_by_checksum(
