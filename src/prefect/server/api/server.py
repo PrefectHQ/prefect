@@ -279,7 +279,6 @@ async def prefect_object_not_found_exception_handler(
 
 
 def create_api_app(
-    router_prefix: Optional[str] = "",
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
     version_check_path: str = "/version",
@@ -289,7 +288,6 @@ def create_api_app(
     Create a FastAPI app that includes the Prefect REST API
 
     Args:
-        router_prefix: a prefix to apply to all included routers
         dependencies: a list of global dependencies to add to each Prefect REST API router
         health_check_path: the health check route path
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
