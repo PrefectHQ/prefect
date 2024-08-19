@@ -290,7 +290,7 @@ class AsyncClientContext(ContextModel):
         if ctx:
             yield ctx
         else:
-            with cls() as ctx:
+            async with cls() as ctx:
                 yield ctx
 
 
