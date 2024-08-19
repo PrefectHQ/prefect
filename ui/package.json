@@ -18,8 +18,8 @@
     "axios": "1.7.4",
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
-    "tailwindcss": "3.4.9",
-    "vue": "3.4.37",
+    "tailwindcss": "3.4.10",
+    "vue": "3.4.38",
     "vue-router": "4.4.3"
   },
   "devDependencies": {
@@ -30,7 +30,7 @@
     "eslint": "^8.57.0",
     "ts-node": "10.9.2",
     "typescript": "^5.5.4",
-    "vite": "5.4.0",
+    "vite": "5.4.1",
     "vue-tsc": "^2.0.29"
   }
 }
