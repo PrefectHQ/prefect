@@ -19,7 +19,7 @@ Postgres:`97429116795e`
 # Add `events` and `event_resources` tables
 SQLite: `824e9edafa60`
 Postgres: `15768c2ec702`
-g
+
 # Add `trigger_id` to the unique index for `automation_bucket`
 SQLite: `2b6c2b548f95`
 Postgres: `954db7517015`
