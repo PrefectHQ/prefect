@@ -2,10 +2,10 @@
 Command line interface for working with Prefect
 """
 
+import logging
 import os
+import sys
 import textwrap
-from asyncio import CancelledError
-from functools import partial
 
 import anyio
 import anyio.abc
@@ -28,8 +28,8 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import (
+    consume_process_output,
     get_sys_executable,
-    run_process,
     setup_signal_handlers_server,
 )
 
@@ -116,35 +116,31 @@ async def start(
 
     base_url = f"http://{host}:{port}"
 
+    app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
+    app.console.print("\n")
+
     try:
-        async with anyio.create_task_group() as tg:
-            app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
-            app.console.print("\n")
+        process = await anyio.open_process(
+            command=[
+                get_sys_executable(),
+                "-m",
+                "uvicorn",
+                "--app-dir",
+                f'"{prefect.__module_path__.parent}"',
+                "--factory",
+                "prefect.server.api.server:create_app",
+                "--host",
+                str(host),
+                "--port",
+                str(port),
+                "--timeout-keep-alive",
+                str(keep_alive_timeout),
+            ],
+            env=server_env,
+        )
+        process_id = process.pid
 
-            server_process_id = await tg.start(
-                partial(
-                    run_process,
-                    command=[
-                        get_sys_executable(),
-                        "-m",
-                        "uvicorn",
-                        "--app-dir",
-                        # quote wrapping needed for windows paths with spaces
-                        f'"{prefect.__module_path__.parent}"',
-                        "--factory",
-                        "prefect.server.api.server:create_app",
-                        "--host",
-                        str(host),
-                        "--port",
-                        str(port),
-                        "--timeout-keep-alive",
-                        str(keep_alive_timeout),
-                    ],
-                    env=server_env,
-                    stream_output=True,
-                )
-            )
-
+        async with process:
             # Explicitly handle the interrupt signal here, as it will allow us to
             # cleanly stop the uvicorn server. Failing to do that may cause a
             # large amount of anyio error traces on the terminal, because the
@@ -153,10 +149,15 @@ async def start(
             # https://github.com/PrefectHQ/server/issues/2475
 
             setup_signal_handlers_server(
-                server_process_id, "the Prefect server", app.console.print
+                process_id, "the Prefect server", app.console.print
             )
-    except CancelledError:
-        logger.debug("Server task group cancelled")
+
+            await consume_process_output(process, sys.stdout, sys.stderr)
+
+    except anyio.EndOfStream:
+        logging.error("Subprocess stream ended unexpectedly")
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
 
     app.console.print("Server stopped!")
 
