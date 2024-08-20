@@ -105,9 +105,13 @@ async def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
-    detach: bool = typer.Option(False, "--detach", "-d"),
+    background: bool = typer.Option(
+        False, "--background", "-b", help="Run the server in the background"
+    ),
 ):
-    """Start a Prefect server instance"""
+    """
+    Start a Prefect server instance
+    """
 
     server_env = os.environ.copy()
     server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
@@ -128,14 +132,14 @@ async def start(
             f"Port {port} is already in use. Please specify a different port with the `--port` flag."
         )
 
-    # check if server is already running in detached mode
+    # check if server is already running in the background
     pid_file = anyio.Path(PREFECT_HOME.value() / "server.pid")
-    if detach:
+    if background:
         try:
             await pid_file.touch(mode=0o600, exist_ok=False)
         except FileExistsError:
             exit_with_error(
-                "Server is already running in detached mode. To stop it,"
+                "A server is already running in the background. To stop it,"
                 " run `prefect server stop`."
             )
 
@@ -162,7 +166,7 @@ async def start(
             env=server_env,
         )
         process_id = process.pid
-        if detach:
+        if background:
             await pid_file.write_text(str(process_id))
 
             app.console.print(
@@ -195,15 +199,15 @@ async def start(
 
 @server_app.command()
 async def stop():
-    """Stop a Prefect server instance running in detached mode"""
+    """Stop a Prefect server instance running in the background"""
     pid_file = anyio.Path(PREFECT_HOME.value() / "server.pid")
     if not await pid_file.exists():
-        exit_with_error("No server running in detached mode.")
+        exit_with_error("No server running in the background.")
     pid = int(await pid_file.read_text())
     try:
         os.kill(pid, 15)
     except ProcessLookupError:
-        exit_with_error("No server running in detached mode.")
+        exit_with_error("No server running in the background.")
     finally:
         await pid_file.unlink()
     app.console.print("Server stopped!")
