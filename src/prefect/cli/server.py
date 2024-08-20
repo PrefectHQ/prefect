@@ -2,9 +2,11 @@
 Command line interface for working with Prefect
 """
 
+import logging
 import os
+import socket
+import sys
 import textwrap
-from functools import partial
 
 import anyio
 import anyio.abc
@@ -21,6 +23,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
     PREFECT_API_URL,
+    PREFECT_HOME,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_API_HOST,
@@ -35,8 +38,8 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import (
+    consume_process_output,
     get_sys_executable,
-    run_process,
     setup_signal_handlers_server,
 )
 
@@ -49,6 +52,8 @@ server_app.add_typer(database_app)
 app.add_typer(server_app)
 
 logger = get_logger(__name__)
+
+PID_FILE = "server.pid"
 
 
 def generate_welcome_blurb(base_url, ui_enabled: bool):
@@ -170,8 +175,13 @@ async def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    background: bool = typer.Option(
+        False, "--background", "-b", help="Run the server in the background"
+    ),
 ):
-    """Start a Prefect server instance"""
+    """
+    Start a Prefect server instance
+    """
 
     if is_interactive():
         try:
@@ -189,45 +199,104 @@ async def start(
 
     base_url = f"http://{host}:{port}"
 
-    async with anyio.create_task_group() as tg:
-        app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
-        app.console.print("\n")
-
-        server_process_id = await tg.start(
-            partial(
-                run_process,
-                command=[
-                    get_sys_executable(),
-                    "-m",
-                    "uvicorn",
-                    "--app-dir",
-                    # quote wrapping needed for windows paths with spaces
-                    f'"{prefect.__module_path__.parent}"',
-                    "--factory",
-                    "prefect.server.api.server:create_app",
-                    "--host",
-                    str(host),
-                    "--port",
-                    str(port),
-                    "--timeout-keep-alive",
-                    str(keep_alive_timeout),
-                ],
-                env=server_env,
-                stream_output=True,
+    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
+    # check if port is already in use
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+    except socket.error:
+        if await pid_file.exists():
+            exit_with_error(
+                f"A background server process is already running on port {port}. "
+                "Run `prefect server stop` to stop it or specify a different port "
+                "with the `--port` flag."
             )
+        exit_with_error(
+            f"Port {port} is already in use. Please specify a different port with the "
+            "`--port` flag."
         )
 
-        # Explicitly handle the interrupt signal here, as it will allow us to
-        # cleanly stop the uvicorn server. Failing to do that may cause a
-        # large amount of anyio error traces on the terminal, because the
-        # SIGINT is handled by Typer/Click in this process (the parent process)
-        # and will start shutting down subprocesses:
-        # https://github.com/PrefectHQ/server/issues/2475
+    # check if server is already running in the background
+    if background:
+        try:
+            await pid_file.touch(mode=0o600, exist_ok=False)
+        except FileExistsError:
+            exit_with_error(
+                "A server is already running in the background. To stop it,"
+                " run `prefect server stop`."
+            )
 
-        setup_signal_handlers_server(
-            server_process_id, "the Prefect server", app.console.print
+    app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
+    app.console.print("\n")
+
+    try:
+        process = await anyio.open_process(
+            command=[
+                get_sys_executable(),
+                "-m",
+                "uvicorn",
+                "--app-dir",
+                f'"{prefect.__module_path__.parent}"',
+                "--factory",
+                "prefect.server.api.server:create_app",
+                "--host",
+                str(host),
+                "--port",
+                str(port),
+                "--timeout-keep-alive",
+                str(keep_alive_timeout),
+            ],
+            env=server_env,
         )
+        process_id = process.pid
+        if background:
+            await pid_file.write_text(str(process_id))
 
+            app.console.print(
+                "The Prefect server is running in the background. Run `prefect"
+                " server stop` to stop it."
+            )
+            return
+
+        async with process:
+            # Explicitly handle the interrupt signal here, as it will allow us to
+            # cleanly stop the uvicorn server. Failing to do that may cause a
+            # large amount of anyio error traces on the terminal, because the
+            # SIGINT is handled by Typer/Click in this process (the parent process)
+            # and will start shutting down subprocesses:
+            # https://github.com/PrefectHQ/server/issues/2475
+
+            setup_signal_handlers_server(
+                process_id, "the Prefect server", app.console.print
+            )
+
+            await consume_process_output(process, sys.stdout, sys.stderr)
+
+    except anyio.EndOfStream:
+        logging.error("Subprocess stream ended unexpectedly")
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
+
+    app.console.print("Server stopped!")
+
+
+@server_app.command()
+async def stop():
+    """Stop a Prefect server instance running in the background"""
+    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
+    if not await pid_file.exists():
+        exit_with_success("No server running in the background.")
+    pid = int(await pid_file.read_text())
+    try:
+        os.kill(pid, 15)
+    except ProcessLookupError:
+        exit_with_success(
+            "The server process is not running. Cleaning up stale PID file."
+        )
+    finally:
+        # The file probably exists, but use `missing_ok` to avoid an
+        # error if the file was deleted by another actor
+        await pid_file.unlink(missing_ok=True)
     app.console.print("Server stopped!")
 
 
