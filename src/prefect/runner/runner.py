@@ -35,7 +35,6 @@ import datetime
 import inspect
 import logging
 import os
-import shlex
 import shutil
 import signal
 import subprocess
@@ -537,7 +536,7 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = f"{get_sys_executable()} -m prefect.engine"
+        command = [get_sys_executable(), "-m" "prefect.engine"]
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
@@ -584,7 +583,7 @@ class Runner:
                 setattr(storage, "last_adhoc_pull", datetime.datetime.now())
 
         process = await run_process(
-            shlex.split(command),
+            command=command,
             stream_output=True,
             task_status=task_status,
             env=env,
