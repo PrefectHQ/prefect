@@ -232,21 +232,25 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
 
     # create block schema references
     refs = schema["block_schema_references"] = {}
+
+    def collect_block_schema_references(field_name: str, annotation: type) -> None:
+        """Walk through the annotation and collect block schemas for any nested blocks."""
+        if Block.is_block_class(annotation):
+            if isinstance(refs.get(field_name), list):
+                refs[field_name].append(annotation._to_block_schema_reference_dict())
+            elif isinstance(refs.get(field_name), dict):
+                refs[field_name] = [
+                    refs[field_name],
+                    annotation._to_block_schema_reference_dict(),
+                ]
+            else:
+                refs[field_name] = annotation._to_block_schema_reference_dict()
+        if get_origin(annotation) in (Union, list, tuple, dict):
+            for type_ in get_args(annotation):
+                collect_block_schema_references(field_name, type_)
+
     for name, field in model.model_fields.items():
-        if Block.is_block_class(field.annotation):
-            refs[name] = field.annotation._to_block_schema_reference_dict()
-        if get_origin(field.annotation) in [Union, list]:
-            for type_ in get_args(field.annotation):
-                if Block.is_block_class(type_):
-                    if isinstance(refs.get(name), list):
-                        refs[name].append(type_._to_block_schema_reference_dict())
-                    elif isinstance(refs.get(name), dict):
-                        refs[name] = [
-                            refs[name],
-                            type_._to_block_schema_reference_dict(),
-                        ]
-                    else:
-                        refs[name] = type_._to_block_schema_reference_dict()
+        collect_block_schema_references(name, field.annotation)
 
 
 @register_base_type
