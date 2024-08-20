@@ -12,6 +12,7 @@ import prefect.client.schemas as schemas
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
+from prefect.concurrency.asyncio import AcquireConcurrencySlotTimeoutError
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -301,13 +302,6 @@ async def test_worker_with_work_pool_and_limit(
 async def test_worker_with_deployment_concurrency_limit(
     prefect_client: PrefectClient, worker_deployment_wq1_cl1, work_pool
 ):
-    @flow
-    def test_flow():
-        import time
-
-        time.sleep(3)
-        pass
-
     def create_run_with_deployment(state):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1_cl1.id, state=state
@@ -318,7 +312,9 @@ async def test_worker_with_deployment_concurrency_limit(
     flowrun_3 = await create_run_with_deployment(Scheduled())
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        with pytest.raises(Exception):
+        with pytest.raises(
+            (AcquireConcurrencySlotTimeoutError, TimeoutError, Exception)
+        ):
             submitted_flow_runs = await worker.get_and_submit_flow_runs()
             assert len(submitted_flow_runs) == 1
             assert submitted_flow_runs[0].id == flowrun_1.id

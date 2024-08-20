@@ -19,7 +19,7 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
-from prefect.concurrency.asyncio import AcquireConcurrencySlotTimeoutError, concurrency
+from prefect.concurrency.asyncio import concurrency
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
@@ -777,13 +777,13 @@ class BaseWorker(abc.ABC):
                             self._submit_run,
                             flow_run,
                         )
-            except (AcquireConcurrencySlotTimeoutError, TimeoutError):
-                self._logger.exception(
+            except TimeoutError:
+                self._logger.info(
                     ("Deployment %s has reached its concurrency limit"),
                     flow_run.deployment_id,
                 )
                 self._submitting_flow_run_ids.remove(flow_run.id)
-                self._propose_scheduled_state(flow_run)
+                await self._propose_scheduled_state(flow_run)
                 continue
 
         return list(
