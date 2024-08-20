@@ -25,11 +25,7 @@ repos:
           - types-pyyaml==6.0.12.9
         files: |
           (?x)^(
-            src/prefect/server/models/agents\.py|
-            src/prefect/server/models/artifacts\.py|
-            src/prefect/server/models/concurrency_limits_v2\.py|
-            src/prefect/server/models/concurrency_limits\.py|
-            src/prefect/server/models/flows\.py|
+            src/prefect/server/models/.*|
             src/prefect/concurrency/.*|
             src/prefect/events/.*|
             src/prefect/input/.*
