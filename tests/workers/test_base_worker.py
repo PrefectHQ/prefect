@@ -298,6 +298,34 @@ async def test_worker_with_work_pool_and_limit(
         )
 
 
+async def test_worker_with_deployment_concurrency_limit(
+    prefect_client: PrefectClient, worker_deployment_wq1_cl1, work_pool
+):
+    @flow
+    def test_flow():
+        import time
+
+        time.sleep(3)
+        pass
+
+    def create_run_with_deployment(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1_cl1.id, state=state
+        )
+
+    flowrun_1 = await create_run_with_deployment(Scheduled())
+    flowrun_2 = await create_run_with_deployment(Scheduled())
+    flowrun_3 = await create_run_with_deployment(Scheduled())
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        with pytest.raises(Exception):
+            submitted_flow_runs = await worker.get_and_submit_flow_runs()
+            assert len(submitted_flow_runs) == 1
+            assert submitted_flow_runs[0].id == flowrun_1.id
+            assert flowrun_2.state.type == "Scheduled"
+            assert flowrun_3.state.type == "Scheduled"
+
+
 async def test_worker_calls_run_with_expected_arguments(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool, monkeypatch
 ):
