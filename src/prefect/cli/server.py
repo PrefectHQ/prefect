@@ -4,6 +4,7 @@ Command line interface for working with Prefect
 
 import logging
 import os
+import socket
 import sys
 import textwrap
 
@@ -19,6 +20,7 @@ from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_HOME,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_API_HOST,
@@ -103,6 +105,7 @@ async def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    detach: bool = typer.Option(False, "--detach", "-d"),
 ):
     """Start a Prefect server instance"""
 
@@ -115,6 +118,26 @@ async def start(
     server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
 
     base_url = f"http://{host}:{port}"
+
+    # check if port is already in use
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+    except socket.error:
+        exit_with_error(
+            f"Port {port} is already in use. Please specify a different port with the `--port` flag."
+        )
+
+    # check if server is already running in detached mode
+    pid_file = anyio.Path(PREFECT_HOME.value() / "server.pid")
+    if detach:
+        try:
+            await pid_file.touch(mode=0o600, exist_ok=False)
+        except FileExistsError:
+            exit_with_error(
+                "Server is already running in detached mode. To stop it,"
+                " run `prefect server stop`."
+            )
 
     app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
     app.console.print("\n")
@@ -139,6 +162,14 @@ async def start(
             env=server_env,
         )
         process_id = process.pid
+        if detach:
+            await pid_file.write_text(str(process_id))
+
+            app.console.print(
+                "The Prefect server is running in the background. Run `prefect"
+                " server stop` to stop it."
+            )
+            return
 
         async with process:
             # Explicitly handle the interrupt signal here, as it will allow us to
@@ -159,6 +190,22 @@ async def start(
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
 
+    app.console.print("Server stopped!")
+
+
+@server_app.command()
+async def stop():
+    """Stop a Prefect server instance running in detached mode"""
+    pid_file = anyio.Path(PREFECT_HOME.value() / "server.pid")
+    if not await pid_file.exists():
+        exit_with_error("No server running in detached mode.")
+    pid = int(await pid_file.read_text())
+    try:
+        os.kill(pid, 15)
+    except ProcessLookupError:
+        exit_with_error("No server running in detached mode.")
+    finally:
+        await pid_file.unlink()
     app.console.print("Server stopped!")
 
 
