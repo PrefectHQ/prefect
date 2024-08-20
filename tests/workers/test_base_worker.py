@@ -313,7 +313,7 @@ async def test_worker_with_deployment_concurrency_limit(
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         with pytest.raises(
-            (AcquireConcurrencySlotTimeoutError, TimeoutError, Exception)
+            ((AcquireConcurrencySlotTimeoutError, TimeoutError, Exception))
         ):
             submitted_flow_runs = await worker.get_and_submit_flow_runs()
             assert len(submitted_flow_runs) == 1

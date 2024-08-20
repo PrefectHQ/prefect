@@ -755,9 +755,11 @@ class BaseWorker(abc.ABC):
                 continue
             if flow_run.deployment_id:
                 deployment = await self._client.read_deployment(flow_run.deployment_id)
-            name = deployment.id if deployment.concurrency_limit > 0 else None
+            name = str(deployment.id) if deployment.concurrency_limit else None
             try:
-                async with concurrency(name, timeout_seconds=0):
+                async with concurrency(
+                    name, occupy=deployment.concurrency_limit, timeout_seconds=0
+                ):
                     try:
                         if self._limiter:
                             self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
