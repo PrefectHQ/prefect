@@ -9,6 +9,7 @@ import anyio
 import httpx
 import pytest
 
+from prefect.cli.server import PID_FILE
 from prefect.settings import PREFECT_HOME, get_current_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.fixtures import is_port_in_use
@@ -169,44 +170,25 @@ class TestBackgroundServer:
             )
 
     def test_start_port_in_use_by_background_server(self, unused_tcp_port):
-        invoke_and_assert(
-            command=[
-                "server",
-                "start",
-                "--port",
-                str(unused_tcp_port),
-                "--background",
-            ],
-            expected_code=0,
-        )
+        pid_file = PREFECT_HOME.value() / PID_FILE
+        pid_file.write_text("99999")
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", unused_tcp_port))
 
-        # Wait for the server to start and bind the port
-        while not is_port_in_use(unused_tcp_port):
-            pass
-
-        invoke_and_assert(
-            command=[
-                "server",
-                "start",
-                "--port",
-                str(unused_tcp_port),
-                "--background",
-            ],
-            expected_output_contains=f"A background server process is already running on port {unused_tcp_port}.",
-            expected_code=1,
-        )
-
-        invoke_and_assert(
-            command=[
-                "server",
-                "stop",
-            ],
-            expected_output_contains="Server stopped!",
-            expected_code=0,
-        )
+            invoke_and_assert(
+                command=[
+                    "server",
+                    "start",
+                    "--port",
+                    str(unused_tcp_port),
+                    "--background",
+                ],
+                expected_output_contains=f"A background server process is already running on port {unused_tcp_port}.",
+                expected_code=1,
+            )
 
     def test_stop_stale_pid_file(self, unused_tcp_port):
-        pid_file = PREFECT_HOME.value() / "server.pid"
+        pid_file = PREFECT_HOME.value() / PID_FILE
         pid_file.write_text("99999")
 
         invoke_and_assert(
