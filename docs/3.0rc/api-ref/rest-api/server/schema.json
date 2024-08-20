@@ -10742,13 +10742,13 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger"
                             },
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__CompoundTrigger-Output"
+                                "$ref": "#/components/schemas/CompoundTrigger-Output"
                             },
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__SequenceTrigger-Output"
+                                "$ref": "#/components/schemas/SequenceTrigger-Output"
                             }
                         ],
                         "title": "Trigger",
@@ -10976,13 +10976,13 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger"
                             },
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__CompoundTrigger-Input"
+                                "$ref": "#/components/schemas/CompoundTrigger-Input"
                             },
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__SequenceTrigger-Input"
+                                "$ref": "#/components/schemas/SequenceTrigger-Input"
                             }
                         ],
                         "title": "Trigger",
@@ -11300,13 +11300,13 @@
                     "trigger": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__EventTrigger"
+                                "$ref": "#/components/schemas/EventTrigger"
                             },
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__CompoundTrigger-Input"
+                                "$ref": "#/components/schemas/CompoundTrigger-Input"
                             },
                             {
-                                "$ref": "#/components/schemas/prefect__server__events__schemas__automations__SequenceTrigger-Input"
+                                "$ref": "#/components/schemas/SequenceTrigger-Input"
                             }
                         ],
                         "title": "Trigger",
@@ -12548,6 +12548,17 @@
                         ],
                         "title": "Occupancy Seconds"
                     },
+                    "holder": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Holder"
+                    },
                     "create_if_missing": {
                         "type": "boolean",
                         "title": "Create If Missing",
@@ -12584,6 +12595,17 @@
                         ],
                         "title": "Mode",
                         "default": "concurrency"
+                    },
+                    "holder": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Holder"
                     },
                     "create_if_missing": {
                         "type": "boolean",
@@ -14815,6 +14837,146 @@
                 "title": "ChangeFlowRunState",
                 "description": "Changes the state of a flow run associated with the trigger"
             },
+            "CompoundTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "compound"
+                        ],
+                        "const": "compound",
+                        "title": "Type",
+                        "default": "compound"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompoundTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SequenceTrigger-Input"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    },
+                    "require": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "any",
+                                    "all"
+                                ]
+                            }
+                        ],
+                        "title": "Require"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "within",
+                    "require"
+                ],
+                "title": "CompoundTrigger",
+                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
+            },
+            "CompoundTrigger-Output": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "compound"
+                        ],
+                        "const": "compound",
+                        "title": "Type",
+                        "default": "compound"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompoundTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SequenceTrigger-Output"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    },
+                    "require": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "any",
+                                    "all"
+                                ]
+                            }
+                        ],
+                        "title": "Require"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "within",
+                    "require"
+                ],
+                "title": "CompoundTrigger",
+                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
+            },
             "ConcurrencyLimit": {
                 "properties": {
                     "id": {
@@ -15100,6 +15262,20 @@
                             }
                         ],
                         "title": "Slot Decay Per Second"
+                    },
+                    "holders": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Holders"
                     }
                 },
                 "additionalProperties": false,
@@ -17378,6 +17554,95 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "EventResourceFilter"
+            },
+            "EventTrigger": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "event"
+                        ],
+                        "const": "event",
+                        "title": "Type",
+                        "default": "event"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "match": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for resources which this trigger will match."
+                    },
+                    "match_related": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
+                        "description": "Labels for related resources which this trigger will match."
+                    },
+                    "after": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "After",
+                        "description": "The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "expect": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "Expect",
+                        "description": "The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`"
+                    },
+                    "for_each": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": true,
+                        "title": "For Each",
+                        "description": "Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `\"for_each\": [\"related:flow:prefect.resource.id\"]` would evaluate the trigger for each flow."
+                    },
+                    "posture": {
+                        "type": "string",
+                        "enum": [
+                            "Reactive",
+                            "Proactive"
+                        ],
+                        "title": "Posture",
+                        "description": "The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events."
+                    },
+                    "threshold": {
+                        "type": "integer",
+                        "title": "Threshold",
+                        "description": "The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)",
+                        "default": 1
+                    },
+                    "within": {
+                        "type": "number",
+                        "title": "Within",
+                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
+                        "default": 0.0
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "posture"
+                ],
+                "title": "EventTrigger",
+                "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
             },
             "Flow": {
                 "properties": {
@@ -19942,6 +20207,14 @@
                         "title": "Slot Decay Per Second",
                         "description": "The decay rate for active slots when used as a rate limit.",
                         "default": 2.0
+                    },
+                    "holders": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Holders",
+                        "description": "The holders of the global concurrency limit."
                     }
                 },
                 "type": "object",
@@ -20579,167 +20852,6 @@
                 "title": "LogSort",
                 "description": "Defines log sorting options."
             },
-            "MetricTrigger-Input": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "metric"
-                        ],
-                        "const": "metric",
-                        "title": "Type",
-                        "default": "metric"
-                    },
-                    "match": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for resources which this trigger will match."
-                    },
-                    "match_related": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for related resources which this trigger will match."
-                    },
-                    "posture": {
-                        "type": "string",
-                        "enum": [
-                            "Metric"
-                        ],
-                        "const": "Metric",
-                        "title": "Posture",
-                        "description": "Periodically evaluate the configured metric query.",
-                        "default": "Metric"
-                    },
-                    "metric": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/MetricTriggerQuery"
-                            }
-                        ],
-                        "description": "The metric query to evaluate for this trigger. "
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "metric"
-                ],
-                "title": "MetricTrigger",
-                "description": "A trigger that fires based on the results of a metric query."
-            },
-            "MetricTrigger-Output": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "metric"
-                        ],
-                        "const": "metric",
-                        "title": "Type",
-                        "default": "metric"
-                    },
-                    "match": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for resources which this trigger will match."
-                    },
-                    "match_related": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for related resources which this trigger will match."
-                    },
-                    "posture": {
-                        "type": "string",
-                        "enum": [
-                            "Metric"
-                        ],
-                        "const": "Metric",
-                        "title": "Posture",
-                        "description": "Periodically evaluate the configured metric query.",
-                        "default": "Metric"
-                    },
-                    "metric": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/MetricTriggerQuery"
-                            }
-                        ],
-                        "description": "The metric query to evaluate for this trigger. "
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "metric"
-                ],
-                "title": "MetricTrigger",
-                "description": "A trigger that fires based on the results of a metric query."
-            },
-            "MetricTriggerOperator": {
-                "type": "string",
-                "enum": [
-                    "<",
-                    "<=",
-                    ">",
-                    ">="
-                ],
-                "title": "MetricTriggerOperator"
-            },
-            "MetricTriggerQuery": {
-                "properties": {
-                    "name": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/PrefectMetric"
-                            }
-                        ],
-                        "description": "The name of the metric to query."
-                    },
-                    "threshold": {
-                        "type": "number",
-                        "title": "Threshold",
-                        "description": "The threshold value against which we'll compare the query result."
-                    },
-                    "operator": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/MetricTriggerOperator"
-                            }
-                        ],
-                        "description": "The comparative operator (LT / LTE / GT / GTE) used to compare the query result against the threshold value."
-                    },
-                    "range": {
-                        "type": "number",
-                        "title": "Range",
-                        "description": "The lookback duration (seconds) for a metric query. This duration is used to determine the time range over which the query will be executed. The minimum value is 300 seconds (5 minutes).",
-                        "default": 300.0
-                    },
-                    "firing_for": {
-                        "type": "number",
-                        "title": "Firing For",
-                        "description": "The duration (seconds) for which the metric query must breach or resolve continuously before the state is updated and the automation is triggered. The minimum value is 300 seconds (5 minutes).",
-                        "default": 300.0
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "name",
-                    "threshold",
-                    "operator"
-                ],
-                "title": "MetricTriggerQuery",
-                "description": "Defines a subset of the Trigger subclass, which is specific\nto Metric automations, that specify the query configurations\nand breaching conditions for the Automation"
-            },
             "MinimalConcurrencyLimitResponse": {
                 "properties": {
                     "id": {
@@ -20754,13 +20866,21 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit"
+                    },
+                    "holders": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Holders"
                     }
                 },
                 "type": "object",
                 "required": [
                     "id",
                     "name",
-                    "limit"
+                    "limit",
+                    "holders"
                 ],
                 "title": "MinimalConcurrencyLimitResponse"
             },
@@ -21076,15 +21196,6 @@
                 "type": "object",
                 "title": "PauseWorkQueue",
                 "description": "Pauses a Work Queue"
-            },
-            "PrefectMetric": {
-                "type": "string",
-                "enum": [
-                    "lateness",
-                    "duration",
-                    "successes"
-                ],
-                "title": "PrefectMetric"
             },
             "QueueFilter": {
                 "properties": {
@@ -21627,6 +21738,114 @@
                 ],
                 "title": "SendNotification",
                 "description": "Send a notification when an Automation is triggered"
+            },
+            "SequenceTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "sequence"
+                        ],
+                        "const": "sequence",
+                        "title": "Type",
+                        "default": "sequence"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompoundTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SequenceTrigger-Input"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "within"
+                ],
+                "title": "SequenceTrigger",
+                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
+            },
+            "SequenceTrigger-Output": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "sequence"
+                        ],
+                        "const": "sequence",
+                        "title": "Type",
+                        "default": "sequence"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompoundTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SequenceTrigger-Output"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "triggers",
+                    "within"
+                ],
+                "title": "SequenceTrigger",
+                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
             },
             "SetStateStatus": {
                 "type": "string",
@@ -25860,672 +26079,6 @@
                 ],
                 "title": "WorkerStatus",
                 "description": "Enumeration of worker statuses."
-            },
-            "prefect__events__schemas__automations__CompoundTrigger-Input": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "compound"
-                        ],
-                        "const": "compound",
-                        "title": "Type",
-                        "default": "compound"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/MetricTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Input"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within",
-                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
-                    },
-                    "require": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "any",
-                                    "all"
-                                ]
-                            }
-                        ],
-                        "title": "Require"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "require"
-                ],
-                "title": "CompoundTrigger",
-                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
-            },
-            "prefect__events__schemas__automations__CompoundTrigger-Output": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "compound"
-                        ],
-                        "const": "compound",
-                        "title": "Type",
-                        "default": "compound"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/MetricTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Output"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within",
-                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
-                    },
-                    "require": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "any",
-                                    "all"
-                                ]
-                            }
-                        ],
-                        "title": "Require"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "require"
-                ],
-                "title": "CompoundTrigger",
-                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
-            },
-            "prefect__events__schemas__automations__EventTrigger": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "event"
-                        ],
-                        "const": "event",
-                        "title": "Type",
-                        "default": "event"
-                    },
-                    "match": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for resources which this trigger will match."
-                    },
-                    "match_related": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for related resources which this trigger will match."
-                    },
-                    "after": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "After",
-                        "description": "The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`"
-                    },
-                    "expect": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "Expect",
-                        "description": "The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`"
-                    },
-                    "for_each": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "For Each",
-                        "description": "Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `\"for_each\": [\"related:flow:prefect.resource.id\"]` would evaluate the trigger for each flow."
-                    },
-                    "posture": {
-                        "type": "string",
-                        "enum": [
-                            "Reactive",
-                            "Proactive"
-                        ],
-                        "title": "Posture",
-                        "description": "The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events.",
-                        "default": "Reactive"
-                    },
-                    "threshold": {
-                        "type": "integer",
-                        "title": "Threshold",
-                        "description": "The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)",
-                        "default": 1
-                    },
-                    "within": {
-                        "type": "number",
-                        "title": "Within",
-                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
-                        "default": 0.0
-                    }
-                },
-                "type": "object",
-                "title": "EventTrigger",
-                "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
-            },
-            "prefect__events__schemas__automations__SequenceTrigger-Input": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "sequence"
-                        ],
-                        "const": "sequence",
-                        "title": "Type",
-                        "default": "sequence"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/MetricTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Input"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within",
-                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers"
-                ],
-                "title": "SequenceTrigger",
-                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
-            },
-            "prefect__events__schemas__automations__SequenceTrigger-Output": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "sequence"
-                        ],
-                        "const": "sequence",
-                        "title": "Type",
-                        "default": "sequence"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/MetricTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Output"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within",
-                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers"
-                ],
-                "title": "SequenceTrigger",
-                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
-            },
-            "prefect__server__events__schemas__automations__CompoundTrigger-Input": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "compound"
-                        ],
-                        "const": "compound",
-                        "title": "Type",
-                        "default": "compound"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/MetricTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Input"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within"
-                    },
-                    "require": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "any",
-                                    "all"
-                                ]
-                            }
-                        ],
-                        "title": "Require"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "within",
-                    "require"
-                ],
-                "title": "CompoundTrigger",
-                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
-            },
-            "prefect__server__events__schemas__automations__CompoundTrigger-Output": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "compound"
-                        ],
-                        "const": "compound",
-                        "title": "Type",
-                        "default": "compound"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/MetricTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Output"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within"
-                    },
-                    "require": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "any",
-                                    "all"
-                                ]
-                            }
-                        ],
-                        "title": "Require"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "within",
-                    "require"
-                ],
-                "title": "CompoundTrigger",
-                "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
-            },
-            "prefect__server__events__schemas__automations__EventTrigger": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "event"
-                        ],
-                        "const": "event",
-                        "title": "Type",
-                        "default": "event"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "match": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for resources which this trigger will match."
-                    },
-                    "match_related": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResourceSpecification"
-                            }
-                        ],
-                        "description": "Labels for related resources which this trigger will match."
-                    },
-                    "after": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "After",
-                        "description": "The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`"
-                    },
-                    "expect": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "Expect",
-                        "description": "The event(s) this trigger is expecting to see.  If empty, this trigger will match any event.  Events may include trailing wildcards, like `prefect.flow-run.*`"
-                    },
-                    "for_each": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": true,
-                        "title": "For Each",
-                        "description": "Evaluate the trigger separately for each distinct value of these labels on the resource.  By default, labels refer to the primary resource of the triggering event.  You may also refer to labels from related resources by specifying `related:<role>:<label>`.  This will use the value of that label for the first related resource in that role.  For example, `\"for_each\": [\"related:flow:prefect.resource.id\"]` would evaluate the trigger for each flow."
-                    },
-                    "posture": {
-                        "type": "string",
-                        "enum": [
-                            "Reactive",
-                            "Proactive"
-                        ],
-                        "title": "Posture",
-                        "description": "The posture of this trigger, either Reactive or Proactive.  Reactive triggers respond to the _presence_ of the expected events, while Proactive triggers respond to the _absence_ of those expected events."
-                    },
-                    "threshold": {
-                        "type": "integer",
-                        "title": "Threshold",
-                        "description": "The number of events required for this trigger to fire (for Reactive triggers), or the number of events expected (for Proactive triggers)",
-                        "default": 1
-                    },
-                    "within": {
-                        "type": "number",
-                        "title": "Within",
-                        "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
-                        "default": 0.0
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "posture"
-                ],
-                "title": "EventTrigger",
-                "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
-            },
-            "prefect__server__events__schemas__automations__SequenceTrigger-Input": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "sequence"
-                        ],
-                        "const": "sequence",
-                        "title": "Type",
-                        "default": "sequence"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/MetricTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Input"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Input"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "within"
-                ],
-                "title": "SequenceTrigger",
-                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
-            },
-            "prefect__server__events__schemas__automations__SequenceTrigger-Output": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "sequence"
-                        ],
-                        "const": "sequence",
-                        "title": "Type",
-                        "default": "sequence"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id",
-                        "description": "The unique ID of this trigger"
-                    },
-                    "triggers": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__EventTrigger"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/MetricTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__CompoundTrigger-Output"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/prefect__events__schemas__automations__SequenceTrigger-Output"
-                                }
-                            ]
-                        },
-                        "type": "array",
-                        "title": "Triggers"
-                    },
-                    "within": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Within"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "triggers",
-                    "within"
-                ],
-                "title": "SequenceTrigger",
-                "description": "A composite trigger that requires some number of triggers to have fired\nwithin the given time period in a specific order"
             }
         }
     }
