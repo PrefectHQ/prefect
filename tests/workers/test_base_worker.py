@@ -245,6 +245,53 @@ async def test_worker_with_work_pool_and_work_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
 
 
+async def test_worker_with_priority_and_limit(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1,
+    worker_deployment_wq_2,
+    work_queue_1,
+    work_pool,
+):
+    @flow
+    def test_flow():
+        pass
+
+    def create_run_with_deployment_1(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    def create_run_with_deployment_2(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq_2.id, state=state
+        )
+
+    flow_runs = [
+        await create_run_with_deployment_1(Pending()),
+        await create_run_with_deployment_1(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_run_with_deployment_1(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=10))
+        ),
+        await create_run_with_deployment_2(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment_2(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+        ),
+        await create_run_with_deployment_1(Running()),
+        await create_run_with_deployment_1(Completed()),
+        await prefect_client.create_flow_run(test_flow, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=2) as worker:
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+
+    assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
+
+
 async def test_worker_with_work_pool_and_limit(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
