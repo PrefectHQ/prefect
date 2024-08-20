@@ -136,12 +136,12 @@ def _collect_secret_fields(
 ) -> None:
     """
     Recursively collects all secret fields from a given type and adds them to the
-    secrets list, supporting nested Union / BaseModel fields. Also, note, this function
-    mutates the input secrets list, thus does not return anything.
+    secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
+    Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    if get_origin(type_) is Union:
-        for union_type in get_args(type_):
-            _collect_secret_fields(name, union_type, secrets)
+    if get_origin(type_) in (Union, dict, list, tuple):
+        for nested_type in get_args(type_):
+            _collect_secret_fields(name, nested_type, secrets)
         return
     elif _is_subclass(type_, BaseModel):
         for field_name, field in type_.model_fields.items():
