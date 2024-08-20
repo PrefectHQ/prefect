@@ -168,6 +168,43 @@ class TestBackgroundServer:
                 expected_code=1,
             )
 
+    def test_start_port_in_use_by_background_server(self, unused_tcp_port):
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--port",
+                str(unused_tcp_port),
+                "--background",
+            ],
+            expected_code=0,
+        )
+
+        # Wait for the server to start and bind the port
+        while not is_port_in_use(unused_tcp_port):
+            pass
+
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--port",
+                str(unused_tcp_port),
+                "--background",
+            ],
+            expected_output_contains=f"A background server process is already running on port {unused_tcp_port}.",
+            expected_code=1,
+        )
+
+        invoke_and_assert(
+            command=[
+                "server",
+                "stop",
+            ],
+            expected_output_contains="Server stopped!",
+            expected_code=0,
+        )
+
     def test_stop_stale_pid_file(self, unused_tcp_port):
         pid_file = PREFECT_HOME.value() / "server.pid"
         pid_file.write_text("99999")

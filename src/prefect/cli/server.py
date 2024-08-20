@@ -47,6 +47,8 @@ app.add_typer(server_app)
 
 logger = get_logger(__name__)
 
+PID_FILE = "server.pid"
+
 
 def generate_welcome_blurb(base_url, ui_enabled: bool):
     blurb = textwrap.dedent(
@@ -123,17 +125,24 @@ async def start(
 
     base_url = f"http://{host}:{port}"
 
+    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
     # check if port is already in use
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((host, port))
     except socket.error:
+        if await pid_file.exists():
+            exit_with_error(
+                f"A background server process is already running on port {port}. "
+                "Run `prefect server stop` to stop it or specify a different port "
+                "with the `--port` flag."
+            )
         exit_with_error(
-            f"Port {port} is already in use. Please specify a different port with the `--port` flag."
+            f"Port {port} is already in use. Please specify a different port with the "
+            "`--port` flag."
         )
 
     # check if server is already running in the background
-    pid_file = anyio.Path(PREFECT_HOME.value() / "server.pid")
     if background:
         try:
             await pid_file.touch(mode=0o600, exist_ok=False)
@@ -200,9 +209,9 @@ async def start(
 @server_app.command()
 async def stop():
     """Stop a Prefect server instance running in the background"""
-    pid_file = anyio.Path(PREFECT_HOME.value() / "server.pid")
+    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
     if not await pid_file.exists():
-        exit_with_error("No server running in the background.")
+        exit_with_success("No server running in the background.")
     pid = int(await pid_file.read_text())
     try:
         os.kill(pid, 15)
@@ -211,7 +220,9 @@ async def stop():
             "The server process is not running. Cleaning up stale PID file."
         )
     finally:
-        await pid_file.unlink()
+        # The file probably exists, but use `missing_ok` to avoid an
+        # error if the file was deleted by another actor
+        await pid_file.unlink(missing_ok=True)
     app.console.print("Server stopped!")
 
 
