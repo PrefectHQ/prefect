@@ -97,7 +97,11 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.engine import propose_state
-from prefect.utilities.processutils import _register_signal, run_process
+from prefect.utilities.processutils import (
+    _register_signal,
+    get_sys_executable,
+    run_process,
+)
 from prefect.utilities.services import critical_service_loop
 
 __all__ = ["Runner"]
@@ -533,7 +537,7 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = f"{shlex.quote(sys.executable)} -m prefect.engine"
+        command = f"{get_sys_executable()} -m prefect.engine"
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
