@@ -128,7 +128,7 @@ def _is_subclass(cls, parent_cls) -> bool:
     Checks if a given class is a subclass of another class. Unlike issubclass,
     this will not throw an exception if cls is an instance instead of a type.
     """
-    return inspect.isclass(cls) and issubclass(cls, parent_cls)
+    return inspect.isclass(cls) and inspect.isclass(parent_cls) and issubclass(cls, parent_cls)
 
 
 def _collect_secret_fields(
