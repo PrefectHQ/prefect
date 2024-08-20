@@ -168,6 +168,24 @@ class TestBackgroundServer:
                 expected_code=1,
             )
 
+    def test_stop_stale_pid_file(self, unused_tcp_port):
+        pid_file = PREFECT_HOME.value() / "server.pid"
+        pid_file.write_text("99999")
+
+        invoke_and_assert(
+            command=[
+                "server",
+                "stop",
+            ],
+            expected_output_contains="Cleaning up stale PID file.",
+            expected_output_does_not_contain="Server stopped!",
+            expected_code=0,
+        )
+
+        assert not (
+            PREFECT_HOME.value() / "server.pid"
+        ).exists(), "Server PID file exists"
+
 
 @pytest.mark.service("process")
 class TestUvicornSignalForwarding:

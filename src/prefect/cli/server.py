@@ -207,7 +207,9 @@ async def stop():
     try:
         os.kill(pid, 15)
     except ProcessLookupError:
-        exit_with_error("No server running in the background.")
+        exit_with_success(
+            "The server process is not running. Cleaning up stale PID file."
+        )
     finally:
         await pid_file.unlink()
     app.console.print("Server stopped!")
