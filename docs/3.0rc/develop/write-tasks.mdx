@@ -74,9 +74,11 @@ This task run is tracked in the UI as well.
 
 Almost any standard Python function can be turned into a Prefect task by adding the `@task` decorator. 
 
+Prefect uses client-side task run orchestration by default, which significantly improves performance, especially for workflows with many tasks. Task creation and state updates happen locally, reducing API calls to the Prefect server during execution. This enables efficient handling of large-scale workflows and improves reliability when server connectivity is intermittent.
 <Tip>
 Tasks are always executed in the main thread by default, unless a specific [task runner](/3.0rc/develop/task-runners) is used to execute them on different threads, processes, or infrastructure. This facilitates native Python debugging and profiling.
 </Tip>
+Task updates are logged in batch, leading to eventual consistency for task states in the UI and API queries. While this means there may be a slight delay in seeing the most up-to-date task states, it allows for substantial performance improvements and increased workflow scale.
 
 ### Synchronous functions
 

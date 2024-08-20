@@ -2286,13 +2286,18 @@ class TestTaskConcurrencyLimits:
                 await bar()
 
                 acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    ["limit-tag"],
+                    1,
+                    timeout_seconds=None,
+                    create_if_missing=False,
+                    holder=None,
                 )
 
-                names, occupy, occupy_seconds = release_spy.call_args[0]
+                names, occupy, occupy_seconds, holder = release_spy.call_args[0]
                 assert names == ["limit-tag"]
                 assert occupy == 1
                 assert occupy_seconds > 0
+                assert holder is None
 
     def test_tag_concurrency_sync(self):
         @task(tags=["limit-tag"])
@@ -2310,13 +2315,18 @@ class TestTaskConcurrencyLimits:
                 bar()
 
                 acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    ["limit-tag"],
+                    1,
+                    timeout_seconds=None,
+                    create_if_missing=False,
+                    holder=None,
                 )
 
-                names, occupy, occupy_seconds = release_spy.call_args[0]
+                names, occupy, occupy_seconds, holder = release_spy.call_args[0]
                 assert names == ["limit-tag"]
                 assert occupy == 1
                 assert occupy_seconds > 0
+                assert holder is None
 
     async def test_no_tags_no_concurrency(self):
         @task
@@ -2366,7 +2376,11 @@ class TestTaskConcurrencyLimits:
             await bar()
 
             acquire_spy.assert_called_once_with(
-                ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                ["limit-tag"],
+                1,
+                timeout_seconds=None,
+                create_if_missing=False,
+                holder=None,
             )
 
             limits = await prefect_client.read_concurrency_limits(10, 0)
