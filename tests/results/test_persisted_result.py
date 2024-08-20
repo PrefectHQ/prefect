@@ -218,3 +218,37 @@ async def test_lifecycle_of_defer_persistence(storage_block):
     await result.write()
     blob = await result._read_blob()
     assert blob.load() == "test-defer"
+
+
+async def test_write_and_read_raw_results(storage_block):
+    result = await PersistedResult.create(
+        "test-raw-result",
+        storage_block_id=storage_block._block_document_id,
+        storage_block=storage_block,
+        storage_key_fn=lambda: "test-raw-result",
+        serializer=JSONSerializer(),
+        raw=True,
+    )
+
+    assert await result.get(ignore_cache=True) == "test-raw-result"
+
+
+async def test_write_and_read_raw_results_with_configured_serializer(storage_block):
+    serializer = PickleSerializer()
+
+    result: PersistedResult = await PersistedResult.create(
+        "test-raw-result",
+        storage_block_id=storage_block._block_document_id,
+        storage_block=storage_block,
+        storage_key_fn=lambda: "test-raw-result",
+        serializer=serializer,
+        raw=True,
+    )
+
+    # mess up the serializer type
+    result.serializer_type = "json"
+
+    # will fail if the serializer is not passed
+    assert (
+        await result.get(ignore_cache=True, serializer=serializer) == "test-raw-result"
+    )

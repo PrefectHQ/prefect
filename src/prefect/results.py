@@ -460,7 +460,7 @@ class UnpersistedResult(BaseResult):
         return result
 
 
-class PersistedResult(BaseResult):
+class PersistedResult(BaseResult[R]):
     """
     Result type which stores a reference to a persisted result.
 
@@ -476,6 +476,7 @@ class PersistedResult(BaseResult):
     storage_key: str
     storage_block_id: Optional[uuid.UUID] = None
     expiration: Optional[DateTime] = None
+    raw: bool = False
 
     _should_cache_object: bool = PrivateAttr(default=True)
     _persisted: bool = PrivateAttr(default=False)
@@ -505,12 +506,31 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def get(self, client: "PrefectClient") -> R:
+    async def get(
+        self,
+        client: "PrefectClient",
+        ignore_cache: bool = False,
+        serializer: Optional[Serializer] = None,
+    ) -> R:
         """
         Retrieve the data and deserialize it into the original object.
+
+        Args:
+            client: a client to use for fetching a result; will be injected if not
+                provided
+            ignore_cache: whether to ignore the in-memory cache and only read from
+                storage; defaults to False
+            serializer: a serializer to use for deserialization; if not provided,
+                the default serializer for the result will be used
         """
-        if self.has_cached_object():
+        if self.has_cached_object() and not ignore_cache:
             return self._cache
+
+        if self.raw:
+            block = await self._get_storage_block(client=client)
+            content = await block.read_path(self.storage_key)
+            serializer = serializer or Serializer(type=self.serializer_type)
+            return serializer.loads(content)
 
         blob = await self._read_blob(client=client)
         obj = blob.load()
@@ -607,10 +627,14 @@ class PersistedResult(BaseResult):
                 f"Failed to serialize object of type {type(obj).__name__!r} with "
                 f"serializer {serializer.type!r}. {extra_info}"
             ) from exc
-        blob = PersistedResultBlob(
-            serializer=serializer, data=data, expiration=self.expiration
-        )
-        await storage_block.write_path(self.storage_key, content=blob.to_bytes())
+        if self.raw:
+            content = data
+        else:
+            blob = PersistedResultBlob(
+                serializer=serializer, data=data, expiration=self.expiration
+            )
+            content = blob.to_bytes()
+        await storage_block.write_path(self.storage_key, content=content)
         self._persisted = True
 
         if not self._should_cache_object:
@@ -628,6 +652,7 @@ class PersistedResult(BaseResult):
         cache_object: bool = True,
         expiration: Optional[DateTime] = None,
         defer_persistence: bool = False,
+        raw: bool = False,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
@@ -651,6 +676,7 @@ class PersistedResult(BaseResult):
             storage_block_id=storage_block_id,
             storage_key=key,
             expiration=expiration,
+            raw=raw,
         )
 
         if cache_object and not defer_persistence:
