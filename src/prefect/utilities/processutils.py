@@ -1,6 +1,5 @@
 import asyncio
 import os
-import shlex
 import signal
 import subprocess
 import sys
@@ -417,6 +416,6 @@ def get_sys_executable() -> str:
     if os.name == "nt":
         executable_path = f'"{sys.executable}"'
     else:
-        executable_path = shlex.quote(sys.executable)
+        executable_path = sys.executable
 
     return executable_path
