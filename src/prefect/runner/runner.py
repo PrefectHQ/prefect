@@ -536,7 +536,7 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = [get_sys_executable(), "-m" "prefect.engine"]
+        command = [get_sys_executable(), "-m", "prefect.engine"]
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
