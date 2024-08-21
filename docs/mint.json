@@ -800,6 +800,10 @@
       "source": "/latest/guides/webhooks"
     },
     {
+      "destination": "/latest/automate/events/webhook-triggers",
+      "source": "/latest/cloud/webhooks"
+    },
+    {
       "destination": "/latest/develop/artifacts",
       "source": "/latest/concepts/artifacts"
     },
