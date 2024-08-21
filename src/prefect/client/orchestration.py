@@ -961,20 +961,20 @@ class PrefectClient:
             json=data,
         )
 
-    async def release_v1_concurrency_limits(
+    async def decrement_concurrency_limits(
         self,
         names: List[str],
         occupancy_seconds: float,
         task_run_id: UUID,
     ) -> httpx.Response:
         """
-        Release concurrency slots for the specified limits.
+        Decrement the specified concurrency limits.
 
         Args:
-            names (List[str]): A list of limit names for which to release limits.
+            names (List[str]): A list of limit names to decrement.
             occupancy_seconds (float): The duration in seconds that the limits
-                were occupied.
-            task_run_id (UUID): The task run ID releasing the limits.
+                were held.
+            task_run_id (UUID): The task run ID that incremented the limits.
 
         Returns:
             httpx.Response: The HTTP response from the server.
@@ -4200,23 +4200,23 @@ class SyncPrefectClient:
             },
         )
 
-    def release_v1_concurrency_limits(
+    def decrement_concurrency_limits(
         self, names: List[str], occupancy_seconds: float, task_run_id: UUID
     ) -> httpx.Response:
         """
-        Release concurrency slots for the specified limits.
+        Release the specified concurrency limits.
 
         Args:
-            names (List[str]): A list of limit names for which to release slots.
+            names (List[str]): A list of limit names to decrement.
             occupancy_seconds (float): The duration in seconds that the slots
-                were occupied.
-            task_run_id (UUID): The task run ID that acquired the limits.
+                were held.
+            task_run_id (UUID): The task run ID that incremented the limits.
 
         Returns:
             httpx.Response: The HTTP response from the server.
         """
         return self._client.post(
-            "/v1/concurrency_limits/decrement",
+            "/concurrency_limits/decrement",
             json={
                 "names": names,
                 "occupancy_seconds": occupancy_seconds,

@@ -23,7 +23,7 @@ from prefect.server.schemas.core import ConcurrencyLimit
 
 from .asyncio import (
     _acquire_concurrency_limits,
-    _release_concurrency_slots,
+    _release_concurrency_limits,
 )
 from .events import (
     _emit_concurrency_acquisition_events,
@@ -85,7 +85,7 @@ def concurrency(
     finally:
         occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
         _call_async_function_from_sync(
-            _release_concurrency_slots,
+            _release_concurrency_limits,
             names,
             occupancy_period.total_seconds(),
             task_run_id,

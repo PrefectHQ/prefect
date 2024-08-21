@@ -18,7 +18,7 @@ class ConcurrencyContext(ContextModel):
         if self.cleanup_slots:
             with get_client(sync_client=True) as client:
                 for names, occupancy_seconds, task_run_id in self.cleanup_slots:
-                    client.release_v1_concurrency_limits(
+                    client.decrement_concurrency_limits(
                         names=names,
                         occupancy_seconds=occupancy_seconds,
                         task_run_id=task_run_id,

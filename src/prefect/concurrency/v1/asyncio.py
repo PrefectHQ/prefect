@@ -21,7 +21,7 @@ from .events import (
     _emit_concurrency_acquisition_events,
     _emit_concurrency_release_events,
 )
-from .services import ConcurrencySlotAcquisitionService
+from .services import ConcurrencyAcquisitionService
 
 
 class ConcurrencyLimitAcquisitionError(Exception):
@@ -85,7 +85,7 @@ async def concurrency(
     finally:
         occupancy_period = cast(Interval, (pendulum.now("UTC") - acquisition_time))
         try:
-            await _release_concurrency_slots(
+            await _release_concurrency_limits(
                 names_normalized, occupancy_period.total_seconds(), task_run_id
             )
         except anyio.get_cancelled_exc_class():
@@ -105,7 +105,7 @@ async def _acquire_concurrency_limits(
     task_run_id: UUID,
     timeout_seconds: Optional[float] = None,
 ) -> List[ConcurrencyLimit]:
-    service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
+    service = ConcurrencyAcquisitionService.instance(frozenset(names))
     future = service.send((task_run_id, timeout_seconds))
     response_or_exception = await asyncio.wrap_future(future)
 
@@ -122,13 +122,13 @@ async def _acquire_concurrency_limits(
     return _response_to_concurrency_limit_response(response_or_exception)
 
 
-async def _release_concurrency_slots(
+async def _release_concurrency_limits(
     names: List[str],
     occupancy_seconds: float,
     task_run_id: UUID,
 ) -> List[ConcurrencyLimit]:
     async with get_client() as client:
-        response = await client.release_concurrency_slots(
+        response = await client.decrement_concurrency_limits(
             names=names,
             occupancy_seconds=occupancy_seconds,
             task_run_id=task_run_id,

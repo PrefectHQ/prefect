@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-class ConcurrencySlotAcquisitionService(QueueService):
+class ConcurrencyAcquisitionService(QueueService):
     def __init__(self, concurrency_limit_names: FrozenSet[str]):
         super().__init__(concurrency_limit_names)
         self._client: "PrefectClient"
@@ -37,19 +37,14 @@ class ConcurrencySlotAcquisitionService(QueueService):
     async def _handle(
         self,
         item: Tuple[
-            int,
-            str,
-            Optional[float],
+            UUID,
             concurrent.futures.Future,
-            Optional[bool],
-            Optional[str],
+            Optional[float],
         ],
     ) -> None:
-        occupy, mode, timeout_seconds, future, create_if_missing, holder = item
+        task_run_id, future, timeout_seconds = item
         try:
-            response = await self.acquire_slots(
-                occupy, mode, timeout_seconds, create_if_missing, holder
-            )
+            response = await self.acquire_slots(task_run_id, timeout_seconds)
         except Exception as exc:
             # If the request to the increment endpoint fails in a non-standard
             # way, we need to set the future's result so that the caller can
@@ -61,21 +56,15 @@ class ConcurrencySlotAcquisitionService(QueueService):
 
     async def acquire_slots(
         self,
-        slots: int,
-        mode: str,
+        task_run_id: UUID,
         timeout_seconds: Optional[float] = None,
-        create_if_missing: Optional[bool] = False,
-        holder: Optional[str] = None,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
                 try:
-                    response = await self._client.increment_concurrency_slots(
+                    response = await self._client.increment_concurrency_limits(
+                        task_run_id=task_run_id,
                         names=self.concurrency_limit_names,
-                        slots=slots,
-                        mode=mode,
-                        create_if_missing=create_if_missing,
-                        holder=holder,
                     )
                 except Exception as exc:
                     if (
