@@ -333,6 +333,7 @@ class ResultFactory(BaseModel):
         key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
         defer_persistence: bool = False,
+        raw: bool = False,
     ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
@@ -366,6 +367,7 @@ class ResultFactory(BaseModel):
             cache_object=should_cache_object,
             expiration=expiration,
             defer_persistence=defer_persistence,
+            raw=raw,
         )
 
     @sync_compatible

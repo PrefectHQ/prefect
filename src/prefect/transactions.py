@@ -74,6 +74,10 @@ class Transaction(ContextModel):
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
 
+    @property
+    def persists_result_data(self) -> bool:
+        return self.store is not None and self.store.persists_result_data
+
     def set(self, name: str, value: Any) -> None:
         self._stored_values[name] = value
 
@@ -230,6 +234,12 @@ class Transaction(ContextModel):
                 self.run_hook(hook, "commit")
 
             if self.store and self.key:
+                from prefect.records.result_store import ResultFactoryStore
+
+                if isinstance(self._staged_value, BaseResult) and not isinstance(
+                    self.store, ResultFactoryStore
+                ):
+                    self._staged_value.raw = True
                 self.store.write(key=self.key, result=self._staged_value)
             self.state = TransactionState.COMMITTED
             if (

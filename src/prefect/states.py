@@ -259,6 +259,7 @@ async def return_value_to_state(
     key: Optional[str] = None,
     expiration: Optional[datetime.datetime] = None,
     defer_persistence: bool = False,
+    raw_result: bool = False,
 ) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
@@ -296,6 +297,7 @@ async def return_value_to_state(
                 key=key,
                 expiration=expiration,
                 defer_persistence=defer_persistence,
+                raw=raw_result,
             )
 
         return state

@@ -15,6 +15,10 @@ class ResultFactoryStore(RecordStore):
     result_factory: ResultFactory
     cache: Optional[PersistedResult] = None
 
+    @property
+    def persists_result_data(self) -> bool:
+        return True
+
     def exists(self, key: str) -> bool:
         try:
             record = self.read(key)

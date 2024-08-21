@@ -22,6 +22,16 @@ class TransactionRecord:
 
 
 class RecordStore(abc.ABC):
+    @property
+    def persists_result_data(self) -> bool:
+        """
+        Check if the record store persists result data.
+
+        Returns:
+            bool: True if the record store persists result data; False otherwise.
+        """
+        return False
+
     @abc.abstractmethod
     def read(
         self, key: str, holder: Optional[str] = None
