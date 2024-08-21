@@ -53,6 +53,7 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
+from prefect.records import RecordStore
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
@@ -704,6 +705,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
+        flow = getattr(FlowRunContext.get(), "flow", None)
+        store: Optional[RecordStore] = getattr(flow, "transaction_store", None)
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
 
         # refresh cache setting is now repurposes as overwrite transaction record
@@ -714,7 +717,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store or ResultFactoryStore(result_factory=result_factory),
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:

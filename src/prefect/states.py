@@ -343,6 +343,7 @@ async def return_value_to_state(
                 key=key,
                 expiration=expiration,
                 defer_persistence=defer_persistence,
+                raw=raw_result,
             ),
         )
 
@@ -362,6 +363,7 @@ async def return_value_to_state(
                 key=key,
                 expiration=expiration,
                 defer_persistence=defer_persistence,
+                raw=raw_result,
             )
         )
 

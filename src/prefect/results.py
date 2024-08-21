@@ -474,8 +474,8 @@ class PersistedResult(BaseResult[R]):
 
     type: str = "reference"
 
-    serializer_type: str
     storage_key: str
+    serializer: Serializer
     storage_block_id: Optional[uuid.UUID] = None
     expiration: Optional[DateTime] = None
     raw: bool = False
@@ -483,17 +483,14 @@ class PersistedResult(BaseResult[R]):
     _should_cache_object: bool = PrivateAttr(default=True)
     _persisted: bool = PrivateAttr(default=False)
     _storage_block: WritableFileSystem = PrivateAttr(default=None)
-    _serializer: Serializer = PrivateAttr(default=None)
 
     def _cache_object(
         self,
         obj: Any,
         storage_block: WritableFileSystem = None,
-        serializer: Serializer = None,
     ) -> None:
         self._cache = obj
         self._storage_block = storage_block
-        self._serializer = serializer
 
     @inject_client
     async def _get_storage_block(self, client: "PrefectClient") -> WritableFileSystem:
@@ -512,7 +509,6 @@ class PersistedResult(BaseResult[R]):
         self,
         client: "PrefectClient",
         ignore_cache: bool = False,
-        serializer: Optional[Serializer] = None,
     ) -> R:
         """
         Retrieve the data and deserialize it into the original object.
@@ -522,8 +518,6 @@ class PersistedResult(BaseResult[R]):
                 provided
             ignore_cache: whether to ignore the in-memory cache and only read from
                 storage; defaults to False
-            serializer: a serializer to use for deserialization; if not provided,
-                the default serializer for the result will be used
         """
         if self.has_cached_object() and not ignore_cache:
             return self._cache
@@ -531,8 +525,7 @@ class PersistedResult(BaseResult[R]):
         if self.raw:
             block = await self._get_storage_block(client=client)
             content = await block.read_path(self.storage_key)
-            serializer = serializer or Serializer(type=self.serializer_type)
-            return serializer.loads(content)
+            return self.serializer.loads(content)
 
         blob = await self._read_blob(client=client)
         obj = blob.load()
@@ -583,14 +576,8 @@ class PersistedResult(BaseResult[R]):
         # next, the storage block
         storage_block = await self._get_storage_block(client=client)
 
-        # finally, the serializer
-        serializer = self._serializer
-        if serializer is None:
-            # this could error if the serializer requires kwargs
-            serializer = Serializer(type=self.serializer_type)
-
         try:
-            data = serializer.dumps(obj)
+            data = self.serializer.dumps(obj)
         except Exception as exc:
             extra_info = (
                 'You can try a different serializer (e.g. result_serializer="json") '
@@ -627,13 +614,13 @@ class PersistedResult(BaseResult[R]):
                     pass
             raise ValueError(
                 f"Failed to serialize object of type {type(obj).__name__!r} with "
-                f"serializer {serializer.type!r}. {extra_info}"
+                f"serializer {self.serializer.type!r}. {extra_info}"
             ) from exc
         if self.raw:
             content = data
         else:
             blob = PersistedResultBlob(
-                serializer=serializer, data=data, expiration=self.expiration
+                serializer=self.serializer, data=data, expiration=self.expiration
             )
             content = blob.to_bytes()
         await storage_block.write_path(self.storage_key, content=content)
@@ -674,18 +661,16 @@ class PersistedResult(BaseResult[R]):
             key = str(uri)
 
         result = cls(
-            serializer_type=serializer.type,
             storage_block_id=storage_block_id,
             storage_key=key,
             expiration=expiration,
+            serializer=serializer,
             raw=raw,
         )
 
         if cache_object and not defer_persistence:
             # Attach the object to the result so it's available without deserialization
-            result._cache_object(
-                obj, storage_block=storage_block, serializer=serializer
-            )
+            result._cache_object(obj, storage_block=storage_block)
 
         object.__setattr__(result, "_should_cache_object", cache_object)
 
@@ -694,9 +679,7 @@ class PersistedResult(BaseResult[R]):
         else:
             # we must cache temporarily to allow for writing later
             # the cache will be removed on write
-            result._cache_object(
-                obj, storage_block=storage_block, serializer=serializer
-            )
+            result._cache_object(obj, storage_block=storage_block)
 
         return result
 
@@ -705,7 +688,7 @@ class PersistedResult(BaseResult[R]):
             return False
         return (
             self.type == other.type
-            and self.serializer_type == other.serializer_type
+            and self.serializer == other.serializer
             and self.storage_key == other.storage_key
             and self.storage_block_id == other.storage_block_id
             and self.expiration == other.expiration

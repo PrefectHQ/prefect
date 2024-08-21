@@ -108,6 +108,12 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
         type_str = cls.model_fields["type"].default
         return type_str if isinstance(type_str, str) else None
 
+    def __eq__(self, value: object) -> bool:
+        return (
+            isinstance(value, self.__class__)
+            and self.model_dump() == value.model_dump()
+        )
+
 
 class PickleSerializer(Serializer):
     """

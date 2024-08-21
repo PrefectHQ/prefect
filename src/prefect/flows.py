@@ -69,6 +69,7 @@ from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
+from prefect.records.base import RecordStore
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -173,6 +174,8 @@ class Flow(Generic[P, R]):
         on_cancellation: An optional list of callables to run when the flow enters a cancelling state.
         on_crashed: An optional list of callables to run when the flow enters a crashed state.
         on_running: An optional list of callables to run when the flow enters a running state.
+        transaction_store: An optional record store to use for transactional record storage in
+            child tasks.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -203,6 +206,7 @@ class Flow(Generic[P, R]):
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
         on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        transaction_store: Optional[RecordStore] = None,
     ):
         if name is not None and not isinstance(name, str):
             raise TypeError(
@@ -358,6 +362,7 @@ class Flow(Generic[P, R]):
         self.on_cancellation_hooks = on_cancellation or []
         self.on_crashed_hooks = on_crashed or []
         self.on_running_hooks = on_running or []
+        self.transaction_store = transaction_store
 
         # Used for flows loaded from remote storage
         self._storage: Optional["RunnerStorage"] = None
@@ -418,6 +423,7 @@ class Flow(Generic[P, R]):
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
         on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        transaction_store: Optional[RecordStore] = NotSet,  # type: ignore
     ) -> Self:
         """
         Create a new flow from the current object, updating provided options.
@@ -447,7 +453,8 @@ class Flow(Generic[P, R]):
             on_cancellation: A new list of callables to run when the flow enters a cancelling state.
             on_crashed: A new list of callables to run when the flow enters a crashed state.
             on_running: A new list of callables to run when the flow enters a running state.
-
+            transaction_store: A new record store to use for transactional record
+                storage in child tasks.
         Returns:
             A new `Flow` instance.
 
@@ -516,6 +523,9 @@ class Flow(Generic[P, R]):
             on_cancellation=on_cancellation or self.on_cancellation_hooks,
             on_crashed=on_crashed or self.on_crashed_hooks,
             on_running=on_running or self.on_running_hooks,
+            transaction_store=transaction_store
+            if transaction_store is not NotSet
+            else self.transaction_store,
         )
         new_flow._storage = self._storage
         new_flow._entrypoint = self._entrypoint
@@ -1431,6 +1441,7 @@ def flow(
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    transaction_store: Optional[RecordStore] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -1463,6 +1474,7 @@ def flow(
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    transaction_store: Optional[RecordStore] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -1528,7 +1540,8 @@ def flow(
             final state of the flow run.
         on_running: An optional list of functions to call when the flow run is started. Each
             function should accept three arguments: the flow, the flow run, and the current state
-
+        transaction_store: An optional record store to use for transactional record storage in
+            child tasks.
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
         final state.
@@ -1594,6 +1607,7 @@ def flow(
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
                 on_running=on_running,
+                transaction_store=transaction_store,
             ),
         )
     else:
@@ -1620,6 +1634,7 @@ def flow(
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
                 on_running=on_running,
+                transaction_store=transaction_store,
             ),
         )
 
