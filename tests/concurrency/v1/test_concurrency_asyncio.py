@@ -38,7 +38,7 @@ async def test_concurrency_orchestrates_api(v1_concurrency_limit: ConcurrencyLim
             await resource_heavy()
 
             acquire_spy.assert_called_once_with(
-                ["test"], task_run_id, timeout_seconds=None
+                ["test"], task_run_id=task_run_id, timeout_seconds=None
             )
 
             # On release, we calculate how many seconds the slots were occupied
@@ -81,8 +81,8 @@ async def test_concurrency_can_be_used_within_a_flow(
 
 
 async def test_concurrency_emits_events(
-    concurrency_limit: ConcurrencyLimit,
-    other_concurrency_limit: ConcurrencyLimit,
+    v1_concurrency_limit: ConcurrencyLimit,
+    other_v1_concurrency_limit: ConcurrencyLimit,
     asserting_events_worker: EventsWorker,
     mock_should_emit_events,
     reset_worker_events,
@@ -96,6 +96,7 @@ async def test_concurrency_emits_events(
             executed = True
 
     await resource_heavy()
+    assert executed
 
     await asserting_events_worker.drain()
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
@@ -107,15 +108,16 @@ async def test_concurrency_emits_events(
             filter(
                 lambda e: e.event == f"prefect.concurrency-limit.v1.{phase}"
                 and e.resource.id
-                == f"prefect.concurrency-limit.v1.{concurrency_limit.id}",
+                == f"prefect.concurrency-limit.v1.{v1_concurrency_limit.id}",
                 asserting_events_worker._client.events,
             )
         )
 
         assert dict(event.resource) == {
-            "prefect.resource.id": f"prefect.concurrency-limit.v1.{concurrency_limit.id}",
-            "prefect.resource.name": concurrency_limit.name,
-            "limit": str(concurrency_limit.limit),
+            "prefect.resource.id": f"prefect.concurrency-limit.v1.{v1_concurrency_limit.id}",
+            "prefect.resource.name": v1_concurrency_limit.tag,
+            "limit": str(v1_concurrency_limit.concurrency_limit),
+            "task_run_id": "00000000-0000-0000-0000-000000000000",
         }
 
         # Since they were used together we expect that the `test` limit events
@@ -124,7 +126,7 @@ async def test_concurrency_emits_events(
         assert len(event.related) == 1
         assert dict(event.related[0]) == {
             "prefect.resource.id": (
-                f"prefect.concurrency-limit.v1.{other_concurrency_limit.id}"
+                f"prefect.concurrency-limit.v1.{other_v1_concurrency_limit.id}"
             ),
             "prefect.resource.role": "concurrency-limit",
         }
@@ -135,17 +137,18 @@ async def test_concurrency_emits_events(
             filter(
                 lambda e: e.event == f"prefect.concurrency-limit.v1.{phase}"
                 and e.resource.id
-                == f"prefect.concurrency-limit.v1.{other_concurrency_limit.id}",
+                == f"prefect.concurrency-limit.v1.{other_v1_concurrency_limit.id}",
                 asserting_events_worker._client.events,
             )
         )
 
         assert dict(event.resource) == {
             "prefect.resource.id": (
-                f"prefect.concurrency-limit.v1.{other_concurrency_limit.id}"
+                f"prefect.concurrency-limit.v1.{other_v1_concurrency_limit.id}"
             ),
-            "prefect.resource.name": other_concurrency_limit.name,
-            "limit": str(other_concurrency_limit.limit),
+            "prefect.resource.name": other_v1_concurrency_limit.tag,
+            "limit": str(other_v1_concurrency_limit.concurrency_limit),
+            "task_run_id": "00000000-0000-0000-0000-000000000000",
         }
 
         # Since they were used together we expect that the `other` limit events
@@ -153,7 +156,7 @@ async def test_concurrency_emits_events(
 
         assert len(event.related) == 1
         assert dict(event.related[0]) == {
-            "prefect.resource.id": f"prefect.concurrency-limit.v1.{concurrency_limit.id}",
+            "prefect.resource.id": f"prefect.concurrency-limit.v1.{v1_concurrency_limit.id}",
             "prefect.resource.role": "concurrency-limit",
         }
 

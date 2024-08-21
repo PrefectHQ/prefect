@@ -11,6 +11,7 @@ from uuid import UUID
 
 import pendulum
 
+from ...server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 from ..sync import _call_async_function_from_sync
 
 try:
@@ -18,8 +19,6 @@ try:
 except ImportError:
     # pendulum < 3
     from pendulum.period import Period as Interval  # type: ignore
-
-from prefect.server.schemas.core import ConcurrencyLimit
 
 from .asyncio import (
     _acquire_concurrency_slots,
@@ -71,7 +70,7 @@ def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    limits: List[ConcurrencyLimit] = _call_async_function_from_sync(
+    limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
         _acquire_concurrency_slots,
         names,
         timeout_seconds=timeout_seconds,
@@ -87,7 +86,7 @@ def concurrency(
         _call_async_function_from_sync(
             _release_concurrency_slots,
             names,
-            occupancy_period.total_seconds(),
-            task_run_id,
+            occupancy_seconds=occupancy_period.total_seconds(),
+            task_run_id=task_run_id,
         )
         _emit_concurrency_release_events(limits, emitted_events, task_run_id)

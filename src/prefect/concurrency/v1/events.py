@@ -1,14 +1,14 @@
 from typing import Dict, List, Literal, Optional, Union
 from uuid import UUID
 
-from prefect.client.schemas.objects import ConcurrencyLimit
 from prefect.events import Event, RelatedResource, emit_event
+from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 
 
 def _emit_concurrency_event(
     phase: Union[Literal["acquired"], Literal["released"]],
-    primary_limit: ConcurrencyLimit,
-    related_limits: List[ConcurrencyLimit],
+    primary_limit: MinimalConcurrencyLimitResponse,
+    related_limits: List[MinimalConcurrencyLimitResponse],
     task_run_id: UUID,
     follows: Union[Event, None] = None,
 ) -> Union[Event, None]:
@@ -39,7 +39,7 @@ def _emit_concurrency_event(
 
 
 def _emit_concurrency_acquisition_events(
-    limits: List[ConcurrencyLimit],
+    limits: List[MinimalConcurrencyLimitResponse],
     task_run_id: UUID,
 ) -> Dict[UUID, Optional[Event]]:
     events = {}
@@ -51,7 +51,7 @@ def _emit_concurrency_acquisition_events(
 
 
 def _emit_concurrency_release_events(
-    limits: List[ConcurrencyLimit],
+    limits: List[MinimalConcurrencyLimitResponse],
     events: Dict[UUID, Optional[Event]],
     task_run_id: UUID,
 ) -> None:

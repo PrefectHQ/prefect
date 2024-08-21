@@ -7,6 +7,8 @@ import anyio
 import httpx
 import pendulum
 
+from ...server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
+
 try:
     from pendulum import Interval
 except ImportError:
@@ -14,7 +16,6 @@ except ImportError:
     from pendulum.period import Period as Interval  # type: ignore
 
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.objects import ConcurrencyLimit
 
 from .context import ConcurrencyContext
 from .events import (
@@ -101,7 +102,7 @@ async def _acquire_concurrency_slots(
     names: List[str],
     task_run_id: UUID,
     timeout_seconds: Optional[float] = None,
-) -> List[ConcurrencyLimit]:
+) -> List[MinimalConcurrencyLimitResponse]:
     service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
     future = service.send((task_run_id, timeout_seconds))
     response_or_exception = await asyncio.wrap_future(future)
@@ -123,7 +124,7 @@ async def _release_concurrency_slots(
     names: List[str],
     task_run_id: UUID,
     occupancy_seconds: float,
-) -> List[ConcurrencyLimit]:
+) -> List[MinimalConcurrencyLimitResponse]:
     async with get_client() as client:
         response = await client.decrement_v1_concurrency_slots(
             names=names,
@@ -135,5 +136,7 @@ async def _release_concurrency_slots(
 
 def _response_to_concurrency_limit_response(
     response: httpx.Response,
-) -> List[ConcurrencyLimit]:
-    return [ConcurrencyLimit.model_validate(obj_) for obj_ in response.json()]
+) -> List[MinimalConcurrencyLimitResponse]:
+    return [
+        MinimalConcurrencyLimitResponse.model_validate(obj_) for obj_ in response.json()
+    ]

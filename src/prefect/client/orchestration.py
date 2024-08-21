@@ -4200,7 +4200,7 @@ class SyncPrefectClient:
             },
         )
 
-    def decrement_concurrency_limits(
+    def decrement_v1_concurrency_slots(
         self, names: List[str], occupancy_seconds: float, task_run_id: UUID
     ) -> httpx.Response:
         """
@@ -4220,6 +4220,6 @@ class SyncPrefectClient:
             json={
                 "names": names,
                 "occupancy_seconds": occupancy_seconds,
-                "task_run_id": task_run_id,
+                "task_run_id": str(task_run_id),
             },
         )
