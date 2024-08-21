@@ -13,7 +13,9 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.models import concurrency_limits
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 
 router = PrefectRouter(prefix="/concurrency_limits", tags=["Concurrency Limits"])
 
@@ -158,3 +160,112 @@ async def delete_concurrency_limit_by_tag(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
         )
+
+
+class Abort(Exception):
+    def __init__(self, reason: str):
+        self.reason = reason
+
+
+class Delay(Exception):
+    def __init__(self, delay_seconds: float, reason: str):
+        self.delay_seconds = delay_seconds
+        self.reason = reason
+
+
+@router.post("/increment")
+async def increment_concurrency_limits_v1(
+    names: List[str] = Body(..., description="The tags to acquire a slot for"),
+    task_run_id: UUID = Body(
+        ..., description="The ID of the task run acquiring the slot"
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    applied_limits = []
+
+    async with db.session_context(begin_transaction=True) as session:
+        try:
+            applied_limits = []
+            filtered_limits = (
+                await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                    session, tags=names
+                )
+            )
+            run_limits = {limit.tag: limit for limit in filtered_limits}
+            for tag, cl in run_limits.items():
+                limit = cl.concurrency_limit
+                if limit == 0:
+                    # limits of 0 will deadlock, and the transition needs to abort
+                    for stale_tag in applied_limits:
+                        stale_limit = run_limits.get(stale_tag, None)
+                        active_slots = set(stale_limit.active_slots)
+                        active_slots.discard(str(task_run_id))
+                        stale_limit.active_slots = list(active_slots)
+
+                    raise Abort(
+                        reason=(
+                            f'The concurrency limit on tag "{tag}" is 0 and will '
+                            "deadlock if the task tries to run again."
+                        ),
+                    )
+                elif len(cl.active_slots) >= limit:
+                    # if the limit has already been reached, delay the transition
+                    for stale_tag in applied_limits:
+                        stale_limit = run_limits.get(stale_tag, None)
+                        active_slots = set(stale_limit.active_slots)
+                        active_slots.discard(str(task_run_id))
+                        stale_limit.active_slots = list(active_slots)
+
+                    raise Delay(
+                        delay_seconds=PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
+                        reason=f"Concurrency limit for the {tag} tag has been reached",
+                    )
+                else:
+                    # log the TaskRun ID to active_slots
+                    applied_limits.append(tag)
+                    active_slots = set(cl.active_slots)
+                    active_slots.add(str(task_run_id))
+                    cl.active_slots = list(active_slots)
+        except Exception as e:
+            for tag in applied_limits:
+                cl = await concurrency_limits.read_concurrency_limit_by_tag(
+                    session, tag
+                )
+                active_slots = set(cl.active_slots)
+                active_slots.discard(str(task_run_id))
+                cl.active_slots = list(active_slots)
+
+            if isinstance(e, Delay):
+                raise HTTPException(
+                    status_code=status.HTTP_423_LOCKED,
+                    detail=e.reason,
+                    headers={"Retry-After": str(e.delay_seconds)},
+                )
+            elif isinstance(e, Abort):
+                raise HTTPException(
+                    status_code=status.HTTP_423_LOCKED,
+                    detail=e.reason,
+                )
+            else:
+                raise
+
+
+@router.post("/decrement")
+async def decrement_concurrency_limits_v1(
+    names: List[str] = Body(..., description="The tags to release a slot for"),
+    task_run_id: UUID = Body(
+        ..., description="The ID of the task run releasing the slot"
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    async with db.session_context(begin_transaction=True) as session:
+        filtered_limits = (
+            await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                session, tags=names
+            )
+        )
+        run_limits = {limit.tag: limit for limit in filtered_limits}
+        for tag, cl in run_limits.items():
+            active_slots = set(cl.active_slots)
+            active_slots.discard(str(task_run_id))
+            cl.active_slots = list(active_slots)

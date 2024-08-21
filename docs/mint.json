@@ -487,7 +487,9 @@
                     "3.0rc/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit-by-tag",
                     "3.0rc/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit-by-tag",
                     "3.0rc/api-ref/rest-api/server/concurrency-limits/read-concurrency-limits",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/reset-concurrency-limit-by-tag"
+                    "3.0rc/api-ref/rest-api/server/concurrency-limits/reset-concurrency-limit-by-tag",
+                    "3.0rc/api-ref/rest-api/server/concurrency-limits/increment-concurrency-limits-v1",
+                    "3.0rc/api-ref/rest-api/server/concurrency-limits/decrement-concurrency-limits-v1"
                   ]
                 },
                 {
