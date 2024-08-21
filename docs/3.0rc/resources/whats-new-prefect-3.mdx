@@ -19,7 +19,7 @@ Another major addition in Prefect 3 is the new transactional interface. This pow
 
 For example, you can define rollback behaviors for your tasks, ensuring that any side effects are cleanly reversed if a transaction fails. This is particularly useful for maintaining data consistency in complex workflows involving multiple steps or external systems.
 
-## Flexible Task Execution
+## Flexible task execution
 
 Prefect 3 has no restrictions on where tasks can run. Tasks can be nested within other tasks, allowing for more flexible and modular workflows; they can also be called outside of flows, essentially enabling Prefect to function as a background task service. You can now run tasks autonomously, apply them asynchronously, or delay their execution as needed. This flexibility opens up new possibilities for task management and execution strategies in your data pipelines.
 
