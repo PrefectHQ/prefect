@@ -4290,6 +4290,106 @@
                 }
             }
         },
+        "/api/concurrency_limits/increment": {
+            "post": {
+                "tags": [
+                    "Concurrency Limits"
+                ],
+                "summary": "Increment Concurrency Limits V1",
+                "operationId": "increment_concurrency_limits_v1_concurrency_limits_increment_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_increment_concurrency_limits_v1_concurrency_limits_increment_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/concurrency_limits/decrement": {
+            "post": {
+                "tags": [
+                    "Concurrency Limits"
+                ],
+                "summary": "Decrement Concurrency Limits V1",
+                "operationId": "decrement_concurrency_limits_v1_concurrency_limits_decrement_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/concurrency_limits/": {
             "post": {
                 "tags": [
@@ -13060,6 +13160,30 @@
                 ],
                 "title": "Body_create_flow_run_input_flow_runs__id__input_post"
             },
+            "Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post": {
+                "properties": {
+                    "names": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Names",
+                        "description": "The tags to release a slot for"
+                    },
+                    "task_run_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Task Run Id",
+                        "description": "The ID of the task run releasing the slot"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "names",
+                    "task_run_id"
+                ],
+                "title": "Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post"
+            },
             "Body_drop_database_admin_database_drop_post": {
                 "properties": {
                     "confirm": {
@@ -13231,6 +13355,30 @@
                 },
                 "type": "object",
                 "title": "Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post"
+            },
+            "Body_increment_concurrency_limits_v1_concurrency_limits_increment_post": {
+                "properties": {
+                    "names": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Names",
+                        "description": "The tags to acquire a slot for"
+                    },
+                    "task_run_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Task Run Id",
+                        "description": "The ID of the task run acquiring the slot"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "names",
+                    "task_run_id"
+                ],
+                "title": "Body_increment_concurrency_limits_v1_concurrency_limits_increment_post"
             },
             "Body_next_runs_by_flow_ui_flows_next_runs_post": {
                 "properties": {
