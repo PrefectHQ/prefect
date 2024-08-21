@@ -34,7 +34,7 @@ pip install prefect[aws]>=3.0.0rc1 --pre
 
 <Info>
 This change affects you if: You use custom Pydantic models with Prefect features.
-</info>
+</Info>
 
 Prefect 3 is built with Pydantic 2 for improved performance. All Prefect objects will automatically upgrade, but if you use custom Pydantic models for flow parameters or custom blocks, you'll need to ensure they are compatible with Pydantic 2. You can continue to use Pydantic 1 models in your own code if they do not interact directly with Prefect.
 
