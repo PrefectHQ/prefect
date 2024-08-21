@@ -543,6 +543,10 @@ class Deployment(ORMBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
+    disabled: bool = Field(
+        default=False,
+        description="If true, no flow runs will be created for the deployment.",
+    )
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
@@ -621,10 +625,6 @@ class Deployment(ORMBaseModel):
         description=(
             "Whether or not the deployment should enforce the parameter schema."
         ),
-    )
-    disabled: bool = Field(
-        default=False,
-        description="If true, no flow runs will be created for the deployment.",
     )
 
 

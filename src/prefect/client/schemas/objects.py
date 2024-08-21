@@ -128,6 +128,7 @@ class DeploymentStatus(AutoEnum):
 
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
+    DISABLED = AutoEnum.auto()
 
 
 class WorkQueueStatus(AutoEnum):
