@@ -2,7 +2,7 @@ import abc
 import json
 import warnings
 from textwrap import dedent
-from typing import Any, Dict, List, Type, Union
+from typing import Any, Dict, List, Tuple, Type, Union
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
@@ -1268,6 +1268,173 @@ class TestRegisterBlockTypeAndSchema:
             checksum=Umbrella._calculate_schema_checksum()
         )
         assert umbrella_block_schema is not None
+
+    async def test_register_nested_block_list(self, prefect_client: PrefectClient):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class ListCollection(Block):
+            a_list: list[A]
+            b_list: List[B]
+
+        await ListCollection.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+
+        list_collection_block_type = await prefect_client.read_block_type_by_slug(
+            slug="listcollection"
+        )
+        assert list_collection_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+
+        list_collection_block_type = await prefect_client.read_block_schema_by_checksum(
+            checksum=ListCollection._calculate_schema_checksum()
+        )
+        assert list_collection_block_type is not None
+
+    async def test_register_nested_block_tuple(self, prefect_client: PrefectClient):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class C(Block):
+            c: str
+
+        class TupleCollection(Block):
+            a_tuple: tuple[A]
+            b_tuple: tuple[B, ...]
+            c_tuple: Tuple[C, ...]
+
+        await TupleCollection.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+        c_block_type = await prefect_client.read_block_type_by_slug(slug="c")
+        assert c_block_type is not None
+
+        tuple_collection_block_type = await prefect_client.read_block_type_by_slug(
+            slug="tuplecollection"
+        )
+        assert tuple_collection_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+        c_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=C._calculate_schema_checksum()
+        )
+        assert c_block_schema is not None
+
+        tuple_collection_block_type = (
+            await prefect_client.read_block_schema_by_checksum(
+                checksum=TupleCollection._calculate_schema_checksum()
+            )
+        )
+        assert tuple_collection_block_type is not None
+
+    async def test_register_nested_block_dict(self, prefect_client: PrefectClient):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class DictCollection(Block):
+            block_dict: dict[A, B]
+
+        await DictCollection.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+
+        dict_collection_block_type = await prefect_client.read_block_type_by_slug(
+            slug="dictcollection"
+        )
+        assert dict_collection_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+
+        dict_collection_block_type = await prefect_client.read_block_schema_by_checksum(
+            checksum=DictCollection._calculate_schema_checksum()
+        )
+        assert dict_collection_block_type is not None
+
+    async def test_register_nested_block_type_nested(
+        self, prefect_client: PrefectClient
+    ):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class C(Block):
+            c: str
+
+        class Depth(Block):
+            depths: List[Union[A, List[Union[B, Tuple[C, ...]]]]]
+
+        await Depth.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+        c_block_type = await prefect_client.read_block_type_by_slug(slug="c")
+        assert c_block_type is not None
+
+        depth_block_type = await prefect_client.read_block_type_by_slug(slug="depth")
+        assert depth_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+        c_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=C._calculate_schema_checksum()
+        )
+        assert c_block_schema is not None
+
+        depth_block_type = await prefect_client.read_block_schema_by_checksum(
+            checksum=Depth._calculate_schema_checksum()
+        )
+        assert depth_block_type is not None
 
     async def test_register_raises_block_base_class(self):
         with pytest.raises(
