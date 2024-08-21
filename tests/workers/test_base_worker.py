@@ -12,7 +12,7 @@ import prefect.client.schemas as schemas
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
-from prefect.concurrency.asyncio import AcquireConcurrencySlotTimeoutError
+from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -302,24 +302,21 @@ async def test_worker_with_work_pool_and_limit(
 async def test_worker_with_deployment_concurrency_limit(
     prefect_client: PrefectClient, worker_deployment_wq1_cl1, work_pool
 ):
-    def create_run_with_deployment(state):
+    def create_run_with_deployment(name, state):
         return prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq1_cl1.id, state=state
+            worker_deployment_wq1_cl1.id, state=state, name=name
         )
 
-    flowrun_1 = await create_run_with_deployment(Scheduled())
-    flowrun_2 = await create_run_with_deployment(Scheduled())
-    flowrun_3 = await create_run_with_deployment(Scheduled())
+    flowrun_1 = await create_run_with_deployment("first", Scheduled())
+    flowrun_2 = await create_run_with_deployment("second", Scheduled())
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        with pytest.raises(
-            ((AcquireConcurrencySlotTimeoutError, TimeoutError, Exception))
-        ):
-            submitted_flow_runs = await worker.get_and_submit_flow_runs()
-            assert len(submitted_flow_runs) == 1
-            assert submitted_flow_runs[0].id == flowrun_1.id
-            assert flowrun_2.state.type == "Scheduled"
-            assert flowrun_3.state.type == "Scheduled"
+        worker._submit_run = AsyncMock()  # don't run anything
+        with pytest.raises(ConcurrencySlotAcquisitionError):
+            runs = await worker.get_and_submit_flow_runs()
+            assert len(runs) == 1
+            assert runs[0].id == flowrun_1.id
+            assert flowrun_2.state.name == "AwaitingConcurrencySlot"
 
 
 async def test_worker_calls_run_with_expected_arguments(
