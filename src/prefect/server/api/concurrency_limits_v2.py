@@ -55,13 +55,7 @@ async def read_concurrency_limit_v2(
             status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency Limit not found"
         )
 
-    response_model = schemas.responses.GlobalConcurrencyLimitResponse.model_validate(
-        model
-    )
-    holders = models.concurrency_limits_v2.get_limit_holders(model.id)
-    response_model.holders = holders.get(model.id, [])
-
-    return response_model
+    return schemas.responses.GlobalConcurrencyLimitResponse.model_validate(model)
 
 
 @router.post("/filter")
@@ -79,16 +73,10 @@ async def read_all_concurrency_limits_v2(
             )
         )
 
-    limits = []
-    for _limit in concurrency_limits:
-        response_model = (
-            schemas.responses.GlobalConcurrencyLimitResponse.model_validate(_limit)
-        )
-        holders = models.concurrency_limits_v2.get_limit_holders(_limit.id)
-        response_model.holders = holders.get(_limit.id, [])
-        limits.append(response_model)
-
-    return limits
+    return [
+        schemas.responses.GlobalConcurrencyLimitResponse.model_validate(limit)
+        for limit in concurrency_limits
+    ]
 
 
 @router.patch("/{id_or_name}", status_code=status.HTTP_204_NO_CONTENT)
@@ -155,7 +143,6 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     id: UUID
     name: str
     limit: int
-    holders: List[str]
 
 
 @router.post("/increment", status_code=status.HTTP_200_OK)
@@ -163,7 +150,6 @@ async def bulk_increment_active_slots(
     slots: int = Body(..., gt=0),
     names: List[str] = Body(..., min_items=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
-    holder: Optional[str] = Body(None),
     create_if_missing: bool = Body(True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
@@ -200,22 +186,19 @@ async def bulk_increment_active_slots(
                     f"configured: {','.join(non_decaying)!r}"
                 ),
             )
-        limit_ids = [limit.id for limit in active_limits]
         acquired = await models.concurrency_limits_v2.bulk_increment_active_slots(
-            session=session, concurrency_limit_ids=limit_ids, slots=slots, holder=holder
+            session=session,
+            concurrency_limit_ids=[limit.id for limit in active_limits],
+            slots=slots,
         )
 
         if not acquired:
             await session.rollback()
 
     if acquired:
-        holders = models.concurrency_limits_v2.get_limit_holders(*limit_ids)
         return [
             MinimalConcurrencyLimitResponse(
-                id=limit.id,
-                name=str(limit.name),
-                limit=limit.limit,
-                holders=holders.get(limit.id, []),
+                id=limit.id, name=str(limit.name), limit=limit.limit
             )
             for limit in limits
         ]
@@ -257,7 +240,6 @@ async def bulk_decrement_active_slots(
     slots: int = Body(..., gt=0),
     names: List[str] = Body(..., min_items=1),
     occupancy_seconds: Optional[float] = Body(None, gt=0.0),
-    holder: Optional[str] = Body(None),
     create_if_missing: bool = Body(True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
@@ -276,18 +258,11 @@ async def bulk_decrement_active_slots(
             concurrency_limit_ids=[limit.id for limit in limits if bool(limit.active)],
             slots=slots,
             occupancy_seconds=occupancy_seconds,
-            holder=holder,
         )
 
-    holders = models.concurrency_limits_v2.get_limit_holders(
-        *[limit.id for limit in limits]
-    )
     return [
         MinimalConcurrencyLimitResponse(
-            id=limit.id,
-            name=str(limit.name),
-            limit=limit.limit,
-            holders=holders.get(limit.id, []),
+            id=limit.id, name=str(limit.name), limit=limit.limit
         )
         for limit in limits
     ]

@@ -12548,17 +12548,6 @@
                         ],
                         "title": "Occupancy Seconds"
                     },
-                    "holder": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Holder"
-                    },
                     "create_if_missing": {
                         "type": "boolean",
                         "title": "Create If Missing",
@@ -12595,17 +12584,6 @@
                         ],
                         "title": "Mode",
                         "default": "concurrency"
-                    },
-                    "holder": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Holder"
                     },
                     "create_if_missing": {
                         "type": "boolean",
@@ -15262,20 +15240,6 @@
                             }
                         ],
                         "title": "Slot Decay Per Second"
-                    },
-                    "holders": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Holders"
                     }
                 },
                 "additionalProperties": false,
@@ -20207,14 +20171,6 @@
                         "title": "Slot Decay Per Second",
                         "description": "The decay rate for active slots when used as a rate limit.",
                         "default": 2.0
-                    },
-                    "holders": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "title": "Holders",
-                        "description": "The holders of the global concurrency limit."
                     }
                 },
                 "type": "object",
@@ -20866,21 +20822,13 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit"
-                    },
-                    "holders": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "title": "Holders"
                     }
                 },
                 "type": "object",
                 "required": [
                     "id",
                     "name",
-                    "limit",
-                    "holders"
+                    "limit"
                 ],
                 "title": "MinimalConcurrencyLimitResponse"
             },
