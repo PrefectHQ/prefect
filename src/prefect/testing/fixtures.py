@@ -290,7 +290,8 @@ async def events_server(
 ) -> AsyncGenerator[WebSocketServer, None]:
     server: WebSocketServer
 
-    async def handler(socket: WebSocketServerProtocol, path: str) -> None:
+    async def handler(socket: WebSocketServerProtocol) -> None:
+        path = socket.path
         recorder.connections += 1
         if puppeteer.refuse_any_further_connections:
             raise ValueError("nope")
