@@ -236,8 +236,8 @@ class Block(BaseModel, ABC):
             # means the top-level keys "x" and "y", all keys under "z", and the key "a" of a block
             # nested under the "child" key are all secret. There is no limit to nesting.
             secrets = schema["secret_fields"] = []
-            for name, field in model.model_fields.items():
-                _collect_secret_fields(name, field.annotation, secrets)
+            for field in model.__fields__.values():
+                _collect_secret_fields(field.name, field.type_, secrets)
 
             # create block schema references
             refs = schema["block_schema_references"] = {}
@@ -262,8 +262,8 @@ class Block(BaseModel, ABC):
                     for type_ in get_args(annotation):
                         collect_block_schema_references(field_name, type_)
 
-            for name, field in model.model_fields.items():
-                collect_block_schema_references(name, field.annotation)
+            for field in model.__fields__.values():
+                collect_block_schema_references(field.name, field.type_)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -900,8 +900,8 @@ class Block(BaseModel, ABC):
                 for inner_annotation in get_args(annotation):
                     await register_blocks_in_annotation(inner_annotation)
 
-        for field in cls.model_fields.values():
-            await register_blocks_in_annotation(field.annotation)
+        for field in cls.__fields__.values():
+            await register_blocks_in_annotation(field.type_)
 
         try:
             block_type = await client.read_block_type_by_slug(
