@@ -58,7 +58,7 @@ Prefect 3 makes a few changes to handling async There are three key changes to b
 
 3. **Future Resolution in Flows**: In Prefect 2, futures were fire-and-forget and the flow would automatically block until they completed. In Prefect 3, you must explicitly wait for futures to complete before exiting a flow. This change ensures that all tasks are complete before the flow finishes.
 
-### Caching Behavior
+### Caching behavior
 
 <info>
 This change affects you if: You rely on side effects in your tasks
