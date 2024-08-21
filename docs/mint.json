@@ -58,6 +58,13 @@
       "version": "3.0rc"
     },
     {
+      "group": "Get started",
+      "pages": [
+        "2.x/get-started/index"
+      ],
+      "version": "2.x"
+    },
+    {
       "group": "Develop",
       "pages": [
         "3.0rc/develop/index",
@@ -1271,6 +1278,7 @@
     "url": "https://app.prefect.cloud/"
   },
   "versions": [
-    "3.0rc"
+    "3.0rc",
+    "2.x"
   ]
 }
