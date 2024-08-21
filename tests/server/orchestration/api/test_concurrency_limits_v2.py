@@ -125,7 +125,7 @@ async def test_read_concurrency_limit_by_name_with_holders(
 
     await bulk_increment_active_slots(session, [concurrency_limit.id], 1, "test-holder")
 
-    response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.name}")
     assert response.status_code == 200
 
     data = response.json()
