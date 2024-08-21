@@ -15262,20 +15262,6 @@
                             }
                         ],
                         "title": "Slot Decay Per Second"
-                    },
-                    "holders": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Holders"
                     }
                 },
                 "additionalProperties": false,

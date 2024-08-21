@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.client import schemas as client_schemas
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
+    bulk_increment_active_slots,
     bulk_update_denied_slots,
     create_concurrency_limit,
-    increment_limit_holder,
+    get_limit_holders,
     read_concurrency_limit,
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
@@ -118,14 +119,13 @@ async def test_read_concurrency_limit_by_name_with_holders(
         concurrency_limit=ConcurrencyLimitV2(
             name="test_limit",
             limit=1,
-            active_slots=1,
         ),
     )
     await session.commit()
 
-    increment_limit_holder("test-holder", 1, concurrency_limit.id)
+    await bulk_increment_active_slots(session, [concurrency_limit.id], 1, "test-holder")
 
-    response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.name}")
+    response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
     assert response.status_code == 200
 
     data = response.json()
@@ -156,6 +156,28 @@ async def test_read_all_concurrency_limits(
         str(concurrency_limit.id),
         str(locked_concurrency_limit.id),
         str(concurrency_limit_with_decay.id),
+    }
+
+
+async def test_read_all_concurrency_limits_with_holders(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    await bulk_increment_active_slots(session, [concurrency_limit.id], 1, "test-holder")
+    await session.commit()
+
+    response = await client.post("/v2/concurrency_limits/filter")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 3
+    assert {(limit["id"], tuple(limit["holders"])) for limit in data} == {
+        (str(concurrency_limit.id), ("test-holder",)),
+        (str(locked_concurrency_limit.id), tuple()),
+        (str(concurrency_limit_with_decay.id), tuple()),
     }
 
 
@@ -242,6 +264,24 @@ async def test_delete_concurrency_non_existent_limit(
 ):
     response = await client.delete(f"/v2/concurrency_limits/{uuid.uuid4()}")
     assert response.status_code == 404
+
+
+async def test_delete_concurrency_clears_limit_holders(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    await bulk_increment_active_slots(session, [concurrency_limit.id], 1, "test-holder")
+    await session.commit()
+
+    assert get_limit_holders(concurrency_limit.id) == {
+        concurrency_limit.id: ["test-holder"]
+    }
+
+    response = await client.delete(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    assert response.status_code == 204
+
+    assert get_limit_holders(concurrency_limit.id) == {}
 
 
 async def test_increment_concurrency_limit_slots_gt_zero_422(

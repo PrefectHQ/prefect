@@ -1395,7 +1395,7 @@ async def test_concurrency_limit_is_available_in_templates_with_holders(
     Holders: {{ concurrency_limit.holders|join(', ') }}
     """
 
-    await orchestration_client.bulk_increment_active_slots(
+    await orchestration_client.bulk_increment_active_slots_raw(
         names=[concurrency_limit_v2.name], slots=1, holder="the-holder"
     )
 

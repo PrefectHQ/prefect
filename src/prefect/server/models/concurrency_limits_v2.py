@@ -169,7 +169,12 @@ async def update_concurrency_limit(
         .values(**concurrency_limit.model_dump(exclude_unset=True))
     )
 
-    return result.rowcount > 0
+    success = result.rowcount > 0
+
+    if success and concurrency_limit.active_slots == 0:
+        clear_holders(current_concurrency_limit.id)
+
+    return success
 
 
 async def delete_concurrency_limit(
@@ -180,15 +185,25 @@ async def delete_concurrency_limit(
     if not concurrency_limit_id and not name:
         raise ValueError("Must provide either concurrency_limit_id or name")
 
-    where = (
-        orm_models.ConcurrencyLimitV2.id == concurrency_limit_id
-        if concurrency_limit_id
-        else orm_models.ConcurrencyLimitV2.name == name
+    if name:
+        select = sa.select(orm_models.ConcurrencyLimitV2.id).where(
+            orm_models.ConcurrencyLimitV2.name == name
+        )
+        _id = (await session.execute(select)).scalar()
+    else:
+        _id = concurrency_limit_id
+
+    query = sa.delete(orm_models.ConcurrencyLimitV2).where(
+        orm_models.ConcurrencyLimitV2.id == _id
     )
-    query = sa.delete(orm_models.ConcurrencyLimitV2).where(where)
 
     result = await session.execute(query)
-    return result.rowcount > 0
+    success = result.rowcount > 0
+
+    if success:
+        clear_holders(_id)
+
+    return success
 
 
 async def bulk_read_or_create_concurrency_limits(
@@ -440,3 +455,8 @@ def get_limit_holders(*concurrency_limit_ids: UUID) -> Dict[UUID, List[str]]:
         for _id in concurrency_limit_ids
         if _id in _limit_holders
     }
+
+
+def clear_holders(*concurrency_limit_ids: UUID):
+    for _id in concurrency_limit_ids:
+        _limit_holders.pop(_id, None)

@@ -198,7 +198,7 @@ class OrchestrationClient(BaseClient):
             f"/v2/concurrency_limits/{concurrency_limit_id}"
         )
 
-    async def bulk_increment_active_slots(
+    async def bulk_increment_active_slots_raw(
         self,
         slots: int,
         names: list[str],
