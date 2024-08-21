@@ -274,14 +274,14 @@ async def test_delete_concurrency_clears_limit_holders(
     await bulk_increment_active_slots(session, [concurrency_limit.id], 1, "test-holder")
     await session.commit()
 
-    assert get_limit_holders(concurrency_limit.id) == {
+    assert await get_limit_holders(concurrency_limit.id) == {
         concurrency_limit.id: ["test-holder"]
     }
 
     response = await client.delete(f"/v2/concurrency_limits/{concurrency_limit.id}")
     assert response.status_code == 204
 
-    assert get_limit_holders(concurrency_limit.id) == {}
+    assert await get_limit_holders(concurrency_limit.id) == {}
 
 
 async def test_increment_concurrency_limit_slots_gt_zero_422(

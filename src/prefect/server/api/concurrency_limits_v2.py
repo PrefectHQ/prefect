@@ -58,7 +58,7 @@ async def read_concurrency_limit_v2(
     response_model = schemas.responses.GlobalConcurrencyLimitResponse.model_validate(
         model
     )
-    holders = models.concurrency_limits_v2.get_limit_holders(model.id)
+    holders = await models.concurrency_limits_v2.get_limit_holders(model.id)
     response_model.holders = holders.get(model.id, [])
 
     return response_model
@@ -84,7 +84,7 @@ async def read_all_concurrency_limits_v2(
         response_model = (
             schemas.responses.GlobalConcurrencyLimitResponse.model_validate(_limit)
         )
-        holders = models.concurrency_limits_v2.get_limit_holders(_limit.id)
+        holders = await models.concurrency_limits_v2.get_limit_holders(_limit.id)
         response_model.holders = holders.get(_limit.id, [])
         limits.append(response_model)
 
@@ -209,7 +209,7 @@ async def bulk_increment_active_slots(
             await session.rollback()
 
     if acquired:
-        holders = models.concurrency_limits_v2.get_limit_holders(*limit_ids)
+        holders = await models.concurrency_limits_v2.get_limit_holders(*limit_ids)
         return [
             MinimalConcurrencyLimitResponse(
                 id=limit.id,
@@ -279,7 +279,7 @@ async def bulk_decrement_active_slots(
             holder=holder,
         )
 
-    holders = models.concurrency_limits_v2.get_limit_holders(
+    holders = await models.concurrency_limits_v2.get_limit_holders(
         *[limit.id for limit in limits]
     )
     return [
