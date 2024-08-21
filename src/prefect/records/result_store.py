@@ -42,7 +42,7 @@ class ResultFactoryStore(RecordStore):
             return TransactionRecord(key=key, result=self.cache)
         try:
             result = PersistedResult(
-                serializer_type=self.result_factory.serializer.type,
+                serializer=self.result_factory.serializer,
                 storage_block_id=self.result_factory.storage_block_id,
                 storage_key=key,
             )

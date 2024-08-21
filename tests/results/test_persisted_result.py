@@ -60,7 +60,7 @@ async def test_result_reference_create_uses_serializer(storage_block):
         serializer=serializer,
     )
 
-    assert result.serializer_type == serializer.type
+    assert result.serializer == serializer
     contents = await storage_block.read_path(result.storage_key)
     blob = PersistedResultBlob.model_validate_json(contents)
     assert blob.serializer == serializer
@@ -112,7 +112,7 @@ async def test_init_doesnt_error_when_doesnt_exist(storage_block):
     result = PersistedResult(
         storage_block_id=storage_block._block_document_id,
         storage_key=path,
-        serializer_type="json",
+        serializer=JSONSerializer(),
     )
 
     with pytest.raises(ValueError, match="does not exist"):
@@ -132,7 +132,7 @@ class TestExpirationField:
         result = PersistedResult(
             storage_block_id=storage_block._block_document_id,
             storage_key="my-path",
-            serializer_type="json",
+            serializer=JSONSerializer(),
         )
 
         assert result.expiration is None
@@ -171,7 +171,7 @@ class TestExpirationField:
         result = PersistedResult(
             storage_block_id=storage_block._block_document_id,
             storage_key=path,
-            serializer_type="json",
+            serializer=JSONSerializer(),
         )
 
         assert await result.get() == 42
@@ -231,24 +231,3 @@ async def test_write_and_read_raw_results(storage_block):
     )
 
     assert await result.get(ignore_cache=True) == "test-raw-result"
-
-
-async def test_write_and_read_raw_results_with_configured_serializer(storage_block):
-    serializer = PickleSerializer()
-
-    result: PersistedResult = await PersistedResult.create(
-        "test-raw-result",
-        storage_block_id=storage_block._block_document_id,
-        storage_block=storage_block,
-        storage_key_fn=lambda: "test-raw-result",
-        serializer=serializer,
-        raw=True,
-    )
-
-    # mess up the serializer type
-    result.serializer_type = "json"
-
-    # will fail if the serializer is not passed
-    assert (
-        await result.get(ignore_cache=True, serializer=serializer) == "test-raw-result"
-    )

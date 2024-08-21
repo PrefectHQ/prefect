@@ -45,7 +45,7 @@ async def factory(prefect_client):
 async def test_create_result_reference(factory):
     result = await factory.create_result({"foo": "bar"})
     assert isinstance(result, PersistedResult)
-    assert result.serializer_type == factory.serializer.type
+    assert result.serializer == factory.serializer
     assert result.storage_block_id == factory.storage_block_id
     assert await result.get() == {"foo": "bar"}
 
