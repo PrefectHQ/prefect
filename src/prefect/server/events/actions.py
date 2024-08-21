@@ -55,7 +55,6 @@ from prefect.server.events.schemas.labelling import LabelDiver
 from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import (
     BlockDocument,
-    ConcurrencyLimitV2,
     Flow,
     TaskRun,
     WorkPool,
@@ -63,6 +62,7 @@ from prefect.server.schemas.core import (
 from prefect.server.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
+    GlobalConcurrencyLimitResponse,
     OrchestrationResult,
     StateAcceptDetails,
     WorkQueueWithStatus,
@@ -458,7 +458,7 @@ class JinjaTemplateAction(ExternalDataAction):
                 ],
             ),
             "prefect.concurrency-limit": (
-                ConcurrencyLimitV2,
+                GlobalConcurrencyLimitResponse,
                 [orchestration_client.read_concurrency_limit_v2_raw],
             ),
         }
@@ -1575,7 +1575,7 @@ class ResumeAutomation(AutomationCommandAction):
 # The actual action types that we support.  It's important to update this
 # Union when adding new subclasses of Action so that they are available for clients
 # and in the OpenAPI docs
-ActionTypes: TypeAlias = Union[
+ServerActionTypes: TypeAlias = Union[
     DoNothing,
     RunDeployment,
     PauseDeployment,
@@ -1592,7 +1592,6 @@ ActionTypes: TypeAlias = Union[
     PauseWorkPool,
     ResumeWorkPool,
 ]
-
 
 _recent_actions: MutableMapping[UUID, bool] = TTLCache(maxsize=10000, ttl=3600)
 

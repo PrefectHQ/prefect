@@ -29,7 +29,7 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self, TypeAlias
 
 from prefect.logging import get_logger
-from prefect.server.events.actions import ActionTypes
+from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.schemas.events import (
     ReceivedEvent,
     RelatedResource,
@@ -115,7 +115,7 @@ class CompositeTrigger(Trigger, abc.ABC):
     """
 
     type: Literal["compound", "sequence"]
-    triggers: List["TriggerTypes"]
+    triggers: List["ServerTriggerTypes"]
     within: Optional[timedelta]
 
     def create_automation_state_change_event(
@@ -456,7 +456,7 @@ class EventTrigger(ResourceTrigger):
         )
 
 
-TriggerTypes: TypeAlias = Union[EventTrigger, CompoundTrigger, SequenceTrigger]
+ServerTriggerTypes: TypeAlias = Union[EventTrigger, CompoundTrigger, SequenceTrigger]
 """The union of all concrete trigger types that a user may actually create"""
 
 T = TypeVar("T", bound=Trigger)
@@ -471,7 +471,7 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
 
     enabled: bool = Field(True, description="Whether this automation will be evaluated")
 
-    trigger: TriggerTypes = Field(
+    trigger: ServerTriggerTypes = Field(
         ...,
         description=(
             "The criteria for which events this Automation covers and how it will "
@@ -479,17 +479,17 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
         ),
     )
 
-    actions: List[ActionTypes] = Field(
+    actions: List[ServerActionTypes] = Field(
         ...,
         description="The actions to perform when this Automation triggers",
     )
 
-    actions_on_trigger: List[ActionTypes] = Field(
+    actions_on_trigger: List[ServerActionTypes] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a triggered state",
     )
 
-    actions_on_resolve: List[ActionTypes] = Field(
+    actions_on_resolve: List[ServerActionTypes] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a resolving state",
     )
@@ -625,7 +625,7 @@ class Firing(PrefectBaseModel):
 
     id: UUID = Field(default_factory=uuid4)
 
-    trigger: TriggerTypes = Field(..., description="The trigger that is firing")
+    trigger: ServerTriggerTypes = Field(..., description="The trigger that is firing")
     trigger_states: Set[TriggerState] = Field(
         ...,
         description="The state changes represented by this Firing",
@@ -722,7 +722,7 @@ class TriggeredAction(PrefectBaseModel):
             "if there was one."
         ),
     )
-    action: ActionTypes = Field(
+    action: ServerActionTypes = Field(
         ...,
         description="The action to perform",
     )

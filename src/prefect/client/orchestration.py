@@ -1599,6 +1599,7 @@ class PrefectClient:
         name: str,
         version: Optional[str] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -1656,6 +1657,7 @@ class PrefectClient:
             parameter_openapi_schema=parameter_openapi_schema,
             paused=paused,
             schedules=schedules or [],
+            concurrency_limit=concurrency_limit,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
         )
@@ -2993,20 +2995,46 @@ class PrefectClient:
         return response.json()
 
     async def increment_concurrency_slots(
-        self, names: List[str], slots: int, mode: str, create_if_missing: Optional[bool]
+        self,
+        names: List[str],
+        slots: int,
+        mode: str,
+        create_if_missing: Optional[bool] = True,
+        holder: Optional[str] = None,
     ) -> httpx.Response:
+        """
+        Increment concurrency slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to increment slots.
+            slots (int): The number of concurrency slots to increment.
+            mode (str): The mode of the increment operation.
+            create_if_missing (bool, optional): Whether to create the limit if it
+                does not exist. Defaults to True.
+            holder (str, optional): The name of the holder that is incrementing
+                the slots. Defaults to None.
+        """
+        data = {
+            "names": names,
+            "slots": slots,
+            "mode": mode,
+            "create_if_missing": create_if_missing,
+        }
+
+        if holder:
+            data["holder"] = holder
+
         return await self._client.post(
             "/v2/concurrency_limits/increment",
-            json={
-                "names": names,
-                "slots": slots,
-                "mode": mode,
-                "create_if_missing": create_if_missing,
-            },
+            json=data,
         )
 
     async def release_concurrency_slots(
-        self, names: List[str], slots: int, occupancy_seconds: float
+        self,
+        names: List[str],
+        slots: int,
+        occupancy_seconds: float,
+        holder: Optional[str] = None,
     ) -> httpx.Response:
         """
         Release concurrency slots for the specified limits.
@@ -3016,18 +3044,24 @@ class PrefectClient:
             slots (int): The number of concurrency slots to release.
             occupancy_seconds (float): The duration in seconds that the slots
                 were occupied.
+            holder (str, optional): The name of the holder that is releasing
+                the slots. Defaults to None.
 
         Returns:
             httpx.Response: The HTTP response from the server.
         """
+        data = {
+            "names": names,
+            "slots": slots,
+            "occupancy_seconds": occupancy_seconds,
+        }
+
+        if holder:
+            data["holder"] = holder
 
         return await self._client.post(
             "/v2/concurrency_limits/decrement",
-            json={
-                "names": names,
-                "slots": slots,
-                "occupancy_seconds": occupancy_seconds,
-            },
+            json=data,
         )
 
     async def create_global_concurrency_limit(
@@ -3174,7 +3208,7 @@ class PrefectClient:
         return pydantic.TypeAdapter(List[Automation]).validate_python(response.json())
 
     async def find_automation(
-        self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
+        self, id_or_name: Union[str, UUID]
     ) -> Optional[Automation]:
         if isinstance(id_or_name, str):
             try:
