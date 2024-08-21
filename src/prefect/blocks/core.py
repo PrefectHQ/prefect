@@ -128,7 +128,9 @@ def _is_subclass(cls, parent_cls) -> bool:
     Checks if a given class is a subclass of another class. Unlike issubclass,
     this will not throw an exception if cls is an instance instead of a type.
     """
-    return inspect.isclass(cls) and issubclass(cls, parent_cls)
+    # For python<=3.11 inspect.isclass() will return True for parametrized types (e.g. list[str])
+    # so we need to check for get_origin() to avoid TypeError for issubclass.
+    return inspect.isclass(cls) and not get_origin(cls) and issubclass(cls, parent_cls)
 
 
 def _collect_secret_fields(
@@ -136,12 +138,12 @@ def _collect_secret_fields(
 ) -> None:
     """
     Recursively collects all secret fields from a given type and adds them to the
-    secrets list, supporting nested Union / BaseModel fields. Also, note, this function
-    mutates the input secrets list, thus does not return anything.
+    secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
+    Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    if get_origin(type_) is Union:
-        for union_type in get_args(type_):
-            _collect_secret_fields(name, union_type, secrets)
+    if get_origin(type_) in (Union, dict, list, tuple):
+        for nested_type in get_args(type_):
+            _collect_secret_fields(name, nested_type, secrets)
         return
     elif _is_subclass(type_, BaseModel):
         for field_name, field in type_.model_fields.items():
@@ -230,21 +232,25 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
 
     # create block schema references
     refs = schema["block_schema_references"] = {}
+
+    def collect_block_schema_references(field_name: str, annotation: type) -> None:
+        """Walk through the annotation and collect block schemas for any nested blocks."""
+        if Block.is_block_class(annotation):
+            if isinstance(refs.get(field_name), list):
+                refs[field_name].append(annotation._to_block_schema_reference_dict())
+            elif isinstance(refs.get(field_name), dict):
+                refs[field_name] = [
+                    refs[field_name],
+                    annotation._to_block_schema_reference_dict(),
+                ]
+            else:
+                refs[field_name] = annotation._to_block_schema_reference_dict()
+        if get_origin(annotation) in (Union, list, tuple, dict):
+            for type_ in get_args(annotation):
+                collect_block_schema_references(field_name, type_)
+
     for name, field in model.model_fields.items():
-        if Block.is_block_class(field.annotation):
-            refs[name] = field.annotation._to_block_schema_reference_dict()
-        if get_origin(field.annotation) in [Union, list]:
-            for type_ in get_args(field.annotation):
-                if Block.is_block_class(type_):
-                    if isinstance(refs.get(name), list):
-                        refs[name].append(type_._to_block_schema_reference_dict())
-                    elif isinstance(refs.get(name), dict):
-                        refs[name] = [
-                            refs[name],
-                            type_._to_block_schema_reference_dict(),
-                        ]
-                    else:
-                        refs[name] = type_._to_block_schema_reference_dict()
+        collect_block_schema_references(name, field.annotation)
 
 
 @register_base_type
@@ -1065,13 +1071,16 @@ class Block(BaseModel, ABC):
                 "subclass and not on a Block interface class directly."
             )
 
+        async def register_blocks_in_annotation(annotation: type) -> None:
+            """Walk through the annotation and register any nested blocks."""
+            if Block.is_block_class(annotation):
+                await annotation.register_type_and_schema(client=client)
+            elif get_origin(annotation) in (Union, tuple, list, dict):
+                for inner_annotation in get_args(annotation):
+                    await register_blocks_in_annotation(inner_annotation)
+
         for field in cls.model_fields.values():
-            if Block.is_block_class(field.annotation):
-                await field.annotation.register_type_and_schema(client=client)
-            if get_origin(field.annotation) is Union:
-                for annotation in get_args(field.annotation):
-                    if Block.is_block_class(annotation):
-                        await annotation.register_type_and_schema(client=client)
+            await register_blocks_in_annotation(field.annotation)
 
         try:
             block_type = await client.read_block_type_by_slug(
