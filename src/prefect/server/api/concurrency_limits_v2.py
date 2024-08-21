@@ -155,7 +155,7 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     id: UUID
     name: str
     limit: int
-    holders: List[str]
+    # holders: List[str]
 
 
 @router.post("/increment", status_code=status.HTTP_200_OK)

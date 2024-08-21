@@ -20866,21 +20866,13 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit"
-                    },
-                    "holders": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "title": "Holders"
                     }
                 },
                 "type": "object",
                 "required": [
                     "id",
                     "name",
-                    "limit",
-                    "holders"
+                    "limit"
                 ],
                 "title": "MinimalConcurrencyLimitResponse"
             },

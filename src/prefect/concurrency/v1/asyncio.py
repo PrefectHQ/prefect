@@ -21,15 +21,15 @@ from .events import (
     _emit_concurrency_acquisition_events,
     _emit_concurrency_release_events,
 )
-from .services import ConcurrencyAcquisitionService
+from .services import ConcurrencySlotAcquisitionService
 
 
-class ConcurrencyLimitAcquisitionError(Exception):
-    """Raised when an unhandlable occurs while acquiring concurrency limits."""
+class ConcurrencySlotAcquisitionError(Exception):
+    """Raised when an unhandlable occurs while acquiring concurrency slots."""
 
 
-class AcquireConcurrencyLimitTimeoutError(TimeoutError):
-    """Raised when acquiring a concurrency limit times out."""
+class AcquireConcurrencySlotTimeoutError(TimeoutError):
+    """Raised when acquiring a concurrency slot times out."""
 
 
 @asynccontextmanager
@@ -37,18 +37,15 @@ async def concurrency(
     names: Union[str, List[str]],
     task_run_id: UUID,
     timeout_seconds: Optional[float] = None,
-    create_if_missing: Optional[bool] = True,
 ) -> AsyncGenerator[None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
 
     Args:
         names: The names of the concurrency limits to acquire slots from.
-        occupy: The number of slots to acquire and hold from each limit.
+        task_run_id: The name of the task_run_id that is incrementing the slots.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
-        create_if_missing: Whether to create the concurrency limits if they do not exist.
-        task_run_id: The name of the task_run_id that is incrementing the slots.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -59,7 +56,7 @@ async def concurrency(
     from prefect.concurrency.asyncio import concurrency
 
     async def resource_heavy():
-        async with concurrency("test", occupy=1):
+        async with concurrency("test", task_run_id):
             print("Resource heavy task")
 
     async def main():
@@ -72,7 +69,7 @@ async def concurrency(
 
     names_normalized: List[str] = names if isinstance(names, list) else [names]
 
-    limits = await _acquire_concurrency_limits(
+    limits = await _acquire_concurrency_slots(
         names_normalized,
         task_run_id=task_run_id,
         timeout_seconds=timeout_seconds,
@@ -85,8 +82,8 @@ async def concurrency(
     finally:
         occupancy_period = cast(Interval, (pendulum.now("UTC") - acquisition_time))
         try:
-            await _release_concurrency_limits(
-                names_normalized, occupancy_period.total_seconds(), task_run_id
+            await _release_concurrency_slots(
+                names_normalized, task_run_id, occupancy_period.total_seconds()
             )
         except anyio.get_cancelled_exc_class():
             # The task was cancelled before it could release the slots. Add the
@@ -100,35 +97,35 @@ async def concurrency(
         _emit_concurrency_release_events(limits, emitted_events, task_run_id)
 
 
-async def _acquire_concurrency_limits(
+async def _acquire_concurrency_slots(
     names: List[str],
     task_run_id: UUID,
     timeout_seconds: Optional[float] = None,
 ) -> List[ConcurrencyLimit]:
-    service = ConcurrencyAcquisitionService.instance(frozenset(names))
+    service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
     future = service.send((task_run_id, timeout_seconds))
     response_or_exception = await asyncio.wrap_future(future)
 
     if isinstance(response_or_exception, Exception):
         if isinstance(response_or_exception, TimeoutError):
-            raise AcquireConcurrencyLimitTimeoutError(
+            raise AcquireConcurrencySlotTimeoutError(
                 f"Attempt to acquire concurrency limits timed out after {timeout_seconds} second(s)"
             ) from response_or_exception
 
-        raise ConcurrencyLimitAcquisitionError(
+        raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency limits {names!r}"
         ) from response_or_exception
 
     return _response_to_concurrency_limit_response(response_or_exception)
 
 
-async def _release_concurrency_limits(
+async def _release_concurrency_slots(
     names: List[str],
-    occupancy_seconds: float,
     task_run_id: UUID,
+    occupancy_seconds: float,
 ) -> List[ConcurrencyLimit]:
     async with get_client() as client:
-        response = await client.decrement_concurrency_limits(
+        response = await client.decrement_v1_concurrency_slots(
             names=names,
             occupancy_seconds=occupancy_seconds,
             task_run_id=task_run_id,

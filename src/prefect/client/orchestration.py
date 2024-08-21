@@ -939,13 +939,13 @@ class PrefectClient:
             else:
                 raise
 
-    async def increment_concurrency_limits(
+    async def increment_v1_concurrency_slots(
         self,
         names: List[str],
         task_run_id: UUID,
     ) -> httpx.Response:
         """
-        Increment concurrency limit usage for the specified limits.
+        Increment concurrency limit slots for the specified limits.
 
         Args:
             names (List[str]): A list of limit names for which to increment limits.
@@ -953,7 +953,7 @@ class PrefectClient:
         """
         data = {
             "names": names,
-            "task_run_id": task_run_id,
+            "task_run_id": str(task_run_id),
         }
 
         return await self._client.post(
@@ -961,14 +961,14 @@ class PrefectClient:
             json=data,
         )
 
-    async def decrement_concurrency_limits(
+    async def decrement_v1_concurrency_slots(
         self,
         names: List[str],
         occupancy_seconds: float,
         task_run_id: UUID,
     ) -> httpx.Response:
         """
-        Decrement the specified concurrency limits.
+        Decrement concurrency limit slots for the specified limits.
 
         Args:
             names (List[str]): A list of limit names to decrement.
@@ -982,7 +982,7 @@ class PrefectClient:
         data = {
             "names": names,
             "occupancy_seconds": occupancy_seconds,
-            "task_run_id": task_run_id,
+            "task_run_id": str(task_run_id),
         }
 
         return await self._client.post(

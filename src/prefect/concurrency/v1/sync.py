@@ -22,8 +22,8 @@ except ImportError:
 from prefect.server.schemas.core import ConcurrencyLimit
 
 from .asyncio import (
-    _acquire_concurrency_limits,
-    _release_concurrency_limits,
+    _acquire_concurrency_slots,
+    _release_concurrency_slots,
 )
 from .events import (
     _emit_concurrency_acquisition_events,
@@ -72,7 +72,7 @@ def concurrency(
     names = names if isinstance(names, list) else [names]
 
     limits: List[ConcurrencyLimit] = _call_async_function_from_sync(
-        _acquire_concurrency_limits,
+        _acquire_concurrency_slots,
         names,
         timeout_seconds=timeout_seconds,
         task_run_id=task_run_id,
@@ -85,7 +85,7 @@ def concurrency(
     finally:
         occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
         _call_async_function_from_sync(
-            _release_concurrency_limits,
+            _release_concurrency_slots,
             names,
             occupancy_period.total_seconds(),
             task_run_id,
