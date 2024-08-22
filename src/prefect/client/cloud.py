@@ -124,7 +124,7 @@ class CloudClient:
 
     async def update_account_ip_allowlist(self, updated_allowlist: IPAllowlist):
         await self.request(
-            "PATCH",
+            "PUT",
             f"{self.account_base_url}/ip_allowlist",
             json=updated_allowlist.model_dump(),
         )
