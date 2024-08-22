@@ -54,7 +54,6 @@ class ConcurrencySlotAcquisitionService(QueueService):
             holder,
             max_retries,
         ) = item
-        print("max_retries", max_retries)
         try:
             response = await self.acquire_slots(
                 occupy, mode, timeout_seconds, create_if_missing, holder, max_retries

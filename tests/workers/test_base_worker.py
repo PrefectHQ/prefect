@@ -306,11 +306,15 @@ async def test_worker_with_deployment_concurrency_limit(
             worker_deployment_wq1_cl1.id, state=state, name=name
         )
 
+    async def test(*args, **kwargs):
+        import asyncio
+
+        await asyncio.sleep(5)
+
     flowrun_1 = await create_run_with_deployment("first", Scheduled())
     flowrun_2 = await create_run_with_deployment("second", Scheduled())
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        worker._submit_run = AsyncMock()  # don't run anything
-
+        worker._submit_run = test  # simulate running a flow
         runs = await worker.get_and_submit_flow_runs()
         assert len(runs) == 1
         assert runs[0].id == flowrun_1.id
