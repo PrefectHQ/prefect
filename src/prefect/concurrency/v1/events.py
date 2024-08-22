@@ -1,8 +1,8 @@
 from typing import Dict, List, Literal, Optional, Union
 from uuid import UUID
 
+from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.events import Event, RelatedResource, emit_event
-from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 
 
 def _emit_concurrency_event(
