@@ -54,7 +54,7 @@ async def concurrency(
     Example:
     A simple example of using the async `concurrency` context manager:
     ```python
-    from prefect.concurrency.asyncio import concurrency
+    from prefect.concurrency.v1.asyncio import concurrency
 
     async def resource_heavy():
         async with concurrency("test", task_run_id):
