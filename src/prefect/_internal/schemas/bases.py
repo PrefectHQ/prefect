@@ -4,7 +4,7 @@ Utilities for creating and working with Prefect REST API schemas.
 
 import datetime
 import os
-from typing import Any, ClassVar, Literal, Optional, Set, TypeVar
+from typing import Any, ClassVar, Optional, Set, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
@@ -32,12 +32,10 @@ class PrefectBaseModel(BaseModel):
     """
 
     _reset_fields: ClassVar[Set[str]] = set()
-    experimental_defer_build_mode: ClassVar[
-        tuple[Literal["model", "type_adapter"], ...]
-    ] = ("model", "type_adapter")
 
     model_config = ConfigDict(
         ser_json_timedelta="float",
+        experimental_defer_build_mode=("model", "type_adapter"),
         defer_build=True,
         extra=(
             "ignore"
