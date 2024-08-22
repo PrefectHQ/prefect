@@ -901,7 +901,7 @@ class Block(BaseModel, ABC):
                     await register_blocks_in_annotation(inner_annotation)
 
         for field in cls.__fields__.values():
-            await register_blocks_in_annotation(field.type_)
+            await register_blocks_in_annotation(field.annotation)
 
         try:
             block_type = await client.read_block_type_by_slug(
