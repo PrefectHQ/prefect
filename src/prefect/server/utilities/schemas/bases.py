@@ -58,8 +58,10 @@ class PrefectBaseModel(BaseModel):
     """
 
     _reset_fields: ClassVar[Set[str]] = set()
+
     model_config = ConfigDict(
         ser_json_timedelta="float",
+        experimental_defer_build_mode=("model", "type_adapter"),
         defer_build=True,
         extra=(
             "ignore"
