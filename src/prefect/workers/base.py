@@ -19,7 +19,11 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
-from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError, concurrency
+from prefect.concurrency.asyncio import (
+    AcquireConcurrencySlotTimeoutError,
+    ConcurrencySlotAcquisitionError,
+    concurrency,
+)
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
@@ -37,11 +41,12 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import (
-    AwaitingConcurrecySlot,
+    AwaitingConcurrencySlot,
     Crashed,
     Pending,
     exception_to_failed_state,
 )
+from prefect.utilities.asyncutils import asyncnullcontext
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
 from prefect.utilities.services import critical_service_loop
@@ -758,42 +763,25 @@ class BaseWorker(abc.ABC):
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
-            if flow_run.deployment_id:
-                deployment = await self._client.read_deployment(flow_run.deployment_id)
-            name = str(deployment.id) if deployment.concurrency_limit else None
             try:
-                async with concurrency(
-                    name, occupy=deployment.concurrency_limit, max_retries=0
-                ):
-                    try:
-                        if self._limiter:
-                            self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
-                    except anyio.WouldBlock:
-                        self._logger.info(
-                            f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                            " in progress."
-                        )
-                        break
-                    else:
-                        run_logger = self.get_flow_run_logger(flow_run)
-                        run_logger.info(
-                            f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
-                        )
-                        self._submitting_flow_run_ids.add(flow_run.id)
-                        self._runs_task_group.start_soon(
-                            self._submit_run,
-                            flow_run,
-                        )
-            except ConcurrencySlotAcquisitionError:
+                if self._limiter:
+                    self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
+            except anyio.WouldBlock:
                 self._logger.info(
-                    (
-                        "Deployment %s has reached its concurrency limit when submitting flow run %s"
-                    ),
-                    flow_run.deployment_id,
-                    flow_run.name,
+                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
+                    " in progress."
                 )
-                await self._propose_scheduled_state(flow_run)
-                continue
+                break
+            else:
+                run_logger = self.get_flow_run_logger(flow_run)
+                run_logger.info(
+                    f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
+                )
+                self._submitting_flow_run_ids.add(flow_run.id)
+                self._runs_task_group.start_soon(
+                    self._submit_run,
+                    flow_run,
+                )
 
         return list(
             filter(
@@ -858,28 +846,55 @@ class BaseWorker(abc.ABC):
                         "not be cancellable."
                     )
 
-            run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
+                run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
-        else:
-            # If the run is not ready to submit, release the concurrency slot
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            else:
+                # If the run is not ready to submit, release the concurrency slot
+                if self._limiter:
+                    self._limiter.release_on_behalf_of(flow_run.id)
 
-        self._submitting_flow_run_ids.remove(flow_run.id)
+            self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
     ) -> Union[BaseWorkerResult, Exception]:
         run_logger = self.get_flow_run_logger(flow_run)
+        deployment = None
+
+        if flow_run.deployment_id:
+            deployment = await self._client.read_deployment(flow_run.deployment_id)
+        if deployment and deployment.concurrency_limit:
+            limit_name = f"deployment:{deployment.id}"
+            concurrency_ctx = concurrency
+        else:
+            limit_name = None
+            concurrency_ctx = asyncnullcontext
 
         try:
-            configuration = await self._get_configuration(flow_run)
-            submitted_event = self._emit_flow_run_submitted_event(configuration)
-            result = await self.run(
-                flow_run=flow_run,
-                task_status=task_status,
-                configuration=configuration,
+            async with concurrency_ctx(limit_name, occupy=1, max_retries=0):
+                configuration = await self._get_configuration(flow_run)
+                submitted_event = self._emit_flow_run_submitted_event(configuration)
+                result = await self.run(
+                    flow_run=flow_run,
+                    task_status=task_status,
+                    configuration=configuration,
+                )
+        except (
+            AcquireConcurrencySlotTimeoutError,
+            ConcurrencySlotAcquisitionError,
+        ) as exc:
+            self._logger.info(
+                (
+                    "Deployment %s has reached its concurrency limit when submitting flow run %s"
+                ),
+                flow_run.deployment_id,
+                flow_run.name,
             )
+            await self._propose_scheduled_state(flow_run)
+
+            if not task_status._future.done():
+                task_status.started(exc)
+            return exc
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
@@ -1005,7 +1020,7 @@ class BaseWorker(abc.ABC):
         try:
             state = await propose_state(
                 self._client,
-                AwaitingConcurrecySlot(),
+                AwaitingConcurrencySlot(),
                 flow_run_id=flow_run.id,
             )
             self._logger.info(f"Flow run {flow_run.id} now has state {state.name}")
