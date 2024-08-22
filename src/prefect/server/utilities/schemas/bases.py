@@ -5,6 +5,7 @@ from typing import (
     Any,
     ClassVar,
     Dict,
+    Literal,
     Optional,
     Set,
     Type,
@@ -58,7 +59,9 @@ class PrefectBaseModel(BaseModel):
     """
 
     _reset_fields: ClassVar[Set[str]] = set()
-    experimental_defer_build_mode = ("model", "type_adapter")
+    experimental_defer_build_mode: ClassVar[
+        tuple[Literal["model", "type_adapter"], ...]
+    ] = ("model", "type_adapter")
 
     model_config = ConfigDict(
         ser_json_timedelta="float",
