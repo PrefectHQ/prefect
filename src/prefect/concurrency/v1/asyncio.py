@@ -7,7 +7,7 @@ import anyio
 import httpx
 import pendulum
 
-from ...server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
+from ...client.schemas.responses import MinimalConcurrencyLimitResponse
 
 try:
     from pendulum import Interval

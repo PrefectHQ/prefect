@@ -11,7 +11,7 @@ from uuid import UUID
 
 import pendulum
 
-from ...server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
+from ...client.schemas.responses import MinimalConcurrencyLimitResponse
 from ..sync import _call_async_function_from_sync
 
 try:
