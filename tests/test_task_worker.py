@@ -10,31 +10,17 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow, task
-from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_UI_URL,
     temporary_settings,
 )
-from prefect.states import Running
 from prefect.task_worker import TaskWorker, serve
 from prefect.tasks import task_input_hash
 
 pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
-
-
-@pytest.fixture(autouse=True, params=[False, True])
-def enable_client_side_task_run_orchestration(
-    request, asserting_events_worker: EventsWorker
-):
-    enabled = request.param
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
-    ):
-        yield enabled
 
 
 # model defined outside of the test function to avoid pickling issues
@@ -141,55 +127,6 @@ async def test_task_worker_client_id_is_set():
         task_worker._client = MagicMock(api_url="http://localhost:4200")
 
         assert task_worker.client_id == "foo-42"
-
-
-async def test_task_worker_handles_aborted_task_run_submission(
-    foo_task, prefect_client, caplog
-):
-    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-        pytest.skip(
-            "This test is not relevant when client-side orchestration is enabled"
-        )
-
-    task_worker = TaskWorker(foo_task)
-
-    task_run_future = foo_task.apply_async((42,))
-
-    new_state = Running()
-    new_state.state_details.deferred = True
-    await prefect_client.set_task_run_state(
-        task_run_future.task_run_id,
-        new_state,
-        force=True,
-    )
-
-    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
-
-    await task_worker.execute_task_run(task_run)
-
-    assert "in a RUNNING state and cannot transition to a PENDING state." in caplog.text
-
-
-async def test_task_worker_handles_deleted_task_run_submission(
-    foo_task, prefect_client, caplog
-):
-    if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-        pytest.skip(
-            "This test is not relevant when client-side orchestration is enabled"
-        )
-
-    task_worker = TaskWorker(foo_task)
-
-    task_run_future = foo_task.apply_async((42,))
-    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
-
-    await prefect_client.delete_task_run(task_run_future.task_run_id)
-
-    await task_worker.execute_task_run(task_run)
-
-    assert (
-        f"Task run {task_run.id!r} not found. It may have been deleted." in caplog.text
-    )
 
 
 async def test_task_worker_stays_running_on_errors(monkeypatch):
@@ -467,17 +404,10 @@ class TestTaskWorkerTaskResults:
         prefect_client,
         caplog,
         events_pipeline,
-        enable_client_side_task_run_orchestration,
     ):
         count = 0
 
-        def ff_task_input_hash(ctx, args):
-            return (
-                task_input_hash(ctx, args)
-                + f":{enable_client_side_task_run_orchestration}"
-            )
-
-        @task(cache_key_fn=ff_task_input_hash)
+        @task(cache_key_fn=task_input_hash)
         async def task_with_cache(x):
             nonlocal count
             count += 1

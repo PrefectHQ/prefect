@@ -21,11 +21,11 @@ from sqlalchemy.sql.functions import coalesce
 
 import prefect
 import prefect.server.schemas as schemas
-from prefect.server.events.actions import ActionTypes
+from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.schemas.automations import (
     AutomationSort,
     Firing,
-    TriggerTypes,
+    ServerTriggerTypes,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.statuses import (
@@ -875,6 +875,9 @@ class Deployment(Base):
         order_by=sa.desc(sa.text("updated")),
     )
 
+    concurrency_limit: Mapped[Union[int, None]] = mapped_column(
+        sa.Integer, default=None, nullable=True
+    )
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
@@ -1315,14 +1318,20 @@ class Automation(Base):
 
     enabled = sa.Column(sa.Boolean, nullable=False, server_default="1", default=True)
 
-    trigger = sa.Column(Pydantic(TriggerTypes), nullable=False)
+    trigger = sa.Column(Pydantic(ServerTriggerTypes), nullable=False)
 
-    actions = sa.Column(Pydantic(List[ActionTypes]), nullable=False)
+    actions = sa.Column(Pydantic(List[ServerActionTypes]), nullable=False)
     actions_on_trigger = sa.Column(
-        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+        Pydantic(List[ServerActionTypes]),
+        server_default="[]",
+        default=list,
+        nullable=False,
     )
     actions_on_resolve = sa.Column(
-        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+        Pydantic(List[ServerActionTypes]),
+        server_default="[]",
+        default=list,
+        nullable=False,
     )
 
     related_resources = sa.orm.relationship(

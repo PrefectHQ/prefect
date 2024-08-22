@@ -1,22 +1,88 @@
+import abc
 import os
 import socket
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from prefect.results import BaseResult
+if TYPE_CHECKING:
+    from prefect.results import BaseResult
+    from prefect.transactions import IsolationLevel
 
 
-class RecordStore:
-    def read(self, key: str):
-        raise NotImplementedError
+@dataclass
+class TransactionRecord:
+    """
+    A dataclass representation of a transaction record.
+    """
 
-    def write(self, key: str, value: dict):
-        raise NotImplementedError
+    key: str
+    result: "BaseResult"
 
+
+class RecordStore(abc.ABC):
+    @abc.abstractmethod
+    def read(
+        self, key: str, holder: Optional[str] = None
+    ) -> Optional[TransactionRecord]:
+        """
+        Read the transaction record with the given key.
+
+        Args:
+            key: Unique identifier for the transaction record.
+            holder: Unique identifier for the holder of the lock. If a lock exists on
+                the record being written, the read will be blocked until the lock is
+                released if the provided holder does not match the holder of the lock.
+                If not provided, a default holder based on the current host, process,
+                and thread will be used.
+
+        Returns:
+            TransactionRecord: The transaction record with the given key.
+        """
+        ...
+
+    @abc.abstractmethod
+    def write(self, key: str, result: "BaseResult", holder: Optional[str] = None):
+        """
+        Write the transaction record with the given key.
+
+        Args:
+            key: Unique identifier for the transaction record.
+            record: The transaction record to write.
+            holder: Unique identifier for the holder of the lock. If a lock exists on
+                the record being written, the write will be rejected if the provided
+                holder does not match the holder of the lock. If not provided,
+                a default holder based on the current host, process, and thread will
+                be used.
+        """
+        ...
+
+    @abc.abstractmethod
     def exists(self, key: str) -> bool:
-        return False
+        """
+        Check if the transaction record with the given key exists.
+
+        Args:
+            key: Unique identifier for the transaction record.
+
+        Returns:
+            bool: True if the record exists; False otherwise.
+        """
+        ...
+
+    @abc.abstractmethod
+    def supports_isolation_level(self, isolation_level: "IsolationLevel") -> bool:
+        """
+        Check if the record store supports the given isolation level.
+
+        Args:
+            isolation_level: The isolation level to check.
+
+        Returns:
+            bool: True if the record store supports the isolation level; False otherwise.
+        """
+        ...
 
     def acquire_lock(
         self,
@@ -155,13 +221,3 @@ class RecordStore:
             yield
         finally:
             self.release_lock(key=key, holder=holder)
-
-
-@dataclass
-class TransactionRecord:
-    """
-    A dataclass representation of a transaction record.
-    """
-
-    key: str
-    result: Optional[BaseResult] = None

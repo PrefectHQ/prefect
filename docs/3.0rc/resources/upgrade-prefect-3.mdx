@@ -16,6 +16,15 @@ The Prefect 3 release does not involve any changes to Prefect Cloud.
 All previous and future Prefect 2 releases will continue to work with Prefect Cloud.
 </Info>
 
+## Client Side Task Orchestration
+Prefect 3 introduces client-side task run orchestration as the default. Task creation and state updates now happen locally, dramatically reducing API calls to the Prefect server during execution. This change brings a <b>10x performance improvement for task executions</b> in many scenarios. 
+
+The reduced server dependency also means your workflows are more resilient to network issues or server load, continuing to run even if there's a temporary loss of connection to the Prefect server.
+
+Task updates are now logged in batch, greatly improving efficiency and enabling Prefect 3 to handle much larger and more complex workflows. You can create and run workflows with thousands of tasks efficiently, supporting large-scale data processing and complex orchestration scenarios. 
+
+State changes and logs in the Prefect UI are now eventually consistent, this trade-off enables the substantial performance gains and increased workflow scale that Prefect 3 delivers.
+
 ## Module location and name changes
 
 Some modules have been renamed, reorganized, or removed for clarity. 

@@ -59,6 +59,8 @@ class DeploymentSort(AutoEnum):
     UPDATED_DESC = AutoEnum.auto()
     NAME_ASC = AutoEnum.auto()
     NAME_DESC = AutoEnum.auto()
+    CONCURRENCY_LIMIT_ASC = AutoEnum.auto()
+    CONCURRENCY_LIMIT_DESC = AutoEnum.auto()
 
 
 class ArtifactSort(AutoEnum):

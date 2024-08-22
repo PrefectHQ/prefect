@@ -1599,6 +1599,7 @@ class PrefectClient:
         name: str,
         version: Optional[str] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -1656,6 +1657,7 @@ class PrefectClient:
             parameter_openapi_schema=parameter_openapi_schema,
             paused=paused,
             schedules=schedules or [],
+            concurrency_limit=concurrency_limit,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
         )
@@ -2612,6 +2614,7 @@ class PrefectClient:
     async def create_work_pool(
         self,
         work_pool: WorkPoolCreate,
+        overwrite: bool = False,
     ) -> WorkPool:
         """
         Creates a work pool with the provided configuration.
@@ -2629,7 +2632,24 @@ class PrefectClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
-                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+                if overwrite:
+                    existing_work_pool = await self.read_work_pool(
+                        work_pool_name=work_pool.name
+                    )
+                    if existing_work_pool.type != work_pool.type:
+                        warnings.warn(
+                            "Overwriting work pool type is not supported. Ignoring provided type.",
+                            category=UserWarning,
+                        )
+                    await self.update_work_pool(
+                        work_pool_name=work_pool.name,
+                        work_pool=WorkPoolUpdate.model_validate(
+                            work_pool.model_dump(exclude={"name", "type"})
+                        ),
+                    )
+                    response = await self._client.get(f"/work_pools/{work_pool.name}")
+                else:
+                    raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
 
@@ -3156,7 +3176,7 @@ class PrefectClient:
         return pydantic.TypeAdapter(List[Automation]).validate_python(response.json())
 
     async def find_automation(
-        self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
+        self, id_or_name: Union[str, UUID]
     ) -> Optional[Automation]:
         if isinstance(id_or_name, str):
             try:

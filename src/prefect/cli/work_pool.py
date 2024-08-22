@@ -100,9 +100,14 @@ async def create(
             " for the given work pool type."
         ),
     ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help=("Whether or not to overwrite an existing work pool with the same name."),
+    ),
 ):
     """
-    Create a new work pool.
+    Create a new work pool or update an existing one.
 
     \b
     Examples:
@@ -114,22 +119,25 @@ async def create(
         Create a Docker work pool with a custom base job template:
             \b
             $ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
+        \b
+        Update an existing work pool:
+            \b
+            $ prefect work-pool create "existing-pool" --base-job-template ./base-job-template.json --overwrite
 
     """
     if not name.lower().strip("'\" "):
         exit_with_error("Work pool name cannot be empty.")
     async with get_client() as client:
         try:
-            await client.read_work_pool(work_pool_name=name)
+            existing_pool = await client.read_work_pool(work_pool_name=name)
+            if not overwrite:
+                exit_with_error(
+                    f"Work pool named {name!r} already exists. Use --overwrite to update it."
+                )
         except ObjectNotFound:
-            pass
-        else:
-            exit_with_error(
-                f"Work pool named {name!r} already exists. Please try creating your"
-                " work pool again with a different name."
-            )
+            existing_pool = None
 
-        if type is None:
+        if type is None and existing_pool is None:
             async with get_collections_metadata_client() as collections_client:
                 if not is_interactive():
                     exit_with_error(
@@ -158,6 +166,8 @@ async def create(
                     table_kwargs={"show_lines": True},
                 )
                 type = worker["type"]
+        elif existing_pool:
+            type = existing_pool.type
 
         available_work_pool_types = await get_available_work_pool_types()
         if type not in available_work_pool_types:
@@ -200,8 +210,11 @@ async def create(
                 base_job_template=template_contents,
                 is_paused=paused,
             )
-            work_pool = await client.create_work_pool(work_pool=wp)
-            app.console.print(f"Created work pool {work_pool.name!r}!\n", style="green")
+            work_pool = await client.create_work_pool(work_pool=wp, overwrite=overwrite)
+            action = "Updated" if overwrite and existing_pool else "Created"
+            app.console.print(
+                f"{action} work pool {work_pool.name!r}!\n", style="green"
+            )
             if (
                 not work_pool.is_paused
                 and not work_pool.is_managed_pool
@@ -232,8 +245,7 @@ async def create(
             exit_with_success("")
         except ObjectAlreadyExists:
             exit_with_error(
-                f"Work pool named {name!r} already exists. Please try creating your"
-                " work pool again with a different name."
+                f"Work pool named {name!r} already exists. Please use --overwrite to update it."
             )
 
 

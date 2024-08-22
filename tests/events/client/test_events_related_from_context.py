@@ -46,8 +46,8 @@ async def spy_client(test_database_connection_url):
         exit_stack.close()
 
 
-async def test_gracefully_handles_missing_context():
-    related = await related_resources_from_run_context()
+async def test_gracefully_handles_missing_context(prefect_client):
+    related = await related_resources_from_run_context(prefect_client)
     assert related == []
 
 
@@ -61,7 +61,7 @@ async def test_gets_related_from_run_context(
     )
 
     with FlowRunContext.model_construct(flow_run=flow_run):
-        related = await related_resources_from_run_context()
+        related = await related_resources_from_run_context(prefect_client)
 
     work_pool = work_queue_1.work_pool
     db_flow = await prefect_client.read_flow(flow_run.flow_id)
@@ -124,7 +124,7 @@ async def test_can_exclude_by_resource_id(prefect_client):
         assert flow_run_context is not None
         exclude = {f"prefect.flow-run.{flow_run_context.flow_run.id}"}
 
-        return await related_resources_from_run_context(exclude=exclude)
+        return await related_resources_from_run_context(prefect_client, exclude=exclude)
 
     state = await test_flow(return_state=True)
 
@@ -135,12 +135,12 @@ async def test_can_exclude_by_resource_id(prefect_client):
     assert f"prefect.flow-run.{flow_run.id}" not in related
 
 
-async def test_gets_related_from_task_run_context(prefect_client):
+async def test_gets_related_from_task_run_context(prefect_client, events_pipeline):
     @task
     async def test_task():
         # Clear the FlowRunContext to simulated a task run in a remote worker.
         token = FlowRunContext.__var__.set(None)
-        related_resources = await related_resources_from_run_context()
+        related_resources = await related_resources_from_run_context(prefect_client)
         FlowRunContext.__var__.reset(token)
         return related_resources
 
@@ -149,10 +149,14 @@ async def test_gets_related_from_task_run_context(prefect_client):
         return await test_task(return_state=True)
 
     state = await test_flow(return_state=True)
+
+    await events_pipeline.process_events()
+
     task_state = await state.result()
 
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     db_flow = await prefect_client.read_flow(flow_run.flow_id)
+
     task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
 
     related = await task_state.result()
@@ -188,9 +192,8 @@ async def test_caches_related_objects(spy_client):
         flow_run_context = FlowRunContext.get()
         assert flow_run_context is not None
 
-        with mock.patch("prefect.client.orchestration.get_client", lambda: spy_client):
-            await related_resources_from_run_context()
-            await related_resources_from_run_context()
+        await related_resources_from_run_context(spy_client.client)
+        await related_resources_from_run_context(spy_client.client)
 
     await test_flow()
 
