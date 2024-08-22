@@ -128,8 +128,8 @@ async def _release_concurrency_slots(
     async with get_client() as client:
         response = await client.decrement_v1_concurrency_slots(
             names=names,
-            occupancy_seconds=occupancy_seconds,
             task_run_id=task_run_id,
+            occupancy_seconds=occupancy_seconds,
         )
         return _response_to_concurrency_limit_response(response)
 

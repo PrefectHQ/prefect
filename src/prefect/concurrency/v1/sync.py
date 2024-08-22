@@ -86,7 +86,7 @@ def concurrency(
         _call_async_function_from_sync(
             _release_concurrency_slots,
             names,
-            occupancy_seconds=occupancy_period.total_seconds(),
-            task_run_id=task_run_id,
+            task_run_id,
+            occupancy_period.total_seconds(),
         )
         _emit_concurrency_release_events(limits, emitted_events, task_run_id)

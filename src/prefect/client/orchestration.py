@@ -964,25 +964,25 @@ class PrefectClient:
     async def decrement_v1_concurrency_slots(
         self,
         names: List[str],
-        occupancy_seconds: float,
         task_run_id: UUID,
+        occupancy_seconds: float,
     ) -> httpx.Response:
         """
         Decrement concurrency limit slots for the specified limits.
 
         Args:
             names (List[str]): A list of limit names to decrement.
+            task_run_id (UUID): The task run ID that incremented the limits.
             occupancy_seconds (float): The duration in seconds that the limits
                 were held.
-            task_run_id (UUID): The task run ID that incremented the limits.
 
         Returns:
             httpx.Response: The HTTP response from the server.
         """
         data = {
             "names": names,
-            "occupancy_seconds": occupancy_seconds,
             "task_run_id": str(task_run_id),
+            "occupancy_seconds": occupancy_seconds,
         }
 
         return await self._client.post(
