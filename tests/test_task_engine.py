@@ -17,12 +17,12 @@ from prefect import Task, flow, task
 from prefect.cache_policies import FLOW_PARAMETERS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
-from prefect.concurrency.asyncio import (
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
+from prefect.concurrency.v1.asyncio import (
     _acquire_concurrency_slots,
     _release_concurrency_slots,
 )
-from prefect.concurrency.asyncio import concurrency as aconcurrency
-from prefect.concurrency.sync import concurrency
 from prefect.context import (
     EngineContext,
     FlowRunContext,
@@ -2271,51 +2271,59 @@ class TestAsyncGenerators:
 
 class TestTaskConcurrencyLimits:
     async def test_tag_concurrency(self):
+        task_run_id = None
+
         @task(tags=["limit-tag"])
         async def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
             return 42
 
         with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.asyncio._release_concurrency_slots",
+                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 await bar()
 
                 acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
                 )
 
-                names, occupy, occupy_seconds = release_spy.call_args[0]
+                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
                 assert names == ["limit-tag"]
-                assert occupy == 1
+                assert _task_run_id == task_run_id
                 assert occupy_seconds > 0
 
     def test_tag_concurrency_sync(self):
+        task_run_id = None
+
         @task(tags=["limit-tag"])
         def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
             return 42
 
         with mock.patch(
-            "prefect.concurrency.sync._acquire_concurrency_slots",
+            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.sync._release_concurrency_slots",
+                "prefect.concurrency.v1.sync._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 bar()
 
                 acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
                 )
 
-                names, occupy, occupy_seconds = release_spy.call_args[0]
+                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
                 assert names == ["limit-tag"]
-                assert occupy == 1
+                assert _task_run_id == task_run_id
                 assert occupy_seconds > 0
 
     async def test_no_tags_no_concurrency(self):
@@ -2324,11 +2332,11 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.asyncio._release_concurrency_slots",
+                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 await bar()
@@ -2342,11 +2350,11 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.sync._acquire_concurrency_slots",
+            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.sync._release_concurrency_slots",
+                "prefect.concurrency.v1.sync._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 bar()
@@ -2355,18 +2363,22 @@ class TestTaskConcurrencyLimits:
                 assert release_spy.call_count == 0
 
     async def test_tag_concurrency_does_not_create_limits(self, prefect_client):
+        task_run_id = None
+
         @task(tags=["limit-tag"])
         async def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
             return 42
 
         with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             await bar()
 
             acquire_spy.assert_called_once_with(
-                ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
             )
 
             limits = await prefect_client.read_concurrency_limits(10, 0)

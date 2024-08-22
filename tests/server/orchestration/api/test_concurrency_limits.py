@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from starlette import status
 
 from prefect.server import schemas
+from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 from prefect.server.schemas.actions import ConcurrencyLimitCreate
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 
@@ -270,3 +271,79 @@ class TestAcquiringAndReleasing:
                 read_response.json()
             )
             assert concurrency_limit.active_slots == []
+
+    async def test_acquiring_returns_limits(
+        self,
+        client: AsyncClient,
+        tags_with_limits: List[str],
+    ):
+        task_run_id = uuid4()
+        tags = tags_with_limits + ["does-not-exist"]
+
+        response = await client.post(
+            "/concurrency_limits/increment",
+            json={"names": tags, "task_run_id": str(task_run_id)},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        limits = [
+            MinimalConcurrencyLimitResponse.model_validate(limit)
+            for limit in response.json()
+        ]
+        assert len(limits) == 2  # ignores tags that don't exist
+
+    async def test_releasing_returns_limits(
+        self,
+        client: AsyncClient,
+        tags_with_limits: List[str],
+    ):
+        task_run_id = uuid4()
+        tags = tags_with_limits + ["does-not-exist"]
+
+        response = await client.post(
+            "/concurrency_limits/increment",
+            json={"names": tags, "task_run_id": str(task_run_id)},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        response = await client.post(
+            "/concurrency_limits/decrement",
+            json={"names": tags, "task_run_id": str(task_run_id)},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        limits = [
+            MinimalConcurrencyLimitResponse.model_validate(limit)
+            for limit in response.json()
+        ]
+        assert len(limits) == 2  # ignores tags that don't exist
+
+    async def test_acquiring_returns_empty_list_if_no_limits(
+        self,
+        client: AsyncClient,
+        tags_with_limits: List[str],
+    ):
+        task_run_id = uuid4()
+        tags = ["does-not-exist"]
+
+        response = await client.post(
+            "/concurrency_limits/increment",
+            json={"names": tags, "task_run_id": str(task_run_id)},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == []
+
+    async def test_releasing_returns_empty_list_if_no_limits(
+        self,
+        client: AsyncClient,
+        tags_with_limits: List[str],
+    ):
+        task_run_id = uuid4()
+        tags = ["does-not-exist"]
+
+        response = await client.post(
+            "/concurrency_limits/decrement",
+            json={"names": tags, "task_run_id": str(task_run_id)},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == []
