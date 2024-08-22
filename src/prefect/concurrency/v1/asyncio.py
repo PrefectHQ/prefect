@@ -137,6 +137,8 @@ async def _release_concurrency_slots(
 def _response_to_concurrency_limit_response(
     response: httpx.Response,
 ) -> List[MinimalConcurrencyLimitResponse]:
+    print(response.url, response.content)
+    data = response.json() or []
     return [
-        MinimalConcurrencyLimitResponse.model_validate(obj_) for obj_ in response.json()
+        MinimalConcurrencyLimitResponse.model_validate(limit) for limit in data if data
     ]

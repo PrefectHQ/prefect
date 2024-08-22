@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 from contextlib import asynccontextmanager
+from json import JSONDecodeError
 from typing import (
     TYPE_CHECKING,
     AsyncGenerator,
@@ -11,18 +12,19 @@ from typing import (
 from uuid import UUID
 
 import httpx
-from pydantic import ValidationError
 from starlette import status
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import QueueService
 from prefect.client.orchestration import get_client
-from prefect.client.schemas import OrchestrationResult
-from prefect.exceptions import Abort
 from prefect.utilities.timeout import timeout_async
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+
+
+class ConcurrencySlotAcquisitionServiceError(Exception):
+    """Raised when an error occurs while acquiring concurrency slots."""
 
 
 class ConcurrencySlotAcquisitionService(QueueService):
@@ -84,21 +86,16 @@ class ConcurrencySlotAcquisitionService(QueueService):
                             # because the concurrency limit is set to 0, i.e.
                             # effectively disabled.
                             try:
-                                response = OrchestrationResult.model_validate(
-                                    exc.response.json()
-                                )
-                                raise Abort(response.details.reason) from exc
-                            except ValidationError as exc:
-                                # We're supposed to get a valid orchestration result here,
-                                # containing the result for the abort. We didn't, so we don't
-                                # know why the server told us to abort, but we do know we have
-                                # to abort.
+                                reason = exc.response.json()["detail"]
+                            except (JSONDecodeError, KeyError):
                                 logger.error(
-                                    "Failed to validate v1 slot acquisition response"
+                                    "Failed to parse response from concurrency limit 423 Locked response: %s",
+                                    exc.response.content,
                                 )
-                                raise Abort(
-                                    "Concurrency slot acquisition failed"
-                                ) from exc
+                                reason = "Concurrency limit is locked (server did not specify the reason)"
+                            raise ConcurrencySlotAcquisitionServiceError(
+                                reason
+                            ) from exc
 
                     else:
                         raise exc  # type: ignore

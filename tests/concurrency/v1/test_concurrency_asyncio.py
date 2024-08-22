@@ -7,6 +7,7 @@ from starlette import status
 
 from prefect import flow, task
 from prefect.concurrency.v1.asyncio import (
+    ConcurrencySlotAcquisitionError,
     _acquire_concurrency_slots,
     _release_concurrency_slots,
     concurrency,
@@ -185,6 +186,66 @@ async def test_concurrency_respects_timeout():
     task_run_id = UUID("00000000-0000-0000-0000-000000000000")
     with pytest.raises(TimeoutError, match=".*timed out after 0.01 second(s)*"):
         async with concurrency("test", task_run_id, timeout_seconds=0.01):
+            print("should not be executed")
+
+
+@pytest.fixture
+def mock_increment_concurrency_locked_with_no_retry_after(monkeypatch):
+    async def mocked_increment_concurrency_slots(*args, **kwargs):
+        response = Response(
+            status_code=status.HTTP_423_LOCKED,
+        )
+        raise HTTPStatusError(
+            message="Locked",
+            request=Request("GET", "http://test.com"),
+            response=response,
+        )
+
+    monkeypatch.setattr(
+        "prefect.client.orchestration.PrefectClient.increment_v1_concurrency_slots",
+        mocked_increment_concurrency_slots,
+    )
+
+
+@pytest.mark.usefixtures(
+    "concurrency_limit", "mock_increment_concurrency_locked_with_no_retry_after"
+)
+async def test_concurrency_raises_when_locked_with_no_retry_after():
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        async with concurrency("test", task_run_id):
+            print("should not be executed")
+
+
+@pytest.fixture
+def mock_increment_concurrency_locked_with_details_and_no_retry_after(
+    monkeypatch,
+):
+    async def mocked_increment_concurrency_slots(*args, **kwargs):
+        response = Response(
+            status_code=status.HTTP_423_LOCKED,
+            json={"details": "It's broken"},
+        )
+        raise HTTPStatusError(
+            message="Locked",
+            request=Request("GET", "http://test.com"),
+            response=response,
+        )
+
+    monkeypatch.setattr(
+        "prefect.client.orchestration.PrefectClient.increment_v1_concurrency_slots",
+        mocked_increment_concurrency_slots,
+    )
+
+
+@pytest.mark.usefixtures(
+    "concurrency_limit",
+    "mock_increment_concurrency_locked_with_details_and_no_retry_after",
+)
+async def test_concurrency_raises_when_locked_with_details_and_no_retry_after():
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        async with concurrency("test", task_run_id):
             print("should not be executed")
 
 
