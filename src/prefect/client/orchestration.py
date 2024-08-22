@@ -939,6 +939,57 @@ class PrefectClient:
             else:
                 raise
 
+    async def increment_v1_concurrency_slots(
+        self,
+        names: List[str],
+        task_run_id: UUID,
+    ) -> httpx.Response:
+        """
+        Increment concurrency limit slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to increment limits.
+            task_run_id (UUID): The task run ID incrementing the limits.
+        """
+        data = {
+            "names": names,
+            "task_run_id": str(task_run_id),
+        }
+
+        return await self._client.post(
+            "/concurrency_limits/increment",
+            json=data,
+        )
+
+    async def decrement_v1_concurrency_slots(
+        self,
+        names: List[str],
+        task_run_id: UUID,
+        occupancy_seconds: float,
+    ) -> httpx.Response:
+        """
+        Decrement concurrency limit slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names to decrement.
+            task_run_id (UUID): The task run ID that incremented the limits.
+            occupancy_seconds (float): The duration in seconds that the limits
+                were held.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        data = {
+            "names": names,
+            "task_run_id": str(task_run_id),
+            "occupancy_seconds": occupancy_seconds,
+        }
+
+        return await self._client.post(
+            "/concurrency_limits/decrement",
+            json=data,
+        )
+
     async def create_work_queue(
         self,
         name: str,
@@ -4114,5 +4165,29 @@ class SyncPrefectClient:
                 "names": names,
                 "slots": slots,
                 "occupancy_seconds": occupancy_seconds,
+            },
+        )
+
+    def decrement_v1_concurrency_slots(
+        self, names: List[str], occupancy_seconds: float, task_run_id: UUID
+    ) -> httpx.Response:
+        """
+        Release the specified concurrency limits.
+
+        Args:
+            names (List[str]): A list of limit names to decrement.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were held.
+            task_run_id (UUID): The task run ID that incremented the limits.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        return self._client.post(
+            "/concurrency_limits/decrement",
+            json={
+                "names": names,
+                "occupancy_seconds": occupancy_seconds,
+                "task_run_id": str(task_run_id),
             },
         )

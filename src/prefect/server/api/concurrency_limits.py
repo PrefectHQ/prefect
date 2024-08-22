@@ -2,7 +2,7 @@
 Routes for interacting with concurrency limit objects.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -11,6 +11,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models import concurrency_limits
@@ -95,7 +96,7 @@ async def read_concurrency_limits(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.ConcurrencyLimit]:
+) -> Sequence[schemas.core.ConcurrencyLimit]:
     """
     Query for concurrency limits.
 
@@ -180,12 +181,12 @@ async def increment_concurrency_limits_v1(
         ..., description="The ID of the task run acquiring the slot"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
-    applied_limits = []
+) -> List[MinimalConcurrencyLimitResponse]:
+    applied_limits = {}
 
     async with db.session_context(begin_transaction=True) as session:
         try:
-            applied_limits = []
+            applied_limits = {}
             filtered_limits = (
                 await concurrency_limits.filter_concurrency_limits_for_orchestration(
                     session, tags=names
@@ -196,7 +197,7 @@ async def increment_concurrency_limits_v1(
                 limit = cl.concurrency_limit
                 if limit == 0:
                     # limits of 0 will deadlock, and the transition needs to abort
-                    for stale_tag in applied_limits:
+                    for stale_tag in applied_limits.keys():
                         stale_limit = run_limits.get(stale_tag, None)
                         active_slots = set(stale_limit.active_slots)
                         active_slots.discard(str(task_run_id))
@@ -210,7 +211,7 @@ async def increment_concurrency_limits_v1(
                     )
                 elif len(cl.active_slots) >= limit:
                     # if the limit has already been reached, delay the transition
-                    for stale_tag in applied_limits:
+                    for stale_tag in applied_limits.keys():
                         stale_limit = run_limits.get(stale_tag, None)
                         active_slots = set(stale_limit.active_slots)
                         active_slots.discard(str(task_run_id))
@@ -222,12 +223,12 @@ async def increment_concurrency_limits_v1(
                     )
                 else:
                     # log the TaskRun ID to active_slots
-                    applied_limits.append(tag)
+                    applied_limits[tag] = cl
                     active_slots = set(cl.active_slots)
                     active_slots.add(str(task_run_id))
                     cl.active_slots = list(active_slots)
         except Exception as e:
-            for tag in applied_limits:
+            for tag in applied_limits.keys():
                 cl = await concurrency_limits.read_concurrency_limit_by_tag(
                     session, tag
                 )
@@ -248,6 +249,12 @@ async def increment_concurrency_limits_v1(
                 )
             else:
                 raise
+    return [
+        MinimalConcurrencyLimitResponse(
+            name=limit.tag, limit=limit.concurrency_limit, id=limit.id
+        )
+        for limit in applied_limits.values()
+    ]
 
 
 @router.post("/decrement")
@@ -269,3 +276,10 @@ async def decrement_concurrency_limits_v1(
             active_slots = set(cl.active_slots)
             active_slots.discard(str(task_run_id))
             cl.active_slots = list(active_slots)
+
+    return [
+        MinimalConcurrencyLimitResponse(
+            name=limit.tag, limit=limit.concurrency_limit, id=limit.id
+        )
+        for limit in run_limits.values()
+    ]
