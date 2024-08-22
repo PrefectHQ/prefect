@@ -5,6 +5,7 @@ import typer
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_success
 from prefect.cli.cloud import cloud_app, confirm_logged_in
 from prefect.cli.root import app
 from prefect.client.cloud import get_cloud_client
@@ -17,11 +18,37 @@ cloud_app.add_typer(ip_allowlist_app, aliases=["ip-allowlists"])
 
 
 @ip_allowlist_app.command()
+async def enable():
+    """Enable the IP allowlist for your account."""
+    confirm_logged_in()
+
+    async with get_cloud_client(infer_cloud_url=True) as client:
+        await client.update_account_settings({"enforce_ip_allowlist": True})
+
+    # updated_ip_allowlist = await client.read_account_ip_allowlist()
+    # _print_ip_allowlist_table(updated_ip_allowlist)
+    exit_with_success("IP allowlist enabled.")
+
+
+@ip_allowlist_app.command()
+async def disable():
+    """Disable the IP allowlist for your account."""
+    confirm_logged_in()
+
+    async with get_cloud_client(infer_cloud_url=True) as client:
+        await client.update_account_settings({"enforce_ip_allowlist": False})
+
+    # updated_ip_allowlist = await client.read_account_ip_allowlist()
+    # _print_ip_allowlist_table(updated_ip_allowlist)
+    exit_with_success("IP allowlist disabled.")
+
+
+@ip_allowlist_app.command()
 async def ls():
     """Fetch and list all IP allowlist entries in your account."""
     confirm_logged_in()
 
-    async with get_cloud_client() as client:
+    async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
 
         _print_ip_allowlist_table(ip_allowlist)
@@ -44,7 +71,7 @@ async def add(
         ip_network=ip_network, description=description, enabled=True
     )
 
-    async with get_cloud_client() as client:
+    async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
         ip_allowlist.entries.append(new_entry)
         await client.update_account_ip_allowlist(ip_allowlist)
@@ -58,7 +85,7 @@ async def remove(ip_network: str):
     """Remove an IP entry from your account IP allowlist."""
     confirm_logged_in()
 
-    async with get_cloud_client() as client:
+    async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
         ip_allowlist.entries = [
             entry

@@ -1,6 +1,5 @@
-import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import anyio
 import httpx
@@ -70,6 +69,26 @@ class CloudClient:
             **httpx_settings, enable_csrf_support=False
         )
 
+        if match := (
+            re.search(PARSE_API_URL_REGEX, host)
+            or re.search(PARSE_API_URL_REGEX, prefect.settings.PREFECT_API_URL.value())
+        ):
+            self.account_id, self.workspace_id = match.groups()
+
+    @property
+    def account_base_url(self) -> str:
+        if not self.account_id:
+            raise ValueError("Account ID not set")
+
+        return f"accounts/{self.account_id}"
+
+    @property
+    def workspace_base_url(self) -> str:
+        if not self.workspace_id:
+            raise ValueError("Workspace ID not set")
+
+        return f"{self.account_base_url}/workspaces/{self.workspace_id}"
+
     async def api_healthcheck(self):
         """
         Attempts to connect to the Cloud API and raises the encountered exception if not
@@ -87,28 +106,26 @@ class CloudClient:
         return workspaces
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
-        configured_url = prefect.settings.PREFECT_API_URL.value()
-        account_id, workspace_id = re.findall(PARSE_API_URL_REGEX, configured_url)[0]
-        return await self.get(
-            f"accounts/{account_id}/workspaces/{workspace_id}/collections/work_pool_types"
+        response = await self.get(
+            f"{self.workspace_base_url}/collections/work_pool_types"
+        )
+        return cast(Dict[str, Any], response)
+
+    async def update_account_settings(self, settings: Dict[str, Any]):
+        await self.request(
+            "PATCH",
+            f"{self.account_base_url}/settings",
+            json=settings,
         )
 
     async def read_account_ip_allowlist(self) -> IPAllowlist:
-        account_base_url = prefect.settings.PREFECT_API_URL.value().split(
-            "/workspaces"
-        )[0]
-
-        response = await self.get(os.path.join(account_base_url, "ip_allowlist"))
+        response = await self.get(f"{self.account_base_url}/ip_allowlist")
         return IPAllowlist.model_validate(response)
 
     async def update_account_ip_allowlist(self, updated_allowlist: IPAllowlist):
-        account_base_url = prefect.settings.PREFECT_API_URL.value().split(
-            "/workspaces"
-        )[0]
-
         await self.request(
             "PATCH",
-            os.path.join(account_base_url, "ip_allowlist"),
+            f"{self.account_base_url}/ip_allowlist",
             json=updated_allowlist.model_dump(),
         )
 

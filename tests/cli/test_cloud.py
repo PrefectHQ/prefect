@@ -1692,6 +1692,46 @@ def workspace_with_logged_in_profile():
     return foo_workspace, profile_name
 
 
+def test_ip_allowlist_enable(respx_mock, workspace_with_logged_in_profile):
+    workspace, profile = workspace_with_logged_in_profile
+    respx_mock.patch(
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings",
+        json={"enforce_ip_allowlist": True},
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=example_allowlist.model_dump(),
+        )
+    )
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "enable"],
+            expected_code=0,
+            expected_output_contains="IP allowlist enabled",
+        )
+
+
+def test_ip_allowlist_disable(respx_mock, workspace_with_logged_in_profile):
+    workspace, profile = workspace_with_logged_in_profile
+    respx_mock.patch(
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings",
+        json={"enforce_ip_allowlist": False},
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=example_allowlist.model_dump(),
+        )
+    )
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "disable"],
+            expected_code=0,
+            expected_output_contains="IP allowlist disabled",
+        )
+
+
 example_allowlist = IPAllowlist(
     entries=[
         IPAllowlistEntry(
