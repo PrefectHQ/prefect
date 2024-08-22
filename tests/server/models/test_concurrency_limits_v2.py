@@ -1,5 +1,5 @@
 import asyncio
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
@@ -9,16 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
     MINIMUM_OCCUPANCY_SECONDS_PER_SLOT,
-    _limit_holders,
     bulk_decrement_active_slots,
     bulk_increment_active_slots,
     bulk_read_or_create_concurrency_limits,
     bulk_update_denied_slots,
     create_concurrency_limit,
-    decrement_limit_holder,
     delete_concurrency_limit,
-    get_limit_holders,
-    increment_limit_holder,
     read_all_concurrency_limits,
     read_concurrency_limit,
     update_concurrency_limit,
@@ -76,12 +72,6 @@ async def locked_concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
     await session.commit()
 
     return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)
-
-
-@pytest.fixture
-def clear_holders():
-    """Fixture to clear the global holders before each test."""
-    _limit_holders.clear()
 
 
 async def test_create_concurrency_limit(session: AsyncSession):
@@ -600,104 +590,3 @@ async def test_bulk_update_denied_slots(
     )
     assert refreshed
     assert refreshed.denied_slots == 10
-
-
-def test_increment_limit_holder_single_holder(clear_holders):
-    limit_id = uuid4()
-    holder = "holder1"
-
-    increment_limit_holder(holder, 3, limit_id)
-
-    assert _limit_holders[limit_id][holder] == 3
-    assert list(_limit_holders[limit_id]) == [holder]
-
-
-def test_increment_limit_holder_multiple_holders(clear_holders):
-    limit_id = uuid4()
-    holder1 = "holder1"
-    holder2 = "holder2"
-
-    increment_limit_holder(holder1, 2, limit_id)
-    increment_limit_holder(holder2, 1, limit_id)
-
-    assert _limit_holders[limit_id][holder1] == 2
-    assert _limit_holders[limit_id][holder2] == 1
-    assert list(_limit_holders[limit_id]) == [holder1, holder2]
-
-
-def test_decrement_limit_holder_known_holder(clear_holders):
-    limit_id = uuid4()
-    holder = "holder1"
-
-    increment_limit_holder(holder, 3, limit_id)
-    decrement_limit_holder(holder, 2, 3, limit_id)
-
-    assert _limit_holders[limit_id][holder] == 1
-    assert list(_limit_holders[limit_id]) == [holder]
-
-
-def test_decrement_limit_holder_removes_holder_when_slots_are_zero(clear_holders):
-    limit_id = uuid4()
-    holder = "holder1"
-
-    increment_limit_holder(holder, 2, limit_id)
-    decrement_limit_holder(holder, 2, 2, limit_id)
-
-    assert holder not in _limit_holders[limit_id]
-
-
-def test_get_limit_holders(clear_holders):
-    limit_id = uuid4()
-    holder1 = "holder1"
-    holder2 = "holder2"
-
-    increment_limit_holder(holder1, 2, limit_id)
-    increment_limit_holder(holder2, 3, limit_id)
-
-    holders = get_limit_holders(limit_id)
-    assert holders == {limit_id: [holder1, holder2]}
-
-
-def test_decrement_all_slots_should_clear_holders(clear_holders):
-    limit_id = uuid4()
-    holder1 = "holder1"
-    holder2 = "holder2"
-
-    increment_limit_holder(holder1, 1, limit_id)
-    increment_limit_holder(holder2, 1, limit_id)
-
-    # Decrement all slots, this should clear all holders
-    decrement_limit_holder(None, 2, 2, limit_id)
-
-    assert _limit_holders[limit_id] == {}
-
-
-def test_increment_and_decrement_holder_multiple_slots(clear_holders):
-    limit_id = uuid4()
-    holder = "holder1"
-
-    increment_limit_holder(holder, 5, limit_id)
-    decrement_limit_holder(holder, 3, 5, limit_id)
-
-    assert _limit_holders[limit_id][holder] == 2
-    assert list(_limit_holders[limit_id]) == [holder]
-
-
-def test_decrement_unknown_holder_should_spread_slots_across_existing_holders(
-    clear_holders,
-):
-    limit_id = uuid4()
-    holder1 = "holder1"
-    holder2 = "holder2"
-    holder3 = "holder3"
-
-    increment_limit_holder(holder1, 3, limit_id)
-    increment_limit_holder(holder2, 2, limit_id)
-
-    # Try to decrement a holder that wasn't incremented
-    decrement_limit_holder(holder3, 4, 3, limit_id)
-
-    assert _limit_holders[limit_id][holder1] == 1
-    assert "holder2" not in _limit_holders[limit_id]
-    assert holder3 not in _limit_holders[limit_id]
-    assert list(_limit_holders[limit_id]) == [holder1]
