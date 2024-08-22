@@ -1322,8 +1322,8 @@ async def test_work_pool_is_available_to_templates(
     assert (
         rendered
         == f"""
-    Name: {work_queue.name}
-    Pool: {work_pool.name}
+    Name: { work_queue.name }
+    Pool: { work_pool.name }
     """
     )
 
@@ -1375,64 +1375,6 @@ async def test_concurrency_limit_is_available_in_templates(
         == """
     Name: my-limit
     Limit: 42
-    """
-    )
-
-
-async def test_concurrency_limit_is_available_in_templates_with_holders(
-    orchestration_client: OrchestrationClient,
-    concurrency_limit_v2: ORMConcurrencyLimitV2,
-    tell_me_about_the_culprit: Automation,
-    start_of_test: DateTime,
-):
-    """
-    Regression test for https://github.com/PrefectHQ/nebula/issues/5120, where we want
-    to add {{ concurrency_limit }} as a template shortcut (for v2 limits)
-    """
-    template = """
-    Name: {{ concurrency_limit.name }}
-    Limit: {{ concurrency_limit.limit }}
-    Holders: {{ concurrency_limit.holders|join(', ') }}
-    """
-
-    await orchestration_client.bulk_increment_active_slots(
-        names=[concurrency_limit_v2.name], slots=1, holder="the-holder"
-    )
-
-    firing = Firing(
-        trigger=tell_me_about_the_culprit.trigger,
-        trigger_states={TriggerState.Triggered},
-        triggered=start_of_test + timedelta(seconds=1),
-        triggering_event=Event(
-            occurred=start_of_test,
-            event="prefect.concurrency-limit.acquired",
-            resource={
-                "prefect.resource.id": f"prefect.concurrency-limit.{concurrency_limit_v2.id}",
-            },
-            id=uuid4(),
-        ).receive(),
-        triggering_labels={},
-    )
-
-    triggered_action = TriggeredAction(
-        automation=tell_me_about_the_culprit,
-        id=uuid4(),
-        firing=firing,
-        triggered=firing.triggered,
-        triggering_labels=firing.triggering_labels,
-        triggering_event=firing.triggering_event,
-        action=actions.DoNothing(),  # this doesn't matter for the test
-        action_index=0,
-    )
-
-    action = DemoAction(template=template)
-    (rendered,) = await action.render(triggered_action)
-    assert (
-        rendered
-        == """
-    Name: my-limit
-    Limit: 42
-    Holders: the-holder
     """
     )
 
