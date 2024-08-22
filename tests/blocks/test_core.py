@@ -1238,7 +1238,7 @@ class TestRegisterBlockTypeAndSchema:
             b: str
 
         class ListCollection(Block):
-            a_list: list[A]
+            a_list: List[A]
             b_list: List[B]
 
         await ListCollection.register_type_and_schema()
@@ -1278,8 +1278,8 @@ class TestRegisterBlockTypeAndSchema:
             c: str
 
         class TupleCollection(Block):
-            a_tuple: tuple[A]
-            b_tuple: tuple[B, ...]
+            a_tuple: Tuple[A]
+            b_tuple: Tuple[B, ...]
             c_tuple: Tuple[C, ...]
 
         await TupleCollection.register_type_and_schema()
@@ -1324,7 +1324,7 @@ class TestRegisterBlockTypeAndSchema:
             b: str
 
         class DictCollection(Block):
-            block_dict: dict[A, B]
+            block_dict: Dict[A, B]
 
         await DictCollection.register_type_and_schema()
 
