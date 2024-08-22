@@ -7,7 +7,7 @@ from prefect.context import ContextModel, Field
 
 
 class ConcurrencyContext(ContextModel):
-    __var__: ContextVar = ContextVar("concurrency")
+    __var__: ContextVar = ContextVar("concurrency_v1")
 
     # Track the limits that have been acquired but were not able to be released
     # due to cancellation or some other error. These limits are released when
