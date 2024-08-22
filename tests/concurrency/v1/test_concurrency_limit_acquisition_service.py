@@ -1,17 +1,18 @@
 import asyncio
 from unittest import mock
+from uuid import UUID
 
 import pytest
 from httpx import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import get_client
-from prefect.concurrency.services import ConcurrencySlotAcquisitionService
+from prefect.concurrency.v1.services import ConcurrencySlotAcquisitionService
 
 
 @pytest.fixture
 async def mocked_client(test_database_connection_url):
     async with get_client() as client:
-        with mock.patch.object(client, "increment_concurrency_slots", autospec=True):
+        with mock.patch.object(client, "increment_v1_concurrency_slots", autospec=True):
 
             class ClientWrapper:
                 def __init__(self, client):
@@ -25,36 +26,34 @@ async def mocked_client(test_database_connection_url):
 
             wrapped_client = ClientWrapper(client)
             with mock.patch(
-                "prefect.concurrency.services.get_client", lambda: wrapped_client
+                "prefect.concurrency.v1.services.get_client", lambda: wrapped_client
             ):
                 yield wrapped_client
 
 
 async def test_returns_successful_response(mocked_client):
     response = Response(200)
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
 
-    mocked_method = mocked_client.client.increment_concurrency_slots
+    mocked_method = mocked_client.client.increment_v1_concurrency_slots
     mocked_method.return_value = response
 
     expected_names = sorted(["api", "database"])
-    expected_slots = 1
-    expected_mode = "concurrency"
 
     service = ConcurrencySlotAcquisitionService.instance(frozenset(expected_names))
-    future = service.send((expected_slots, expected_mode, None, True))
+    future = service.send((task_run_id, None))
     await service.drain()
     returned_response = await asyncio.wrap_future(future)
     assert returned_response == response
 
     mocked_method.assert_called_once_with(
+        task_run_id=task_run_id,
         names=expected_names,
-        slots=expected_slots,
-        mode=expected_mode,
-        create_if_missing=True,
     )
 
 
 async def test_retries_failed_call_respects_retry_after_header(mocked_client):
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
     responses = [
         HTTPStatusError(
             "Limit is locked",
@@ -64,14 +63,14 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
         Response(200),
     ]
 
-    mocked_client.client.increment_concurrency_slots.side_effect = responses
+    mocked_client.client.increment_v1_concurrency_slots.side_effect = responses
 
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    with mock.patch("prefect.concurrency.asyncio.asyncio.sleep") as sleep:
-        future = service.send((1, "concurrency", None, True))
-        await service.drain()
+    with mock.patch("prefect.concurrency.v1.asyncio.asyncio.sleep") as sleep:
+        future = service.send((task_run_id, None))
+        service.drain()
         returned_response = await asyncio.wrap_future(future)
 
         assert returned_response == responses[1]
@@ -79,22 +78,23 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
         sleep.assert_called_once_with(
             float(responses[0].response.headers["Retry-After"])
         )
-        assert mocked_client.client.increment_concurrency_slots.call_count == 2
+        assert mocked_client.client.increment_v1_concurrency_slots.call_count == 2
 
 
 async def test_failed_call_status_code_not_retryable_returns_exception(mocked_client):
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
     response = HTTPStatusError(
         "Too many requests",
         request=Request("get", "/"),
         response=Response(500, headers={"Retry-After": "2"}),
     )
 
-    mocked_client.client.increment_concurrency_slots.return_value = response
+    mocked_client.client.increment_v1_concurrency_slots.return_value = response
 
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    future = service.send((1, "concurrency", None, True))
+    future = service.send((task_run_id, None))
     await service.drain()
     exception = await asyncio.wrap_future(future)
 
@@ -103,13 +103,14 @@ async def test_failed_call_status_code_not_retryable_returns_exception(mocked_cl
 
 
 async def test_basic_exception_returns_exception(mocked_client):
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
     exc = Exception("Something went wrong")
-    mocked_client.client.increment_concurrency_slots.side_effect = exc
+    mocked_client.client.increment_v1_concurrency_slots.side_effect = exc
 
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    future = service.send((1, "concurrency", None, True))
+    future = service.send((task_run_id, None))
     await service.drain()
     exception = await asyncio.wrap_future(future)
 

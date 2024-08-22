@@ -9,7 +9,11 @@ from prefect.concurrency.asyncio import _acquire_concurrency_slots
 
 async def test_calls_increment_client_method():
     limits = [
-        MinimalConcurrencyLimitResponse(id=uuid.uuid4(), name=f"test-{i}", limit=i)
+        MinimalConcurrencyLimitResponse(
+            id=uuid.uuid4(),
+            name=f"test-{i}",
+            limit=i,
+        )
         for i in range(1, 3)
     ]
 
@@ -34,7 +38,11 @@ async def test_calls_increment_client_method():
 
 async def test_returns_minimal_concurrency_limit():
     limits = [
-        MinimalConcurrencyLimitResponse(id=uuid.uuid4(), name=f"test-{i}", limit=i)
+        MinimalConcurrencyLimitResponse(
+            id=uuid.uuid4(),
+            name=f"test-{i}",
+            limit=i,
+        )
         for i in range(1, 3)
     ]
 

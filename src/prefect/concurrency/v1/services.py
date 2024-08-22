@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 from contextlib import asynccontextmanager
+from json import JSONDecodeError
 from typing import (
     TYPE_CHECKING,
     AsyncGenerator,
@@ -8,6 +9,7 @@ from typing import (
     Optional,
     Tuple,
 )
+from uuid import UUID
 
 import httpx
 from starlette import status
@@ -19,6 +21,10 @@ from prefect.utilities.timeout import timeout_async
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+
+
+class ConcurrencySlotAcquisitionServiceError(Exception):
+    """Raised when an error occurs while acquiring concurrency slots."""
 
 
 class ConcurrencySlotAcquisitionService(QueueService):
@@ -36,27 +42,14 @@ class ConcurrencySlotAcquisitionService(QueueService):
     async def _handle(
         self,
         item: Tuple[
-            int,
-            str,
-            Optional[float],
+            UUID,
             concurrent.futures.Future,
-            Optional[bool],
-            Optional[int],
+            Optional[float],
         ],
     ) -> None:
-        occupy, mode, timeout_seconds, future, create_if_missing, max_retries = item
-        (
-            occupy,
-            mode,
-            timeout_seconds,
-            future,
-            create_if_missing,
-            max_retries,
-        ) = item
+        task_run_id, future, timeout_seconds = item
         try:
-            response = await self.acquire_slots(
-                occupy, mode, timeout_seconds, create_if_missing, max_retries
-            )
+            response = await self.acquire_slots(task_run_id, timeout_seconds)
         except Exception as exc:
             # If the request to the increment endpoint fails in a non-standard
             # way, we need to set the future's result so that the caller can
@@ -68,41 +61,48 @@ class ConcurrencySlotAcquisitionService(QueueService):
 
     async def acquire_slots(
         self,
-        slots: int,
-        mode: str,
+        task_run_id: UUID,
         timeout_seconds: Optional[float] = None,
-        create_if_missing: Optional[bool] = False,
-        max_retries: Optional[int] = 0,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
                 try:
-                    response = await self._client.increment_concurrency_slots(
+                    response = await self._client.increment_v1_concurrency_slots(
+                        task_run_id=task_run_id,
                         names=self.concurrency_limit_names,
-                        slots=slots,
-                        mode=mode,
-                        create_if_missing=create_if_missing,
                     )
                 except Exception as exc:
                     if (
                         isinstance(exc, httpx.HTTPStatusError)
                         and exc.response.status_code == status.HTTP_423_LOCKED
                     ):
-                        if max_retries is not None and max_retries <= 0:
-                            raise exc
-                        retry_after = float(exc.response.headers["Retry-After"])
-                        await asyncio.sleep(retry_after)
-                        if max_retries is not None:
-                            max_retries -= 1
+                        retry_after = exc.response.headers.get("Retry-After")
+                        if retry_after:
+                            retry_after = float(retry_after)
+                            await asyncio.sleep(retry_after)
+                        else:
+                            # We received a 423 but no Retry-After header. This
+                            # should indicate that the server told us to abort
+                            # because the concurrency limit is set to 0, i.e.
+                            # effectively disabled.
+                            try:
+                                reason = exc.response.json()["detail"]
+                            except (JSONDecodeError, KeyError):
+                                logger.error(
+                                    "Failed to parse response from concurrency limit 423 Locked response: %s",
+                                    exc.response.content,
+                                )
+                                reason = "Concurrency limit is locked (server did not specify the reason)"
+                            raise ConcurrencySlotAcquisitionServiceError(
+                                reason
+                            ) from exc
+
                     else:
-                        raise exc
+                        raise exc  # type: ignore
                 else:
                     return response
 
-    def send(
-        self,
-        item: Tuple[int, str, Optional[float], Optional[bool], Optional[int]],
-    ) -> concurrent.futures.Future:
+    def send(self, item: Tuple[UUID, Optional[float]]) -> concurrent.futures.Future:
         with self._lock:
             if self._stopped:
                 raise RuntimeError("Cannot put items in a stopped service instance.")
@@ -110,10 +110,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()
 
-            occupy, mode, timeout_seconds, create_if_missing, max_retries = item
-
-            self._queue.put_nowait(
-                (occupy, mode, timeout_seconds, future, create_if_missing, max_retries)
-            )
+            task_run_id, timeout_seconds = item
+            self._queue.put_nowait((task_run_id, future, timeout_seconds))
 
         return future

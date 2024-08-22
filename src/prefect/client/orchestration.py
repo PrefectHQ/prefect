@@ -939,6 +939,57 @@ class PrefectClient:
             else:
                 raise
 
+    async def increment_v1_concurrency_slots(
+        self,
+        names: List[str],
+        task_run_id: UUID,
+    ) -> httpx.Response:
+        """
+        Increment concurrency limit slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to increment limits.
+            task_run_id (UUID): The task run ID incrementing the limits.
+        """
+        data = {
+            "names": names,
+            "task_run_id": str(task_run_id),
+        }
+
+        return await self._client.post(
+            "/concurrency_limits/increment",
+            json=data,
+        )
+
+    async def decrement_v1_concurrency_slots(
+        self,
+        names: List[str],
+        task_run_id: UUID,
+        occupancy_seconds: float,
+    ) -> httpx.Response:
+        """
+        Decrement concurrency limit slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names to decrement.
+            task_run_id (UUID): The task run ID that incremented the limits.
+            occupancy_seconds (float): The duration in seconds that the limits
+                were held.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        data = {
+            "names": names,
+            "task_run_id": str(task_run_id),
+            "occupancy_seconds": occupancy_seconds,
+        }
+
+        return await self._client.post(
+            "/concurrency_limits/decrement",
+            json=data,
+        )
+
     async def create_work_queue(
         self,
         name: str,
@@ -2995,46 +3046,20 @@ class PrefectClient:
         return response.json()
 
     async def increment_concurrency_slots(
-        self,
-        names: List[str],
-        slots: int,
-        mode: str,
-        create_if_missing: Optional[bool] = True,
-        holder: Optional[str] = None,
+        self, names: List[str], slots: int, mode: str, create_if_missing: Optional[bool]
     ) -> httpx.Response:
-        """
-        Increment concurrency slots for the specified limits.
-
-        Args:
-            names (List[str]): A list of limit names for which to increment slots.
-            slots (int): The number of concurrency slots to increment.
-            mode (str): The mode of the increment operation.
-            create_if_missing (bool, optional): Whether to create the limit if it
-                does not exist. Defaults to True.
-            holder (str, optional): The name of the holder that is incrementing
-                the slots. Defaults to None.
-        """
-        data = {
-            "names": names,
-            "slots": slots,
-            "mode": mode,
-            "create_if_missing": create_if_missing,
-        }
-
-        if holder:
-            data["holder"] = holder
-
         return await self._client.post(
             "/v2/concurrency_limits/increment",
-            json=data,
+            json={
+                "names": names,
+                "slots": slots,
+                "mode": mode,
+                "create_if_missing": create_if_missing,
+            },
         )
 
     async def release_concurrency_slots(
-        self,
-        names: List[str],
-        slots: int,
-        occupancy_seconds: float,
-        holder: Optional[str] = None,
+        self, names: List[str], slots: int, occupancy_seconds: float
     ) -> httpx.Response:
         """
         Release concurrency slots for the specified limits.
@@ -3044,24 +3069,18 @@ class PrefectClient:
             slots (int): The number of concurrency slots to release.
             occupancy_seconds (float): The duration in seconds that the slots
                 were occupied.
-            holder (str, optional): The name of the holder that is releasing
-                the slots. Defaults to None.
 
         Returns:
             httpx.Response: The HTTP response from the server.
         """
-        data = {
-            "names": names,
-            "slots": slots,
-            "occupancy_seconds": occupancy_seconds,
-        }
-
-        if holder:
-            data["holder"] = holder
 
         return await self._client.post(
             "/v2/concurrency_limits/decrement",
-            json=data,
+            json={
+                "names": names,
+                "slots": slots,
+                "occupancy_seconds": occupancy_seconds,
+            },
         )
 
     async def create_global_concurrency_limit(
@@ -4146,5 +4165,29 @@ class SyncPrefectClient:
                 "names": names,
                 "slots": slots,
                 "occupancy_seconds": occupancy_seconds,
+            },
+        )
+
+    def decrement_v1_concurrency_slots(
+        self, names: List[str], occupancy_seconds: float, task_run_id: UUID
+    ) -> httpx.Response:
+        """
+        Release the specified concurrency limits.
+
+        Args:
+            names (List[str]): A list of limit names to decrement.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were held.
+            task_run_id (UUID): The task run ID that incremented the limits.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        return self._client.post(
+            "/concurrency_limits/decrement",
+            json={
+                "names": names,
+                "occupancy_seconds": occupancy_seconds,
+                "task_run_id": str(task_run_id),
             },
         )

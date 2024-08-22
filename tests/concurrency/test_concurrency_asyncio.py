@@ -50,11 +50,10 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
             # for, so here we really just want to make sure that the value
             # passed as `occupy_seconds` is > 0.
 
-            names, occupy, occupy_seconds, holder = release_spy.call_args[0]
+            names, occupy, occupy_seconds = release_spy.call_args[0]
             assert names == ["test"]
             assert occupy == 1
             assert occupy_seconds > 0
-            assert holder is None
 
     assert executed
 
@@ -433,7 +432,6 @@ async def test_concurrency_creates_new_limits_if_requested(
                 1,
                 timeout_seconds=None,
                 create_if_missing=True,
-                holder=None,
                 max_retries=None,
             )
 
@@ -441,11 +439,10 @@ async def test_concurrency_creates_new_limits_if_requested(
             # for, so here we really just want to make sure that the value
             # passed as `occupy_seconds` is > 0.
 
-            names, occupy, occupy_seconds, holder = release_spy.call_args[0]
+            names, occupy, occupy_seconds = release_spy.call_args[0]
             assert names == ["test"]
             assert occupy == 1
             assert occupy_seconds > 0
-            assert holder is None
 
     assert executed
 

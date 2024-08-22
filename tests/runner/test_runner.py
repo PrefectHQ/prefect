@@ -660,7 +660,7 @@ class TestRunner:
 
         # Previously the command would have been
         # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
-        assert mock_run_process_call.call_args[0][0] == [
+        assert mock_run_process_call.call_args[1]["command"] == [
             "C:/Program Files/Python38/python.exe",
             "-m",
             "prefect.engine",
