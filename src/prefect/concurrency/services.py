@@ -65,7 +65,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
         timeout_seconds: Optional[float] = None,
         create_if_missing: Optional[bool] = False,
         holder: Optional[str] = None,
-        max_retries: int = 0,
+        max_retries: Optional[int] = None,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
@@ -78,17 +78,16 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         holder=holder,
                     )
                 except Exception as exc:
-                    breakpoint()
                     if (
                         isinstance(exc, httpx.HTTPStatusError)
                         and exc.response.status_code == status.HTTP_423_LOCKED
                     ):
-                        breakpoint()
-                        if max_retries <= 0:
+                        if max_retries and max_retries <= 0:
                             raise exc
                         retry_after = float(exc.response.headers["Retry-After"])
                         await asyncio.sleep(retry_after)
-                        max_retries -= 1
+                        if max_retries:
+                            max_retries -= 1
                     else:
                         raise exc
                 else:
