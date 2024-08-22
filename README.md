@@ -21,12 +21,12 @@
 # Prefect
 
 Prefect is a workflow orchestration framework for building data pipelines in Python.
-It's the simplest way to elevate a script into an interactive workflow application.
-With Prefect, you can build resilient, dynamic workflows that react to the world around them and recover from unexpected changes.
+It's the simplest way to elevate a script into a resilient production workflow.
+With Prefect, you can build resilient, dynamic data pipelines that react to the world around them and recover from unexpected changes.
 
-With just a few decorators, Prefect supercharges your code with features like automatic retries, distributed execution, scheduling, caching, and much more.
+With just a few lines of code, data teams can confidently automate any data process with features such as scheduling, caching, retries, and event-based automations.
 
-Workflow activity is tracked and can be monitored with a self-hosted [Prefect server](https://docs.prefect.io/latest/guides/host/) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
+Workflow activity is tracked and can be monitored with a self-hosted [Prefect server](https://docs.prefect.io/latest/guides/host/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
 
 ## Getting started
 
@@ -76,11 +76,11 @@ if __name__ == "__main__":
 ```
 
 You now have a server running locally that is looking for scheduled deployments!
-Additionally you can run your workflow manually from the UI or CLI - and if you're using Prefect Cloud, you can even run deployments in response to [events](https://docs.prefect.io/latest/concepts/automations/).
+Additionally you can run your workflow manually from the UI or CLI. You can even run deployments in response to [events](https://docs.prefect.io/latest/concepts/automations/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
 
 ## Prefect Cloud
 
-Prefect Cloud allows you to centrally deploy, monitor, and manage the data workflows you support. With managed orchestration, automations, and webhooks, all backed by enterprise-class security, build production-ready code quickly and reliably.
+Prefect Cloud provides workflow orchestration for the modern data enterprise. By automating over 200 million data tasks monthly, Prefect empowers diverse organizations — from Fortune 50 leaders such as Progressive Insurance to innovative disruptors such as Cash App — to increase engineering productivity, reduce pipeline errors, and cut data workflow compute costs.
 
 Read more about Prefect Cloud [here](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) or sign up to [try it for yourself](https://app.prefect.cloud?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
 
