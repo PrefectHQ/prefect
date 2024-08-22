@@ -4323,7 +4323,13 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MinimalConcurrencyLimitResponse"
+                                    },
+                                    "title": "Response Increment Concurrency Limits V1 Concurrency Limits Increment Post"
+                                }
                             }
                         }
                     },
