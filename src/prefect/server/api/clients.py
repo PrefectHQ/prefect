@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Optional
 from urllib.parse import quote
 from uuid import UUID
 
@@ -196,23 +196,6 @@ class OrchestrationClient(BaseClient):
     ) -> Response:
         return await self._http_client.get(
             f"/v2/concurrency_limits/{concurrency_limit_id}"
-        )
-
-    async def bulk_increment_active_slots(
-        self,
-        slots: int,
-        names: list[str],
-        mode: Literal["concurrency", "rate_limit"] = "concurrency",
-        holder: Optional[str] = None,
-    ) -> Response:
-        data = {"slots": slots, "names": names, "mode": mode, "holder": holder}
-
-        if holder:
-            data["holder"] = holder
-
-        return await self._http_client.post(
-            "/v2/concurrency_limits/increment",
-            json=data,
         )
 
 

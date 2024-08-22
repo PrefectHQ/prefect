@@ -55,6 +55,7 @@ from prefect.server.events.schemas.labelling import LabelDiver
 from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import (
     BlockDocument,
+    ConcurrencyLimitV2,
     Flow,
     TaskRun,
     WorkPool,
@@ -62,7 +63,6 @@ from prefect.server.schemas.core import (
 from prefect.server.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
-    GlobalConcurrencyLimitResponse,
     OrchestrationResult,
     StateAcceptDetails,
     WorkQueueWithStatus,
@@ -458,7 +458,7 @@ class JinjaTemplateAction(ExternalDataAction):
                 ],
             ),
             "prefect.concurrency-limit": (
-                GlobalConcurrencyLimitResponse,
+                ConcurrencyLimitV2,
                 [orchestration_client.read_concurrency_limit_v2_raw],
             ),
         }
@@ -1592,6 +1592,7 @@ ServerActionTypes: TypeAlias = Union[
     PauseWorkPool,
     ResumeWorkPool,
 ]
+
 
 _recent_actions: MutableMapping[UUID, bool] = TTLCache(maxsize=10000, ttl=3600)
 
