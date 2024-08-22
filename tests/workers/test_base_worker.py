@@ -340,15 +340,13 @@ async def test_worker_with_deployment_concurrency_limit_uses_limit(
                 1,
                 timeout_seconds=None,
                 create_if_missing=True,
-                holder=None,
                 max_retries=0,
             )
 
-            names, occupy, occupy_seconds, holder = release_spy.call_args[0]
+            names, occupy, occupy_seconds = release_spy.call_args[0]
             assert names == [f"deployment:{worker_deployment_wq1_cl1.id}"]
             assert occupy == 1
             assert occupy_seconds > 0
-            assert holder is None
 
 
 async def test_worker_with_deployment_concurrency_limit_proposes_awaiting_limit_state_name(
@@ -381,7 +379,6 @@ async def test_worker_with_deployment_concurrency_limit_proposes_awaiting_limit_
             1,
             timeout_seconds=None,
             create_if_missing=True,
-            holder=None,
             max_retries=0,
         )
 
