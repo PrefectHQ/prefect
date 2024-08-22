@@ -59,6 +59,13 @@
       "version": "3.0rc"
     },
     {
+      "group": "Get started",
+      "pages": [
+        "2.x/get-started/index"
+      ],
+      "version": "2.x"
+    },
+    {
       "group": "Develop",
       "pages": [
         "3.0rc/develop/index",
@@ -488,7 +495,9 @@
                     "3.0rc/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit-by-tag",
                     "3.0rc/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit-by-tag",
                     "3.0rc/api-ref/rest-api/server/concurrency-limits/read-concurrency-limits",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/reset-concurrency-limit-by-tag"
+                    "3.0rc/api-ref/rest-api/server/concurrency-limits/reset-concurrency-limit-by-tag",
+                    "3.0rc/api-ref/rest-api/server/concurrency-limits/increment-concurrency-limits-v1",
+                    "3.0rc/api-ref/rest-api/server/concurrency-limits/decrement-concurrency-limits-v1"
                   ]
                 },
                 {
@@ -1272,6 +1281,7 @@
     "url": "https://github.com/PrefectHQ/Prefect"
   },
   "versions": [
-    "3.0rc"
+    "3.0rc",
+    "2.x"
   ]
 }
