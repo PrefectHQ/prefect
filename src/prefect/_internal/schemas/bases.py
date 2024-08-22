@@ -32,9 +32,11 @@ class PrefectBaseModel(BaseModel):
     """
 
     _reset_fields: ClassVar[Set[str]] = set()
+    experimental_defer_build_mode = ("model", "type_adapter")
 
     model_config = ConfigDict(
         ser_json_timedelta="float",
+        defer_build=True,
         extra=(
             "ignore"
             if os.getenv("PREFECT_TEST_MODE", "0").lower() not in ["true", "1"]
