@@ -42,12 +42,22 @@ class ConcurrencySlotAcquisitionService(QueueService):
             concurrent.futures.Future,
             Optional[bool],
             Optional[str],
+            Optional[int],
         ],
     ) -> None:
-        occupy, mode, timeout_seconds, future, create_if_missing, holder = item
+        (
+            occupy,
+            mode,
+            timeout_seconds,
+            future,
+            create_if_missing,
+            holder,
+            max_retries,
+        ) = item
+        print("max_retries", max_retries)
         try:
             response = await self.acquire_slots(
-                occupy, mode, timeout_seconds, create_if_missing, holder
+                occupy, mode, timeout_seconds, create_if_missing, holder, max_retries
             )
         except Exception as exc:
             # If the request to the increment endpoint fails in a non-standard
@@ -65,7 +75,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
         timeout_seconds: Optional[float] = None,
         create_if_missing: Optional[bool] = False,
         holder: Optional[str] = None,
-        max_retries: Optional[int] = None,
+        max_retries: Optional[int] = 0,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
@@ -82,11 +92,11 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         isinstance(exc, httpx.HTTPStatusError)
                         and exc.response.status_code == status.HTTP_423_LOCKED
                     ):
-                        if max_retries and max_retries <= 0:
+                        if max_retries is not None and max_retries <= 0:
                             raise exc
                         retry_after = float(exc.response.headers["Retry-After"])
                         await asyncio.sleep(retry_after)
-                        if max_retries:
+                        if max_retries is not None:
                             max_retries -= 1
                     else:
                         raise exc
@@ -94,7 +104,10 @@ class ConcurrencySlotAcquisitionService(QueueService):
                     return response
 
     def send(
-        self, item: Tuple[int, str, Optional[float], Optional[bool], Optional[str]]
+        self,
+        item: Tuple[
+            int, str, Optional[float], Optional[bool], Optional[str], Optional[int]
+        ],
     ) -> concurrent.futures.Future:
         with self._lock:
             if self._stopped:
@@ -103,9 +116,18 @@ class ConcurrencySlotAcquisitionService(QueueService):
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()
 
-            occupy, mode, timeout_seconds, create_if_missing, holder = item
+            occupy, mode, timeout_seconds, create_if_missing, holder, max_retries = item
+
             self._queue.put_nowait(
-                (occupy, mode, timeout_seconds, future, create_if_missing, holder)
+                (
+                    occupy,
+                    mode,
+                    timeout_seconds,
+                    future,
+                    create_if_missing,
+                    holder,
+                    max_retries,
+                )
             )
 
         return future
