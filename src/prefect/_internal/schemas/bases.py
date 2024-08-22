@@ -35,7 +35,6 @@ class PrefectBaseModel(BaseModel):
 
     model_config = ConfigDict(
         ser_json_timedelta="float",
-        experimental_defer_build_mode=("model", "type_adapter"),
         defer_build=True,
         extra=(
             "ignore"
