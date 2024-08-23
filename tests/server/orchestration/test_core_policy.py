@@ -11,7 +11,6 @@ import pytest
 from prefect.results import (
     PersistedResult,
     UnknownResult,
-    UnpersistedResult,
 )
 from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
@@ -1285,14 +1284,12 @@ class TestTransitionsFromTerminalStatesRule:
         ],
         ids=transition_names,
     )
-    @pytest.mark.parametrize("result_type", [None, UnpersistedResult])
     async def test_transitions_from_completed_to_non_final_states_allowed_without_persisted_result(
         self,
         session,
         run_type,
         initialize_orchestration,
         intended_transition,
-        result_type,
     ):
         if run_type == "flow" and intended_transition[1] == StateType.SCHEDULED:
             pytest.skip(
@@ -1301,12 +1298,7 @@ class TestTransitionsFromTerminalStatesRule:
             )
 
         ctx = await initialize_orchestration(
-            session,
-            run_type,
-            *intended_transition,
-            initial_state_data=result_type.model_construct().model_dump()
-            if result_type
-            else None,
+            session, run_type, *intended_transition, initial_state_data=None
         )
 
         if run_type == "task":
@@ -3238,20 +3230,13 @@ class TestAddUnknownResultRule:
         assert ctx.proposed_state.data.get("type") == "unknown"
 
     @pytest.mark.parametrize(
-        "result_type,initial_state_type",
-        list(
-            product(
-                (UnpersistedResult,),
-                (states.StateType.FAILED, states.StateType.CRASHED),
-            )
-        ),
+        "initial_state_type", [states.StateType.FAILED, states.StateType.CRASHED]
     )
     async def test_does_not_save_unknown_result_if_last_result_did_not_use_persisted_results(
         self,
         session,
         initialize_orchestration,
         run_type,
-        result_type,
         initial_state_type,
     ):
         proposed_state_type = states.StateType.COMPLETED
@@ -3260,9 +3245,7 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.model_construct().model_dump()
-            if result_type
-            else None,
+            initial_state_data=None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:

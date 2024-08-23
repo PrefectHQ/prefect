@@ -464,8 +464,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result_factory=result_factory,
                 key=transaction.key,
                 expiration=expiration,
-                # defer persistence to transaction commit
-                defer_persistence=True,
             )
         )
         transaction.stage(
@@ -969,8 +967,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             result_factory=result_factory,
             key=transaction.key,
             expiration=expiration,
-            # defer persistence to transaction commit
-            defer_persistence=True,
         )
         transaction.stage(
             terminal_state.data,

@@ -268,6 +268,7 @@ class FlowRunEngine(Generic[P, R]):
             return_value_to_state(
                 resolved_result,
                 result_factory=result_factory,
+                write_result=True,
             )
         )
         self.set_state(terminal_state)
@@ -287,6 +288,7 @@ class FlowRunEngine(Generic[P, R]):
                 message=msg or "Flow run encountered an exception:",
                 result_factory=result_factory
                 or getattr(context, "result_factory", None),
+                write_result=True,
             )
         )
         state = self.set_state(terminal_state)
