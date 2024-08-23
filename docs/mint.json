@@ -198,7 +198,7 @@
     {
       "group": "Resources",
       "pages": [
-        "3.0rc/resources/upgrading-to-prefect-3",
+        "3.0rc/resources/upgrade-to-prefect-3",
         "3.0rc/resources/upgrade-agents-to-workers",
         "3.0rc/resources/cancel",
         "3.0rc/resources/visualize-flow-structure",
