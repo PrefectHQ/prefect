@@ -74,20 +74,20 @@ async def add(
     async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
 
-        if any(
-            ipaddress.ip_network(entry.ip_network) == ipaddress.ip_network(ip_network)
-            for entry in ip_allowlist.entries
-        ):
+        existing_entry_with_same_ip = None
+        for entry in ip_allowlist.entries:
+            if ipaddress.ip_network(entry.ip_network) == ipaddress.ip_network(
+                ip_network
+            ):
+                existing_entry_with_same_ip = entry
+                break
+
+        if existing_entry_with_same_ip:
             if not typer.confirm(
                 f"There's already an entry for this IP ({ip_network}). Do you want to overwrite it?"
             ):
                 exit_with_error("Aborted.")
-            ip_allowlist.entries = [
-                entry
-                for entry in ip_allowlist.entries
-                if ipaddress.ip_network(entry.ip_network)
-                != ipaddress.ip_network(ip_network)
-            ]
+            ip_allowlist.entries.remove(existing_entry_with_same_ip)
 
         ip_allowlist.entries.append(new_entry)
         await client.update_account_ip_allowlist(ip_allowlist)
