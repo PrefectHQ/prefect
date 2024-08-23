@@ -245,7 +245,7 @@ async def test_worker_with_work_pool_and_work_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
 
 
-async def test_worker_with_priority_and_limit(
+async def test_priority_trumps_lateness(
     prefect_client: PrefectClient,
     worker_deployment_wq1,
     worker_deployment_wq_2,
