@@ -42,7 +42,6 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
                 1,
                 timeout_seconds=None,
                 create_if_missing=True,
-                holder=None,
                 max_retries=None,
             )
 

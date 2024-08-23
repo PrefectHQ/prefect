@@ -45,14 +45,6 @@ class ConcurrencySlotAcquisitionService(QueueService):
         ],
     ) -> None:
         occupy, mode, timeout_seconds, future, create_if_missing, max_retries = item
-        (
-            occupy,
-            mode,
-            timeout_seconds,
-            future,
-            create_if_missing,
-            max_retries,
-        ) = item
         try:
             response = await self.acquire_slots(
                 occupy, mode, timeout_seconds, create_if_missing, max_retries
@@ -72,7 +64,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
         mode: str,
         timeout_seconds: Optional[float] = None,
         create_if_missing: Optional[bool] = False,
-        max_retries: Optional[int] = 0,
+        max_retries: Optional[int] = None,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
@@ -100,8 +92,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                     return response
 
     def send(
-        self,
-        item: Tuple[int, str, Optional[float], Optional[bool], Optional[int]],
+        self, item: Tuple[int, str, Optional[float], Optional[bool], Optional[int]]
     ) -> concurrent.futures.Future:
         with self._lock:
             if self._stopped:
@@ -111,7 +102,6 @@ class ConcurrencySlotAcquisitionService(QueueService):
             future: concurrent.futures.Future = concurrent.futures.Future()
 
             occupy, mode, timeout_seconds, create_if_missing, max_retries = item
-
             self._queue.put_nowait(
                 (occupy, mode, timeout_seconds, future, create_if_missing, max_retries)
             )
