@@ -13,7 +13,6 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
-from prefect.results import UnknownResult
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
@@ -130,7 +129,6 @@ class BackgroundTaskPolicy(BaseOrchestrationPolicy):
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
-            AddUnknownResult,  # mark forced completions with an unknown result
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
             InstrumentFlowRunStateTransitions,
         ]
@@ -148,7 +146,6 @@ class MinimalTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             ReleaseTaskConcurrencySlots,  # always release concurrency slots
-            AddUnknownResult,  # mark forced completions with a result placeholder
         ]
 
 
@@ -258,45 +255,6 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
                 active_slots = set(cl.active_slots)
                 active_slots.discard(str(context.run.id))
                 cl.active_slots = list(active_slots)
-
-
-class AddUnknownResult(BaseOrchestrationRule):
-    """
-    Assign an "unknown" result to runs that are forced to complete from a
-    failed or crashed state, if the previous state used a persisted result.
-
-    When we retry a flow run, we retry any task runs that were in a failed or
-    crashed state, but we also retry completed task runs that didn't use a
-    persisted result. This means that without a sentinel value for unknown
-    results, a task run forced into Completed state will always get rerun if the
-    flow run retries because the task run lacks a persisted result. The
-    "unknown" sentinel ensures that when we see a completed task run with an
-    unknown result, we know that it was forced to complete and we shouldn't
-    rerun it.
-
-    Flow runs forced into a Completed state have a similar problem: without a
-    sentinel value, attempting to refer to the flow run's result will raise an
-    exception because the flow run has no result. The sentinel ensures that we
-    can distinguish between a flow run that has no result and a flow run that
-    has an unknown result.
-    """
-
-    FROM_STATES = [StateType.FAILED, StateType.CRASHED]
-    TO_STATES = [StateType.COMPLETED]
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
-    ) -> None:
-        if (
-            initial_state
-            and initial_state.data
-            and initial_state.data.get("type") == "reference"
-        ):
-            unknown_result = await UnknownResult.create()
-            self.context.proposed_state.data = unknown_result.model_dump()
 
 
 class CacheInsertion(BaseOrchestrationRule):

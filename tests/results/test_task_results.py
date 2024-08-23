@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.serializers import JSONSerializer, PickleSerializer
@@ -84,56 +83,6 @@ async def test_task_persisted_result_due_to_opt_in(prefect_client, events_pipeli
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() == 1
-
-
-async def test_task_with_uncached_and_unpersisted_result(
-    prefect_client, events_pipeline
-):
-    @flow
-    def foo():
-        return bar(return_state=True)
-
-    @task(persist_result=False, cache_result_in_memory=False)
-    def bar():
-        return 1
-
-    flow_state = foo(return_state=True)
-    task_state = await flow_state.result()
-    with pytest.raises(MissingResult):
-        await task_state.result()
-
-    await events_pipeline.process_events()
-
-    api_state = (
-        await prefect_client.read_task_run(task_state.state_details.task_run_id)
-    ).state
-    with pytest.raises(MissingResult):
-        await api_state.result()
-
-
-async def test_task_with_uncached_and_unpersisted_null_result(
-    prefect_client, events_pipeline
-):
-    @flow
-    def foo():
-        return bar(return_state=True)
-
-    @task(persist_result=False, cache_result_in_memory=False)
-    def bar():
-        return None
-
-    flow_state = foo(return_state=True)
-    task_state = await flow_state.result()
-    # Nulls do not consume memory and are still available
-    assert await task_state.result() is None
-
-    await events_pipeline.process_events()
-
-    api_state = (
-        await prefect_client.read_task_run(task_state.state_details.task_run_id)
-    ).state
-    with pytest.raises(MissingResult):
-        await api_state.result()
 
 
 async def test_task_with_uncached_but_persisted_result(prefect_client, events_pipeline):

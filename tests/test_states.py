@@ -7,7 +7,6 @@ from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
     PersistedResult,
     ResultFactory,
-    UnpersistedResult,
 )
 from prefect.states import (
     Cancelled,
@@ -149,7 +148,8 @@ class TestReturnValueToState:
         state = Completed(data=None)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
-        assert isinstance(result_state.data, UnpersistedResult)
+        assert isinstance(result_state.data, PersistedResult)
+        assert result_state.data._persisted is False
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self, prefect_client):

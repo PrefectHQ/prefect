@@ -276,11 +276,16 @@ class State(ObjectBaseModel, Generic[R]):
         from prefect.client.schemas.actions import StateCreate
         from prefect.results import BaseResult
 
+        if isinstance(self.data, BaseResult) and self.data.serialize_to_none is False:
+            data = self.data
+        else:
+            data = None
+
         return StateCreate(
             type=self.type,
             name=self.name,
             message=self.message,
-            data=self.data if isinstance(self.data, BaseResult) else None,
+            data=data,
             state_details=self.state_details,
         )
 
