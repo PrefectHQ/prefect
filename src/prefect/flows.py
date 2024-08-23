@@ -797,7 +797,6 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        concurrency_limit: Optional[int] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
@@ -897,7 +896,6 @@ class Flow(Generic[P, R]):
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
             entrypoint_type=entrypoint_type,
-            concurrency_limit=1,
         )
         if print_starting_message:
             help_message = (
