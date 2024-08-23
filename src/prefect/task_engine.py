@@ -464,8 +464,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result_factory=result_factory,
                 key=transaction.key,
                 expiration=expiration,
-                # defer persistence to transaction commit
-                defer_persistence=True,
             )
         )
         transaction.stage(
@@ -536,6 +534,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     exc,
                     message="Task run encountered an exception",
                     result_factory=getattr(context, "result_factory", None),
+                    write_result=True,
                 )
             )
             self.record_terminal_state_timing(state)
@@ -705,17 +704,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+
+        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+        if result_factory and result_factory.persist_result:
+            store = ResultFactoryStore(result_factory=result_factory)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
@@ -964,8 +968,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             result_factory=result_factory,
             key=transaction.key,
             expiration=expiration,
-            # defer persistence to transaction commit
-            defer_persistence=True,
         )
         transaction.stage(
             terminal_state.data,
@@ -1199,17 +1201,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[Transaction, None]:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+        if result_factory and result_factory.persist_result:
+            store = ResultFactoryStore(result_factory=result_factory)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
