@@ -758,6 +758,7 @@ class BaseWorker(abc.ABC):
         for execution by the worker.
         """
         submittable_flow_runs = [entry.flow_run for entry in flow_run_response]
+
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
@@ -864,11 +865,6 @@ class BaseWorker(abc.ABC):
         if deployment and deployment.concurrency_limit:
             limit_name = f"deployment:{deployment.id}"
             concurrency_ctx = concurrency
-            self._logger.info(
-                "------------------Deployment %s has a concurrency limit of %s",
-                deployment.id,
-                deployment.concurrency_limit,
-            )
         else:
             limit_name = None
             concurrency_ctx = asyncnullcontext
@@ -877,11 +873,6 @@ class BaseWorker(abc.ABC):
             async with concurrency_ctx(limit_name, occupy=1, max_retries=0):
                 configuration = await self._get_configuration(flow_run)
                 submitted_event = self._emit_flow_run_submitted_event(configuration)
-                self._logger.info(
-                    "00000000Worker %s submitting flow run %s",
-                    self.name,
-                    flow_run.id,
-                )
                 result = await self.run(
                     flow_run=flow_run,
                     task_status=task_status,
