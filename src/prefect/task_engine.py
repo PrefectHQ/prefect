@@ -534,6 +534,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     exc,
                     message="Task run encountered an exception",
                     result_factory=getattr(context, "result_factory", None),
+                    write_result=True,
                 )
             )
             self.record_terminal_state_timing(state)

@@ -337,6 +337,7 @@ class TestDefaultTransactionStorage:
                 result = await txn.store.result_factory.create_result(
                     obj={"foo": "bar"}, key=txn.key
                 )
+                await result.write()
                 txn.stage(result)
 
             result = txn.read()
@@ -360,6 +361,7 @@ class TestDefaultTransactionStorage:
                 result = await txn.store.result_factory.create_result(
                     obj={"foo": "bar"}, key=txn.key
                 )
+                await result.write()
                 txn.stage(result)
 
             result = txn.read()
