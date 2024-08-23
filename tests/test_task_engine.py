@@ -32,7 +32,7 @@ from prefect.context import (
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
+from prefect.results import PersistedResult, ResultFactory
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -1653,6 +1653,7 @@ class TestPersistence:
                 client=prefect_client, persist_result=True
             )
             result = await factory.create_result(42)
+            await result.write()
             return result
 
         assert await async_task() == 42
@@ -1665,7 +1666,8 @@ class TestPersistence:
         factory = await ResultFactory.default_factory(
             client=prefect_client, persist_result=True
         )
-        await factory.create_result(-92, key="foo-bar")
+        result = await factory.create_result(-92, key="foo-bar")
+        await result.write()
 
         @task(result_storage_key="foo-bar", persist_result=True)
         async def async_task():
@@ -1776,7 +1778,8 @@ class TestCachePolicy:
 
         assert state.is_completed()
         assert await state.result() == 1800
-        assert isinstance(state.data, UnpersistedResult)
+        assert isinstance(state.data, PersistedResult)
+        assert state.data._persisted is False
 
     async def test_none_return_value_does_persist(self, prefect_client, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)

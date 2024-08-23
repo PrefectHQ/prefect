@@ -25,7 +25,6 @@ from typing_extensions import ParamSpec, Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import MissingResult
 from prefect.filesystems import (
     LocalFileSystem,
     WritableFileSystem,
@@ -332,21 +331,14 @@ class ResultFactory(BaseModel):
         obj: R,
         key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
-        defer_persistence: bool = False,
     ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
-
-        If persistence is disabled, the object is wrapped in an `UnpersistedResult` and
-        returned.
 
         If persistence is enabled the object is serialized, persisted to storage, and a reference is returned.
         """
         # Null objects are "cached" in memory at no cost
         should_cache_object = self.cache_result_in_memory or obj is None
-
-        if not self.persist_result:
-            return await UnpersistedResult.create(obj, cache_object=should_cache_object)
 
         if key:
 
@@ -365,7 +357,7 @@ class ResultFactory(BaseModel):
             serializer=self.serializer,
             cache_object=should_cache_object,
             expiration=expiration,
-            defer_persistence=defer_persistence,
+            serialize_to_none=not self.persist_result,
         )
 
     @sync_compatible
@@ -432,34 +424,6 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         return cls.__name__ if isinstance(default, PydanticUndefinedType) else default
 
 
-class UnpersistedResult(BaseResult):
-    """
-    Result type for results that are not persisted outside of local memory.
-    """
-
-    type: str = "unpersisted"
-
-    @sync_compatible
-    async def get(self) -> R:
-        if self.has_cached_object():
-            return self._cache
-
-        raise MissingResult("The result was not persisted and is no longer available.")
-
-    @classmethod
-    @sync_compatible
-    async def create(
-        cls: "Type[UnpersistedResult]",
-        obj: R,
-        cache_object: bool = True,
-    ) -> "UnpersistedResult[R]":
-        result = cls()
-        # Only store the object in local memory, it will not be sent to the API
-        if cache_object:
-            result._cache_object(obj)
-        return result
-
-
 class PersistedResult(BaseResult):
     """
     Result type which stores a reference to a persisted result.
@@ -476,11 +440,18 @@ class PersistedResult(BaseResult):
     storage_key: str
     storage_block_id: Optional[uuid.UUID] = None
     expiration: Optional[DateTime] = None
+    serialize_to_none: bool = False
 
-    _should_cache_object: bool = PrivateAttr(default=True)
     _persisted: bool = PrivateAttr(default=False)
+    _should_cache_object: bool = PrivateAttr(default=True)
     _storage_block: WritableFileSystem = PrivateAttr(default=None)
     _serializer: Serializer = PrivateAttr(default=None)
+
+    def model_dump(self, *args, **kwargs):
+        if self.serialize_to_none:
+            return None
+        else:
+            return super().model_dump(*args, **kwargs)
 
     def _cache_object(
         self,
@@ -547,7 +518,7 @@ class PersistedResult(BaseResult):
         Write the result to the storage block.
         """
 
-        if self._persisted:
+        if self._persisted or self.serialize_to_none:
             # don't double write or overwrite
             return
 
@@ -627,7 +598,7 @@ class PersistedResult(BaseResult):
         storage_block_id: Optional[uuid.UUID] = None,
         cache_object: bool = True,
         expiration: Optional[DateTime] = None,
-        defer_persistence: bool = False,
+        serialize_to_none: bool = False,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
@@ -651,24 +622,13 @@ class PersistedResult(BaseResult):
             storage_block_id=storage_block_id,
             storage_key=key,
             expiration=expiration,
+            serialize_to_none=serialize_to_none,
         )
 
-        if cache_object and not defer_persistence:
-            # Attach the object to the result so it's available without deserialization
-            result._cache_object(
-                obj, storage_block=storage_block, serializer=serializer
-            )
-
         object.__setattr__(result, "_should_cache_object", cache_object)
-
-        if not defer_persistence:
-            await result.write(obj=obj)
-        else:
-            # we must cache temporarily to allow for writing later
-            # the cache will be removed on write
-            result._cache_object(
-                obj, storage_block=storage_block, serializer=serializer
-            )
+        # we must cache temporarily to allow for writing later
+        # the cache will be removed on write
+        result._cache_object(obj, storage_block=storage_block, serializer=serializer)
 
         return result
 
@@ -701,40 +661,3 @@ class PersistedResultBlob(BaseModel):
 
     def to_bytes(self) -> bytes:
         return self.model_dump_json(serialize_as_any=True).encode()
-
-
-class UnknownResult(BaseResult):
-    """
-    Result type for unknown results. Typically used to represent the result
-    of tasks that were forced from a failure state into a completed state.
-
-    The value for this result is always None and is not persisted to external
-    result storage, but orchestration treats the result the same as persisted
-    results when determining orchestration rules, such as whether to rerun a
-    completed task.
-    """
-
-    type: str = "unknown"
-    value: None
-
-    def has_cached_object(self) -> bool:
-        # This result type always has the object cached in memory
-        return True
-
-    @sync_compatible
-    async def get(self) -> R:
-        return self.value
-
-    @classmethod
-    @sync_compatible
-    async def create(
-        cls: "Type[UnknownResult]",
-        obj: R = None,
-    ) -> "UnknownResult[R]":
-        if obj is not None:
-            raise TypeError(
-                f"Unsupported type {type(obj).__name__!r} for unknown result. "
-                "Only None is supported."
-            )
-
-        return cls(value=obj)

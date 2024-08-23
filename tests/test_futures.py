@@ -408,10 +408,7 @@ class TestPrefectDistributedFuture:
 
         await events_pipeline.process_events()
 
-        with pytest.raises(
-            MissingResult,
-            match="The result was not persisted and is no longer available.",
-        ):
+        with pytest.raises(MissingResult):
             future.result()
 
 
