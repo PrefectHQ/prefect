@@ -6,6 +6,7 @@ from starlette import status
 
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
+    ConcurrencySlotAcquisitionError,
     _acquire_concurrency_slots,
     _release_concurrency_slots,
     concurrency,
@@ -37,7 +38,11 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
             await resource_heavy()
 
             acquire_spy.assert_called_once_with(
-                ["test"], 1, timeout_seconds=None, create_if_missing=True
+                ["test"],
+                1,
+                timeout_seconds=None,
+                create_if_missing=True,
+                max_retries=None,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -201,6 +206,13 @@ def mock_increment_concurrency_slots(monkeypatch):
 async def test_concurrency_respects_timeout():
     with pytest.raises(TimeoutError, match=".*timed out after 0.01 second(s)*"):
         async with concurrency("test", occupy=1, timeout_seconds=0.01):
+            print("should not be executed")
+
+
+@pytest.mark.usefixtures("mock_increment_concurrency_slots")
+async def test_concurrency_respects_max_retries():
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        async with concurrency("test", occupy=1, max_retries=0, timeout_seconds=5):
             print("should not be executed")
 
 
@@ -415,7 +427,11 @@ async def test_concurrency_creates_new_limits_if_requested(
             await resource_heavy()
 
             acquire_spy.assert_called_once_with(
-                ["test"], 1, timeout_seconds=None, create_if_missing=True
+                ["test"],
+                1,
+                timeout_seconds=None,
+                create_if_missing=True,
+                max_retries=None,
             )
 
             # On release we calculate how many seconds the slots were occupied

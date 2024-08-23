@@ -218,7 +218,6 @@ async def exception_to_crashed_state(
 async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
     result_factory: Optional[ResultFactory] = None,
-    write_result: bool = False,
     **kwargs,
 ) -> State:
     """
@@ -235,8 +234,6 @@ async def exception_to_failed_state(
 
     if result_factory:
         data = await result_factory.create_result(exc)
-        if write_result:
-            await data.write()
     else:
         # Attach the exception for local usage, will not be available when retrieved
         # from the API
@@ -261,7 +258,7 @@ async def return_value_to_state(
     result_factory: ResultFactory,
     key: Optional[str] = None,
     expiration: Optional[datetime.datetime] = None,
-    write_result: bool = False,
+    defer_persistence: bool = False,
 ) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
@@ -294,14 +291,13 @@ async def return_value_to_state(
         # Unless the user has already constructed a result explicitly, use the factory
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
-            result = await result_factory.create_result(
+            state.data = await result_factory.create_result(
                 state.data,
                 key=key,
                 expiration=expiration,
+                defer_persistence=defer_persistence,
             )
-            if write_result:
-                await result.write()
-            state.data = result
+
         return state
 
     # Determine a new state from the aggregate of contained states
@@ -337,17 +333,15 @@ async def return_value_to_state(
         # TODO: We may actually want to set the data to a `StateGroup` object and just
         #       allow it to be unpacked into a tuple and such so users can interact with
         #       it
-        result = await result_factory.create_result(
-            retval,
-            key=key,
-            expiration=expiration,
-        )
-        if write_result:
-            await result.write()
         return State(
             type=new_state_type,
             message=message,
-            data=result,
+            data=await result_factory.create_result(
+                retval,
+                key=key,
+                expiration=expiration,
+                defer_persistence=defer_persistence,
+            ),
         )
 
     # Generators aren't portable, implicitly convert them to a list.
@@ -360,14 +354,14 @@ async def return_value_to_state(
     if isinstance(data, BaseResult):
         return Completed(data=data)
     else:
-        result = await result_factory.create_result(
-            data,
-            key=key,
-            expiration=expiration,
+        return Completed(
+            data=await result_factory.create_result(
+                data,
+                key=key,
+                expiration=expiration,
+                defer_persistence=defer_persistence,
+            )
         )
-        if write_result:
-            await result.write()
-        return Completed(data=result)
 
 
 @sync_compatible
@@ -687,6 +681,21 @@ def AwaitingRetry(
     """
     return Scheduled(
         cls=cls, scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs
+    )
+
+
+def AwaitingConcurrencySlot(
+    cls: Type[State[R]] = State,
+    scheduled_time: Optional[datetime.datetime] = None,
+    **kwargs: Any,
+) -> State[R]:
+    """Convenience function for creating `AwaitingConcurrencySlot` states.
+
+    Returns:
+        State: a AwaitingConcurrencySlot state
+    """
+    return Scheduled(
+        cls=cls, scheduled_time=scheduled_time, name="AwaitingConcurrencySlot", **kwargs
     )
 
 
