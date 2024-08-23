@@ -1796,7 +1796,7 @@ def test_ip_allowlist_add(
         )
     )
 
-    mocked_patch = respx_mock.patch(url).mock(
+    mocked_put_request = respx_mock.put(url).mock(
         return_value=httpx.Response(status.HTTP_200_OK, json={})
     )
 
@@ -1807,10 +1807,10 @@ def test_ip_allowlist_add(
             expected_code=0,
         )
 
-    assert mocked_patch.call_count == 1
+    assert mocked_put_request.call_count == 1
 
     intercepted_request = IPAllowlist.model_validate_json(
-        mocked_patch.calls[-1].request.content
+        mocked_put_request.calls[-1].request.content
     )
 
     assert intercepted_request.entries == example_allowlist.entries + [
@@ -1832,7 +1832,7 @@ def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
         )
     )
 
-    mocked_patch = respx_mock.patch(url).mock(
+    mocked_put_request = respx_mock.put(url).mock(
         return_value=httpx.Response(status.HTTP_200_OK, json={})
     )
 
@@ -1844,7 +1844,7 @@ def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
         )
 
     intercepted_request = IPAllowlist.model_validate_json(
-        mocked_patch.calls[-1].request.content
+        mocked_put_request.calls[-1].request.content
     )
 
     assert entry_to_remove.ip_network not in (
