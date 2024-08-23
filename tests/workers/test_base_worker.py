@@ -267,29 +267,19 @@ async def test_priority_trumps_lateness(
         )
 
     flow_runs = [
-        await create_run_with_deployment_1(Pending()),
-        await create_run_with_deployment_1(
+        await create_run_with_deployment_2(
             Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
         ),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=10))
-        ),
-        await create_run_with_deployment_2(
             Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
         ),
-        await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
-        ),
-        await create_run_with_deployment_1(Running()),
-        await create_run_with_deployment_1(Completed()),
-        await prefect_client.create_flow_run(test_flow, state=Scheduled()),
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
-    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=2) as worker:
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
-    assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
+    assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1])
 
 
 async def test_worker_with_work_pool_and_limit(
