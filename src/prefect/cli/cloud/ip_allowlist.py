@@ -5,7 +5,7 @@ import typer
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_success
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import cloud_app, confirm_logged_in
 from prefect.cli.root import app
 from prefect.client.cloud import get_cloud_client
@@ -73,6 +73,22 @@ async def add(
 
     async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
+
+        if any(
+            ipaddress.ip_network(entry.ip_network) == ipaddress.ip_network(ip_network)
+            for entry in ip_allowlist.entries
+        ):
+            if not typer.confirm(
+                f"There's already an entry for this IP ({ip_network}). Do you want to overwrite it?"
+            ):
+                exit_with_error("Aborted.")
+            ip_allowlist.entries = [
+                entry
+                for entry in ip_allowlist.entries
+                if ipaddress.ip_network(entry.ip_network)
+                != ipaddress.ip_network(ip_network)
+            ]
+
         ip_allowlist.entries.append(new_entry)
         await client.update_account_ip_allowlist(ip_allowlist)
 

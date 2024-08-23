@@ -1700,7 +1700,7 @@ def test_ip_allowlist_enable(respx_mock, workspace_with_logged_in_profile):
     ).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=example_allowlist.model_dump(),
+            json=SAMPLE_ALLOWLIST.model_dump(),
         )
     )
 
@@ -1720,7 +1720,7 @@ def test_ip_allowlist_disable(respx_mock, workspace_with_logged_in_profile):
     ).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=example_allowlist.model_dump(),
+            json=SAMPLE_ALLOWLIST.model_dump(),
         )
     )
 
@@ -1732,7 +1732,7 @@ def test_ip_allowlist_disable(respx_mock, workspace_with_logged_in_profile):
         )
 
 
-example_allowlist = IPAllowlist(
+SAMPLE_ALLOWLIST = IPAllowlist(
     entries=[
         IPAllowlistEntry(
             ip_network="192.168.1.1",
@@ -1767,11 +1767,11 @@ def test_ip_allowlist_ls(respx_mock, workspace_with_logged_in_profile):
     respx_mock.get(url).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=example_allowlist.model_dump(),
+            json=SAMPLE_ALLOWLIST.model_dump(),
         )
     )
 
-    every_expected_entry_ip = [entry.ip_network for entry in example_allowlist.entries]
+    every_expected_entry_ip = [entry.ip_network for entry in SAMPLE_ALLOWLIST.entries]
 
     with use_profile(profile):
         invoke_and_assert(
@@ -1792,13 +1792,20 @@ def test_ip_allowlist_add(
     respx_mock.get(url).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=example_allowlist.model_dump(),
+            json=SAMPLE_ALLOWLIST.model_dump(),
         )
     )
-
-    mocked_put_request = respx_mock.put(url).mock(
-        return_value=httpx.Response(status.HTTP_200_OK, json={})
+    expected_update_request = IPAllowlist(
+        entries=SAMPLE_ALLOWLIST.entries
+        + [
+            IPAllowlistEntry(
+                ip_network="192.188.1.5", enabled=True, description=description
+            )
+        ]
     )
+    mocked_put_request = respx_mock.put(
+        url, json=expected_update_request.model_dump()
+    ).mock(return_value=httpx.Response(status.HTTP_204_NO_CONTENT))
 
     with use_profile(profile):
         invoke_and_assert(
@@ -1807,17 +1814,53 @@ def test_ip_allowlist_add(
             expected_code=0,
         )
 
-    assert mocked_put_request.call_count == 1
+    assert mocked_put_request.called
 
-    intercepted_request = IPAllowlist.model_validate_json(
-        mocked_put_request.calls[-1].request.content
+
+def test_ip_allowlist_add_invalid_ip(workspace_with_logged_in_profile, respx_mock):
+    pass
+
+
+def test_ip_allowlist_add_existing_ip_entry(
+    workspace_with_logged_in_profile, respx_mock
+):
+    allowlist = IPAllowlist(
+        entries=[
+            IPAllowlistEntry(
+                ip_network="192.168.1.1",
+                enabled=True,
+                description="original description",
+            )
+        ]
+    )
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
+    )
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(status.HTTP_200_OK, json=allowlist.model_dump())
+    )
+    expected_update_request = allowlist.model_dump()
+    expected_update_request["entries"][0]["description"] = "updated description"
+    mocked_put_request = respx_mock.put(url, json=expected_update_request).mock(
+        return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
     )
 
-    assert intercepted_request.entries == example_allowlist.entries + [
-        IPAllowlistEntry(
-            ip_network="192.188.1.5", enabled=True, description=description
+    with use_profile(profile):
+        invoke_and_assert(
+            [
+                "cloud",
+                "ip-allowlist",
+                "add",
+                str(SAMPLE_ALLOWLIST.entries[0].ip_network),
+                "-d",
+                "updated description",
+            ],
+            user_input="y",
+            expected_code=0,
         )
-    ]
+
+    assert mocked_put_request.called
 
 
 def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
@@ -1828,25 +1871,26 @@ def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
     respx_mock.get(url).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=example_allowlist.model_dump(),
+            json=SAMPLE_ALLOWLIST.model_dump(),
         )
     )
 
-    mocked_put_request = respx_mock.put(url).mock(
-        return_value=httpx.Response(status.HTTP_200_OK, json={})
+    entry_to_remove = SAMPLE_ALLOWLIST.entries[0]
+    expected_update_request = IPAllowlist(
+        entries=[
+            entry
+            for entry in SAMPLE_ALLOWLIST.entries
+            if entry.ip_network != entry_to_remove.ip_network
+        ]
     )
+    mocked_put_request = respx_mock.put(
+        url, json=expected_update_request.model_dump()
+    ).mock(return_value=httpx.Response(status.HTTP_204_NO_CONTENT))
 
-    entry_to_remove = example_allowlist.entries[0]
     with use_profile(profile):
         invoke_and_assert(
             ["cloud", "ip-allowlist", "remove", entry_to_remove.ip_network],
             expected_code=0,
         )
 
-    intercepted_request = IPAllowlist.model_validate_json(
-        mocked_put_request.calls[-1].request.content
-    )
-
-    assert entry_to_remove.ip_network not in (
-        entry.ip_network for entry in intercepted_request.entries
-    )
+    assert mocked_put_request.called
