@@ -1,0 +1,175 @@
+---
+title: Upgrade to Prefect 3
+description: Learn how to upgrade from Prefect 2 to Prefect 3.
+---
+
+Prefect 3 introduces exciting new features and improvements while maintaining compatibility with most Prefect 2 workflows. For the majority of users, upgrading to Prefect 3 will be a seamless process that requires few or no code changes. This guide highlights key changes that you may need to consider when upgrading.
+
+## Quickstart
+
+To upgrade to Prefect 3, run:
+
+```bash
+pip install prefect>=3.0.0rc1 --pre
+```
+
+Note that the `--pre` flag is required to install the release candidate until the final release is available.
+
+
+If you self-host a Prefect server, run this command to update your database:
+
+```bash
+prefect server database upgrade
+```
+
+If you use a Prefect integration or extra, remember to upgrade it as well. For example:
+
+```bash
+pip install prefect[aws]>=3.0.0rc1 --pre
+```
+
+## Upgrade notes
+
+### Pydantic V2
+
+<Info>
+This change affects you if: You use custom Pydantic models with Prefect features.
+</Info>
+
+Prefect 3 is built with Pydantic 2 for improved performance. All Prefect objects will automatically upgrade, but if you use custom Pydantic models for flow parameters or custom blocks, you'll need to ensure they are compatible with Pydantic 2. You can continue to use Pydantic 1 models in your own code if they do not interact directly with Prefect.
+
+Refer to [Pydantic's migration guide](https://docs.pydantic.dev/latest/migration/) for detailed information on necessary changes.
+
+### Module location and name changes
+
+Some less-commonly used modules have been renamed, reorganized, or removed for clarity. The old import paths will continue to be supported for 6 months, but emit deprecation warnings. You can look at the [deprecation code](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/compatibility/migration.py) to see a full list of affected paths.
+
+### Async tasks
+
+<info>
+This change affects you if: you use advanced asynchronous behaviors in your flows.
+</info>
+
+Prefect 3 makes a few changes to handling asynchronous code. There are three key changes to be aware of:
+
+1. **Async Tasks in Synchronous Flows**: In Prefect 2, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3 removes this ability to reduce complexity and potential issues. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
+
+### Flow final states
+
+<info>
+This change affects you if: you want your flow to fail if any task in the flow fails, and you invoke your tasks in a way that doesn't automatically raise an error (including submitting them to a `TaskRunners`).
+</info>
+
+In Prefect 2, the final state of a flow run was influenced by the states of its task runs; if any task run failed, the flow run was marked as failed.
+
+In Prefect 3, the final state of a flow run is entirely determined by:
+
+1. The `return` value of the flow function (same as in Prefect 2):
+   - Literal values are considered successful.
+   - Any explicit `State` that is returned will be considered the final state of the flow run. If an iterable of `State` objects is returned, all must be `Completed` for the flow run to be considered `Completed`. If any are `Failed`, the flow run will be marked as `Failed`.
+
+2. Whether the flow function allows an exception to `raise`:
+   - Exceptions that are allowed to propagate will result in a `Failed` state.
+   - Exceptions suppressed with `raise_on_failure=False` will not affect the flow run state.
+
+This change means that task failures within a flow do not automatically cause the flow run to fail unless they affect the flow's return value or raise an uncaught exception.
+
+<Warning>
+When migrating from Prefect 2 to Prefect 3, be aware that flows may now complete successfully even if they contain failed tasks, unless you explicitly handle task failures.
+</Warning>
+
+To ensure your flow fails when critical tasks fail, consider these approaches:
+
+1. Allow task exceptions to propagate by not using `raise_on_failure=False`.
+2. Use `return_state=True` and explicitly check task states to conditionally `raise` the underlying exception or return a failed state.
+3. Use try/except blocks to handle task failures and return appropriate states.
+
+#### Examples
+
+<CodeGroup>
+```python Allow Unhandled Exceptions
+from prefect import flow, task
+
+@task
+def failing_task():
+    raise ValueError("Task failed")
+
+@flow
+def my_flow():
+    failing_task()  # Exception propagates, causing flow failure
+
+try:
+    my_flow()
+except ValueError as e:
+    print(f"Flow failed: {e}")  # Output: Flow failed: Task failed
+```
+
+```python Use return_state
+from prefect import flow, task
+from prefect.states import Failed
+
+@task
+def failing_task():
+    raise ValueError("Task failed")
+
+@flow
+def my_flow():
+    state = failing_task(return_state=True)
+    if state.is_failed():
+        raise ValueError(state.result())
+    return "Flow completed successfully"
+
+try:
+    print(my_flow())
+except ValueError as e:
+    print(f"Flow failed: {e}")  # Output: Flow failed: Task failed
+```
+
+```python Use try/except
+from prefect import flow, task
+from prefect.states import Failed
+
+@task
+def failing_task():
+    raise ValueError("Task failed")
+
+@flow
+def my_flow():
+    try:
+        failing_task()
+    except ValueError:
+        return Failed(message="Flow failed due to task failure")
+    return "Flow completed successfully"
+
+print(my_flow())  # Output: Failed(message='Flow failed due to task failure')
+```
+</CodeGroup>
+
+Choose the strategy that best fits your specific use case and error handling requirements.
+
+-----
+
+### Futures interface
+
+<info>
+This change affects you if: you directly interact with `PrefectFuture` objects.
+</info>
+
+PrefectFutures now have a standard synchronous interface, with an asynchronous one [planned soon](https://github.com/PrefectHQ/prefect/issues/15008).
+
+
+### Automatic task caching
+
+<info>
+This change affects you if: You rely on side effects in your tasks
+</info>
+
+Prefect 3 introduces a powerful idempotency engine. By default, tasks in a flow run are automatically cached if they are called more than once with the same inputs. If you rely on tasks with side effects, this may result in surprising behavior. To disable caching, pass `cache_policy=None` to your task.
+
+### Workers
+
+<info>
+This change affects you if: You're using agents from an early version of Prefect 2.
+</info>
+
+In Prefect 2, agents were deprecated in favor of next-generation workers. Workers are now standard in Prefect 3. For detailed information on upgrading from agents to workers, please refer to our [upgrade guide](https://docs-3.prefect.io/3.0rc/resources/upgrade-agents-to-workers).
