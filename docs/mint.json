@@ -12,9 +12,9 @@
       "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
     },
     {
-      "icon": "link",
-      "name": "Prefect.io",
-      "url": "https://www.prefect.io/"
+      "icon": "cloud",
+      "name": "Prefect Cloud",
+      "url": "https://app.prefect.cloud"
     }
   ],
   "api": {
@@ -52,6 +52,7 @@
       "group": "Get started",
       "pages": [
         "3.0rc/get-started/index",
+        "3.0rc/resources/whats-new-prefect-3",
         "3.0rc/get-started/install",
         "3.0rc/get-started/quickstart"
       ],
@@ -197,7 +198,7 @@
     {
       "group": "Resources",
       "pages": [
-        "3.0rc/resources/upgrade-prefect-3",
+        "3.0rc/resources/upgrade-to-prefect-3",
         "3.0rc/resources/upgrade-agents-to-workers",
         "3.0rc/resources/cancel",
         "3.0rc/resources/visualize-flow-structure",
@@ -1276,8 +1277,8 @@
     }
   ],
   "topbarCtaButton": {
-    "name": "TRY PREFECT CLOUD",
-    "url": "https://app.prefect.cloud/"
+    "type": "github",
+    "url": "https://github.com/PrefectHQ/Prefect"
   },
   "versions": [
     "3.0rc",
