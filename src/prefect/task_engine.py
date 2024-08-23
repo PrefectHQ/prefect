@@ -464,8 +464,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result_factory=result_factory,
                 key=transaction.key,
                 expiration=expiration,
-                # defer persistence to transaction commit
-                defer_persistence=True,
             )
         )
         transaction.stage(
@@ -536,6 +534,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     exc,
                     message="Task run encountered an exception",
                     result_factory=getattr(context, "result_factory", None),
+                    write_result=True,
                 )
             )
             self.record_terminal_state_timing(state)
@@ -969,8 +968,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             result_factory=result_factory,
             key=transaction.key,
             expiration=expiration,
-            # defer persistence to transaction commit
-            defer_persistence=True,
         )
         transaction.stage(
             terminal_state.data,
