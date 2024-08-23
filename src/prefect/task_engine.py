@@ -705,17 +705,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+
+        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+        if result_factory and result_factory.persist_result:
+            store = ResultFactoryStore(result_factory=result_factory)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
@@ -1199,17 +1204,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[Transaction, None]:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+        if result_factory and result_factory.persist_result:
+            store = ResultFactoryStore(result_factory=result_factory)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
