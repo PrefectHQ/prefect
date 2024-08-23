@@ -1781,6 +1781,26 @@ def test_ip_allowlist_ls(respx_mock, workspace_with_logged_in_profile):
         )
 
 
+def test_ip_allowlist_ls_empty_list(respx_mock, workspace_with_logged_in_profile):
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
+    )
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json={"entries": []},
+        )
+    )
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "ls"],
+            expected_code=0,
+            expected_output_contains="IP allowlist is empty. Add an entry",
+        )
+
+
 @pytest.mark.parametrize("description", [None, "some short description"])
 def test_ip_allowlist_add(
     description: Optional[str], workspace_with_logged_in_profile, respx_mock

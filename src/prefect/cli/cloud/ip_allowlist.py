@@ -2,6 +2,7 @@ import ipaddress
 from typing import Optional
 
 import typer
+from rich.panel import Panel
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
@@ -116,6 +117,15 @@ async def remove(ip_network: str):
 
 
 def _print_ip_allowlist_table(ip_allowlist: IPAllowlist):
+    if not ip_allowlist.entries:
+        app.console.print(
+            Panel(
+                "IP allowlist is empty. Add an entry to secure access to your Prefect Cloud account.",
+                expand=False,
+            )
+        )
+        return
+
     table = Table(title="IP Allowlist")
 
     table.add_column("IP Address", style="cyan", no_wrap=True)
