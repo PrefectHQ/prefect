@@ -747,7 +747,6 @@ class BaseWorker(abc.ABC):
         for execution by the worker.
         """
         submittable_flow_runs = [entry.flow_run for entry in flow_run_response]
-        submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
