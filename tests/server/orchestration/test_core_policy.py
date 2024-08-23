@@ -10,13 +10,11 @@ import pytest
 
 from prefect.results import (
     PersistedResult,
-    UnknownResult,
 )
 from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, flow_runs
 from prefect.server.orchestration.core_policy import (
-    AddUnknownResult,
     BypassCancellingFlowRunsWithNoInfra,
     CacheInsertion,
     CacheRetrieval,
@@ -1328,22 +1326,18 @@ class TestTransitionsFromTerminalStatesRule:
         ],
         ids=transition_names,
     )
-    @pytest.mark.parametrize("result_type", [PersistedResult, UnknownResult])
     async def test_transitions_from_completed_to_non_final_states_rejected_with_persisted_result(
         self,
         session,
         run_type,
         initialize_orchestration,
         intended_transition,
-        result_type,
     ):
         ctx = await initialize_orchestration(
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.model_construct().model_dump()
-            if result_type
-            else None,
+            initial_state_data=PersistedResult.model_construct().model_dump(),
         )
 
         if run_type == "task":
@@ -3193,66 +3187,6 @@ class TestBypassCancellingFlowRunsWithNoInfra:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.CANCELLING
-
-
-@pytest.mark.parametrize("run_type", ["task", "flow"])
-class TestAddUnknownResultRule:
-    @pytest.mark.parametrize(
-        "result_type,initial_state_type",
-        list(
-            product(
-                (PersistedResult,), (states.StateType.FAILED, states.StateType.CRASHED)
-            )
-        ),
-    )
-    async def test_saves_unknown_result_if_last_state_used_persisted_results(
-        self,
-        session,
-        initialize_orchestration,
-        run_type,
-        result_type,
-        initial_state_type,
-    ):
-        proposed_state_type = states.StateType.COMPLETED
-        intended_transition = (initial_state_type, proposed_state_type)
-        ctx = await initialize_orchestration(
-            session,
-            run_type,
-            *intended_transition,
-            initial_state_data=result_type.model_construct().model_dump()
-            if result_type
-            else None,
-        )
-
-        async with AddUnknownResult(ctx, *intended_transition) as ctx:
-            await ctx.validate_proposed_state()
-
-        assert ctx.proposed_state.data.get("type") == "unknown"
-
-    @pytest.mark.parametrize(
-        "initial_state_type", [states.StateType.FAILED, states.StateType.CRASHED]
-    )
-    async def test_does_not_save_unknown_result_if_last_result_did_not_use_persisted_results(
-        self,
-        session,
-        initialize_orchestration,
-        run_type,
-        initial_state_type,
-    ):
-        proposed_state_type = states.StateType.COMPLETED
-        intended_transition = (initial_state_type, proposed_state_type)
-        ctx = await initialize_orchestration(
-            session,
-            run_type,
-            *intended_transition,
-            initial_state_data=None,
-        )
-
-        async with AddUnknownResult(ctx, *intended_transition) as ctx:
-            await ctx.validate_proposed_state()
-
-        if ctx.proposed_state.data:
-            assert ctx.proposed_state.data.get("type") != "unknown"
 
 
 class TestPreventDuplicateTransitions:
