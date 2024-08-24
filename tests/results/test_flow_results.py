@@ -1,5 +1,3 @@
-import base64
-import pickle
 from pathlib import Path
 
 import pytest
@@ -11,7 +9,7 @@ from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
     PersistedResult,
-    PersistedResultBlob,
+    ResultRecord,
 )
 from prefect.serializers import (
     CompressedSerializer,
@@ -384,9 +382,7 @@ async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
     assert result == {"foo": "bar"}
     local_storage = await LocalFileSystem.load("my-result-storage")
     result_bytes = await local_storage.read_path(f"{tmp_path/'my-result.pkl'}")
-    saved_python_result = pickle.loads(
-        base64.b64decode(PersistedResultBlob.model_validate_json(result_bytes).data)
-    )
+    saved_python_result = ResultRecord.deserialize(result_bytes).result
 
     assert saved_python_result == {"foo": "bar"}
 
@@ -444,11 +440,7 @@ def test_flow_version_result_storage_key():
     storage_block = some_flow()
 
     assert isinstance(storage_block, LocalFileSystem)
-    result = pickle.loads(
-        base64.b64decode(
-            PersistedResultBlob.model_validate_json(
-                storage_block.read_path("somespecialflowversion")
-            ).data
-        )
-    )
+    result = ResultRecord.deserialize(
+        storage_block.read_path("somespecialflowversion")
+    ).result
     assert result == "hello"
