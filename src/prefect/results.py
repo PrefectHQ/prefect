@@ -512,8 +512,6 @@ class ResultRecord(BaseModel, Generic[R]):
         """
         Serialize the record to bytes.
 
-        Either or both of `include_metadata` and `include_result` must be True.
-
         Returns:
             bytes: the serialized record
 
