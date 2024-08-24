@@ -10,7 +10,7 @@ import pytest
 import prefect.states
 from prefect.exceptions import UnfinishedRun
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
-from prefect.results import PersistedResult, PersistedResultBlob, ResultFactory
+from prefect.results import PersistedResult, ResultFactory, ResultRecord
 from prefect.serializers import JSONSerializer
 from prefect.states import State, StateType
 from prefect.utilities.annotations import NotSet
@@ -136,8 +136,8 @@ async def test_graceful_retries_eventually_succeed_while(
 ):
     # now write the result so it's available
     await a_real_result.write()
-    expected_blob = await a_real_result._read_blob()
-    assert isinstance(expected_blob, PersistedResultBlob)
+    expected_record = await a_real_result._read_result_record()
+    assert isinstance(expected_record, ResultRecord)
 
     # even if it misses a couple times, it will eventually return the data
     now = time.monotonic()
@@ -147,7 +147,7 @@ async def test_graceful_retries_eventually_succeed_while(
             side_effect=[
                 FileNotFoundError,
                 TimeoutError,
-                expected_blob.model_dump_json().encode(),
+                expected_record.model_dump_json().encode(),
             ]
         ),
     ) as m:
