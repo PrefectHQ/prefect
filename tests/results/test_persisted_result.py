@@ -5,7 +5,12 @@ import pendulum
 import pytest
 
 from prefect.filesystems import LocalFileSystem
-from prefect.results import DEFAULT_STORAGE_KEY_FN, PersistedResult, PersistedResultBlob
+from prefect.results import (
+    DEFAULT_STORAGE_KEY_FN,
+    PersistedResult,
+    ResultRecord,
+    ResultRecordMetadata,
+)
 from prefect.serializers import JSONSerializer, PickleSerializer
 
 
@@ -65,9 +70,9 @@ async def test_result_reference_create_uses_serializer(storage_block):
 
     assert result.serializer_type == serializer.type
     contents = await storage_block.read_path(result.storage_key)
-    blob = PersistedResultBlob.model_validate_json(contents)
-    assert blob.serializer == serializer
-    assert serializer.loads(blob.data) == "test"
+    record = ResultRecord.deserialize(contents)
+    assert record.serializer == serializer
+    assert record.result == "test"
 
 
 async def test_result_reference_file_blob_is_json(storage_block):
@@ -87,13 +92,13 @@ async def test_result_reference_file_blob_is_json(storage_block):
     contents = await storage_block.read_path(result.storage_key)
 
     # Should be readable by JSON
-    blob_dict = json.loads(contents)
+    json.loads(contents)
 
-    # Should conform to the PersistedResultBlob spec
-    blob = PersistedResultBlob.model_validate(blob_dict)
+    # Should conform to the ResultRecord spec
+    blob = ResultRecord.deserialize(contents)
 
     assert blob.serializer
-    assert blob.data
+    assert blob.result
 
 
 async def test_result_reference_create_uses_storage_key_fn(storage_block):
@@ -123,9 +128,11 @@ async def test_init_doesnt_error_when_doesnt_exist(storage_block):
     with pytest.raises(ValueError, match="does not exist"):
         await result.get()
 
-    blob = PersistedResultBlob(serializer=JSONSerializer(), data=b"38")
-    await storage_block.write_path(path, blob.to_bytes())
-    assert await result.get() == 38
+    record = ResultRecord(
+        metadata=ResultRecordMetadata(serializer=JSONSerializer()), result=b"38"
+    )
+    await storage_block.write_path(path, record.serialize())
+    assert await result.get() == b"38"
 
 
 class TestExpirationField:
@@ -168,10 +175,13 @@ class TestExpirationField:
     async def test_expiration_when_loaded(self, storage_block):
         path = uuid.uuid4().hex
         timestamp = pendulum.now("utc").subtract(days=100)
-        blob = PersistedResultBlob(
-            serializer=JSONSerializer(), data=b"42", expiration=timestamp
+        record = ResultRecord(
+            metadata=ResultRecordMetadata(
+                serializer=JSONSerializer(), expiration=timestamp
+            ),
+            result=b"42",
         )
-        await storage_block.write_path(path, blob.to_bytes())
+        await storage_block.write_path(path, record.serialize())
 
         result = PersistedResult(
             storage_block_id=storage_block._block_document_id,
@@ -179,7 +189,7 @@ class TestExpirationField:
             serializer_type="json",
         )
 
-        assert await result.get() == 42
+        assert await result.get() == b"42"
         assert result.expiration == timestamp
 
 
@@ -193,15 +203,15 @@ async def test_write_is_idempotent(storage_block):
     )
 
     with pytest.raises(ValueError, match="does not exist"):
-        await result._read_blob()
+        await result._read_result_record()
 
     await result.write()
-    blob = await result._read_blob()
-    assert blob.load() == "test-defer"
+    record = await result._read_result_record()
+    assert record.result == "test-defer"
 
     await result.write(obj="new-object!")
-    blob = await result._read_blob()
-    assert blob.load() == "test-defer"
+    record = await result._read_result_record()
+    assert record.result == "test-defer"
 
 
 async def test_lifecycle_of_deferred_persistence(storage_block):
@@ -216,8 +226,26 @@ async def test_lifecycle_of_deferred_persistence(storage_block):
     assert await result.get() == "test-defer"
 
     with pytest.raises(ValueError, match="does not exist"):
-        await result._read_blob()
+        await result._read_result_record()
 
     await result.write()
-    blob = await result._read_blob()
-    assert blob.load() == "test-defer"
+    record = await result._read_result_record()
+    assert record.result == "test-defer"
+
+
+async def test_read_old_format_into_result_record():
+    old_blob = {
+        "serializer": {
+            "type": "pickle",
+            "picklelib": "cloudpickle",
+            "picklelib_version": None,
+        },
+        "data": "gAVLCS4=\n",
+        "prefect_version": "2.20.1",
+        "expiration": None,
+    }
+    record = ResultRecord.deserialize(json.dumps(old_blob).encode())
+    assert record.result == 9
+    assert record.metadata.serializer == PickleSerializer(picklelib="cloudpickle")
+    assert record.metadata.prefect_version == "2.20.1"
+    assert record.metadata.expiration is None
