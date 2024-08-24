@@ -665,6 +665,7 @@ class BaseWorker(abc.ABC):
             work_pool = await self._client.read_work_pool(
                 work_pool_name=self._work_pool_name
             )
+
         except ObjectNotFound:
             if self._create_pool_if_not_found:
                 wp = WorkPoolCreate(
@@ -864,13 +865,17 @@ class BaseWorker(abc.ABC):
             deployment = await self._client.read_deployment(flow_run.deployment_id)
         if deployment and deployment.concurrency_limit:
             limit_name = f"deployment:{deployment.id}"
+            concurrency_limit = deployment.concurrency_limit
             concurrency_ctx = concurrency
         else:
             limit_name = None
+            concurrency_limit = None
             concurrency_ctx = asyncnullcontext
 
         try:
-            async with concurrency_ctx(limit_name, occupy=1, max_retries=0):
+            async with concurrency_ctx(
+                limit_name, occupy=concurrency_limit, max_retries=0
+            ):
                 configuration = await self._get_configuration(flow_run)
                 submitted_event = self._emit_flow_run_submitted_event(configuration)
                 result = await self.run(
@@ -971,6 +976,8 @@ class BaseWorker(abc.ABC):
         if isinstance(job_variables.get("env"), dict):
             job_variables["env"].update(flow_run_vars.pop("env", {}))
         job_variables.update(flow_run_vars)
+
+        self._logger.info(f"==========={self._work_pool}============")
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,

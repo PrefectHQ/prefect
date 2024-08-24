@@ -288,6 +288,7 @@ async def test_priority_trumps_lateness(
     flow_run_ids = [run.id for run in flow_runs]
 
     async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker._submit_run = AsyncMock()  # don't run anything
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:2])
