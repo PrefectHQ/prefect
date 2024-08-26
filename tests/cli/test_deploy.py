@@ -276,7 +276,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool -cl 42 --version"
                 " 1.0.0 -v env=prod -t foo-bar"
             ),
             expected_code=0,
@@ -293,6 +293,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
+        assert deployment.concurrency_limit == 42
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
 
@@ -4696,6 +4697,7 @@ class TestSaveUserInputs:
             "name": "existing_deployment",
             "entrypoint": "flows/existing_flow.py:my_flow",
             "schedule": None,
+            "concurrency_limit": 42,
             "work_pool": {"name": "new_pool"},
             "parameter_openapi_schema": None,
         }
@@ -4709,6 +4711,10 @@ class TestSaveUserInputs:
         assert len(config["deployments"]) == 2
         assert config["deployments"][1]["name"] == new_deployment["name"]
         assert config["deployments"][1]["entrypoint"] == new_deployment["entrypoint"]
+        assert (
+            config["deployments"][1]["concurrency_limit"]
+            == new_deployment["concurrency_limit"]
+        )
         assert (
             config["deployments"][1]["work_pool"]["name"]
             == new_deployment["work_pool"]["name"]

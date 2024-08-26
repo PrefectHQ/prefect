@@ -24,6 +24,7 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+from pydantic.functional_validators import ModelWrapValidatorHandler
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self, TypeVar
 
@@ -276,11 +277,16 @@ class State(ObjectBaseModel, Generic[R]):
         from prefect.client.schemas.actions import StateCreate
         from prefect.results import BaseResult
 
+        if isinstance(self.data, BaseResult) and self.data.serialize_to_none is False:
+            data = self.data
+        else:
+            data = None
+
         return StateCreate(
             type=self.type,
             name=self.name,
             message=self.message,
-            data=self.data if isinstance(self.data, BaseResult) else None,
+            data=data,
             state_details=self.state_details,
         )
 
@@ -955,7 +961,9 @@ class BlockDocument(ObjectBaseModel):
         return validate_name_present_on_nonanonymous_blocks(values)
 
     @model_serializer(mode="wrap")
-    def serialize_data(self, handler, info: SerializationInfo):
+    def serialize_data(
+        self, handler: ModelWrapValidatorHandler, info: SerializationInfo
+    ):
         self.data = visit_collection(
             self.data,
             visit_fn=partial(handle_secret_render, context=info.context or {}),

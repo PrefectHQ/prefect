@@ -53,7 +53,7 @@ from prefect.flows import (
     safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResultBlob
+from prefect.results import ResultRecord
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -3823,6 +3823,7 @@ class TestFlowToDeployment:
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
+            concurrency_limit=42,
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
@@ -3844,6 +3845,7 @@ class TestFlowToDeployment:
         assert deployment.name == "test"
         assert deployment.tags == ["price", "luggage"]
         assert deployment.parameters == {"name": "Arthur"}
+        assert deployment.concurrency_limit == 42
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
@@ -4231,6 +4233,7 @@ class TestFlowDeploy:
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
+            concurrency_limit=42,
             description="This is a test",
             version="alpha",
             work_pool_name=work_pool.name,
@@ -4248,6 +4251,7 @@ class TestFlowDeploy:
                 name="test",
                 tags=["price", "luggage"],
                 parameters={"name": "Arthur"},
+                concurrency_limit=42,
                 description="This is a test",
                 version="alpha",
                 work_queue_name="line",
@@ -4541,8 +4545,8 @@ class TestTransactions:
         assert isinstance(val, ValueError)
         assert "does not exist" in str(val)
         content = result_storage.read_path("task1-result-A", _sync=True)
-        blob = PersistedResultBlob.model_validate_json(content)
-        assert blob.load() == {"some": "data"}
+        record = ResultRecord.deserialize(content)
+        assert record.result == {"some": "data"}
 
     def test_commit_isnt_called_on_rollback(self):
         data = {}

@@ -33,9 +33,10 @@ from prefect import Task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.context import ConcurrencyContext
-from prefect.concurrency.sync import concurrency
+from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
+from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
+from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
     AsyncClientContext,
     FlowRunContext,
@@ -463,8 +464,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result_factory=result_factory,
                 key=transaction.key,
                 expiration=expiration,
-                # defer persistence to transaction commit
-                defer_persistence=True,
             )
         )
         transaction.stage(
@@ -535,6 +534,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     exc,
                     message="Task run encountered an exception",
                     result_factory=getattr(context, "result_factory", None),
+                    write_result=True,
                 )
             )
             self.record_terminal_state_timing(state)
@@ -589,6 +589,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     client=client,
                 )
             )
+            stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
@@ -703,17 +704,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+
+        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+        if result_factory and result_factory.persist_result:
+            store = ResultFactoryStore(result_factory=result_factory)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
@@ -754,9 +760,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
-                with concurrency(
-                    list(self.task.tags), occupy=1, create_if_missing=False
-                ):
+                with concurrency(list(self.task.tags), self.task_run.id):
                     result = call_with_parameters(self.task.fn, parameters)
             else:
                 result = call_with_parameters(self.task.fn, parameters)
@@ -964,8 +968,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             result_factory=result_factory,
             key=transaction.key,
             expiration=expiration,
-            # defer persistence to transaction commit
-            defer_persistence=True,
         )
         transaction.stage(
             terminal_state.data,
@@ -1199,17 +1201,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[Transaction, None]:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+        if result_factory and result_factory.persist_result:
+            store = ResultFactoryStore(result_factory=result_factory)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
@@ -1250,9 +1256,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
-                async with aconcurrency(
-                    list(self.task.tags), occupy=1, create_if_missing=False
-                ):
+                async with aconcurrency(list(self.task.tags), self.task_run.id):
                     result = await call_with_parameters(self.task.fn, parameters)
             else:
                 result = await call_with_parameters(self.task.fn, parameters)

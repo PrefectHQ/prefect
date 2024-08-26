@@ -10,7 +10,7 @@ import pytest
 import prefect.states
 from prefect.exceptions import UnfinishedRun
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
-from prefect.results import PersistedResult, PersistedResultBlob, UnpersistedResult
+from prefect.results import PersistedResult, ResultFactory, ResultRecord
 from prefect.serializers import JSONSerializer
 from prefect.states import State, StateType
 from prefect.utilities.annotations import NotSet
@@ -24,8 +24,7 @@ from prefect.utilities.annotations import NotSet
 async def test_unfinished_states_raise_on_result_retrieval(
     state_type: StateType, raise_on_failure: bool
 ):
-    # We'll even attach a result to the state, but it shouldn't matter
-    state = State(type=state_type, data=await UnpersistedResult.create("test"))
+    state = State(type=state_type)
 
     with pytest.raises(UnfinishedRun):
         # raise_on_failure should have no effect here
@@ -36,8 +35,13 @@ async def test_unfinished_states_raise_on_result_retrieval(
     "state_type",
     [StateType.CRASHED, StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED],
 )
-async def test_finished_states_allow_result_retrieval(state_type: StateType):
-    state = State(type=state_type, data=await UnpersistedResult.create("test"))
+async def test_finished_states_allow_result_retrieval(
+    prefect_client, state_type: StateType
+):
+    factory = await ResultFactory.default_factory(
+        client=prefect_client, persist_result=True
+    )
+    state = State(type=state_type, data=await factory.create_result("test"))
 
     assert await state.result(raise_on_failure=False) == "test"
 
@@ -65,7 +69,6 @@ async def a_real_result(storage_block: WritableFileSystem) -> PersistedResult:
         storage_block=storage_block,
         storage_key_fn=lambda: "test-graceful-retry-path",
         serializer=JSONSerializer(),
-        defer_persistence=True,
     )
 
 
@@ -133,8 +136,8 @@ async def test_graceful_retries_eventually_succeed_while(
 ):
     # now write the result so it's available
     await a_real_result.write()
-    expected_blob = await a_real_result._read_blob()
-    assert isinstance(expected_blob, PersistedResultBlob)
+    expected_record = await a_real_result._read_result_record()
+    assert isinstance(expected_record, ResultRecord)
 
     # even if it misses a couple times, it will eventually return the data
     now = time.monotonic()
@@ -144,7 +147,7 @@ async def test_graceful_retries_eventually_succeed_while(
             side_effect=[
                 FileNotFoundError,
                 TimeoutError,
-                expected_blob.model_dump_json().encode(),
+                expected_record.model_dump_json().encode(),
             ]
         ),
     ) as m:

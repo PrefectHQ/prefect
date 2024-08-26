@@ -30,6 +30,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.context import ConcurrencyContext
+from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.context import FlowRunContext, SyncClientContext, TagsContext
 from prefect.exceptions import (
     Abort,
@@ -267,6 +268,7 @@ class FlowRunEngine(Generic[P, R]):
             return_value_to_state(
                 resolved_result,
                 result_factory=result_factory,
+                write_result=True,
             )
         )
         self.set_state(terminal_state)
@@ -286,6 +288,7 @@ class FlowRunEngine(Generic[P, R]):
                 message=msg or "Flow run encountered an exception:",
                 result_factory=result_factory
                 or getattr(context, "result_factory", None),
+                write_result=True,
             )
         )
         state = self.set_state(terminal_state)
@@ -506,6 +509,7 @@ class FlowRunEngine(Generic[P, R]):
                     task_runner=task_runner,
                 )
             )
+            stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
             # set the logger to the flow run logger

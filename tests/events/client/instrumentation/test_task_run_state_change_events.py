@@ -187,7 +187,7 @@ async def test_task_state_change_happy_path(
             "name": "Completed",
             "message": "",
             "state_details": {},
-            "data": {"type": "unpersisted"},
+            "data": None,
         },
         "task_run": {
             "dynamic_key": task_run.dynamic_key,
@@ -387,7 +387,7 @@ async def test_task_state_change_task_failure(
                 "Here's a happy little accident."
             ),
             "state_details": {"retriable": False},
-            "data": {"type": "unpersisted"},
+            "data": None,
         },
         "task_run": {
             "dynamic_key": task_run.dynamic_key,

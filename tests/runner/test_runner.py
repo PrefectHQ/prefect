@@ -660,7 +660,7 @@ class TestRunner:
 
         # Previously the command would have been
         # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
-        assert mock_run_process_call.call_args[0][0] == [
+        assert mock_run_process_call.call_args[1]["command"] == [
             "C:/Program Files/Python38/python.exe",
             "-m",
             "prefect.engine",
@@ -911,6 +911,7 @@ class TestRunnerDeployment:
             version="alpha",
             description="Deployment descriptions",
             enforce_parameter_schema=True,
+            concurrency_limit=42,
         )
 
         assert deployment.name == "test_runner"
@@ -921,6 +922,7 @@ class TestRunnerDeployment:
         assert deployment.tags == ["test"]
         assert deployment.paused is False
         assert deployment.enforce_parameter_schema
+        assert deployment.concurrency_limit == 42
 
     async def test_from_flow_can_produce_a_module_path_entrypoint(self):
         deployment = RunnerDeployment.from_flow(
@@ -1115,6 +1117,7 @@ class TestRunnerDeployment:
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
         assert deployment.enforce_parameter_schema
+        assert deployment.concurrency_limit is None
 
     def test_from_entrypoint_accepts_interval(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
@@ -1277,6 +1280,7 @@ class TestRunnerDeployment:
         assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
         assert deployment.paused is False
+        assert deployment.concurrency_limit is None
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(

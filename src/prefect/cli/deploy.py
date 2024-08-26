@@ -236,6 +236,12 @@ async def deploy(
             " --work-queue flag."
         ),
     ),
+    concurrency_limit: int = typer.Option(
+        None,
+        "-cl",
+        "--concurrency-limit",
+        help=("The maximum number of concurrent runs for this deployment."),
+    ),
     work_pool_name: str = SettingsOption(
         PREFECT_DEFAULT_WORK_POOL_NAME,
         "-p",
@@ -370,6 +376,7 @@ async def deploy(
         "description": description,
         "version": version,
         "tags": tags,
+        "concurrency_limit": concurrency_limit,
         "work_pool_name": work_pool_name,
         "work_queue_name": work_queue_name,
         "variables": job_variables,
@@ -682,6 +689,7 @@ async def _run_single_deploy(
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
         tags=deploy_config.get("tags", []),
+        concurrency_limit=deploy_config.get("concurrency_limit"),
         entrypoint=deploy_config.get("entrypoint"),
         pull_steps=pull_steps,
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
@@ -911,6 +919,7 @@ def _merge_with_default_deploy_config(deploy_config: Dict):
         "name": None,
         "version": None,
         "tags": [],
+        "concurrency_limit": None,
         "description": None,
         "flow_name": None,
         "entrypoint": None,
@@ -1467,6 +1476,7 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
                 "entrypoint",
                 "version",
                 "tags",
+                "concurrency_limit",
                 "flow_name",
                 "enforce_parameter_schema",
             ]

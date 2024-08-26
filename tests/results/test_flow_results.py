@@ -1,5 +1,3 @@
-import base64
-import pickle
 from pathlib import Path
 
 import pytest
@@ -10,8 +8,8 @@ from prefect.context import get_run_context
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
-    PersistedResultBlob,
-    UnpersistedResult,
+    PersistedResult,
+    ResultRecord,
 )
 from prefect.serializers import (
     CompressedSerializer,
@@ -52,22 +50,6 @@ async def test_flow_with_unpersisted_result(prefect_client):
 
     state = foo(return_state=True)
     assert await state.result() == 1
-
-    api_state = (
-        await prefect_client.read_flow_run(state.state_details.flow_run_id)
-    ).state
-    with pytest.raises(MissingResult):
-        await api_state.result()
-
-
-async def test_flow_with_uncached_and_unpersisted_result(prefect_client):
-    @flow(persist_result=False, cache_result_in_memory=False)
-    def foo():
-        return 1
-
-    state = foo(return_state=True)
-    with pytest.raises(MissingResult):
-        await state.result()
 
     api_state = (
         await prefect_client.read_flow_run(state.state_details.flow_run_id)
@@ -308,7 +290,8 @@ async def test_child_flow_result_missing_with_null_return(prefect_client):
 
     parent_state = foo(return_state=True)
     child_state = await parent_state.result()
-    assert isinstance(child_state.data, UnpersistedResult)
+    assert isinstance(child_state.data, PersistedResult)
+    assert child_state.data._persisted is False
     assert await child_state.result() is None
 
     api_state = (
@@ -399,9 +382,7 @@ async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
     assert result == {"foo": "bar"}
     local_storage = await LocalFileSystem.load("my-result-storage")
     result_bytes = await local_storage.read_path(f"{tmp_path/'my-result.pkl'}")
-    saved_python_result = pickle.loads(
-        base64.b64decode(PersistedResultBlob.model_validate_json(result_bytes).data)
-    )
+    saved_python_result = ResultRecord.deserialize(result_bytes).result
 
     assert saved_python_result == {"foo": "bar"}
 
@@ -459,11 +440,7 @@ def test_flow_version_result_storage_key():
     storage_block = some_flow()
 
     assert isinstance(storage_block, LocalFileSystem)
-    result = pickle.loads(
-        base64.b64decode(
-            PersistedResultBlob.model_validate_json(
-                storage_block.read_path("somespecialflowversion")
-            ).data
-        )
-    )
+    result = ResultRecord.deserialize(
+        storage_block.read_path("somespecialflowversion")
+    ).result
     assert result == "hello"

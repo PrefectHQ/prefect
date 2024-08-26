@@ -131,7 +131,7 @@ class ContextModel(BaseModel):
         extra="forbid",
     )
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         if self._token is not None:
             raise RuntimeError(
                 "Context already entered. Context enter calls cannot be nested."
@@ -290,7 +290,7 @@ class AsyncClientContext(ContextModel):
         if ctx:
             yield ctx
         else:
-            with cls() as ctx:
+            async with cls() as ctx:
                 yield ctx
 
 

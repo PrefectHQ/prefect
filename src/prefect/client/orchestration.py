@@ -939,6 +939,57 @@ class PrefectClient:
             else:
                 raise
 
+    async def increment_v1_concurrency_slots(
+        self,
+        names: List[str],
+        task_run_id: UUID,
+    ) -> httpx.Response:
+        """
+        Increment concurrency limit slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to increment limits.
+            task_run_id (UUID): The task run ID incrementing the limits.
+        """
+        data = {
+            "names": names,
+            "task_run_id": str(task_run_id),
+        }
+
+        return await self._client.post(
+            "/concurrency_limits/increment",
+            json=data,
+        )
+
+    async def decrement_v1_concurrency_slots(
+        self,
+        names: List[str],
+        task_run_id: UUID,
+        occupancy_seconds: float,
+    ) -> httpx.Response:
+        """
+        Decrement concurrency limit slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names to decrement.
+            task_run_id (UUID): The task run ID that incremented the limits.
+            occupancy_seconds (float): The duration in seconds that the limits
+                were held.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        data = {
+            "names": names,
+            "task_run_id": str(task_run_id),
+            "occupancy_seconds": occupancy_seconds,
+        }
+
+        return await self._client.post(
+            "/concurrency_limits/decrement",
+            json=data,
+        )
+
     async def create_work_queue(
         self,
         name: str,
@@ -1273,15 +1324,17 @@ class PrefectClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
+        block_document_data = block_document.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude={"id", "block_schema", "block_type"},
+            context={"include_secrets": include_secrets},
+            serialize_as_any=True,
+        )
         try:
             response = await self._client.post(
                 "/block_documents/",
-                json=block_document.model_dump(
-                    mode="json",
-                    exclude_unset=True,
-                    exclude={"id", "block_schema", "block_type"},
-                    context={"include_secrets": include_secrets},
-                ),
+                json=block_document_data,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
@@ -1599,6 +1652,7 @@ class PrefectClient:
         name: str,
         version: Optional[str] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -1656,6 +1710,7 @@ class PrefectClient:
             parameter_openapi_schema=parameter_openapi_schema,
             paused=paused,
             schedules=schedules or [],
+            concurrency_limit=concurrency_limit,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
         )
@@ -3174,7 +3229,7 @@ class PrefectClient:
         return pydantic.TypeAdapter(List[Automation]).validate_python(response.json())
 
     async def find_automation(
-        self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
+        self, id_or_name: Union[str, UUID]
     ) -> Optional[Automation]:
         if isinstance(id_or_name, str):
             try:
@@ -4112,5 +4167,29 @@ class SyncPrefectClient:
                 "names": names,
                 "slots": slots,
                 "occupancy_seconds": occupancy_seconds,
+            },
+        )
+
+    def decrement_v1_concurrency_slots(
+        self, names: List[str], occupancy_seconds: float, task_run_id: UUID
+    ) -> httpx.Response:
+        """
+        Release the specified concurrency limits.
+
+        Args:
+            names (List[str]): A list of limit names to decrement.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were held.
+            task_run_id (UUID): The task run ID that incremented the limits.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        return self._client.post(
+            "/concurrency_limits/decrement",
+            json={
+                "names": names,
+                "occupancy_seconds": occupancy_seconds,
+                "task_run_id": str(task_run_id),
             },
         )

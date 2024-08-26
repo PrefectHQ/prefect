@@ -12,6 +12,7 @@ deployments:
     tags: []
     description: null
     schedule: {}
+    concurrency_limit: null
 
     # flow-specific fields
     flow_name: null
