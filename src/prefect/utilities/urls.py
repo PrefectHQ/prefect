@@ -23,8 +23,8 @@ logger = get_logger("utilities.urls")
 #   saved-search
 UI_URL_FORMATS = {
     "flow": "flows/flow/{obj_id}",
-    "flow-run": "runs/flow-run/{obj_id}",
-    "task-run": "runs/task-run/{obj_id}",
+    "flow-run": "flow-runs/flow-run/{obj_id}",
+    "task-run": "task-runs/task-run/{obj_id}",
     "block": "blocks/block/{obj_id}",
     "block-document": "blocks/block/{obj_id}",
     "work-pool": "work-pools/work-pool/{obj_id}",
@@ -34,6 +34,13 @@ UI_URL_FORMATS = {
     "automation": "automations/automation/{obj_id}",
     "received-event": "events/event/{occurred}/{obj_id}",
 }
+CLOUD_UI_URL_FORMATS = UI_URL_FORMATS.copy()
+CLOUD_UI_URL_FORMATS.update(
+    {
+        "flow-run": "runs/flow-run/{obj_id}",
+        "task-run": "runs/task-run/{obj_id}",
+    }
+)
 
 # The following objects are excluded from API URL generation because we lack a
 # directly-addressable URL:
@@ -158,6 +165,12 @@ def url_for(
         )
         return None
 
+    ui_url_formats = (
+        CLOUD_UI_URL_FORMATS
+        if settings.PREFECT_CLOUD_UI_URL.value() in base_url
+        else UI_URL_FORMATS
+    )
+
     if not obj_id:
         # We treat PrefectFuture as if it was the underlying task run,
         # so we need to check the object type here instead of name.
@@ -180,7 +193,7 @@ def url_for(
             return ""
 
     url_format = (
-        UI_URL_FORMATS.get(name) if url_type == "ui" else API_URL_FORMATS.get(name)
+        ui_url_formats.get(name) if url_type == "ui" else API_URL_FORMATS.get(name)
     )
 
     if isinstance(obj, ReceivedEvent):

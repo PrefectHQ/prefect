@@ -12,11 +12,17 @@ from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.futures import PrefectConcurrentFuture, PrefectDistributedFuture
 from prefect.server.schemas.core import FlowRun, TaskRun
 from prefect.server.schemas.states import State
-from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_CLOUD_UI_URL,
+    PREFECT_UI_URL,
+    temporary_settings,
+)
 from prefect.utilities.urls import url_for
 from prefect.variables import Variable
 
-MOCK_PREFECT_UI_URL = "https://ui.prefect.io"
+MOCK_PREFECT_CLOUD_UI_URL = "https://ui.prefect.io"
+MOCK_PREFECT_OSS_UI_URL = "http://localhost:4200"
 MOCK_PREFECT_API_URL = "https://api.prefect.io"
 
 
@@ -106,27 +112,57 @@ def resource():
 
 
 @pytest.mark.parametrize("url_type", ["ui", "api"])
-def test_url_for_flow_run(flow_run, url_type: Literal["ui", "api"]):
-    expected_url = (
-        f"{MOCK_PREFECT_UI_URL}/runs/flow-run/{flow_run.id}"
-        if url_type == "ui"
-        else f"{MOCK_PREFECT_API_URL}/flow_runs/{flow_run.id}"
-    )
+@pytest.mark.parametrize(
+    "default_ui_url", [MOCK_PREFECT_CLOUD_UI_URL, MOCK_PREFECT_OSS_UI_URL]
+)
+def test_url_for_flow_run(flow_run, url_type: Literal["ui", "api"], default_ui_url):
+    if default_ui_url == MOCK_PREFECT_OSS_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{default_ui_url}/flow-runs/flow-run/{flow_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/flow_runs/{flow_run.id}"
+    elif default_ui_url == MOCK_PREFECT_CLOUD_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{default_ui_url}/runs/flow-run/{flow_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/flow_runs/{flow_run.id}"
+    else:
+        raise ValueError("Invalid default_ui_url")
+
     with temporary_settings(
-        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+        {
+            PREFECT_CLOUD_UI_URL: MOCK_PREFECT_CLOUD_UI_URL,
+            PREFECT_UI_URL: default_ui_url,
+            PREFECT_API_URL: MOCK_PREFECT_API_URL,
+        }
     ):
         assert url_for(obj=flow_run, url_type=url_type) == expected_url
 
 
 @pytest.mark.parametrize("url_type", ["ui", "api"])
-def test_url_for_task_run(task_run, url_type: Literal["ui", "api"]):
-    expected_url = (
-        f"{MOCK_PREFECT_UI_URL}/runs/task-run/{task_run.id}"
-        if url_type == "ui"
-        else f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
-    )
+@pytest.mark.parametrize(
+    "default_ui_url", [MOCK_PREFECT_CLOUD_UI_URL, MOCK_PREFECT_OSS_UI_URL]
+)
+def test_url_for_task_run(task_run, url_type: Literal["ui", "api"], default_ui_url):
+    if default_ui_url == MOCK_PREFECT_OSS_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{MOCK_PREFECT_OSS_UI_URL}/task-runs/task-run/{task_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
+    elif default_ui_url == MOCK_PREFECT_CLOUD_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{MOCK_PREFECT_CLOUD_UI_URL}/runs/task-run/{task_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
+    else:
+        raise ValueError("Invalid default_ui_url")
+
     with temporary_settings(
-        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+        {
+            PREFECT_CLOUD_UI_URL: MOCK_PREFECT_CLOUD_UI_URL,
+            PREFECT_UI_URL: default_ui_url,
+            PREFECT_API_URL: MOCK_PREFECT_API_URL,
+        }
     ):
         assert url_for(obj=task_run, url_type=url_type) == expected_url
 
@@ -136,17 +172,35 @@ def test_url_for_task_run(task_run, url_type: Literal["ui", "api"]):
     ["prefect_concurrent_future", "prefect_distributed_future"],
 )
 @pytest.mark.parametrize("url_type", ["ui", "api"])
+@pytest.mark.parametrize(
+    "default_ui_url", [MOCK_PREFECT_CLOUD_UI_URL, MOCK_PREFECT_OSS_UI_URL]
+)
 def test_url_for_prefect_future(
-    prefect_future_fixture, url_type: Literal["ui", "api"], request, task_run
+    prefect_future_fixture,
+    url_type: Literal["ui", "api"],
+    request,
+    task_run,
+    default_ui_url,
 ):
     prefect_future = request.getfixturevalue(prefect_future_fixture)
-    expected_url = (
-        f"{MOCK_PREFECT_UI_URL}/runs/task-run/{task_run.id}"
-        if url_type == "ui"
-        else f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
-    )
+    if default_ui_url == MOCK_PREFECT_OSS_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{MOCK_PREFECT_OSS_UI_URL}/task-runs/task-run/{task_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
+    elif default_ui_url == MOCK_PREFECT_CLOUD_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{MOCK_PREFECT_CLOUD_UI_URL}/runs/task-run/{task_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
+    else:
+        raise ValueError("Invalid default_ui_url")
     with temporary_settings(
-        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+        {
+            PREFECT_CLOUD_UI_URL: MOCK_PREFECT_CLOUD_UI_URL,
+            PREFECT_UI_URL: default_ui_url,
+            PREFECT_API_URL: MOCK_PREFECT_API_URL,
+        }
     ):
         assert url_for(obj=prefect_future, url_type=url_type) == expected_url
 
@@ -154,12 +208,15 @@ def test_url_for_prefect_future(
 @pytest.mark.parametrize("url_type", ["ui", "api"])
 def test_url_for_block(block, url_type: Literal["ui", "api"]):
     expected_url = (
-        f"{MOCK_PREFECT_UI_URL}/blocks/block/{block._block_document_id}"
+        f"{MOCK_PREFECT_CLOUD_UI_URL}/blocks/block/{block._block_document_id}"
         if url_type == "ui"
         else f"{MOCK_PREFECT_API_URL}/blocks/{block._block_document_id}"
     )
     with temporary_settings(
-        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+        {
+            PREFECT_UI_URL: MOCK_PREFECT_CLOUD_UI_URL,
+            PREFECT_API_URL: MOCK_PREFECT_API_URL,
+        }
     ):
         assert url_for(obj=block, url_type=url_type) == expected_url
 
@@ -167,12 +224,15 @@ def test_url_for_block(block, url_type: Literal["ui", "api"]):
 @pytest.mark.parametrize("url_type", ["ui", "api"])
 def test_url_for_work_pool(work_pool, url_type: Literal["ui", "api"]):
     expected_url = (
-        f"{MOCK_PREFECT_UI_URL}/work-pools/work-pool/{work_pool.name}"
+        f"{MOCK_PREFECT_CLOUD_UI_URL}/work-pools/work-pool/{work_pool.name}"
         if url_type == "ui"
         else f"{MOCK_PREFECT_API_URL}/work_pools/{work_pool.name}"
     )
     with temporary_settings(
-        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+        {
+            PREFECT_UI_URL: MOCK_PREFECT_CLOUD_UI_URL,
+            PREFECT_API_URL: MOCK_PREFECT_API_URL,
+        }
     ):
         assert url_for(obj=work_pool, url_type=url_type) == expected_url
 
@@ -184,45 +244,65 @@ def test_api_url_for_variable(variable):
 
 
 def test_no_ui_url_for_variable(variable):
-    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_CLOUD_UI_URL}):
         assert url_for(obj=variable, url_type="ui") is None
 
 
 @pytest.mark.parametrize("url_type", ["ui", "api"])
 def test_url_for_automation(automation, url_type: Literal["ui", "api"]):
     expected_url = (
-        f"{MOCK_PREFECT_UI_URL}/automations/automation/{automation.id}"
+        f"{MOCK_PREFECT_CLOUD_UI_URL}/automations/automation/{automation.id}"
         if url_type == "ui"
         else f"{MOCK_PREFECT_API_URL}/automations/{automation.id}"
     )
     with temporary_settings(
-        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+        {
+            PREFECT_UI_URL: MOCK_PREFECT_CLOUD_UI_URL,
+            PREFECT_API_URL: MOCK_PREFECT_API_URL,
+        }
     ):
         assert url_for(obj=automation, url_type=url_type) == expected_url
 
 
 def test_url_for_received_event_ui(received_event):
-    expected_url = f"{MOCK_PREFECT_UI_URL}/events/event/{received_event.occurred.strftime('%Y-%m-%d')}/{received_event.id}"
-    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+    expected_url = f"{MOCK_PREFECT_CLOUD_UI_URL}/events/event/{received_event.occurred.strftime('%Y-%m-%d')}/{received_event.id}"
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_CLOUD_UI_URL}):
         assert url_for(obj=received_event, url_type="ui") == expected_url
 
 
 def test_url_for_resource_ui(resource):
     resource_id_part = resource.id.rpartition(".")[2]
-    expected_url = f"{MOCK_PREFECT_UI_URL}/runs/flow-run/{resource_id_part}"
-    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+    expected_url = f"{MOCK_PREFECT_CLOUD_UI_URL}/flow-runs/flow-run/{resource_id_part}"
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_CLOUD_UI_URL}):
         assert url_for(obj=resource, url_type="ui") == expected_url
 
 
 @pytest.mark.parametrize("url_type", ["ui", "api"])
-def test_url_for_flow_run_with_id(flow_run, url_type: Literal["ui", "api"]):
-    expected_url = (
-        f"{MOCK_PREFECT_UI_URL}/runs/flow-run/{flow_run.id}"
-        if url_type == "ui"
-        else f"{MOCK_PREFECT_API_URL}/flow_runs/{flow_run.id}"
-    )
+@pytest.mark.parametrize(
+    "default_ui_url", [MOCK_PREFECT_CLOUD_UI_URL, MOCK_PREFECT_OSS_UI_URL]
+)
+def test_url_for_flow_run_with_id(
+    flow_run, url_type: Literal["ui", "api"], default_ui_url
+):
+    if default_ui_url == MOCK_PREFECT_OSS_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{default_ui_url}/flow-runs/flow-run/{flow_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/flow_runs/{flow_run.id}"
+    elif default_ui_url == MOCK_PREFECT_CLOUD_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{default_ui_url}/runs/flow-run/{flow_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/flow_runs/{flow_run.id}"
+    else:
+        raise ValueError("Invalid default_ui_url")
+
     with temporary_settings(
-        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+        {
+            PREFECT_CLOUD_UI_URL: MOCK_PREFECT_CLOUD_UI_URL,
+            PREFECT_UI_URL: default_ui_url,
+            PREFECT_API_URL: MOCK_PREFECT_API_URL,
+        }
     ):
         assert (
             url_for(
@@ -235,14 +315,30 @@ def test_url_for_flow_run_with_id(flow_run, url_type: Literal["ui", "api"]):
 
 
 @pytest.mark.parametrize("url_type", ["ui", "api"])
-def test_url_for_task_run_with_id(task_run, url_type: Literal["ui", "api"]):
-    expected_url = (
-        f"{MOCK_PREFECT_UI_URL}/runs/task-run/{task_run.id}"
-        if url_type == "ui"
-        else f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
-    )
+@pytest.mark.parametrize(
+    "default_ui_url", [MOCK_PREFECT_CLOUD_UI_URL, MOCK_PREFECT_OSS_UI_URL]
+)
+def test_url_for_task_run_with_id(
+    task_run, url_type: Literal["ui", "api"], default_ui_url
+):
+    if default_ui_url == MOCK_PREFECT_OSS_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{MOCK_PREFECT_OSS_UI_URL}/task-runs/task-run/{task_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
+    elif default_ui_url == MOCK_PREFECT_CLOUD_UI_URL:
+        if url_type == "ui":
+            expected_url = f"{MOCK_PREFECT_CLOUD_UI_URL}/runs/task-run/{task_run.id}"
+        else:
+            expected_url = f"{MOCK_PREFECT_API_URL}/task_runs/{task_run.id}"
+    else:
+        raise ValueError("Invalid default_ui_url")
     with temporary_settings(
-        {PREFECT_UI_URL: MOCK_PREFECT_UI_URL, PREFECT_API_URL: MOCK_PREFECT_API_URL}
+        {
+            PREFECT_CLOUD_UI_URL: MOCK_PREFECT_CLOUD_UI_URL,
+            PREFECT_UI_URL: default_ui_url,
+            PREFECT_API_URL: MOCK_PREFECT_API_URL,
+        }
     ):
         assert (
             url_for(
@@ -269,7 +365,7 @@ def test_url_for_missing_url(flow_run):
 
 def test_url_for_with_default_base_url(flow_run, enable_ephemeral_server):
     default_base_url = "https://default.prefect.io"
-    expected_url = f"{default_base_url}/runs/flow-run/{flow_run.id}"
+    expected_url = f"{default_base_url}/flow-runs/flow-run/{flow_run.id}"
     assert (
         url_for(
             obj="flow-run",
@@ -284,7 +380,7 @@ def test_url_for_with_default_base_url_with_path_fragment(
     flow_run, enable_ephemeral_server
 ):
     default_base_url = "https://default.prefect.io/api"
-    expected_url = f"{default_base_url}/runs/flow-run/{flow_run.id}"
+    expected_url = f"{default_base_url}/flow-runs/flow-run/{flow_run.id}"
     assert (
         url_for(
             obj="flow-run",
@@ -299,7 +395,7 @@ def test_url_for_with_default_base_url_with_path_fragment_and_slash(
     flow_run, enable_ephemeral_server
 ):
     default_base_url = "https://default.prefect.io/api/"
-    expected_url = f"{default_base_url}runs/flow-run/{flow_run.id}"
+    expected_url = f"{default_base_url}flow-runs/flow-run/{flow_run.id}"
     assert (
         url_for(
             obj="flow-run",
@@ -321,7 +417,7 @@ def test_url_for_invalid_obj_name_api():
 
 
 def test_url_for_invalid_obj_name_ui():
-    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_CLOUD_UI_URL}):
         assert (
             url_for(
                 obj="some-obj",
@@ -346,5 +442,5 @@ def test_url_for_unsupported_obj_type_ui():
 
     unsupported_obj = UnsupportedType()
 
-    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_CLOUD_UI_URL}):
         assert url_for(obj=unsupported_obj) is None  # type: ignore
