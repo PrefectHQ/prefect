@@ -111,6 +111,10 @@ class CloudClient:
         )
         return cast(Dict[str, Any], response)
 
+    async def read_account_settings(self) -> Dict[str, Any]:
+        response = await self.get(f"{self.account_base_url}/settings")
+        return cast(Dict[str, Any], response)
+
     async def update_account_settings(self, settings: Dict[str, Any]):
         await self.request(
             "PATCH",

@@ -1,3 +1,4 @@
+import asyncio
 import ipaddress
 from typing import Optional
 
@@ -18,11 +19,35 @@ ip_allowlist_app = PrefectTyper(
 cloud_app.add_typer(ip_allowlist_app, aliases=["ip-allowlists"])
 
 
+@ip_allowlist_app.callback()
+def require_access_to_ip_allowlisting(ctx: typer.Context):
+    """Enforce access to IP allowlisting for all subcommands."""
+    asyncio.run(_require_access_to_ip_allowlisting(ctx))
+
+
+async def _require_access_to_ip_allowlisting(ctx: typer.Context):
+    """Check if the account has access to IP allowlisting.
+
+    Exits with an error if the account does not have access to IP allowlisting.
+
+    On success, sets Typer context meta["enforce_ip_allowlist"] to
+    True if the account has IP allowlist enforcement enabled, False otherwise.
+    """
+    confirm_logged_in()
+
+    async with get_cloud_client(infer_cloud_url=True) as client:
+        account_settings = await client.read_account_settings()
+
+    if "enforce_ip_allowlist" not in account_settings:
+        return exit_with_error("IP allowlisting is not available for this account.")
+
+    enforce_ip_allowlist = account_settings.get("enforce_ip_allowlist", False)
+    ctx.meta["enforce_ip_allowlist"] = enforce_ip_allowlist
+
+
 @ip_allowlist_app.command()
 async def enable():
     """Enable the IP allowlist for your account."""
-    confirm_logged_in()
-
     async with get_cloud_client(infer_cloud_url=True) as client:
         await client.update_account_settings({"enforce_ip_allowlist": True})
 
@@ -34,8 +59,6 @@ async def enable():
 @ip_allowlist_app.command()
 async def disable():
     """Disable the IP allowlist for your account."""
-    confirm_logged_in()
-
     async with get_cloud_client(infer_cloud_url=True) as client:
         await client.update_account_settings({"enforce_ip_allowlist": False})
 
@@ -45,18 +68,19 @@ async def disable():
 
 
 @ip_allowlist_app.command()
-async def ls():
+async def ls(ctx: typer.Context):
     """Fetch and list all IP allowlist entries in your account."""
-    confirm_logged_in()
+    enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
 
     async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
 
-        _print_ip_allowlist_table(ip_allowlist)
+        _print_ip_allowlist_table(ip_allowlist, enabled=enforcing_ip_allowlist)
 
 
 @ip_allowlist_app.command()
 async def add(
+    ctx: typer.Context,
     ip_network: str,
     description: Optional[str] = typer.Option(
         None,
@@ -66,7 +90,7 @@ async def add(
     ),
 ):
     """Add a new IP entry to your account IP allowlist."""
-    confirm_logged_in()
+    enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
 
     new_entry = IPAllowlistEntry(
         ip_network=ip_network, description=description, enabled=True
@@ -94,13 +118,13 @@ async def add(
         await client.update_account_ip_allowlist(ip_allowlist)
 
         updated_ip_allowlist = await client.read_account_ip_allowlist()
-        _print_ip_allowlist_table(updated_ip_allowlist)
+        _print_ip_allowlist_table(updated_ip_allowlist, enabled=enforcing_ip_allowlist)
 
 
 @ip_allowlist_app.command()
-async def remove(ip_network: str):
+async def remove(ctx: typer.Context, ip_network: str):
     """Remove an IP entry from your account IP allowlist."""
-    confirm_logged_in()
+    enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
 
     async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
@@ -113,10 +137,12 @@ async def remove(ip_network: str):
         await client.update_account_ip_allowlist(ip_allowlist)
 
         updated_ip_allowlist = await client.read_account_ip_allowlist()
-        _print_ip_allowlist_table(updated_ip_allowlist)
+        _print_ip_allowlist_table(updated_ip_allowlist, enabled=enforcing_ip_allowlist)
 
 
-def _print_ip_allowlist_table(ip_allowlist: IPAllowlist):
+def _print_ip_allowlist_table(
+    ip_allowlist: IPAllowlist, enabled: Optional[bool] = None
+):
     if not ip_allowlist.entries:
         app.console.print(
             Panel(
@@ -126,7 +152,12 @@ def _print_ip_allowlist_table(ip_allowlist: IPAllowlist):
         )
         return
 
-    table = Table(title="IP Allowlist")
+    table = Table(
+        title="IP Allowlist",
+        caption=None
+        if enabled is None
+        else f"Enforcement of this list is currently {'ON' if enabled else 'OFF'}.",
+    )
 
     table.add_column("IP Address", style="cyan", no_wrap=True)
     table.add_column("Description", style="blue", no_wrap=False)
