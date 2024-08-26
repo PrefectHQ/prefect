@@ -37,6 +37,7 @@ async def concurrency(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
+    max_retries: Optional[int] = None,
 ) -> AsyncGenerator[None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -75,6 +76,7 @@ async def concurrency(
         occupy,
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
+        max_retries=max_retries,
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
@@ -137,9 +139,12 @@ async def _acquire_concurrency_slots(
     mode: Union[Literal["concurrency"], Literal["rate_limit"]] = "concurrency",
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
+    max_retries: Optional[int] = None,
 ) -> List[MinimalConcurrencyLimitResponse]:
     service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
-    future = service.send((slots, mode, timeout_seconds, create_if_missing))
+    future = service.send(
+        (slots, mode, timeout_seconds, create_if_missing, max_retries)
+    )
     response_or_exception = await asyncio.wrap_future(future)
 
     if isinstance(response_or_exception, Exception):
