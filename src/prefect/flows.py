@@ -642,7 +642,7 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List["FlexibleScheduleList"]] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[int] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
@@ -730,7 +730,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
-            )
+            )  # type: ignore # TODO: remove sync_compatible
         else:
             return RunnerDeployment.from_flow(
                 self,

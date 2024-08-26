@@ -53,7 +53,7 @@ from prefect.flows import (
     safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResultBlob
+from prefect.results import ResultRecord
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -4545,8 +4545,8 @@ class TestTransactions:
         assert isinstance(val, ValueError)
         assert "does not exist" in str(val)
         content = result_storage.read_path("task1-result-A", _sync=True)
-        blob = PersistedResultBlob.model_validate_json(content)
-        assert blob.load() == {"some": "data"}
+        record = ResultRecord.deserialize(content)
+        assert record.result == {"some": "data"}
 
     def test_commit_isnt_called_on_rollback(self):
         data = {}

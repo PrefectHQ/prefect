@@ -1324,15 +1324,17 @@ class PrefectClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
+        block_document_data = block_document.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude={"id", "block_schema", "block_type"},
+            context={"include_secrets": include_secrets},
+            serialize_as_any=True,
+        )
         try:
             response = await self._client.post(
                 "/block_documents/",
-                json=block_document.model_dump(
-                    mode="json",
-                    exclude_unset=True,
-                    exclude={"id", "block_schema", "block_type"},
-                    context={"include_secrets": include_secrets},
-                ),
+                json=block_document_data,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
@@ -1786,6 +1788,12 @@ class PrefectClient:
         Returns:
             a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
         """
+        if not isinstance(deployment_id, UUID):
+            try:
+                deployment_id = UUID(deployment_id)
+            except ValueError:
+                raise ValueError(f"Invalid deployment ID: {deployment_id}")
+
         try:
             response = await self._client.get(f"/deployments/{deployment_id}")
         except httpx.HTTPStatusError as e:

@@ -661,6 +661,13 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert lookup.parameter_openapi_schema == {}
 
 
+async def test_read_deployment_errors_on_invalid_uuid(prefect_client):
+    with pytest.raises(
+        ValueError, match="Invalid deployment ID: not-a-real-deployment"
+    ):
+        await prefect_client.read_deployment("not-a-real-deployment")
+
+
 async def test_update_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
