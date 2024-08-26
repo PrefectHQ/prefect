@@ -151,7 +151,8 @@ def _collect_secret_fields(
         return
 
     if type_ in (SecretStr, SecretBytes) or (
-        type_.__module__ == "pydantic.types"
+        isinstance(type_, type)
+        and getattr(type_, "__module__", None) == "pydantic.types"
         and getattr(type_, "__name__", None) == "Secret"
     ):
         secrets.append(name)
