@@ -80,9 +80,6 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         isinstance(exc, httpx.HTTPStatusError)
                         and exc.response.status_code == status.HTTP_423_LOCKED
                     ):
-                        logger.info(
-                            "Concurrency slots unavailable; eeeeeeeeeeeeeeeeeeeeeeeeeeee",
-                        )
                         if max_retries is not None and max_retries <= 0:
                             raise exc
                         retry_after = float(exc.response.headers["Retry-After"])

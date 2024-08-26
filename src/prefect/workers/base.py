@@ -876,7 +876,7 @@ class BaseWorker(abc.ABC):
             async with concurrency_ctx(
                 limit_name, occupy=concurrency_limit, max_retries=0
             ):
-                configuration = await self._get_configuration(flow_run)
+                configuration = await self._get_configuration(flow_run, deployment)
                 submitted_event = self._emit_flow_run_submitted_event(configuration)
                 result = await self.run(
                     flow_run=flow_run,
@@ -964,8 +964,13 @@ class BaseWorker(abc.ABC):
     async def _get_configuration(
         self,
         flow_run: "FlowRun",
+        deployment: Optional["DeploymentResponse"],
     ) -> BaseJobConfiguration:
-        deployment = await self._client.read_deployment(flow_run.deployment_id)
+        deployment = (
+            deployment
+            if deployment
+            else await self._client.read_deployment(flow_run.deployment_id)
+        )
         flow = await self._client.read_flow(flow_run.flow_id)
 
         deployment_vars = deployment.job_variables or {}
@@ -976,8 +981,6 @@ class BaseWorker(abc.ABC):
         if isinstance(job_variables.get("env"), dict):
             job_variables["env"].update(flow_run_vars.pop("env", {}))
         job_variables.update(flow_run_vars)
-
-        self._logger.info(f"==========={self._work_pool}============")
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
