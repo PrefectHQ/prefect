@@ -1043,7 +1043,6 @@ class Runner:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
         if deployment and deployment.concurrency_limit:
             limit_name = f"deployment:{deployment.id}"
-            concurrency_limit = deployment.concurrency_limit
             concurrency_ctx = concurrency
         else:
             limit_name = None
@@ -1051,9 +1050,8 @@ class Runner:
 
         try:
             async with concurrency_ctx(
-                limit_name, occupy=concurrency_limit, max_retries=0
+                limit_name, occupy=deployment.concurrency_limit, max_retries=0
             ):
-                self._logger.info(f"now acquiring a concurrency slot from {limit_name}")
                 status_code = await self._run_process(
                     flow_run=flow_run,
                     task_status=task_status,

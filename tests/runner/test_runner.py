@@ -26,6 +26,10 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
+from prefect.concurrency.asyncio import (
+    _acquire_concurrency_slots,
+    _release_concurrency_slots,
+)
 from prefect.deployments.runner import (
     DeploymentApplyError,
     EntrypointType,
@@ -630,6 +634,42 @@ class TestRunner:
 
             flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
             assert flow_run.state.is_completed()
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_enforces_deployment_concurrency_limits(
+        self, prefect_client: PrefectClient, caplog
+    ):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, concurrency_limit=1
+        )
+
+        async def test(*args, **kwargs):
+            return 0
+
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.asyncio._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                async with Runner() as runner:
+                    runner.run = test  # simulate running a flow
+                    await runner._get_and_submit_flow_runs()
+
+                acquire_spy.assert_called_once_with(
+                    [f"deployment:{deployment.id}"],
+                    1,
+                    timeout_seconds=None,
+                    create_if_missing=True,
+                    max_retries=0,
+                )
+
+                names, occupy, occupy_seconds = release_spy.call_args[0]
+                assert names == [f"deployment:{deployment.id}"]
+                assert occupy == 1
+                assert occupy_seconds > 0
 
     async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
         """
