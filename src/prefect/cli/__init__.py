@@ -12,6 +12,7 @@ import prefect.cli.cloud.webhook
 import prefect.cli.shell
 import prefect.cli.concurrency_limit
 import prefect.cli.config
+import prefect.cli.dashboard
 import prefect.cli.deploy
 import prefect.cli.deployment
 import prefect.cli.dev
