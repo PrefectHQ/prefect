@@ -61,7 +61,7 @@ class Variable(VariableRequest):
             var = VariableRequest(**var_dict)
             variable = await client.create_variable(variable=var)
 
-        return variable if variable else None
+        return variable.value if variable else None
 
     @classmethod
     @sync_compatible
@@ -86,7 +86,7 @@ class Variable(VariableRequest):
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        return variable if variable else default
+        return variable.value if variable else default
 
 
 @deprecated_callable(start_date="Apr 2024")
@@ -110,5 +110,4 @@ async def get(name: str, default: Optional[str] = None) -> Optional[str]:
             var = await variables.get("my_var")
     ```
     """
-    variable = await Variable.get(name)
-    return variable.value if variable else default
+    return await Variable.get(name, default=default)
