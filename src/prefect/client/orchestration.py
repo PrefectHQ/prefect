@@ -1788,6 +1788,12 @@ class PrefectClient:
         Returns:
             a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
         """
+        if not isinstance(deployment_id, UUID):
+            try:
+                deployment_id = UUID(deployment_id)
+            except ValueError:
+                raise ValueError(f"Invalid deployment ID: {deployment_id}")
+
         try:
             response = await self._client.get(f"/deployments/{deployment_id}")
         except httpx.HTTPStatusError as e:
