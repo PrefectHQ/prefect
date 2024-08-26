@@ -46,13 +46,21 @@ async def _require_access_to_ip_allowlisting(ctx: typer.Context):
 
 
 @ip_allowlist_app.command()
-async def enable():
+async def enable(ctx: typer.Context):
     """Enable the IP allowlist for your account. When enabled, if the allowlist is non-empty, then access to your Prefect Cloud account will be restricted to only those IP addresses on the allowlist."""
+    enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
+    if enforcing_ip_allowlist:
+        exit_with_success("IP allowlist is already enabled.")
+
     async with get_cloud_client(infer_cloud_url=True) as client:
+        ip_allowlist = await client.read_account_ip_allowlist()
+        if ip_allowlist.entries and not typer.confirm(
+            "Enabling the IP allowlist will restrict Prefect Cloud API and UI access to only the IP addresses on the list. "
+            "Continue?"
+        ):
+            exit_with_error("Aborted.")
         await client.update_account_settings({"enforce_ip_allowlist": True})
 
-    # updated_ip_allowlist = await client.read_account_ip_allowlist()
-    # _print_ip_allowlist_table(updated_ip_allowlist)
     exit_with_success("IP allowlist enabled.")
 
 
@@ -62,8 +70,6 @@ async def disable():
     async with get_cloud_client(infer_cloud_url=True) as client:
         await client.update_account_settings({"enforce_ip_allowlist": False})
 
-    # updated_ip_allowlist = await client.read_account_ip_allowlist()
-    # _print_ip_allowlist_table(updated_ip_allowlist)
     exit_with_success("IP allowlist disabled.")
 
 

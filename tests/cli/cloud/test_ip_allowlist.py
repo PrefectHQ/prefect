@@ -18,6 +18,32 @@ from prefect.settings import (
 )
 from prefect.testing.cli import invoke_and_assert
 
+SAMPLE_ALLOWLIST = IPAllowlist(
+    entries=[
+        IPAllowlistEntry(
+            ip_network="192.168.1.1",
+            enabled=True,
+            description="Perimeter81 Gateway",
+            last_seen=str(datetime(2024, 8, 13, 16)),
+        ),
+        IPAllowlistEntry(
+            ip_network="192.168.1.0/24",
+            enabled=True,
+            description="CIDR block for 192.168.0.0 to 192.168.1.255",
+        ),
+        IPAllowlistEntry(
+            ip_network="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+            enabled=False,
+            description="An IPv6 address",
+        ),
+        IPAllowlistEntry(
+            ip_network="2001:0db8:85a3::/64",
+            enabled=True,
+            description="An IPv6 CIDR block",
+        ),
+    ]
+)
+
 
 @pytest.fixture
 def workspace_with_logged_in_profile():
@@ -42,7 +68,7 @@ def workspace_with_logged_in_profile():
 
 
 @pytest.fixture
-def account_with_ip_allowlisting(respx_mock, workspace_with_logged_in_profile):
+def account_with_ip_allowlisting_enabled(respx_mock, workspace_with_logged_in_profile):
     workspace, profile = workspace_with_logged_in_profile
     respx_mock.get(
         f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
@@ -79,12 +105,18 @@ def test_ip_allowlist_requires_access_to_ip_allowlisting(
         )
 
 
-@pytest.mark.usefixtures("account_with_ip_allowlisting")
 def test_ip_allowlist_enable(respx_mock, workspace_with_logged_in_profile):
     workspace, profile = workspace_with_logged_in_profile
-    respx_mock.patch(
-        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings",
-        json={"enforce_ip_allowlist": True},
+    respx_mock.get(
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json={"enforce_ip_allowlist": False},
+        )
+    )
+    respx_mock.get(
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
     ).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
@@ -92,15 +124,48 @@ def test_ip_allowlist_enable(respx_mock, workspace_with_logged_in_profile):
         )
     )
 
+    respx_mock.patch(
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings",
+        json={"enforce_ip_allowlist": True},
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_204_NO_CONTENT,
+        )
+    )
+
     with use_profile(profile):
         invoke_and_assert(
             ["cloud", "ip-allowlist", "enable"],
             expected_code=0,
+            user_input="y",
             expected_output_contains="IP allowlist enabled",
         )
 
 
-@pytest.mark.usefixtures("account_with_ip_allowlisting")
+def test_ip_allowlist_enable_already_enabled(
+    respx_mock, workspace_with_logged_in_profile
+):
+    workspace, profile = workspace_with_logged_in_profile
+    respx_mock.get(
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json={"enforce_ip_allowlist": True},
+        )
+    )
+
+    # should not make the PATCH request to enable it
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "enable"],
+            expected_code=0,
+            expected_output_contains="IP allowlist is already enabled",
+        )
+
+
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
 def test_ip_allowlist_disable(respx_mock, workspace_with_logged_in_profile):
     workspace, profile = workspace_with_logged_in_profile
     respx_mock.patch(
@@ -108,8 +173,7 @@ def test_ip_allowlist_disable(respx_mock, workspace_with_logged_in_profile):
         json={"enforce_ip_allowlist": False},
     ).mock(
         return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=SAMPLE_ALLOWLIST.model_dump(),
+            status.HTTP_204_NO_CONTENT,
         )
     )
 
@@ -121,34 +185,7 @@ def test_ip_allowlist_disable(respx_mock, workspace_with_logged_in_profile):
         )
 
 
-SAMPLE_ALLOWLIST = IPAllowlist(
-    entries=[
-        IPAllowlistEntry(
-            ip_network="192.168.1.1",
-            enabled=True,
-            description="Perimeter81 Gateway",
-            last_seen=str(datetime(2024, 8, 13, 16)),
-        ),
-        IPAllowlistEntry(
-            ip_network="192.168.1.0/24",
-            enabled=True,
-            description="CIDR block for 192.168.0.0 to 192.168.1.255",
-        ),
-        IPAllowlistEntry(
-            ip_network="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
-            enabled=False,
-            description="An IPv6 address",
-        ),
-        IPAllowlistEntry(
-            ip_network="2001:0db8:85a3::/64",
-            enabled=True,
-            description="An IPv6 CIDR block",
-        ),
-    ]
-)
-
-
-@pytest.mark.usefixtures("account_with_ip_allowlisting")
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
 def test_ip_allowlist_ls(respx_mock, workspace_with_logged_in_profile):
     workspace, profile = workspace_with_logged_in_profile
     url = (
@@ -171,7 +208,7 @@ def test_ip_allowlist_ls(respx_mock, workspace_with_logged_in_profile):
         )
 
 
-@pytest.mark.usefixtures("account_with_ip_allowlisting")
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
 def test_ip_allowlist_ls_empty_list(respx_mock, workspace_with_logged_in_profile):
     workspace, profile = workspace_with_logged_in_profile
     url = (
@@ -192,7 +229,7 @@ def test_ip_allowlist_ls_empty_list(respx_mock, workspace_with_logged_in_profile
         )
 
 
-@pytest.mark.usefixtures("account_with_ip_allowlisting")
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
 @pytest.mark.parametrize("description", [None, "some short description"])
 def test_ip_allowlist_add(
     description: Optional[str], workspace_with_logged_in_profile, respx_mock
@@ -234,7 +271,7 @@ def test_ip_allowlist_add_invalid_ip(workspace_with_logged_in_profile, respx_moc
     raise NotImplementedError
 
 
-@pytest.mark.usefixtures("account_with_ip_allowlisting")
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
 def test_ip_allowlist_add_existing_ip_entry(
     workspace_with_logged_in_profile, respx_mock
 ):
@@ -277,7 +314,7 @@ def test_ip_allowlist_add_existing_ip_entry(
     assert mocked_put_request.called
 
 
-@pytest.mark.usefixtures("account_with_ip_allowlisting")
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
 def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
     workspace, profile = workspace_with_logged_in_profile
     url = (
