@@ -171,12 +171,12 @@ class State(ObjectBaseModel, Generic[R]):
     )
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = True) -> R:
-        ...
+    def result(self: "State[R]", raise_on_failure: bool = True) -> R: ...
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
-        ...
+    def result(
+        self: "State[R]", raise_on_failure: bool = False
+    ) -> Union[R, Exception]: ...
 
     def result(
         self,
@@ -598,6 +598,15 @@ class FlowRun(ObjectBaseModel):
     @classmethod
     def set_default_name(cls, name):
         return get_or_create_run_name(name)
+
+
+class FlowRunInfrastructureConfiguration(ObjectBaseModel):
+    flow_run_id: UUID = Field(
+        description="The flow run id to associate with this infrastructure configuration."
+    )
+    job_configruation: Optional[dict] = Field(
+        default=dict, description="The job configuration for the flow run."
+    )
 
 
 class TaskRunPolicy(PrefectBaseModel):

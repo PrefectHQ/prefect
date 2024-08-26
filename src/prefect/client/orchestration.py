@@ -154,15 +154,13 @@ R = TypeVar("R")
 @overload
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[False] = False
-) -> "PrefectClient":
-    ...
+) -> "PrefectClient": ...
 
 
 @overload
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[True] = True
-) -> "SyncPrefectClient":
-    ...
+) -> "SyncPrefectClient": ...
 
 
 def get_client(
@@ -735,6 +733,7 @@ class PrefectClient:
                 any existing tags.
             infrastructure_pid: The id of flow run as returned by an
                 infrastructure block.
+            job_variables: A dictionary of variables to be supplied to the flow run job.
 
         Returns:
             an `httpx.Response` object from the PATCH request
@@ -761,6 +760,15 @@ class PrefectClient:
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
+
+    async def create_flow_run_infrastructure_configuration(
+        self, flow_run_id: UUID, job_configuration: dict
+    ):
+        """
+        Create a new flow run infrastrcuture configuration.
+
+        """
+        pass
 
     async def delete_flow_run(
         self,

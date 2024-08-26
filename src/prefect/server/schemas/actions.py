@@ -1053,3 +1053,15 @@ class VariableUpdate(ActionBaseModel):
 
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)
+
+
+class FlowRunInfrastructureCreate(ActionBaseModel):
+    """Data used by the Prefect REST API to create a Flow Run Infrastructure Configuration"""
+
+    flow_run_id: UUID = Field(
+        default=...,
+        description="The ID of the flow run associated with this infrastructure configuration.",
+    )
+    job_configuration: dict = Field(
+        default={}, description="The job configuration associated with the flow run."
+    )

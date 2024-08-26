@@ -667,6 +667,20 @@ class FlowRun(Run):
     )
 
 
+class FlowRunInfrastructureConfiguration(Base):
+    """SQLAlchemy model of a flow run infrastructure configuration."""
+
+    flow_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(),
+        sa.ForeignKey("flow_run.id", ondelete="cascade"),
+        nullable=False,
+        index=True,
+    )
+    job_configuration = sa.Column(
+        JSON, server_default="{}", default=dict, nullable=True
+    )
+
+
 class TaskRun(Run):
     """SQLAlchemy model of a task run."""
 

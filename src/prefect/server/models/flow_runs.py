@@ -146,6 +146,35 @@ async def update_flow_run(
     return result.rowcount > 0
 
 
+async def create_flow_run_infrastructure_configuration(
+    session: AsyncSession,
+    flow_run_id: UUID,
+    job_configuration: dict,
+) -> bool:
+    """
+    Updates a flow run infrastructure config.
+
+    Args:
+        session: a database session
+        flow_run_id: the flow run id to associate the config with
+        job_configuration: a dictionary containing the new infrastructure config
+
+    Returns:
+        bool: whether or not inserts were successful
+    """
+    flow_run_infrastructure_config = orm_models.FlowRunInfrastructureConfiguration(
+        flow_run_id=flow_run_id, job_configuration=job_configuration
+    ).model_dump_for_orm(exclude_unset=True)
+
+    insert_statement = sa.insert(orm_models.FlowRunInfrastructureConfiguration).values(
+        **flow_run_infrastructure_config
+    )
+
+    result = await session.execute(insert_statement)
+    # TODO this should return the model
+    return result.rowcount > 0
+
+
 async def read_flow_run(
     session: AsyncSession,
     flow_run_id: UUID,

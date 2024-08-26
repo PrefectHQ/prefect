@@ -2567,3 +2567,7 @@ class TestSyncClient:
     def test_hello(self, sync_prefect_client):
         response = sync_prefect_client.hello()
         assert response.json() == "👋"
+
+
+async def test_create_flow_run_infrastructure_configuration():
+    pass

@@ -301,6 +301,15 @@ class FlowRun(ORMBaseModel):
         return super().__eq__(other)
 
 
+class FlowRunInfrastructureConfiguration(ORMBaseModel):
+    """SQLAlchemy model of a flow run infrastructure configuration."""
+
+    flow_run_id: UUID = Field(
+        nullable=False,
+    )
+    job_configuration: dict = Field(server_default="{}", default=dict, nullable=True)
+
+
 class TaskRunPolicy(PrefectBaseModel):
     """Defines of how a task run should retry."""
 

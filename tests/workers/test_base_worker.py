@@ -298,6 +298,10 @@ async def test_worker_with_work_pool_and_limit(
         )
 
 
+async def test_worker_creates_flow_run_infrastructure_configuration(work_pool):
+    pass
+
+
 async def test_worker_calls_run_with_expected_arguments(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool, monkeypatch
 ):

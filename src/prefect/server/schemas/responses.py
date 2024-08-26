@@ -343,6 +343,16 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
+class FlowRunInfrastructureConfigurationResponse(ORMBaseModel):
+    flow_run_id: UUID = Field(
+        default=..., description="The flow run id associated with this configuration."
+    )
+    job_configuration: dict = Field(
+        default=None,
+        description="The job configuration used to run the flow run.",
+    )
+
+
 class DeploymentResponse(ORMBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(

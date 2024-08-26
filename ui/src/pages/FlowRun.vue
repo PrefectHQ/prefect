@@ -33,10 +33,21 @@
         </CopyableWrapper>
       </template>
 
-      <template #job-variables>
+      <template #infrastructure-configuration>
+        <h2>Job Variables</h2>
+        <br>
         <CopyableWrapper :text-to-copy="jobVariables">
           <p-code-highlight lang="json" :text="jobVariables" class="flow-run__job-variables" />
         </CopyableWrapper>
+        <br>
+        <h2>Job Configuration</h2>
+        <br>
+        <CopyableWrapper v-if="!isPending" :text-to-copy="jobConfiguration">
+          <p-code-highlight lang="json" :text="jobConfiguration" class="flow-run__job-variables" />
+        </CopyableWrapper>
+        <p-card v-else>
+          Loading...
+        </p-card>
       </template>
     </p-tabs>
   </p-layout-default>
@@ -78,6 +89,7 @@
   })
 
   const jobVariables = computed(() => stringify(flowRun.value?.jobVariables ?? {}))
+  const jobConfiguration = computed(() => stringify(flowRun.value?.jobConfiguration ?? {}))
 
   const computedTabs = computed(() => [
     { label: 'Logs' },
@@ -86,7 +98,7 @@
     { label: 'Artifacts', hidden: isPending.value },
     { label: 'Details' },
     { label: 'Parameters' },
-    { label: 'Job Variables' },
+    { label: 'Infrastructure Configuration' },
   ])
   const tab = useRouteQueryParam('tab', 'Logs')
   const { tabs } = useTabs(computedTabs, tab)

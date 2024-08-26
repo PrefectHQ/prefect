@@ -853,6 +853,9 @@ class BaseWorker(abc.ABC):
 
         try:
             configuration = await self._get_configuration(flow_run)
+            await self._record_flow_run_infrastructure_configuration(
+                flow_run, configuration
+            )
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             result = await self.run(
                 flow_run=flow_run,
@@ -946,6 +949,27 @@ class BaseWorker(abc.ABC):
             flow_run=flow_run, deployment=deployment, flow=flow
         )
         return configuration
+
+    async def _record_flow_run_infrastructure_configuration(
+        self,
+        flow_run: "FlowRun",
+        configuration: BaseJobConfiguration,
+    ) -> None:
+        """
+        Adds the final configuration to the flow run in the API.
+        """
+        self._logger.debug("Configuration is being added to the flow run.")
+        config_dict = configuration.model_dump()
+        # TODO ensure that we're overwriting sensitive values
+        self._logger.debug(f"Infrastructure configuration: {config_dict}")
+
+        result = await self._client.create_flow_run_infrastructure_configuration(
+            flow_run_id=flow_run.id,
+            job_configuration=config_dict,
+        )
+        self._logger.debug(
+            f"Flow Run Infrastructure Configruation creation result: {result}"
+        )
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         run_logger = self.get_flow_run_logger(flow_run)
