@@ -180,3 +180,29 @@ def _print_ip_allowlist_table(
         )
 
     app.console.print(table)
+
+
+@ip_allowlist_app.command()
+async def toggle(ctx: typer.Context, ip_network: str):
+    """Toggle the enabled status of an individual IP entry in your account IP allowlist."""
+    async with get_cloud_client(infer_cloud_url=True) as client:
+        ip_allowlist = await client.read_account_ip_allowlist()
+
+        found_matching_entry = False
+        for entry in ip_allowlist.entries:
+            if ipaddress.ip_network(entry.ip_network) == ipaddress.ip_network(
+                ip_network
+            ):
+                entry.enabled = not entry.enabled
+                found_matching_entry = True
+                break
+
+        if not found_matching_entry:
+            exit_with_error(f"No entry found with IP address `{ip_network}`.")
+
+        await client.update_account_ip_allowlist(ip_allowlist)
+
+        updated_ip_allowlist = await client.read_account_ip_allowlist()
+        _print_ip_allowlist_table(
+            updated_ip_allowlist, enabled=ctx.meta["enforce_ip_allowlist"]
+        )

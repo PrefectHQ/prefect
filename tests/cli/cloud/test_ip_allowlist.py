@@ -1,3 +1,4 @@
+import ipaddress
 from datetime import datetime
 from typing import Optional
 
@@ -346,3 +347,72 @@ def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
         )
 
     assert mocked_put_request.called
+
+
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
+def test_ip_allowlist_toggle(workspace_with_logged_in_profile, respx_mock):
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
+    )
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=SAMPLE_ALLOWLIST.model_dump(),
+        )
+    )
+
+    entry_to_toggle = SAMPLE_ALLOWLIST.entries[0]
+    expected_update_request = IPAllowlist(
+        entries=[
+            IPAllowlistEntry(
+                ip_network=entry.ip_network,
+                enabled=not entry.enabled,
+                description=entry.description,
+                last_seen=entry.last_seen,
+            )
+            if entry.ip_network == entry_to_toggle.ip_network
+            else entry
+            for entry in SAMPLE_ALLOWLIST.entries
+        ]
+    )
+    mocked_put_request = respx_mock.put(
+        url, json=expected_update_request.model_dump()
+    ).mock(return_value=httpx.Response(status.HTTP_204_NO_CONTENT))
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "toggle", entry_to_toggle.ip_network],
+            expected_code=0,
+        )
+
+    assert mocked_put_request.called
+
+
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
+def test_ip_allowlist_toggle_nonexistent_entry(
+    workspace_with_logged_in_profile, respx_mock
+):
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
+    )
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=SAMPLE_ALLOWLIST.model_dump(),
+        )
+    )
+
+    nonexistent_ip = "192.168.0.1"
+    assert not any(
+        ipaddress.ip_network(entry.ip_network) == ipaddress.ip_network(nonexistent_ip)
+        for entry in SAMPLE_ALLOWLIST.entries
+    )
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "toggle", nonexistent_ip],
+            expected_code=1,
+            expected_output_contains=f"No entry found with IP address `{nonexistent_ip}`",
+        )
