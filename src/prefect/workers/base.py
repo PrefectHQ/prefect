@@ -964,7 +964,7 @@ class BaseWorker(abc.ABC):
     async def _get_configuration(
         self,
         flow_run: "FlowRun",
-        deployment: Optional["DeploymentResponse"],
+        deployment: Optional["DeploymentResponse"] = None,
     ) -> BaseJobConfiguration:
         deployment = (
             deployment
