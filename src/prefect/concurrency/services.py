@@ -36,13 +36,18 @@ class ConcurrencySlotAcquisitionService(QueueService):
     async def _handle(
         self,
         item: Tuple[
-            int, str, Optional[float], concurrent.futures.Future, Optional[bool]
+            int,
+            str,
+            Optional[float],
+            concurrent.futures.Future,
+            Optional[bool],
+            Optional[int],
         ],
     ) -> None:
-        occupy, mode, timeout_seconds, future, create_if_missing = item
+        occupy, mode, timeout_seconds, future, create_if_missing, max_retries = item
         try:
             response = await self.acquire_slots(
-                occupy, mode, timeout_seconds, create_if_missing
+                occupy, mode, timeout_seconds, create_if_missing, max_retries
             )
         except Exception as exc:
             # If the request to the increment endpoint fails in a non-standard
@@ -59,6 +64,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
         mode: str,
         timeout_seconds: Optional[float] = None,
         create_if_missing: Optional[bool] = False,
+        max_retries: Optional[int] = None,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
@@ -74,15 +80,19 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         isinstance(exc, httpx.HTTPStatusError)
                         and exc.response.status_code == status.HTTP_423_LOCKED
                     ):
+                        if max_retries is not None and max_retries <= 0:
+                            raise exc
                         retry_after = float(exc.response.headers["Retry-After"])
                         await asyncio.sleep(retry_after)
+                        if max_retries is not None:
+                            max_retries -= 1
                     else:
                         raise exc
                 else:
                     return response
 
     def send(
-        self, item: Tuple[int, str, Optional[float], Optional[bool]]
+        self, item: Tuple[int, str, Optional[float], Optional[bool], Optional[int]]
     ) -> concurrent.futures.Future:
         with self._lock:
             if self._stopped:
@@ -91,9 +101,9 @@ class ConcurrencySlotAcquisitionService(QueueService):
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()
 
-            occupy, mode, timeout_seconds, create_if_missing = item
+            occupy, mode, timeout_seconds, create_if_missing, max_retries = item
             self._queue.put_nowait(
-                (occupy, mode, timeout_seconds, future, create_if_missing)
+                (occupy, mode, timeout_seconds, future, create_if_missing, max_retries)
             )
 
         return future

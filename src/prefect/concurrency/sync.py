@@ -41,6 +41,7 @@ def concurrency(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
+    max_retries: Optional[int] = None,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -80,6 +81,7 @@ def concurrency(
         occupy,
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
+        max_retries=max_retries,
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)

@@ -36,7 +36,11 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
             resource_heavy()
 
             acquire_spy.assert_called_once_with(
-                ["test"], 1, timeout_seconds=None, create_if_missing=True
+                ["test"],
+                1,
+                timeout_seconds=None,
+                create_if_missing=True,
+                max_retries=None,
             )
 
             # On release we calculate how many seconds the slots were occupied
