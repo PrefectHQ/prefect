@@ -403,7 +403,7 @@ def sync_compatible(
 
 
 @asynccontextmanager
-async def asyncnullcontext(value=None):
+async def asyncnullcontext(value=None, *args, **kwargs):
     yield value
 
 
