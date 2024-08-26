@@ -19,6 +19,7 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    IPvAnyNetwork,
     SerializationInfo,
     field_validator,
     model_serializer,
@@ -855,7 +856,7 @@ class Workspace(PrefectBaseModel):
 
 
 class IPAllowlistEntry(PrefectBaseModel):
-    ip_network: str
+    ip_network: IPvAnyNetwork
     description: Optional[str] = Field(
         default=None, description="A description of the IP entry."
     )

@@ -1,8 +1,8 @@
 import asyncio
-import ipaddress
-from typing import Optional
+from typing import Annotated, Optional
 
 import typer
+from pydantic import BaseModel, IPvAnyNetwork
 from rich.panel import Panel
 from rich.table import Table
 
@@ -76,18 +76,37 @@ async def disable():
 @ip_allowlist_app.command()
 async def ls(ctx: typer.Context):
     """Fetch and list all IP allowlist entries in your account."""
-    enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
-
     async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
 
-        _print_ip_allowlist_table(ip_allowlist, enabled=enforcing_ip_allowlist)
+        _print_ip_allowlist_table(
+            ip_allowlist, enabled=ctx.meta["enforce_ip_allowlist"]
+        )
+
+
+class IPNetworkArg(BaseModel):
+    raw: str
+    parsed: IPvAnyNetwork
+
+
+def parse_ip_network_argument(val: str) -> IPNetworkArg:
+    return IPNetworkArg(raw=val, parsed=val)
+
+
+IP_ARGUMENT = Annotated[
+    IPNetworkArg,
+    typer.Argument(
+        parser=parse_ip_network_argument,
+        help="An IP address or range in CIDR notation. E.g. 192.168.1.0 or 192.168.1.0/24",
+        metavar="IP address or range",
+    ),
+]
 
 
 @ip_allowlist_app.command()
 async def add(
     ctx: typer.Context,
-    ip_network: str,
+    ip_address_or_range: IP_ARGUMENT,
     description: Optional[str] = typer.Option(
         None,
         "--description",
@@ -96,10 +115,8 @@ async def add(
     ),
 ):
     """Add a new IP entry to your account IP allowlist."""
-    enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
-
     new_entry = IPAllowlistEntry(
-        ip_network=ip_network, description=description, enabled=True
+        ip_network=ip_address_or_range.parsed, description=description, enabled=True
     )
 
     async with get_cloud_client(infer_cloud_url=True) as client:
@@ -107,15 +124,13 @@ async def add(
 
         existing_entry_with_same_ip = None
         for entry in ip_allowlist.entries:
-            if ipaddress.ip_network(entry.ip_network) == ipaddress.ip_network(
-                ip_network
-            ):
+            if entry.ip_network == ip_address_or_range.parsed:
                 existing_entry_with_same_ip = entry
                 break
 
         if existing_entry_with_same_ip:
             if not typer.confirm(
-                f"There's already an entry for this IP ({ip_network}). Do you want to overwrite it?"
+                f"There's already an entry for this IP ({ip_address_or_range.raw}). Do you want to overwrite it?"
             ):
                 exit_with_error("Aborted.")
             ip_allowlist.entries.remove(existing_entry_with_same_ip)
@@ -124,26 +139,53 @@ async def add(
         await client.update_account_ip_allowlist(ip_allowlist)
 
         updated_ip_allowlist = await client.read_account_ip_allowlist()
-        _print_ip_allowlist_table(updated_ip_allowlist, enabled=enforcing_ip_allowlist)
+        _print_ip_allowlist_table(
+            updated_ip_allowlist, enabled=ctx.meta["enforce_ip_allowlist"]
+        )
 
 
 @ip_allowlist_app.command()
-async def remove(ctx: typer.Context, ip_network: str):
+async def remove(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT):
     """Remove an IP entry from your account IP allowlist."""
-    enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
-
     async with get_cloud_client(infer_cloud_url=True) as client:
         ip_allowlist = await client.read_account_ip_allowlist()
         ip_allowlist.entries = [
             entry
             for entry in ip_allowlist.entries
-            if ipaddress.ip_network(entry.ip_network)
-            != ipaddress.ip_network(ip_network)
+            if entry.ip_network != ip_address_or_range.parsed
         ]
         await client.update_account_ip_allowlist(ip_allowlist)
 
         updated_ip_allowlist = await client.read_account_ip_allowlist()
-        _print_ip_allowlist_table(updated_ip_allowlist, enabled=enforcing_ip_allowlist)
+        _print_ip_allowlist_table(
+            updated_ip_allowlist, enabled=ctx.meta["enforce_ip_allowlist"]
+        )
+
+
+@ip_allowlist_app.command()
+async def toggle(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT):
+    """Toggle the enabled status of an individual IP entry in your account IP allowlist."""
+    async with get_cloud_client(infer_cloud_url=True) as client:
+        ip_allowlist = await client.read_account_ip_allowlist()
+
+        found_matching_entry = False
+        for entry in ip_allowlist.entries:
+            if entry.ip_network == ip_address_or_range.parsed:
+                entry.enabled = not entry.enabled
+                found_matching_entry = True
+                break
+
+        if not found_matching_entry:
+            exit_with_error(
+                f"No entry found with IP address `{ip_address_or_range.raw}`."
+            )
+
+        await client.update_account_ip_allowlist(ip_allowlist)
+
+        updated_ip_allowlist = await client.read_account_ip_allowlist()
+        _print_ip_allowlist_table(
+            updated_ip_allowlist, enabled=ctx.meta["enforce_ip_allowlist"]
+        )
 
 
 def _print_ip_allowlist_table(
@@ -172,7 +214,7 @@ def _print_ip_allowlist_table(
 
     for entry in ip_allowlist.entries:
         table.add_row(
-            entry.ip_network,
+            str(entry.ip_network),
             entry.description,
             str(entry.enabled),
             entry.last_seen or "Never",
@@ -180,29 +222,3 @@ def _print_ip_allowlist_table(
         )
 
     app.console.print(table)
-
-
-@ip_allowlist_app.command()
-async def toggle(ctx: typer.Context, ip_network: str):
-    """Toggle the enabled status of an individual IP entry in your account IP allowlist."""
-    async with get_cloud_client(infer_cloud_url=True) as client:
-        ip_allowlist = await client.read_account_ip_allowlist()
-
-        found_matching_entry = False
-        for entry in ip_allowlist.entries:
-            if ipaddress.ip_network(entry.ip_network) == ipaddress.ip_network(
-                ip_network
-            ):
-                entry.enabled = not entry.enabled
-                found_matching_entry = True
-                break
-
-        if not found_matching_entry:
-            exit_with_error(f"No entry found with IP address `{ip_network}`.")
-
-        await client.update_account_ip_allowlist(ip_allowlist)
-
-        updated_ip_allowlist = await client.read_account_ip_allowlist()
-        _print_ip_allowlist_table(
-            updated_ip_allowlist, enabled=ctx.meta["enforce_ip_allowlist"]
-        )

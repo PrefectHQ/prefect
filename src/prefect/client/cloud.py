@@ -130,7 +130,7 @@ class CloudClient:
         await self.request(
             "PUT",
             f"{self.account_base_url}/ip_allowlist",
-            json=updated_allowlist.model_dump(),
+            json=updated_allowlist.model_dump(mode="json"),
         )
 
     async def __aenter__(self):
