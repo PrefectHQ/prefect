@@ -61,8 +61,6 @@ class PrefectBaseModel(BaseModel):
 
     model_config = ConfigDict(
         ser_json_timedelta="float",
-        experimental_defer_build_mode=("model", "type_adapter"),
-        defer_build=True,
         extra=(
             "ignore"
             if os.getenv("PREFECT_TEST_MODE", "0").lower() not in ["true", "1"]
