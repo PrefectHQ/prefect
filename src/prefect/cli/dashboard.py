@@ -4,7 +4,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_success
 from prefect.cli.cloud import get_current_workspace
 from prefect.cli.root import app
-from prefect.client.cloud import get_cloud_client
+from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -29,7 +29,10 @@ async def open():
     await run_sync_in_worker_thread(webbrowser.open_new_tab, ui_url)
 
     async with get_cloud_client() as client:
-        current_workspace = get_current_workspace(await client.read_workspaces())
+        try:
+            current_workspace = get_current_workspace(await client.read_workspaces())
+        except CloudUnauthorizedError:
+            current_workspace = None
 
     destination = (
         f"{current_workspace.account_handle}/{current_workspace.workspace_handle}"

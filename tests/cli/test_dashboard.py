@@ -102,3 +102,36 @@ def test_open_current_workspace_in_browser_failure_no_workspace_set(
 
     with use_profile("logged-in-profile"):
         invoke_and_assert(["dashboard", "open"], expected_code=0)
+
+
+@pytest.mark.usefixtures("mock_webbrowser")
+@pytest.mark.parametrize("api_url", ["http://localhost:4200", "https://api.prefect.io"])
+def test_open_current_workspace_in_browser_failure_unauthorized(respx_mock, api_url):
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: api_url,
+                        PREFECT_API_KEY: "invalid_key",
+                    },
+                )
+            ],
+            active="logged-in-profile",
+        )
+    )
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_401_UNAUTHORIZED,
+            json={"detail": "Unauthorized"},
+        )
+    )
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["dashboard", "open"],
+            expected_code=0,
+            expected_output_contains=f"Opened {api_url!r} in browser.",
+        )
