@@ -65,8 +65,12 @@ When `my_flow` is served with this interval schedule, it will run every 10 minut
 from datetime import timedelta, datetime
 from prefect.client.schemas.schedules import IntervalSchedule
 
-my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minutes=10), anchor_date=datetime(2026, 1, 1, 0, 0), 
-timezone="America/Chicago"))
+my_flow.serve(
+  name="flowing",
+  schedule=IntervalSchedule(interval=timedelta(minutes=10),
+  anchor_date=datetime(2026, 1, 1, 0, 0),
+  timezone="America/Chicago")
+)
 ```
 
 ### Create schedules in the terminal
@@ -141,13 +145,22 @@ entry and a `day_of_week` entry, the schedule runs a flow on both the specified 
 week.
 
 The "or" in `day_or` refers to the two entries treated like an `OR` statement. The schedule should include 
-both, as in the SQL statement `SELECT * FROM employees WHERE first_name = 'Xiāng' OR last_name = 'Brookins';`.
+both, as in the SQL statement:
+
+```sql
+SELECT * FROM employees WHERE first_name = 'Ford' OR last_name = 'Prefect';
+```
 
 For example, with `day_or` set to `True`, the cron schedule `* * 3 1 2` runs a flow every minute on the third day of the month 
 and on Tuesday (the second day of the week) in January (the first month of the year).
 
 With `day_or` set to `False`, the `day` (of the month) and `day_of_week` entries are joined with the more restrictive `AND` 
-operation, as in the SQL statement `SELECT * from employees WHERE first_name = 'Andrew' AND last_name = 'Brookins';`. 
+operation, as in the SQL statement:
+
+```sql
+SELECT * from employees WHERE first_name = 'Zaphod' AND last_name = 'Beeblebrox';
+```
+
 For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **third Tuesday** in January. 
 This behavior matches `fcron` instead of `cron`.
 
