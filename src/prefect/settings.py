@@ -425,13 +425,20 @@ def default_database_connection_url(settings: "Settings", value: Optional[str]):
                 f"Missing required database connection settings: {', '.join(missing)}"
             )
 
-        host = PREFECT_API_DATABASE_HOST.value_from(settings)
-        port = PREFECT_API_DATABASE_PORT.value_from(settings) or 5432
-        user = PREFECT_API_DATABASE_USER.value_from(settings)
-        name = PREFECT_API_DATABASE_NAME.value_from(settings)
-        password = PREFECT_API_DATABASE_PASSWORD.value_from(settings)
+        # We only need SQLAlchemy here if we're parsing a remote database connection
+        # string.  Import it here so that we don't require the prefect-client package
+        # to have SQLAlchemy installed.
+        from sqlalchemy import URL
 
-        return f"{driver}://{user}:{password}@{host}:{port}/{name}"
+        return URL(
+            drivername=driver,
+            host=PREFECT_API_DATABASE_HOST.value_from(settings),
+            port=PREFECT_API_DATABASE_PORT.value_from(settings) or 5432,
+            username=PREFECT_API_DATABASE_USER.value_from(settings),
+            password=PREFECT_API_DATABASE_PASSWORD.value_from(settings),
+            database=PREFECT_API_DATABASE_NAME.value_from(settings),
+            query=[],
+        ).render_as_string(hide_password=False)
 
     elif driver == "sqlite+aiosqlite":
         path = PREFECT_API_DATABASE_NAME.value_from(settings)
