@@ -1,6 +1,6 @@
 ---
-title: Limit concurrent task runs
-description: Prevent too many tasks from running simultaneously.
+title: Limit concurrent task runs with tags
+description: Prevent too many tasks from running simultaneously using tags.
 ---
 
 Task run concurrency limits help prevent too many tasks from running simultaneously.
@@ -9,23 +9,15 @@ For example, if many tasks across multiple flows are designed to interact with a
 Task run concurrency limits use [task tags](#tags). You can specify an optional concurrency limit as the maximum number of concurrent 
 task runs in a `Running` state for tasks with a given tag.
 
-If a task has multiple tags, it will run only if _all_ tags have available concurrency.
+<Tip>
+Tag-based task concurrency is different from [Global Concurrency Limits](/3.0rc/develop/global-concurrency-limits), though they can be used to achieve similar outcomes. Global Concurrency Limits are a more general way to control concurrency for any python-based operation, whereas tag-based concurrency limits are specific to Prefect tasks.
+</Tip>
 
-Tags without explicit limits are considered to have unlimited concurrency.
 
-{/*
-<!-- vale off -->
-*/}
 
-<Note>
-**0 concurrency limit aborts task runs**
+If a task has multiple tags, it will run only if **_all_** tags have available concurrency.
 
-If the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will abort instead of delay.
-</Note>
-
-{/*
-<!-- vale on -->
-*/}
+Tags without specified concurrency limits are treated as unlimited. Setting a tag's concurrency limit to 0 causes immediate abortion of any task runs with that tag, rather than delaying them.
 
 ### Execution behavior
 

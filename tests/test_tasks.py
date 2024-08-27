@@ -1352,6 +1352,24 @@ class TestResultPersistence:
         assert my_task.persist_result is True
         assert new_task.persist_result is True
 
+    def test_logs_warning_on_serialization_error(self, caplog):
+        @task(result_serializer="json")
+        def my_task():
+            return lambda: 1
+
+        my_task()
+
+        record = next(
+            (
+                record
+                for record in caplog.records
+                if "Encountered an error while serializing result" in record.message
+            ),
+            None,
+        )
+        assert record is not None
+        assert record.levelname == "WARNING"
+
 
 class TestTaskCaching:
     async def test_repeated_task_call_within_flow_is_cached_by_default(self):
@@ -5052,6 +5070,19 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
+
+    def test_does_not_log_rollback_when_no_user_defined_rollback_hooks(self, caplog):
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_commit
+        def commit(txn):
+            raise Exception("oops")
+
+        my_task()
+
+        assert "Running rollback hook" not in caplog.text
 
 
 class TestApplyAsync:
