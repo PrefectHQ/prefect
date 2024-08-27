@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pydantic
 import pytest
+from sqlalchemy import make_url
 
 import prefect.context
 import prefect.settings
@@ -511,12 +512,33 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_PASSWORD: "the-password",
             }
         ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
-                "postgresql+asyncpg://"
-                "the-user:the-password@"
-                "the-database-server.example.com:15432"
-                "/the-database"
-            )
+            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            assert url.drivername == "postgresql+asyncpg"
+            assert url.host == "the-database-server.example.com"
+            assert url.port == 15432
+            assert url.username == "the-user"
+            assert url.database == "the-database"
+            assert url.password == "the-password"
+
+    def test_postgres_password_is_quoted(self):
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
+                PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
+                PREFECT_API_DATABASE_PORT: 15432,
+                PREFECT_API_DATABASE_USER: "the-user",
+                PREFECT_API_DATABASE_NAME: "the-database",
+                PREFECT_API_DATABASE_PASSWORD: "the-password:has:funky!@stuff",
+            }
+        ):
+            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            assert url.drivername == "postgresql+asyncpg"
+            assert url.host == "the-database-server.example.com"
+            assert url.port == 15432
+            assert url.username == "the-user"
+            assert url.database == "the-database"
+            assert url.password == "the-password:has:funky!@stuff"
 
     def test_postgres_database_settings_defaults_port(self):
         with temporary_settings(
@@ -529,12 +551,13 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_PASSWORD: "the-password",
             }
         ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
-                "postgresql+asyncpg://"
-                "the-user:the-password@"
-                "the-database-server.example.com:5432"
-                "/the-database"
-            )
+            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            assert url.drivername == "postgresql+asyncpg"
+            assert url.host == "the-database-server.example.com"
+            assert url.port == 5432
+            assert url.username == "the-user"
+            assert url.database == "the-database"
+            assert url.password == "the-password"
 
     def test_sqlite_database_settings_may_be_set_individually(self):
         with temporary_settings(
@@ -544,9 +567,9 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_NAME: "/the/database/file/path.db",
             }
         ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
-                "sqlite+aiosqlite:////the/database/file/path.db"
-            )
+            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            assert url.drivername == "sqlite+aiosqlite"
+            assert url.database == "/the/database/file/path.db"
 
     def test_sqlite_database_driver_uses_default_path(self):
         with temporary_settings(
@@ -555,9 +578,9 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_DRIVER: "sqlite+aiosqlite",
             }
         ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
-                f"sqlite+aiosqlite:///{PREFECT_HOME.value()}/prefect.db"
-            )
+            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            assert url.drivername == "sqlite+aiosqlite"
+            assert url.database == f"{PREFECT_HOME.value()}/prefect.db"
 
     def test_unknown_driver_raises(self):
         with pytest.raises(pydantic.ValidationError, match="literal_error"):
@@ -587,12 +610,13 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_USER: "the-user",
             }
         ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == (
-                "postgresql+asyncpg://"
-                "the-user:the-$password@"
-                "the-database-server.example.com:5432"
-                "/the-database"
-            )
+            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            assert url.drivername == "postgresql+asyncpg"
+            assert url.host == "the-database-server.example.com"
+            assert url.port == 5432
+            assert url.username == "the-user"
+            assert url.database == "the-database"
+            assert url.password == "the-$password"
 
 
 class TestTemporarySettings:
