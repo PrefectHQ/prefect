@@ -194,7 +194,7 @@ async def periodically_process_followers(periodic_granularity: timedelta):
         try:
             await record_lost_follower_task_run_events()
         except asyncio.CancelledError:
-            logger.info("Periodically process followers task cancelled")
+            logger.debug("Periodically process followers task cancelled")
             return
         except Exception:
             logger.exception("Error running periodically process followers task")
