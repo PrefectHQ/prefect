@@ -197,7 +197,7 @@ async def periodically_process_followers(periodic_granularity: timedelta):
             logger.debug("Periodically process followers task cancelled")
             return
         except Exception:
-            logger.exception("Error running periodically process followers task")
+            logger.exception("Error while processing task-run-recorders followers.")
         finally:
             await asyncio.sleep(periodic_granularity.total_seconds())
 
