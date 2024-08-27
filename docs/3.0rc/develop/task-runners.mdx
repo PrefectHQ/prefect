@@ -70,53 +70,6 @@ If you don't specify a task runner for a flow and you call a task with `.submit(
 Prefect uses the default `ThreadPoolTaskRunner`.
 </Tip>
 
-## Use multiple task runners
-
-Each flow can only have one task runner, but sometimes you may want a subset of your tasks to run using a different task runner than the one configured on the flow. 
-In this case, you can create [nested flows](/3.0rc/develop/write-flows/#composing-flows) for tasks that need to use a different task runner.
-
-For example, you can have a flow (in the example below called `multiple_runner_flow`) that runs its tasks locally using the `ThreadPoolTaskRunner`. 
-If you have some tasks that can run more efficiently in parallel on a Dask cluster, you can create a nested flow (such as `dask_nested_flow`) to run those tasks using the `DaskTaskRunner`.
-
-```python
-from prefect import flow, task
-from prefect.task_runners import ThreadPoolTaskRunner
-from prefect_dask.task_runners import DaskTaskRunner
-import time
-
-
-@task
-def hello_local(name: str):
-    time.sleep(2)
-    print(f"Hello {name}!")
-
-
-@flow(task_runner=ThreadPoolTaskRunner())
-def concurrent_subflow():
-    marvin = hello_local.submit("marvin")
-    ford = hello_local.submit("ford")
-    marvin.wait(), ford.wait()
-
-
-@task
-def hello_dask():
-    print("Hello from Dask!")
-
-
-@flow(task_runner=DaskTaskRunner())
-def dask_nested_flow():
-    hello_dask.submit().wait()
-
-
-@flow(task_runner=ThreadPoolTaskRunner())
-def parent_flow():
-    concurrent_subflow()
-    dask_nested_flow()
-
-
-if __name__ == "__main__":
-    parent_flow()
-```
 
 ## Access results from submitted tasks
 
@@ -323,4 +276,52 @@ def sum_it(numbers, static_iterable):
 
 resulting_sum = sum_it([4, 5, 6], [1, 2, 3])
 assert resulting_sum == [10, 11, 12]
+```
+
+## Use multiple task runners
+
+Each flow can only have one task runner, but sometimes you may want a subset of your tasks to run using a different task runner than the one configured on the flow. 
+In this case, you can create [nested flows](/3.0rc/develop/write-flows/#composing-flows) for tasks that need to use a different task runner.
+
+For example, you can have a flow (in the example below called `multiple_runner_flow`) that runs its tasks locally using the `ThreadPoolTaskRunner`. 
+If you have some tasks that can run more efficiently in parallel on a Dask cluster, you can create a nested flow (such as `dask_nested_flow`) to run those tasks using the `DaskTaskRunner`.
+
+```python
+from prefect import flow, task
+from prefect.task_runners import ThreadPoolTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
+import time
+
+
+@task
+def hello_local(name: str):
+    time.sleep(2)
+    print(f"Hello {name}!")
+
+
+@flow # implicitly uses the default task runner, ThreadPoolTaskRunner
+def concurrent_nested_flow():
+    marvin = hello_local.submit("marvin")
+    ford = hello_local.submit("ford")
+    marvin.wait(), ford.wait()
+
+
+@task
+def hello_dask():
+    print("Hello from Dask!")
+
+
+@flow(task_runner=DaskTaskRunner())
+def dask_nested_flow():
+    hello_dask.submit().wait()
+
+
+@flow # implicitly uses the default task runner, ThreadPoolTaskRunner
+def parent_flow():
+    concurrent_nested_flow()
+    dask_nested_flow()
+
+
+if __name__ == "__main__":
+    parent_flow()
 ```
