@@ -6,7 +6,6 @@ from prefect.flows import flow, Flow, serve
 from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
-from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
@@ -55,7 +54,6 @@ __all__ = [
     "Flow",
     "get_client",
     "get_run_logger",
-    "Manifest",
     "State",
     "tags",
     "task",
