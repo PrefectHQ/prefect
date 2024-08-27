@@ -520,7 +520,11 @@ class ResultRecord(BaseModel, Generic[R]):
             bytes: the serialized record
 
         """
-        return self.model_dump_json(serialize_as_any=True).encode()
+        return (
+            self.model_copy(update={"result": self.serialize_result()})
+            .model_dump_json(serialize_as_any=True)
+            .encode()
+        )
 
     @classmethod
     def deserialize(cls, data: bytes) -> "ResultRecord[R]":
