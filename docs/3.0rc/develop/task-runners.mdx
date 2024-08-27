@@ -300,7 +300,7 @@ def hello_local(name: str):
 
 
 @flow # implicitly uses the default task runner, ThreadPoolTaskRunner
-def concurrent_subflow():
+def concurrent_nested_flow():
     marvin = hello_local.submit("marvin")
     ford = hello_local.submit("ford")
     marvin.wait(), ford.wait()
