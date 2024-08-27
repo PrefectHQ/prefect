@@ -17,7 +17,7 @@ Tag-based task concurrency is different from [Global Concurrency Limits](/3.0rc/
 
 If a task has multiple tags, it will run only if **_all_** tags have available concurrency.
 
-Tags without explicit limits are considered to have unlimited concurrency, and **a concurrency limit of 0 will abort task runs**. That is to say, if the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will abort instead of delay.
+Tags without specified concurrency limits are treated as unlimited. Setting a tag's concurrency limit to 0 causes immediate abortion of any task runs with that tag, rather than delaying them.
 
 ### Execution behavior
 
