@@ -4,6 +4,7 @@ Command line interface for working with Prefect
 
 import logging
 import os
+import shlex
 import socket
 import sys
 import textwrap
@@ -39,7 +40,6 @@ from prefect.settings import (
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import (
     consume_process_output,
-    get_sys_executable,
     setup_signal_handlers_server,
 )
 
@@ -230,24 +230,27 @@ async def start(
     app.console.print("\n")
 
     try:
+        command = [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "--app-dir",
+            str(prefect.__module_path__.parent),
+            "--factory",
+            "prefect.server.api.server:create_app",
+            "--host",
+            str(host),
+            "--port",
+            str(port),
+            "--timeout-keep-alive",
+            str(keep_alive_timeout),
+        ]
+        logger.debug("Opening server process with command: %s", shlex.join(command))
         process = await anyio.open_process(
-            command=[
-                get_sys_executable(),
-                "-m",
-                "uvicorn",
-                "--app-dir",
-                f'"{prefect.__module_path__.parent}"',
-                "--factory",
-                "prefect.server.api.server:create_app",
-                "--host",
-                str(host),
-                "--port",
-                str(port),
-                "--timeout-keep-alive",
-                str(keep_alive_timeout),
-            ],
+            command=command,
             env=server_env,
         )
+
         process_id = process.pid
         if background:
             await pid_file.write_text(str(process_id))
