@@ -2959,6 +2959,7 @@ class TestKubernetesWorker:
             assert "NahChief" not in caplog.text
             assert "NotMeDude" not in caplog.text
 
+    @pytest.mark.usefixtures("mock_cluster_config")
     class TestGetClient:
         async def test_get_client_returns_client(self, default_configuration):
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
