@@ -205,6 +205,7 @@ class FlowRunEngine(Generic[P, R]):
                     result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
                 )
                 self.short_circuit = True
+                self.call_hooks()
 
         new_state = Running()
         state = self.set_state(new_state)
