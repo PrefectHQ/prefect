@@ -18,12 +18,13 @@ from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
     FailedRun,
+    MissingContextError,
     MissingResult,
     PausedRun,
     TerminationSignal,
     UnfinishedRun,
 )
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.results import BaseResult, R, ResultFactory
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
@@ -224,6 +225,11 @@ async def exception_to_failed_state(
     """
     Convenience function for creating `Failed` states from exceptions
     """
+    try:
+        local_logger = get_run_logger()
+    except MissingContextError:
+        local_logger = logger
+
     if not exc:
         _, exc, _ = sys.exc_info()
         if exc is None:
@@ -236,7 +242,13 @@ async def exception_to_failed_state(
     if result_factory:
         data = await result_factory.create_result(exc)
         if write_result:
-            await data.write()
+            try:
+                await data.write()
+            except Exception as exc:
+                local_logger.warning(
+                    "Failed to write result: %s Execution will continue, but the result has not been written",
+                    exc,
+                )
     else:
         # Attach the exception for local usage, will not be available when retrieved
         # from the API
@@ -283,6 +295,10 @@ async def return_value_to_state(
     Callers should resolve all futures into states before passing return values to this
     function.
     """
+    try:
+        local_logger = get_run_logger()
+    except MissingContextError:
+        local_logger = logger
 
     if (
         isinstance(retval, State)
@@ -300,7 +316,13 @@ async def return_value_to_state(
                 expiration=expiration,
             )
             if write_result:
-                await result.write()
+                try:
+                    await result.write()
+                except Exception as exc:
+                    local_logger.warning(
+                        "Encountered an error while writing result: %s Execution will continue, but the result has not been written",
+                        exc,
+                    )
             state.data = result
         return state
 
@@ -343,7 +365,13 @@ async def return_value_to_state(
             expiration=expiration,
         )
         if write_result:
-            await result.write()
+            try:
+                await result.write()
+            except Exception as exc:
+                local_logger.warning(
+                    "Encountered an error while writing result: %s Execution will continue, but the result has not been written",
+                    exc,
+                )
         return State(
             type=new_state_type,
             message=message,
@@ -366,7 +394,13 @@ async def return_value_to_state(
             expiration=expiration,
         )
         if write_result:
-            await result.write()
+            try:
+                await result.write()
+            except Exception as exc:
+                local_logger.warning(
+                    "Encountered an error while writing result: %s Execution will continue, but the result has not been written",
+                    exc,
+                )
         return Completed(data=result)
 
 

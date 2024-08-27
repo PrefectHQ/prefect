@@ -5,6 +5,7 @@ import time
 from asyncio import CancelledError
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
+from functools import partial
 from textwrap import dedent
 from typing import (
     Any,
@@ -466,9 +467,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 expiration=expiration,
             )
         )
+
+        # Avoid logging when running this rollback hook since it is not user-defined
+        handle_rollback = partial(self.handle_rollback)
+        handle_rollback.log_on_run = False
+
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[self.handle_rollback] + self.task.on_rollback_hooks,
+            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
         if transaction.is_committed():
@@ -969,9 +975,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             key=transaction.key,
             expiration=expiration,
         )
+
+        # Avoid logging when running this rollback hook since it is not user-defined
+        handle_rollback = partial(self.handle_rollback)
+        handle_rollback.log_on_run = False
+
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[self.handle_rollback] + self.task.on_rollback_hooks,
+            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
         if transaction.is_committed():
