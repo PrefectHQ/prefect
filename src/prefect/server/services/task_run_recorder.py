@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
+from datetime import timedelta
 from typing import Any, AsyncGenerator, Dict, Optional
 from uuid import UUID
 
@@ -176,8 +177,39 @@ async def record_task_run_event(event: ReceivedEvent, depth: int = 0):
     )
 
 
+async def record_lost_follower_task_run_events():
+    events = await causal_ordering().get_lost_followers()
+
+    for event in events:
+        await record_task_run_event(event)
+
+
+async def periodically_process_followers(periodic_granularity: timedelta):
+    """Periodically process followers that are waiting on a leader event that never arrived"""
+    logger.debug(
+        "Starting periodically process followers task every %s seconds",
+        periodic_granularity.total_seconds(),
+    )
+    while True:
+        try:
+            await record_lost_follower_task_run_events()
+        except asyncio.CancelledError:
+            logger.debug("Periodically process followers task cancelled")
+            return
+        except Exception:
+            logger.exception("Error while processing task-run-recorders followers.")
+        finally:
+            await asyncio.sleep(periodic_granularity.total_seconds())
+
+
 @asynccontextmanager
-async def consumer() -> AsyncGenerator[MessageHandler, None]:
+async def consumer(
+    periodic_granularity: timedelta = timedelta(seconds=5),
+) -> AsyncGenerator[MessageHandler, None]:
+    record_lost_followers_task = asyncio.create_task(
+        periodically_process_followers(periodic_granularity=periodic_granularity)
+    )
+
     async def message_handler(message: Message):
         event: ReceivedEvent = ReceivedEvent.model_validate_json(message.data)
 
@@ -199,7 +231,14 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
             # event arrives.
             pass
 
-    yield message_handler
+    try:
+        yield message_handler
+    finally:
+        try:
+            record_lost_followers_task.cancel()
+            await record_lost_followers_task
+        except asyncio.CancelledError:
+            logger.debug("Periodically process followers task cancelled successfully")
 
 
 class TaskRunRecorder:
