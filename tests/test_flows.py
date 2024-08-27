@@ -3183,6 +3183,20 @@ class TestFlowHooksOnFailure:
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call(), call()]
 
+    def test_on_failure_hooks_run_on_bad_parameters(self):
+        my_mock = MagicMock()
+
+        def failure_hook(flow, flow_run, state):
+            my_mock("failure_hook")
+
+        @flow(on_failure=[failure_hook])
+        def my_flow(x: int):
+            pass
+
+        state = my_flow(x="x", return_state=True)
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failure_hook")]
+
 
 class TestFlowHooksOnCancellation:
     def test_noniterable_hook_raises(self):
