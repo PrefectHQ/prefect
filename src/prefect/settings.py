@@ -78,7 +78,6 @@ from pydantic import (
     model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import URL
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
@@ -425,6 +424,11 @@ def default_database_connection_url(settings: "Settings", value: Optional[str]):
             raise ValueError(
                 f"Missing required database connection settings: {', '.join(missing)}"
             )
+
+        # We only need SQLAlchemy here if we're parsing a remote database connection
+        # string.  Import it here so that we don't require the prefect-client package
+        # to have SQLAlchemy installed.
+        from sqlalchemy import URL
 
         return URL(
             drivername=driver,
