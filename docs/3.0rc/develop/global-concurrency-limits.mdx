@@ -48,7 +48,7 @@ Global concurrency limits can be in an `active` or `inactive` state:
 you activate the limit.
 
 ### Slot decay
-To achieve rate limiting behavior, you can configure "slot decay". It controls how quickly occupied slots become available again for reuse.
+To implement rate limiting, you can configures"slot decay", which determines how rapidly used slots are freed up for new tasks.
 
 When you set up a concurrency limit with slot decay:
 1. Each time a slot is occupied, it becomes unavailable for other tasks to use.
