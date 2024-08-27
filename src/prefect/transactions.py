@@ -18,7 +18,7 @@ from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
 from prefect.context import ContextModel, FlowRunContext, TaskRunContext
-from prefect.exceptions import MissingContextError
+from prefect.exceptions import MissingContextError, SerializationError
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.results import (
@@ -240,6 +240,14 @@ class Transaction(ContextModel):
                 self.logger.debug(f"Releasing lock for transaction {self.key!r}")
                 self.store.release_lock(self.key)
             return True
+        except SerializationError as exc:
+            if self.logger:
+                self.logger.warning(
+                    f"Encountered an error while serializing result for transaction {self.key!r}: {exc}"
+                    " Code execution will continue, but the transaction will not be committed.",
+                )
+            self.rollback()
+            return False
         except Exception:
             if self.logger:
                 self.logger.exception(
@@ -251,19 +259,25 @@ class Transaction(ContextModel):
 
     def run_hook(self, hook, hook_type: str) -> None:
         hook_name = _get_hook_name(hook)
-        self.logger.info(f"Running {hook_type} hook {hook_name!r}")
+        # Undocumented way to disable logging for a hook. Subject to change.
+        should_log = getattr(hook, "log_on_run", True)
+
+        if should_log:
+            self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
             hook(self)
         except Exception as exc:
-            self.logger.error(
-                f"An error was encountered while running {hook_type} hook {hook_name!r}",
-            )
+            if should_log:
+                self.logger.error(
+                    f"An error was encountered while running {hook_type} hook {hook_name!r}",
+                )
             raise exc
         else:
-            self.logger.info(
-                f"{hook_type.capitalize()} hook {hook_name!r} finished running successfully"
-            )
+            if should_log:
+                self.logger.info(
+                    f"{hook_type.capitalize()} hook {hook_name!r} finished running successfully"
+                )
 
     def stage(
         self,

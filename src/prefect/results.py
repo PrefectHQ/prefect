@@ -23,7 +23,6 @@ from pydantic import (
     Field,
     PrivateAttr,
     ValidationError,
-    field_serializer,
     model_serializer,
     model_validator,
 )
@@ -34,6 +33,7 @@ from typing_extensions import ParamSpec, Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
+from prefect.exceptions import SerializationError
 from prefect.filesystems import (
     LocalFileSystem,
     WritableFileSystem,
@@ -442,10 +442,9 @@ class ResultRecord(BaseModel, Generic[R]):
     def serializer(self) -> Serializer:
         return self.metadata.serializer
 
-    @field_serializer("result")
-    def serialize_result(self, value: R) -> bytes:
+    def serialize_result(self) -> bytes:
         try:
-            data = self.serializer.dumps(value)
+            data = self.serializer.dumps(self.result)
         except Exception as exc:
             extra_info = (
                 'You can try a different serializer (e.g. result_serializer="json") '
@@ -456,7 +455,7 @@ class ResultRecord(BaseModel, Generic[R]):
 
             if (
                 isinstance(exc, TypeError)
-                and isinstance(value, BaseModel)
+                and isinstance(self.result, BaseModel)
                 and str(exc).startswith("cannot pickle")
             ):
                 try:
@@ -480,8 +479,8 @@ class ResultRecord(BaseModel, Generic[R]):
                         ).replace("\n", " ")
                 except ImportError:
                     pass
-            raise ValueError(
-                f"Failed to serialize object of type {type(value).__name__!r} with "
+            raise SerializationError(
+                f"Failed to serialize object of type {type(self.result).__name__!r} with "
                 f"serializer {self.serializer.type!r}. {extra_info}"
             ) from exc
 
@@ -516,7 +515,11 @@ class ResultRecord(BaseModel, Generic[R]):
             bytes: the serialized record
 
         """
-        return self.model_dump_json(serialize_as_any=True).encode()
+        return (
+            self.model_copy(update={"result": self.serialize_result()})
+            .model_dump_json(serialize_as_any=True)
+            .encode()
+        )
 
     @classmethod
     def deserialize(cls, data: bytes) -> "ResultRecord[R]":
