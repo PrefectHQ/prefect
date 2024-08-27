@@ -1,12 +1,14 @@
 import asyncio
 from datetime import timedelta
 from typing import AsyncGenerator
-from uuid import UUID
+from unittest.mock import AsyncMock, patch
+from uuid import UUID, uuid4
 
 import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server.events.ordering import EventArrivedEarly
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
 from prefect.server.models.task_run_states import read_task_run_state
@@ -14,6 +16,10 @@ from prefect.server.models.task_runs import read_task_run
 from prefect.server.schemas.core import FlowRun, TaskRunPolicy
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.server.services import task_run_recorder
+from prefect.server.services.task_run_recorder import (
+    record_lost_follower_task_run_events,
+    record_task_run_event,
+)
 from prefect.server.utilities.messaging import MessageHandler
 from prefect.server.utilities.messaging.memory import MemoryMessage
 
@@ -34,7 +40,9 @@ async def test_start_and_stop_service():
 
 @pytest.fixture
 async def task_run_recorder_handler() -> AsyncGenerator[MessageHandler, None]:
-    async with task_run_recorder.consumer() as handler:
+    async with task_run_recorder.consumer(
+        periodic_granularity=timedelta(seconds=0.0001)
+    ) as handler:
         yield handler
 
 
@@ -701,3 +709,52 @@ async def test_updates_task_run_on_out_of_order_state_change(
         pause_reschedule=False,
         untrackable_result=False,
     )
+
+
+async def test_lost_followers_are_recorded(monkeypatch: pytest.MonkeyPatch):
+    now = pendulum.now("UTC")
+    event = ReceivedEvent(
+        occurred=now.subtract(minutes=2),
+        received=now.subtract(minutes=1),
+        event="prefect.task-run.Running",
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{str(uuid4())}",
+        },
+        account=uuid4(),
+        workspace=uuid4(),
+        follows=uuid4(),
+        id=uuid4(),
+    )
+    # record a follower that never sees its leader
+    with pytest.raises(EventArrivedEarly):
+        await record_task_run_event(event)
+
+    record_task_run_event_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_task_run_event",
+        record_task_run_event_mock,
+    )
+
+    # move time forward so we can record the lost follower
+    with patch("prefect.server.events.ordering.pendulum.now") as the_future:
+        the_future.return_value = now.add(minutes=20)
+        await record_lost_follower_task_run_events()
+
+    assert record_task_run_event_mock.await_count == 1
+    record_task_run_event_mock.assert_awaited_with(event)
+
+
+async def test_lost_followers_are_recorded_periodically(
+    task_run_recorder_handler,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    record_lost_follower_task_run_events_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_lost_follower_task_run_events",
+        record_lost_follower_task_run_events_mock,
+    )
+
+    # let the period task run a few times
+    await asyncio.sleep(0.1)
+
+    assert record_lost_follower_task_run_events_mock.await_count >= 1
