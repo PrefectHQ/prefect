@@ -212,7 +212,7 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6989
           docker stop "prefect-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
-          prefect server start --analytics-off > server-logs.txt 2>&1 &
+          prefect server start --port 4201 --analytics-off > server-logs.txt 2>&1 &
           ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
@@ -220,7 +220,7 @@ jobs:
           docker run
           --env TEST_SERVER_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           --env TEST_CLIENT_VERSION=${{ matrix.client_version }}
-          --env PREFECT_API_URL="http://127.0.0.1:4200/api"
+          --env PREFECT_API_URL="http://127.0.0.1:4201/api"
           --env PREFECT_EXPERIMENTAL_EVENTS=True
           --volume $(pwd)/flows:/opt/prefect/integration/flows
           --volume $(pwd)/scripts:/opt/prefect/integration/scripts
