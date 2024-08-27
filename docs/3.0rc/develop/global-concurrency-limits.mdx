@@ -48,7 +48,7 @@ Global concurrency limits can be in an `active` or `inactive` state:
 you activate the limit.
 
 ### Slot decay
-To implement rate limiting, you can configures"slot decay", which determines how rapidly used slots are freed up for new tasks.
+To implement rate limiting, you can configure "slot decay", which determines how rapidly used slots are freed up for new tasks.
 
 When you set up a concurrency limit with slot decay:
 1. Each time a slot is occupied, it becomes unavailable for other tasks to use.
@@ -65,7 +65,7 @@ For example:
 - With a decay rate of 5.0, you could run a task roughly every 0.2 seconds.
 - With a decay rate of 0.1, you'd wait about 10 seconds between task runs.
 
-Choose a decay rate that balances your needed frequency of task execution with the acceptable limit of overall system load. This allows you to fine-tune your workflow's performance and resource usage.
+Choose a decay rate that balances your required frequency of task execution with the acceptable limit of overall system load. This allows you to fine-tune your workflow's performance and resource usage.
 
 ### Through the UI
 
