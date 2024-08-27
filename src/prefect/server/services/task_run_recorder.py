@@ -238,7 +238,7 @@ async def consumer(
             record_lost_followers_task.cancel()
             await record_lost_followers_task
         except asyncio.CancelledError:
-            logger.info("Periodically process followers task cancelled successfully")
+            logger.debug("Periodically process followers task cancelled successfully")
 
 
 class TaskRunRecorder:
