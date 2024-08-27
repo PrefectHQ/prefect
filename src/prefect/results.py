@@ -23,7 +23,6 @@ from pydantic import (
     Field,
     PrivateAttr,
     ValidationError,
-    field_serializer,
     model_serializer,
     model_validator,
 )
@@ -443,10 +442,9 @@ class ResultRecord(BaseModel, Generic[R]):
     def serializer(self) -> Serializer:
         return self.metadata.serializer
 
-    @field_serializer("result")
-    def _serialize_result(self, value: Any) -> bytes:
+    def serialize_result(self) -> bytes:
         try:
-            data = self.serializer.dumps(value)
+            data = self.serializer.dumps(self.result)
         except Exception as exc:
             extra_info = (
                 'You can try a different serializer (e.g. result_serializer="json") '
@@ -457,7 +455,7 @@ class ResultRecord(BaseModel, Generic[R]):
 
             if (
                 isinstance(exc, TypeError)
-                and isinstance(value, BaseModel)
+                and isinstance(self.result, BaseModel)
                 and str(exc).startswith("cannot pickle")
             ):
                 try:
@@ -482,14 +480,11 @@ class ResultRecord(BaseModel, Generic[R]):
                 except ImportError:
                     pass
             raise SerializationError(
-                f"Failed to serialize object of type {type(value).__name__!r} with "
+                f"Failed to serialize object of type {type(self.result).__name__!r} with "
                 f"serializer {self.serializer.type!r}. {extra_info}"
             ) from exc
 
         return data
-
-    def serialize_result(self) -> bytes:
-        return self._serialize_result(self.result)
 
     @model_validator(mode="before")
     @classmethod

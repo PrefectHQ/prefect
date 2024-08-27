@@ -147,7 +147,7 @@ async def test_graceful_retries_eventually_succeed_while(
             side_effect=[
                 FileNotFoundError,
                 TimeoutError,
-                expected_record.model_dump_json().encode(),
+                expected_record.serialize(),
             ]
         ),
     ) as m:
