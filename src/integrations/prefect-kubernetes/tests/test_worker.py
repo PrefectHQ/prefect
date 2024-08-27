@@ -2958,3 +2958,11 @@ class TestKubernetesWorker:
             # The event for another job or pod shouldn't be included
             assert "NahChief" not in caplog.text
             assert "NotMeDude" not in caplog.text
+
+    class TestGetClient:
+        async def test_get_client_returns_client(self, default_configuration):
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                async with k8s_worker._get_configured_kubernetes_client(
+                    default_configuration
+                ) as client:
+                    assert isinstance(client, ApiClient)
