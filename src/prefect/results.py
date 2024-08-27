@@ -23,6 +23,7 @@ from pydantic import (
     Field,
     PrivateAttr,
     ValidationError,
+    field_serializer,
     model_serializer,
     model_validator,
 )
@@ -442,9 +443,10 @@ class ResultRecord(BaseModel, Generic[R]):
     def serializer(self) -> Serializer:
         return self.metadata.serializer
 
-    def serialize_result(self) -> bytes:
+    @field_serializer("result")
+    def _serialize_result(self, value: Any) -> bytes:
         try:
-            data = self.serializer.dumps(self.result)
+            data = self.serializer.dumps(value)
         except Exception as exc:
             extra_info = (
                 'You can try a different serializer (e.g. result_serializer="json") '
@@ -455,7 +457,7 @@ class ResultRecord(BaseModel, Generic[R]):
 
             if (
                 isinstance(exc, TypeError)
-                and isinstance(self.result, BaseModel)
+                and isinstance(value, BaseModel)
                 and str(exc).startswith("cannot pickle")
             ):
                 try:
@@ -480,11 +482,14 @@ class ResultRecord(BaseModel, Generic[R]):
                 except ImportError:
                     pass
             raise SerializationError(
-                f"Failed to serialize object of type {type(self.result).__name__!r} with "
+                f"Failed to serialize object of type {type(value).__name__!r} with "
                 f"serializer {self.serializer.type!r}. {extra_info}"
             ) from exc
 
         return data
+
+    def serialize_result(self) -> bytes:
+        return self._serialize_result(self.result)
 
     @model_validator(mode="before")
     @classmethod
@@ -515,11 +520,7 @@ class ResultRecord(BaseModel, Generic[R]):
             bytes: the serialized record
 
         """
-        return (
-            self.model_copy(update={"result": self.serialize_result()})
-            .model_dump_json(serialize_as_any=True)
-            .encode()
-        )
+        return self.model_dump_json(serialize_as_any=True).encode()
 
     @classmethod
     def deserialize(cls, data: bytes) -> "ResultRecord[R]":
