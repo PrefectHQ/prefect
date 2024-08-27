@@ -639,10 +639,6 @@ class TestRunner:
     async def test_runner_enforces_deployment_concurrency_limits(
         self, prefect_client: PrefectClient, caplog
     ):
-        deployment = RunnerDeployment.from_flow(
-            dummy_flow_1, __file__, concurrency_limit=1
-        )
-
         async def test(*args, **kwargs):
             return 0
 
@@ -654,12 +650,27 @@ class TestRunner:
                 "prefect.concurrency.asyncio._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
-                async with Runner() as runner:
+                async with Runner(pause_on_shutdown=False) as runner:
+                    deployment = RunnerDeployment.from_flow(
+                        flow=dummy_flow_1,
+                        name=__file__,
+                        concurrency_limit=1,
+                    )
+
+                    deployment_id = await runner.add_deployment(deployment)
+
+                    flow_run = await prefect_client.create_flow_run_from_deployment(
+                        deployment_id=deployment_id
+                    )
+
+                    assert flow_run.state.is_scheduled()
+
                     runner.run = test  # simulate running a flow
+
                     await runner._get_and_submit_flow_runs()
 
                 acquire_spy.assert_called_once_with(
-                    [f"deployment:{deployment.id}"],
+                    [f"deployment:{deployment_id}"],
                     1,
                     timeout_seconds=None,
                     create_if_missing=True,
@@ -667,7 +678,7 @@ class TestRunner:
                 )
 
                 names, occupy, occupy_seconds = release_spy.call_args[0]
-                assert names == [f"deployment:{deployment.id}"]
+                assert names == [f"deployment:{deployment_id}"]
                 assert occupy == 1
                 assert occupy_seconds > 0
 
