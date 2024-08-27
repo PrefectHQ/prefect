@@ -186,7 +186,7 @@ async def record_lost_follower_task_run_events():
 
 async def periodically_process_followers(periodic_granularity: timedelta):
     """Periodically process followers that are waiting on a leader event that never arrived"""
-    logger.info(
+    logger.debug(
         "Starting periodically process followers task every %s seconds",
         periodic_granularity.total_seconds(),
     )
