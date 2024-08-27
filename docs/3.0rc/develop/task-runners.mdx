@@ -318,7 +318,7 @@ def dask_nested_flow():
 
 @flow # implicitly uses the default task runner, ThreadPoolTaskRunner
 def parent_flow():
-    concurrent_subflow()
+    concurrent_nested_flow()
     dask_nested_flow()
 
 
