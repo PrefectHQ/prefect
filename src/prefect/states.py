@@ -320,7 +320,7 @@ async def return_value_to_state(
                     await result.write()
                 except Exception as exc:
                     local_logger.warning(
-                        "Encountered an error while writing result: %s Execution will continue, but the result has not been written",
+                        "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                         exc,
                     )
             state.data = result
@@ -369,7 +369,7 @@ async def return_value_to_state(
                 await result.write()
             except Exception as exc:
                 local_logger.warning(
-                    "Encountered an error while writing result: %s Execution will continue, but the result has not been written",
+                    "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                     exc,
                 )
         return State(
@@ -398,7 +398,7 @@ async def return_value_to_state(
                 await result.write()
             except Exception as exc:
                 local_logger.warning(
-                    "Encountered an error while writing result: %s Execution will continue, but the result has not been written",
+                    "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                     exc,
                 )
         return Completed(data=result)
