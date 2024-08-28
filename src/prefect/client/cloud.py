@@ -161,7 +161,7 @@ class CloudClient:
                 status.HTTP_401_UNAUTHORIZED,
                 status.HTTP_403_FORBIDDEN,
             ):
-                raise CloudUnauthorizedError
+                raise CloudUnauthorizedError(str(exc)) from exc
             elif exc.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise ObjectNotFound(http_exc=exc) from exc
             else:
