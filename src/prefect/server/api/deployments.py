@@ -910,8 +910,8 @@ async def disable_deployment(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
-    Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
-    state will be deleted.
+    Set a deployment to disabled. Any auto-scheduled runs will be deleted and
+    no new runs can be created until the deployment is enabled.
     """
     async with db.session_context(begin_transaction=False) as session:
         deployment = await models.deployments.read_deployment(
@@ -944,7 +944,7 @@ async def enable_deployment(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
-    Set a deployment schedule to active. Runs will be scheduled immediately.
+    Set a deployment to enabled. Runs can be scheduled and created.
     """
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(

@@ -3579,7 +3579,7 @@
                     "Deployments"
                 ],
                 "summary": "Disable Deployment",
-                "description": "Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled\nstate will be deleted.",
+                "description": "Set a deployment to disabled. Any auto-scheduled runs will be deleted and\nno new runs can be created until the deployment is enabled.",
                 "operationId": "disable_deployment_deployments__id__disable_deployment_post",
                 "parameters": [
                     {
@@ -3632,7 +3632,7 @@
                     "Deployments"
                 ],
                 "summary": "Enable Deployment",
-                "description": "Set a deployment schedule to active. Runs will be scheduled immediately.",
+                "description": "Set a deployment to enabled. Runs can be scheduled and created.",
                 "operationId": "enable_deployment_deployments__id__enable_deployment_post",
                 "parameters": [
                     {
