@@ -21,8 +21,8 @@ class BaseAnnotation(
     def rewrap(self, value: T) -> "BaseAnnotation[T]":
         return type(self)(value)
 
-    def __eq__(self, other: object) -> bool:
-        if not type(self) == type(other):
+    def __eq__(self, other: "BaseAnnotation[T]") -> bool:
+        if type(self) is not type(other):
             return False
         return self.unwrap() == other.unwrap()
 
@@ -90,10 +90,11 @@ class quote(BaseAnnotation[T]):
 class Quote(quote):
     def __init__(self, expr):
         warnings.warn(
-            DeprecationWarning,
             "Use of `Quote` is deprecated. Use `quote` instead.",
+            DeprecationWarning,
             stacklevel=2,
         )
+        super().__init__(expr)
 
 
 class NotSet:
