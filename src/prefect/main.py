@@ -25,10 +25,14 @@ import prefect.context
 # Perform any forward-ref updates needed for Pydantic models
 import prefect.client.schemas
 
-prefect.context.FlowRunContext.model_rebuild()
-prefect.context.TaskRunContext.model_rebuild()
-prefect.client.schemas.State.model_rebuild()
-prefect.client.schemas.StateCreate.model_rebuild()
+prefect.context.FlowRunContext.model_rebuild(
+    _types_namespace={"Flow": Flow, "BaseResult": BaseResult}
+)
+prefect.context.TaskRunContext.model_rebuild(_types_namespace={"Task": Task})
+prefect.client.schemas.State.model_rebuild(_types_namespace={"BaseResult": BaseResult})
+prefect.client.schemas.StateCreate.model_rebuild(
+    _types_namespace={"BaseResult": BaseResult}
+)
 Transaction.model_rebuild()
 
 # Configure logging
