@@ -101,14 +101,53 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
     return blurb
 
 
-def prestart_check():
+def prestart_check(base_url: str):
     """
     Check if `PREFECT_API_URL` is set in the current profile. If not, prompt the user to set it.
+
+    Args:
+        base_url: The base URL the server will be running on
     """
+    api_url = f"{base_url}/api"
     current_profile = load_current_profile()
-    if PREFECT_API_URL not in current_profile.settings:
+    profiles = load_profiles()
+    if current_profile and PREFECT_API_URL not in current_profile.settings:
+        profiles_with_matching_url = [
+            name
+            for name, profile in profiles.items()
+            if profile.settings.get(PREFECT_API_URL) == api_url
+        ]
+        if len(profiles_with_matching_url) == 1:
+            profiles.set_active(profiles_with_matching_url[0])
+            save_profiles(profiles)
+            app.console.print(
+                f"Switched to profile {profiles_with_matching_url[0]!r}",
+                style="green",
+            )
+            return
+        elif len(profiles_with_matching_url) > 1:
+            app.console.print(
+                "Your current profile doesn't have `PREFECT_API_URL` set to the address"
+                " of the server that's running. Some of your other profiles do."
+            )
+            selected_profile = prompt_select_from_list(
+                app.console,
+                "Which profile would you like to switch to?",
+                sorted(
+                    [profile for profile in profiles_with_matching_url],
+                ),
+            )
+            profiles.set_active(selected_profile)
+            save_profiles(profiles)
+            app.console.print(
+                f"Switched to profile {selected_profile!r}", style="green"
+            )
+            return
+
         app.console.print(
-            "`PREFECT_API_URL` is not set. You need to set it to communicate with the server.",
+            "The `PREFECT_API_URL` setting for your current profile doesn't match the"
+            " address of the server that's running. You need to set it to communicate"
+            " with the server.",
             style="yellow",
         )
 
@@ -126,7 +165,6 @@ def prestart_check():
                 ),
             ],
         )
-        profiles = load_profiles()
 
         if choice == "create":
             while True:
@@ -137,13 +175,12 @@ def prestart_check():
                         style="red",
                     )
                 else:
-                    api_url = prompt(
-                        "Enter the `PREFECT_API_URL` value",
-                        default="http://127.0.0.1:4200/api",
-                    )
                     break
+
             profiles.add_profile(
-                Profile(name=profile_name, settings={"PREFECT_API_URL": api_url})
+                Profile(
+                    name=profile_name, settings={PREFECT_API_URL: f"{base_url}/api"}
+                )
             )
             profiles.set_active(profile_name)
             save_profiles(profiles)
@@ -155,8 +192,7 @@ def prestart_check():
             api_url = prompt(
                 "Enter the `PREFECT_API_URL` value", default="http://127.0.0.1:4200/api"
             )
-            prefect_api_url_setting = {"PREFECT_API_URL": api_url}
-            update_current_profile(prefect_api_url_setting)
+            update_current_profile({PREFECT_API_URL: api_url})
             app.console.print(
                 f"Set `PREFECT_API_URL` to {api_url!r} in the current profile {current_profile.name!r}",
                 style="green",
@@ -182,10 +218,10 @@ async def start(
     """
     Start a Prefect server instance
     """
-
+    base_url = f"http://{host}:{port}"
     if is_interactive():
         try:
-            prestart_check()
+            prestart_check(base_url)
         except Exception:
             pass
 
@@ -196,8 +232,6 @@ async def start(
     server_env["PREFECT_API_SERVICES_UI"] = str(ui)
     server_env["PREFECT_UI_ENABLED"] = str(ui)
     server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
-
-    base_url = f"http://{host}:{port}"
 
     pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
     # check if port is already in use
