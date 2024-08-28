@@ -40,7 +40,7 @@ def concurrency(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
-    create_if_missing: Optional[bool] = True,
+    create_if_missing: bool = True,
     max_retries: Optional[int] = None,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
@@ -52,6 +52,7 @@ def concurrency(
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
         create_if_missing: Whether to create the concurrency limits if they do not exist.
+        max_retries: The maximum number of retries to acquire the concurrency slots.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
