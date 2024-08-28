@@ -467,7 +467,9 @@
                     "3.0rc/api-ref/rest-api/server/deployments/read-deployment-schedules",
                     "3.0rc/api-ref/rest-api/server/deployments/create-deployment-schedules",
                     "3.0rc/api-ref/rest-api/server/deployments/delete-deployment-schedule",
-                    "3.0rc/api-ref/rest-api/server/deployments/update-deployment-schedule"
+                    "3.0rc/api-ref/rest-api/server/deployments/update-deployment-schedule",
+                    "3.0rc/api-ref/rest-api/server/deployments/disable-deployment",
+                    "3.0rc/api-ref/rest-api/server/deployments/enable-deployment"
                   ]
                 },
                 {

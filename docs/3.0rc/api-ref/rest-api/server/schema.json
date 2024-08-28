@@ -3573,6 +3573,112 @@
                 }
             }
         },
+        "/api/deployments/{id}/disable_deployment": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Disable Deployment",
+                "description": "Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled\nstate will be deleted.",
+                "operationId": "disable_deployment_deployments__id__disable_deployment_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The deployment id",
+                            "title": "Id"
+                        },
+                        "description": "The deployment id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/deployments/{id}/enable_deployment": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Enable Deployment",
+                "description": "Set a deployment schedule to active. Runs will be scheduled immediately.",
+                "operationId": "enable_deployment_deployments__id__enable_deployment_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The deployment id",
+                            "title": "Id"
+                        },
+                        "description": "The deployment id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/saved_searches/": {
             "put": {
                 "tags": [

@@ -902,3 +902,58 @@ async def delete_deployment_schedule(
             deployment_id=deployment_id,
             auto_scheduled_only=True,
         )
+
+
+@router.post("/{id:uuid}/disable_deployment")
+async def disable_deployment(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """
+    Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
+    state will be deleted.
+    """
+    async with db.session_context(begin_transaction=False) as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+
+        deployment.disabled = True
+        deployment.status = schemas.statuses.DeploymentStatus.DISABLED
+
+        # commit here to make the inactive schedule "visible" to the scheduler service
+        await session.commit()
+
+        # delete any auto scheduled runs
+        await models.deployments._delete_scheduled_runs(
+            session=session,
+            deployment_id=deployment_id,
+            auto_scheduled_only=True,
+        )
+
+        await session.commit()
+
+
+@router.post("/{id:uuid}/enable_deployment")
+async def enable_deployment(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """
+    Set a deployment schedule to active. Runs will be scheduled immediately.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+
+        deployment.disabled = False
+        deployment.status = schemas.statuses.DeploymentStatus.NOT_READY
