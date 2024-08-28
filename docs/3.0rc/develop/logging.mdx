@@ -80,8 +80,8 @@ documentation for more information about the configuration options and syntax us
 
 ## Prefect loggers
 
-To access the Prefect logger, import `from prefect.logging import get_run_logger`. You can send messages to the logger in 
-both flows and tasks.
+To use a Prefect logger, import `get_run_logger` from the `prefect.logging` module. 
+This function returns a logger instance that is aware of the current flow or task run context, allowing for more detailed and contextual logging.
 
 ### Logging in flows
 
@@ -98,21 +98,13 @@ def logger_flow():
     logger.info("INFO level log message.")
 ```
 
-Prefect automatically uses the flow run logger based on the flow context. If you run the code above, Prefect captures the 
-following as a log event:
+Prefect automatically uses the flow run logger based on the flow context which formats the
+log with the name of the current flow run. If you run the code above, Prefect will log:
 
 
 ```bash
 15:35:17.304 | INFO    | Flow run 'mottled-marten' - INFO level log message.
 ```
-
-The default flow run log formatter uses the flow run name for log messages.
-
-<Note>
-If you use a logger that sends logs to the API outside of a flow or task run, a warning is 
-displayed instead of an error. Silence this warning by setting `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore` or 
-have the logger raise an error by setting the value to `error`.
-</Note>
 
 ### Logging in tasks
 
@@ -133,16 +125,13 @@ def logger_flow():
     logger_task()
 ```
 
-Prefect automatically uses the task run logger based on the task context. The default task run log formatter uses the 
-task run name for log messages.
+Prefect automatically uses the task run logger based on the task context which formats the
+log with the name of the current task run.
 
 
 ```bash
 15:33:47.179 | INFO   | Task run 'logger_task-80a1ffd1-0' - INFO level log message from a task.
 ```
-
-The underlying log model for task runs captures the task name, task run ID, and parent flow run ID, which are 
-persisted to the database for reporting and custom message formatting.
 
 ### Logging print statements
 
