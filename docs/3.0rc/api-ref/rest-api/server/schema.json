@@ -16521,6 +16521,12 @@
                         "description": "Whether or not the deployment is paused.",
                         "default": false
                     },
+                    "disabled": {
+                        "type": "boolean",
+                        "title": "Disabled",
+                        "description": "Whether or not the deployment is disabled.",
+                        "default": false
+                    },
                     "schedules": {
                         "items": {
                             "$ref": "#/components/schemas/DeploymentSchedule"
