@@ -993,36 +993,36 @@ class Task(Generic[P, R]):
 
     @overload
     def submit(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: Any,
         **kwargs: Any,
-    ) -> PrefectFuture[T]:
+    ) -> PrefectFuture[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: Any,
         **kwargs: Any,
-    ) -> PrefectFuture[T]:
+    ) -> PrefectFuture[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: Any,
         return_state: Literal[True],
         **kwargs: Any,
-    ) -> State[T]:
+    ) -> State[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: Any,
         return_state: Literal[True],
         **kwargs: Any,
-    ) -> State[T]:
+    ) -> State[R]:
         ...
 
     def submit(
@@ -1157,36 +1157,36 @@ class Task(Generic[P, R]):
 
     @overload
     def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: Iterable[Any],
         **kwargs: Iterable[Any],
-    ) -> PrefectFutureList[PrefectFuture[T]]:
+    ) -> PrefectFutureList[PrefectFuture[R]]:
         ...
 
     @overload
     def map(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: Iterable[Any],
         **kwargs: Iterable[Any],
-    ) -> PrefectFutureList[PrefectFuture[T]]:
+    ) -> PrefectFutureList[PrefectFuture[R]]:
         ...
 
     @overload
     def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: Iterable[Any],
         return_state: Literal[True],
         **kwargs: Iterable[Any],
-    ) -> PrefectFutureList[State[T]]:
+    ) -> PrefectFutureList[State[R]]:
         ...
 
     @overload
     def map(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: Iterable[Any],
         return_state: Literal[True],
         **kwargs: Iterable[Any],
-    ) -> PrefectFutureList[State[T]]:
+    ) -> PrefectFutureList[State[R]]:
         ...
 
     def map(
