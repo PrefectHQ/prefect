@@ -637,6 +637,12 @@ async def create_flow_run_from_deployment(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
 
+        if deployment.disabled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Error creating flow run: Deployment is disabled.",
+            )
+
         try:
             dehydrated_params = deployment.parameters
             dehydrated_params.update(flow_run.parameters or {})

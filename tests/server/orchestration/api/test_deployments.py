@@ -2824,6 +2824,18 @@ class TestCreateFlowRunFromDeployment:
             in response.json()["detail"]
         )
 
+    async def test_create_flow_run_from_deployment_returns_409_if_deployment_disabled(
+        self, client, deployment, session
+    ):
+        deployment.disabled = True
+        await session.commit()
+
+        # should use default parameters, tags, and flow runner
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run", json={}
+        )
+        assert response.status_code == 409
+
 
 class TestGetDeploymentWorkQueueCheck:
     async def test_404_on_bad_id(self, client):
