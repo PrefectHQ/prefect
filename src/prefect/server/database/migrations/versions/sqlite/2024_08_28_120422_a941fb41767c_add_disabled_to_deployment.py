@@ -1,8 +1,8 @@
 """add_disabled_to_deployment
 
 Revision ID: a941fb41767c
-Revises: 2ac65f1758c2
-Create Date: 2024-07-12 12:04:22.108067
+Revises: f93e1439f022
+Create Date: 2024-08-28 12:04:22.108067
 
 """
 
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "a941fb41767c"
-down_revision = "2ac65f1758c2"
+down_revision = "f93e1439f022"
 branch_labels = None
 depends_on = None
 
