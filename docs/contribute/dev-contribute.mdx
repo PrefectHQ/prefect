@@ -1,83 +1,82 @@
 ---
-title: Install for development
-description: Learn how to set up Prefect for development and experimentation.
+title: Develop on Prefect
+description: Learn how to set up Prefect for development, experimentation and code contributions.
 ---
 
-## Develop Prefect docs
+import fork from '/snippets/fork.mdx'
 
-We use [Mintlify](https://mintlify.com/) to host and build the Prefect documentation.
 
-The main branch of the [prefecthq/prefect](https://github.com/PrefectHQ/prefect) GitHub repository is used to build the Prefect 3.0rc docs at [docs-3.prefect.io](https://docs-3.prefect.io) temporarily.
+## Make a code contribution
 
-The 2.x docs are hosted at [docs.prefect.io](https://docs.prefect.io) and built from the 2.x branch of prefecthq/prefect.
+We welcome all forms of contributions to Prefect, whether it's small typo fixes in [our documentation](/contribute/docs-contribute), bug fixes or feature enhancements!
+If this is your first time making an open source contribution we will be glad to work with you and help you get up to speed.
 
-Make sure you have a recent version of Node.js installed. 
-We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions.
+<Note>
+For small changes such as typo fixes you can simply open a pull request - we typically review small changes like these within the day.
+For larger changes including all bug fixes, we ask that you first open [an issue](https://github.com/PrefectHQ/prefect/issues) or comment on the issue that you are planning to work on.
+</Note>
 
-1. Clone this repository.
-2. Run `cd docs` to navigate to the docs directory.
-3. Run `nvm use node` to use the correct Node.js version.
-4. Run `npm i -g mintlify` to install Mintlify.
-5. Run `mintlify dev` to start the development server.
+## Fork the repository
+<fork />
 
-Your docs should now be available at `http://localhost:3000`.
+## Install Prefect for development
 
-See the [Mintlify documentation](https://mintlify.com/docs/development) for more information on how install Mintlify, build previews, and use Mintlify's features while writing docs.
-
-`.mdx` files are Markdown files that can contain JavaScript and React components. 
-
-## Develop Prefect source code
-
-### Step 1: Download the source code and install an editable copy of the Prefect Python package:
-
+Once you have cloned your fork of the repo:
 ```bash
 # Clone the repository
-git clone https://github.com/PrefectHQ/prefect.git
+git clone https://github.com/GITHUB-USERNAME/prefect.git
 cd prefect
+```
+you can install [an editable version](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of Prefect for quick iteration.
+We recommend using a virtual environment such as `venv`: 
 
-# We recommend using a virtual environment. Below we use venv
-
+```bash
 python -m venv .venv
 source .venv/bin/activate
 
-# Install the package with development dependencies
-
+# Installs the package with development dependencies
 pip install -e ".[dev]"
 ```
 
-### Step 2: Set up pre-commit hooks for required formatting
+To ensure your changes comply with our linting policies, you can optionally set up pre-commit hooks to run with every commit:
 
 ```
 pre-commit install
 ```
 
-If you don't want to install the pre-commit hooks, manually install the formatting dependencies with:
+If you don't want to install the pre-commit hooks, you can manually install the linting utilities and run them yourself:
 
 ```bash
 pip install $(./scripts/precommit-versions.py)
+
+ruff check
+ruff format
 ```
 
-Run `ruff check` and `ruff format`.
+## Write tests
 
-### Step 3: Run the test suite
+Prefect relies on unit testing to ensure proposed changes don't negatively impact any functionality.
+For all code changes, including bug fixes, we ask that you write at least one corresponding test.
+One rule of thumb - especially for bug fixes - is that you should write a test that fails prior to your changes and passes with your changes.
+This ensures the test will fail and prevent the bug from resurfacing if other changes are made in the future.
+All tests can be found in the `tests/` directory of the repository.
 
-After installation, you can run the test suite with `pytest`:
-
-Run all tests:
+You can run the test suite with `pytest`:
 
 ```bash
+# run all tests
 pytest tests
-```
 
-Run a subset of tests
-
-```bash
+# run a specific file
 pytest tests/test_flows.py
+
+# run all tests that match a pattern
+pytest -k 'tasks'
 ```
 
-### Build the Prefect UI
+## Working with a development UI
 
-If you intend to run a local Prefect server during development, first build the UI. 
+If you plan to use the UI during development, you will need to build a development version of the UI first. 
 
 Using the Prefect UI in development requires installation of [npm](https://github.com/npm/cli). 
 We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions. 
@@ -89,13 +88,31 @@ Start a development UI that reloads on code changes:
 prefect dev ui
 ```
 
-Build the static UI (the UI served by `prefect server start`):
+This command is most useful if you are working directly on the UI codebase.
+
+Alternatively, you can build a static UI that will be served when running `prefect server start`:
 
 ```bash
 prefect dev build-ui
 ```
 
-### Add database migrations
+## Working with a development server
+
+The Prefect CLI provides several helpful commands to aid development of server-side changes.
+
+You can start all services with hot-reloading on code changes (note that this requires installation of UI dependencies):
+
+```bash
+prefect dev start
+```
+
+Start a Prefect API that reloads on code changes:
+
+```bash
+prefect dev api
+```
+
+## Add database migrations
 
 If your code changes necessitate modifications to a database table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. 
 
@@ -150,19 +167,3 @@ prefect server database upgrade -y
 
 After successfully creating migrations for all database types, update `MIGRATION-NOTES.md` to 
 document the changes.
-
-### Developer tooling 
-
-The Prefect CLI provides several helpful commands to aid development.
-
-Start all services with hot-reloading on code changes (requires installation of UI dependencies):
-
-```bash
-prefect dev start
-```
-
-Start a Prefect API that reloads on code changes:
-
-```bash
-prefect dev api
-```
