@@ -162,17 +162,22 @@ def register_type(cls: T) -> T:
     key = get_dispatch_key(cls)
     existing_value = registry.get(key)
     if existing_value is not None and id(existing_value) != id(cls):
-        # Get line numbers for debugging
-        file = inspect.getsourcefile(cls)
-        line_number = inspect.getsourcelines(cls)[1]
-        existing_file = inspect.getsourcefile(existing_value)
-        existing_line_number = inspect.getsourcelines(existing_value)[1]
-        warnings.warn(
-            f"Type {cls.__name__!r} at {file}:{line_number} has key {key!r} that "
-            f"matches existing registered type {existing_value.__name__!r} from "
-            f"{existing_file}:{existing_line_number}. The existing type will be "
-            "overridden."
-        )
+        try:
+            # Get line numbers for debugging
+            file = inspect.getsourcefile(cls)
+            line_number = inspect.getsourcelines(cls)[1]
+            existing_file = inspect.getsourcefile(existing_value)
+            existing_line_number = inspect.getsourcelines(existing_value)[1]
+            warnings.warn(
+                f"Type {cls.__name__!r} at {file}:{line_number} has key {key!r} that "
+                f"matches existing registered type {existing_value.__name__!r} from "
+                f"{existing_file}:{existing_line_number}. The existing type will be "
+                "overridden."
+            )
+        except OSError:
+            # If we can't get the source, another actor is loading this class via eval
+            # and we shouldn't update the registry
+            return cls
 
     # Add to the registry
     registry[key] = cls
