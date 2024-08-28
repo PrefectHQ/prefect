@@ -1687,8 +1687,8 @@ class PrefectClient:
             tags: an optional list of tags to apply to the deployment
             storage_document_id: an reference to the storage block document
                 used for the deployed flow
-            # path:
-            entrypoint: the entrypoint to associate
+            path: The path to the working directory for the workflow, relative to remote storage or an absolute path
+            entrypoint: The path to the entrypoint for the workflow, relative to the `path`
             infrastructure_document_id: an reference to the infrastructure block document
                 to use for this deployment
             paused: an optional boolean. If True, flow runs will be scheduled as
