@@ -680,10 +680,10 @@
       "group": "Contribute",
       "pages": [
         "contribute/index",
+        "contribute/docs-contribute",
         "contribute/dev-contribute",
-        "contribute/styles-practices",
-        "contribute/develop-a-new-worker-type",
         "contribute/contribute-integrations",
+        "contribute/styles-practices",
         "contribute/code-of-conduct"
       ]
     }
