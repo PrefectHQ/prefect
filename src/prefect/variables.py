@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas.actions import VariableCreate as VariableRequest
@@ -26,7 +26,7 @@ class Variable(VariableRequest):
         value: str,
         tags: Optional[List[str]] = None,
         overwrite: bool = False,
-    ) -> Optional[str]:
+    ) -> Optional["Variable"]:
         """
         Sets a new variable. If one exists with the same name, user must pass `overwrite=True`
         ```
@@ -47,8 +47,7 @@ class Variable(VariableRequest):
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        var_dict = {"name": name, "value": value}
-        var_dict["tags"] = tags or []
+        var_dict = {"name": name, "value": value, "tags": tags or []}
         if variable:
             if not overwrite:
                 raise ValueError(
@@ -61,11 +60,13 @@ class Variable(VariableRequest):
             var = VariableRequest(**var_dict)
             variable = await client.create_variable(variable=var)
 
-        return variable.value if variable else None
+        return variable if variable else None
 
     @classmethod
     @sync_compatible
-    async def get(cls, name: str, default: Optional[str] = None) -> Optional[str]:
+    async def get(
+        cls, name: str, default: Optional[str] = None
+    ) -> Optional[Union["Variable", str]]:
         """
         Get a variable by name. If doesn't exist return the default.
         ```
@@ -86,7 +87,7 @@ class Variable(VariableRequest):
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        return variable.value if variable else default
+        return variable if variable else default
 
 
 @deprecated_callable(start_date="Apr 2024")
@@ -110,4 +111,7 @@ async def get(name: str, default: Optional[str] = None) -> Optional[str]:
             var = await variables.get("my_var")
     ```
     """
-    return await Variable.get(name, default=default)
+    variable = await Variable.get(name, default=default)
+    if isinstance(variable, Variable):
+        variable = variable.value
+    return variable
