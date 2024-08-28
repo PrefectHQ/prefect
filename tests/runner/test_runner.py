@@ -27,6 +27,7 @@ from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.concurrency.asyncio import (
+    AcquireConcurrencySlotTimeoutError,
     _acquire_concurrency_slots,
     _release_concurrency_slots,
 )
@@ -681,6 +682,81 @@ class TestRunner:
                 assert names == [f"deployment:{deployment_id}"]
                 assert occupy == 1
                 assert occupy_seconds > 0
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_proposes_awaiting_concurrency_limit_state_name(
+        self, prefect_client: PrefectClient, caplog
+    ):
+        async def test(*args, **kwargs):
+            return 0
+
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            # Simulate a Locked response from the API
+            acquire_spy.side_effect = AcquireConcurrencySlotTimeoutError
+
+            async with Runner(pause_on_shutdown=False) as runner:
+                deployment = RunnerDeployment.from_flow(
+                    flow=dummy_flow_1,
+                    name=__file__,
+                    concurrency_limit=1,
+                )
+
+                deployment_id = await runner.add_deployment(deployment)
+
+                flow_run = await prefect_client.create_flow_run_from_deployment(
+                    deployment_id=deployment_id
+                )
+
+                assert flow_run.state.is_scheduled()
+
+                runner.run = test  # simulate running a flow
+
+                await runner._get_and_submit_flow_runs()
+
+            acquire_spy.assert_called_once_with(
+                [f"deployment:{deployment_id}"],
+                1,
+                timeout_seconds=None,
+                create_if_missing=True,
+                max_retries=0,
+            )
+
+            flow_run = await prefect_client.read_flow_run(flow_run.id)
+            assert flow_run.state.name == "AwaitingConcurrencySlot"
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_does_not_attempt_to_acquire_limit_if_deployment_has_no_concurrency_limit(
+        self, prefect_client: PrefectClient, caplog
+    ):
+        async def test(*args, **kwargs):
+            return 0
+
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            async with Runner(pause_on_shutdown=False) as runner:
+                deployment = RunnerDeployment.from_flow(
+                    flow=dummy_flow_1,
+                    name=__file__,
+                )
+
+                deployment_id = await runner.add_deployment(deployment)
+
+                flow_run = await prefect_client.create_flow_run_from_deployment(
+                    deployment_id=deployment_id
+                )
+
+                assert flow_run.state.is_scheduled()
+
+                runner.run = test  # simulate running a flow
+
+                await runner._get_and_submit_flow_runs()
+
+            acquire_spy.assert_not_called()
 
     async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
         """
