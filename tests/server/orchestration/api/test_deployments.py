@@ -2432,6 +2432,18 @@ class TestScheduleDeployment:
         assert actual_dates == set(expected_dates)
         assert len(actual_dates) == 20
 
+    async def test_schedule_deployment_returns_409_if_disabled(
+        self, client, session, deployment, deployment_schedule
+    ):
+        deployment.disabled = True
+        await session.commit()
+
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        response = await client.post(f"/deployments/{deployment.id}/schedule")
+        assert response.status_code == 409
+
 
 class TestCreateFlowRunFromDeployment:
     async def test_create_flow_run_from_deployment_with_defaults(

@@ -533,6 +533,20 @@ async def schedule_deployment(
         min_time = datetime.timedelta(seconds=min_time)
 
     async with db.session_context(begin_transaction=True) as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+
+        if deployment.disabled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Deployment is disabled.",
+            )
+
         await models.deployments.schedule_runs(
             session=session,
             deployment_id=deployment_id,
