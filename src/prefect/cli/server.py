@@ -220,11 +220,10 @@ async def start(
     """
     base_url = f"http://{host}:{port}"
     if is_interactive():
-        # try:
-        prestart_check(base_url)
-        # except Exception as exc:
-        #     app.console.print(f"Error: {exc}", style="red")
-        #     pass
+        try:
+            prestart_check(base_url)
+        except Exception:
+            pass
 
     server_env = os.environ.copy()
     server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
