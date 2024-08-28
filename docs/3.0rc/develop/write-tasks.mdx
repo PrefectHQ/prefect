@@ -70,6 +70,21 @@ Running that flow in the terminal results in output like this:
 
 This task run is tracked in the UI as well.
 
+Tasks are uniquely identified by a task key, which is a hash composed of the task name, the fully qualified name of the function, and any tags. 
+If the task does not have a name specified, the name is derived from the decorated function object.
+
+<Note>
+**How big should a task be?**
+
+Prefect encourages "small tasks." Each one should represent a single logical step of your workflow. 
+This allows Prefect to better contain task failures.
+
+There's nothing stopping you from putting all of your code in a single task. However, if any line of 
+code fails, the entire task fails and must be retried from the beginning. 
+Avoid this by splitting the code into multiple dependent tasks.
+</Note>
+
+
 ## Supported functions
 
 Almost any standard Python function can be turned into a Prefect task by adding the `@task` decorator. 
@@ -118,7 +133,7 @@ asyncio.run(print_message())
 
 ### Class Methods
 
-Prefect supports snchronous and asynchronous methods as tasks, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@task` decorator:
+Prefect supports synchronous and asynchronous methods as tasks, including instance methods, class methods, and static methods. For class methods and static methods, you must apply the appropriate method decorator _above_ the `@task` decorator:
 
 ```python
 from prefect import task
@@ -323,58 +338,6 @@ The logs show that each task is running concurrently:
 Average open issues per user 💌 : 2.27
 12:45:29.838 | INFO    | Flow run 'intrepid-coua' - Finished in state Completed('All states completed.')
 ```
-
-**Call a task from a flow**
-
-Use the `@task` decorator to designate a function as a task. Calling the task creates a new task run:
-
-```python 
-from prefect import flow, task
-
-
-@task
-def my_task():
-    print("Hello, I'm a task")
-
-
-@flow
-def my_flow():
-    my_task()
-
-if __name__ == "__main__":
-    my_flow()
-```
-
-**Call a task from another task**
-
-A task can be called from within another task:
-
-```python
-from prefect import task
-
-
-@task
-def my_task():
-    print("Hello, I'm a task")
-
-@task(log_prints=True)
-def my_parent_task():
-    my_task()
-```
-
-Tasks are uniquely identified by a task key, which is a hash composed of the task name, the fully qualified name of the function, and any tags. 
-If the task does not have a name specified, the name is derived from the task function.
-
-<Note>
-**How big should a task be?**
-
-Prefect encourages "small tasks." Each one should represent a single logical step of your workflow. 
-This allows Prefect to better contain task failures.
-
-There's nothing stopping you from putting all of your code in a single task. However, if any line of 
-code fails, the entire task fails and must be retried from the beginning. 
-Avoid this by splitting the code into multiple dependent tasks.
-</Note>
 
 ## Task configuration
 
@@ -702,30 +665,3 @@ These settings will not override the `retries` or `retry_delay_seconds` that are
 prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
 prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
 ```
-
-## Task results
-
-Depending on how you call tasks, they can return different types of results and optionally engage the use of a [task runner](/3.0rc/develop/task-runners/).
-
-Any task can return:
-
-- Data, such as `int`, `str`, `dict`, `list`. This is the default behavior any time you 
-call `your_task()`.
-- A [`PrefectFuture`](https://prefect-python-sdk-docs.netlify.app/prefect/futures/#prefect.futures.PrefectFuture). Call [`your_task.submit()`](/3.0rc/develop/task-runners/#using-a-task-runner). A `PrefectFuture` contains both _data_ and _State_.
-- Prefect [`State`](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/states/). Call a task with the argument `return_state=True`. Use the return state to build custom behavior based 
-upon a state change, such as a task failure or retrying.
-
-To run your task with a [task runner](/3.0rc/develop/task-runners/), call the task 
-with `.submit()`.
-
-See [state returned values](/3.0rc/develop/task-runners/#using-results-from-submitted-tasks) 
-for examples.
-
-<Tip>
-**Task runners are optional**
-
-If you just need the result from a task, call the task from your flow. For most workflows, 
-the default behavior of calling a task directly and receiving a result is enough.
-</Tip>
-
-To learn how to cache task results to avoid unnecessary task runs, see [Configure task caching](/3.0rc/develop/task-caching).
