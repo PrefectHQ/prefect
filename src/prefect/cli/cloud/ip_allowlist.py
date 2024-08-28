@@ -203,9 +203,7 @@ async def toggle(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT):
         )
 
 
-def _print_ip_allowlist_table(
-    ip_allowlist: IPAllowlist, enabled: Optional[bool] = None
-):
+def _print_ip_allowlist_table(ip_allowlist: IPAllowlist, enabled: bool):
     if not ip_allowlist.entries:
         app.console.print(
             Panel(
@@ -215,11 +213,13 @@ def _print_ip_allowlist_table(
         )
         return
 
+    red_asterisk_if_not_enabled = "[red]*[/red]" if enabled is False else ""
+
     table = Table(
-        title="IP Allowlist",
-        caption=None
-        if enabled is None
-        else f"Enforcement of this list is currently {'ON' if enabled else 'OFF'}.",
+        title="IP Allowlist " + red_asterisk_if_not_enabled,
+        caption=f"{red_asterisk_if_not_enabled} Enforcement is "
+        f"[bold]{'ENABLED' if enabled else '[red]DISABLED[/red]'}[/bold].",
+        caption_style="not dim",
     )
 
     table.add_column("IP Address", style="cyan", no_wrap=True)
