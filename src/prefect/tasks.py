@@ -986,44 +986,42 @@ class Task(Generic[P, R]):
     @overload
     def submit(
         self: "Task[P, NoReturn]",
-        *args: P.args,
-        **kwargs: P.kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> PrefectFuture[NoReturn]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
         ...
 
     @overload
     def submit(
         self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> PrefectFuture[T]:
         ...
 
     @overload
     def submit(
         self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> PrefectFuture[T]:
         ...
 
     @overload
     def submit(
         self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
+        *args: Any,
         return_state: Literal[True],
-        **kwargs: P.kwargs,
+        **kwargs: Any,
     ) -> State[T]:
         ...
 
     @overload
     def submit(
         self: "Task[P, T]",
-        *args: P.args,
+        *args: Any,
         return_state: Literal[True],
-        **kwargs: P.kwargs,
+        **kwargs: Any,
     ) -> State[T]:
         ...
 
@@ -1152,52 +1150,52 @@ class Task(Generic[P, R]):
     @overload
     def map(
         self: "Task[P, NoReturn]",
-        *args: P.args,
-        **kwargs: P.kwargs,
+        *args: Iterable[Any],
+        **kwargs: Iterable[Any],
     ) -> PrefectFutureList[PrefectFuture[NoReturn]]:
         ...
 
     @overload
     def map(
         self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
+        *args: Iterable[Any],
+        **kwargs: Iterable[Any],
     ) -> PrefectFutureList[PrefectFuture[T]]:
         ...
 
     @overload
     def map(
         self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
+        *args: Iterable[Any],
+        **kwargs: Iterable[Any],
     ) -> PrefectFutureList[PrefectFuture[T]]:
         ...
 
     @overload
     def map(
         self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
+        *args: Iterable[Any],
         return_state: Literal[True],
-        **kwargs: P.kwargs,
+        **kwargs: Iterable[Any],
     ) -> PrefectFutureList[State[T]]:
         ...
 
     @overload
     def map(
         self: "Task[P, T]",
-        *args: P.args,
+        *args: Iterable[Any],
         return_state: Literal[True],
-        **kwargs: P.kwargs,
+        **kwargs: Iterable[Any],
     ) -> PrefectFutureList[State[T]]:
         ...
 
     def map(
         self,
-        *args: Any,
+        *args: Iterable[Any],
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         deferred: bool = False,
-        **kwargs: Any,
+        **kwargs: Iterable[Any],
     ):
         """
         Submit a mapped run of the task to a worker.
