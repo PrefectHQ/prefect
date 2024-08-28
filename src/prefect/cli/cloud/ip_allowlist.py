@@ -13,11 +13,14 @@ from prefect.cli.root import app
 from prefect.client.cloud import get_cloud_client
 from prefect.client.schemas.objects import IPAllowlist, IPAllowlistEntry
 from prefect.exceptions import PrefectHTTPStatusError
+from prefect.logging.loggers import get_logger
 
 ip_allowlist_app = PrefectTyper(
     name="ip-allowlist", help="Manage Prefect Cloud IP Allowlists"
 )
 cloud_app.add_typer(ip_allowlist_app, aliases=["ip-allowlists"])
+
+logger = get_logger(__name__)
 
 
 @ip_allowlist_app.callback()
@@ -54,8 +57,15 @@ async def enable(ctx: typer.Context):
         exit_with_success("IP allowlist is already enabled.")
 
     async with get_cloud_client(infer_cloud_url=True) as client:
-        ip_allowlist = await client.read_account_ip_allowlist()
-        if ip_allowlist.entries and not typer.confirm(
+        my_access_if_enabled = await client.check_ip_allowlist_access()
+        if not my_access_if_enabled.allowed:
+            exit_with_error(
+                f"Error enabling IP allowlist: {my_access_if_enabled.detail}"
+            )
+
+        logger.debug(my_access_if_enabled.detail)
+
+        if not typer.confirm(
             "Enabling the IP allowlist will restrict Prefect Cloud API and UI access to only the IP addresses on the list. "
             "Continue?"
         ):

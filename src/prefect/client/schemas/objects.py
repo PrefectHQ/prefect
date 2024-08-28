@@ -877,6 +877,13 @@ class IPAllowlist(PrefectBaseModel):
     entries: List[IPAllowlistEntry]
 
 
+class IPAllowlistMyAccessResponse(PrefectBaseModel):
+    """Expected payload for an IP allowlist access response from the Prefect Cloud API."""
+
+    allowed: bool
+    detail: str
+
+
 class BlockType(ObjectBaseModel):
     """An ORM representation of a block type"""
 

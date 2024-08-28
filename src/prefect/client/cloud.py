@@ -9,7 +9,11 @@ from starlette import status
 import prefect.context
 import prefect.settings
 from prefect.client.base import PrefectHttpxAsyncClient
-from prefect.client.schemas.objects import IPAllowlist, Workspace
+from prefect.client.schemas.objects import (
+    IPAllowlist,
+    IPAllowlistMyAccessResponse,
+    Workspace,
+)
 from prefect.exceptions import ObjectNotFound, PrefectException
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -132,6 +136,10 @@ class CloudClient:
             f"{self.account_base_url}/ip_allowlist",
             json=updated_allowlist.model_dump(mode="json"),
         )
+
+    async def check_ip_allowlist_access(self) -> IPAllowlistMyAccessResponse:
+        response = await self.get(f"{self.account_base_url}/ip_allowlist/my_access")
+        return IPAllowlistMyAccessResponse.model_validate(response)
 
     async def __aenter__(self):
         await self._client.__aenter__()

@@ -117,11 +117,11 @@ def test_ip_allowlist_enable(respx_mock, workspace_with_logged_in_profile):
         )
     )
     respx_mock.get(
-        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist/my_access"
     ).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=SAMPLE_ALLOWLIST.model_dump(mode="json"),
+            json={"allowed": True, "detail": "You're in."},
         )
     )
 
@@ -163,6 +163,35 @@ def test_ip_allowlist_enable_already_enabled(
             ["cloud", "ip-allowlist", "enable"],
             expected_code=0,
             expected_output_contains="IP allowlist is already enabled",
+        )
+
+
+def test_ip_allowlist_enable_aborts_if_would_block_current_user(
+    respx_mock, workspace_with_logged_in_profile
+):
+    workspace, profile = workspace_with_logged_in_profile
+    respx_mock.get(
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/settings"
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json={"enforce_ip_allowlist": False},
+        )
+    )
+    respx_mock.get(
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist/my_access"
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json={"allowed": False, "detail": "You're not in."},
+        )
+    )
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "enable"],
+            expected_code=1,
+            expected_output_contains="Error enabling IP allowlist: You're not in.",
         )
 
 
