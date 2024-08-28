@@ -12,6 +12,7 @@ from prefect.cli.cloud import cloud_app, confirm_logged_in
 from prefect.cli.root import app
 from prefect.client.cloud import get_cloud_client
 from prefect.client.schemas.objects import IPAllowlist, IPAllowlistEntry
+from prefect.exceptions import PrefectHTTPStatusError
 
 ip_allowlist_app = PrefectTyper(
     name="ip-allowlist", help="Manage Prefect Cloud IP Allowlists"
@@ -90,7 +91,10 @@ class IPNetworkArg(BaseModel):
 
 
 def parse_ip_network_argument(val: str) -> IPNetworkArg:
-    return IPNetworkArg(raw=val, parsed=val)
+    return IPNetworkArg(
+        raw=val,
+        parsed=val,  # type: ignore
+    )
 
 
 IP_ARGUMENT = Annotated[
@@ -136,7 +140,11 @@ async def add(
             ip_allowlist.entries.remove(existing_entry_with_same_ip)
 
         ip_allowlist.entries.append(new_entry)
-        await client.update_account_ip_allowlist(ip_allowlist)
+
+        try:
+            await client.update_account_ip_allowlist(ip_allowlist)
+        except PrefectHTTPStatusError as exc:
+            _handle_update_error(exc)
 
         updated_ip_allowlist = await client.read_account_ip_allowlist()
         _print_ip_allowlist_table(
@@ -154,7 +162,11 @@ async def remove(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT):
             for entry in ip_allowlist.entries
             if entry.ip_network != ip_address_or_range.parsed
         ]
-        await client.update_account_ip_allowlist(ip_allowlist)
+
+        try:
+            await client.update_account_ip_allowlist(ip_allowlist)
+        except PrefectHTTPStatusError as exc:
+            _handle_update_error(exc)
 
         updated_ip_allowlist = await client.read_account_ip_allowlist()
         _print_ip_allowlist_table(
@@ -180,7 +192,10 @@ async def toggle(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT):
                 f"No entry found with IP address `{ip_address_or_range.raw}`."
             )
 
-        await client.update_account_ip_allowlist(ip_allowlist)
+        try:
+            await client.update_account_ip_allowlist(ip_allowlist)
+        except PrefectHTTPStatusError as exc:
+            _handle_update_error(exc)
 
         updated_ip_allowlist = await client.read_account_ip_allowlist()
         _print_ip_allowlist_table(
@@ -222,3 +237,10 @@ def _print_ip_allowlist_table(
         )
 
     app.console.print(table)
+
+
+def _handle_update_error(error: PrefectHTTPStatusError):
+    if error.response.status_code == 422 and (
+        details := error.response.json().get("detail")
+    ):
+        exit_with_error(f"Error updating allowlist: {details}")

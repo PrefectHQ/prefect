@@ -22,23 +22,23 @@ from prefect.testing.cli import invoke_and_assert
 SAMPLE_ALLOWLIST = IPAllowlist(
     entries=[
         IPAllowlistEntry(
-            ip_network="192.168.1.1",
+            ip_network="192.168.1.1",  # type: ignore
             enabled=True,
             description="Perimeter81 Gateway",
             last_seen=str(datetime(2024, 8, 13, 16)),
         ),
         IPAllowlistEntry(
-            ip_network="192.168.1.0/24",
+            ip_network="192.168.1.0/24",  # type: ignore
             enabled=True,
             description="CIDR block for 192.168.0.0 to 192.168.1.255",
         ),
         IPAllowlistEntry(
-            ip_network="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+            ip_network="2001:0db8:85a3:0000:0000:8a2e:0370:7334",  # type: ignore
             enabled=False,
             description="An IPv6 address",
         ),
         IPAllowlistEntry(
-            ip_network="2001:0db8:85a3::/64",
+            ip_network="2001:0db8:85a3::/64",  # type: ignore
             enabled=True,
             description="An IPv6 CIDR block",
         ),
@@ -251,7 +251,9 @@ def test_ip_allowlist_add(
         entries=SAMPLE_ALLOWLIST.entries
         + [
             IPAllowlistEntry(
-                ip_network="192.188.1.5", enabled=True, description=description
+                ip_network="192.188.1.5",
+                enabled=True,
+                description=description,  # type: ignore
             )
         ]
     )
@@ -287,7 +289,7 @@ def test_ip_allowlist_add_existing_ip_entry(
     allowlist = IPAllowlist(
         entries=[
             IPAllowlistEntry(
-                ip_network="192.168.1.1",
+                ip_network="192.168.1.1",  # type: ignore
                 enabled=True,
                 description="original description",
             )
@@ -360,6 +362,54 @@ def test_ip_allowlist_remove(workspace_with_logged_in_profile, respx_mock):
 
 
 @pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
+def test_ip_allowlist_handles_422_on_removal_of_own_ip_address(
+    workspace_with_logged_in_profile, respx_mock
+):
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
+    )
+    my_ip_entry = IPAllowlistEntry(
+        ip_network="127.0.0.1",  # type: ignore
+        enabled=True,
+        description="My IP - cannot remove",
+    )
+    allowlist = IPAllowlist(
+        entries=[
+            my_ip_entry,
+            IPAllowlistEntry(
+                ip_network="192.168.1.0/24",  # type: ignore
+                enabled=True,
+                description="CIDR block for 192.168.0.0 to 192.168.1.255",
+            ),
+        ]
+    )
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=allowlist.model_dump(mode="json"),
+        )
+    )
+
+    allowlist.entries.remove(my_ip_entry)
+    expected_server_error = "Your current IP address (127.0.0.1) must be included in the IP allowlist to prevent account lockout."
+    respx_mock.put(url, json=allowlist.model_dump(mode="json")).mock(
+        return_value=httpx.Response(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            json={"detail": expected_server_error},
+        )
+    )
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "remove", "127.0.0.1"],
+            expected_code=1,
+            expected_output_contains=expected_server_error,
+            expected_line_count=1,
+        )
+
+
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
 def test_ip_allowlist_toggle(workspace_with_logged_in_profile, respx_mock):
     workspace, profile = workspace_with_logged_in_profile
     url = (
@@ -425,4 +475,52 @@ def test_ip_allowlist_toggle_nonexistent_entry(
             ["cloud", "ip-allowlist", "toggle", nonexistent_ip],
             expected_code=1,
             expected_output_contains=f"No entry found with IP address `{nonexistent_ip}`",
+        )
+
+
+@pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
+def test_ip_allowlist_toggle_handles_422_on_disable_of_own_ip_address(
+    workspace_with_logged_in_profile, respx_mock
+):
+    workspace, profile = workspace_with_logged_in_profile
+    url = (
+        f"{PREFECT_CLOUD_API_URL.value()}/accounts/{workspace.account_id}/ip_allowlist"
+    )
+    my_ip_entry = IPAllowlistEntry(
+        ip_network="127.0.0.1",  # type: ignore
+        enabled=True,
+        description="My IP - cannot remove",
+    )
+    allowlist = IPAllowlist(
+        entries=[
+            my_ip_entry,
+            IPAllowlistEntry(
+                ip_network="192.168.1.0/24",  # type: ignore
+                enabled=True,
+                description="CIDR block for 192.168.0.0 to 192.168.1.255",
+            ),
+        ]
+    )
+    respx_mock.get(url).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=allowlist.model_dump(mode="json"),
+        )
+    )
+
+    my_ip_entry.enabled = False
+    expected_server_error = "Your current IP address (127.0.0.1) must be included in the IP allowlist to prevent account lockout."
+    respx_mock.put(url, json=allowlist.model_dump(mode="json")).mock(
+        return_value=httpx.Response(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            json={"detail": expected_server_error},
+        )
+    )
+
+    with use_profile(profile):
+        invoke_and_assert(
+            ["cloud", "ip-allowlist", "toggle", "127.0.0.1"],
+            expected_code=1,
+            expected_output_contains=expected_server_error,
+            expected_line_count=1,
         )
