@@ -2295,6 +2295,24 @@ class TestPauseAndResumeDeployment:
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 1
 
+    async def test_resume_deployment_returns_409_if_deployment_disabled(
+        self, client, deployment, session
+    ):
+        deployment.disabled = True
+        await session.commit()
+
+        response = await client.post(f"/deployments/{deployment.id}/resume_deployment")
+        assert response.status_code == 409
+
+    async def test_pause_deployment_returns_409_if_deployment_disabled(
+        self, client, deployment, session
+    ):
+        deployment.disabled = True
+        await session.commit()
+
+        response = await client.post(f"/deployments/{deployment.id}/pause_deployment")
+        assert response.status_code == 409
+
 
 class TestScheduleDeployment:
     @pytest.fixture

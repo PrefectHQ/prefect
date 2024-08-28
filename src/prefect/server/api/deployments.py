@@ -560,6 +560,13 @@ async def resume_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
+
+        if deployment.disabled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Deployment is disabled",
+            )
+
         deployment.paused = False
 
 
@@ -580,6 +587,13 @@ async def pause_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
+
+        if deployment.disabled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Deployment is disabled",
+            )
+
         deployment.paused = True
 
         # commit here to make the inactive schedule "visible" to the scheduler service
