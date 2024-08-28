@@ -868,6 +868,7 @@ class Deployment(Base):
     paused = sa.Column(
         sa.Boolean, nullable=False, server_default="0", default=False, index=True
     )
+    disabled = sa.Column(sa.Boolean, default=False, server_default="0", nullable=False)
 
     schedules = sa.orm.relationship(
         "DeploymentSchedule",
@@ -887,7 +888,6 @@ class Deployment(Base):
     enforce_parameter_schema = sa.Column(
         sa.Boolean, default=True, server_default="0", nullable=False
     )
-    disabled = sa.Column(sa.Boolean, default=False, server_default="0", nullable=False)
     created_by = sa.Column(
         Pydantic(schemas.core.CreatedBy),
         server_default=None,
