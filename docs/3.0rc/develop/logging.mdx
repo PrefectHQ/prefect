@@ -27,7 +27,7 @@ To log from a flow or a task, retrieve a logger instance with `get_run_logger()`
 [logging methods](https://docs.python.org/3/library/logging.html):
 
 ```python
-from prefect import flow
+from prefect import flow, task
 from prefect.logging import get_run_logger
 
 
@@ -272,7 +272,7 @@ base_style and named expression: `log.email`.
 magenta below:
 
 ```python
-from prefect import flow, task
+from prefect import flow
 from prefect.logging import get_run_logger
 
 @flow
