@@ -3573,14 +3573,14 @@
                 }
             }
         },
-        "/api/deployments/{id}/disable_deployment": {
+        "/api/deployments/{id}/disable": {
             "post": {
                 "tags": [
                     "Deployments"
                 ],
                 "summary": "Disable Deployment",
                 "description": "Set a deployment to disabled. Any auto-scheduled runs will be deleted and\nno new runs can be created until the deployment is enabled.",
-                "operationId": "disable_deployment_deployments__id__disable_deployment_post",
+                "operationId": "disable_deployment_deployments__id__disable_post",
                 "parameters": [
                     {
                         "name": "id",
@@ -3626,14 +3626,14 @@
                 }
             }
         },
-        "/api/deployments/{id}/enable_deployment": {
+        "/api/deployments/{id}/enable": {
             "post": {
                 "tags": [
                     "Deployments"
                 ],
                 "summary": "Enable Deployment",
                 "description": "Set a deployment to enabled. Runs can be scheduled and created.",
-                "operationId": "enable_deployment_deployments__id__enable_deployment_post",
+                "operationId": "enable_deployment_deployments__id__enable_post",
                 "parameters": [
                     {
                         "name": "id",

@@ -904,7 +904,7 @@ async def delete_deployment_schedule(
         )
 
 
-@router.post("/{id:uuid}/disable_deployment")
+@router.post("/{id:uuid}/disable")
 async def disable_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -938,7 +938,7 @@ async def disable_deployment(
         await session.commit()
 
 
-@router.post("/{id:uuid}/enable_deployment")
+@router.post("/{id:uuid}/enable")
 async def enable_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),

@@ -2927,7 +2927,7 @@ class TestDisableAndEnableDeployments:
 
     async def test_disable_deployment(self, client, deployment, session):
         assert deployment.disabled is False
-        response = await client.post(f"/deployments/{deployment.id}/disable_deployment")
+        response = await client.post(f"/deployments/{deployment.id}/disable")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
@@ -2936,22 +2936,22 @@ class TestDisableAndEnableDeployments:
 
     async def test_disable_deployment_multiple_times(self, client, deployment, session):
         assert deployment.disabled is False
-        await client.post(f"/deployments/{deployment.id}/disable_deployment")
-        response = await client.post(f"/deployments/{deployment.id}/disable_deployment")
+        await client.post(f"/deployments/{deployment.id}/disable")
+        response = await client.post(f"/deployments/{deployment.id}/disable")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
         assert deployment.disabled is True
 
     async def test_disable_deployment_with_missing_deployment(self, client):
-        response = await client.post(f"/deployments/{uuid4()}/disable_deployment")
+        response = await client.post(f"/deployments/{uuid4()}/disable")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_disable_deployment_does_not_impact_paused(
         self, client, deployment, session
     ):
         assert deployment.paused is False
-        response = await client.post(f"/deployments/{deployment.id}/disable_deployment")
+        response = await client.post(f"/deployments/{deployment.id}/disable")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
@@ -2989,7 +2989,7 @@ class TestDisableAndEnableDeployments:
         await session.commit()
 
         # The child deployment schedules should be untouched when pausing the deployment
-        response = await client.post(f"/deployments/{deployment.id}/disable_deployment")
+        response = await client.post(f"/deployments/{deployment.id}/disable")
         assert response.status_code == 200
 
         schedules = await models.deployments.read_deployment_schedules(
@@ -3001,9 +3001,7 @@ class TestDisableAndEnableDeployments:
     async def test_enable_deployment(self, client, disabled_deployment, session):
         assert disabled_deployment.disabled is True
 
-        response = await client.post(
-            f"/deployments/{disabled_deployment.id}/enable_deployment"
-        )
+        response = await client.post(f"/deployments/{disabled_deployment.id}/disable")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(disabled_deployment)
@@ -3015,17 +3013,15 @@ class TestDisableAndEnableDeployments:
     ):
         assert disabled_deployment.disabled is True
 
-        await client.post(f"/deployments/{disabled_deployment.id}/enable_deployment")
-        response = await client.post(
-            f"/deployments/{disabled_deployment.id}/enable_deployment"
-        )
+        await client.post(f"/deployments/{disabled_deployment.id}/disable")
+        response = await client.post(f"/deployments/{disabled_deployment.id}/disable")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(disabled_deployment)
         assert disabled_deployment.disabled is False
 
     async def test_enable_deployment_with_missing_deployment(self, client):
-        response = await client.post(f"/deployments/{uuid4()}/enable_deployment")
+        response = await client.post(f"/deployments/{uuid4()}/disable")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_enable_deployment_does_not_impact_paused(
@@ -3034,7 +3030,7 @@ class TestDisableAndEnableDeployments:
         deployment.paused = True
         await session.commit()
 
-        response = await client.post(f"/deployments/{deployment.id}/disable_deployment")
+        response = await client.post(f"/deployments/{deployment.id}/disable")
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
@@ -3070,9 +3066,7 @@ class TestDisableAndEnableDeployments:
 
         await session.commit()
 
-        response = await client.post(
-            f"/deployments/{disabled_deployment.id}/enable_deployment"
-        )
+        response = await client.post(f"/deployments/{disabled_deployment.id}/disable")
         assert response.status_code == 200
 
         schedules = await models.deployments.read_deployment_schedules(
@@ -3092,7 +3086,7 @@ class TestDisableAndEnableDeployments:
         disabled_deployment.schedule = None
         await session.commit()
 
-        await client.post(f"/deployments/{disabled_deployment.id}/enable_deployment")
+        await client.post(f"/deployments/{disabled_deployment.id}/disable")
         await session.refresh(disabled_deployment)
         assert disabled_deployment.disabled is False
         assert disabled_deployment.paused is False
@@ -3122,7 +3116,7 @@ class TestDisableAndEnableDeployments:
         )
         await session.commit()
 
-        await client.post(f"/deployments/{deployment.id}/disable_deployment")
+        await client.post(f"/deployments/{deployment.id}/disable")
 
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 1
