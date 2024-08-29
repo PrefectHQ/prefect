@@ -1,0 +1,42 @@
+---
+title: Secure access by IP address
+description: Manage network access to Prefect Cloud accounts with IP Allowlists.
+---
+
+Prefect Cloud's [Enterprise plan](https://www.prefect.io/pricing) offers IP allowlisting to restrict access to
+Prefect Cloud APIs and UI at the network level by giving users the ability to manage an explicit list of allowed IP addresses for an account.
+
+To get started, use the Prefect CLI to add an IP address to the allowlist:
+
+<Note>To help prevent accidental account lockouts, an update to an allowlist requires the requestor's current IP address to be on the list.</Note>
+
+```bash
+prefect cloud ip-allowlist add <your-ip-address> --description "My home IP address"
+```
+
+The allowlist has a limit of 25 entries; 
+however in addition to individual IP addresses, a range of IP addresses can be added as a single entry using CIDR notation:
+
+```bash
+prefect cloud ip-allowlist add "192.168.1.0/24" -d "A CIDR block containing 256 IP addresses from 192.168.1.0 to 192.168.1.255"
+```
+
+Next, enable the allowlist for your account to start enforcing the restrictions:
+
+```bash
+prefect cloud ip-allowlist enable
+```
+
+Individual entries can also be toggled on or off:
+    
+```bash
+prefect cloud ip-allowlist toggle <ip-address>
+```
+
+Once turned on with at least one enabled IP entry, the allowlist will be enforced for all incoming requests to Prefect Cloud from the UI and API.
+
+For other related commands, see the CLI help documentation with:
+    
+```bash
+prefect cloud ip-allowlist --help
+```
