@@ -121,7 +121,7 @@ class GitHubRepository(ReadableDeploymentStorage):
         # Clone to a temporary directory and move the subdirectory over
         with TemporaryDirectory(suffix="prefect") as tmp_dir:
             tmp_path_str = tmp_dir
-            cmd += f" {tmp_path_str}"
+            cmd += f' "{tmp_path_str}"'
             cmd = shlex.split(cmd)
 
             err_stream = io.StringIO()
