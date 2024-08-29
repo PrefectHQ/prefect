@@ -101,8 +101,8 @@ To deploy a flow using `flow.deploy` and Docker, follow these steps:
 </Steps>
 
 Building a Docker image for our flow allows us to have a consistent environment for our flow to run in. Workers for our work pool will use the image to run our flow.
-In this example, we set `push=False` to skip pushing the image to a registry. This is useful for local development, and you can push your image to a registry like 
-Docker Hub for more production environments.
+In this example, we set `push=False` to skip pushing the image to a registry. This is useful for local development, and you can push your image to a registry such as  
+Docker Hub in a production environment.
 
 <Note>
 **Where's the Dockerfile?**
@@ -113,7 +113,7 @@ any additional dependencies.
 If you want to write and use your own Dockerfile, you can do so by passing a `dockerfile` parameter to `flow.deploy`.
 </Note>
 
-### Triggering a run
+### Trigger a run
 
 Now that we have our flow deployed, we can trigger a run via either the Prefect CLI or UI.
 
@@ -129,7 +129,7 @@ Then, we can trigger a run of our flow using the Prefect CLI:
 prefect deployment run 'my-flow/my-deployment'
 ```
 
-After a few seconds, you should see logs from your worker showing that the flow run has started and see the state update in the UI!
+After a few seconds, you should see logs from your worker showing that the flow run has started and see the state update in the UI.
 
 ## Deploy with a schedule
 
@@ -248,7 +248,7 @@ To deploy a flow with a schedule, you can use one of the following options:
 
 ## Use remote code storage
 
-In addition to using Docker images, Prefect also supports deploying your code using remote storage. This approach allows you to 
+In addition to storing your  code in a Docker image, Prefect also supports deploying your code to remote storage. This approach allows you to 
 store your flow code in a remote location, such as a Git repository or cloud storage service.
 
 Using remote storage for your code has several advantages:
