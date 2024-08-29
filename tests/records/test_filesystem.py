@@ -1,3 +1,4 @@
+import asyncio
 import multiprocessing
 import threading
 from time import sleep
@@ -16,9 +17,12 @@ from prefect.transactions import IsolationLevel
 
 
 def read_locked_key(key, store, queue: multiprocessing.Queue):
-    record = store.read(key)
-    assert record is not None
-    queue.put(record.result, block=False)
+    try:
+        record = store.read(key)
+        assert record is not None
+        queue.put(record.result, block=True, timeout=5)
+    except Exception as e:
+        queue.put(e, block=True, timeout=5)
 
 
 class TestFileSystemRecordStore:
@@ -55,23 +59,34 @@ class TestFileSystemRecordStore:
 
     async def test_read_locked_key(self, store, result):
         key = str(uuid4())
+        read_queue = multiprocessing.Queue()
 
         process = multiprocessing.Process(
             target=read_locked_key,
-            args=(
-                key,
-                store,
-                (read_queue := multiprocessing.Queue()),
-            ),
+            args=(key, store, read_queue),
             daemon=True,
         )
         assert store.acquire_lock(key, holder="holder1")
         process.start()
         store.write(key, result=result, holder="holder1")
         store.release_lock(key, holder="holder1")
-        # the read should have been blocked until the lock was released
-        assert read_queue.get(timeout=10) == result
+
+        try:
+            queue_result = await asyncio.wait_for(
+                asyncio.to_thread(read_queue.get, block=True, timeout=10), timeout=15
+            )
+        except asyncio.TimeoutError:
+            pytest.fail("Timed out waiting for read result")
+
+        if isinstance(queue_result, Exception):
+            pytest.fail(f"Read operation failed: {queue_result}")
+
+        assert queue_result == result
+
         process.join(timeout=1)
+        if process.is_alive():
+            process.terminate()
+            pytest.fail("Process did not complete in time")
 
     async def test_write_to_key_with_same_lock_holder(self, store, result):
         key = str(uuid4())
