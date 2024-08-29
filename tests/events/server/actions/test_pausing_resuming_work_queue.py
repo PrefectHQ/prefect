@@ -434,10 +434,10 @@ async def test_pausing_success_event(
     await action.succeed(pause_related_patrols)
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.executed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
@@ -445,7 +445,22 @@ async def test_pausing_success_event(
             }
         )
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "pause-work-queue",
+        "invocation": str(pause_related_patrols.id),
+    }
+
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
+                "prefect.resource.role": "target",
+            }
+        )
+    ]
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "pause-work-queue",
         "invocation": str(pause_related_patrols.id),
@@ -463,10 +478,10 @@ async def test_resuming_success_event(
     await action.succeed(resume_the_associated_queue)
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.executed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
@@ -474,7 +489,22 @@ async def test_resuming_success_event(
             }
         )
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "resume-work-queue",
+        "invocation": str(resume_the_associated_queue.id),
+    }
+
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
+                "prefect.resource.role": "target",
+            }
+        )
+    ]
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "resume-work-queue",
         "invocation": str(resume_the_associated_queue.id),

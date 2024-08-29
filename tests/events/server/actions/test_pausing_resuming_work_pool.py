@@ -270,10 +270,10 @@ async def test_pausing_publishes_success_event(
     await action.succeed(triggered_pause_action)
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.executed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
@@ -282,7 +282,23 @@ async def test_pausing_publishes_success_event(
             }
         )
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "pause-work-pool",
+        "invocation": str(triggered_pause_action.id),
+    }
+
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                "prefect.resource.name": work_pool.name,
+                "prefect.resource.role": "target",
+            }
+        )
+    ]
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "pause-work-pool",
         "invocation": str(triggered_pause_action.id),
@@ -488,10 +504,10 @@ async def test_resuming_publishes_success_event(
     await action.succeed(triggered_resume_action)
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.executed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{paused_work_pool.id}",
@@ -500,7 +516,23 @@ async def test_resuming_publishes_success_event(
             }
         )
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "resume-work-pool",
+        "invocation": str(triggered_resume_action.id),
+    }
+
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.work-pool.{paused_work_pool.id}",
+                "prefect.resource.name": paused_work_pool.name,
+                "prefect.resource.role": "target",
+            }
+        )
+    ]
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "resume-work-pool",
         "invocation": str(triggered_resume_action.id),
