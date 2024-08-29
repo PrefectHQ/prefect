@@ -19,6 +19,7 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    IPvAnyNetwork,
     SerializationInfo,
     field_validator,
     model_serializer,
@@ -852,6 +853,35 @@ class Workspace(PrefectBaseModel):
 
     def __hash__(self):
         return hash(self.handle)
+
+
+class IPAllowlistEntry(PrefectBaseModel):
+    ip_network: IPvAnyNetwork
+    enabled: bool
+    description: Optional[str] = Field(
+        default=None, description="A description of the IP entry."
+    )
+    last_seen: Optional[str] = Field(
+        default=None,
+        description="The last time this IP was seen accessing Prefect Cloud.",
+    )
+
+
+class IPAllowlist(PrefectBaseModel):
+    """
+    A Prefect Cloud IP allowlist.
+
+    Expected payload for an IP allowlist from the Prefect Cloud API.
+    """
+
+    entries: List[IPAllowlistEntry]
+
+
+class IPAllowlistMyAccessResponse(PrefectBaseModel):
+    """Expected payload for an IP allowlist access response from the Prefect Cloud API."""
+
+    allowed: bool
+    detail: str
 
 
 class BlockType(ObjectBaseModel):
