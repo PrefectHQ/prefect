@@ -723,10 +723,7 @@ class SubprocessASGIServer:
     def __init__(self, port: Optional[int] = None):
         # This ensures initialization happens only once
         if not hasattr(self, "_initialized"):
-            if port is None:
-                port = self.find_available_port()
-            assert port is not None, "Port must be provided or available"
-            self.port: int = port
+            self.port: Optional[int] = port
             self.server_process = None
             self.server = None
             self.running = False
@@ -769,6 +766,9 @@ class SubprocessASGIServer:
             timeout: The maximum time to wait for the server to start
         """
         if not self.running:
+            if self.port is None:
+                self.port = self.find_available_port()
+            assert self.port is not None, "Port must be provided or available"
             subprocess_server_logger.info(f"Starting server on {self.address}")
             try:
                 self.running = True
