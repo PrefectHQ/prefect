@@ -396,7 +396,7 @@ class TestNestedHydration:
                         },
                     }
                 },
-                {"my_object": {"json_key": "json_value"}},
+                {"my_object": ValidJinja("{{ event.payload.body | tojson }}")},
                 HydrationContext(
                     jinja_context={
                         "event": {"payload": {"body": {"json_key": "json_value"}}}
