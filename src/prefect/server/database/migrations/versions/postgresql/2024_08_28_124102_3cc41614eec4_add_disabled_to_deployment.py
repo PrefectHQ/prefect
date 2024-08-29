@@ -21,7 +21,6 @@ def upgrade():
         "deployment",
         sa.Column("disabled", sa.Boolean(), server_default="0", nullable=False),
     )
-    op.execute("ALTER TYPE deployment_status_type ADD VALUE IF NOT EXISTS 'DISABLED';")
 
 
 def downgrade():
