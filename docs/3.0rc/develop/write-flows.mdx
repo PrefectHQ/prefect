@@ -700,6 +700,34 @@ I'm fail safe!
 
 If a flow run returns any other object, then it is recorded as `COMPLETED`
 
+#### Custom named states
+
+You can also create custom named states to provide more granularity in your flow run states.
+
+For example, we could create a `Skipped` state to indicate that a flow run was skipped.
+
+```python
+from prefect import flow
+from prefect.states import Completed
+
+@flow
+def my_flow(work_to_do: bool):
+    if not work_to_do:
+        return Completed(message="No work to do 💤", name="Skipped")
+    else:
+        return Completed(message="Work was done 💪")
+
+
+if __name__ == "__main__":
+    my_flow(work_to_do=False)
+```
+
+Running this flow produces the following result:
+
+```bash
+15:26:49.644 | INFO    | Flow run 'liberal-zebra' - Finished in state Skipped('No work to do', type=COMPLETED)
+```
+
 ## Retries
 
 Unexpected errors may occur in workflows. 
