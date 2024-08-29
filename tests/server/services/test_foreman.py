@@ -551,6 +551,52 @@ class TestForeman:
         events = [event for item in AssertingEventsClient.all for event in item.events]
         assert len(events) == 0
 
+    async def test_status_update_for_disabled_deployment_with_old_last_polled_time(
+        self,
+        session: AsyncSession,
+        client: AsyncClient,
+    ):
+        deployment = await create_deployment_with_old_last_polled_time(session=session)
+        assert deployment
+
+        deployment.disabled = True
+        deployment.status = DeploymentStatus.DISABLED
+
+        await session.commit()
+
+        await Foreman().run_once()
+
+        # Check deployment remains ready
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == 200
+        assert response.json()["status"] == "DISABLED"
+
+        events = [event for item in AssertingEventsClient.all for event in item.events]
+        assert len(events) == 0
+
+    async def test_status_update_for_disabled_deployment_with_new_last_polled_time(
+        self,
+        session: AsyncSession,
+        client: AsyncClient,
+    ):
+        deployment = await create_deployment_with_new_last_polled_time(session=session)
+        assert deployment
+
+        deployment.disabled = True
+        deployment.status = DeploymentStatus.DISABLED
+
+        await session.commit()
+
+        await Foreman().run_once()
+
+        # Check deployment remains ready
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == 200
+        assert response.json()["status"] == "DISABLED"
+
+        events = [event for item in AssertingEventsClient.all for event in item.events]
+        assert len(events) == 0
+
     async def test_foreman_with_no_deployments_to_update(self):
         await Foreman().run_once()
 
