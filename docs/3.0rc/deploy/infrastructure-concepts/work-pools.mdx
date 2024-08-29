@@ -278,6 +278,13 @@ prefect work-pool pause 'test-pool'
 
 To resume a work pool through the Prefect CLI, use the `prefect work-pool resume` command with the work pool name.
 
+<Note>
+**Pausing a work pool does not pause deployment schedules**
+
+Pausing a work pool does **not** pause the schedules of deployments associated with that work pool. Flow runs for associated deployments will
+continue to be scheduled, but they will not run until the work pool is unpaused.
+</Note>
+
 To delete a work pool through the Prefect CLI, use the `prefect work-pool delete` command with the work pool name.
 
 ### Manage concurrency
