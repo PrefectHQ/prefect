@@ -179,7 +179,8 @@
                 "3.0rc/manage/cloud/manage-users/api-keys",
                 "3.0rc/manage/cloud/manage-users/configure-sso",
                 "3.0rc/manage/cloud/manage-users/audit-logs",
-                "3.0rc/manage/cloud/manage-users/object-access-control-lists"
+                "3.0rc/manage/cloud/manage-users/object-access-control-lists",
+                "3.0rc/manage/cloud/manage-users/secure-access-by-ip-address"
               ],
               "version": "3.0rc"
             },
