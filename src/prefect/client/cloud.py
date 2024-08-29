@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import anyio
 import httpx
@@ -9,7 +9,11 @@ from starlette import status
 import prefect.context
 import prefect.settings
 from prefect.client.base import PrefectHttpxAsyncClient
-from prefect.client.schemas.objects import Workspace
+from prefect.client.schemas.objects import (
+    IPAllowlist,
+    IPAllowlistMyAccessResponse,
+    Workspace,
+)
 from prefect.exceptions import ObjectNotFound, PrefectException
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -69,6 +73,26 @@ class CloudClient:
             **httpx_settings, enable_csrf_support=False
         )
 
+        if match := (
+            re.search(PARSE_API_URL_REGEX, host)
+            or re.search(PARSE_API_URL_REGEX, prefect.settings.PREFECT_API_URL.value())
+        ):
+            self.account_id, self.workspace_id = match.groups()
+
+    @property
+    def account_base_url(self) -> str:
+        if not self.account_id:
+            raise ValueError("Account ID not set")
+
+        return f"accounts/{self.account_id}"
+
+    @property
+    def workspace_base_url(self) -> str:
+        if not self.workspace_id:
+            raise ValueError("Workspace ID not set")
+
+        return f"{self.account_base_url}/workspaces/{self.workspace_id}"
+
     async def api_healthcheck(self):
         """
         Attempts to connect to the Cloud API and raises the encountered exception if not
@@ -86,11 +110,36 @@ class CloudClient:
         return workspaces
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
-        configured_url = prefect.settings.PREFECT_API_URL.value()
-        account_id, workspace_id = re.findall(PARSE_API_URL_REGEX, configured_url)[0]
-        return await self.get(
-            f"accounts/{account_id}/workspaces/{workspace_id}/collections/work_pool_types"
+        response = await self.get(
+            f"{self.workspace_base_url}/collections/work_pool_types"
         )
+        return cast(Dict[str, Any], response)
+
+    async def read_account_settings(self) -> Dict[str, Any]:
+        response = await self.get(f"{self.account_base_url}/settings")
+        return cast(Dict[str, Any], response)
+
+    async def update_account_settings(self, settings: Dict[str, Any]):
+        await self.request(
+            "PATCH",
+            f"{self.account_base_url}/settings",
+            json=settings,
+        )
+
+    async def read_account_ip_allowlist(self) -> IPAllowlist:
+        response = await self.get(f"{self.account_base_url}/ip_allowlist")
+        return IPAllowlist.model_validate(response)
+
+    async def update_account_ip_allowlist(self, updated_allowlist: IPAllowlist):
+        await self.request(
+            "PUT",
+            f"{self.account_base_url}/ip_allowlist",
+            json=updated_allowlist.model_dump(mode="json"),
+        )
+
+    async def check_ip_allowlist_access(self) -> IPAllowlistMyAccessResponse:
+        response = await self.get(f"{self.account_base_url}/ip_allowlist/my_access")
+        return IPAllowlistMyAccessResponse.model_validate(response)
 
     async def __aenter__(self):
         await self._client.__aenter__()
@@ -120,7 +169,7 @@ class CloudClient:
                 status.HTTP_401_UNAUTHORIZED,
                 status.HTTP_403_FORBIDDEN,
             ):
-                raise CloudUnauthorizedError
+                raise CloudUnauthorizedError(str(exc)) from exc
             elif exc.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise ObjectNotFound(http_exc=exc) from exc
             else:
