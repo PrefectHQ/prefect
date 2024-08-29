@@ -75,6 +75,7 @@ from prefect import flow, task
 def add_one(x):
     return x + 1
 
+
 @flow 
 def my_flow():
     result = add_one(1)
@@ -95,7 +96,7 @@ def my_flow():
 ```
 
 <Tip>
-Returning a `State` via `return_state=True` is useful when you want to conditionally respond to the terminal states of a task or flow, i.e. `if state.is_failed(): ...`.
+Returning a `State` via `return_state=True` is useful when you want to conditionally respond to the terminal states of a task or flow. For example, `if state.is_failed(): ...`.
 </Tip>
 
 
