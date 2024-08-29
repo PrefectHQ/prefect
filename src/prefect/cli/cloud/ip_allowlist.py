@@ -251,6 +251,11 @@ def _print_ip_allowlist_table(ip_allowlist: IPAllowlist, enabled: bool):
 
 def _handle_update_error(error: PrefectHTTPStatusError):
     if error.response.status_code == 422 and (
-        details := error.response.json().get("detail")
+        details := (
+            error.response.json().get("detail")
+            or error.response.json().get("exception_detail")
+        )
     ):
         exit_with_error(f"Error updating allowlist: {details}")
+    else:
+        raise error
