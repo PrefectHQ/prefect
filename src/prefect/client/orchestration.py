@@ -1775,6 +1775,16 @@ class PrefectClient:
             f"/deployments/{deployment_id}", json={"paused": paused}
         )
 
+    async def disable_deployment(self, deployment_id: UUID):
+        await self._client.post(
+            f"/deployments/{deployment_id}/disable",
+        )
+
+    async def enable_deployment(self, deployment_id: UUID):
+        await self._client.post(
+            f"/deployments/{deployment_id}/enable",
+        )
+
     async def update_deployment(
         self,
         deployment_id: UUID,
