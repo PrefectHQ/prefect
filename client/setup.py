@@ -15,7 +15,7 @@ setup(
     author_email="help@prefect.io",
     url="https://www.prefect.io",
     project_urls={
-        "Changelog": "https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md",
+        "Changelog": "https://github.com/PrefectHQ/prefect/releases",
         "Documentation": "https://docs.prefect.io",
         "Source": "https://github.com/PrefectHQ/prefect",
         "Tracker": "https://github.com/PrefectHQ/prefect/issues",
