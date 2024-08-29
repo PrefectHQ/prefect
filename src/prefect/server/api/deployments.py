@@ -25,7 +25,10 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
-from prefect.server.models.events import deployment_status_event
+from prefect.server.models.events import (
+    deployment_status_event,
+    disabled_deployment_run_attempt_event,
+)
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas.responses import DeploymentPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
@@ -654,6 +657,15 @@ async def create_flow_run_from_deployment(
             )
 
         if deployment.disabled:
+            async with PrefectServerEventsClient() as events:
+                await events.emit(
+                    await disabled_deployment_run_attempt_event(
+                        session=session,
+                        deployment_id=deployment_id,
+                        occurred=pendulum.now("UTC"),
+                    )
+                )
+
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Error creating flow run: Deployment is disabled.",
