@@ -146,12 +146,9 @@ class Model(BaseModel):
 def flow_that_validates_parameters(model: Model): ...
 
 if __name__ == "__main__":
-    try:
-        flow_that_validates_parameters(
-            model={"a": "WRONG", "b": "fine"}
-        )
-    except Exception as e:
-        print(e)
+    flow_that_validates_parameters(
+        model={"a": "WRONG", "b": "fine"}
+    )
 ```
 This flow run will fail with the following error:
 ```
