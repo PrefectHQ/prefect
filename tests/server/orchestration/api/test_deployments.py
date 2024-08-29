@@ -2446,6 +2446,13 @@ class TestScheduleDeployment:
 
 
 class TestCreateFlowRunFromDeployment:
+    @pytest.fixture(autouse=True)
+    def patch_events_client(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "prefect.server.api.deployments.PrefectServerEventsClient",
+            AssertingEventsClient,
+        )
+
     async def test_create_flow_run_from_deployment_with_defaults(
         self, deployment, client
     ):
@@ -2848,6 +2855,16 @@ class TestCreateFlowRunFromDeployment:
         )
         assert response.status_code == 409
 
+        events = [
+            event
+            for item in AssertingEventsClient.all
+            for event in item.events
+            if event.resource.name == deployment.name
+        ]
+
+        assert len(events) == 1
+        assert events[0].event == "prefect.deployment.disabled-run-attempt"
+
 
 class TestGetDeploymentWorkQueueCheck:
     async def test_404_on_bad_id(self, client):
@@ -2918,6 +2935,13 @@ class TestGetDeploymentWorkQueueCheck:
 
 
 class TestDisableAndEnableDeployments:
+    @pytest.fixture(autouse=True)
+    def patch_events_client(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "prefect.server.api.deployments.PrefectServerEventsClient",
+            AssertingEventsClient,
+        )
+
     @pytest.fixture
     async def disabled_deployment(self, session, deployment):
         deployment.disabled = True
@@ -2933,6 +2957,10 @@ class TestDisableAndEnableDeployments:
         await session.refresh(deployment)
         assert deployment.disabled is True
         assert deployment.status == schemas.statuses.DeploymentStatus.DISABLED
+
+        assert_status_events(
+            deployment_name=deployment.name, events=["prefect.deployment.disabled"]
+        )
 
     async def test_disable_deployment_can_be_called_multiple_times(
         self, client, deployment, session
@@ -3041,6 +3069,11 @@ class TestDisableAndEnableDeployments:
         await session.refresh(disabled_deployment)
         assert disabled_deployment.disabled is False
         assert disabled_deployment.status == schemas.statuses.DeploymentStatus.NOT_READY
+
+        assert_status_events(
+            deployment_name=disabled_deployment.name,
+            events=["prefect.deployment.not-ready"],
+        )
 
     async def test_enable_deployment_can_be_called_multiple_times(
         self, client, disabled_deployment, session
