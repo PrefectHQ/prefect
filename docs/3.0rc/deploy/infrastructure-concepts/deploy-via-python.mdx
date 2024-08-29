@@ -257,6 +257,12 @@ Using remote storage for your code has several advantages:
 2. Reduced storage requirements: You don't need to store large Docker images for each code version.
 3. Flexibility: You can use different storage backends based on your needs and infrastructure.
 
+Using an existing remote Git repository like GitHub, GitLab, or Bitbucket works really well as remote code storage because:
+
+1. Your code is already there.
+2. You can deploy to multiple environments via branches and tags.
+3. You can roll back to previous versions of your flows.
+
 To deploy using remote storage, you'll need to specify where your code is stored by using `flow.from_source` to first load your flow code from a remote location.
 
 Here's an example of loading a flow from a Git repository and deploying it:
@@ -277,9 +283,9 @@ if __name__ == "__main__":
 The `source` parameter can be a variety of remote storage options including:
 
 - Git repositories
-- S3 buckets
-- Google Cloud Storage buckets
-- Azure Blob Storage
+- S3 buckets (using the `s3://` scheme)
+- Google Cloud Storage buckets (using the `gs://` scheme)
+- Azure Blob Storage (using the `az://` scheme)
 
 The `entrypoint` parameter is the path to the flow function within your repository combined with the name of the flow function.
 
