@@ -22,8 +22,10 @@ from prefect.server.api.validation import (
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
+from prefect.server.models.events import deployment_status_event
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas.responses import DeploymentPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
@@ -922,11 +924,13 @@ async def disable_deployment(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
 
+        if deployment.disabled:
+            return
+
         deployment.disabled = True
         deployment.status = schemas.statuses.DeploymentStatus.DISABLED
 
         # commit here to make the inactive schedule "visible" to the scheduler service
-        await session.commit()
 
         # delete any auto scheduled runs
         await models.deployments._delete_scheduled_runs(
@@ -934,6 +938,16 @@ async def disable_deployment(
             deployment_id=deployment_id,
             auto_scheduled_only=True,
         )
+
+        async with PrefectServerEventsClient() as events:
+            await events.emit(
+                await deployment_status_event(
+                    session=session,
+                    deployment_id=deployment_id,
+                    status=schemas.statuses.DeploymentStatus.DISABLED,
+                    occurred=pendulum.now("UTC"),
+                )
+            )
 
         await session.commit()
 
@@ -955,5 +969,20 @@ async def enable_deployment(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
 
+        if not deployment.disabled:
+            return
+
         deployment.disabled = False
         deployment.status = schemas.statuses.DeploymentStatus.NOT_READY
+
+        async with PrefectServerEventsClient() as events:
+            await events.emit(
+                await deployment_status_event(
+                    session=session,
+                    deployment_id=deployment_id,
+                    status=schemas.statuses.DeploymentStatus.NOT_READY,
+                    occurred=pendulum.now("UTC"),
+                )
+            )
+
+        await session.commit()
