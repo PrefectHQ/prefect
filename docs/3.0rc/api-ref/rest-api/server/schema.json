@@ -279,7 +279,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_flows_flows_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_flows_flows_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -386,7 +391,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_flows_flows_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_flows_flows_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -442,7 +452,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_paginate_flows_flows_paginate_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_paginate_flows_flows_paginate_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -704,7 +719,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_flow_runs_flow_runs_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_flow_runs_flow_runs_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -757,7 +777,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_average_flow_run_lateness_flow_runs_lateness_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_average_flow_run_lateness_flow_runs_lateness_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -1013,7 +1038,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_resume_flow_run_flow_runs__id__resume_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_resume_flow_run_flow_runs__id__resume_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -1065,7 +1095,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_flow_runs_flow_runs_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_flow_runs_flow_runs_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -1439,7 +1474,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_paginate_flow_runs_flow_runs_paginate_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_paginate_flow_runs_flow_runs_paginate_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -1754,7 +1794,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_task_runs_task_runs_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_task_runs_task_runs_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -1864,7 +1909,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_task_runs_task_runs_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_task_runs_task_runs_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -2419,7 +2469,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_flow_run_notification_policies_flow_run_notification_policies_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_flow_run_notification_policies_flow_run_notification_policies_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -2749,7 +2804,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_deployments_deployments_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_deployments_deployments_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -2805,7 +2865,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_paginate_deployments_deployments_paginate_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_paginate_deployments_deployments_paginate_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -2914,7 +2979,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_deployments_deployments_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_deployments_deployments_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -2979,7 +3049,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_schedule_deployment_deployments__id__schedule_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_schedule_deployment_deployments__id__schedule_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -3413,8 +3488,13 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/DeploymentScheduleUpdate",
-                                "description": "The updated schedule"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DeploymentScheduleUpdate"
+                                    }
+                                ],
+                                "description": "The updated schedule",
+                                "title": "Schedule"
                             }
                         }
                     }
@@ -3670,7 +3750,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_saved_searches_saved_searches_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_saved_searches_saved_searches_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -3781,7 +3866,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_logs_logs_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_logs_logs_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -4097,7 +4187,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_concurrency_limits_concurrency_limits_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_concurrency_limits_concurrency_limits_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -4163,7 +4258,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -4545,7 +4645,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -4976,7 +5081,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_block_types_block_types_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_block_types_block_types_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -5274,7 +5384,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_block_documents_block_documents_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_block_documents_block_documents_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -5330,7 +5445,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_block_documents_block_documents_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_block_documents_block_documents_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -5756,7 +5876,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_pools_work_pools_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_work_pools_work_pools_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -5812,7 +5937,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_work_pools_work_pools_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_work_pools_work_pools_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -5876,7 +6006,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -6194,7 +6329,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_queues_work_pools__work_pool_name__queues_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_work_queues_work_pools__work_pool_name__queues_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -6317,7 +6457,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_workers_work_pools__work_pool_name__workers_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_workers_work_pools__work_pool_name__workers_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -6431,7 +6576,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_task_workers_task_workers_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_task_workers_task_workers_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -6782,7 +6932,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_queue_runs_work_queues__id__get_runs_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_work_queue_runs_work_queues__id__get_runs_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -6838,7 +6993,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_queues_work_queues_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_work_queues_work_queues_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -7212,7 +7372,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_artifacts_artifacts_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_artifacts_artifacts_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -7268,7 +7433,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_latest_artifacts_artifacts_latest_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_latest_artifacts_artifacts_latest_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -7324,7 +7494,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_artifacts_artifacts_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_artifacts_artifacts_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -7377,7 +7552,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_latest_artifacts_artifacts_latest_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_latest_artifacts_artifacts_latest_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -7583,7 +7763,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_block_schemas_block_schemas_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_block_schemas_block_schemas_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -8153,7 +8338,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_variables_variables_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_variables_variables_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -8208,7 +8398,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_variables_variables_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_count_variables_variables_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -8362,7 +8557,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_events_events_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_events_events_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -8783,7 +8983,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_automations_automations_filter_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_automations_automations_filter_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -9155,7 +9360,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_flow_run_history_ui_flow_runs_history_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_flow_run_history_ui_flow_runs_history_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -9377,7 +9587,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_task_run_counts_by_state_ui_task_runs_count_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_read_task_run_counts_by_state_ui_task_runs_count_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -9516,7 +9731,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_clear_database_admin_database_clear_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_clear_database_admin_database_clear_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -9561,7 +9781,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_drop_database_admin_database_drop_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_drop_database_admin_database_drop_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -9606,7 +9831,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_create_database_admin_database_create_post"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Body_create_database_admin_database_create_post"
+                                    }
+                                ],
+                                "title": "Body"
                             }
                         }
                     }
@@ -9968,7 +10198,11 @@
             "ArtifactCollectionFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -10306,7 +10540,11 @@
             "ArtifactFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -11043,7 +11281,11 @@
             "AutomationFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -11516,7 +11758,11 @@
             "BlockDocumentFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -11847,7 +12093,11 @@
             "BlockSchemaFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -12472,7 +12722,11 @@
                         "$ref": "#/components/schemas/EventFilter"
                     },
                     "time_unit": {
-                        "$ref": "#/components/schemas/TimeUnit",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TimeUnit"
+                            }
+                        ],
                         "default": "day"
                     },
                     "time_interval": {
@@ -12491,19 +12745,39 @@
             "Body_count_artifacts_artifacts_count_post": {
                 "properties": {
                     "artifacts": {
-                        "$ref": "#/components/schemas/ArtifactFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ArtifactFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -12566,22 +12840,46 @@
             "Body_count_deployments_deployments_count_post": {
                 "properties": {
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -12590,22 +12888,46 @@
             "Body_count_flow_runs_flow_runs_count_post": {
                 "properties": {
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -12614,19 +12936,39 @@
             "Body_count_flows_flows_count_post": {
                 "properties": {
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -12635,19 +12977,39 @@
             "Body_count_latest_artifacts_artifacts_latest_count_post": {
                 "properties": {
                     "artifacts": {
-                        "$ref": "#/components/schemas/ArtifactCollectionFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ArtifactCollectionFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -12674,16 +13036,32 @@
             "Body_count_task_runs_task_runs_count_post": {
                 "properties": {
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -12852,22 +13230,46 @@
                         "description": "The size of each history interval, in seconds. Must be at least 1 second."
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
                     },
                     "work_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -12989,25 +13391,53 @@
                         "default": 1
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
                     },
                     "sort": {
-                        "$ref": "#/components/schemas/DeploymentSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentSort"
+                            }
+                        ],
                         "default": "NAME_ASC"
                     },
                     "limit": {
@@ -13022,7 +13452,11 @@
             "Body_paginate_flow_runs_flow_runs_paginate_post": {
                 "properties": {
                     "sort": {
-                        "$ref": "#/components/schemas/FlowRunSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunSort"
+                            }
+                        ],
                         "default": "ID_DESC"
                     },
                     "page": {
@@ -13159,7 +13593,11 @@
                         ]
                     },
                     "sort": {
-                        "$ref": "#/components/schemas/FlowSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowSort"
+                            }
+                        ],
                         "default": "NAME_ASC"
                     },
                     "limit": {
@@ -13191,7 +13629,11 @@
             "Body_read_artifacts_artifacts_filter_post": {
                 "properties": {
                     "sort": {
-                        "$ref": "#/components/schemas/ArtifactSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ArtifactSort"
+                            }
+                        ],
                         "default": "ID_DESC"
                     },
                     "offset": {
@@ -13201,19 +13643,39 @@
                         "default": 0
                     },
                     "artifacts": {
-                        "$ref": "#/components/schemas/ArtifactFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ArtifactFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "limit": {
                         "type": "integer",
@@ -13227,7 +13689,11 @@
             "Body_read_automations_automations_filter_post": {
                 "properties": {
                     "sort": {
-                        "$ref": "#/components/schemas/AutomationSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AutomationSort"
+                            }
+                        ],
                         "default": "NAME_ASC"
                     },
                     "offset": {
@@ -13471,25 +13937,53 @@
                         "default": 0
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
                     },
                     "sort": {
-                        "$ref": "#/components/schemas/DeploymentSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentSort"
+                            }
+                        ],
                         "default": "NAME_ASC"
                     },
                     "limit": {
@@ -13529,7 +14023,11 @@
             "Body_read_flow_run_history_ui_flow_runs_history_post": {
                 "properties": {
                     "sort": {
-                        "$ref": "#/components/schemas/FlowRunSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunSort"
+                            }
+                        ],
                         "default": "EXPECTED_START_TIME_DESC"
                     },
                     "limit": {
@@ -13545,19 +14043,39 @@
                         "default": 0
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -13566,7 +14084,11 @@
             "Body_read_flow_run_notification_policies_flow_run_notification_policies_filter_post": {
                 "properties": {
                     "flow_run_notification_policy_filter": {
-                        "$ref": "#/components/schemas/FlowRunNotificationPolicyFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunNotificationPolicyFilter"
+                            }
+                        ]
                     },
                     "offset": {
                         "type": "integer",
@@ -13586,7 +14108,11 @@
             "Body_read_flow_runs_flow_runs_filter_post": {
                 "properties": {
                     "sort": {
-                        "$ref": "#/components/schemas/FlowRunSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunSort"
+                            }
+                        ],
                         "default": "ID_DESC"
                     },
                     "offset": {
@@ -13673,22 +14199,46 @@
                         "default": 0
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            }
+                        ]
                     },
                     "sort": {
-                        "$ref": "#/components/schemas/FlowSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowSort"
+                            }
+                        ],
                         "default": "NAME_ASC"
                     },
                     "limit": {
@@ -13703,7 +14253,11 @@
             "Body_read_latest_artifacts_artifacts_latest_filter_post": {
                 "properties": {
                     "sort": {
-                        "$ref": "#/components/schemas/ArtifactCollectionSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ArtifactCollectionSort"
+                            }
+                        ],
                         "default": "ID_DESC"
                     },
                     "offset": {
@@ -13713,19 +14267,39 @@
                         "default": 0
                     },
                     "artifacts": {
-                        "$ref": "#/components/schemas/ArtifactCollectionFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ArtifactCollectionFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     },
                     "limit": {
                         "type": "integer",
@@ -13745,10 +14319,18 @@
                         "default": 0
                     },
                     "logs": {
-                        "$ref": "#/components/schemas/LogFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LogFilter"
+                            }
+                        ]
                     },
                     "sort": {
-                        "$ref": "#/components/schemas/LogSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LogSort"
+                            }
+                        ],
                         "default": "TIMESTAMP_ASC"
                     },
                     "limit": {
@@ -13826,7 +14408,11 @@
             "Body_read_task_runs_task_runs_filter_post": {
                 "properties": {
                     "sort": {
-                        "$ref": "#/components/schemas/TaskRunSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunSort"
+                            }
+                        ],
                         "default": "ID_DESC"
                     },
                     "offset": {
@@ -13920,7 +14506,11 @@
                         ]
                     },
                     "sort": {
-                        "$ref": "#/components/schemas/VariableSort",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/VariableSort"
+                            }
+                        ],
                         "default": "NAME_ASC"
                     },
                     "limit": {
@@ -13992,7 +14582,11 @@
             "Body_read_work_queues_work_pools__work_pool_name__queues_filter_post": {
                 "properties": {
                     "work_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
                     },
                     "offset": {
                         "type": "integer",
@@ -14018,7 +14612,11 @@
                         "default": 0
                     },
                     "work_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            }
+                        ]
                     },
                     "limit": {
                         "type": "integer",
@@ -14032,7 +14630,11 @@
             "Body_read_workers_work_pools__work_pool_name__workers_filter_post": {
                 "properties": {
                     "workers": {
-                        "$ref": "#/components/schemas/WorkerFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerFilter"
+                            }
+                        ]
                     },
                     "offset": {
                         "type": "integer",
@@ -14125,7 +14727,11 @@
             "Body_set_flow_run_state_flow_runs__id__set_state_post": {
                 "properties": {
                     "state": {
-                        "$ref": "#/components/schemas/StateCreate",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateCreate"
+                            }
+                        ],
                         "description": "The intended state."
                     },
                     "force": {
@@ -14144,7 +14750,11 @@
             "Body_set_task_run_state_task_runs__id__set_state_post": {
                 "properties": {
                     "state": {
-                        "$ref": "#/components/schemas/StateCreate",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateCreate"
+                            }
+                        ],
                         "description": "The intended state."
                     },
                     "force": {
@@ -14181,16 +14791,32 @@
                         "description": "The size of each history interval, in seconds. Must be at least 1 second."
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -14316,7 +14942,11 @@
                         "description": "The name of the state to change the flow run to"
                     },
                     "state": {
-                        "$ref": "#/components/schemas/StateType",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            }
+                        ],
                         "description": "The type of the state to change the flow run to"
                     },
                     "message": {
@@ -15297,7 +15927,11 @@
             "DeploymentFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -15519,7 +16153,11 @@
             "DeploymentFilterTags": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -15645,7 +16283,11 @@
                         "title": "Infrastructure Document Id"
                     },
                     "empirical_policy": {
-                        "$ref": "#/components/schemas/FlowRunPolicy",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunPolicy"
+                            }
+                        ],
                         "description": "The empirical policy for the flow run."
                     },
                     "tags": {
@@ -16533,7 +17175,11 @@
                         "description": "The name of the event that happened"
                     },
                     "resource": {
-                        "$ref": "#/components/schemas/Resource",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Resource"
+                            }
+                        ],
                         "description": "The primary Resource this event concerns"
                     },
                     "related": {
@@ -16671,7 +17317,11 @@
             "EventFilter": {
                 "properties": {
                     "occurred": {
-                        "$ref": "#/components/schemas/EventOccurredFilter",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventOccurredFilter"
+                            }
+                        ],
                         "description": "Filter criteria for when the events occurred"
                     },
                     "event": {
@@ -16719,11 +17369,19 @@
                         "description": "Filter criteria for the related resources of the event"
                     },
                     "id": {
-                        "$ref": "#/components/schemas/EventIDFilter",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventIDFilter"
+                            }
+                        ],
                         "description": "Filter criteria for the events' ID"
                     },
                     "order": {
-                        "$ref": "#/components/schemas/EventOrder",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventOrder"
+                            }
+                        ],
                         "description": "The order to return filtered events",
                         "default": "DESC"
                     }
@@ -17033,11 +17691,19 @@
                         "description": "The unique ID of this trigger"
                     },
                     "match": {
-                        "$ref": "#/components/schemas/ResourceSpecification",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
                         "description": "Labels for resources which this trigger will match."
                     },
                     "match_related": {
-                        "$ref": "#/components/schemas/ResourceSpecification",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            }
+                        ],
                         "description": "Labels for related resources which this trigger will match."
                     },
                     "after": {
@@ -17195,7 +17861,11 @@
             "FlowFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -17252,7 +17922,11 @@
             "FlowFilterDeployment": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -17345,7 +18019,11 @@
             "FlowFilterTags": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -17852,7 +18530,11 @@
                         "title": "Infrastructure Document Id"
                     },
                     "empirical_policy": {
-                        "$ref": "#/components/schemas/FlowRunPolicy",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunPolicy"
+                            }
+                        ],
                         "description": "The empirical policy for the flow run."
                     },
                     "tags": {
@@ -17907,7 +18589,11 @@
             "FlowRunFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -18063,7 +18749,11 @@
             "FlowRunFilterDeploymentId": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -18317,7 +19007,11 @@
             "FlowRunFilterParentFlowRunId": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -18346,7 +19040,11 @@
             "FlowRunFilterParentTaskRunId": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -18433,7 +19131,11 @@
             "FlowRunFilterState": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -18544,7 +19246,11 @@
             "FlowRunFilterTags": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -18590,7 +19296,11 @@
             "FlowRunFilterWorkQueueName": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -19826,7 +20536,11 @@
             "HistoryResponseState": {
                 "properties": {
                     "state_type": {
-                        "$ref": "#/components/schemas/StateType",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            }
+                        ],
                         "description": "The state type."
                     },
                     "state_name": {
@@ -20049,7 +20763,11 @@
             "LogFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -20665,7 +21383,11 @@
                         "description": "The name of the event that happened"
                     },
                     "resource": {
-                        "$ref": "#/components/schemas/Resource",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Resource"
+                            }
+                        ],
                         "description": "The primary Resource this event concerns"
                     },
                     "related": {
@@ -22164,7 +22886,11 @@
                         "description": "The flow run id."
                     },
                     "state_type": {
-                        "$ref": "#/components/schemas/StateType",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            }
+                        ],
                         "description": "The state type."
                     },
                     "timestamp": {
@@ -22219,7 +22945,11 @@
                         "description": "The state name."
                     },
                     "state_type": {
-                        "$ref": "#/components/schemas/StateType",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            }
+                        ],
                         "description": "The state type."
                     },
                     "next_scheduled_start_time": {
@@ -22350,7 +23080,11 @@
             "StateCreate": {
                 "properties": {
                     "type": {
-                        "$ref": "#/components/schemas/StateType",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            }
+                        ],
                         "description": "The type of the state to create"
                     },
                     "name": {
@@ -22388,7 +23122,11 @@
                         "description": "The data of the state to create"
                     },
                     "state_details": {
-                        "$ref": "#/components/schemas/StateDetails",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateDetails"
+                            }
+                        ],
                         "description": "The details of the state to create"
                     }
                 },
@@ -23102,7 +23840,11 @@
             "TaskRunFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -23237,7 +23979,11 @@
             "TaskRunFilterFlowRunId": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -23393,7 +24139,11 @@
             "TaskRunFilterState": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -23494,7 +24244,11 @@
             "TaskRunFilterTags": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -23945,7 +24699,11 @@
             "VariableFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -24053,7 +24811,11 @@
             "VariableFilterTags": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -24356,7 +25118,11 @@
             "WorkPoolFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -24731,7 +25497,11 @@
             "WorkQueueFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -25050,7 +25820,11 @@
                         "description": "The last time an agent polled this queue for work."
                     },
                     "health_check_policy": {
-                        "$ref": "#/components/schemas/WorkQueueHealthPolicy",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueHealthPolicy"
+                            }
+                        ],
                         "description": "The policy used to determine whether or not the work queue is healthy."
                     }
                 },
@@ -25148,7 +25922,11 @@
             "WorkerFilter": {
                 "properties": {
                     "operator": {
-                        "$ref": "#/components/schemas/Operator",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Operator"
+                            }
+                        ],
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
@@ -25337,7 +26115,11 @@
                         "description": "The number of seconds to expect between heartbeats sent by the worker."
                     },
                     "status": {
-                        "$ref": "#/components/schemas/WorkerStatus",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerStatus"
+                            }
+                        ],
                         "description": "Current status of the worker.",
                         "default": "OFFLINE"
                     }
