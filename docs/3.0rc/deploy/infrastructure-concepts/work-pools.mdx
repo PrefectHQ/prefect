@@ -210,7 +210,7 @@ For example:
 ┡━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
 │ barbeque   │ docker         │ 72c0a101-b3e2-4448-b5f8-a8c5184abd17 │ None              │
 │ k8s-pool   │ kubernetes     │ 7b6e3523-d35b-4882-84a7-7a107325bb3f │ None              │
-| my-pool    │ process        │ cd6ff9e8-bfd8-43be-9be3-69375f7a11cd │ None              │
+ │ my-pool    │ process        │ cd6ff9e8-bfd8-43be-9be3-69375f7a11cd │ None              │
 └────────────┴────────────────┴──────────────────────────────────────┴───────────────────┘
                        (**) denotes a paused pool
 ```
@@ -284,7 +284,7 @@ To delete a work pool through the Prefect CLI, use the `prefect work-pool delete
 
 Each work pool can optionally restrict concurrent runs of matching flows.
 
-For example, a work pool with a concurrency limit of 5 only releases new work if less than five matching runs are in a 
+For example, a work pool with a concurrency limit of 5 only releases new work if fewer than five matching runs are in a 
 `Running` or `Pending` state. If three runs are `Running` or `Pending`, polling the pool for work only results in two new runs—
 even if there are many more available, to ensure that the concurrency limit is not exceeded.
 
@@ -295,7 +295,7 @@ When using the `prefect work-pool` Prefect CLI command to configure a work pool,
 
 #### Base job template
 
-Each work pool has a base job template that controls the of the behavior of the worker executing flow runs from the work pool.
+Each work pool has a base job template that controls the behavior of the worker executing flow runs from the work pool.
 
 The base job template acts as a contract defining the configuration passed to the worker for each flow run and the options available 
 to deployment creators to customize worker behavior per deployment.
@@ -304,7 +304,7 @@ A base job template comprises a `job_configuration` section and a `variables` se
 
 The `variables` section defines the fields available that can be customized per deployment or flow run. The `variables` section follows the 
 [OpenAPI specification](https://swagger.io/specification/), which allows work pool creators to place limits on provided values 
-(for example, type, minimum, maximum).
+(for example, type, minimum, and maximum).
 
 The job configuration section is interpolated with the values provided in the variables section. The resulting document is used to configure 
 the environment created when executing a flow run. 
@@ -369,13 +369,13 @@ Here's an example of a base job template defined in JSON:
 }
 ```
 
-Each work pool type is configured with a default base job template, which is a good place to get started. 
-The default base template defines values that pass to every flow run, but you can override on a per-deployment or per-flow run basis.
+Each work pool type is configured with a default base job template, which is a good place to make initial modifications. 
+The default base template defines values that pass to every flow run, but you can override them on a per-deployment or per-flow run basis.
 
-For example, you see these configuration options available in the Prefect UI for `process` work pool:
+For example, these configuration options are available in the Prefect UI for `process` work pool:
 ![process work pool configuration options](/3.0rc/img/ui/process-work-pool-config.png)
 
-The default base job template allow you to:
+The default base job template allows you to:
 - set environment variables for spawned processes 
 - set the working directory to execute flows
 - control whether the flow run output is streamed to workers' standard output
@@ -424,7 +424,7 @@ Learn more about [customizing job variables](/3.0rc/deploy/infrastructure-concep
 
 ### Work queues
 
-Work queues offer advanced control over how runs are executed. Each work pool has a "default" queue which is used if a specific work queue name is not specified. 
+Work queues offer advanced control over how runs are executed. Each work pool has a "default" queue which is used if another  work queue name is not specified. 
 Add additional queues to a work pool to enable greater control over work delivery through fine-grained priority and concurrency. 
 
 
