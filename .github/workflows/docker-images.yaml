@@ -4,24 +4,6 @@ on:
   # On release events (also when a published release is converted from/to prerelease), push all patterns
   release:
     types: [released, prereleased]
-  # On each commit merged into main, push sha and branch patterns to prefect-dev
-  push:
-    branches: [main]
-    paths:
-      - "Dockerfile"
-      - ".dockerignore"
-      - "setup.py"
-      - "src/**"
-      - "tests/**"
-      - "requirements.txt"
-      - "requirements-client.txt"
-      - "MANIFEST.in"
-      - "setup.cfg"
-      - "versioneer.py"
-      - ".gitingore"
-      - ".gitattributes"
-      - ".github/workflows/docker-images.yaml"
-      - "ui/**"
 
   # On workflow_dispatch, allow publishing 3-latest images
   workflow_dispatch:
@@ -80,8 +62,8 @@ jobs:
       - name: Generate tags for prefecthq/prefect-dev
         id: metadata-dev
         uses: docker/metadata-action@v5
-        # do not generate the development tags on release events
-        if: ${{ github.event_name != 'release' }}
+        # do not generate the development tags on true release events, only pre-releases
+        if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
         with:
           images: prefecthq/prefect-dev
           tags: |
