@@ -216,10 +216,10 @@ async def test_success_event(
     await action.succeed(cancel_that_weird_exposure)
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.executed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow-run.{super_long_exposure.id}",
@@ -227,7 +227,22 @@ async def test_success_event(
             }
         )
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "cancel-flow-run",
+        "invocation": str(cancel_that_weird_exposure.id),
+    }
+
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.flow-run.{super_long_exposure.id}",
+                "prefect.resource.role": "target",
+            }
+        )
+    ]
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "cancel-flow-run",
         "invocation": str(cancel_that_weird_exposure.id),

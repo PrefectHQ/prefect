@@ -93,19 +93,35 @@ async def test_successes_emit_events(
     )
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
     automation_id = email_me_when_that_dang_spider_comes.automation.id
 
-    assert start_of_test <= event.occurred <= pendulum.now("UTC")
-    assert event.event == "prefect.automation.action.executed"
+    assert triggered_event.occurred == email_me_when_that_dang_spider_comes.triggered
+    assert triggered_event.follows is None
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.resource.id == f"prefect.automation.{automation_id}"
+    assert (
+        triggered_event.resource["prefect.resource.name"]
+        == "React immediately to spiders"
+    )
+    assert not triggered_event.related
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "do-nothing",
+        "invocation": str(email_me_when_that_dang_spider_comes.id),
+    }
 
-    assert event.resource.id == f"prefect.automation.{automation_id}"
-    assert event.resource["prefect.resource.name"] == "React immediately to spiders"
-
-    assert not event.related
-
-    assert event.payload == {
+    assert start_of_test <= executed_event.occurred <= pendulum.now("UTC")
+    assert executed_event.follows == triggered_event.id
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.resource.id == f"prefect.automation.{automation_id}"
+    assert (
+        executed_event.resource["prefect.resource.name"]
+        == "React immediately to spiders"
+    )
+    assert not executed_event.related
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "do-nothing",
         "invocation": str(email_me_when_that_dang_spider_comes.id),
@@ -128,18 +144,35 @@ async def test_failures_emit_events(
     )
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
     automation_id = email_me_when_that_dang_spider_comes.automation.id
 
-    assert start_of_test <= event.occurred <= pendulum.now("UTC")
-    assert event.event == "prefect.automation.action.failed"
-    assert event.resource.id == f"prefect.automation.{automation_id}"
-    assert event.resource["prefect.resource.name"] == "React immediately to spiders"
+    assert triggered_event.occurred == email_me_when_that_dang_spider_comes.triggered
+    assert triggered_event.follows is None
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.resource.id == f"prefect.automation.{automation_id}"
+    assert (
+        triggered_event.resource["prefect.resource.name"]
+        == "React immediately to spiders"
+    )
+    assert not triggered_event.related
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "do-nothing",
+        "invocation": str(email_me_when_that_dang_spider_comes.id),
+    }
 
-    assert not event.related
-
-    assert event.payload == {
+    assert start_of_test <= executed_event.occurred <= pendulum.now("UTC")
+    assert executed_event.follows == triggered_event.id
+    assert executed_event.event == "prefect.automation.action.failed"
+    assert executed_event.resource.id == f"prefect.automation.{automation_id}"
+    assert (
+        executed_event.resource["prefect.resource.name"]
+        == "React immediately to spiders"
+    )
+    assert not executed_event.related
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "do-nothing",
         "invocation": str(email_me_when_that_dang_spider_comes.id),

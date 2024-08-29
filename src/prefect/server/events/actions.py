@@ -127,34 +127,54 @@ class Action(PrefectBaseModel, abc.ABC):
 
         automation_resource_id = f"prefect.automation.{automation.id}"
 
+        action_details = {
+            "action_index": action_index,
+            "action_type": action.type,
+            "invocation": str(triggered_action.id),
+        }
+        resource = Resource(
+            {
+                "prefect.resource.id": automation_resource_id,
+                "prefect.resource.name": automation.name,
+                "prefect.trigger-type": automation.trigger.type,
+            }
+        )
+        if isinstance(automation.trigger, EventTrigger):
+            resource["prefect.posture"] = automation.trigger.posture
+
         logger.warning(
             "Action failed: %r",
             reason,
             extra={**self.logging_context(triggered_action)},
         )
-        event = Event(
-            occurred=pendulum.now("UTC"),
-            event="prefect.automation.action.failed",
-            resource={
-                "prefect.resource.id": automation_resource_id,
-                "prefect.resource.name": automation.name,
-                "prefect.trigger-type": automation.trigger.type,
-            },
-            related=self._resulting_related_resources,
-            payload={
-                "action_index": action_index,
-                "action_type": action.type,
-                "invocation": str(triggered_action.id),
-                "reason": reason,
-                **self._result_details,
-            },
-            id=uuid4(),
-        )
-        if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
-            await events.emit(event)
+            triggered_event_id = uuid4()
+            await events.emit(
+                Event(
+                    occurred=triggered_action.triggered,
+                    event="prefect.automation.action.triggered",
+                    resource=resource,
+                    related=self._resulting_related_resources,
+                    payload=action_details,
+                    id=triggered_event_id,
+                )
+            )
+            await events.emit(
+                Event(
+                    occurred=pendulum.now("UTC"),
+                    event="prefect.automation.action.failed",
+                    resource=resource,
+                    related=self._resulting_related_resources,
+                    payload={
+                        **action_details,
+                        "reason": reason,
+                        **self._result_details,
+                    },
+                    follows=triggered_event_id,
+                    id=uuid4(),
+                )
+            )
 
     async def succeed(self, triggered_action: "TriggeredAction") -> None:
         from prefect.server.events.schemas.automations import EventTrigger
@@ -165,28 +185,55 @@ class Action(PrefectBaseModel, abc.ABC):
 
         automation_resource_id = f"prefect.automation.{automation.id}"
 
-        event = Event(
-            occurred=pendulum.now("UTC"),
-            event="prefect.automation.action.executed",
-            resource={
+        action_details = {
+            "action_index": action_index,
+            "action_type": action.type,
+            "invocation": str(triggered_action.id),
+        }
+        resource = Resource(
+            {
                 "prefect.resource.id": automation_resource_id,
                 "prefect.resource.name": automation.name,
                 "prefect.trigger-type": automation.trigger.type,
-            },
-            related=self._resulting_related_resources,
-            payload={
-                "action_index": action_index,
-                "action_type": action.type,
-                "invocation": str(triggered_action.id),
-                **self._result_details,
-            },
-            id=uuid4(),
+            }
         )
         if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect.posture"] = automation.trigger.posture
+            resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
-            await events.emit(event)
+            triggered_event_id = uuid4()
+            await events.emit(
+                Event(
+                    occurred=triggered_action.triggered,
+                    event="prefect.automation.action.triggered",
+                    resource={
+                        "prefect.resource.id": automation_resource_id,
+                        "prefect.resource.name": automation.name,
+                        "prefect.trigger-type": automation.trigger.type,
+                    },
+                    related=self._resulting_related_resources,
+                    payload=action_details,
+                    id=triggered_event_id,
+                )
+            )
+            await events.emit(
+                Event(
+                    occurred=pendulum.now("UTC"),
+                    event="prefect.automation.action.executed",
+                    resource={
+                        "prefect.resource.id": automation_resource_id,
+                        "prefect.resource.name": automation.name,
+                        "prefect.trigger-type": automation.trigger.type,
+                    },
+                    related=self._resulting_related_resources,
+                    payload={
+                        **action_details,
+                        **self._result_details,
+                    },
+                    id=uuid4(),
+                    follows=triggered_event_id,
+                )
+            )
 
     def logging_context(self, triggered_action: "TriggeredAction") -> Dict[str, Any]:
         """Common logging context for all actions"""
