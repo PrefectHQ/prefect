@@ -202,6 +202,11 @@ def json_handler(obj: dict, ctx: HydrationContext):
             dehydrated_json = _hydrate(obj["value"], ctx)
         else:
             dehydrated_json = obj["value"]
+
+        # If the result is a Placeholder, we should return it as is
+        if isinstance(dehydrated_json, Placeholder):
+            return dehydrated_json
+
         try:
             return json.loads(dehydrated_json)
         except (json.decoder.JSONDecodeError, TypeError) as e:
@@ -224,6 +229,10 @@ def jinja_handler(obj: dict, ctx: HydrationContext):
         else:
             dehydrated_jinja = obj["template"]
 
+        # If the result is a Placeholder, we should return it as is
+        if isinstance(dehydrated_jinja, Placeholder):
+            return dehydrated_jinja
+
         try:
             validate_user_template(dehydrated_jinja)
         except (jinja2.exceptions.TemplateSyntaxError, TemplateSecurityError) as exc:
@@ -244,6 +253,10 @@ def workspace_variable_handler(obj: dict, ctx: HydrationContext):
             dehydrated_variable = _hydrate(obj["variable_name"], ctx)
         else:
             dehydrated_variable = obj["variable_name"]
+
+        # If the result is a Placeholder, we should return it as is
+        if isinstance(dehydrated_variable, Placeholder):
+            return dehydrated_variable
 
         if not ctx.render_workspace_variables:
             return WorkspaceVariable(variable_name=obj["variable_name"])
