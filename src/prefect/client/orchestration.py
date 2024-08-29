@@ -1750,6 +1750,9 @@ class PrefectClient:
         if deployment_create.paused is None:
             exclude.add("paused")
 
+        if deployment_create.disabled is None:
+            exclude.add("disabled")
+
         if deployment_create.pull_steps is None:
             exclude.add("pull_steps")
 
