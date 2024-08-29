@@ -1,23 +1,45 @@
 ---
-title: Manage infrastructure with work pools
-description: Prefect work pools route deployment flow runs to workers.
+title: Configure dynamic infrastructure with work pools
+description: Learn how to configure dynamic infrastructure provisioning with work pools
 ---
 
-Work pools organize work for execution. Work pools have types corresponding to the infrastructure to execute the flow code, as well as the delivery method of work to that environment. 
+Work pools are a bridge between the Prefect orchestration layer and the infrastructure where flows are run.
 
-Pull work pools require workers to poll the work pool for flow runs to execute. 
+The primary reason to use work pools is for **dynamic infrastructure provisioning and configuration**.
+For example, you might have a workflow that has expensive infrastructure requirements and runs infrequently.
+In this case, you don't want an idle process running within that infrastructure.
 
-[Push work pools](/3.0rc/deploy/infrastructure-examples/serverless) submit runs directly to your serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. 
+Other advantages of work pools:
 
-[Managed work pools](/3.0rc/deploy/infrastructure-examples/managed) are administered by Prefect and handle the submission and execution of code on your behalf.
+- Configure default infrastructure configurations on your work pools that all jobs inherit and can override.
+- Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
+- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/infrastructure-concepts/work-pools/#work-queues).
+
+<Tip>
+    **Choosing Between `flow.deploy()` and `flow.serve()`**
+
+    For many use cases, `serve` is sufficient for scheduling and orchestration.
+    Work pools are great for complex infrastructure requirements. But they are optional.
+    You are not locked into one method and can combine approaches as needed.
+</Tip>
+
+
+Work pools have different operational modes, each designed to work with specific infrastructures and work delivery methods:
+
+1. Pull work pools: These require workers to actively poll for flow runs to execute.
+2. [Push work pools](/3.0rc/deploy/infrastructure-examples/serverless): These submit runs directly to serverless infrastructure providers.
+3. [Managed work pools](/3.0rc/deploy/infrastructure-examples/managed): These are administered by Prefect and handle both submission and execution of code.
+
+Each type of work pool is optimized for different use cases, allowing you to choose the best fit for your specific infrastructure and workflow requirements. 
+By using work pools, you can efficiently manage the distribution and execution of your Prefect flows across environments and infrastructures.
 
 <Tip>
 **Work pools are like pub/sub topics**
 
-    Work pools help coordinate (potentially many) deployments with (potentially many) workers 
+    Work pools help coordinate deployments with workers 
     through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a 
     pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the worker that will execute their runs, 
-    making it easy to promote runs through environments—or even to debug locally.
+    making it easy to promote runs through environments — or even to debug locally.
 </Tip>
 
 Users can control aspects of work pool behavior, such as how many runs the pool allows to run concurrently. You can modify these options 
@@ -63,22 +85,6 @@ flowchart LR
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
 
-Work pool-based deployments that use a worker also allow you to assign a work queue name to prioritize work 
-and allow you to limit concurrent runs at the work pool level.
-
-When creating a deployment that uses a work pool and worker, there are two important considerations:
-
-- What instructions does a [worker](/3.0rc/deploy/infrastructure-concepts/workers/) require to set up an execution environment for your flow? 
-For example, a flow may have Python package requirements, unique Kubernetes settings, or Docker networking configuration.
-- How should the flow code be accessed?
-
-[Serve flows](/3.0rc/deploy/run-flows-in-local-processes/) shows how to create a deployment with a long-running process using `.serve`, 
-and how to move to a [work pool deployment](/3.0rc/deploy/infrastructure-examples/docker/) setup with `.deploy`.
-Learn more about when to move to [work pool deployments](#benefits-of-work-pools).
-
-Next, you'll learn how to use `.deploy` to create deployments with Python code.
-If you prefer to learn about using a YAML-based alternative for managing deployment configuration, skip to [Create deployments with YAML](/3.0rc/deploy/infrastructure-concepts/prefect-yaml).
-
 ### Work pool configuration
 
 You can configure work pools by using any of the following:
@@ -92,9 +98,7 @@ To manage work pools in the UI, click the **Work Pools** icon. This displays a l
 
 ![The UI displays a list of configured work pools](/3.0rc/img/ui/work-pool-list.png)
 
-You can pause a work pool from this page by using the toggle.
-
-Select the **+** button to create a new work pool. You can specify the details for work served by this work pool.
+Select the **+** button to create a new work pool. You can specify the details about infrastructure created for this work pool.
 
 To create a work pool through the Prefect CLI, use the `prefect work-pool create` command:
 
@@ -113,15 +117,39 @@ Optional configuration parameters to filter work on the pool include:
 | `--set-as-default`                                 | Whether to use the created work pool as the local default for deployment.                                         |
 | <span class="no-wrap">`--base-job-template`</span> | The path to a JSON file containing the base job template to use. If unspecified, Prefect uses the default base job template for the given worker type. |
 
-For example, to create a work pool called `test-pool`, run:
+To update a work pool through the Prefect CLI, use the `prefect work-pool update` command:
 
 ```bash
-prefect work-pool create test-pool
+prefect work-pool update [OPTIONS] NAME
 ```
+
+`NAME` is the name of the work pool to update.
+
+Optional configuration parameters you can specify to update the work pool include:
+
+| Option                                             | Description                                                                                                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <span class="no-wrap">`--base-job-template`</span> | The path to a JSON file containing the base job template to use. If unspecified, Prefect uses the default base job template for the given worker type. |
+| `--description`                                    | A description of the work pool.                                                                                                                            |
+| `--concurrency-limit`                              | The maximum number of flow runs to run simultaneously in the work pool.                                                                                    |
+
+<Tip>
+**Managing work pools in CI/CD**
+
+  Version control your base job template by committing it as a JSON file to a git repository and control updates to your 
+  work pools' base job templates with the `prefect work-pool update` command in your CI/CD pipeline. 
+  
+  For example, use the following command to update a work pool's base job template to the contents of a file named `base-job-template.json`:
+
+    ```bash
+    prefect work-pool update --base-job-template base-job-template.json my-work-pool
+    ```
+</Tip>
+
 
 ### Work pool types
 
-If you don't use the `--type` flag to specify an infrastructure type, you are prompted to select from the following options:
+The following work pool types are supported by Prefect:
 
 <Tabs>
   <Tab title="Prefect Cloud">
@@ -156,196 +184,6 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
     | Kubernetes                    | Execute flow runs within jobs scheduled on a Kubernetes cluster. Requires a Kubernetes cluster.                                |
   </Tab>
 </Tabs>
-On success, the command returns the details of the newly created work pool.
-
-```bash
-Created work pool with properties:
-    name - 'test-pool'
-    id - a51adf8c-58bb-4949-abe6-1b87af46eabd
-    concurrency limit - None
-
-Start a worker to pick up flows from the work pool:
-    prefect worker start -p 'test-pool'
-
-Inspect the work pool:
-    prefect work-pool inspect 'test-pool'
-```
-
-Set a work pool as the default for new deployments by adding the `--set-as-default` flag.
-
-Which results in output similar to the following:
-
-```bash
-Set 'test-pool' as default work pool for profile 'default'
-
-To change your default work pool, run:
-
-        prefect config set PREFECT_DEFAULT_WORK_POOL_NAME=<work-pool-name>
-```
-
-To update a work pool through the Prefect CLI, use the `prefect work-pool update` command:
-
-```bash
-prefect work-pool update [OPTIONS] NAME
-```
-
-`NAME` is the name of the work pool to update.
-
-Optional configuration parameters you can specify to update the work pool include:
-
-| Option                                             | Description                                                                                                                                                |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <span class="no-wrap">`--base-job-template`</span> | The path to a JSON file containing the base job template to use. If unspecified, Prefect uses the default base job template for the given worker type. |
-| `--description`                                    | A description of the work pool.                                                                                                                            |
-| `--concurrency-limit`                              | The maximum number of flow runs to run simultaneously in the work pool.                                                                                    |
-
-<Tip>
-**Managing work pools in CI/CD**
-
-  Version control your base job template by committing it as a JSON file to your repository. And control updates to your 
-  work pools' base job templates with the `prefect work-pool update` command in your CI/CD pipeline. For example, you 
-  use the following command to update a work pool's base job template to the contents of a file named `base-job-template.json`:
-
-    ```bash
-    prefect work-pool update --base-job-template base-job-template.json my-work-pool
-    ```
-</Tip>
-
-#### Base job template
-
-Each work pool has a base job template that allows the customization of the behavior of the worker executing flow runs from the work pool.
-
-The base job template acts as a contract defining the configuration passed to the worker for each flow run and the options available 
-to deployment creators to customize worker behavior per deployment.
-
-A base job template comprises a `job_configuration` section and a `variables` section.
-
-The `variables` section defines the fields available that are customized per deployment. The `variables` section follows the 
-[OpenAPI specification](https://swagger.io/specification/), which allows work pool creators to place limits on provided values 
-(for example, type, minimum, maximum).
-
-The job configuration section takes the values provided in the variables section and translates them into a configuration. 
-It then gives this configuration to a worker when it executes a flow run.
-
-The values in the `job_configuration` can use placeholders to reference values provided in the `variables` section. 
-Declare placeholders with double curly braces, for example, `{{ variable_name }}`. You can also hard-code `job_configuration` values.
-
-Each worker type is configured with a default base job template, making it easy to start with a work pool. 
-The default base template defines values that pass to every flow run, but you can override on a per-deployment or per-flow run basis.
-
-For example, if you create a `process` work pool named 'above-ground' through the CLI:
-
-```bash
-prefect work-pool create --type process above-ground
-```
-
-You see these configuration options available in the Prefect UI:
-![process work pool configuration options](/3.0rc/img/ui/process-work-pool-config.png)
-
-For a `process` work pool with the default base job template:
-- set environment variables for spawned processes 
-- set the working directory to execute flows
-- control whether the flow run output is streamed to workers' standard output
-
-You can see an example of a JSON-formatted base job template with the 'Advanced' tab.
-
-You can examine the default base job template for a given worker type by running:
-
-```bash
-prefect work-pool get-default-base-job-template --type process
-```
-
-```bash
-{
-  "job_configuration": {
-    "command": "{{ command }}",
-    "env": "{{ env }}",
-    "labels": "{{ labels }}",
-    "name": "{{ name }}",
-    "stream_output": "{{ stream_output }}",
-    "working_dir": "{{ working_dir }}"
-  },
-  "variables": {
-    "type": "object",
-    "properties": {
-      "name": {
-        "title": "Name",
-        "description": "Name given to infrastructure created by a worker.",
-        "type": "string"
-      },
-      "env": {
-        "title": "Environment Variables",
-        "description": "Environment variables to set when starting a flow run.",
-        "type": "object",
-        "additionalProperties": {
-          "type": "string"
-        }
-      },
-      "labels": {
-        "title": "Labels",
-        "description": "Labels applied to infrastructure created by a worker.",
-        "type": "object",
-        "additionalProperties": {
-          "type": "string"
-        }
-      },
-      "command": {
-        "title": "Command",
-        "description": "The command to use when starting a flow run. In most cases, this should be left blank and the command will be automatically generated by the worker.",
-        "type": "string"
-      },
-      "stream_output": {
-        "title": "Stream Output",
-        "description": "If enabled, workers will stream output from flow run processes to local standard output.",
-        "default": true,
-        "type": "boolean"
-      },
-      "working_dir": {
-        "title": "Working Directory",
-        "description": "If provided, workers will open flow run processes within the specified path as the working directory. Otherwise, a temporary directory will be created.",
-        "type": "string",
-        "format": "path"
-      }
-    }
-  }
-}
-```
-
-You can override each attribute on a per-deployment or per-flow run basis. When creating a deployment, you can 
-specify these overrides in the `deployments.work_pool.job_variables` section of a `prefect.yaml` file or in the `job_variables` 
-argument of a Python `flow.deploy` method.
-
-For example, to turn off streaming output for a specific deployment, add the following to your `prefect.yaml`:
-
-```yaml
-deployments:
-- name: demo-deployment
-  entrypoint: demo_project/demo_flow.py:some_work
-  work_pool:
-    name: above-ground  
-    job_variables:
-        stream_output: false
-```
-
-Learn more about [overriding job variables](/3.0rc/deploy/infrastructure-concepts/customize).
-
-<Tip>
-**Advanced customization of the base job template**
-
-    For advanced use cases, create work pools with fully customizable job templates. This customization is available when 
-    creating or editing a work pool on the 'Advanced' tab within the UI or when updating a work pool via the Prefect CLI.
-
-    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. 
-    In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors. 
-    Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which are useful for restricting 
-    capabilities in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template  
-    to configure the manifest that workers use to create jobs for flow execution.
-
-    For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
-    documentation.
-
-    See more information about [overriding a work pool's job variables](/3.0rc/deploy/infrastructure-concepts/customize).
-</Tip>
 
 ### View work pools
 
@@ -372,7 +210,7 @@ For example:
 ┡━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
 │ barbeque   │ docker         │ 72c0a101-b3e2-4448-b5f8-a8c5184abd17 │ None              │
 │ k8s-pool   │ kubernetes     │ 7b6e3523-d35b-4882-84a7-7a107325bb3f │ None              │
-| my-pool    │ process        │ cd6ff9e8-bfd8-43be-9be3-69375f7a11cd │ None              │
+ │ my-pool    │ process        │ cd6ff9e8-bfd8-43be-9be3-69375f7a11cd │ None              │
 └────────────┴────────────────┴──────────────────────────────────────┴───────────────────┘
                        (**) denotes a paused pool
 ```
@@ -440,13 +278,20 @@ prefect work-pool pause 'test-pool'
 
 To resume a work pool through the Prefect CLI, use the `prefect work-pool resume` command with the work pool name.
 
+<Note>
+**Pausing a work pool does not pause deployment schedules**
+
+Pausing a work pool does **not** pause the schedules of deployments associated with that work pool. Flow runs for associated deployments will
+continue to be scheduled, but they will not run until the work pool is unpaused.
+</Note>
+
 To delete a work pool through the Prefect CLI, use the `prefect work-pool delete` command with the work pool name.
 
 ### Manage concurrency
 
 Each work pool can optionally restrict concurrent runs of matching flows.
 
-For example, a work pool with a concurrency limit of 5 only releases new work if less than five matching runs are in a 
+For example, a work pool with a concurrency limit of 5 only releases new work if fewer than five matching runs are in a 
 `Running` or `Pending` state. If three runs are `Running` or `Pending`, polling the pool for work only results in two new runs—
 even if there are many more available, to ensure that the concurrency limit is not exceeded.
 
@@ -455,22 +300,153 @@ When using the `prefect work-pool` Prefect CLI command to configure a work pool,
 - `set-concurrency-limit`  sets a concurrency limit on a work pool
 - `clear-concurrency-limit` clears any concurrency limits from a work pool
 
-### Work queues
-<Tip>
+#### Base job template
 
-Prefect automatically creates a default work queue if needed.
+Each work pool has a base job template that controls the behavior of the worker executing flow runs from the work pool.
+
+The base job template acts as a contract defining the configuration passed to the worker for each flow run and the options available 
+to deployment creators to customize worker behavior per deployment.
+
+A base job template comprises a `job_configuration` section and a `variables` section.
+
+The `variables` section defines the fields available that can be customized per deployment or flow run. The `variables` section follows the 
+[OpenAPI specification](https://swagger.io/specification/), which allows work pool creators to place limits on provided values 
+(for example, type, minimum, and maximum).
+
+The job configuration section is interpolated with the values provided in the variables section. The resulting document is used to configure 
+the environment created when executing a flow run. 
+
+The values in the `job_configuration` can use placeholders to reference values provided in the `variables` section or hard-coded values. 
+Declare placeholders with double curly braces, for example, `{{ variable_name }}`.
+
+Here's an example of a base job template defined in JSON:
+```json
+{
+  "job_configuration": {
+    "command": "{{ command }}",
+    "env": "{{ env }}",
+    "labels": "{{ labels }}",
+    "name": "{{ name }}",
+    "stream_output": "{{ stream_output }}",
+    "working_dir": "{{ working_dir }}"
+  },
+  "variables": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "description": "Name given to infrastructure created by a worker.",
+        "type": "string"
+      },
+      "env": {
+        "title": "Environment Variables",
+        "description": "Environment variables to set when starting a flow run.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "labels": {
+        "title": "Labels",
+        "description": "Labels applied to infrastructure created by a worker.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "command": {
+        "title": "Command",
+        "description": "The command to use when starting a flow run. In most cases, this should be left blank and the command will be automatically generated by the worker.",
+        "type": "string"
+      },
+      "stream_output": {
+        "title": "Stream Output",
+        "description": "If enabled, workers will stream output from flow run processes to local standard output.",
+        "default": true,
+        "type": "boolean"
+      },
+      "working_dir": {
+        "title": "Working Directory",
+        "description": "If provided, workers will open flow run processes within the specified path as the working directory. Otherwise, a temporary directory will be created.",
+        "type": "string",
+        "format": "path"
+      }
+    }
+  }
+}
+```
+
+Each work pool type is configured with a default base job template, which is a good place to make initial modifications. 
+The default base template defines values that pass to every flow run, but you can override them on a per-deployment or per-flow run basis.
+
+For example, these configuration options are available in the Prefect UI for `process` work pool:
+![process work pool configuration options](/3.0rc/img/ui/process-work-pool-config.png)
+
+The default base job template allows you to:
+- set environment variables for spawned processes 
+- set the working directory to execute flows
+- control whether the flow run output is streamed to workers' standard output
+
+You can examine the raw default base job template for a given worker type by running:
+
+```bash
+prefect work-pool get-default-base-job-template --type process
+```
+
+You can override each attribute on a per-deployment or per-flow run basis. When creating a deployment, you can 
+specify these overrides in the `deployments.work_pool.job_variables` section of a `prefect.yaml` file or in the `job_variables` 
+argument of a Python `flow.deploy` method.
+
+For example, to turn off streaming output for a specific deployment, add the following to your `prefect.yaml`:
+
+```yaml
+deployments:
+- name: demo-deployment
+  entrypoint: demo_project/demo_flow.py:some_work
+  work_pool:
+    name: above-ground  
+    job_variables:
+        stream_output: false
+```
+
+Learn more about [customizing job variables](/3.0rc/deploy/infrastructure-concepts/customize).
+
+<Tip>
+**Advanced customization of the base job template**
+
+    For advanced use cases, create work pools with fully customizable job templates. This customization is available when 
+    creating or editing a work pool on the 'Advanced' tab within the UI or when updating a work pool via the Prefect CLI.
+
+    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. 
+    In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors. 
+    Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which are useful for restricting 
+    capabilities in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template  
+    to configure the manifest that workers use to create jobs for flow execution.
+
+    For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
+    documentation.
+
+    See more information about [overriding a work pool's job variables](/3.0rc/deploy/infrastructure-concepts/customize).
 </Tip>
 
-Work queues offer advanced control over how runs are executed. Each work pool has a "default" queue work is sent to by default. 
+### Work queues
+
+Work queues offer advanced control over how runs are executed. Each work pool has a "default" queue which is used if another  work queue name is not specified. 
 Add additional queues to a work pool to enable greater control over work delivery through fine-grained priority and concurrency. 
-Each work queue has a priority indicated by a unique positive integer. Lower numbers take greater priority in the allocation of work. 
-Accordingly, you can add new queues without changing the rank of the higher-priority queues (for example,  
-the queue with priority `1` will always be the highest priority).
+
+
+
+#### Queue priority
+
+Each work queue has a priority indicated by a unique positive integer. Lower numbers take greater priority in the allocation of work with `1` being the highest priority. 
+You can add new queues without changing the rank of the higher-priority queues.
+
+#### Queue concurrency limits
 
 Work queues can also have their own concurrency limits. Each queue is also subject to the global work pool concurrency limit, 
 which cannot be exceeded.
 
-#### Queue priority
+#### Precise control with priority and concurrency
 
 Together, work queue priority and concurrency enable precise control over work. For example, a pool may have three queues: 
 
@@ -481,16 +457,12 @@ Together, work queue priority and concurrency enable precise control over work. 
 This arrangement enables a pattern of two levels of priority: "high" and "low" for regularly scheduled flow runs, 
 with the remaining "critical" queue for unplanned, urgent work, such as a backfill.
 
-#### Queue concurrency limits
-
 Priority determines the order of flow runs submitted for execution.
 If all flow runs are capable of being executed with no limitation due to concurrency or otherwise,
 priority is still used to determine order of submission, but there is no impact to execution.
 
 If not all flow runs can execute, usually as a result of concurrency limits, priority determines which queues receive 
 precedence to submit runs for execution.
-
-#### Precise control with priority and concurrency
 
 Priority for flow run submission proceeds from the highest priority to the lowest priority. In the previous example, all work from the 
 "critical" queue (priority 1) is submitted, before any work is submitted from "high" (priority 5). Once all work is submitted 
@@ -509,305 +481,12 @@ in waterfall fashion.
     Unpausing a work queue gives the work queue a `NOT_READY` status unless a worker has polled it in the last 60 seconds.
 </Tip>
 
-## Benefits of work pools
-
-Work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
-To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
-
-<Tip>
-    **Choosing Between `flow.deploy()` and `flow.serve()`**
-
-    For many use cases, `serve` is sufficient for scheduling and orchestration.
-    Work pools are great for complex infrastructure requirements. But they are optional.
-    You are not locked into one method and can combine approaches as needed.
-</Tip>
-
-The primary reason to use work pools is for **dynamic infrastructure provisioning and configuration**.
-For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently.
-In this case, you don't want an idle process running within that infrastructure.
-
-<Note>
-    **Deployment definition methods differ slightly for work pools**
-    
-    When you use work-pool-based execution, you define deployments differently.
-    Configure deployments for workers with `deploy`, which requires additional configuration.
-    You cannot use a deployment created with `serve` with a work pool.
-</Note>
-
-Other advantages of work pools:
-
-- Configure default infrastructure configurations on your work pools that all jobs inherit and can override.
-- Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
-- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/deploy/infrastructure-concepts/work-pools/#work-queues).
-
-Prefect provides several [types of work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/#work-pool-types).
-Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
-A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
-
-## Set up a work pool
-
-<Note>
-    **Prefect Cloud**
-    
-    This tutorial uses Prefect Cloud to deploy flows to work pools.
-    Managed execution and push work pools are available in [Prefect Cloud](https://www.prefect.io/cloud) only.
-
-</Note>
-
-### Create a Prefect Managed work pool
-
-Run the following command to set up a work pool named `my-managed-pool` of type `prefect:managed`.
-
-
-```bash
-prefect work-pool create my-managed-pool --type prefect:managed 
-```
-
-Confirm that the work pool was successfully created:
-
-
-```bash
-prefect work-pool ls
-```
-
-You should see your new `my-managed-pool` in the output list.
-
-Navigate to the **Work Pools** tab in the UI and verify that `my-managed-pool` is listed.
-
-Select **Edit** from the three-dot menu on the work pool card to view the details of your work pool.
-
-Work pools specify configuration to dynamically provision infrastructure for flow runs.
-For example, you can specify additional Python packages or environment variables for all deployments that use this work pool.
-Individual deployments can override the work pool configuration.
-
-Now that you set up your work pool, you can deploy a flow to it. Deploy your test flow to `my-managed-pool`.
-
-## Create the deployment
-
-From the previous steps, you now have:
-
-- [A flow](/3.0rc/develop/write-flows/)
-- A work pool
-
-Update your `repo_info.py` file to create a deployment in Prefect Cloud with these modifications:
-
-- Change `flow.serve` to `flow.deploy`
-- Tell `flow.deploy` which work pool to deploy to
-
-The updated `repo_info.py` looks like this:
-
-```python repo_info.py
-import httpx
-from prefect import flow
-
-
-@flow(log_prints=True)
-def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-    url = f"https://api.github.com/repos/{repo_name}"
-    response = httpx.get(url)
-    response.raise_for_status()
-    repo = response.json()
-    print(f"{repo_name} repository statistics 🤓:")
-    print(f"Stars 🌠 : {repo['stargazers_count']}")
-    print(f"Forks 🍴 : {repo['forks_count']}")
-
-
-if __name__ == "__main__":
-    get_repo_info.from_source(
-        source="https://github.com/prefecthq/demos.git", 
-        entrypoint="repo_info.py:get_repo_info"
-    ).deploy(
-        name="my-first-deployment", 
-        work_pool_name="my-managed-pool", 
-    )
-```
-
-In the `from_source` method, specify the source of your flow code.
-
-In the `deploy` method, specify the name of your deployment and the name of the work pool you created earlier.
-
-This example uses a GitHub repository for remote storage, but you can also use a Docker image.
-You can also store your flow code in cloud provider storage such as AWS S3, or within a different git-based cloud provider 
-such as GitLab or Bitbucket.
-
-<Note>
-    In the example above, you stored your code in a GitHub repository.
-    If you make changes to the flow code, you must push those changes to your own GitHub account and update the `source` argument 
-    of `from_source` to point to your repository.
-</Note>
-
-Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
-
-
-```bash
-python repo_info.py
-```
-
-You should see a message in the CLI that your deployment was created and instructions for how to run it.
-
-
-```bash
-Successfully created/updated all deployments!
-
-                       Deployments                       
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
-┃ Name                              ┃ Status  ┃ Details ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
-│ get-repo-info/my-first-deployment | applied │         │
-└───────────────────────────────────┴─────────┴─────────┘
-
-To schedule a run for this deployment, use the following command:
-
-        $ prefect deployment run 'get-repo-info/my-first-deployment'
-
-
-You can also run your flow through the Prefect UI: https://app.prefect.cloud/account/
-abc/workspace/123/deployments/deployment/xyz
-```
-
-Navigate to your Prefect Cloud UI and view your new deployment.
-Click the **Run** button to trigger a run of your deployment.
-
-Because you configured this deployment with a Prefect Managed work pool, Prefect Cloud will run your flow on your behalf.
-
-You can view the logs in the UI.
-
-### Schedule a deployment run
-
-You're ready to submit a flow-run to the work pool.
-Run the deployment from the CLI (or the UI):
-
-```bash
-prefect deployment run 'get_repo_info/my-deployment'
-```
-
-Prefect Managed work pools are a great way to get started with Prefect.  
-See the [Managed Execution guide](/3.0rc/deploy/infrastructure-examples/managed) for more details.
-
-For more control over the infrastructure that your flows run on, we recommend Prefect Cloud's push work pools.
-
-## Push work pools with automatic infrastructure provisioning
-
-Serverless push work pools scale infinitely and provide more configuration options than Prefect Managed work pools.
-
-Prefect provides push work pools for AWS ECS on Fargate, Azure Container Instances, Google Cloud Run, and Modal.
-Push work pools require a cloud provider account with certain permissions.
-This example uses GCP.
-
-### Create a push work pool with automatic infrastructure provisioning
-
-**Prerequisites**:
-
-- Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and 
-[authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
-- If you already have the gcloud CLI installed, update to the latest version with `gcloud components update`.
-- The following permissions in your GCP project:
-    - resourcemanager.projects.list
-    - serviceusage.services.enable
-    - iam.serviceAccounts.create
-    - iam.serviceAccountKeys.create
-    - resourcemanager.projects.setIamPolicy
-    - artifactregistry.repositories.create
-- Docker installed to build and push images to your registry. Install [Docker](https://docs.docker.com/get-docker/).
-
-To set up a work pool named `my-cloud-run-pool` of type `cloud-run:push`, run:
-
-
-```bash
-prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool 
-```
-
-Using the `--provision-infra` flag allows you to select a GCP project for your work pool and automatically configure it to execute 
-flows through Cloud Run.
-In your GCP project, this command activates the Cloud Run API, and creates a service account and a key (if they don't already exist).
-In your Prefect workspace, this command creates a [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) 
-for storing the service account key.
-
-Here's an abbreviated example output from running the command:
-
-
-```bash
-╭──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ Provisioning infrastructure for your work pool my-cloud-run-pool will require:                           │
-│                                                                                                          │
-│     Updates in GCP project central-kit-405415 in region us-central1                                      │
-│                                                                                                          │
-│         - Activate the Cloud Run API for your project                                                    │
-│         - Activate the Artifact Registry API for your project                                            │
-│         - Create an Artifact Registry repository named prefect-images                                    │
-│         - Create a service account for managing Cloud Run jobs: prefect-cloud-run                        │
-│             - Service account will be granted the following roles:                                       │
-│                 - Service Account User                                                                   │
-│                 - Cloud Run Developer                                                                    │
-│         - Create a key for service account prefect-cloud-run                                             │
-│                                                                                                          │
-│     Updates in Prefect workspace                                                                         │
-│                                                                                                          │
-│         - Create GCP credentials block my--pool-push-pool-credentials to store the service account key   │
-│                                                                                                          │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-Proceed with infrastructure provisioning? [y/n]: y
-Activating Cloud Run API
-Activating Artifact Registry API
-Creating Artifact Registry repository
-Configuring authentication to Artifact Registry
-Setting default Docker build namespace
-Creating service account
-Assigning roles to service account
-Creating service account key
-Creating GCP credentials block
-Provisioning Infrastructure ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
-Infrastructure successfully provisioned!
-Created work pool 'my-cloud-run-pool'!
-```
-
-After infrastructure provisioning completes, you are logged into your new Artifact Registry repository. The default Docker 
-build namespace is set to the URL of the repository.
-
-While the default namespace is set, any images you build without specifying a registry or username/organization 
-are pushed to the repository.
-
-To use this capability, write your deploy script like this:
-
-```python example_deploy_script.py
-from prefect import flow                                                       
-from prefect.docker import DockerImage                                
-
-
-@flow(log_prints=True)
-def my_flow(name: str = "world"):
-    print(f"Hello {name}! I'm a flow running on Cloud Run!")
-
-
-if __name__ == "__main__":                                                     
-    my_flow.deploy(                                                            
-        name="my-deployment",
-        work_pool_name="above-ground",
-        cron="0 1 * * *",
-        image=DockerImage(
-            name="my-image:latest",
-            platform="linux/amd64",
-        )
-    )
-```
-
-Run the script to create the deployment on the Prefect Cloud server.
-
-Running this script builds a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` 
-and pushes it to your repository. Make sure you have Docker running locally before running this script.
-
-You only need to include an object of the `DockerImage` class with the argument `platform="linux/amd64` if you're 
-building your image on a machine with an ARM-based processor.
-Otherwise, you can pass `image="my-image:latest"` to `deploy`.
-
 ## Next steps 
 
-The `cron` argument schedules the deployment to run at 1:00 AM every day.
-See the [schedules](/3.0rc/automate/add-schedules/) guide for more information on scheduling options.
-
-See the [Push Work Pool guide](/3.0rc/deploy/infrastructure-examples/serverless/) for more details and example commands for each 
-cloud provider.
-
-If you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect 
-server instance, see the Workers [guide](/3.0rc/deploy/infrastructure-examples/docker/). You will learn how 
-to use work pools that rely on a worker and customize Docker images for container-based infrastructure.
+- Learn more about [workers](/3.0rc/deploy/infrastructure-concepts/workers) and how they interact with work pools
+- Learn how to [deploy flows](3.0rc/deploy/infrastructure-concepts/prefect-yaml) that run in work pools
+- Learn how to set up work pools for:
+  - [Kubernetes](3.0rc/deploy/infrastructure-examples/kubernetes)
+  - [Docker](3.0rc/deploy/infrastructure-examples/docker)
+  - [Serverless platforms](3.0rc/deploy/infrastructure-examples/serverless)
+  - [Infrastructure managed by Prefect Cloud](3.0rc/deploy/infrastructure-examples/managed)
