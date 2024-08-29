@@ -10,7 +10,7 @@
       </template>
 
       <template v-else>
-        <DeploymentsList @delete="deploymentsSubscription.refresh" />
+        <DeploymentsList @delete="deploymentsSubscription.refresh" :deployment-disable-toggle="true" />
       </template>
     </template>
   </p-layout-default>
