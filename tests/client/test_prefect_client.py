@@ -724,6 +724,58 @@ async def test_updating_deployment_and_removing_schedule(
     assert second_lookup.schedule is None
 
 
+async def test_disable_deployment(prefect_client, storage_document_id):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        version="git-commit-hash",
+        parameters={"foo": "bar"},
+        tags=["foo", "bar"],
+        disabled=False,
+        storage_document_id=storage_document_id,
+        parameter_openapi_schema={},
+    )
+
+    await prefect_client.read_deployment(deployment_id)
+
+    await prefect_client.disable_deployment(deployment_id)
+
+    updated_deployment = await prefect_client.read_deployment(deployment_id)
+    assert updated_deployment.disabled is True
+
+
+async def test_enable_deployment(prefect_client, storage_document_id):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        version="git-commit-hash",
+        parameters={"foo": "bar"},
+        tags=["foo", "bar"],
+        disabled=True,
+        storage_document_id=storage_document_id,
+        parameter_openapi_schema={},
+    )
+
+    await prefect_client.read_deployment(deployment_id)
+
+    await prefect_client.enable_deployment(deployment_id)
+
+    updated_deployment = await prefect_client.read_deployment(deployment_id)
+    assert updated_deployment.disabled is False
+
+
 async def test_read_deployment_by_name(prefect_client):
     @flow
     def foo():

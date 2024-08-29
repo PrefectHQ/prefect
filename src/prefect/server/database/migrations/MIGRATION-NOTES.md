@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `disabled` to `deployments` table
+SQLite: `a941fb41767c`
+Postgres: `3cc41614eec4`
+
 # Add `events` and `event_resources` tables
 SQLite: `824e9edafa60`
 Postgres: `15768c2ec702`

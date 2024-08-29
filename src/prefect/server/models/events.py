@@ -285,15 +285,9 @@ def _timing_is_tight(
     return False
 
 
-async def deployment_status_event(
-    session: AsyncSession,
-    deployment_id: UUID,
-    status: DeploymentStatus,
-    occurred: pendulum.DateTime,
-) -> Event:
-    deployment = await models.deployments.read_deployment(
-        session=session, deployment_id=deployment_id
-    )
+async def _deployment_related_resources(
+    deployment: ORMDeployment, session: AsyncSession
+):
     flow = await models.flows.read_flow(session=session, flow_id=deployment.flow_id)
     work_queue = (
         await models.workers.read_work_queue(
@@ -342,6 +336,24 @@ async def deployment_status_event(
                 "prefect.resource.role": "work-pool",
             }
         )
+
+    return related_work_queue_and_pool_info
+
+
+async def deployment_status_event(
+    session: AsyncSession,
+    deployment_id: UUID,
+    status: DeploymentStatus,
+    occurred: pendulum.DateTime,
+) -> Event:
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    assert deployment
+
+    related_work_queue_and_pool_info = await _deployment_related_resources(
+        deployment, session
+    )
 
     return Event(
         occurred=occurred,
@@ -432,4 +444,30 @@ def _get_recent_preceding_work_pool_event_id(
         work_pool.last_status_event_id
         if time_since_last_event < timedelta(minutes=10)
         else None
+    )
+
+
+async def disabled_deployment_run_attempt_event(
+    session: AsyncSession,
+    deployment_id: UUID,
+    occurred: pendulum.DateTime,
+) -> Event:
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    assert deployment
+
+    related_work_queue_and_pool_info = await _deployment_related_resources(
+        deployment, session
+    )
+
+    return Event(
+        occurred=occurred,
+        event="prefect.deployment.disabled-run-attempt",
+        resource={
+            "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+            "prefect.resource.name": f"{deployment.name}",
+        },
+        related=related_work_queue_and_pool_info,
+        id=uuid4(),
     )

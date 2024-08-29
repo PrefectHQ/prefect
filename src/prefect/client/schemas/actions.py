@@ -165,6 +165,7 @@ class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     is_schedule_active: Optional[bool] = Field(None)
     paused: Optional[bool] = Field(None)
+    disabled: Optional[bool] = Field(None)
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",

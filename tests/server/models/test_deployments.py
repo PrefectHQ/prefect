@@ -371,6 +371,10 @@ class TestReadDeployments:
         return uuid4()
 
     @pytest.fixture
+    async def deployment_id_4(self):
+        return uuid4()
+
+    @pytest.fixture
     async def filter_data(
         self,
         session,
@@ -380,6 +384,7 @@ class TestReadDeployments:
         deployment_id_2,
         deployment_id_3,
         infrastructure_document_id,
+        deployment_id_4,
     ):
         await models.deployments.create_deployment(
             session=session,
@@ -418,10 +423,20 @@ class TestReadDeployments:
                 is_schedule_active=False,
             ),
         )
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_4,
+                name="Once More Into the Breach",
+                flow_id=flow.id,
+                tags=["shakespeare"],
+                disabled=True,
+            ),
+        )
 
     async def test_read_deployments(self, filter_data, session):
         read_deployments = await models.deployments.read_deployments(session=session)
-        assert len(read_deployments) == 3
+        assert len(read_deployments) == 4
 
     async def test_read_deployments_applies_limit(self, filter_data, session):
         read_deployments = await models.deployments.read_deployments(
@@ -485,6 +500,17 @@ class TestReadDeployments:
             ),
         )
         assert {res.id for res in result} == {deployment_id_3}
+
+    async def test_read_deployment_filters_by_disabled(
+        self, filter_data, deployment_id_4, session
+    ):
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                disabled=filters.DeploymentFilterDisabled(eq_=True)
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_4}
 
     async def test_read_deployment_filters_filters_by_tags(
         self, filter_data, deployment_id_1, deployment_id_3, session

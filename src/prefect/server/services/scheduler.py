@@ -149,6 +149,7 @@ class Scheduler(LoopService):
             .where(
                 sa.and_(
                     db.Deployment.paused.is_not(True),
+                    db.Deployment.disabled.is_not(True),
                     (
                         # Only include deployments that have at least one
                         # active schedule.
@@ -317,6 +318,7 @@ class RecentDeploymentsScheduler(Scheduler):
             .where(
                 sa.and_(
                     db.Deployment.paused.is_not(True),
+                    db.Deployment.disabled.is_not(True),
                     # use a slightly larger window than the loop interval to pick up
                     # any deployments that were created *while* the scheduler was
                     # last running (assuming the scheduler takes less than one

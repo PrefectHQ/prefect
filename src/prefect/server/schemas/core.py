@@ -544,6 +544,10 @@ class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
+    disabled: bool = Field(
+        default=False,
+        description="If true, no flow runs will be created for the deployment.",
+    )
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )

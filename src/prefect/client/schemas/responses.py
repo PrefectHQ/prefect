@@ -330,6 +330,9 @@ class DeploymentResponse(DeprecatedInfraOverridesField, ObjectBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
+    disabled: bool = Field(
+        default=False, description="Whether or not the deployment is disabled."
+    )
     schedules: List[objects.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )

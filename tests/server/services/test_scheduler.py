@@ -298,6 +298,33 @@ async def test_scheduler_respects_paused(flow, session):
     assert n_runs_2 == 0
 
 
+async def test_scheduler_respects_disabled(flow, session):
+    await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="test",
+            flow_id=flow.id,
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=1)
+                    ),
+                    active=True,
+                )
+            ],
+            disabled=True,
+        ),
+    )
+    await session.commit()
+
+    n_runs = await models.flow_runs.count_flow_runs(session)
+    assert n_runs == 0
+
+    await Scheduler().start(loops=1)
+    n_runs_2 = await models.flow_runs.count_flow_runs(session)
+    assert n_runs_2 == 0
+
+
 async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
     flow, session
 ):

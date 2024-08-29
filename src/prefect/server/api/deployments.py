@@ -21,8 +21,13 @@ from prefect.server.api.validation import (
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
+from prefect.server.models.events import (
+    deployment_status_event,
+    disabled_deployment_run_attempt_event,
+)
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
@@ -502,6 +507,20 @@ async def schedule_deployment(
         - Runs will be generated until at least `start_time + min_time` is reached
     """
     async with db.session_context(begin_transaction=True) as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+
+        if deployment.disabled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Deployment is disabled.",
+            )
+
         await models.deployments.schedule_runs(
             session=session,
             deployment_id=deployment_id,
@@ -530,6 +549,13 @@ async def resume_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
+
+        if deployment.disabled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Deployment is disabled",
+            )
+
         deployment.is_schedule_active = True
         deployment.paused = False
 
@@ -563,6 +589,13 @@ async def pause_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
+
+        if deployment.disabled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Deployment is disabled",
+            )
+
         deployment.is_schedule_active = False
         deployment.paused = True
 
@@ -616,6 +649,21 @@ async def create_flow_run_from_deployment(
         if not deployment:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+
+        if deployment.disabled:
+            async with PrefectServerEventsClient() as events:
+                await events.emit(
+                    await disabled_deployment_run_attempt_event(
+                        session=session,
+                        deployment_id=deployment_id,
+                        occurred=pendulum.now("UTC"),
+                    )
+                )
+
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Error creating flow run: Deployment is disabled.",
             )
 
         try:
@@ -861,3 +909,85 @@ async def delete_deployment_schedule(
             deployment_id=deployment_id,
             auto_scheduled_only=True,
         )
+
+
+@router.post("/{id:uuid}/disable")
+async def disable_deployment(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """
+    Set a deployment to disabled. Any auto-scheduled runs will be deleted and
+    no new runs can be created until the deployment is enabled.
+    """
+    async with db.session_context(begin_transaction=False) as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+
+        if deployment.disabled:
+            return
+
+        deployment.disabled = True
+        deployment.status = schemas.statuses.DeploymentStatus.DISABLED
+
+        # commit here to make the inactive schedule "visible" to the scheduler service
+
+        # delete any auto scheduled runs
+        await models.deployments._delete_scheduled_runs(
+            session=session,
+            deployment_id=deployment_id,
+            auto_scheduled_only=True,
+        )
+
+        async with PrefectServerEventsClient() as events:
+            await events.emit(
+                await deployment_status_event(
+                    session=session,
+                    deployment_id=deployment_id,
+                    status=schemas.statuses.DeploymentStatus.DISABLED,
+                    occurred=pendulum.now("UTC"),
+                )
+            )
+
+        await session.commit()
+
+
+@router.post("/{id:uuid}/enable")
+async def enable_deployment(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """
+    Set a deployment to enabled. Runs can be scheduled and created.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+
+        if not deployment.disabled:
+            return
+
+        deployment.disabled = False
+        deployment.status = schemas.statuses.DeploymentStatus.NOT_READY
+
+        async with PrefectServerEventsClient() as events:
+            await events.emit(
+                await deployment_status_event(
+                    session=session,
+                    deployment_id=deployment_id,
+                    status=schemas.statuses.DeploymentStatus.NOT_READY,
+                    occurred=pendulum.now("UTC"),
+                )
+            )
+
+        await session.commit()

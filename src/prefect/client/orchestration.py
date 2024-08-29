@@ -1599,6 +1599,7 @@ class PrefectClient:
         parameter_openapi_schema: Optional[Dict[str, Any]] = None,
         is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
+        disabled: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
         enforce_parameter_schema: Optional[bool] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -1610,16 +1611,35 @@ class PrefectClient:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
             version: an optional version string for the deployment
-            schedule: an optional schedule to apply to the deployment
+            schedules: an optional list of schedules for the deployment
+            concurrency_limit: an optional concurrency limit for flow runs
+              created by this deployment
+            parameters: an optional parameter schema for this deployment
+            parameter_openapi_schema: an optional OpenAPI schema for this deployment's parameters
+            description: an optional text description of this deployment
+            work_queue_name: the work queue associated with this deployment (optional)
+            work_pool_name: the work pool associated with this deployment (optional)
             tags: an optional list of tags to apply to the deployment
             storage_document_id: an reference to the storage block document
                 used for the deployed flow
+            path: The path to the working directory for the workflow, relative to remote storage or an absolute path
+            entrypoint: The path to the entrypoint for the workflow, relative to the `path`
             infrastructure_document_id: an reference to the infrastructure block document
                 to use for this deployment
+            paused: an optional boolean. If True, flow runs will be scheduled as
+              described by this deployment's schedules
+            disabled: an optional boolean. If True, no flow runs will be created
+              for this deployment by any mechanism including automations and
+              API requests
+            pull_steps: an optional list of steps that describe how a worker should
+              prepare a flow run created from this deployment
+            enforce_parameter_schema: an optional boolean. If True, the API will
+              enforce the provided parameter schema when flow runs are created
             job_variables: A dictionary of dot delimited infrastructure overrides that
                 will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
                 `namespace='prefect'`. This argument was previously named `infra_overrides`.
                 Both arguments are supported for backwards compatibility.
+
 
         Raises:
             httpx.RequestError: if the deployment was not created for any reason
@@ -1647,6 +1667,7 @@ class PrefectClient:
             is_schedule_active=is_schedule_active,
             paused=paused,
             schedule=schedule,
+            disabled=disabled,
             schedules=schedules or [],
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
@@ -1667,6 +1688,9 @@ class PrefectClient:
 
         if deployment_create.paused is None:
             exclude.add("paused")
+
+        if deployment_create.disabled is None:
+            exclude.add("disabled")
 
         if deployment_create.pull_steps is None:
             exclude.add("pull_steps")
@@ -1694,6 +1718,16 @@ class PrefectClient:
     async def set_deployment_paused_state(self, deployment_id: UUID, paused: bool):
         await self._client.patch(
             f"/deployments/{deployment_id}", json={"paused": paused}
+        )
+
+    async def disable_deployment(self, deployment_id: UUID):
+        await self._client.post(
+            f"/deployments/{deployment_id}/disable",
+        )
+
+    async def enable_deployment(self, deployment_id: UUID):
+        await self._client.post(
+            f"/deployments/{deployment_id}/enable",
         )
 
     async def update_deployment(

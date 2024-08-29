@@ -305,6 +305,50 @@ async def inspect(name: str):
     app.console.print(Pretty(deployment_json))
 
 
+@deployment_app.command()
+async def disable(name: str):
+    """
+    Disable a deployment.
+
+    \b
+    Example:
+        \b
+        $ prefect deployment disable "hello-world/my-deployment"
+    """
+    assert_deployment_name_format(name)
+
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+
+        await client.disable_deployment(deployment.id)
+        exit_with_success(f"Disabled deployment {name!r}.")
+
+
+@deployment_app.command()
+async def enable(name: str):
+    """
+    Enable a deployment.
+
+    \b
+    Example:
+        \b
+        $ prefect deployment enable "hello-world/my-deployment"
+    """
+    assert_deployment_name_format(name)
+
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+
+        await client.enable_deployment(deployment.id)
+        exit_with_success(f"Enabled deployment {name!r}.")
+
+
 @schedule_app.command("create")
 async def create_schedule(
     name: str,
