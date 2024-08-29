@@ -78,6 +78,11 @@ If Prefect cannot find the `logging.yml` file at the specified location, it will
 See the Python [Logging configuration](https://docs.python.org/3/library/logging.config.html#logging.config.dictConfig) 
 documentation for more information about the configuration options and syntax used by `logging.yml`.
 
+<Note>
+As with all Prefect settings, logging settings are loaded at runtime.
+This means that to customize Prefect logging in a remote environment requires setting the appropriate environment variables and/or profile in that environment.
+</ Note>
+
 ## Prefect loggers
 
 To use a Prefect logger, import `get_run_logger` from the `prefect.logging` module. 
