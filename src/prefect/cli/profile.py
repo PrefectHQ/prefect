@@ -22,7 +22,7 @@ from prefect.client.base import determine_server_type
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
 from prefect.exceptions import ObjectNotFound
-from prefect.settings import Profile, ProfilesCollection
+from prefect.settings import ProfilesCollection
 from prefect.utilities.collections import AutoEnum
 
 profile_app = PrefectTyper(name="profile", help="Select and manage Prefect profiles.")
@@ -38,7 +38,7 @@ def ls():
     """
     List profile names.
     """
-    profiles = prefect.settings.load_profiles()
+    profiles = prefect.settings.load_profiles(include_defaults=False)
     current_profile = prefect.context.get_settings_context().profile
     current_name = current_profile.name if current_profile is not None else None
 
@@ -265,9 +265,6 @@ def show_profile_changes(
 ):
     changes = []
 
-    if "default" in user_profiles:
-        changes.append(("migrate", "default", "ephemeral"))
-
     for name in default_profiles.names:
         if name not in user_profiles:
             changes.append(("add", name))
@@ -319,24 +316,6 @@ def populate_defaults():
     if not typer.confirm(f"\nUpdate profiles at {user_path}?"):
         app.console.print("Operation cancelled.")
         return
-
-    # Apply changes
-    if "default" in user_profiles:
-        default_settings = user_profiles["default"].settings
-        if "ephemeral" not in user_profiles:
-            user_profiles.add_profile(
-                Profile(name="ephemeral", settings=default_settings)
-            )
-        else:
-            merged_settings = {
-                **user_profiles["ephemeral"].settings,
-                **default_settings,
-            }
-            user_profiles.update_profile("ephemeral", merged_settings)
-
-        if user_profiles.active_name == "default":
-            user_profiles.set_active("ephemeral")
-        user_profiles.remove_profile("default")
 
     for name, profile in default_profiles.items():
         if name not in user_profiles:
