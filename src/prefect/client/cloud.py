@@ -73,9 +73,10 @@ class CloudClient:
             **httpx_settings, enable_csrf_support=False
         )
 
+        api_url = prefect.settings.PREFECT_API_URL.value() or ""
         if match := (
             re.search(PARSE_API_URL_REGEX, host)
-            or re.search(PARSE_API_URL_REGEX, prefect.settings.PREFECT_API_URL.value())
+            or re.search(PARSE_API_URL_REGEX, api_url)
         ):
             self.account_id, self.workspace_id = match.groups()
 
