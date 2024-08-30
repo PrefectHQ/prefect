@@ -2192,6 +2192,8 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
 
 
 def load_profiles() -> ProfilesCollection:
+    if not PREFECT_PROFILES_PATH.value().exists():
+        return ProfilesCollection([])
     return _read_profiles_from(PREFECT_PROFILES_PATH.value())
 
 
