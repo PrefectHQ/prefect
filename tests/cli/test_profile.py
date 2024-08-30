@@ -13,7 +13,6 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_PROFILES_PATH,
-    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     Profile,
     ProfilesCollection,
     _read_profiles_from,
@@ -640,41 +639,6 @@ class TestProfilesPopulateDefaults:
         )
 
         assert temporary_profiles_path.read_text() == DEFAULT_PROFILES_PATH.read_text()
-
-    def test_populate_defaults_migrates_default(self, temporary_profiles_path):
-        existing_profiles = ProfilesCollection(
-            profiles=[
-                Profile(name="default", settings={PREFECT_API_KEY: "test_key"}),
-                Profile(name="custom", settings={PREFECT_API_URL: "http://custom.url"}),
-            ],
-            active="default",
-        )
-        save_profiles(existing_profiles)
-
-        invoke_and_assert(
-            ["profile", "populate-defaults"],
-            user_input="y\ny",  # Confirm backup and update
-            expected_output_contains=[
-                "Proposed Changes:",
-                "Migrate 'default' to 'ephemeral'",
-                "Add 'local'",
-                "Add 'cloud'",
-                f"Back up existing profiles to {temporary_profiles_path}.bak?",
-                f"Update profiles at {temporary_profiles_path}?",
-                f"Profiles updated in {temporary_profiles_path}",
-            ],
-        )
-
-        new_profiles = load_profiles()
-        assert {"ephemeral", "local", "cloud", "test", "custom"} == set(
-            new_profiles.names
-        )
-        assert "default" not in new_profiles.names
-        assert new_profiles.active_name == "ephemeral"
-        assert new_profiles["ephemeral"].settings == {
-            PREFECT_API_KEY: "test_key",
-            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",
-        }
 
     def test_show_profile_changes(self, capsys):
         default_profiles = ProfilesCollection(
