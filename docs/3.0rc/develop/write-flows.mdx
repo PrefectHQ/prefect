@@ -3,32 +3,33 @@ title: Write and run flows
 description: Learn the basics of defining and running flows.
 ---
 
-Flows are the most central Prefect objects. 
-A flow is a container for workflow logic as code. 
+**A flow is a container for workflow logic.**
 
 Flows are defined as Python functions. 
-They can take inputs, perform work, and return an output.
+They can take inputs, perform work, and return a result.
 
-Make any function a Prefect flow by adding the `@flow` decorator to it:
+Make any Python function a Prefect flow by adding the `@flow` decorator to it:
 
 ```python
 from prefect import flow
 
 
 @flow
-def my_flow():
-    return
+def my_flow() -> str:
+    return "Hello, world!"
+
+if __name__ == "__main__":
+    print(my_flow())
 ```
 
-When a function becomes a flow, its behavior changes. 
-Flows have the following capabilities:
+When a function becomes a flow, it gains the following capabilities:
 
-- All runs of the flow have persistent [state](/3.0rc/develop/manage-states/). Transitions between states are recorded, 
-allowing you to observe and act on flow execution.
-- Input arguments can be type validated as workflow [parameters](/#specify-flow-parameters).
-- [Retries](#retries) can be performed on failure.
-- Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
+- Each [state](/3.0rc/develop/manage-states/) the flow enters is recorded. This
+allows you to observe and [act upon each transition](/3.0rc/develop/state-hooks) in the flow's execution.
+- Input arguments can be type validated as workflow [parameters](/#specify-flow-parameters).
+- [Retries](#retries) can be performed on failure, with configurable delay and retry limits.
+- Timeouts can be enforced to prevent unintentional, long-running workflows.
 - A flow can be [deployed](/3.0rc/deploy/infrastructure-examples/docker/), which exposes an API for interacting with it remotely.
 
 Flows are uniquely identified by name. 
@@ -36,8 +37,8 @@ You can provide a `name` parameter value for the flow:
 
 ```python
 @flow(name="My Flow")
-def my_flow():
-    return
+def my_flow() -> str:
+    return "Hello, world!"
 ```
 
 If you don't provide a name, Prefect uses the flow function name.
@@ -99,22 +100,6 @@ Prefect automatically performs type conversion of inputs using any provided type
 Type hints provide a simple way to enforce typing on your flow parameters and can be customized with [Pydantic](https://pydantic-docs.helpmanual.io/).
 Prefect supports any Pydantic model as a type hint for a flow parameter.
 
-```python
-from prefect import flow
-from pydantic import BaseModel
-
-
-class Model(BaseModel):
-    a: int
-    b: float
-    c: str
-
-
-@flow
-def model_validator(model: Model):
-    print(model)
-```
-
 For example, to automatically convert an argument to a datetime object:
 
 ```python
@@ -142,6 +127,33 @@ When you run this flow, you'll see the following output:
 
 ```bash
 It was Friday on 2021-01-01T02:00:19.180906
+```
+
+---
+
+You may pass also a `dict` representation of a `BaseModel` parameter and it will be coerced:
+```python
+from prefect import flow
+from pydantic import BaseModel
+
+
+class Model(BaseModel):
+    a: int
+    b: str
+
+
+@flow
+def flow_that_validates_parameters(model: Model): ...
+
+if __name__ == "__main__":
+    flow_that_validates_parameters(
+        model={"a": "WRONG", "b": "fine"}
+    )
+```
+This flow run will fail with the following error:
+```
+Flow run received invalid parameters:
+ - model.a: Input should be a valid integer, unable to parse string as an integer
 ```
 
 Note that you can provide parameter values to a flow through the API using a [deployment](/3.0rc/deploy/).
@@ -440,7 +452,7 @@ However you run a flow, the Prefect API monitors the flow run and records inform
 
 ## Flow settings
 
-Flows can be configured by passing arguments to the decorator. Flows accept the following optional settings:
+All flows can be configured by passing arguments to the decorator. Flows accept the following optional settings:
 
 | Argument                                           | Description                                                                                                                                                                                                          |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -699,6 +711,34 @@ I'm fail safe!
 ```
 
 If a flow run returns any other object, then it is recorded as `COMPLETED`
+
+#### Custom named states
+
+You can also create custom named states to provide more granularity in your flow run states.
+
+For example, we could create a `Skipped` state to indicate that a flow run was skipped.
+
+```python
+from prefect import flow
+from prefect.states import Completed
+
+@flow
+def my_flow(work_to_do: bool):
+    if not work_to_do:
+        return Completed(message="No work to do 💤", name="Skipped")
+    else:
+        return Completed(message="Work was done 💪")
+
+
+if __name__ == "__main__":
+    my_flow(work_to_do=False)
+```
+
+Running this flow produces the following result:
+
+```bash
+15:26:49.644 | INFO    | Flow run 'liberal-zebra' - Finished in state Skipped('No work to do', type=COMPLETED)
+```
 
 ## Retries
 
