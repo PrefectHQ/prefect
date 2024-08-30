@@ -41,8 +41,8 @@ Prefect future objects must be resolved explicitly before returning from a flow.
 Dependencies between futures will be automatically resolved whenever their dependents are resolved.
 This means that only _terminal_ futures need to be resolved, either by:
 - returning the terminal futures from your flow 
-- calling `.wait()` or `.result()` individually on all terminal futures
-- using one of the top level `wait` or `as_completed` utilities to resolve terminal futures.
+- calling `.wait()` or `.result()` on each terminal future
+- using one of the top level `wait` or `as_completed` utilities to resolve terminal futures
 
 Not doing so may leave your tasks in an unfinished state.
 </ Warning>
