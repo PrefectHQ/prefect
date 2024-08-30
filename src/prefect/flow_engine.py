@@ -499,6 +499,19 @@ class FlowRunEngine(Generic[P, R]):
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
+
+            parent_flow_run_ctx = FlowRunContext.get()
+            if parent_flow_run_ctx and (flow := parent_flow_run_ctx.flow) is not None:
+                result_factory = ResultFactory(
+                    serializer=flow.result_serializer,
+                    result_storage=flow.result_storage,
+                    persist_result=flow.persist_result,
+                    cache_result_in_memory=flow.cache_result_in_memory,
+                    storage_key_fn=parent_flow_run_ctx.result_factory.storage_key_fn,
+                )
+            else:
+                result_factory = ResultFactory()
+
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -506,7 +519,7 @@ class FlowRunEngine(Generic[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_factory=ResultFactory(),
+                    result_factory=result_factory,
                     task_runner=task_runner,
                 )
             )

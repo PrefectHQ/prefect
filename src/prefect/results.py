@@ -130,15 +130,19 @@ class ResultFactory:
         self,
         result_storage: Optional[ResultStorage] = None,
         serializer: Optional[ResultSerializer] = None,
-        persist_result: bool = True,
+        persist_result: Optional[bool] = None,
         cache_result_in_memory: bool = True,
         storage_key_fn: Callable[[], str] = DEFAULT_STORAGE_KEY_FN,
     ):
         self.result_storage = result_storage
         self._serializer = serializer or get_default_result_serializer()
-        self.persist_result = persist_result
-        self.cache_result_in_memory = cache_result_in_memory
-        self.storage_key_fn = storage_key_fn
+        self._persist_result = (
+            persist_result
+            if persist_result is not None
+            else get_default_persist_setting()
+        )
+        self._cache_result_in_memory = cache_result_in_memory
+        self._storage_key_fn = storage_key_fn
 
     @property
     def storage_block(self) -> WritableFileSystem:
@@ -169,10 +173,86 @@ class ResultFactory:
 
     @property
     def serializer(self) -> Serializer:
-        if isinstance(self._serializer, Serializer):
-            return self._serializer
+        # Determine the serializer
+
+        from prefect.context import FlowRunContext, TaskRunContext
+
+        flow_run_ctx = FlowRunContext.get()
+        task_run_ctx = TaskRunContext.get()
+
+        task: Optional["Task"] = getattr(task_run_ctx, "task", None)
+        flow: Optional["Flow"] = getattr(flow_run_ctx, "flow", None)
+
+        if task and task.result_serializer is not None:
+            serializer = task.result_serializer
+        elif flow and flow.result_serializer is not None:
+            serializer = flow.result_serializer
         else:
-            return self.resolve_serializer(self._serializer)
+            serializer = self._serializer
+
+        serializer = self.resolve_serializer(serializer)
+        return serializer
+
+    @property
+    def persist_result(self) -> bool:
+        # Determine if we should persist the result
+        from prefect.context import FlowRunContext, TaskRunContext
+
+        flow_run_ctx = FlowRunContext.get()
+        task_run_ctx = TaskRunContext.get()
+
+        task: Optional["Task"] = getattr(task_run_ctx, "task", None)
+        flow: Optional["Flow"] = getattr(flow_run_ctx, "flow", None)
+
+        if task and task.persist_result is not None:
+            persist_result = task.persist_result
+        elif flow and flow.persist_result is not None:
+            persist_result = flow.persist_result
+        else:
+            persist_result = self._persist_result
+
+        return persist_result
+
+    @persist_result.setter
+    def persist_result(self, value: bool):
+        self._persist_result = value
+
+    @property
+    def cache_result_in_memory(self) -> bool:
+        # Determine if we should cache the object in memory
+        from prefect.context import FlowRunContext, TaskRunContext
+
+        flow_run_ctx = FlowRunContext.get()
+        task_run_ctx = TaskRunContext.get()
+
+        task: Optional["Task"] = getattr(task_run_ctx, "task", None)
+        flow: Optional["Flow"] = getattr(flow_run_ctx, "flow", None)
+
+        if task and task.cache_result_in_memory is not None:
+            cache_result_in_memory = task.cache_result_in_memory
+        elif flow and flow.cache_result_in_memory is not None:
+            cache_result_in_memory = flow.cache_result_in_memory
+        else:
+            cache_result_in_memory = self._cache_result_in_memory
+
+        return cache_result_in_memory
+
+    @property
+    def storage_key_fn(self) -> Callable[[], str]:
+        from prefect.context import TaskRunContext
+
+        task_run_ctx = TaskRunContext.get()
+
+        task: Optional["Task"] = getattr(task_run_ctx, "task", None)
+
+        if task and task.result_storage_key is not None:
+            storage_key_fn = partial(
+                _format_user_supplied_storage_key, task.result_storage_key
+            )
+        else:
+            storage_key_fn = self._storage_key_fn
+
+        return storage_key_fn
 
     @staticmethod
     @sync_compatible
@@ -234,32 +314,8 @@ class ResultFactory:
 
         If persistence is enabled the object is serialized, persisted to storage, and a reference is returned.
         """
-        from prefect.context import FlowRunContext, TaskRunContext
-
-        flow_run_ctx = FlowRunContext.get()
-        task_run_ctx = TaskRunContext.get()
-
-        task: Optional["Task"] = getattr(task_run_ctx, "task", None)
-        flow: Optional["Flow"] = getattr(flow_run_ctx, "flow", None)
-
-        # Determine if we should cache the object in memory
-        if task and task.cache_result_in_memory is not None:
-            should_cache_object = task.cache_result_in_memory
-        elif flow and flow.cache_result_in_memory is not None:
-            should_cache_object = flow.cache_result_in_memory
-        else:
-            should_cache_object = self.cache_result_in_memory
-
         # Null objects are "cached" in memory at no cost
-        should_cache_object = should_cache_object or obj is None
-
-        # Determine if we should persist the result
-        if task and task.persist_result is not None:
-            persist_result = task.persist_result
-        elif flow and flow.persist_result is not None:
-            persist_result = flow.persist_result
-        else:
-            persist_result = self.persist_result
+        should_cache_object = self.cache_result_in_memory or obj is None
 
         # Determine the storage key function
         if key:
@@ -268,35 +324,18 @@ class ResultFactory:
                 return key
 
             storage_key_fn = key_fn
-        elif task and task.result_storage_key is not None:
-            storage_key_fn = partial(
-                _format_user_supplied_storage_key, task.result_storage_key
-            )
         else:
             storage_key_fn = self.storage_key_fn
 
-        # Determine the serializer
-        if task and task.result_serializer is not None:
-            serializer = task.result_serializer
-        elif flow and flow.result_serializer is not None:
-            serializer = flow.result_serializer
-        else:
-            serializer = self.serializer
-
-        serializer = self.resolve_serializer(serializer)
-        self._serializer = serializer
-
-        storage_block = self.storage_block
-
         return await PersistedResult.create(
             obj,
-            storage_block=storage_block,
-            storage_block_id=storage_block._block_document_id,
+            storage_block=self.storage_block,
+            storage_block_id=self.storage_block._block_document_id,
             storage_key_fn=storage_key_fn,
-            serializer=serializer,
+            serializer=self.serializer,
             cache_object=should_cache_object,
             expiration=expiration,
-            serialize_to_none=not persist_result,
+            serialize_to_none=not self.persist_result,
         )
 
     # TODO: These two methods need to find a new home

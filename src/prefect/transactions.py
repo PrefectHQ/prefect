@@ -24,7 +24,6 @@ from prefect.records import RecordStore
 from prefect.results import (
     BaseResult,
     ResultFactory,
-    get_default_result_storage,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
@@ -368,26 +367,12 @@ def transaction(
 
         new_factory: ResultFactory
         if existing_factory and existing_factory.storage_block_id:
-            new_factory = existing_factory.model_copy(
-                update={
-                    "persist_result": True,
-                }
-            )
+            existing_factory.persist_result = True
+            new_factory = existing_factory
         else:
-            default_storage = get_default_result_storage(_sync=True)
-            if existing_factory:
-                new_factory = existing_factory.model_copy(
-                    update={
-                        "persist_result": True,
-                        "storage_block": default_storage,
-                        "storage_block_id": default_storage._block_document_id,
-                    }
-                )
-            else:
-                new_factory = ResultFactory(
-                    persist_result=True,
-                    result_storage=default_storage,
-                )
+            new_factory = ResultFactory(
+                persist_result=True,
+            )
         from prefect.records.result_store import ResultFactoryStore
 
         store = ResultFactoryStore(
