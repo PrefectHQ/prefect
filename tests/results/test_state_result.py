@@ -38,9 +38,7 @@ async def test_unfinished_states_raise_on_result_retrieval(
 async def test_finished_states_allow_result_retrieval(
     prefect_client, state_type: StateType
 ):
-    factory = await ResultFactory.default_factory(
-        client=prefect_client, persist_result=True
-    )
+    factory = ResultFactory(persist_result=True)
     state = State(type=state_type, data=await factory.create_result("test"))
 
     assert await state.result(raise_on_failure=False) == "test"

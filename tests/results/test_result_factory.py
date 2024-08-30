@@ -36,10 +36,8 @@ def default_persistence_off():
 
 
 @pytest.fixture
-async def factory(prefect_client):
-    return await ResultFactory.default_factory(
-        client=prefect_client, persist_result=True
-    )
+async def factory():
+    return ResultFactory(persist_result=True)
 
 
 async def test_create_result_reference(factory):
@@ -688,19 +686,26 @@ async def test_default_storage_creation_for_task_without_persistence_features():
         ),
     ],
 )
-async def test_result_factory_from_task_with_no_flow_run_context(options, expected):
+async def test_result_factory_create_result_with_no_flow_run_context(options, expected):
     @task(**options)
     def my_task():
-        pass
+        result_factory = ResultFactory()
+        result = result_factory.create_result("foo")
+        return (
+            result.serialize_to_none,
+            result._should_cache_object,
+            result._serializer,
+            result._storage_block,
+        )
 
     assert FlowRunContext.get() is None
 
-    result_factory = await ResultFactory.from_task(task=my_task)
+    serialize_to_none, should_cache_object, serializer, storage_block = my_task()
 
-    assert result_factory.persist_result == expected["persist_result"]
-    assert result_factory.cache_result_in_memory == expected["cache_result_in_memory"]
-    assert result_factory.serializer == expected["serializer"]
-    assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
+    assert not serialize_to_none == expected["persist_result"]
+    assert should_cache_object == expected["cache_result_in_memory"]
+    assert serializer == expected["serializer"]
+    assert_blocks_equal(storage_block, DEFAULT_STORAGE())
 
 
 @pytest.mark.parametrize("persist_result", [True, False])

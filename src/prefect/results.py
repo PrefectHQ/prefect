@@ -5,7 +5,6 @@ from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
     Callable,
     Dict,
     Generic,
@@ -32,7 +31,7 @@ from typing_extensions import ParamSpec, Self
 
 import prefect
 from prefect.blocks.core import Block
-from prefect.client.utilities import inject_client
+from prefect.client.utilities import get_or_create_client, inject_client
 from prefect.exceptions import SerializationError
 from prefect.filesystems import (
     LocalFileSystem,
@@ -122,171 +121,24 @@ def _format_user_supplied_storage_key(key: str) -> str:
     return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
-class ResultFactory(BaseModel):
+class ResultFactory:
     """
     A utility to generate `Result` types.
     """
 
-    persist_result: bool
-    cache_result_in_memory: bool
-    serializer: Serializer
-    storage_block_id: Optional[uuid.UUID] = None
-    storage_block: WritableFileSystem
-    storage_key_fn: Callable[[], str]
-
-    @classmethod
-    @inject_client
-    async def default_factory(cls, client: "PrefectClient" = None, **kwargs):
-        """
-        Create a new result factory with default options.
-
-        Keyword arguments may be provided to override defaults. Null keys will be
-        ignored.
-        """
-        # Remove any null keys so `setdefault` can do its magic
-        for key, value in tuple(kwargs.items()):
-            if value is None:
-                kwargs.pop(key)
-
-        # Apply defaults
-        kwargs.setdefault("result_storage", await get_default_result_storage())
-        kwargs.setdefault("result_serializer", get_default_result_serializer())
-        kwargs.setdefault("persist_result", get_default_persist_setting())
-        kwargs.setdefault("cache_result_in_memory", True)
-        kwargs.setdefault("storage_key_fn", DEFAULT_STORAGE_KEY_FN)
-
-        return await cls.from_settings(**kwargs, client=client)
-
-    @classmethod
-    @inject_client
-    async def from_flow(
-        cls: Type[Self], flow: "Flow", client: "PrefectClient" = None
-    ) -> Self:
-        """
-        Create a new result factory for a flow.
-        """
-        from prefect.context import FlowRunContext
-
-        ctx = FlowRunContext.get()
-        if ctx:
-            # This is a child flow run
-            return await cls.from_settings(
-                result_storage=flow.result_storage or ctx.result_factory.storage_block,
-                result_serializer=flow.result_serializer
-                or ctx.result_factory.serializer,
-                persist_result=flow.persist_result,
-                cache_result_in_memory=flow.cache_result_in_memory,
-                storage_key_fn=DEFAULT_STORAGE_KEY_FN,
-                client=client,
-            )
-        else:
-            # This is a root flow run
-            # Pass the flow settings up to the default which will replace nulls with
-            # our default options
-            return await cls.default_factory(
-                client=client,
-                result_storage=flow.result_storage,
-                result_serializer=flow.result_serializer,
-                persist_result=flow.persist_result,
-                cache_result_in_memory=flow.cache_result_in_memory,
-                storage_key_fn=DEFAULT_STORAGE_KEY_FN,
-            )
-
-    @classmethod
-    @inject_client
-    async def from_task(
-        cls: Type[Self], task: "Task", client: "PrefectClient" = None
-    ) -> Self:
-        """
-        Create a new result factory for a task.
-        """
-        return await cls._from_task(task, get_default_result_storage, client=client)
-
-    @classmethod
-    @inject_client
-    async def from_autonomous_task(
-        cls: Type[Self], task: "Task[P, R]", client: "PrefectClient" = None
-    ) -> Self:
-        """
-        Create a new result factory for an autonomous task.
-        """
-        return await cls._from_task(
-            task, get_or_create_default_task_scheduling_storage, client=client
-        )
-
-    @classmethod
-    @inject_client
-    async def _from_task(
-        cls: Type[Self],
-        task: "Task",
-        default_storage_getter: Callable[[], Awaitable[ResultStorage]],
-        client: "PrefectClient" = None,
-    ) -> Self:
-        from prefect.context import FlowRunContext
-
-        ctx = FlowRunContext.get()
-
-        result_storage = task.result_storage or (
-            ctx.result_factory.storage_block
-            if ctx and ctx.result_factory
-            else await default_storage_getter()
-        )
-        result_serializer = task.result_serializer or (
-            ctx.result_factory.serializer
-            if ctx and ctx.result_factory
-            else get_default_result_serializer()
-        )
-        if task.persist_result is None:
-            persist_result = (
-                ctx.result_factory.persist_result
-                if ctx and ctx.result_factory
-                else get_default_persist_setting()
-            )
-        else:
-            persist_result = task.persist_result
-
-        cache_result_in_memory = task.cache_result_in_memory
-
-        return await cls.from_settings(
-            result_storage=result_storage,
-            result_serializer=result_serializer,
-            persist_result=persist_result,
-            cache_result_in_memory=cache_result_in_memory,
-            client=client,
-            storage_key_fn=(
-                partial(_format_user_supplied_storage_key, task.result_storage_key)
-                if task.result_storage_key is not None
-                else DEFAULT_STORAGE_KEY_FN
-            ),
-        )
-
-    @classmethod
-    @inject_client
-    async def from_settings(
-        cls: Type[Self],
-        result_storage: ResultStorage,
-        result_serializer: ResultSerializer,
-        persist_result: Optional[bool],
-        cache_result_in_memory: bool,
-        storage_key_fn: Callable[[], str],
-        client: "PrefectClient",
-    ) -> Self:
-        if persist_result is None:
-            persist_result = get_default_persist_setting()
-
-        storage_block_id, storage_block = await cls.resolve_storage_block(
-            result_storage, client=client, persist_result=persist_result
-        )
-        serializer = cls.resolve_serializer(result_serializer)
-
-        return cls(
-            storage_block=storage_block,
-            storage_block_id=storage_block_id,
-            serializer=serializer,
-            persist_result=persist_result,
-            cache_result_in_memory=cache_result_in_memory,
-            storage_key_fn=storage_key_fn,
-        )
+    def __init__(
+        self,
+        result_storage: Optional[ResultStorage] = None,
+        serializer: Optional[ResultSerializer] = None,
+        persist_result: bool = True,
+        cache_result_in_memory: bool = True,
+        storage_key_fn: Callable[[], str] = DEFAULT_STORAGE_KEY_FN,
+    ):
+        self.result_storage = result_storage
+        self.serializer = serializer or get_default_result_serializer()
+        self.persist_result = persist_result
+        self.cache_result_in_memory = cache_result_in_memory
+        self.storage_key_fn = storage_key_fn
 
     @staticmethod
     async def resolve_storage_block(
@@ -346,27 +198,81 @@ class ResultFactory(BaseModel):
 
         If persistence is enabled the object is serialized, persisted to storage, and a reference is returned.
         """
-        # Null objects are "cached" in memory at no cost
-        should_cache_object = self.cache_result_in_memory or obj is None
+        from prefect.context import FlowRunContext, TaskRunContext
 
+        flow_run_ctx = FlowRunContext.get()
+        task_run_ctx = TaskRunContext.get()
+        client, _ = get_or_create_client()
+
+        task: Optional["Task"] = getattr(task_run_ctx, "task", None)
+        flow: Optional["Flow"] = getattr(flow_run_ctx, "flow", None)
+
+        # Determine if we should cache the object in memory
+        if task and task.cache_result_in_memory is not None:
+            should_cache_object = task.cache_result_in_memory
+        elif flow and flow.cache_result_in_memory is not None:
+            should_cache_object = flow.cache_result_in_memory
+        else:
+            should_cache_object = self.cache_result_in_memory
+
+        # Null objects are "cached" in memory at no cost
+        should_cache_object = should_cache_object or obj is None
+
+        # Determine the result storage block
+        if task and task.result_storage is not None:
+            result_storage = task.result_storage
+        elif flow and flow.result_storage is not None:
+            result_storage = flow.result_storage
+        else:
+            result_storage = self.result_storage or await get_default_result_storage()
+
+        storage_block_id, storage_block = await self.resolve_storage_block(
+            result_storage, client=client
+        )
+        self.storage_block = storage_block
+
+        # Determine if we should persist the result
+        if task and task.persist_result is not None:
+            persist_result = task.persist_result
+        elif flow and flow.persist_result is not None:
+            persist_result = flow.persist_result
+        else:
+            persist_result = self.persist_result
+
+        # Determine the storage key function
         if key:
 
             def key_fn():
                 return key
 
             storage_key_fn = key_fn
+        elif task and task.result_storage_key is not None:
+            storage_key_fn = partial(
+                _format_user_supplied_storage_key, task.result_storage_key
+            )
         else:
             storage_key_fn = self.storage_key_fn
 
+        # Determine the serializer
+        if task and task.result_serializer is not None:
+            serializer = task.result_serializer
+        elif flow and flow.result_serializer is not None:
+            serializer = flow.result_serializer
+        else:
+            serializer = self.serializer
+
+        serializer = self.resolve_serializer(serializer)
+        self.serializer = serializer
+
         return await PersistedResult.create(
             obj,
-            storage_block=self.storage_block,
-            storage_block_id=self.storage_block_id,
+            storage_block=storage_block,
+            storage_block_id=storage_block_id,
             storage_key_fn=storage_key_fn,
-            serializer=self.serializer,
+            serializer=serializer,
             cache_object=should_cache_object,
             expiration=expiration,
-            serialize_to_none=not self.persist_result,
+            serialize_to_none=not persist_result,
         )
 
     # TODO: These two methods need to find a new home

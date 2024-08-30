@@ -20,7 +20,7 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.read(key) is None
-        factory = await ResultFactory.default_factory(
+        factory = ResultFactory(
             persist_result=True,
         )
         result = await factory.create_result(obj={"test": "value"})
@@ -32,7 +32,7 @@ class TestInMemoryRecordStore:
     async def test_read_locked_key(self):
         key = str(uuid4())
         store = MemoryRecordStore()
-        factory = await ResultFactory.default_factory(
+        factory = ResultFactory(
             persist_result=True,
         )
         result = await factory.create_result(obj={"test": "value"})
@@ -57,7 +57,7 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.acquire_lock(key)
-        factory = await ResultFactory.default_factory(
+        factory = ResultFactory(
             persist_result=True,
         )
         result = await factory.create_result(obj={"test": "value"})
@@ -70,7 +70,7 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.acquire_lock(key, holder="holder1")
-        factory = await ResultFactory.default_factory(
+        factory = ResultFactory(
             persist_result=True,
         )
         result = await factory.create_result(obj={"test": "value"})
@@ -84,7 +84,7 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert not store.exists(key)
-        factory = await ResultFactory.default_factory(
+        factory = ResultFactory(
             persist_result=True,
         )
         result = await factory.create_result(obj={"test": "value"})

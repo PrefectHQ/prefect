@@ -591,7 +591,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_coro_as_sync(ResultFactory.from_task(self.task)),  # type: ignore
+                    # TODO: Allow reuse of result factories
+                    result_factory=ResultFactory(),  # type: ignore
                     client=client,
                 )
             )
@@ -1096,7 +1097,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=await ResultFactory.from_task(self.task),  # type: ignore
+                    # TODO: Allow reuse of result factories
+                    result_factory=ResultFactory(),  # type: ignore
                     client=client,
                 )
             )
