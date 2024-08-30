@@ -34,20 +34,20 @@ The full list of states and state types includes:
   
 | Name | Type | Terminal? | Description
 | --- | --- | --- | --- |
-| Scheduled | SCHEDULED | No | The run will begin at a particular time in the future. |
-| Late | SCHEDULED | No | The run's scheduled start time has passed, but it has not transitioned to PENDING (15 seconds by default). |
-| <span class="no-wrap">AwaitingRetry</span> | SCHEDULED | No | The run did not complete successfully because of a code issue and had remaining retry attempts. |
-| Pending | PENDING | No | The run has been submitted to execute, but is waiting on necessary preconditions to be satisfied. |
-| Running | RUNNING | No | The run code is currently executing. |
-| Retrying | RUNNING | No | The run code is currently executing after previously not completing successfully. |
-| Paused | PAUSED | No | The run code has stopped executing until it receives manual approval to proceed. |
-| Cancelling | CANCELLING | No | The infrastructure on which the code was running is being cleaned up. |
-| Cancelled | CANCELLED | Yes | The run did not complete because a user determined that it should not. |
-| Completed | COMPLETED | Yes | The run completed successfully. |
-| Cached | COMPLETED | Yes | The run result was loaded from a previously cached value. |
-| RolledBack | COMPLETED | Yes | The run completed successfully but the transaction rolled back and executed rollback hooks. |
-| Failed | FAILED | Yes | The run did not complete because of a code issue and had no remaining retry attempts. |
-| Crashed | CRASHED | Yes | The run did not complete because of an infrastructure issue. |
+| `Scheduled` | `SCHEDULED` | No | The run will begin at a particular time in the future. |
+| `Late` | `SCHEDULED` | No | The run's scheduled start time has passed, but it has not transitioned to PENDING (15 seconds by default). |
+| <span class="no-wrap">`AwaitingRetry`</span> | `SCHEDULED` | No | The run did not complete successfully because of a code issue and had remaining retry attempts. |
+| `Pending` | `PENDING` | No | The run has been submitted to execute, but is waiting on necessary preconditions to be satisfied. |
+| `Running` | `RUNNING` | No | The run code is currently executing. |
+| `Retrying` | `RUNNING` | No | The run code is currently executing after previously not completing successfully. |
+| `Paused` | `PAUSED` | No | The run code has stopped executing until it receives manual approval to proceed. |
+| `Cancelling` | `CANCELLING` | No | The infrastructure on which the code was running is being cleaned up. |
+| `Cancelled` | `CANCELLED` | Yes | The run did not complete because a user determined that it should not. |
+| `Completed` | `COMPLETED` | Yes | The run completed successfully. |
+| `Cached` | `COMPLETED` | Yes | The run result was loaded from a previously cached value. |
+| `RolledBack` | `COMPLETED` | Yes | The run completed successfully but the transaction rolled back and executed rollback hooks. |
+| `Failed` | `FAILED` | Yes | The run did not complete because of a code issue and had no remaining retry attempts. |
+| `Crashed` | `CRASHED` | Yes | The run did not complete because of an infrastructure issue. |
 
 ## Final state determination
 
