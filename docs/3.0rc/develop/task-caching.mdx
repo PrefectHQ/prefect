@@ -253,10 +253,10 @@ A more realistic example might include the flow run id in the cache key, so only
 calls in the same flow run are cached:
 
 ```python
-from prefect.cache_policies import INPUTS, FLOW_RUN_ID
+from prefect.cache_policies import INPUTS, RUN_ID
 
 
-@task(cache_policy=INPUTS + FLOW_RUN_ID, cache_expiration=timedelta(days=1))
+@task(cache_policy=INPUTS + RUN_ID, cache_expiration=timedelta(days=1))
 def hello_task(name_input):
     # Doing some work
     print("Saying hello")
