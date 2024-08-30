@@ -21,7 +21,7 @@ def add_one(x):
 
 @flow 
 def my_flow():
-    # avoided the raising of an exception with return_state flag
+    # avoided raising an exception via `return_state=True`
     state = add_one("1", return_state=True)
     assert state.is_failed()
 
@@ -29,6 +29,6 @@ def my_flow():
     return
 ```
 
-If in this example the `state` was returned from the flow function, the run would be marked as `FAILED`.
+If `state` were returned from the flow function, the run would be marked as `FAILED`.
 
 </ Warning>
