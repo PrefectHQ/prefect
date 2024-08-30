@@ -2191,10 +2191,32 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
     return path.write_text(toml.dumps(profiles.to_dict()))
 
 
-def load_profiles() -> ProfilesCollection:
-    if not PREFECT_PROFILES_PATH.value().exists():
-        return ProfilesCollection([])
-    return _read_profiles_from(PREFECT_PROFILES_PATH.value())
+def load_profiles(include_defaults: bool = True) -> ProfilesCollection:
+    """
+    Load profiles from the current profile path. Optionally include profiles from the
+    default profile path.
+    """
+    if not include_defaults:
+        return _read_profiles_from(PREFECT_PROFILES_PATH.value())
+
+    profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
+
+    user_profiles_path = PREFECT_PROFILES_PATH.value()
+    if user_profiles_path.exists():
+        user_profiles = _read_profiles_from(user_profiles_path)
+
+        # Merge all of the user profiles with the defaults
+        for name in user_profiles:
+            profiles.update_profile(
+                name,
+                settings=user_profiles[name].settings,
+                source=user_profiles[name].source,
+            )
+
+        if user_profiles.active_name:
+            profiles.set_active(user_profiles.active_name, check=False)
+
+    return profiles
 
 
 def load_current_profile():

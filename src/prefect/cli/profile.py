@@ -38,7 +38,7 @@ def ls():
     """
     List profile names.
     """
-    profiles = prefect.settings.load_profiles()
+    profiles = prefect.settings.load_profiles(include_defaults=False)
     current_profile = prefect.context.get_settings_context().profile
     current_name = current_profile.name if current_profile is not None else None
 

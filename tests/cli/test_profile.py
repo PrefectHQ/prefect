@@ -219,13 +219,6 @@ class TestChangingProfileAndCheckingServerConnection:
         assert profiles.active_name == "ephemeral"
 
 
-def test_ls_default_profiles():
-    # 'ephemeral' is not the current profile because we have a temporary profile in-use
-    # during tests
-
-    invoke_and_assert(["profile", "ls"], expected_output_contains="ephemeral")
-
-
 def test_ls_additional_profiles():
     # 'ephemeral' is not the current profile because we have a temporary profile in-use
     # during tests
@@ -243,7 +236,6 @@ def test_ls_additional_profiles():
     invoke_and_assert(
         ["profile", "ls"],
         expected_output_contains=(
-            "ephemeral",
             "foo",
             "bar",
         ),
@@ -262,10 +254,7 @@ def test_ls_respects_current_from_profile_flag():
 
     invoke_and_assert(
         ["--profile", "foo", "profile", "ls"],
-        expected_output_contains=(
-            "ephemeral",
-            "* foo",
-        ),
+        expected_output_contains=("* foo",),
     )
 
 
@@ -284,7 +273,6 @@ def test_ls_respects_current_from_context():
         invoke_and_assert(
             ["profile", "ls"],
             expected_output_contains=(
-                "ephemeral",
                 "foo",
                 "* bar",
             ),
@@ -671,7 +659,6 @@ class TestProfilesPopulateDefaults:
         output = captured.out
 
         assert "Proposed Changes:" in output
-        assert "Migrate 'default' to 'ephemeral'" in output
         assert "Add 'ephemeral'" in output
         assert "Add 'local'" in output
         assert "Add 'cloud'" in output
