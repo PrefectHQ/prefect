@@ -97,7 +97,7 @@ The result of the task writes to S3, rather than stored in memory.
 <!-- vale off -->
 */}
 To save memory and time with big data, you don't need to pass results between tasks.
-Instead, write and read data to disk directly in your flow code.
+Instead, you can write and read data to disk directly in your flow code.
 Prefect has integration libraries for each of the major cloud providers.
 {/*
 <!-- vale on -->
@@ -105,8 +105,7 @@ Prefect has integration libraries for each of the major cloud providers.
 
 Each library contains blocks with methods that make it convenient to read and write data to and 
 from cloud object storage.
-The [moving data guide](/3.0rc/develop/interact-with-data/) has step-by-step examples for each 
-cloud provider.
+
 
 ### Cache task results
 
@@ -123,7 +122,6 @@ Specify the result type with `compressed/` prefixed:
 @task(result_serializer="compressed/json")
 ```
 
-Read about [compressing results with Prefect](/3.0rc/develop/interact-with-data/) for more details.
 Note that compression takes time to compress and decompress the data.
 
 ### Use a task runner for parallelizable operations
