@@ -129,7 +129,7 @@ The default logging level is `INFO`.
 
 Prefect provides several settings to configure logging level and individual loggers.
 
-Any value in [Prefect's logging configuration file](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml) can be overriden through 
+Any value in [Prefect's logging configuration file](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml) can be overridden through 
 a Prefect setting of the form `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=value` corresponding to the nested address of the field you are configuring.
 
 For example, to change the default logging level for flow runs but not task runs, update your profile with:
