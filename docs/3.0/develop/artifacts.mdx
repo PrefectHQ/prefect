@@ -11,7 +11,7 @@ Prefect artifacts:
 - are stored in Prefect Cloud or Prefect server and rendered in the Prefect UI
 - make it easy to visualize outputs or side effects that your runs produce, and capture updates over time
 
-![Markdown artifact sales report screenshot](/3.0rc/img/ui/md-artifact-info.png)
+![Markdown artifact sales report screenshot](/3.0/img/ui/md-artifact-info.png)
 
 Common use cases for artifacts include:
 
@@ -93,7 +93,7 @@ You can specify multiple artifacts with the same key to easily track something v
 After running flows that create artifacts, view the artifacts in the **Artifacts** page of the UI.
 Click into the "irregular-data" artifact to see its versions, along with custom descriptions and links to the relevant data.
 
-![Link artifact details with multiple versions](/3.0rc/img/ui/link-artifact-info.png)
+![Link artifact details with multiple versions](/3.0/img/ui/link-artifact-info.png)
 
 You can also view information about the artifact such as:
 
@@ -133,7 +133,7 @@ Progress artifacts render dynamically on the flow run graph in the Prefect UI, i
 
 To create a progress artifact, use the `create_progress_artifact()` function. To update a progress artifact, use the `update_progress_artifact()` function.
 
-![Progress artifact example](/3.0rc/img/ui/progress-artifact-example.png)
+![Progress artifact example](/3.0/img/ui/progress-artifact-example.png)
 
 ```python
 from time import sleep
@@ -239,7 +239,7 @@ if __name__ == "__main__":
 
 After running the above flow, you should see your "gtm-report" artifact in the Artifacts page of the UI.
 
-![Markdown sales report screenshot](/3.0rc/img/ui/md-artifact-info.png)
+![Markdown sales report screenshot](/3.0/img/ui/md-artifact-info.png)
 
 You can view the associated flow run id or task run id, previous versions of the artifact, the rendered Markdown data, and the optional Markdown description.
 
@@ -274,13 +274,13 @@ if __name__ == "__main__":
     my_fn()
 ```
 
-![Table artifact with customer info](/3.0rc/img/ui/table-artifact-info.png)
+![Table artifact with customer info](/3.0/img/ui/table-artifact-info.png)
 
 ### Create image artifacts
 
 Image artifacts render publicly available images in the Prefect UI. To create an image artifact, use the `create_image_artifact()` function.
 
-![Image artifact example](/3.0rc/img/ui/image-artifact-example.png)
+![Image artifact example](/3.0/img/ui/image-artifact-example.png)
 
 ```python
 from prefect import flow, task
@@ -354,7 +354,7 @@ prefect artifact delete --id <my_id>
 
 ## Artifacts API
 
-Create, read, or delete artifacts programmatically through the [Prefect REST API](/3.0rc/api-ref/rest-api/).
+Create, read, or delete artifacts programmatically through the [Prefect REST API](/3.0/api-ref/rest-api/).
 With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
 
 For example, to read the five most recently created Markdown, table, and link artifacts, you can run the following:
@@ -386,4 +386,4 @@ for artifact in response.json():
 
 If you don't specify a key or that a key must exist, you will also return results, which are a type of key-less artifact.
 
-See the [Prefect REST API documentation](/3.0rc/api-ref/rest-api/) on artifacts for more information.
+See the [Prefect REST API documentation](/3.0/api-ref/rest-api/) on artifacts for more information.

@@ -3,7 +3,7 @@ title: Run flows on serverless compute
 description: Learn how to use Prefect push work pools to schedule work on serverless infrastructure without having to run a worker.
 ---
 
-<span class="badge cloud"></span> Push [work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) are a special type of work pool. They allow 
+<span class="badge cloud"></span> Push [work pools](/3.0/deploy/infrastructure-concepts/work-pools/) are a special type of work pool. They allow 
 Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without requiring you to run a worker.
 Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, and Modal.
 
@@ -553,7 +553,7 @@ In the examples below, you'll create a push work pool through the Prefect Cloud 
 
     The service account must have two roles at a minimum: *Cloud Run Developer* and *Service Account User*.
 
-    ![Configuring service account permissions in GCP](/3.0rc/img/guides/gcr-service-account-setup.png)
+    ![Configuring service account permissions in GCP](/3.0/img/guides/gcr-service-account-setup.png)
 
     Once you create the Service account, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, 
     and store it somewhere safe for use in the next section.
@@ -603,7 +603,7 @@ integrate securely with your serverless infrastructure, you need to store your c
     For use in a push work pool, this block must have the contents of the JSON key stored in the 
     Service Account Info field, as such:
 
-    ![Configuring GCP Credentials block for use in cloud run push work pools](/3.0rc/img/guides/gcp-creds-block-setup.png)
+    ![Configuring GCP Credentials block for use in cloud run push work pools](/3.0/img/guides/gcp-creds-block-setup.png)
 
     Provide any other optional information and create your block.
   </Tab>
@@ -624,7 +624,7 @@ Click **Create** to configure your push work pool by selecting a push option in 
   <Tab title="AWS ECS">
 
     Each step has several optional fields that are detailed in the
-     [work pools documentation](/3.0rc/deploy/infrastructure-concepts/work-pools/). 
+     [work pools documentation](/3.0/deploy/infrastructure-concepts/work-pools/). 
     Select the block you created under the AWS Credentials field. 
     This allows Prefect Cloud to securely interact with your ECS cluster.
  </Tab>
@@ -636,14 +636,14 @@ Click **Create** to configure your push work pool by selecting a push option in 
  <Tab title="Google Cloud Run">
 
     Each step has several optional fields that are detailed in
-    [Manage infrastructure with work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/). 
+    [Manage infrastructure with work pools](/3.0/deploy/infrastructure-concepts/work-pools/). 
     Select the block you created under the GCP Credentials field. 
     This allows Prefect Cloud to securely interact with your GCP project.
  </Tab>
  <Tab title="Modal">
 
     Each step has several optional fields that are detailed in the 
-    [work pools documentation](/3.0rc/deploy/infrastructure-concepts/work-pools/). 
+    [work pools documentation](/3.0/deploy/infrastructure-concepts/work-pools/). 
     Select the block you created under the Modal Credentials field. 
     This allows Prefect Cloud to securely interact with your Modal account.
  </Tab>
@@ -652,7 +652,7 @@ Create your pool to be ready to deploy flows to your Push work pool.
 
 ## Deployment
 
-You need to configure your [deployment](/3.0rc/deploy/infrastructure-examples/docker/) to send flow runs to your push work pool.
+You need to configure your [deployment](/3.0/deploy/infrastructure-examples/docker/) to send flow runs to your push work pool.
 For example, if you create a deployment through the interactive command line experience, 
 choose the work pool you just created. If you are deploying an existing `prefect.yaml` file, the deployment would contain:
 
@@ -680,6 +680,6 @@ to your serverless infrastructure, created a job, ran the job, and reported on i
 
 ## Next steps
 
-Learn more about [work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) and [workers](/3.0rc/deploy/infrastructure-concepts/workers/).
+Learn more about [work pools](/3.0/deploy/infrastructure-concepts/work-pools/) and [workers](/3.0/deploy/infrastructure-concepts/workers/).
 
-Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/3.0rc/deploy/infrastructure-examples/docker#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/3.0/deploy/infrastructure-examples/docker#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.

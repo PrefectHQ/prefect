@@ -10,7 +10,7 @@ Task run concurrency limits use [task tags](#tags). You can specify an optional 
 task runs in a `Running` state for tasks with a given tag.
 
 <Tip>
-Tag-based task concurrency is different from [Global Concurrency Limits](/3.0rc/develop/global-concurrency-limits), though they can be used to achieve similar outcomes. Global Concurrency Limits are a more general way to control concurrency for any python-based operation, whereas tag-based concurrency limits are specific to Prefect tasks.
+Tag-based task concurrency is different from [Global Concurrency Limits](/3.0/develop/global-concurrency-limits), though they can be used to achieve similar outcomes. Global Concurrency Limits are a more general way to control concurrency for any python-based operation, whereas tag-based concurrency limits are specific to Prefect tasks.
 </Tip>
 
 
@@ -21,7 +21,7 @@ Tags without specified concurrency limits are treated as unlimited. Setting a ta
 
 ### Execution behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/3.0rc/develop/manage-states/).
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/3.0/develop/manage-states/).
 
 If there are no concurrency slots available for any one of your task's tags, it delays the transition to a `Running` state 
 and instructs the client to try entering a `Running` state again in 30 seconds 
@@ -32,7 +32,7 @@ and instructs the client to try entering a `Running` state again in 30 seconds
 <Tip>
 **Flow run concurrency limits are set at a work pool and/or work queue level**
 
-While task run concurrency limits are configured through tags (as shown below), [flow run concurrency limits](/3.0rc/develop/global-concurrency-limits) are configured through work pools and/or work queues.
+While task run concurrency limits are configured through tags (as shown below), [flow run concurrency limits](/3.0/develop/global-concurrency-limits) are configured through work pools and/or work queues.
 </Tip>
 
 You can set concurrency limits on as few or as many tags as you wish. You can set limits through:

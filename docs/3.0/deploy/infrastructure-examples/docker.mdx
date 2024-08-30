@@ -48,7 +48,7 @@ The work pool should have a `Ready` status indicator.
 
 Keep this terminal session active for the worker to continue to pick up jobs.
 Since you are running this worker locally, the worker will if you close the terminal.
-In a production setting this worker should run as a [daemonized or managed process](/3.0rc/resources/daemonize-processes/).
+In a production setting this worker should run as a [daemonized or managed process](/3.0/resources/daemonize-processes/).
 
 ## Create the deployment
 
@@ -208,7 +208,7 @@ For example, you can install a private Python package from GCP's artifact regist
        )
    ```
 
-Note that you used a [Prefect Secret block](/3.0rc/develop/blocks/) to load the URL configuration for 
+Note that you used a [Prefect Secret block](/3.0/develop/blocks/) to load the URL configuration for 
 the artifact registry above.
 
 See all the optional keyword arguments for the [DockerImage class](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build).
@@ -330,7 +330,7 @@ In the example above, your credentials are auto-discovered from your deployment 
 must be available in your runtime environment.
 
 If you need additional configuration for your cloud-based storage (for example, with a private S3 Bucket), we recommend using a 
-[storage block](/3.0rc/develop/blocks/).
+[storage block](/3.0/develop/blocks/).
 A storage block also ensures your credentials are available in both your deployment creation environment and your execution 
 environment.
 
@@ -377,7 +377,7 @@ if __name__ == "__main__":
 
 The `job_variables` parameter allows you to fine-tune the infrastructure settings for a deployment.
 The values passed in override default values in the specified work pool's 
-[base job template](/3.0rc/deploy/infrastructure-concepts/work-pools/#base-job-template).
+[base job template](/3.0/deploy/infrastructure-concepts/work-pools/#base-job-template).
 
 You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables` 
 argument.
@@ -410,7 +410,7 @@ The dictionary key "EXTRA_PIP_PACKAGES" denotes a special environment variable t
 Python packages at runtime.
 This approach is an alternative to building an image with a custom `requirements.txt` copied into it.
 
-See [Override work pool job variables](/3.0rc/deploy/infrastructure-concepts/customize) for more information about how to customize these variables.
+See [Override work pool job variables](/3.0/deploy/infrastructure-concepts/customize) for more information about how to customize these variables.
 
 ### Work with multiple deployments with `deploy`
 
@@ -494,6 +494,6 @@ This is useful if using a monorepo approach to your workflows.
 
 ## Learn more
 
-- [Deploy flows on Kubernetes](/3.0rc/deploy/infrastructure-examples/kubernetes/)
-- [Deploy flows on serverless infrastructure](/3.0rc/deploy/infrastructure-examples/serverless/)
-- [Daemonize workers](/3.0rc/resources/daemonize-processes/)
+- [Deploy flows on Kubernetes](/3.0/deploy/infrastructure-examples/kubernetes/)
+- [Deploy flows on serverless infrastructure](/3.0/deploy/infrastructure-examples/serverless/)
+- [Daemonize workers](/3.0/resources/daemonize-processes/)

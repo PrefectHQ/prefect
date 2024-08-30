@@ -6,16 +6,16 @@ description: An event is a notification of a change, creating a history of activ
 Events can represent API calls, state transitions, or changes in your execution environment or infrastructure.
 
 Events power several features, including flow run logs and automations.
-In Prefect Cloud, events power [audit logs](/3.0rc/manage/cloud/manage-users/audit-logs/).
+In Prefect Cloud, events power [audit logs](/3.0/manage/cloud/manage-users/audit-logs/).
 
 Events enable observability into your data stack through the [event feed in the UI](#events-in-the-cloud-ui) and the 
-configuration of Prefect's reactivity through [automations](/3.0rc/automate/events/automations-triggers/).
+configuration of Prefect's reactivity through [automations](/3.0/automate/events/automations-triggers/).
 
 ## Event specification
 
 Events adhere to a structured [specification](https://app.prefect.cloud/api/docs#tag/Events).
 
-![Prefect UI](/3.0rc/img/ui/event-spec.png)
+![Prefect UI](/3.0/img/ui/event-spec.png)
 
 | Name     | Type   | Required? | Description                                                          |
 | -------- | ------ | --------- | -------------------------------------------------------------------- |
@@ -69,10 +69,10 @@ To get data into an event for use in an automation action, specify a dictionary 
 
 ### Emit events through webhooks
 
-Prefect Cloud offers [programmable webhooks](/3.0rc/automate/events/webhook-triggers/) to receive HTTP requests 
+Prefect Cloud offers [programmable webhooks](/3.0/automate/events/webhook-triggers/) to receive HTTP requests 
 from other systems and translate them into events within your workspace. 
-Webhooks can emit [pre-defined static events](/3.0rc/automate/events/webhook-triggers/#static-webhook-events), 
-dynamic events that [use portions of the incoming HTTP request](/3.0rc/automate/events/webhook-triggers/#dynamic-webhook-events), or events derived from [CloudEvents](/3.0rc/automate/events/webhook-triggers/#accepting-cloudevents).
+Webhooks can emit [pre-defined static events](/3.0/automate/events/webhook-triggers/#static-webhook-events), 
+dynamic events that [use portions of the incoming HTTP request](/3.0/automate/events/webhook-triggers/#dynamic-webhook-events), or events derived from [CloudEvents](/3.0/automate/events/webhook-triggers/#accepting-cloudevents).
 
 ## Resources
 
@@ -119,7 +119,7 @@ Here is an example of a related resource:
 
 The Prefect UI provides an interactive dashboard to analyze and take action on events that occurred in your workspace on the event feed page.
 
-![Event feed](/3.0rc/img/ui/event-feed.png)
+![Event feed](/3.0/img/ui/event-feed.png)
 
 The event feed is the primary place to view, search, and filter events to understand activity across your stack. 
 Each entry displays data on the resource, related resource, and event that took place.
@@ -129,10 +129,10 @@ resource, related resources, and its payload.
 
 ## Respond to events
 
-From an event page, you can configure an [automation](/3.0rc/automate/events/automations-triggers/) to trigger on 
+From an event page, you can configure an [automation](/3.0/automate/events/automations-triggers/) to trigger on 
 the observation of matching events—or a lack of matching events—by clicking the automate button in the overflow menu:
 
-![Automation from event](/3.0rc/img/ui/automation-from-event.png)
+![Automation from event](/3.0/img/ui/automation-from-event.png)
 
 The default trigger configuration fires every time it sees an event with a matching resource identifier. 
-Advanced configuration is possible through [custom triggers](/3.0rc/automate/events/custom-triggers/).
+Advanced configuration is possible through [custom triggers](/3.0/automate/events/custom-triggers/).

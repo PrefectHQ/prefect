@@ -5,7 +5,7 @@ description: Learn how to use caching to gain efficiency and pipeline idempotenc
 
 Caching refers to the ability of a task run to enter a `Completed` state and return a predetermined 
 value without actually running the code that defines the task. 
-Caching allows you to efficiently reuse [results of tasks](/3.0rc/develop/results/) that may be expensive to compute
+Caching allows you to efficiently reuse [results of tasks](/3.0/develop/results/) that may be expensive to compute
 and ensure that your pipelines are idempotent when retrying them due to unexpected failure. 
 
 By default Prefect's caching logic is based on the following attributes of a task invocation:
@@ -16,7 +16,7 @@ By default Prefect's caching logic is based on the following attributes of a tas
 These values are hashed to compute the task's _cache key_. 
 This implies that, by default, calling the same task with the same inputs more than once within a flow 
 will result in cached behavior for all calls after the first.
-This behavior can be configured - see [customizing the cache](/3.0rc/develop/write-tasks#customizing-the-cache) below.
+This behavior can be configured - see [customizing the cache](/3.0/develop/write-tasks#customizing-the-cache) below.
 
 <Warning>
 **Caching requires result persistence**
@@ -28,8 +28,8 @@ To turn on result persistence for all of your tasks use the `PREFECT_RESULTS_PER
 prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 ```
 
-See [managing results](/3.0rc/develop/results/) for more details on managing your result configuration, and
-[settings](/3.0rc/manage/settings-and-profiles) for more details on managing Prefect settings.
+See [managing results](/3.0/develop/results/) for more details on managing your result configuration, and
+[settings](/3.0/manage/settings-and-profiles) for more details on managing Prefect settings.
 </Warning>
 
 ## Cache keys
@@ -190,7 +190,7 @@ def my_cached_task(x: int):
 
 There are many situations in which multiple tasks need to always run together or not at all.
 This can be achieved in Prefect by configuring these tasks to always write to their caches within 
-a single [_transaction_](/3.0rc/develop/transactions).
+a single [_transaction_](/3.0/develop/transactions).
 
 ```python
 from prefect import task, flow
@@ -225,7 +225,7 @@ the `process_data` task succeeds as well.
 This ensures that anytime you need to rerun this flow both `load_data` and `process_data` are executed
 together. 
 After a successful execution both tasks will be cached until the cache key is updated.
-Read more about [transactions](/3.0rc/develop/transactions). 
+Read more about [transactions](/3.0/develop/transactions). 
 
 ## Caching example
 
@@ -299,7 +299,7 @@ particularly useful when you have a flow that is responsible for updating the ca
 To refresh the cache for all tasks, use the `PREFECT_TASKS_REFRESH_CACHE` setting. 
 Setting `PREFECT_TASKS_REFRESH_CACHE=true` changes the default behavior of all tasks to refresh. 
 This is particularly useful to rerun a flow without cached results.
-See [settings](/3.0rc/manage/settings-and-profiles) for more details on managing Prefect settings.
+See [settings](/3.0/manage/settings-and-profiles) for more details on managing Prefect settings.
 
 If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` 
 to `False`. These tasks will never refresh the cache. If a cache key exists it will be read, not updated. 

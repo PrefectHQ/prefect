@@ -229,7 +229,7 @@ The bucket is populated with the provided value (which also could have been prov
 `folder` property of the `push` step is a template—the `pull_from_s3` step outputs both a `bucket` value as well as a `folder` 
 value for the template downstream steps. This helps you keep your steps consistent across edits.
 
-As discussed above, if you use [blocks](/3.0rc/develop/blocks/), you can template the credentials section with 
+As discussed above, if you use [blocks](/3.0/develop/blocks/), you can template the credentials section with 
 a block reference for secure and dynamic credentials access:
 
 ```yaml
@@ -371,10 +371,10 @@ Values that you place within your `prefect.yaml` file can reference dynamic valu
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these 
 fields within `prefect.yaml` and `prefect deploy` will populate them with each call. References must be enclosed in double 
 brackets and in `"{{ field_name }}"` format
-- **blocks**: you can reference [Prefect blocks](/3.0rc/develop/blocks) with the  
+- **blocks**: you can reference [Prefect blocks](/3.0/develop/blocks) with the  
 `{{ prefect.blocks.block_type.block_slug }}` syntax. It is highly recommended that you use block references for any sensitive 
 information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
-- **variables**: you can reference [Prefect variables](/3.0rc/develop/variables) with the  
+- **variables**: you can reference [Prefect variables](/3.0/develop/variables) with the  
 `{{ prefect.variables.variable_name }}` syntax. Use variables to reference non-sensitive, reusable pieces of information 
 such as a default image name or a default work pool name.
 - **environment variables**: you can also reference environment variables with the special syntax `{{ $MY_ENV_VAR }}`. 
@@ -607,8 +607,8 @@ These are fields you can add to each deployment declaration.
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                                  |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
-| `schedule`                                 | An optional [schedule](/3.0rc/automate/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
-| `triggers`                                  | An optional array of [triggers](/3.0rc/automate/events/automations-triggers/#custom-triggers) to assign to the deployment |
+| `schedule`                                 | An optional [schedule](/3.0/automate/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `triggers`                                  | An optional array of [triggers](/3.0/automate/events/automations-triggers/#custom-triggers) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
@@ -636,7 +636,7 @@ These are fields you can add to a deployment declaration's `work_pool` section.
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                                         | The name of the work pool to schedule flow runs in for the deployment.                                                                                                                                    |
 | <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool is used.                       |
-| `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/3.0rc/deploy/infrastructure-concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
+| `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/3.0/deploy/infrastructure-concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
 #### Deployment mechanics
 
@@ -666,7 +666,7 @@ Each time a step runs, the following actions take place in order:
 
 Now that you are familiar with creating deployments, you can explore infrastructure options for running your deployments:
 
-- [Managed work pools](/3.0rc/deploy/infrastructure-examples/managed/)
-- [Push work pools](/3.0rc/deploy/infrastructure-examples/serverless/)
-- [Kubernetes work pools](/3.0rc/deploy/infrastructure-examples/kubernetes/)
-- [Serverless hybrid work pools](/3.0rc/deploy/infrastructure-examples/docker/)
+- [Managed work pools](/3.0/deploy/infrastructure-examples/managed/)
+- [Push work pools](/3.0/deploy/infrastructure-examples/serverless/)
+- [Kubernetes work pools](/3.0/deploy/infrastructure-examples/kubernetes/)
+- [Serverless hybrid work pools](/3.0/deploy/infrastructure-examples/docker/)

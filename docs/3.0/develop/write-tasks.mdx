@@ -11,7 +11,7 @@ Tasks can:
 - Cache their execution across invocations
 - Encapsulate workflow logic into reusable units across flows
 - Receive metadata about upstream task dependencies and their state before running
-- Use automatic [logging](/3.0rc/develop/logging/) to capture runtime details, tags, 
+- Use automatic [logging](/3.0/develop/logging/) to capture runtime details, tags, 
 and final state
 - Execute concurrently
 - Be defined in the same file as the flow or imported from modules
@@ -20,8 +20,8 @@ and final state
 Flows and tasks share some common features:
 
 - They can be defined using their respective decorator, which accepts configuration settings 
-(see all [task settings](/3.0rc/develop/write-tasks/#task-arguments) and 
-[flow settings](/3.0rc/develop/write-flows/#flow-settings))
+(see all [task settings](/3.0/develop/write-tasks/#task-arguments) and 
+[flow settings](/3.0/develop/write-flows/#flow-settings))
 - They can have a name, description, and tags for organization and bookkeeping
 - They provide retries, timeouts, and other hooks to handle failure and completion events
 
@@ -91,7 +91,7 @@ Almost any standard Python function can be turned into a Prefect task by adding 
 
 Prefect uses client-side task run orchestration by default, which significantly improves performance, especially for workflows with many tasks. Task creation and state updates happen locally, reducing API calls to the Prefect server during execution. This enables efficient handling of large-scale workflows and improves reliability when server connectivity is intermittent.
 <Tip>
-Tasks are always executed in the main thread by default, unless a specific [task runner](/3.0rc/develop/task-runners) is used to execute them on different threads, processes, or infrastructure. This facilitates native Python debugging and profiling.
+Tasks are always executed in the main thread by default, unless a specific [task runner](/3.0/develop/task-runners) is used to execute them on different threads, processes, or infrastructure. This facilitates native Python debugging and profiling.
 </Tip>
 Task updates are logged in batch, leading to eventual consistency for task states in the UI and API queries. While this means there may be a slight delay in seeing the most up-to-date task states, it allows for substantial performance improvements and increased workflow scale.
 
@@ -454,7 +454,7 @@ def my_flow(name: str):
 Tags are optional string labels that enable you to identify and group tasks other than by name or flow. 
 Tags are useful to:
 
-- Filter task runs by tag in the UI and through the [Prefect REST API](/3.0rc/api-ref/rest-api/#filtering).
+- Filter task runs by tag in the UI and through the [Prefect REST API](/3.0/api-ref/rest-api/#filtering).
 - Set [concurrency limits](#task-run-concurrency-limits) on task runs by tag.
 
 You may specify tags as a keyword argument on the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).

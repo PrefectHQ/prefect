@@ -4,7 +4,7 @@ description: Prefect can schedule when to automatically create new flow runs.
 ---
 
 Prefect allows you to specify schedules on which your flows run.
-You can add one or more schedules to any [served or deployed](/3.0rc/deploy/run-flows-in-local-processes) flow.
+You can add one or more schedules to any [served or deployed](/3.0/deploy/run-flows-in-local-processes) flow.
 Schedules tell Prefect when and how to create new flow runs.
 You can add a schedule to a deployed flow in the Prefect UI, in the CLI through the `prefect deployment schedule` command, or the `prefect.yaml` configuration file.
 
@@ -14,9 +14,9 @@ There are several ways to create a schedule for a deployment:
 
 - Through the Prefect UI
 - With the `cron`, `interval`, or `rrule` parameters if building your deployment with the 
-[`serve` method](/3.0rc/develop/write-flows/#serving-a-flow) of the `Flow` object or 
-[the `serve` utility](/3.0rc/develop/write-flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
-- If using [worker-based deployments](/3.0rc/deploy/infrastructure-concepts/workers/)
+[`serve` method](/3.0/develop/write-flows/#serving-a-flow) of the `Flow` object or 
+[the `serve` utility](/3.0/develop/write-flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
+- If using [worker-based deployments](/3.0/deploy/infrastructure-concepts/workers/)
   - When you define a deployment with `flow.serve` or `flow.deploy`
   - Through the interactive `prefect deploy` command
   - With the `deployments` -> `schedules` section of the `prefect.yaml` file
@@ -284,7 +284,7 @@ PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME='1:00:00'
 PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00'
 ```
 
-See the [Settings docs](/3.0rc/manage/settings-and-profiles/) for more information on altering your settings.
+See the [Settings docs](/3.0/manage/settings-and-profiles/) for more information on altering your settings.
 
 These settings mean that if a deployment has an hourly schedule, the default settings will create runs for the next four days (or 100 hours).
 If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).

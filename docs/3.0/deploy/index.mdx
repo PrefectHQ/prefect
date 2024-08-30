@@ -4,7 +4,7 @@ sidebarTitle: Overview
 description: Learn how to use deployments to trigger flow runs remotely.
 ---
 
-[Deployments](/3.0rc/deploy/infrastructure-examples/docker/) are server-side representations of flows. 
+[Deployments](/3.0/deploy/infrastructure-examples/docker/) are server-side representations of flows. 
 They store the crucial metadata for remote orchestration including when, where, and 
 how a workflow should run.
 
@@ -15,14 +15,14 @@ Attributes of a deployment include:
 - **Tags**: optional text labels for organizing deployments
 
 Some of the most common reasons to use an orchestration tool like Prefect are for 
-[scheduling](/3.0rc/automate/add-schedules/) and [event-based triggering](/3.0rc/automate/events/automations-triggers/).
+[scheduling](/3.0/automate/add-schedules/) and [event-based triggering](/3.0/automate/events/automations-triggers/).
 As opposed to manually triggering and managing flow runs, deploying a flow exposes an API and 
 UI that allow you to:
 
-- trigger new runs, [cancel active runs](/3.0rc/develop/write-flows/#cancel-a-flow-run), 
+- trigger new runs, [cancel active runs](/3.0/develop/write-flows/#cancel-a-flow-run), 
 pause scheduled runs, customize parameters, and more
 - remotely configure schedules and automation rules for your deployments
-- dynamically provision infrastructure using [workers](/3.0rc/deploy/infrastructure-examples/docker)
+- dynamically provision infrastructure using [workers](/3.0/deploy/infrastructure-examples/docker)
 
 ## Deployment schema
 
@@ -115,7 +115,7 @@ This separation means that your flow code stays within your storage and executio
 infrastructure, and never lives on the Prefect server or database.
 
 This is key to the Prefect hybrid model: there's a boundary between your proprietary assets, 
-such as your flow code, and the Prefect backend (including [Prefect Cloud](/3.0rc/manage/cloud/)). 
+such as your flow code, and the Prefect backend (including [Prefect Cloud](/3.0/manage/cloud/)). 
 </Note>
 
 ### Workflow scheduling and parametrization
@@ -126,9 +126,9 @@ scheduled with different values through parameters.
 
 These are the fields to capture the required metadata for those actions:
 
-- **`schedules`**: a list of [schedule objects](/3.0rc/automate/add-schedules/).
+- **`schedules`**: a list of [schedule objects](/3.0/automate/add-schedules/).
 Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves.
-For example, when [updating a deployment schedule in the UI](/3.0rc/automate/add-schedules/#creating-schedules-through-the-ui) 
+For example, when [updating a deployment schedule in the UI](/3.0/automate/add-schedules/#creating-schedules-through-the-ui) 
 basic information such as a cron string or interval is all that's required.
 - **`parameter_openapi_schema`**: an [OpenAPI compatible schema](https://swagger.io/specification/) that defines 
 the types and defaults for the flow's parameters.
@@ -168,7 +168,7 @@ anytime the flow or task runs, allowing you to audit changes.
 
 ### Worker-specific fields
 
-[Work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) and [workers](/3.0rc/deploy/infrastructure-concepts/workers/) are an advanced deployment pattern that 
+[Work pools](/3.0/deploy/infrastructure-concepts/work-pools/) and [workers](/3.0/deploy/infrastructure-concepts/workers/) are an advanced deployment pattern that 
 allow you to dynamically provision infrastructure for each flow run.
 The work pool job template interface allows users to create and govern opinionated interfaces 
 to their workflow infrastructure.
@@ -197,8 +197,8 @@ The right choice depends on your use case.
 
 ### Static infrastructure
 
-When you have several flows running regularly, [the `serve` method](/3.0rc/develop/write-flows/#serving-a-flow) 
-of the `Flow` object or [the `serve` utility](/3.0rc/develop/write-flows/#serving-multiple-flows-at-once) 
+When you have several flows running regularly, [the `serve` method](/3.0/develop/write-flows/#serving-a-flow) 
+of the `Flow` object or [the `serve` utility](/3.0/develop/write-flows/#serving-multiple-flows-at-once) 
 is a great option for managing multiple flows simultaneously.
 
 Once you have authored your flow and decided on its deployment settings, run this long-running 
@@ -226,12 +226,12 @@ Consider running flows on dynamically provisioned infrastructure with work pools
 - An internal organizational structure in which deployment authors or runners are not members of
 the team that manages the infrastructure.
 
-[Work pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) allow Prefect to exercise greater control 
+[Work pools](/3.0/deploy/infrastructure-concepts/work-pools/) allow Prefect to exercise greater control 
 of the infrastructure on which flows run.
-Options for [serverless work pools](/3.0rc/deploy/infrastructure-examples/serverless/) allow you to 
+Options for [serverless work pools](/3.0/deploy/infrastructure-examples/serverless/) allow you to 
 scale to zero when workflows aren't running.
 Prefect even provides you with the ability to 
-[provision cloud infrastructure via a single CLI command](/3.0rc/deploy/infrastructure-examples/serverless/#automatically-create-a-new-push-work-pool-and-provision-infrastructure), 
+[provision cloud infrastructure via a single CLI command](/3.0/deploy/infrastructure-examples/serverless/#automatically-create-a-new-push-work-pool-and-provision-infrastructure), 
 if you use a Prefect Cloud push work pool option.
 
 With work pools:

@@ -6,8 +6,8 @@ description: Automations provide a flexible and powerful framework for automatic
 Automations enable you to configure [actions](#actions) that execute automatically based on [trigger](#triggers) conditions.
 
 Potential triggers include the occurrence of events from changes in a flow run's state—or the absence of such events. 
-You can define your own custom trigger to fire based on a custom [event](/3.0rc/automate/events/custom-triggers/) defined in Python code.
-With Prefect Cloud you can even create [webhooks](/3.0rc/automate/events/webhook-triggers/) that can receive data for use in actions.
+You can define your own custom trigger to fire based on a custom [event](/3.0/automate/events/custom-triggers/) defined in Python code.
+With Prefect Cloud you can even create [webhooks](/3.0/automate/events/webhook-triggers/) that can receive data for use in actions.
 
 Actions include starting flow runs, pausing schedules, and sending custom notifications.
 
@@ -23,7 +23,7 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 
 The **Automations** page provides an overview of all configured automations for your workspace.
 
-![Viewing automations for a workspace in Prefect Cloud.](/3.0rc/img/ui/automations.png)
+![Viewing automations for a workspace in Prefect Cloud.](/3.0/img/ui/automations.png)
 
 Select the toggle next to an automation to pause execution of the automation.
 
@@ -54,7 +54,7 @@ trigger and action policies based on arbitrary [events](https://app.prefect.clou
 Importantly, you can configure the triggers not only in reaction to events, but also proactively: in the absence of 
 an expected event.
 
-![Configuring a trigger for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-trigger.png)
+![Configuring a trigger for an automation in Prefect Cloud.](/3.0/img/ui/automations-trigger.png)
 
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer 
 than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. 
@@ -80,7 +80,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Declare an incident (available on Pro and Enterprise plans)
 - Change the state of a flow run
 
-![Configuring an action for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-action.png)
+![Configuring an action for an automation in Prefect Cloud.](/3.0/img/ui/automations-action.png)
 
 ### Create automations In Python code
 
@@ -144,7 +144,7 @@ creating automations that are linked to specific deployments to run them based o
 
 Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, 
 specified trigger definitions create linked automations triggered by events matching your chosen 
-[grammar](/3.0rc/automate/events/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) 
+[grammar](/3.0/automate/events/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) 
 to render the triggering `event` as the `parameters` of your  deployment's flow run.
 
 ### Define triggers in `prefect.yaml`
@@ -332,7 +332,7 @@ to send a message, including:
 - Microsoft Teams message to a channel
 - Email to an email address
 
-![Configuring notifications for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-notifications.png)
+![Configuring notifications for an automation in Prefect Cloud.](/3.0/img/ui/automations-notifications.png)
 
 ## Templating with Jinja
 
@@ -366,7 +366,7 @@ Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
 
 The resulting Slack webhook notification looks something like this:
 
-![Configuring notifications for an automation in Prefect Cloud.](/3.0rc/img/ui/templated-notification.png)
+![Configuring notifications for an automation in Prefect Cloud.](/3.0/img/ui/templated-notification.png)
 
 You could include `flow` and `deployment` properties:
 
@@ -472,24 +472,24 @@ workflow logic.
 
 1. Prior to creating the automation, confirm the notification location. Create a notification block to help define where
 the notification is sent. 
-![List of available blocks](/3.0rc/img/guides/block-list.png)
+![List of available blocks](/3.0/img/guides/block-list.png)
 
 2. Navigate to the blocks page on the UI, and click into creating an email notification block. 
-![Creating a notification block in the Cloud UI](/3.0rc/img/guides/notification-block.png)
+![Creating a notification block in the Cloud UI](/3.0/img/guides/notification-block.png)
 
 3. Go to the automations page to create your first automation.
-![Automations page](/3.0rc/img/guides/automation-list.png)
+![Automations page](/3.0/img/guides/automation-list.png)
 
 4. Next, find the trigger type. In this case, use a flow completion. 
-![Trigger type](/3.0rc/img/guides/automation-triggers.png)
+![Trigger type](/3.0/img/guides/automation-triggers.png)
 
 5. Create the actions for when the trigger is hit. In this case, create a notification to showcase the 
 completion. 
-![Notification block in automation](/3.0rc/img/guides/notify-auto-block.png)
+![Notification block in automation](/3.0/img/guides/notify-auto-block.png)
 
 6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the 
 notification is sent to your inbox after the completion. It may take a few minutes for the notification to arrive.
-![Final notification](/3.0rc/img/guides/final-automation.png)
+![Final notification](/3.0/img/guides/final-automation.png)
 
 <Tip>
 **No deployment created**
@@ -729,7 +729,7 @@ Create this webhook in the UI to create these dynamic events.
 ```
 From this input, you can create an exposed webhook endpoint. 
 
-![webhook-simple](/3.0rc/img/guides/webhook-simple.png)
+![webhook-simple](/3.0/img/guides/webhook-simple.png)
 
 Each webhook corresponds to a custom event created where you can react to it downstream with a separate deployment or 
 automation. 
@@ -740,14 +740,14 @@ curl -X POST https://api.prefect.cloud/hooks/34iV2SFke3mVa6y5Y-YUoA -d "model_id
 ```
 From here, you can make a webhook that is connected to pulling in parameters on the curl command. It kicks off a 
 deployment that uses these pulled parameters:
-![Webhook created](/3.0rc/img/guides/webhook-created.png)
+![Webhook created](/3.0/img/guides/webhook-created.png)
 
 Go into the event feed to automate straight from this event: 
-![Webhook automate](/3.0rc/img/guides/webhook-automate.png)
+![Webhook automate](/3.0/img/guides/webhook-automate.png)
 
 This allows you to create automations that respond to these webhook events. From a few clicks in the UI, you can 
 associate an external process with the Prefect events API that can trigger downstream deployments. 
-![Automation custom](/3.0rc/img/guides/automation-custom.png)
+![Automation custom](/3.0/img/guides/automation-custom.png)
 
 ## Use triggers
 
@@ -845,6 +845,6 @@ deployments:
 
 ## See also
 
-- To learn more about Prefect events, which can trigger automations, see the [events docs](/3.0rc/automate/events/events/).
-- See the [webhooks guide](/3.0rc/automate/events/webhook-triggers/) 
+- To learn more about Prefect events, which can trigger automations, see the [events docs](/3.0/automate/events/events/).
+- See the [webhooks guide](/3.0/automate/events/webhook-triggers/) 
 to learn how to create webhooks and receive external events.

@@ -99,7 +99,7 @@ When you suspend a flow run, the flow exits completely and the infrastructure ru
 
 This means you can suspend flow runs to save costs instead of paying for long-running infrastructure. 
 However, when the flow run resumes, the flow code will execute again from the beginning of the flow. 
-We recommend using [tasks](/3.0rc/develop/write-tasks/) and [task caching](/3.0rc/develop/task-caching) to avoid recomputing expensive operations.
+We recommend using [tasks](/3.0/develop/write-tasks/) and [task caching](/3.0/develop/task-caching) to avoid recomputing expensive operations.
 
 Prefect exposes this capability through the [`suspend_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.suspend_flow_run) and 
 [`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
@@ -205,4 +205,4 @@ After successful validation, the flow run resumes, and the return value of the `
 is an instance of the `UserNameInput` model containing the provided data.
 
 For more information on receiving input from users when pausing and suspending flow runs, 
-see [Send and receive flow run inputs](/3.0rc/develop/inputs/).
+see [Send and receive flow run inputs](/3.0/develop/inputs/).

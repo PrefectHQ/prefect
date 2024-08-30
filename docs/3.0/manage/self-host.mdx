@@ -8,11 +8,11 @@ To self-host a Prefect server instance on Kubernetes, check out the prefect-serv
 </Note>
 
 After installing Prefect, you have a Python SDK client that can communicate with 
-either [Prefect Cloud](/3.0rc/manage/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
+either [Prefect Cloud](/3.0/manage/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
 
 Prefect Cloud and self-hosted Prefect server share a common set of capabilities. 
 Prefect Cloud provides the additional features required by organizations such as RBAC, Audit logs, and SSO. 
-See the [Prefect Cloud overview](/3.0rc/manage/cloud/) for more information.
+See the [Prefect Cloud overview](/3.0/manage/cloud/) for more information.
 
 ## Prefect server installation notes
 
@@ -67,7 +67,7 @@ prefect server start
 
 2. Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser.
 
-![Viewing the dashboard in the Prefect UI.](/3.0rc/img/ui/self-hosted-server-dashboard.png)
+![Viewing the dashboard in the Prefect UI.](/3.0/img/ui/self-hosted-server-dashboard.png)
 
 3. Shut down the Prefect server with ctrl  +  c in the terminal.
 
@@ -83,10 +83,10 @@ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 You must set the API server address, `PREFECT_API_URL`, to use Prefect within a container, such as a Docker container.
 </Info>
 
-You can save the API server address in a [Prefect profile](/3.0rc/manage/settings-and-profiles/). Whenever that profile is 
+You can save the API server address in a [Prefect profile](/3.0/manage/settings-and-profiles/). Whenever that profile is 
 active, the API endpoint is at that address.
 
-See [Profiles and configuration](/3.0rc/manage/settings-and-profiles/) for more information on profiles and configurable Prefect settings.
+See [Profiles and configuration](/3.0/manage/settings-and-profiles/) for more information on profiles and configurable Prefect settings.
 
 ## The Prefect database
 

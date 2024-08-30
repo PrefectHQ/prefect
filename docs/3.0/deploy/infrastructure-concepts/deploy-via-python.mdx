@@ -31,13 +31,13 @@ Before deploying your flow using `flow.deploy`, ensure you have the following:
 
 1. A running Prefect server or Prefect Cloud workspace: You can either run a Prefect server locally or use a Prefect Cloud workspace. 
 To start a local server, run `prefect server start`. To use Prefect Cloud, sign up for an account at [app.prefect.cloud](https://app.prefect.cloud) 
-and follow the [Connect to Prefect Cloud](/3.0rc/manage/cloud/connect-to-cloud/) guide.
+and follow the [Connect to Prefect Cloud](/3.0/manage/cloud/connect-to-cloud/) guide.
 
 2. A Prefect flow: You should have a flow defined in your Python script. If you haven't created a flow yet, refer to the 
-[Write Flows](/3.0rc/develop/write-flows/) guide.
+[Write Flows](/3.0/develop/write-flows/) guide.
 
 3. A work pool: You need a work pool to manage the infrastructure for running your flow. If you haven't created a work pool, you can do so through 
-the Prefect UI or using the Prefect CLI. For more information, see the [Work Pools](/3.0rc/deploy/infrastructure-concepts/work-pools/) guide. 
+the Prefect UI or using the Prefect CLI. For more information, see the [Work Pools](/3.0/deploy/infrastructure-concepts/work-pools/) guide. 
 
     For examples in this guide, we'll use a Docker work pool created by running:
     ```bash
@@ -244,7 +244,7 @@ To deploy a flow with a schedule, you can use one of the following options:
     ```
     </Expandable>
 
-    Learn more about schedules [here](/3.0rc/automate/add-schedules).
+    Learn more about schedules [here](/3.0/automate/add-schedules).
 
 
 ## Use remote code storage
@@ -290,7 +290,7 @@ The `source` parameter can be a variety of remote storage options including:
 
 The `entrypoint` parameter is the path to the flow function within your repository combined with the name of the flow function.
 
-Learn more about remote code storage [here](/3.0rc/deploy/infrastructure-concepts/store-flow-code).
+Learn more about remote code storage [here](/3.0/deploy/infrastructure-concepts/store-flow-code).
 
 ## Set default parameters
 
@@ -385,8 +385,8 @@ This approach offers the following benefits:
 
 ## Additional resources
 
-- [Work Pools](/3.0rc/deploy/infrastructure-concepts/work-pools/)
-- [Store Flow Code](/3.0rc/deploy/infrastructure-concepts/store-flow-code/)
-- [Customize Infrastructure](/3.0rc/deploy/infrastructure-concepts/customize/)
-- [Schedules](/3.0rc/automate/add-schedules/)
-- [Write Flows](/3.0rc/develop/write-flows/)
+- [Work Pools](/3.0/deploy/infrastructure-concepts/work-pools/)
+- [Store Flow Code](/3.0/deploy/infrastructure-concepts/store-flow-code/)
+- [Customize Infrastructure](/3.0/deploy/infrastructure-concepts/customize/)
+- [Schedules](/3.0/automate/add-schedules/)
+- [Write Flows](/3.0/develop/write-flows/)

@@ -24,14 +24,14 @@ You can share blocks with other users in your Prefect Cloud workspace.
 To see block types available for configuration, use `prefect block type ls` 
 from the CLI or navigate to the **Blocks** page in the UI and click **+**.
 
-![The block catalogue in the UI](/3.0rc/img/ui/block-library.png)
+![The block catalogue in the UI](/3.0/img/ui/block-library.png)
 
 <Tip>
 **Blocks and parameters**
 
 Blocks are useful for sharing configuration across flow runs and between flows.
 
-For configuration that will change between flow runs, we recommend using [parameters](/3.0rc/develop/write-flows/#parameters).
+For configuration that will change between flow runs, we recommend using [parameters](/3.0/develop/write-flows/#parameters).
 </Tip>
 
 ## Prefect built-in blocks
@@ -60,7 +60,7 @@ You can create and use these block types through the UI without installing any a
 The `S3`, `Azure`, `GCS`, and `GitHub` blocks are deprecated in favor of the corresponding `S3Bucket`, 
 `AzureBlobStorageCredentials`, `GCSBucket`, and `GitHubRepository` blocks found in the 
 [Prefect integration libraries](/integrations/).
-The JSON, DateTime, and String blocks are deprecated in favor of [Variables](/3.0rc/develop/variables/).
+The JSON, DateTime, and String blocks are deprecated in favor of [Variables](/3.0/develop/variables/).
 </Warning>
 
 ## Blocks in Prefect integration libraries
