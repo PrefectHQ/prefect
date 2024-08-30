@@ -910,7 +910,7 @@
       "source": "/latest/community"
     },
     {
-      "destination": "/latest/develop",
+      "destination": "/latest/develop/blocks",
       "source": "/latest/concepts/filesystems"
     },
     {
@@ -930,7 +930,7 @@
       "source": "/latest/api-ref/server"
     },
     {
-      "destination": "/latest/develop/interact-with-data",
+      "destination": "/latest/develop/blocks",
       "source": "/latest/guides/moving-data"
     },
     {
