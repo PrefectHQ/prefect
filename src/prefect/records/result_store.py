@@ -44,7 +44,6 @@ class ResultFactoryStore(RecordStore):
             )
             return TransactionRecord(key=key, result=result)
         except Exception:
-            breakpoint()
             # this is a bit of a bandaid for functionality
             raise ValueError("Result could not be read")
 

@@ -47,7 +47,7 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
 )
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
 
 if TYPE_CHECKING:
@@ -134,7 +134,7 @@ class ResultFactory:
         cache_result_in_memory: bool = True,
         storage_key_fn: Callable[[], str] = DEFAULT_STORAGE_KEY_FN,
     ):
-        self._result_storage = result_storage
+        self.result_storage = result_storage
         self._serializer = serializer or get_default_result_serializer()
         self.persist_result = persist_result
         self.cache_result_in_memory = cache_result_in_memory
@@ -142,13 +142,25 @@ class ResultFactory:
 
     @property
     def storage_block(self) -> WritableFileSystem:
-        if isinstance(self._result_storage, Block):
-            return self._result_storage
-        if self._result_storage is None:
-            self._result_storage = get_default_result_storage()
-        _, storage_block = run_coro_as_sync(
-            self.resolve_storage_block(self._result_storage)
-        )
+        # Determine the result storage block based on the context
+        from prefect.context import FlowRunContext, TaskRunContext
+
+        flow_run_ctx = FlowRunContext.get()
+        task_run_ctx = TaskRunContext.get()
+
+        task: Optional["Task"] = getattr(task_run_ctx, "task", None)
+        flow: Optional["Flow"] = getattr(flow_run_ctx, "flow", None)
+
+        if task and task.result_storage is not None:
+            result_storage = task.result_storage
+        elif flow and flow.result_storage is not None:
+            result_storage = flow.result_storage
+        else:
+            result_storage = self.result_storage or get_default_result_storage(
+                _sync=True
+            )
+
+        _, storage_block = self.resolve_storage_block(result_storage, _sync=True)
         return storage_block
 
     @property
@@ -163,6 +175,7 @@ class ResultFactory:
             return self.resolve_serializer(self._serializer)
 
     @staticmethod
+    @sync_compatible
     async def resolve_storage_block(
         result_storage: ResultStorage,
     ) -> Tuple[Optional[uuid.UUID], WritableFileSystem]:
@@ -170,6 +183,7 @@ class ResultFactory:
         Resolve one of the valid `ResultStorage` input types into a saved block
         document id and an instance of the block.
         """
+        # TODO: Add caching to this method
         client, _ = get_or_create_client()
 
         if isinstance(result_storage, Block):
@@ -239,19 +253,6 @@ class ResultFactory:
         # Null objects are "cached" in memory at no cost
         should_cache_object = should_cache_object or obj is None
 
-        # Determine the result storage block
-        if task and task.result_storage is not None:
-            result_storage = task.result_storage
-        elif flow and flow.result_storage is not None:
-            result_storage = flow.result_storage
-        else:
-            result_storage = self._result_storage or await get_default_result_storage()
-
-        storage_block_id, storage_block = await self.resolve_storage_block(
-            result_storage
-        )
-        self._result_storage = storage_block
-
         # Determine if we should persist the result
         if task and task.persist_result is not None:
             persist_result = task.persist_result
@@ -285,10 +286,12 @@ class ResultFactory:
         serializer = self.resolve_serializer(serializer)
         self._serializer = serializer
 
+        storage_block = self.storage_block
+
         return await PersistedResult.create(
             obj,
             storage_block=storage_block,
-            storage_block_id=storage_block_id,
+            storage_block_id=storage_block._block_document_id,
             storage_key_fn=storage_key_fn,
             serializer=serializer,
             cache_object=should_cache_object,
@@ -627,7 +630,6 @@ class PersistedResult(BaseResult):
         """
         Write the result to the storage block.
         """
-
         if self._persisted or self.serialize_to_none:
             # don't double write or overwrite
             return
