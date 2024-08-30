@@ -45,6 +45,12 @@ async def mock_work_pool_types():
         yield
 
 
+async def test_cloud_client_init_with_no_api():
+    with temporary_settings({PREFECT_API_URL: None}):
+        async with get_cloud_client() as client:
+            assert client
+
+
 async def test_cloud_client_follow_redirects():
     httpx_settings = {"follow_redirects": True}
     async with get_cloud_client(httpx_settings=httpx_settings) as client:
