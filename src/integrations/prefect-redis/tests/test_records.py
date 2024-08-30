@@ -30,9 +30,7 @@ class TestRedisRecordStore:
 
     @pytest.fixture
     async def result(self, default_storage_setting):
-        factory = await ResultFactory(
-            persist_result=True,
-        )
+        factory = ResultFactory(persist_result=True)
         result = await factory.create_result(obj={"test": "value"})
         return result
 
