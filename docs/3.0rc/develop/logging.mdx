@@ -3,7 +3,7 @@ title: Configure logging
 description: Configure logging on flows and tasks for monitoring, troubleshooting, and auditing.
 ---
 
-When you run a flow or a task, Prefect automatically emits a standard set of logs that you can inspect in the UI or 
+When you run a flow or a task, Prefect automatically emits a standard set of logs that you can inspect in the UI, in the CLI, or 
 through the API. 
 Additionally, you can emit custom log messages during flow and task runs to capture specific events or information important to your workflow.
 
@@ -21,6 +21,13 @@ To use a Prefect logger, import `get_run_logger` from the `prefect.logging` modu
 This function returns a logger instance that is aware of the current flow or task run context, allowing for more detailed and contextual logging.
 This allows you to explore logs in the UI or API based on relevant run information such as run ID and run name.
 
+<Warning>
+`get_run_logger()` can only be used in the context of a flow or task.
+
+To use a normal Python logger anywhere with your same configuration, use `get_logger()` from `prefect.logging`.
+
+The logger retrieved with `get_logger()` will **not** send log records to the Prefect API.
+</Warning>
 ### Logging in flows and tasks
 
 To log from a flow or a task, retrieve a logger instance with `get_run_logger()`, then call the standard Python 
@@ -127,27 +134,27 @@ The default logging level is `INFO`.
 
 ### Customize logging configuration
 
-Prefect provides several settings to configure logging level and individual loggers.
+Prefect provides several settings to configure the logging level and individual loggers.
 
 Any value in [Prefect's logging configuration file](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml) can be overridden through 
 a Prefect setting of the form `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=value` corresponding to the nested address of the field you are configuring.
 
 For example, to change the default logging level for flow runs but not task runs, update your profile with:
-```
+```bash
 prefect config set PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL="ERROR"
 ```
 or set the corresponding environment variable:
-```
+```bash
 export PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL="ERROR"
 ```
 
 You can also configure the "root" Python logger. The root logger receives logs from all loggers unless they 
 explicitly opt out by disabling propagation. By default, the root logger is configured to output `WARNING` level logs 
 to the console. As with other logging settings, you can override this from the environment or in the logging configuration 
-file. For example, you can change the level with the `PREFECT_LOGGING_ROOT_LEVEL` environment variable .
+file. For example, you can change the level with the `PREFECT_LOGGING_ROOT_LEVEL` environment variable.
 
 In some situations you may want to completely overhaul the Prefect logging configuration by providing your own `logging.yml` file.
-You can also create your own version of `logging.yml` in one of two ways:
+You can create your own version of `logging.yml` in one of two ways:
 
 1. Create a `logging.yml` file in your `PREFECT_HOME` directory (default is `~/.prefect`).
 2. Specify a custom path to your `logging.yml` file using the `PREFECT_LOGGING_SETTINGS_PATH` setting.
