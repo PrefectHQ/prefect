@@ -1,3 +1,4 @@
+
 ---
 title: Configure logging
 description: Configure logging on flows and tasks for monitoring, troubleshooting, and auditing.
@@ -27,7 +28,8 @@ This allows you to explore logs in the UI or API based on relevant run informati
 To use a normal Python logger anywhere with your same configuration, use `get_logger()` from `prefect.logging`.
 
 The logger retrieved with `get_logger()` will **not** send log records to the Prefect API.
-</Warning>
+</ Warning>
+
 ### Logging in flows and tasks
 
 To log from a flow or a task, retrieve a logger instance with `get_run_logger()`, then call the standard Python 
@@ -97,8 +99,8 @@ Outputs:
 ```python
 from prefect import task, flow
 
-@task
-def my_task(log_prints=False):
+@task(log_prints=False)
+def my_task():
     print("not logging print statements in this task")
 
 @flow(log_prints=True)
