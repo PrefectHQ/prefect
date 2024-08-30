@@ -36,13 +36,22 @@ This method returns a [`PrefectFuture`](https://prefect-python-sdk-docs.netlify.
 - a reference to the payload returned by the task;
 - and a [`State`](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/states/), which is a Prefect object indicating the state of the task run.
 
+<Warning>
 Prefect future objects must be resolved explicitly before returning from a flow. 
-This can be done by calling `.wait()` on the future.
+Dependencies between futures will be automatically resolved whenever their dependents are resolved.
+This means that only _terminal_ futures need to be resolved, either by:
+- returning the terminal futures from your flow 
+- calling `.wait()` or `.result()` on each terminal future
+- using one of the top level `wait` or `as_completed` utilities to resolve terminal futures
+
+Not doing so may leave your tasks in an unfinished state.
+</ Warning>
 
 For example:
 
 ```python
 from prefect import flow, task
+from prefect.futures import wait
 from prefect.task_runners import ThreadPoolTaskRunner
 import time
 
@@ -61,7 +70,7 @@ def elevator():
     for floor in range(10, 0, -1):
         floors.append(stop_at_floor.submit(floor))
 
-    [floor.wait() for floor in floors]
+    wait(floors)
 ```
 
 <Tip>
