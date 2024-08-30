@@ -93,7 +93,7 @@ def get_contributors(repo_info: dict):
     return contributors
 
 @flow(log_prints=True)
-def repo_info(repo_owner: str = "PrefectHQ", repo_name: str = "prefect"):
+def log_repo_info(repo_owner: str = "PrefectHQ", repo_name: str = "prefect"):
     """
     Given a GitHub repository, logs the number of stargazers
     and contributors for that repo.
@@ -105,7 +105,7 @@ def repo_info(repo_owner: str = "PrefectHQ", repo_name: str = "prefect"):
     print(f"Number of contributors 👷: {len(contributors)}")
 
 if __name__ == "__main__":
-    repo_info()
+    log_repo_info()
 ```
 
 <Note>
@@ -121,20 +121,6 @@ python my_gh_workflow.py
 ```
 
 Prefect automatically tracks the state of the flow run and logs the output, which can be viewed directly in the terminal or in the UI.
-
-```bash
-14:28:31.099 | INFO    | prefect.engine - Created flow run 'energetic-panther' for flow 'repo-info'
-14:28:31.100 | INFO    | Flow run 'energetic-panther' - View at https://app.prefect.cloud/account/123/workspace/abc/flow-runs/flow-run/xyz
-14:28:32.178 | INFO    | Flow run 'energetic-panther' - Created task run 'get_repo_info-0' for task 'get_repo_info'
-14:28:32.179 | INFO    | Flow run 'energetic-panther' - Executing 'get_repo_info-0' immediately...
-14:28:32.584 | INFO    | Task run 'get_repo_info-0' - Finished in state Completed()
-14:28:32.599 | INFO    | Flow run 'energetic-panther' - Stars 🌠 : 13609
-14:28:32.682 | INFO    | Flow run 'energetic-panther' - Created task run 'get_contributors-0' for task 'get_contributors'
-14:28:32.682 | INFO    | Flow run 'energetic-panther' - Executing 'get_contributors-0' immediately...
-14:28:33.118 | INFO    | Task run 'get_contributors-0' - Finished in state Completed()
-14:28:33.134 | INFO    | Flow run 'energetic-panther' - Number of contributors 👷: 30
-14:28:33.255 | INFO    | Flow run 'energetic-panther' - Finished in state Completed('All states completed.')
-```
 
 ## Create a work pool
 
