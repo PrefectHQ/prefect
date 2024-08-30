@@ -74,14 +74,14 @@
           "pages": [
             "3.0rc/develop/write-flows",
             "3.0rc/develop/write-tasks",
-            "3.0rc/develop/deferred-tasks",
-            "3.0rc/develop/logging"
+            "3.0rc/develop/deferred-tasks"
           ],
           "version": "3.0rc"
         },
         {
           "group": "Configure runtime behavior",
           "pages": [
+            "3.0rc/develop/logging",
             "3.0rc/develop/task-caching",
             "3.0rc/develop/transactions",
             "3.0rc/develop/state-hooks",
