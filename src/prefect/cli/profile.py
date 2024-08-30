@@ -265,9 +265,6 @@ def show_profile_changes(
 ):
     changes = []
 
-    if "default" in user_profiles:
-        changes.append(("migrate", "default", "ephemeral"))
-
     for name in default_profiles.names:
         if name not in user_profiles:
             changes.append(("add", name))

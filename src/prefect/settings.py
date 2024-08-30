@@ -2192,27 +2192,7 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
 
 
 def load_profiles() -> ProfilesCollection:
-    """
-    Load all profiles from the default and current profile paths.
-    """
-    profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
-
-    user_profiles_path = PREFECT_PROFILES_PATH.value()
-    if user_profiles_path.exists():
-        user_profiles = _read_profiles_from(user_profiles_path)
-
-        # Merge all of the user profiles with the defaults
-        for name in user_profiles:
-            profiles.update_profile(
-                name,
-                settings=user_profiles[name].settings,
-                source=user_profiles[name].source,
-            )
-
-        if user_profiles.active_name:
-            profiles.set_active(user_profiles.active_name, check=False)
-
-    return profiles
+    return _read_profiles_from(PREFECT_PROFILES_PATH.value())
 
 
 def load_current_profile():
