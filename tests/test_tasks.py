@@ -32,7 +32,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging import get_run_logger
-from prefect.results import ResultFactory
+from prefect.results import ResultFactory, get_or_create_default_task_scheduling_storage
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -82,7 +82,9 @@ def timeout_test_flow():
 
 
 async def get_background_task_run_parameters(task, parameters_id):
-    factory = await ResultFactory.from_autonomous_task(task)
+    factory = await ResultFactory(
+        storage_block=await get_or_create_default_task_scheduling_storage()
+    ).update_for_task(task)
     return await factory.read_parameters(parameters_id)
 
 
