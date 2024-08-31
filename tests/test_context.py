@@ -122,7 +122,7 @@ async def test_task_run_context(prefect_client, flow_run):
         pass
 
     task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    result_factory = await ResultFactory.default_factory()
+    result_factory = ResultFactory()
 
     with TaskRunContext(
         task=foo,

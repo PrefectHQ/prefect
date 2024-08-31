@@ -1103,7 +1103,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     task_run=self.task_run,
                     parameters=self.parameters,
                     result_factory=await get_current_result_factory().update_for_task(
-                        self.task
+                        self.task, _sync=False
                     ),
                     client=client,
                 )

@@ -1646,12 +1646,10 @@ class TestTimeout:
 
 
 class TestPersistence:
-    async def test_task_can_return_persisted_result(self, prefect_client):
+    async def test_task_can_return_persisted_result(self):
         @task
         async def async_task():
-            factory = await ResultFactory.default_factory(
-                client=prefect_client, persist_result=True
-            )
+            factory = ResultFactory(persist_result=True)
             result = await factory.create_result(42)
             await result.write()
             return result
@@ -1660,12 +1658,8 @@ class TestPersistence:
         state = await async_task(return_state=True)
         assert await state.result() == 42
 
-    async def test_task_loads_result_if_exists_using_result_storage_key(
-        self, prefect_client
-    ):
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True
-        )
+    async def test_task_loads_result_if_exists_using_result_storage_key(self):
+        factory = ResultFactory(persist_result=True)
         result = await factory.create_result(-92, key="foo-bar")
         await result.write()
 

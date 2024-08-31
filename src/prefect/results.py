@@ -72,7 +72,7 @@ _default_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
 
 
 @sync_compatible
-async def get_default_result_storage() -> ResultStorage:
+async def get_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """

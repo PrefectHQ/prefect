@@ -203,7 +203,7 @@ class FlowRunEngine(Generic[P, R]):
                     exc,
                     msg=message,
                     result_factory=get_current_result_factory().update_for_flow(
-                        self.flow
+                        self.flow, _sync=True
                     ),
                 )
                 self.short_circuit = True

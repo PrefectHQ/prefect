@@ -759,7 +759,7 @@ class Task(Generic[P, R]):
 
                 factory = await ResultFactory(
                     storage_block=await get_or_create_default_task_scheduling_storage()
-                ).update_for_task(task)
+                ).update_for_task(self)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}
                 if parameters:

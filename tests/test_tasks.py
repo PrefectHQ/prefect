@@ -862,7 +862,7 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
-    @pytest.mark.xfail(
+    @pytest.mark.skip(
         reason="This test is not compatible with the current state of client side task orchestration"
     )
     def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
