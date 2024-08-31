@@ -369,6 +369,7 @@ class EngineContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
+                "result_factory",
             },
             exclude_unset=True,
         )
@@ -406,6 +407,7 @@ class TaskRunContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
+                "result_factory",
             },
             exclude_unset=True,
         )

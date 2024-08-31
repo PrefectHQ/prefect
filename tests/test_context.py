@@ -181,7 +181,9 @@ async def test_get_run_context(prefect_client, local_filesystem):
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await get_current_result_factory().update_for_task(bar),
+            result_factory=await get_current_result_factory().update_for_task(
+                bar, _sync=False
+            ),
             parameters={"foo": "bar"},
         ) as task_ctx:
             assert get_run_context() is task_ctx, "Task context takes precedence"
