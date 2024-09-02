@@ -132,7 +132,7 @@ async def test_graceful_retries_eventually_succeed_while(
 ):
     # now write the result so it's available
     await a_real_result.write()
-    expected_record = await a_real_result._read_result_record()
+    expected_record = await a_real_result.get()
     assert isinstance(expected_record, ResultRecord)
 
     # even if it misses a couple times, it will eventually return the data

@@ -227,7 +227,7 @@ class ResultFactory(BaseModel):
         return self.model_copy(update=update)
 
     @sync_compatible
-    async def read(self, key: str) -> Dict[str, Any]:
+    async def read(self, key: str) -> "ResultRecord":
         if self.storage_block is None:
             self.storage_block = await get_default_result_storage()
 
@@ -596,9 +596,12 @@ class PersistedResult(BaseResult):
         if self.has_cached_object():
             return self._cache
 
+        result_factory_kwargs = {}
+        if self._serializer:
+            result_factory_kwargs["serializer"] = resolve_serializer(self._serializer)
         storage_block = await self._get_storage_block(client=client)
         result_factory = ResultFactory(
-            storage_block=storage_block, serializer=self._serializer
+            storage_block=storage_block, **result_factory_kwargs
         )
 
         record = await result_factory.read(self.storage_key)
