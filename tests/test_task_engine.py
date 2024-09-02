@@ -126,7 +126,7 @@ class TestRunTask:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultFactory.from_flow(f)
+        result_factory = await ResultFactory().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
@@ -174,7 +174,7 @@ class TestTaskRunsAsync:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultFactory.from_flow(f)
+        result_factory = await ResultFactory().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
@@ -1497,7 +1497,7 @@ class TestRunCountTracking:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.run_count == 1
 
-        result_factory = await ResultFactory.from_flow(f)
+        result_factory = await ResultFactory().update_for_flow(f)
         return EngineContext(
             flow=f,
             flow_run=flow_run,
@@ -1646,12 +1646,10 @@ class TestTimeout:
 
 
 class TestPersistence:
-    async def test_task_can_return_persisted_result(self, prefect_client):
+    async def test_task_can_return_persisted_result(self):
         @task
         async def async_task():
-            factory = await ResultFactory.default_factory(
-                client=prefect_client, persist_result=True
-            )
+            factory = ResultFactory(persist_result=True)
             result = await factory.create_result(42)
             await result.write()
             return result
@@ -1660,12 +1658,8 @@ class TestPersistence:
         state = await async_task(return_state=True)
         assert await state.result() == 42
 
-    async def test_task_loads_result_if_exists_using_result_storage_key(
-        self, prefect_client
-    ):
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True
-        )
+    async def test_task_loads_result_if_exists_using_result_storage_key(self):
+        factory = ResultFactory(persist_result=True)
         result = await factory.create_result(-92, key="foo-bar")
         await result.write()
 

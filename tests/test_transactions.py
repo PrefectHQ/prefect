@@ -27,7 +27,6 @@ from prefect.transactions import (
     get_transaction,
     transaction,
 )
-from prefect.utilities.asyncutils import run_coro_as_sync
 
 
 def test_basic_init():
@@ -387,12 +386,12 @@ class TestWithMemoryRecordStore:
 
     @pytest.fixture
     async def result_1(self, default_storage_setting):
-        result_factory = await ResultFactory.default_factory(persist_result=True)
+        result_factory = ResultFactory(persist_result=True)
         return await result_factory.create_result(obj={"foo": "bar"})
 
     @pytest.fixture
     async def result_2(self, default_storage_setting):
-        result_factory = await ResultFactory.default_factory(persist_result=True)
+        result_factory = ResultFactory(persist_result=True)
         return await result_factory.create_result(obj={"fizz": "buzz"})
 
     async def test_basic_transaction(self, result_1):
@@ -527,9 +526,7 @@ class TestIsolationLevel:
         ):
             with transaction(
                 key="test",
-                store=ResultFactoryStore(
-                    result_factory=run_coro_as_sync(ResultFactory.default_factory())
-                ),
+                store=ResultFactoryStore(result_factory=ResultFactory()),
                 isolation_level=IsolationLevel.SERIALIZABLE,
             ):
                 pass

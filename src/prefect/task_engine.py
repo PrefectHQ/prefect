@@ -56,7 +56,11 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.records.result_store import ResultFactoryStore
-from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
+from prefect.results import (
+    BaseResult,
+    _format_user_supplied_storage_key,
+    get_current_result_factory,
+)
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -591,7 +595,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_coro_as_sync(ResultFactory.from_task(self.task)),  # type: ignore
+                    result_factory=get_current_result_factory().update_for_task(
+                        self.task, _sync=True
+                    ),
                     client=client,
                 )
             )
@@ -1096,7 +1102,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=await ResultFactory.from_task(self.task),  # type: ignore
+                    result_factory=await get_current_result_factory().update_for_task(
+                        self.task, _sync=False
+                    ),
                     client=client,
                 )
             )
