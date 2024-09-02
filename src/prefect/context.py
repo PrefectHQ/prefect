@@ -44,7 +44,6 @@ from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
-from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
@@ -95,20 +94,15 @@ def hydrated_context(
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
                     task_runner=task_runner,
                     detached=True,
                 )
                 stack.enter_context(flow_run_context)
             # Set up parent task run context
             if parent_task_run_context := serialized_context.get("task_run_context"):
-                parent_task = parent_task_run_context["task"]
                 task_run_context = TaskRunContext(
                     **parent_task_run_context,
                     client=client,
-                    result_factory=run_coro_as_sync(
-                        ResultFactory.from_autonomous_task(parent_task)
-                    ),
                 )
                 stack.enter_context(task_run_context)
             # Set up tags context
@@ -375,6 +369,7 @@ class EngineContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
+                "result_factory",
             },
             exclude_unset=True,
         )
@@ -412,6 +407,7 @@ class TaskRunContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
+                "result_factory",
             },
             exclude_unset=True,
         )

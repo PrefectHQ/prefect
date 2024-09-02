@@ -5,7 +5,6 @@ from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
     Callable,
     Dict,
     Generic,
@@ -33,7 +32,7 @@ from typing_extensions import ParamSpec, Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import SerializationError
+from prefect.exceptions import MissingContextError, SerializationError
 from prefect.filesystems import (
     LocalFileSystem,
     WritableFileSystem,
@@ -73,18 +72,66 @@ _default_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
 
 
 @sync_compatible
-async def get_default_result_storage() -> ResultStorage:
+async def get_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """
     default_block = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
 
     if default_block is not None:
-        return await Block.load(default_block)
+        return await resolve_result_storage(default_block)
 
     # otherwise, use the local file system
     basepath = PREFECT_LOCAL_STORAGE_PATH.value()
-    return LocalFileSystem(basepath=basepath)
+    return LocalFileSystem(basepath=str(basepath))
+
+
+@sync_compatible
+async def resolve_result_storage(
+    result_storage: ResultStorage,
+) -> WritableFileSystem:
+    """
+    Resolve one of the valid `ResultStorage` input types into a saved block
+    document id and an instance of the block.
+    """
+    from prefect.client.orchestration import get_client
+
+    client = get_client()
+    if isinstance(result_storage, Block):
+        storage_block = result_storage
+
+        if storage_block._block_document_id is not None:
+            # Avoid saving the block if it already has an identifier assigned
+            storage_block_id = storage_block._block_document_id
+        else:
+            storage_block_id = None
+    elif isinstance(result_storage, str):
+        storage_block = await Block.load(result_storage, client=client)
+        storage_block_id = storage_block._block_document_id
+        assert storage_block_id is not None, "Loaded storage blocks must have ids"
+    else:
+        raise TypeError(
+            "Result storage must be one of the following types: 'UUID', 'Block', "
+            f"'str'. Got unsupported type {type(result_storage).__name__!r}."
+        )
+
+    return storage_block
+
+
+def resolve_serializer(serializer: ResultSerializer) -> Serializer:
+    """
+    Resolve one of the valid `ResultSerializer` input types into a serializer
+    instance.
+    """
+    if isinstance(serializer, Serializer):
+        return serializer
+    elif isinstance(serializer, str):
+        return Serializer(type=serializer)
+    else:
+        raise TypeError(
+            "Result serializer must be one of the following types: 'Serializer', "
+            f"'str'. Got unsupported type {type(serializer).__name__!r}."
+        )
 
 
 async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
@@ -101,11 +148,11 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     return LocalFileSystem(basepath=basepath)
 
 
-def get_default_result_serializer() -> ResultSerializer:
+def get_default_result_serializer() -> Serializer:
     """
     Generate a default file system for result storage.
     """
-    return PREFECT_RESULTS_DEFAULT_SERIALIZER.value()
+    return resolve_serializer(PREFECT_RESULTS_DEFAULT_SERIALIZER.value())
 
 
 def get_default_persist_setting() -> bool:
@@ -127,212 +174,57 @@ class ResultFactory(BaseModel):
     A utility to generate `Result` types.
     """
 
-    persist_result: bool
-    cache_result_in_memory: bool
-    serializer: Serializer
-    storage_block_id: Optional[uuid.UUID] = None
-    storage_block: WritableFileSystem
-    storage_key_fn: Callable[[], str]
+    storage_block: Optional[WritableFileSystem] = Field(default=None)
+    persist_result: bool = Field(default_factory=get_default_persist_setting)
+    cache_result_in_memory: bool = Field(default=True)
+    serializer: Serializer = Field(default_factory=get_default_result_serializer)
+    storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
 
-    @classmethod
-    @inject_client
-    async def default_factory(cls, client: "PrefectClient" = None, **kwargs):
+    @property
+    def storage_block_id(self) -> Optional[UUID]:
+        if self.storage_block is None:
+            return None
+        return self.storage_block._block_document_id
+
+    @sync_compatible
+    async def update_for_flow(self, flow: "Flow") -> Self:
         """
-        Create a new result factory with default options.
-
-        Keyword arguments may be provided to override defaults. Null keys will be
-        ignored.
+        Create a new result factory for a flow with updated settings.
         """
-        # Remove any null keys so `setdefault` can do its magic
-        for key, value in tuple(kwargs.items()):
-            if value is None:
-                kwargs.pop(key)
+        update = {}
+        if flow.result_storage is not None:
+            update["storage_block"] = await resolve_result_storage(flow.result_storage)
+        if flow.result_serializer is not None:
+            update["serializer"] = resolve_serializer(flow.result_serializer)
+        if flow.persist_result is not None:
+            update["persist_result"] = flow.persist_result
+        if flow.cache_result_in_memory is not None:
+            update["cache_result_in_memory"] = flow.cache_result_in_memory
+        if self.storage_block is None and update.get("storage_block") is None:
+            update["storage_block"] = await get_default_result_storage()
+        return self.model_copy(update=update)
 
-        # Apply defaults
-        kwargs.setdefault("result_storage", await get_default_result_storage())
-        kwargs.setdefault("result_serializer", get_default_result_serializer())
-        kwargs.setdefault("persist_result", get_default_persist_setting())
-        kwargs.setdefault("cache_result_in_memory", True)
-        kwargs.setdefault("storage_key_fn", DEFAULT_STORAGE_KEY_FN)
-
-        return await cls.from_settings(**kwargs, client=client)
-
-    @classmethod
-    @inject_client
-    async def from_flow(
-        cls: Type[Self], flow: "Flow", client: "PrefectClient" = None
-    ) -> Self:
-        """
-        Create a new result factory for a flow.
-        """
-        from prefect.context import FlowRunContext
-
-        ctx = FlowRunContext.get()
-        if ctx:
-            # This is a child flow run
-            return await cls.from_settings(
-                result_storage=flow.result_storage or ctx.result_factory.storage_block,
-                result_serializer=flow.result_serializer
-                or ctx.result_factory.serializer,
-                persist_result=flow.persist_result,
-                cache_result_in_memory=flow.cache_result_in_memory,
-                storage_key_fn=DEFAULT_STORAGE_KEY_FN,
-                client=client,
-            )
-        else:
-            # This is a root flow run
-            # Pass the flow settings up to the default which will replace nulls with
-            # our default options
-            return await cls.default_factory(
-                client=client,
-                result_storage=flow.result_storage,
-                result_serializer=flow.result_serializer,
-                persist_result=flow.persist_result,
-                cache_result_in_memory=flow.cache_result_in_memory,
-                storage_key_fn=DEFAULT_STORAGE_KEY_FN,
-            )
-
-    @classmethod
-    @inject_client
-    async def from_task(
-        cls: Type[Self], task: "Task", client: "PrefectClient" = None
-    ) -> Self:
+    @sync_compatible
+    async def update_for_task(self: Self, task: "Task") -> Self:
         """
         Create a new result factory for a task.
         """
-        return await cls._from_task(task, get_default_result_storage, client=client)
-
-    @classmethod
-    @inject_client
-    async def from_autonomous_task(
-        cls: Type[Self], task: "Task[P, R]", client: "PrefectClient" = None
-    ) -> Self:
-        """
-        Create a new result factory for an autonomous task.
-        """
-        return await cls._from_task(
-            task, get_or_create_default_task_scheduling_storage, client=client
-        )
-
-    @classmethod
-    @inject_client
-    async def _from_task(
-        cls: Type[Self],
-        task: "Task",
-        default_storage_getter: Callable[[], Awaitable[ResultStorage]],
-        client: "PrefectClient" = None,
-    ) -> Self:
-        from prefect.context import FlowRunContext
-
-        ctx = FlowRunContext.get()
-
-        result_storage = task.result_storage or (
-            ctx.result_factory.storage_block
-            if ctx and ctx.result_factory
-            else await default_storage_getter()
-        )
-        result_serializer = task.result_serializer or (
-            ctx.result_factory.serializer
-            if ctx and ctx.result_factory
-            else get_default_result_serializer()
-        )
-        if task.persist_result is None:
-            persist_result = (
-                ctx.result_factory.persist_result
-                if ctx and ctx.result_factory
-                else get_default_persist_setting()
+        update = {}
+        if task.result_storage is not None:
+            update["storage_block"] = await resolve_result_storage(task.result_storage)
+        if task.result_serializer is not None:
+            update["serializer"] = resolve_serializer(task.result_serializer)
+        if task.persist_result is not None:
+            update["persist_result"] = task.persist_result
+        if task.cache_result_in_memory is not None:
+            update["cache_result_in_memory"] = task.cache_result_in_memory
+        if task.result_storage_key is not None:
+            update["storage_key_fn"] = partial(
+                _format_user_supplied_storage_key, task.result_storage_key
             )
-        else:
-            persist_result = task.persist_result
-
-        cache_result_in_memory = task.cache_result_in_memory
-
-        return await cls.from_settings(
-            result_storage=result_storage,
-            result_serializer=result_serializer,
-            persist_result=persist_result,
-            cache_result_in_memory=cache_result_in_memory,
-            client=client,
-            storage_key_fn=(
-                partial(_format_user_supplied_storage_key, task.result_storage_key)
-                if task.result_storage_key is not None
-                else DEFAULT_STORAGE_KEY_FN
-            ),
-        )
-
-    @classmethod
-    @inject_client
-    async def from_settings(
-        cls: Type[Self],
-        result_storage: ResultStorage,
-        result_serializer: ResultSerializer,
-        persist_result: Optional[bool],
-        cache_result_in_memory: bool,
-        storage_key_fn: Callable[[], str],
-        client: "PrefectClient",
-    ) -> Self:
-        if persist_result is None:
-            persist_result = get_default_persist_setting()
-
-        storage_block_id, storage_block = await cls.resolve_storage_block(
-            result_storage, client=client, persist_result=persist_result
-        )
-        serializer = cls.resolve_serializer(result_serializer)
-
-        return cls(
-            storage_block=storage_block,
-            storage_block_id=storage_block_id,
-            serializer=serializer,
-            persist_result=persist_result,
-            cache_result_in_memory=cache_result_in_memory,
-            storage_key_fn=storage_key_fn,
-        )
-
-    @staticmethod
-    async def resolve_storage_block(
-        result_storage: ResultStorage,
-        client: "PrefectClient",
-        persist_result: bool = True,
-    ) -> Tuple[Optional[uuid.UUID], WritableFileSystem]:
-        """
-        Resolve one of the valid `ResultStorage` input types into a saved block
-        document id and an instance of the block.
-        """
-        if isinstance(result_storage, Block):
-            storage_block = result_storage
-
-            if storage_block._block_document_id is not None:
-                # Avoid saving the block if it already has an identifier assigned
-                storage_block_id = storage_block._block_document_id
-            else:
-                storage_block_id = None
-        elif isinstance(result_storage, str):
-            storage_block = await Block.load(result_storage, client=client)
-            storage_block_id = storage_block._block_document_id
-            assert storage_block_id is not None, "Loaded storage blocks must have ids"
-        else:
-            raise TypeError(
-                "Result storage must be one of the following types: 'UUID', 'Block', "
-                f"'str'. Got unsupported type {type(result_storage).__name__!r}."
-            )
-
-        return storage_block_id, storage_block
-
-    @staticmethod
-    def resolve_serializer(serializer: ResultSerializer) -> Serializer:
-        """
-        Resolve one of the valid `ResultSerializer` input types into a serializer
-        instance.
-        """
-        if isinstance(serializer, Serializer):
-            return serializer
-        elif isinstance(serializer, str):
-            return Serializer(type=serializer)
-        else:
-            raise TypeError(
-                "Result serializer must be one of the following types: 'Serializer', "
-                f"'str'. Got unsupported type {type(serializer).__name__!r}."
-            )
+        if self.storage_block is None and update.get("storage_block") is None:
+            update["storage_block"] = await get_default_result_storage()
+        return self.model_copy(update=update)
 
     @sync_compatible
     async def create_result(
@@ -357,6 +249,9 @@ class ResultFactory(BaseModel):
             storage_key_fn = key_fn
         else:
             storage_key_fn = self.storage_key_fn
+
+        if self.storage_block is None:
+            self.storage_block = await get_default_result_storage()
 
         return await PersistedResult.create(
             obj,
@@ -389,6 +284,21 @@ class ResultFactory(BaseModel):
             await self.storage_block.read_path(f"parameters/{identifier}")
         )
         return record.result
+
+
+def get_current_result_factory() -> ResultFactory:
+    """
+    Get the current result factory.
+    """
+    from prefect.context import get_run_context
+
+    try:
+        run_context = get_run_context()
+    except MissingContextError:
+        result_factory = ResultFactory()
+    else:
+        result_factory = run_context.result_factory
+    return result_factory
 
 
 class ResultRecordMetadata(BaseModel):
