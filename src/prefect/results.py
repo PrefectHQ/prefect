@@ -227,6 +227,27 @@ class ResultFactory(BaseModel):
         return self.model_copy(update=update)
 
     @sync_compatible
+    async def read(self, key: str) -> Dict[str, Any]:
+        if self.storage_block is None:
+            self.storage_block = await get_default_result_storage()
+
+        content = await self.storage_block.read_path(f"{key}")
+        return ResultRecord.deserialize(content)
+
+    @sync_compatible
+    async def write(self, key: str, obj: Any, expiration: Optional[DateTime] = None):
+        if self.storage_block is None:
+            self.storage_block = await get_default_result_storage()
+
+        record = ResultRecord(
+            result=obj,
+            metadata=ResultRecordMetadata(
+                serializer=self.serializer, expiration=expiration, storage_key=key
+            ),
+        )
+        await self.storage_block.write_path(f"{key}", content=record.serialize())
+
+    @sync_compatible
     async def create_result(
         self,
         obj: R,
@@ -234,9 +255,7 @@ class ResultFactory(BaseModel):
         expiration: Optional[DateTime] = None,
     ) -> Union[R, "BaseResult[R]"]:
         """
-        Create a result type for the given object.
-
-        If persistence is enabled the object is serialized, persisted to storage, and a reference is returned.
+        Create a `PersistedResult` for the given object.
         """
         # Null objects are "cached" in memory at no cost
         should_cache_object = self.cache_result_in_memory or obj is None
@@ -577,20 +596,18 @@ class PersistedResult(BaseResult):
         if self.has_cached_object():
             return self._cache
 
-        record = await self._read_result_record(client=client)
+        storage_block = await self._get_storage_block(client=client)
+        result_factory = ResultFactory(
+            storage_block=storage_block, serializer=self._serializer
+        )
+
+        record = await result_factory.read(self.storage_key)
         self.expiration = record.expiration
 
         if self._should_cache_object:
             self._cache_object(record.result)
 
         return record.result
-
-    @inject_client
-    async def _read_result_record(self, client: "PrefectClient") -> "ResultRecord":
-        block = await self._get_storage_block(client=client)
-        content = await block.read_path(self.storage_key)
-        record = ResultRecord.deserialize(content)
-        return record
 
     @staticmethod
     def _infer_path(storage_block, key) -> str:
@@ -631,15 +648,11 @@ class PersistedResult(BaseResult):
             # this could error if the serializer requires kwargs
             serializer = Serializer(type=self.serializer_type)
 
-        record = ResultRecord(
-            result=obj,
-            metadata=ResultRecordMetadata(
-                storage_key=self.storage_key,
-                expiration=self.expiration,
-                serializer=serializer,
-            ),
+        result_factory = ResultFactory(
+            storage_block=storage_block, serializer=serializer
         )
-        await storage_block.write_path(self.storage_key, content=record.serialize())
+        await result_factory.write(self.storage_key, obj, expiration=self.expiration)
+
         self._persisted = True
 
         if not self._should_cache_object:
