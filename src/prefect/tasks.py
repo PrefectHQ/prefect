@@ -50,7 +50,12 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.logging.loggers import get_logger
-from prefect.results import ResultFactory, ResultSerializer, ResultStorage
+from prefect.results import (
+    ResultFactory,
+    ResultSerializer,
+    ResultStorage,
+    get_or_create_default_task_scheduling_storage,
+)
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
@@ -752,7 +757,9 @@ class Task(Generic[P, R]):
                 # TODO: Improve use of result storage for parameter storage / reference
                 self.persist_result = True
 
-                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                factory = await ResultFactory(
+                    storage_block=await get_or_create_default_task_scheduling_storage()
+                ).update_for_task(self)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}
                 if parameters:
@@ -853,7 +860,9 @@ class Task(Generic[P, R]):
                 # TODO: Improve use of result storage for parameter storage / reference
                 self.persist_result = True
 
-                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                factory = await ResultFactory(
+                    storage_block=await get_or_create_default_task_scheduling_storage()
+                ).update_for_task(task)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}
                 if parameters:

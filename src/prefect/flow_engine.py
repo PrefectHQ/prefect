@@ -47,7 +47,7 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.results import BaseResult, ResultFactory
+from prefect.results import BaseResult, ResultFactory, get_current_result_factory
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
@@ -202,7 +202,9 @@ class FlowRunEngine(Generic[P, R]):
                 self.handle_exception(
                     exc,
                     msg=message,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
+                    result_factory=get_current_result_factory().update_for_flow(
+                        self.flow, _sync=True
+                    ),
                 )
                 self.short_circuit = True
                 self.call_hooks()
@@ -506,7 +508,9 @@ class FlowRunEngine(Generic[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
+                    result_factory=get_current_result_factory().update_for_flow(
+                        self.flow, _sync=True
+                    ),
                     task_runner=task_runner,
                 )
             )

@@ -37,9 +37,7 @@ def default_persistence_off():
 
 @pytest.fixture
 async def factory(prefect_client):
-    return await ResultFactory.default_factory(
-        client=prefect_client, persist_result=True
-    )
+    return ResultFactory(persist_result=True)
 
 
 async def test_create_result_reference(factory):
@@ -357,7 +355,7 @@ async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_
         return get_run_context().result_factory
 
     parent_factory, child_factory = foo()
-    assert child_factory.persist_result is False
+    assert child_factory.persist_result is True
     assert child_factory.serializer == DEFAULT_SERIALIZER()
     assert child_factory.storage_block == parent_factory.storage_block
     assert child_factory.storage_block_id == storage_id
@@ -695,7 +693,7 @@ async def test_result_factory_from_task_with_no_flow_run_context(options, expect
 
     assert FlowRunContext.get() is None
 
-    result_factory = await ResultFactory.from_task(task=my_task)
+    result_factory = await ResultFactory().update_for_task(task=my_task)
 
     assert result_factory.persist_result == expected["persist_result"]
     assert result_factory.cache_result_in_memory == expected["cache_result_in_memory"]

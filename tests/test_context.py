@@ -24,7 +24,7 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultFactory
+from prefect.results import ResultFactory, get_current_result_factory
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
@@ -96,7 +96,7 @@ async def test_flow_run_context(prefect_client):
 
     test_task_runner = ThreadPoolTaskRunner()
     flow_run = await prefect_client.create_flow_run(foo)
-    result_factory = await ResultFactory.from_flow(foo)
+    result_factory = await ResultFactory().update_for_flow(foo)
 
     with FlowRunContext(
         flow=foo,
@@ -122,7 +122,7 @@ async def test_task_run_context(prefect_client, flow_run):
         pass
 
     task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    result_factory = await ResultFactory.default_factory()
+    result_factory = ResultFactory()
 
     with TaskRunContext(
         task=foo,
@@ -172,7 +172,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
         flow_run=flow_run,
         client=prefect_client,
         task_runner=test_task_runner,
-        result_factory=await ResultFactory.from_flow(foo, client=prefect_client),
+        result_factory=await ResultFactory().update_for_flow(foo),
         parameters={"x": "y"},
     ) as flow_ctx:
         assert get_run_context() is flow_ctx
@@ -181,7 +181,9 @@ async def test_get_run_context(prefect_client, local_filesystem):
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await ResultFactory.from_task(bar, client=prefect_client),
+            result_factory=await get_current_result_factory().update_for_task(
+                bar, _sync=False
+            ),
             parameters={"foo": "bar"},
         ) as task_ctx:
             assert get_run_context() is task_ctx, "Task context takes precedence"
@@ -419,7 +421,7 @@ class TestSerializeContext:
 
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo)
-        result_factory = await ResultFactory.from_flow(foo)
+        result_factory = await ResultFactory().update_for_flow(foo)
 
         with FlowRunContext(
             flow=foo,
@@ -450,7 +452,7 @@ class TestSerializeContext:
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await ResultFactory.from_task(bar, client=prefect_client),
+            result_factory=await get_current_result_factory().update_for_task(bar),
             parameters={"foo": "bar"},
         ) as task_ctx:
             serialized = serialize_context()
@@ -509,7 +511,7 @@ class TestHydratedContext:
 
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo)
-        result_factory = await ResultFactory.from_flow(foo)
+        result_factory = await ResultFactory().update_for_flow(foo)
         flow_run_context = FlowRunContext(
             flow=foo,
             flow_run=flow_run,
@@ -560,7 +562,7 @@ class TestHydratedContext:
 
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo, state=Running())
-        result_factory = await ResultFactory.from_flow(foo)
+        result_factory = await ResultFactory().update_for_flow(foo)
         flow_run_context = FlowRunContext(
             flow=foo,
             flow_run=flow_run,
@@ -593,7 +595,7 @@ class TestHydratedContext:
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await ResultFactory.from_task(bar, client=prefect_client),
+            result_factory=await get_current_result_factory().update_for_task(bar),
             parameters={"foo": "bar"},
         )
 
