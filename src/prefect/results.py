@@ -190,6 +190,12 @@ class ResultFactory(BaseModel):
     async def update_for_flow(self, flow: "Flow") -> Self:
         """
         Create a new result factory for a flow with updated settings.
+
+        Args:
+            flow: The flow to update the result factory for.
+
+        Returns:
+            An updated result factory.
         """
         update = {}
         if flow.result_storage is not None:
@@ -208,6 +214,12 @@ class ResultFactory(BaseModel):
     async def update_for_task(self: Self, task: "Task") -> Self:
         """
         Create a new result factory for a task.
+
+        Args:
+            task: The task to update the result factory for.
+
+        Returns:
+            An updated result factory.
         """
         update = {}
         if task.result_storage is not None:
@@ -228,6 +240,15 @@ class ResultFactory(BaseModel):
 
     @sync_compatible
     async def read(self, key: str) -> "ResultRecord":
+        """
+        Read a result record from storage.
+
+        Args:
+            key: The key to read the result record from.
+
+        Returns:
+            A result record.
+        """
         if self.storage_block is None:
             self.storage_block = await get_default_result_storage()
 
@@ -235,9 +256,25 @@ class ResultFactory(BaseModel):
         return ResultRecord.deserialize(content)
 
     @sync_compatible
-    async def write(self, key: str, obj: Any, expiration: Optional[DateTime] = None):
+    async def write(
+        self,
+        obj: Any = None,
+        key: Optional[str] = None,
+        expiration: Optional[DateTime] = None,
+    ):
+        """
+        Write a result to storage.
+
+        Handles the creation of a `ResultRecord` and its serialization to storage.
+
+        Args:
+            key: The key to write the result record to.
+            obj: The object to write to storage.
+            expiration: The expiration time for the result record.
+        """
         if self.storage_block is None:
             self.storage_block = await get_default_result_storage()
+        key = key or self.storage_key_fn()
 
         record = ResultRecord(
             result=obj,
@@ -245,7 +282,22 @@ class ResultFactory(BaseModel):
                 serializer=self.serializer, expiration=expiration, storage_key=key
             ),
         )
-        await self.storage_block.write_path(f"{key}", content=record.serialize())
+        await self.persist_result_record(record)
+
+    @sync_compatible
+    async def persist_result_record(self, result_record: "ResultRecord"):
+        """
+        Persist a result record to storage.
+
+        Args:
+            result_record: The result record to persist.
+        """
+        if self.storage_block is None:
+            self.storage_block = await get_default_result_storage()
+
+        await self.storage_block.write_path(
+            result_record.metadata.storage_key, content=result_record.serialize()
+        )
 
     @sync_compatible
     async def create_result(
@@ -589,11 +641,13 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def get(self, client: "PrefectClient") -> R:
+    async def get(
+        self, ignore_cache: bool = False, client: "PrefectClient" = None
+    ) -> R:
         """
         Retrieve the data and deserialize it into the original object.
         """
-        if self.has_cached_object():
+        if self.has_cached_object() and not ignore_cache:
             return self._cache
 
         result_factory_kwargs = {}
