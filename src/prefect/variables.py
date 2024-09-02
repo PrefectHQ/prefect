@@ -112,6 +112,6 @@ async def get(name: str, default: Optional[str] = None) -> Optional[str]:
     ```
     """
     variable = await Variable.get(name, default=default)
-    if isinstance(variable, Variable):
-        variable = variable.value
+    if not isinstance(variable, str) and hasattr(variable, "value"):
+        variable = variable.value  # type: ignore
     return variable
