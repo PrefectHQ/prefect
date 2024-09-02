@@ -4147,7 +4147,7 @@ class SyncPrefectClient:
 
         response = self._client.post(
             "/artifacts/",
-            json=artifact.model_dump_json(exclude_unset=True),
+            json=artifact.model_dump(mode="json", exclude_unset=True),
         )
 
         return Artifact.model_validate(response.json())
