@@ -258,7 +258,7 @@ class ResultFactory(BaseModel):
     @sync_compatible
     async def write(
         self,
-        obj: Any = None,
+        obj: Any,
         key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
     ):
@@ -708,7 +708,9 @@ class PersistedResult(BaseResult):
         result_factory = ResultFactory(
             storage_block=storage_block, serializer=serializer
         )
-        await result_factory.write(self.storage_key, obj, expiration=self.expiration)
+        await result_factory.write(
+            obj=obj, key=self.storage_key, expiration=self.expiration
+        )
 
         self._persisted = True
 
