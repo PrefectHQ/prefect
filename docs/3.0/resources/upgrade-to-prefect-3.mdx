@@ -10,10 +10,8 @@ Prefect 3 introduces exciting new features and improvements while maintaining co
 To upgrade to Prefect 3, run:
 
 ```bash
-pip install 'prefect>=3.0.0rc1' --pre
+pip install -U prefect
 ```
-
-Note that the `--pre` flag is required to install the release candidate until the final release is available.
 
 
 If you self-host a Prefect server, run this command to update your database:
@@ -25,7 +23,7 @@ prefect server database upgrade
 If you use a Prefect integration or extra, remember to upgrade it as well. For example:
 
 ```bash
-pip install 'prefect[aws]>=3.0.0rc1' --pre
+pip install 'prefect[aws]'
 ```
 
 ## Upgrade notes
