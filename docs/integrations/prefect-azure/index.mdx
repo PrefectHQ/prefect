@@ -9,18 +9,18 @@ For example, you can retrieve secrets, read and write Blob Storage objects, and 
 
 ### Prerequisites
 
-- [Prefect installed](3.0/get-started/install) in a virtual environment.
 - An [Azure account](https://azure.microsoft.com/) and the necessary permissions to access desired services.
 
 ### Install prefect-azure
 
-Install a version of prefect-azure compatible with your version of Prefect.
+The following command will install a version prefect-azure compatible with your installed version of Prefect. 
+If you don't already have Prefect installed, it will install the latest version of Prefect as well.
 
 ```bash
 pip install "prefect[azure]"
 ```
 
-Upgrade to the latest version of Prefect and prefect-azure:
+Upgrade to the latest versions of Prefect and prefect-azure:
 
 ```bash
 pip install -U "prefect[azure]"
@@ -38,11 +38,9 @@ pip install "prefect-azure[all_extras]"
 
 Register the block types in the module to make them available for use.
 
-
 ```bash
 prefect block register -m prefect_azure
 ```
-
 
 ## Examples
 
