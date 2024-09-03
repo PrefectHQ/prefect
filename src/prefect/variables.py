@@ -1,24 +1,37 @@
 from typing import List, Optional
 
+from pydantic import BaseModel, Field
+
 from prefect._internal.compatibility.migration import getattr_migration
-from prefect.client.schemas.actions import VariableCreate as VariableRequest
-from prefect.client.schemas.actions import VariableUpdate as VariableUpdateRequest
+from prefect.client.schemas.actions import VariableCreate, VariableUpdate
 from prefect.client.utilities import get_or_create_client
 from prefect.exceptions import ObjectNotFound
-from prefect.types import StrictVariableValue
+from prefect.types import MAX_VARIABLE_NAME_LENGTH, StrictVariableValue
 from prefect.utilities.asyncutils import sync_compatible
 
 
-class Variable(VariableRequest):
+class Variable(BaseModel):
     """
-    Variables are named, mutable string values, much like environment variables. Variables are scoped to a Prefect server instance or a single workspace in Prefect Cloud.
-    https://docs.prefect.io/latest/concepts/variables/
+    Variables are named, mutable JSON values that can be shared across tasks and flows.
 
     Arguments:
         name: A string identifying the variable.
         value: A string that is the value of the variable.
         tags: An optional list of strings to associate with the variable.
     """
+
+    name: str = Field(
+        default=...,
+        description="The name of the variable",
+        examples=["my_variable"],
+        max_length=MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: StrictVariableValue = Field(
+        default=...,
+        description="The value of the variable",
+        examples=["my-value"],
+    )
+    tags: Optional[List[str]] = Field(default=None)
 
     @classmethod
     @sync_compatible
@@ -42,6 +55,7 @@ class Variable(VariableRequest):
 
         Example:
             Set a new variable and overwrite it if it already exists.
+
             ```
             from prefect.variables import Variable
 
@@ -59,14 +73,17 @@ class Variable(VariableRequest):
                 raise ValueError(
                     f"Variable {name!r} already exists. Use `overwrite=True` to update it."
                 )
-            await client.update_variable(variable=VariableUpdateRequest(**var_dict))
+            await client.update_variable(variable=VariableUpdate(**var_dict))
             variable = await client.read_variable_by_name(name)
+            var_dict = {
+                "name": variable.name,
+                "value": variable.value,
+                "tags": variable.tags or [],
+            }
         else:
-            variable = await client.create_variable(
-                variable=VariableRequest(**var_dict)
-            )
+            await client.create_variable(variable=VariableCreate(**var_dict))
 
-        return variable
+        return cls(**var_dict)
 
     @classmethod
     @sync_compatible
