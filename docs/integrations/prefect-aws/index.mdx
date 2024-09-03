@@ -9,26 +9,22 @@ For example, you can retrieve secrets using AWS Secrets Manager, read and write 
 
 ### Prerequisites
 
-- [Prefect installed](/3.0/get-started/install/).
 - An [AWS account](https://aws.amazon.com/account/) and the necessary permissions to access desired services.
 
 ### Install prefect-aws
 
-Install or update to the latest version of the prefect-aws library and dependencies.
+The following command will install a version of prefect-azure compatible with your installed version of Prefect. 
+If you don't already have Prefect installed, it will install the newest version of Prefect as well.
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-aws
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-aws
-    ```
-    </Tab>
-</Tabs>
+```bash
+pip install "prefect[aws]"
+```
 
+Upgrade to the latest versions of Prefect and prefect-azure:
+
+```bash
+pip install -U "prefect[aws]"
+```
 
 ### Register newly installed block types
 
