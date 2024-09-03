@@ -1,0 +1,34 @@
+The final state of a flow is determined by its **_return value_**. The following rules apply:
+
+- If an exception is raised directly in the flow function, the flow run is marked as `FAILED`.
+- If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
+- If a flow returns an iterable of states, the presence of _any_ `FAILED` state will cause the run to be marked as `FAILED`.
+
+In _any other situation_ in which the flow returns without error, it will be marked as `COMPLETED`. 
+
+<Warning>
+If you manipulate states programmatically, you can create situations in which tasks 
+within a flow can fail and not cause flow run failure. 
+For example:
+```python
+from prefect import flow, task 
+
+
+@task 
+def add_one(x):
+    return x + 1
+
+
+@flow 
+def my_flow():
+    # avoided raising an exception via `return_state=True`
+    state = add_one("1", return_state=True)
+    assert state.is_failed()
+
+    # the flow function returns successfully!
+    return
+```
+
+If `state` were returned from the flow function, the run would be marked as `FAILED`.
+
+</ Warning>

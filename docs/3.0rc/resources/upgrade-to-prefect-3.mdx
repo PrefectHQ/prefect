@@ -10,7 +10,7 @@ Prefect 3 introduces exciting new features and improvements while maintaining co
 To upgrade to Prefect 3, run:
 
 ```bash
-pip install prefect>=3.0.0rc1 --pre
+pip install 'prefect>=3.0.0rc1' --pre
 ```
 
 Note that the `--pre` flag is required to install the release candidate until the final release is available.
@@ -25,7 +25,7 @@ prefect server database upgrade
 If you use a Prefect integration or extra, remember to upgrade it as well. For example:
 
 ```bash
-pip install prefect[aws]>=3.0.0rc1 --pre
+pip install 'prefect[aws]>=3.0.0rc1' --pre
 ```
 
 ## Upgrade notes
@@ -44,15 +44,13 @@ Refer to [Pydantic's migration guide](https://docs.pydantic.dev/latest/migration
 
 Some less-commonly used modules have been renamed, reorganized, or removed for clarity. The old import paths will continue to be supported for 6 months, but emit deprecation warnings. You can look at the [deprecation code](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/compatibility/migration.py) to see a full list of affected paths.
 
-### Async tasks
+### Async tasks in synchronous flows
 
 <info>
 This change affects you if: you use advanced asynchronous behaviors in your flows.
 </info>
 
-Prefect 3 makes a few changes to handling asynchronous code. There are three key changes to be aware of:
-
-1. **Async Tasks in Synchronous Flows**: In Prefect 2, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3 removes this ability to reduce complexity and potential issues. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
+In Prefect 2, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3 removes this functionality in order to reduce complexity and potential issues and edge cases. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
 
 ### Flow final states
 

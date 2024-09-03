@@ -74,17 +74,16 @@
           "pages": [
             "3.0rc/develop/write-flows",
             "3.0rc/develop/write-tasks",
-            "3.0rc/develop/deferred-tasks",
-            "3.0rc/develop/logging"
+            "3.0rc/develop/deferred-tasks"
           ],
           "version": "3.0rc"
         },
         {
           "group": "Configure runtime behavior",
           "pages": [
+            "3.0rc/develop/logging",
             "3.0rc/develop/task-caching",
             "3.0rc/develop/transactions",
-            "3.0rc/develop/state-hooks",
             "3.0rc/develop/pause-resume",
             "3.0rc/develop/inputs",
             "3.0rc/develop/runtime-context"
@@ -94,12 +93,11 @@
         {
           "group": "Manage state and configuration",
           "pages": [
-            "3.0rc/develop/results",
             "3.0rc/develop/manage-states",
+            "3.0rc/develop/results",
             "3.0rc/develop/artifacts",
             "3.0rc/develop/variables",
-            "3.0rc/develop/blocks",
-            "3.0rc/develop/interact-with-data"
+            "3.0rc/develop/blocks"
           ],
           "version": "3.0rc"
         },
@@ -122,11 +120,12 @@
         "3.0rc/deploy/index",
         "3.0rc/deploy/run-flows-in-local-processes",
         {
-          "group": "Run flows on infrastructure",
+          "group": "Run flows on dynamic infrastructure",
           "pages": [
             "3.0rc/deploy/infrastructure-concepts/work-pools",
             "3.0rc/deploy/infrastructure-concepts/workers",
             "3.0rc/deploy/infrastructure-concepts/store-flow-code",
+            "3.0rc/deploy/infrastructure-concepts/deploy-via-python",
             "3.0rc/deploy/infrastructure-concepts/prefect-yaml",
             "3.0rc/deploy/infrastructure-concepts/deploy-ci-cd",
             "3.0rc/deploy/infrastructure-concepts/customize"
@@ -179,7 +178,8 @@
                 "3.0rc/manage/cloud/manage-users/api-keys",
                 "3.0rc/manage/cloud/manage-users/configure-sso",
                 "3.0rc/manage/cloud/manage-users/audit-logs",
-                "3.0rc/manage/cloud/manage-users/object-access-control-lists"
+                "3.0rc/manage/cloud/manage-users/object-access-control-lists",
+                "3.0rc/manage/cloud/manage-users/secure-access-by-ip-address"
               ],
               "version": "3.0rc"
             },
@@ -910,7 +910,7 @@
       "source": "/latest/community"
     },
     {
-      "destination": "/latest/develop/interact-with-data",
+      "destination": "/latest/develop/blocks",
       "source": "/latest/concepts/filesystems"
     },
     {
@@ -930,7 +930,7 @@
       "source": "/latest/api-ref/server"
     },
     {
-      "destination": "/latest/develop/interact-with-data",
+      "destination": "/latest/develop/blocks",
       "source": "/latest/guides/moving-data"
     },
     {
@@ -938,7 +938,7 @@
       "source": "/latest/guides/deployment/developing-a-new-worker-type"
     },
     {
-      "destination": "/latest/develop/state-hooks",
+      "destination": "/latest/develop/manage-states",
       "source": "/latest/guides/state-change-hooks"
     },
     {
