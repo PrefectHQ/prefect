@@ -4,12 +4,8 @@ import sys
 
 # Checks to make sure that collections are loaded prior to attempting to start a worker
 def main():
-    raise NotImplementedError(
-        "The prefect-kubernetes package hasn't been updated for prefect>=3.0 yet"
-    )
-
     subprocess.check_call(
-        ["python", "-m", "pip", "install", "prefect-kubernetes<3"],
+        ["python", "-m", "pip", "install", "prefect-kubernetes>=0.5.0"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
