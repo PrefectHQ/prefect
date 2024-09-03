@@ -332,6 +332,18 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     return state
 
 
+async def _make_flow_run(
+    flow: Flow, parameters: Dict[str, Any], state: State, client: PrefectClient
+) -> FlowRun:
+    return await client.create_flow_run(
+        flow,
+        # Send serialized parameters to the backend
+        parameters=flow.serialize_parameters(parameters),
+        state=state,
+        tags=TagsContext.get().current_tags,
+    )
+
+
 @inject_client
 async def create_then_begin_flow_run(
     flow: Flow,
@@ -351,6 +363,7 @@ async def create_then_begin_flow_run(
 
     await check_api_reachable(client, "Cannot create flow run")
 
+    flow_run = None
     state = Pending()
     if flow.should_validate_parameters:
         try:
@@ -359,14 +372,10 @@ async def create_then_begin_flow_run(
             state = await exception_to_failed_state(
                 message="Validation of flow parameters failed with error:"
             )
+            flow_run = await _make_flow_run(flow, parameters, state, client)
+            await _run_flow_hooks(flow, flow_run, state)
 
-    flow_run = await client.create_flow_run(
-        flow,
-        # Send serialized parameters to the backend
-        parameters=flow.serialize_parameters(parameters),
-        state=state,
-        tags=TagsContext.get().current_tags,
-    )
+    flow_run = flow_run or await _make_flow_run(flow, parameters, state, client)
 
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 

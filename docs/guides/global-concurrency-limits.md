@@ -52,6 +52,7 @@ When creating a concurrency limit, you can specify the following parameters:
 - **Name**: The name of the concurrency limit. This name is also how you'll reference the concurrency limit in your code. Special characters, such as `/`, `%`, `&`, `>`, `<`, are not allowed.
 - **Concurrency Limit**: The maximum number of slots that can be occupied on this concurrency limit.
 - **Slot Decay Per Second**: Controls the rate at which slots are released when the concurrency limit is used as a rate limit. This value must be configured when using the `rate_limit` function.
+- **Active Slots**: The number of slots currently in use by clients. Prefect manages this field automatically, but you can set it to 0 to reset the limit if necessary.
 - **Active**: Whether or not the concurrency limit is in an active state.
 
 ### Via the CLI
