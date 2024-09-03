@@ -35,8 +35,8 @@ class TestFileSystemRecordStore:
 
     @pytest.fixture
     async def result(self, default_storage_setting):
-        factory = ResultStore(persist_result=True)
-        result = await factory.create_result(obj={"test": "value"})
+        store = ResultStore(persist_result=True)
+        result = await store.create_result(obj={"test": "value"})
         return result
 
     @pytest.fixture

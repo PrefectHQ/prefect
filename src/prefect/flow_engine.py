@@ -265,7 +265,7 @@ class FlowRunEngine(Generic[P, R]):
     def handle_success(self, result: R) -> R:
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
-            raise ValueError("Result factory is not set")
+            raise ValueError("Result store is not set")
         resolved_result = resolve_futures_to_states(result)
         terminal_state = run_coro_as_sync(
             return_value_to_state(

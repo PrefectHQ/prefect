@@ -537,7 +537,7 @@ class TestHydratedContext:
             )  # this won't be the same object as the original task runner
             assert (
                 hydrated_flow_run_context.result_store is not None
-            )  # this won't be the same object as the original result factory
+            )  # this won't be the same object as the original result store
             assert isinstance(hydrated_flow_run_context.start_time, DateTime)
             assert hydrated_flow_run_context.parameters == {"x": "y"}
 

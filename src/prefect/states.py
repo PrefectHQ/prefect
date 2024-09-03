@@ -307,7 +307,7 @@ async def return_value_to_state(
         and not retval.state_details.task_run_id
     ):
         state = retval
-        # Unless the user has already constructed a result explicitly, use the factory
+        # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
             result = await result_store.create_result(

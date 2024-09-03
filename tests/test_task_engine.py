@@ -1649,8 +1649,8 @@ class TestPersistence:
     async def test_task_can_return_persisted_result(self):
         @task
         async def async_task():
-            factory = ResultStore(persist_result=True)
-            result = await factory.create_result(42)
+            store = ResultStore(persist_result=True)
+            result = await store.create_result(42)
             await result.write()
             return result
 
@@ -1659,8 +1659,8 @@ class TestPersistence:
         assert await state.result() == 42
 
     async def test_task_loads_result_if_exists_using_result_storage_key(self):
-        factory = ResultStore(persist_result=True)
-        result = await factory.create_result(-92, key="foo-bar")
+        store = ResultStore(persist_result=True)
+        result = await store.create_result(-92, key="foo-bar")
         await result.write()
 
         @task(result_storage_key="foo-bar", persist_result=True)
