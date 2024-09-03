@@ -180,7 +180,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
         local_logger.warning(
             "A future was garbage collected before it resolved."
             " Please call `.wait()` or `.result()` on futures to ensure they resolve."
-            "\nSee https://docs-3.prefect.io/3.0rc/develop/task-runners for more details.",
+            "\nSee https://docs.prefect.io/latest/develop/task-runners for more details.",
         )
 
 

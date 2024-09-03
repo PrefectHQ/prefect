@@ -9,7 +9,7 @@ For example, you can retrieve secrets using AWS Secrets Manager, read and write 
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/get-started/install/).
+- [Prefect installed](/3.0/get-started/install/).
 - An [AWS account](https://aws.amazon.com/account/) and the necessary permissions to access desired services.
 
 ### Install prefect-aws
@@ -46,7 +46,7 @@ Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) 
 
 See the [ECS work pool docs](/integrations/prefect-aws/ecs_guide) for a walkthrough of using ECS in a hybrid work pool.
 
-If you're using Prefect Cloud, [ECS push work pools](/3.0rc/deploy/infrastructure-examples/serverless) provide all the benefits of ECS with a quick setup and no worker needed.
+If you're using Prefect Cloud, [ECS push work pools](/3.0/deploy/infrastructure-examples/serverless) provide all the benefits of ECS with a quick setup and no worker needed.
 
 In the examples below, you create blocks with Python code.
 Alternatively, each block can be created through the Prefect UI.
@@ -78,7 +78,7 @@ Prefect is using the Boto3 library under the hood.
 To find credentials for authentication, any data not provided to the block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
 Prefect creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
 
-See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in the [docs](/3.0rc/resources/secrets).
+See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in the [docs](/3.0/resources/secrets).
 
 Here's how to load the saved credentials:
 
