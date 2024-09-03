@@ -263,9 +263,7 @@ def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
     if not docstring:
         return param_docstrings
 
-    with disable_logger("griffe.docstrings.google"), disable_logger(
-        "griffe.agents.nodes"
-    ):
+    with disable_logger("griffe"):
         parsed = parse(Docstring(docstring), Parser.google)
         for section in parsed:
             if section.kind != DocstringSectionKind.parameters:
