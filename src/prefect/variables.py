@@ -74,7 +74,7 @@ class Variable(VariableRequest):
         cls,
         name: str,
         default: StrictVariableValue = None,
-    ) -> str:
+    ) -> StrictVariableValue:
         """
         Get a variable's value by name.
 
