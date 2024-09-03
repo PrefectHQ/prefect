@@ -203,15 +203,15 @@ async def test_write_is_idempotent(storage_block):
     )
 
     with pytest.raises(ValueError, match="does not exist"):
-        await result._read_result_record()
+        await result.get(ignore_cache=True)
 
     await result.write()
-    record = await result._read_result_record()
-    assert record.result == "test-defer"
+    obj = await result.get()
+    assert obj == "test-defer"
 
     await result.write(obj="new-object!")
-    record = await result._read_result_record()
-    assert record.result == "test-defer"
+    obj = await result.get()
+    assert obj == "test-defer"
 
 
 async def test_lifecycle_of_deferred_persistence(storage_block):
@@ -226,11 +226,11 @@ async def test_lifecycle_of_deferred_persistence(storage_block):
     assert await result.get() == "test-defer"
 
     with pytest.raises(ValueError, match="does not exist"):
-        await result._read_result_record()
+        await result.get(ignore_cache=True)
 
     await result.write()
-    record = await result._read_result_record()
-    assert record.result == "test-defer"
+    obj = await result.get()
+    assert obj == "test-defer"
 
 
 async def test_read_old_format_into_result_record():
