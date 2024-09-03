@@ -121,7 +121,8 @@ class GitHubRepository(ReadableDeploymentStorage):
         # Clone to a temporary directory and move the subdirectory over
         with TemporaryDirectory(suffix="prefect") as tmp_dir:
             tmp_path_str = tmp_dir
-            cmd += f" {tmp_path_str}"
+            # wrap the directory with quotes, because shlex removes windows-style slashes "//" - fixes issue 13180
+            cmd += f' "{tmp_path_str}"'
             cmd = shlex.split(cmd)
 
             err_stream = io.StringIO()
