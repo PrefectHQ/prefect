@@ -14,41 +14,25 @@ For example, you can retrieve secrets, read and write Blob Storage objects, and 
 
 ### Install prefect-azure
 
-Install or update to the latest version of the prefect-azure library and dependencies.
+Install a version of prefect-azure compatible with your version of Prefect.
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-azure
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-azure
-    ```
-    </Tab>
-</Tabs>
+```bash
+pip install "prefect[azure]"
+```
 
+Upgrade to the latest version of Prefect and prefect-azure:
+
+```bash
+pip install -U "prefect[azure]"
+```
 
 If necessary, see [additional installation options for Blob Storage, Cosmos DB, and ML Datastore](#additional-installation-options).
 
-To install with all additional capabilities, use the following command:
+To install prefect-azure with all additional capabilities, run the install command above and then run the following command:
 
-Install or update to the latest version of the prefect-aws library and dependencies.
-
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-azure[all_extras]
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-azure[all_extras]
-    ```
-    </Tab>
-</Tabs>
-
+```bash
+pip install "prefect-azure[all_extras]"
+```
 
 ### Register newly installed block types
 
@@ -112,24 +96,28 @@ Refer to the prefect-azure API documentation linked in the sidebar to explore al
 
 ### Additional installation options
 
+First install the main library compatible with your Prefect version:
+
+```bash
+pip install prefect[azure]
+```
+
+Then install the additional capabilities you need.
+
 To use Blob Storage:
 
 ```bash
-pip install -U "prefect-azure[blob_storage]"
+pip install "prefect-azure[blob_storage]"
 ```
-
 
 To use Cosmos DB:
 
 ```bash
-pip install -U "prefect-azure[cosmos_db]"
+pip install "prefect-azure[cosmos_db]"
 ```
-
 
 To use ML Datastore:
 
-
 ```bash
-pip install -U "prefect-azure[ml_datastore]"
+pip install "prefect-azure[ml_datastore]"
 ```
-
