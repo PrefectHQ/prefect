@@ -63,7 +63,7 @@ TERMINAL_STATUS_CODES = (
 )
 async def jobs_runs_submit_and_wait_for_completion(
     databricks_credentials: DatabricksCredentials,
-    tasks: List[RunSubmitTaskSettings] = None,
+    tasks: Optional[List[RunSubmitTaskSettings]] = None,
     run_name: Optional[str] = None,
     max_wait_seconds: int = 900,
     poll_frequency_seconds: int = 10,
@@ -74,7 +74,7 @@ async def jobs_runs_submit_and_wait_for_completion(
     return_metadata: bool = False,
     job_submission_handler: Optional[Callable] = None,
     **jobs_runs_submit_kwargs: Dict[str, Any],
-) -> Union[NotebookOutput, Tuple[NotebookOutput, JobMetadata]]:
+) -> Union[NotebookOutput, Tuple[NotebookOutput, JobMetadata], None]:
     """
     Flow that triggers a job run and waits for the triggered run to complete.
 
