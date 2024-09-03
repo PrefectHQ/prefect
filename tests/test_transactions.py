@@ -386,13 +386,13 @@ class TestWithMemoryRecordStore:
 
     @pytest.fixture
     async def result_1(self, default_storage_setting):
-        result_factory = ResultStore(persist_result=True)
-        return await result_factory.create_result(obj={"foo": "bar"})
+        result_store = ResultStore(persist_result=True)
+        return await result_store.create_result(obj={"foo": "bar"})
 
     @pytest.fixture
     async def result_2(self, default_storage_setting):
-        result_factory = ResultStore(persist_result=True)
-        return await result_factory.create_result(obj={"fizz": "buzz"})
+        result_store = ResultStore(persist_result=True)
+        return await result_store.create_result(obj={"fizz": "buzz"})
 
     async def test_basic_transaction(self, result_1):
         store = MemoryRecordStore()

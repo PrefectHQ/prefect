@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-async def result_factory_from_task(task) -> ResultStore:
+async def result_store_from_task(task) -> ResultStore:
     return await ResultStore(
         storage_block=await get_or_create_default_task_scheduling_storage()
     ).update_for_task(task)
@@ -88,10 +88,8 @@ async def test_task_submission_with_parameters_uses_default_storage(
     task_run_future = foo_task_without_result_storage.apply_async((42,))
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
 
-    result_factory = await result_factory_from_task(foo_task)
-    await result_factory.read_parameters(
-        task_run.state.state_details.task_parameters_id
-    )
+    result_store = await result_store_from_task(foo_task)
+    await result_store.read_parameters(task_run.state.state_details.task_parameters_id)
 
 
 async def test_task_submission_with_parameters_reuses_default_storage_block(
@@ -118,13 +116,13 @@ async def test_task_submission_with_parameters_reuses_default_storage_block(
         storage_after = await Block.load("local-file-system/my-tasks")
         assert isinstance(storage_after, LocalFileSystem)
 
-        result_factory = await result_factory_from_task(foo_task)
+        result_store = await result_store_from_task(foo_task)
         task_run_a = await prefect_client.read_task_run(task_run_future_a.task_run_id)
         task_run_b = await prefect_client.read_task_run(task_run_future_b.task_run_id)
-        assert await result_factory.read_parameters(
+        assert await result_store.read_parameters(
             task_run_a.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 42}, "context": mock.ANY}
-        assert await result_factory.read_parameters(
+        assert await result_store.read_parameters(
             task_run_b.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 24}, "context": mock.ANY}
 
@@ -137,9 +135,9 @@ async def test_task_submission_creates_a_scheduled_task_run(
     assert task_run.state.is_scheduled()
     assert task_run.state.state_details.deferred is True
 
-    result_factory = await result_factory_from_task(foo_task_with_result_storage)
+    result_store = await result_store_from_task(foo_task_with_result_storage)
 
-    parameters = await result_factory.read_parameters(
+    parameters = await result_store.read_parameters(
         task_run.state.state_details.task_parameters_id
     )
 
@@ -151,9 +149,9 @@ async def test_sync_task_not_awaitable_in_async_context(foo_task, prefect_client
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
     assert task_run.state.is_scheduled()
 
-    result_factory = await result_factory_from_task(foo_task)
+    result_store = await result_store_from_task(foo_task)
 
-    parameters = await result_factory.read_parameters(
+    parameters = await result_store.read_parameters(
         task_run.state.state_details.task_parameters_id
     )
 
@@ -167,9 +165,9 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
     assert task_run.state.is_scheduled()
 
-    result_factory = await result_factory_from_task(async_foo_task_with_result_storage)
+    result_store = await result_store_from_task(async_foo_task_with_result_storage)
 
-    parameters = await result_factory.read_parameters(
+    parameters = await result_store.read_parameters(
         task_run.state.state_details.task_parameters_id
     )
 
@@ -254,11 +252,11 @@ class TestMap:
 
         assert len(task_runs) == 3
 
-        result_factory = await result_factory_from_task(async_foo_task)
+        result_store = await result_store_from_task(async_foo_task)
 
         for i, task_run in enumerate(task_runs):
             assert task_run.state.is_scheduled()
-            assert await result_factory.read_parameters(
+            assert await result_store.read_parameters(
                 task_run.state.state_details.task_parameters_id
             ) == {"parameters": {"x": i + 1}, "context": mock.ANY}
 
@@ -271,11 +269,11 @@ class TestMap:
 
         assert len(task_runs) == 3
 
-        result_factory = await result_factory_from_task(bar)
+        result_store = await result_store_from_task(bar)
 
         for i, task_run in enumerate(task_runs):
             assert task_run.state.is_scheduled()
-            assert await result_factory.read_parameters(
+            assert await result_store.read_parameters(
                 task_run.state.state_details.task_parameters_id
             ) == {"parameters": {"x": i + 1, "unmappable": 42}, "context": mock.ANY}
 
@@ -288,11 +286,11 @@ class TestMap:
 
         assert len(task_runs) == 3
 
-        result_factory = await result_factory_from_task(bar)
+        result_store = await result_store_from_task(bar)
 
         for i, task_run in enumerate(task_runs):
             assert task_run.state.is_scheduled()
-            assert await result_factory.read_parameters(
+            assert await result_store.read_parameters(
                 task_run.state.state_details.task_parameters_id
             ) == {"parameters": {"x": i + 1, "unmappable": 42}, "context": mock.ANY}
 
@@ -307,11 +305,11 @@ class TestMap:
 
         assert len(task_runs) == 3
 
-        result_factory = await result_factory_from_task(bar)
+        result_store = await result_store_from_task(bar)
 
         for i, task_run in enumerate(task_runs):
             assert task_run.state.is_scheduled()
-            assert await result_factory.read_parameters(
+            assert await result_store.read_parameters(
                 task_run.state.state_details.task_parameters_id
             ) == {
                 "parameters": {"x": i + 1, "mappable": ["some", "iterable"]},
@@ -329,11 +327,11 @@ class TestMap:
 
         assert len(task_runs) == 3
 
-        result_factory = await result_factory_from_task(bar)
+        result_store = await result_store_from_task(bar)
 
         for i, task_run in enumerate(task_runs):
             assert task_run.state.is_scheduled()
-            assert await result_factory.read_parameters(
+            assert await result_store.read_parameters(
                 task_run.state.state_details.task_parameters_id
             ) == {
                 "parameters": {"x": i + 1, "mappable": ["some", "iterable"]},

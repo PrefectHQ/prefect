@@ -126,13 +126,13 @@ class TestRunTask:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultStore().update_for_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -174,13 +174,13 @@ class TestTaskRunsAsync:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultStore().update_for_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -1497,13 +1497,13 @@ class TestRunCountTracking:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.run_count == 1
 
-        result_factory = await ResultStore().update_for_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         return EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 

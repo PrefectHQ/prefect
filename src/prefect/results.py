@@ -429,7 +429,7 @@ class ResultStore(BaseModel):
         return record.result
 
 
-def get_current_result_factory() -> ResultStore:
+def get_current_result_store() -> ResultStore:
     """
     Get the current result factory.
     """
@@ -438,10 +438,10 @@ def get_current_result_factory() -> ResultStore:
     try:
         run_context = get_run_context()
     except MissingContextError:
-        result_factory = ResultStore()
+        result_store = ResultStore()
     else:
-        result_factory = run_context.result_factory
-    return result_factory
+        result_store = run_context.result_store
+    return result_store
 
 
 class ResultRecordMetadata(BaseModel):
@@ -722,15 +722,13 @@ class PersistedResult(BaseResult):
         if self.has_cached_object() and not ignore_cache:
             return self._cache
 
-        result_factory_kwargs = {}
+        result_store_kwargs = {}
         if self._serializer:
-            result_factory_kwargs["serializer"] = resolve_serializer(self._serializer)
+            result_store_kwargs["serializer"] = resolve_serializer(self._serializer)
         storage_block = await self._get_storage_block(client=client)
-        result_factory = ResultStore(
-            storage_block=storage_block, **result_factory_kwargs
-        )
+        result_store = ResultStore(storage_block=storage_block, **result_store_kwargs)
 
-        record = await result_factory.aread(self.storage_key)
+        record = await result_store.aread(self.storage_key)
         self.expiration = record.expiration
 
         if self._should_cache_object:
@@ -777,8 +775,8 @@ class PersistedResult(BaseResult):
             # this could error if the serializer requires kwargs
             serializer = Serializer(type=self.serializer_type)
 
-        result_factory = ResultStore(storage_block=storage_block, serializer=serializer)
-        await result_factory.awrite(
+        result_store = ResultStore(storage_block=storage_block, serializer=serializer)
+        await result_store.awrite(
             obj=obj, key=self.storage_key, expiration=self.expiration
         )
 
