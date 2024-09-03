@@ -2,7 +2,7 @@
     "openapi": "3.1.0",
     "info": {
         "title": "Prefect Prefect REST API",
-        "version": "3.0rc",
+        "version": "3.0",
         "x-logo": {
             "url": "static/prefect-logo-mark-gradient.png"
         }
