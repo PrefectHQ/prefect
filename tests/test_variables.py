@@ -6,9 +6,8 @@ from prefect.variables import Variable
 
 @pytest.fixture
 async def variable():
-    await Variable.set(name="my_variable", value="my-value", tags=["123", "456"])
-    model = await Variable.get("my_variable", as_object=True)
-    return model
+    var = await Variable.set(name="my_variable", value="my-value", tags=["123", "456"])
+    return var
 
 
 async def test_set_sync(variable):
@@ -23,7 +22,6 @@ async def test_set_sync(variable):
             name="my_new_variable",
             value="my_value",
             tags=["123", "456"],
-            as_object=True,
         )
         assert created.value == "my_value"
         assert created.tags == ["123", "456"]
@@ -41,7 +39,6 @@ async def test_set_sync(variable):
             value="other_value",
             tags=["new", "tags"],
             overwrite=True,
-            as_object=True,
         )
         assert updated.value == "other_value"
         assert updated.tags == ["new", "tags"]
@@ -56,7 +53,7 @@ async def test_set_async(variable):
 
     # create new
     created = await Variable.set(
-        name="my_new_variable", value="my_value", tags=["123", "456"], as_object=True
+        name="my_new_variable", value="my_value", tags=["123", "456"]
     )
     assert created.value == "my_value"
     assert created.tags == ["123", "456"]
@@ -74,7 +71,6 @@ async def test_set_async(variable):
         value="other_value",
         tags=["new", "tags"],
         overwrite=True,
-        as_object=True,
     )
     assert updated.value == "other_value"
     assert updated.tags == ["new", "tags"]
@@ -97,20 +93,13 @@ async def test_set_async(variable):
 )
 async def test_json_types(value):
     set_value = await Variable.set("json_variable", value=value)
-    assert set_value == value
+    assert set_value.value == value
 
 
 async def test_get(variable):
     # get value
     value = await Variable.get(variable.name)
     assert value == variable.value
-
-    # as_object=True returns the full variable object
-    obj = await Variable.get(variable.name, as_object=True)
-    assert obj
-    assert obj.id == variable.id
-    assert obj.name == variable.name
-    assert obj.value == variable.value
 
     # get value of a variable that doesn't exist
     doesnt_exist = await Variable.get("doesnt_exist")
@@ -125,13 +114,6 @@ async def test_get_async(variable):
     # get value
     value = await Variable.get(variable.name)
     assert value == variable.value
-
-    # as_object=True returns the full variable object
-    obj = await Variable.get(variable.name, as_object=True)
-    assert obj
-    assert obj.id == variable.id
-    assert obj.name == variable.name
-    assert obj.value == variable.value
 
     # get value of a variable that doesn't exist
     doesnt_exist = await Variable.get("doesnt_exist")
@@ -197,7 +179,7 @@ def test_set_in_sync_flow():
 
     res = foo()
     assert res
-    assert res == "my-value"
+    assert res.value == "my-value"
 
 
 async def test_set_in_async_flow():
@@ -207,7 +189,7 @@ async def test_set_in_async_flow():
 
     res = await foo()
     assert res
-    assert res == "my-value"
+    assert res.value == "my-value"
 
 
 async def test_unset_in_sync_flow(variable):
