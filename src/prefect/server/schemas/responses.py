@@ -357,6 +357,9 @@ class DeploymentResponse(ORMBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
+    disabled: bool = Field(
+        default=False, description="Whether or not the deployment is disabled."
+    )
     schedules: List[schemas.core.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )

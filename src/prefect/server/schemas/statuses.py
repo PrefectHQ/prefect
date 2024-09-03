@@ -24,6 +24,7 @@ class DeploymentStatus(AutoEnum):
 
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
+    DISABLED = AutoEnum.auto()
 
     def in_kebab_case(self) -> str:
         return self.value.lower().replace("_", "-")

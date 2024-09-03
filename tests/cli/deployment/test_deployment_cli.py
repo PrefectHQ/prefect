@@ -1072,3 +1072,71 @@ class TestDeploymentRun:
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.parameters == {"name": "foo"}
+
+
+class TestDeploymentDisableEnable:
+    @pytest.fixture
+    async def base_deployment(self, prefect_client):
+        @flow
+        async def the_scottish_play():
+            pass
+
+        flow_id = await prefect_client.create_flow(the_scottish_play)
+        schedule = DeploymentScheduleCreate(
+            schedule=IntervalSchedule(interval=timedelta(seconds=10.76))
+        )
+
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="lady-macbeth",
+            version="git-commit-hash",
+            schedules=[schedule],
+            parameters={"foo": "bar"},
+            tags=["foo", "bar"],
+            parameter_openapi_schema={},
+            disabled=False,
+        )
+        return deployment_id
+
+    @pytest.fixture
+    async def client_deployment(self, base_deployment, prefect_client):
+        return await prefect_client.read_deployment(base_deployment)
+
+    def test_disabling(self, client_deployment):
+        assert client_deployment.disabled is False
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "disable",
+                "the-scottish-play/lady-macbeth",
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "the-scottish-play/lady-macbeth",
+            ],
+            expected_output_contains=["'disabled': True", "'status': 'DISABLED'"],
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "enable",
+                "the-scottish-play/lady-macbeth",
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "the-scottish-play/lady-macbeth",
+            ],
+            expected_output_contains=["'disabled': False", "'status': 'NOT_READY'"],
+        )

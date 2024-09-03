@@ -165,6 +165,9 @@ class DeploymentCreate(ActionBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
+    disabled: bool = Field(
+        default=False, description="Whether or not the deployment is disabled."
+    )
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
@@ -262,6 +265,9 @@ class DeploymentUpdate(ActionBaseModel):
     description: Optional[str] = Field(None)
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
+    )
+    disabled: bool = Field(
+        default=False, description="Whether or not the deployment is disabled."
     )
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,

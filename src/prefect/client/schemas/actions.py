@@ -153,6 +153,7 @@ class DeploymentCreate(ActionBaseModel):
     name: str = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     paused: Optional[bool] = Field(None)
+    disabled: Optional[bool] = Field(None)
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
@@ -228,6 +229,9 @@ class DeploymentUpdate(ActionBaseModel):
     )
     paused: Optional[bool] = Field(
         default=None, description="Whether or not the deployment is paused."
+    )
+    disabled: Optional[bool] = Field(
+        default=None, description="Whether or not the deployment is disabled."
     )
     schedules: Optional[List[DeploymentScheduleCreate]] = Field(
         default=None,

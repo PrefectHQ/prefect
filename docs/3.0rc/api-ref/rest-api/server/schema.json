@@ -3573,6 +3573,112 @@
                 }
             }
         },
+        "/api/deployments/{id}/disable": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Disable Deployment",
+                "description": "Set a deployment to disabled. Any auto-scheduled runs will be deleted and\nno new runs can be created until the deployment is enabled.",
+                "operationId": "disable_deployment_deployments__id__disable_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The deployment id",
+                            "title": "Id"
+                        },
+                        "description": "The deployment id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/deployments/{id}/enable": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Enable Deployment",
+                "description": "Set a deployment to enabled. Runs can be scheduled and created.",
+                "operationId": "enable_deployment_deployments__id__enable_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The deployment id",
+                            "title": "Id"
+                        },
+                        "description": "The deployment id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/saved_searches/": {
             "put": {
                 "tags": [
@@ -15743,6 +15849,12 @@
                         "description": "Whether or not the deployment is paused.",
                         "default": false
                     },
+                    "disabled": {
+                        "type": "boolean",
+                        "title": "Disabled",
+                        "description": "Whether or not the deployment is disabled.",
+                        "default": false
+                    },
                     "schedules": {
                         "items": {
                             "$ref": "#/components/schemas/DeploymentScheduleCreate"
@@ -15979,6 +16091,17 @@
                         ],
                         "description": "Filter criteria for `Deployment.paused`"
                     },
+                    "disabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilterDisabled"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `Deployment.disabled`"
+                    },
                     "tags": {
                         "anyOf": [
                             {
@@ -16061,6 +16184,26 @@
                 "type": "object",
                 "title": "DeploymentFilterConcurrencyLimit",
                 "description": "Filter by `Deployment.concurrency_limit`."
+            },
+            "DeploymentFilterDisabled": {
+                "properties": {
+                    "eq_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Eq ",
+                        "description": "Only returns where deployment is/is not disabled"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "DeploymentFilterDisabled",
+                "description": "Filter by `Deployment.disabled`."
             },
             "DeploymentFilterId": {
                 "properties": {
@@ -16482,6 +16625,12 @@
                         "type": "boolean",
                         "title": "Paused",
                         "description": "Whether or not the deployment is paused.",
+                        "default": false
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "title": "Disabled",
+                        "description": "Whether or not the deployment is disabled.",
                         "default": false
                     },
                     "schedules": {
@@ -16947,7 +17096,8 @@
                 "type": "string",
                 "enum": [
                     "READY",
-                    "NOT_READY"
+                    "NOT_READY",
+                    "DISABLED"
                 ],
                 "title": "DeploymentStatus",
                 "description": "Enumeration of deployment statuses."
@@ -16980,6 +17130,12 @@
                         "type": "boolean",
                         "title": "Paused",
                         "description": "Whether or not the deployment is paused.",
+                        "default": false
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "title": "Disabled",
+                        "description": "Whether or not the deployment is disabled.",
                         "default": false
                     },
                     "schedules": {
