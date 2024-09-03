@@ -297,7 +297,6 @@ class Runner:
             entrypoint_type=entrypoint_type,
             concurrency_limit=concurrency_limit,
         )
-        self._logger.info(f"deployment {deployment}")
         return await self.add_deployment(deployment)
 
     @sync_compatible
@@ -1067,7 +1066,7 @@ class Runner:
         ) as exc:
             self._logger.info(
                 (
-                    "Deployment %s has reached its concurrency limit when submitting flow run %s"
+                    "Deployment %s reached its concurrency limit when attempting to execute flow run %s. Will attempt to execute later."
                 ),
                 flow_run.deployment_id,
                 flow_run.name,
@@ -1171,8 +1170,13 @@ class Runner:
                 flow_run_id=flow_run.id,
             )
             self._logger.info(f"Flow run {flow_run.id} now has state {state.name}")
-        except Abort:
-            # Flow run already marked as failed
+        except Abort as exc:
+            run_logger.info(
+                (
+                    f"Aborted rescheduling of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
+            )
             pass
         except Exception:
             run_logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
