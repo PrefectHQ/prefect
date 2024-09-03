@@ -13,14 +13,14 @@ Prefect provides a global view of the state of your workflows and allows you to 
 
 ### Install prefect-dbt
 
-The following command will install a version of prefect-dbt compatible with your installed version of Prefect. 
-If you don't already have Prefect installed, it will install the newest version of Prefect as well.
+The following command will install a version of `prefect-dbt` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash
 pip install "prefect[dbt]"
 ```
 
-Upgrade to the latest versions of Prefect and prefect-dbt:
+Upgrade to the latest versions of `prefect` and `prefect-dbt`:
 
 ```bash
 pip install -U "prefect[dbt]"
@@ -35,16 +35,13 @@ To install with all additional capabilities, use the following command:
 pip install -U "prefect-dbt[all_extras]"
 ```
 
-
 ### Register newly installed blocks types
 
 Register the block types in the prefect-dbt module to make them available for use.
 
-
 ```bash
 prefect block register -m prefect_dbt
 ```
-
 
 ## dbt Cloud
 
@@ -74,7 +71,6 @@ run_dbt_job_flow()
 ### Save dbt Cloud credentials to a block
 
 Blocks can be [created through code](/3.0/develop/blocks/#saving-blocks) or through the UI.
-
 
 To create a dbt Cloud Credentials block:
 
@@ -118,9 +114,9 @@ Load the saved block, which can access your credentials:
 ```python
 from prefect_dbt.cloud import DbtCloudJob
 
+
 DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
 ```
-
 
 ## dbt Core
 
@@ -174,6 +170,7 @@ os.environ["DBT_PASSWORD"] = DBT_PASSWORD
 ```
 
 This example `profiles.yml` file could then access that variable.
+
 ```yaml
 profile:
   target: prod
@@ -189,7 +186,9 @@ profile:
 
 ### Programmatic Invocation
 
-`prefect-dbt` has some pre-built tasks that use dbt's [programmatic invocation](https://docs.getdbt.com/reference/programmatic-invocations). For example:
+`prefect-dbt` has some pre-built tasks that use dbt's [programmatic invocation](https://docs.getdbt.com/reference/programmatic-invocations). 
+For example:
+
 ```python
 from prefect import flow
 from prefect_dbt.cli.tasks import from prefect import flow
@@ -245,6 +244,7 @@ def trigger_dbt_flow():
         result = dbt_process.fetch_result()
     return result
 
+
 if __name__ == "__main__":
     trigger_dbt_flow()
 ```
@@ -271,6 +271,7 @@ To create dbt Core target config and profile blocks for BigQuery:
 from prefect_gcp.credentials import GcpCredentials
 from prefect_dbt.cli import BigQueryTargetConfigs, DbtCliProfile
 
+
 credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
 target_configs = BigQueryTargetConfigs(
     schema="SCHEMA-NAME-PLACEHOLDER",  # also known as dataset
@@ -294,6 +295,7 @@ To create a dbt Core operation block:
 ```python
 from prefect_dbt.cli import DbtCliProfile, DbtCoreOperation
 
+
 dbt_cli_profile = DbtCliProfile.load("DBT-CLI-PROFILE-BLOCK-NAME-PLACEHOLDER")
 dbt_core_operation = DbtCoreOperation(
     commands=["DBT-CLI-COMMANDS-PLACEHOLDER"],
@@ -308,6 +310,7 @@ Load the saved block that holds your credentials:
 ```python
 from prefect_dbt.cloud import DbtCoreOperation
 
+
 DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 ```
 
@@ -315,7 +318,7 @@ DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 
 For assistance using dbt, consult the [dbt documentation](https://docs.getdbt.com/docs/building-a-dbt-project/documentation).
 
-Refer to the `prefect-dbt` API documentation linked in the sidebar to explore all the capabilities of the prefect-dbt library.
+Refer to the `prefect-dbt` API documentation linked in the sidebar to explore all the capabilities of the `prefect-dbt` library.
 
 ### Additional installation options
 

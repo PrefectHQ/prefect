@@ -10,14 +10,14 @@ The `prefect-dask` integration makes it easy to accelerate your flow runs with D
 
 ### Install `prefect-dask`
 
-The following command will install a version of prefect-dask compatible with your installed version of Prefect. 
-If you don't already have Prefect installed, it will install the newest version of Prefect as well.
+The following command will install a version of `prefect-dask` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash
 pip install "prefect[dask]"
 ```
 
-Upgrade to the latest versions of Prefect and prefect-dask:
+Upgrade to the latest versions of `prefect` and `prefect-dask`:
 
 ```bash
 pip install -U "prefect[dask]"
@@ -247,6 +247,7 @@ def dask_pipeline():
     df_yearly_average = process_data(df)
     return df_yearly_average
 
+
 if __name__ == "__main__":
     dask_pipeline()
 ```
@@ -259,6 +260,7 @@ import dask.dataframe
 import dask.distributed
 from prefect import flow, task
 from prefect_dask import DaskTaskRunner, get_dask_client
+
 
 client = dask.distributed.Client()
 
@@ -278,6 +280,7 @@ def dask_pipeline():
     df = read_data.submit("1988", "2022")
     df_yearly_average = process_data.submit(df)
     return df_yearly_average
+
 
 if __name__ == "__main__":
     dask_pipeline()
@@ -316,6 +319,7 @@ import dask
 from prefect import flow, task
 from prefect_dask.task_runners import DaskTaskRunner
 
+
 @task
 def show(x):
     print(x)
@@ -336,6 +340,7 @@ Another common use case is [resource](http://distributed.dask.org/en/stable/reso
 import dask
 from prefect import flow, task
 from prefect_dask.task_runners import DaskTaskRunner
+
 
 @task
 def show(x):
@@ -370,6 +375,6 @@ if __name__ == "__main__":
 
 ## Additional Resources
 
-Refer to the prefect-dask API documentation linked in the sidebar to explore all the capabilities of the prefect-dask library.
+Refer to the `prefect-dask` API documentation linked in the sidebar to explore all the capabilities of the `prefect-dask` library.
 
 For assistance using Dask, consult the [Dask documentation](https://docs.dask.org/en/stable/)
