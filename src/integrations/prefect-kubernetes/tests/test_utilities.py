@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from kubernetes_asyncio.config import ConfigException
@@ -25,7 +25,7 @@ def mock_cluster_config(monkeypatch):
 
 @pytest.fixture
 def mock_api_client(mock_cluster_config):
-    return AsyncMock()
+    return MagicMock()
 
 
 def test_keep_alive_updates_socket_options(mock_api_client):
