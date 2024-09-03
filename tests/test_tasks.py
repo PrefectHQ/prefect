@@ -153,6 +153,21 @@ class TestTaskKey:
 
         assert noop.task_key.startswith("noop-")
 
+    def test_task_key_with_funky_class(self):
+        class Funky:
+            def __call__(self, x):
+                return x
+
+        # set up class to trigger certain code path
+        # see https://github.com/PrefectHQ/prefect/issues/15058
+        funky = Funky()
+        funky.__qualname__ = "__main__.Funky"
+        if hasattr(funky, "__code__"):
+            del funky.__code__
+
+        tt = task(funky)
+        assert tt.task_key.startswith("Funky-")
+
 
 class TestTaskRunName:
     def test_run_name_default(self):
