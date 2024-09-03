@@ -189,7 +189,7 @@ jobs:
     strategy:
       matrix:
         database:
-          - "postgres:14"
+          - "postgres:16"
         python-version:
           - "3.9"
           - "3.10"
