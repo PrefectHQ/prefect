@@ -7,7 +7,7 @@ import pytest
 
 from prefect.filesystems import LocalFileSystem
 from prefect.records.filesystem import FileSystemRecordStore
-from prefect.results import ResultFactory
+from prefect.results import ResultStore
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     temporary_settings,
@@ -35,8 +35,8 @@ class TestFileSystemRecordStore:
 
     @pytest.fixture
     async def result(self, default_storage_setting):
-        factory = ResultFactory(persist_result=True)
-        result = await factory.create_result(obj={"test": "value"})
+        store = ResultStore(persist_result=True)
+        result = await store.create_result(obj={"test": "value"})
         return result
 
     @pytest.fixture

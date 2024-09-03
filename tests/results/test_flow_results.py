@@ -344,8 +344,8 @@ def test_flow_resultlike_result_is_retained(
 async def test_root_flow_default_remote_storage(tmp_path: Path):
     @flow
     async def foo():
-        result_fac = get_run_context().result_factory
-        return result_fac.storage_block
+        result_fac = get_run_context().result_store
+        return result_fac.result_storage
 
     block = LocalFileSystem(basepath=tmp_path)
     await block.save("my-result-storage")
@@ -390,8 +390,8 @@ async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
 async def test_root_flow_nonexistent_default_storage_block_fails():
     @flow
     async def foo():
-        result_fac = get_run_context().result_factory
-        return result_fac.storage_block
+        result_fac = get_run_context().result_store
+        return result_fac.result_storage
 
     with temporary_settings(
         {
@@ -413,7 +413,7 @@ async def test_root_flow_explicit_result_storage_settings_overrides_default():
 
     @flow(result_storage=await LocalFileSystem.load("explicit-storage"))
     async def foo():
-        return get_run_context().result_factory.storage_block
+        return get_run_context().result_store.result_storage
 
     with temporary_settings(
         {
@@ -435,7 +435,7 @@ def test_flow_version_result_storage_key():
     @flow(version="somespecialflowversion")
     def some_flow() -> Block:
         some_task()
-        return get_run_context().result_factory.storage_block
+        return get_run_context().result_store.result_storage
 
     storage_block = some_flow()
 
