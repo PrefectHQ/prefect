@@ -274,7 +274,7 @@ class TaskWorker:
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
             factory = await ResultStore(
-                storage_block=await get_or_create_default_task_scheduling_storage()
+                result_storage=await get_or_create_default_task_scheduling_storage()
             ).update_for_task(task)
             try:
                 run_data = await factory.read_parameters(parameters_id)

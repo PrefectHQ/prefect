@@ -367,7 +367,7 @@ def transaction(
         )
 
         new_store: ResultStore
-        if existing_store and existing_store.storage_block_id:
+        if existing_store and existing_store.result_storage_block_id:
             new_store = existing_store.model_copy(
                 update={
                     "persist_result": True,
@@ -386,7 +386,7 @@ def transaction(
             else:
                 new_store = ResultStore(
                     persist_result=True,
-                    storage_block=default_storage,
+                    result_storage=default_storage,
                 )
         from prefect.records.result_store import ResultRecordStore
 

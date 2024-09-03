@@ -44,7 +44,7 @@ async def test_create_result_reference(store):
     result = await store.create_result({"foo": "bar"})
     assert isinstance(result, PersistedResult)
     assert result.serializer_type == store.serializer.type
-    assert result.storage_block_id == store.storage_block_id
+    assert result.storage_block_id == store.result_storage_block_id
     assert await result.get() == {"foo": "bar"}
 
 
@@ -62,8 +62,8 @@ def test_root_flow_default_result_store():
     assert result_store.persist_result is False
     assert result_store.cache_result_in_memory is True
     assert result_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
-    assert result_store.storage_block_id is None
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
+    assert result_store.result_storage_block_id is None
 
 
 def test_root_flow_default_result_serializer_can_be_overriden_by_setting():
@@ -106,7 +106,7 @@ def test_root_flow_custom_persist_setting(toggle):
     result_store = foo()
     assert result_store.persist_result is toggle
     assert result_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
 
 
 def test_root_flow_persists_results_when_flow_uses_feature():
@@ -117,7 +117,7 @@ def test_root_flow_persists_results_when_flow_uses_feature():
     result_store = foo()
     assert result_store.persist_result is True
     assert result_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
 
 
 def test_root_flow_can_opt_out_of_persistence_when_flow_uses_feature():
@@ -131,8 +131,8 @@ def test_root_flow_can_opt_out_of_persistence_when_flow_uses_feature():
     foo()
     assert result_store.persist_result is False
     assert result_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
-    assert result_store.storage_block_id is None
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
+    assert result_store.result_storage_block_id is None
 
 
 @pytest.mark.parametrize("toggle", [True, False])
@@ -147,7 +147,7 @@ def test_root_flow_custom_cache_setting(toggle, default_persistence_off):
     foo()
     assert result_store.cache_result_in_memory is toggle
     assert result_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
 
 
 def test_root_flow_custom_serializer_by_type_string():
@@ -158,8 +158,8 @@ def test_root_flow_custom_serializer_by_type_string():
     result_store = foo()
     assert result_store.persist_result is False
     assert result_store.serializer == JSONSerializer()
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
-    assert result_store.storage_block_id is None
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
+    assert result_store.result_storage_block_id is None
 
 
 def test_root_flow_custom_serializer_by_instance(default_persistence_off):
@@ -170,8 +170,8 @@ def test_root_flow_custom_serializer_by_instance(default_persistence_off):
     result_store = foo()
     assert result_store.persist_result is False
     assert result_store.serializer == JSONSerializer(jsonlib="orjson")
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
-    assert result_store.storage_block_id is None
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
+    assert result_store.result_storage_block_id is None
 
 
 async def test_root_flow_custom_storage_by_slug(tmp_path, default_persistence_off):
@@ -185,8 +185,8 @@ async def test_root_flow_custom_storage_by_slug(tmp_path, default_persistence_of
     result_store = foo()
     assert result_store.persist_result is True  # inferred from the storage
     assert result_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(result_store.storage_block, storage)
-    assert result_store.storage_block_id == storage_id
+    assert_blocks_equal(result_store.result_storage, storage)
+    assert result_store.result_storage_block_id == storage_id
 
 
 async def test_root_flow_custom_storage_by_instance_presaved(
@@ -202,9 +202,9 @@ async def test_root_flow_custom_storage_by_instance_presaved(
     result_store = foo()
     assert result_store.persist_result is True  # inferred from the storage
     assert result_store.serializer == DEFAULT_SERIALIZER()
-    assert result_store.storage_block == storage
-    assert result_store.storage_block._is_anonymous is False
-    assert result_store.storage_block_id == storage_id
+    assert result_store.result_storage == storage
+    assert result_store.result_storage._is_anonymous is False
+    assert result_store.result_storage_block_id == storage_id
 
 
 def test_child_flow_inherits_default_result_settings(default_persistence_off):
@@ -219,8 +219,8 @@ def test_child_flow_inherits_default_result_settings(default_persistence_off):
     _, child_store = foo()
     assert child_store.persist_result is False
     assert child_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(child_store.storage_block, DEFAULT_STORAGE())
-    assert child_store.storage_block_id is None
+    assert_blocks_equal(child_store.result_storage, DEFAULT_STORAGE())
+    assert child_store.result_storage_block_id is None
 
 
 def test_child_flow_default_result_serializer_can_be_overriden_by_setting(
@@ -283,7 +283,7 @@ def test_child_flow_custom_persist_setting(default_persistence_off):
     assert parent_store.persist_result is False
     assert child_store.persist_result is True
     assert child_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(child_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(child_store.result_storage, DEFAULT_STORAGE())
 
 
 @pytest.mark.parametrize("toggle", [True, False])
@@ -304,7 +304,7 @@ def test_child_flow_custom_cache_setting(toggle, default_persistence_off):
     assert parent_store.cache_result_in_memory is True
     assert child_store.cache_result_in_memory is toggle
     assert child_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(child_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(child_store.result_storage, DEFAULT_STORAGE())
 
 
 def test_child_flow_can_opt_out_of_result_persistence_when_parent_uses_feature(
@@ -322,8 +322,8 @@ def test_child_flow_can_opt_out_of_result_persistence_when_parent_uses_feature(
     assert parent_store.persist_result is False
     assert child_store.persist_result is False
     assert child_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(child_store.storage_block, DEFAULT_STORAGE())
-    assert child_store.storage_block_id is None
+    assert_blocks_equal(child_store.result_storage, DEFAULT_STORAGE())
+    assert child_store.result_storage_block_id is None
 
 
 def test_child_flow_inherits_custom_serializer(default_persistence_off):
@@ -338,8 +338,8 @@ def test_child_flow_inherits_custom_serializer(default_persistence_off):
     parent_store, child_store = foo()
     assert child_store.persist_result is False
     assert child_store.serializer == parent_store.serializer
-    assert_blocks_equal(child_store.storage_block, DEFAULT_STORAGE())
-    assert child_store.storage_block_id is None
+    assert_blocks_equal(child_store.result_storage, DEFAULT_STORAGE())
+    assert child_store.result_storage_block_id is None
 
 
 async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_off):
@@ -357,8 +357,8 @@ async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_
     parent_store, child_store = foo()
     assert child_store.persist_result is True
     assert child_store.serializer == DEFAULT_SERIALIZER()
-    assert child_store.storage_block == parent_store.storage_block
-    assert child_store.storage_block_id == storage_id
+    assert child_store.result_storage == parent_store.result_storage
+    assert child_store.result_storage_block_id == storage_id
 
 
 async def test_child_flow_custom_storage(tmp_path, default_persistence_off):
@@ -374,11 +374,11 @@ async def test_child_flow_custom_storage(tmp_path, default_persistence_off):
         return get_run_context().result_store
 
     parent_store, child_store = foo()
-    assert_blocks_equal(parent_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(parent_store.result_storage, DEFAULT_STORAGE())
     assert child_store.persist_result is True  # inferred from the storage
     assert child_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(child_store.storage_block, storage)
-    assert child_store.storage_block_id == storage_id
+    assert_blocks_equal(child_store.result_storage, storage)
+    assert child_store.result_storage_block_id == storage_id
 
 
 def test_task_inherits_default_result_settings():
@@ -393,8 +393,8 @@ def test_task_inherits_default_result_settings():
     _, task_store = foo()
     assert task_store.persist_result is False
     assert task_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(task_store.storage_block, DEFAULT_STORAGE())
-    assert task_store.storage_block_id is None
+    assert_blocks_equal(task_store.result_storage, DEFAULT_STORAGE())
+    assert task_store.result_storage_block_id is None
 
 
 def test_task_default_result_serializer_can_be_overriden_by_setting():
@@ -437,8 +437,8 @@ def test_nested_flow_custom_persist_setting():
     assert flow_store.persist_result is True
     assert task_store.persist_result is False
     assert task_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(task_store.storage_block, DEFAULT_STORAGE())
-    assert task_store.storage_block_id is None
+    assert_blocks_equal(task_store.result_storage, DEFAULT_STORAGE())
+    assert task_store.result_storage_block_id is None
 
 
 @pytest.mark.parametrize("toggle", [True, False])
@@ -459,7 +459,7 @@ def test_task_custom_cache_setting(toggle):
     assert flow_store.cache_result_in_memory is True
     assert task_store.cache_result_in_memory is toggle
     assert task_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(task_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(task_store.result_storage, DEFAULT_STORAGE())
 
 
 def test_task_can_opt_out_of_result_persistence_when_flow_uses_feature(
@@ -477,8 +477,8 @@ def test_task_can_opt_out_of_result_persistence_when_flow_uses_feature(
     assert flow_store.persist_result is False
     assert task_store.persist_result is False
     assert task_store.serializer == DEFAULT_SERIALIZER()
-    assert_blocks_equal(task_store.storage_block, DEFAULT_STORAGE())
-    assert task_store.storage_block_id is None
+    assert_blocks_equal(task_store.result_storage, DEFAULT_STORAGE())
+    assert task_store.result_storage_block_id is None
 
 
 def test_task_can_opt_out_when_persist_result_default_is_overriden_by_setting():
@@ -508,8 +508,8 @@ def test_task_inherits_custom_serializer(default_persistence_off):
     flow_store, task_store = foo()
     assert task_store.persist_result is False
     assert task_store.serializer == flow_store.serializer
-    assert_blocks_equal(task_store.storage_block, DEFAULT_STORAGE())
-    assert task_store.storage_block_id is None
+    assert_blocks_equal(task_store.result_storage, DEFAULT_STORAGE())
+    assert task_store.result_storage_block_id is None
 
 
 async def test_task_inherits_custom_storage(tmp_path):
@@ -527,8 +527,8 @@ async def test_task_inherits_custom_storage(tmp_path):
     flow_store, task_store = foo()
     assert task_store.persist_result
     assert task_store.serializer == DEFAULT_SERIALIZER()
-    assert task_store.storage_block == flow_store.storage_block
-    assert task_store.storage_block_id == storage_id
+    assert task_store.result_storage == flow_store.result_storage
+    assert task_store.result_storage_block_id == storage_id
 
 
 def test_task_custom_serializer(default_persistence_off):
@@ -544,8 +544,8 @@ def test_task_custom_serializer(default_persistence_off):
     assert flow_store.serializer == DEFAULT_SERIALIZER()
     assert task_store.persist_result is False
     assert task_store.serializer == JSONSerializer()
-    assert_blocks_equal(task_store.storage_block, DEFAULT_STORAGE())
-    assert task_store.storage_block_id is None
+    assert_blocks_equal(task_store.result_storage, DEFAULT_STORAGE())
+    assert task_store.result_storage_block_id is None
 
 
 async def test_nested_flow_custom_storage(tmp_path):
@@ -561,11 +561,11 @@ async def test_nested_flow_custom_storage(tmp_path):
         return get_run_context().result_store
 
     flow_store, task_store = foo()
-    assert_blocks_equal(flow_store.storage_block, DEFAULT_STORAGE())
-    assert_blocks_equal(task_store.storage_block, storage)
+    assert_blocks_equal(flow_store.result_storage, DEFAULT_STORAGE())
+    assert_blocks_equal(task_store.result_storage, storage)
     assert task_store.persist_result is True
     assert task_store.serializer == DEFAULT_SERIALIZER()
-    assert task_store.storage_block_id == storage_id
+    assert task_store.result_storage_block_id == storage_id
 
 
 async def _verify_default_storage_creation_with_persistence(
@@ -573,23 +573,23 @@ async def _verify_default_storage_creation_with_persistence(
     result_store: prefect.results.ResultStore,
 ):
     # check that the default block was created
-    assert result_store.storage_block is not None
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
+    assert result_store.result_storage is not None
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
 
     # verify storage settings are correctly set
     assert result_store.persist_result is True
-    assert result_store.storage_block_id is None
+    assert result_store.result_storage_block_id is None
 
 
 async def _verify_default_storage_creation_without_persistence(
     result_store: prefect.results.ResultStore,
 ):
     # check that the default block was created
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
 
     # verify storage settings are correctly set
     assert result_store.persist_result is False
-    assert result_store.storage_block_id is None
+    assert result_store.result_storage_block_id is None
 
 
 async def test_default_storage_creation_for_flow_with_persistence_features(
@@ -698,7 +698,7 @@ async def test_result_store_from_task_with_no_flow_run_context(options, expected
     assert result_store.persist_result == expected["persist_result"]
     assert result_store.cache_result_in_memory == expected["cache_result_in_memory"]
     assert result_store.serializer == expected["serializer"]
-    assert_blocks_equal(result_store.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
 
 
 @pytest.mark.parametrize("persist_result", [True, False])

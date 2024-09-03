@@ -83,7 +83,7 @@ def timeout_test_flow():
 
 async def get_background_task_run_parameters(task, parameters_id):
     factory = await ResultStore(
-        storage_block=await get_or_create_default_task_scheduling_storage()
+        result_storage=await get_or_create_default_task_scheduling_storage()
     ).update_for_task(task)
     return await factory.read_parameters(parameters_id)
 

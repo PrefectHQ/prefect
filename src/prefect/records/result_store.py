@@ -45,7 +45,7 @@ class ResultRecordStore(RecordStore):
         try:
             result = PersistedResult(
                 serializer_type=self.result_store.serializer.type,
-                storage_block_id=self.result_store.storage_block_id,
+                storage_block_id=self.result_store.result_storage_block_id,
                 storage_key=key,
             )
             return TransactionRecord(key=key, result=result)

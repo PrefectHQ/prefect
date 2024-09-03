@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 async def result_store_from_task(task) -> ResultStore:
     return await ResultStore(
-        storage_block=await get_or_create_default_task_scheduling_storage()
+        result_storage=await get_or_create_default_task_scheduling_storage()
     ).update_for_task(task)
 
 

@@ -758,7 +758,7 @@ class Task(Generic[P, R]):
                 self.persist_result = True
 
                 factory = await ResultStore(
-                    storage_block=await get_or_create_default_task_scheduling_storage()
+                    result_storage=await get_or_create_default_task_scheduling_storage()
                 ).update_for_task(self)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}
@@ -861,7 +861,7 @@ class Task(Generic[P, R]):
                 self.persist_result = True
 
                 factory = await ResultStore(
-                    storage_block=await get_or_create_default_task_scheduling_storage()
+                    result_storage=await get_or_create_default_task_scheduling_storage()
                 ).update_for_task(task)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}

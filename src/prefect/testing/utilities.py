@@ -196,9 +196,9 @@ async def assert_uses_result_serializer(
         if isinstance(serializer, str)
         else serializer.type
     )
-    blob = await ResultStore(storage_block=await state.data._get_storage_block()).aread(
-        state.data.storage_key
-    )
+    blob = await ResultStore(
+        result_storage=await state.data._get_storage_block()
+    ).aread(state.data.storage_key)
     assert (
         blob.metadata.serializer == serializer
         if isinstance(serializer, Serializer)

@@ -174,56 +174,56 @@ class ResultStore(BaseModel):
     A utility to generate `Result` types.
     """
 
-    storage_block: Optional[WritableFileSystem] = Field(default=None)
+    result_storage: Optional[WritableFileSystem] = Field(default=None)
     persist_result: bool = Field(default_factory=get_default_persist_setting)
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
     storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
 
     @property
-    def storage_block_id(self) -> Optional[UUID]:
-        if self.storage_block is None:
+    def result_storage_block_id(self) -> Optional[UUID]:
+        if self.result_storage is None:
             return None
-        return self.storage_block._block_document_id
+        return self.result_storage._block_document_id
 
     @sync_compatible
     async def update_for_flow(self, flow: "Flow") -> Self:
         """
-        Create a new result factory for a flow with updated settings.
+        Create a new result store for a flow with updated settings.
 
         Args:
-            flow: The flow to update the result factory for.
+            flow: The flow to update the result store for.
 
         Returns:
-            An updated result factory.
+            An updated result store.
         """
         update = {}
         if flow.result_storage is not None:
-            update["storage_block"] = await resolve_result_storage(flow.result_storage)
+            update["result_storage"] = await resolve_result_storage(flow.result_storage)
         if flow.result_serializer is not None:
             update["serializer"] = resolve_serializer(flow.result_serializer)
         if flow.persist_result is not None:
             update["persist_result"] = flow.persist_result
         if flow.cache_result_in_memory is not None:
             update["cache_result_in_memory"] = flow.cache_result_in_memory
-        if self.storage_block is None and update.get("storage_block") is None:
-            update["storage_block"] = await get_default_result_storage()
+        if self.result_storage is None and update.get("result_storage") is None:
+            update["result_storage"] = await get_default_result_storage()
         return self.model_copy(update=update)
 
     @sync_compatible
     async def update_for_task(self: Self, task: "Task") -> Self:
         """
-        Create a new result factory for a task.
+        Create a new result store for a task.
 
         Args:
-            task: The task to update the result factory for.
+            task: The task to update the result store for.
 
         Returns:
-            An updated result factory.
+            An updated result store.
         """
         update = {}
         if task.result_storage is not None:
-            update["storage_block"] = await resolve_result_storage(task.result_storage)
+            update["result_storage"] = await resolve_result_storage(task.result_storage)
         if task.result_serializer is not None:
             update["serializer"] = resolve_serializer(task.result_serializer)
         if task.persist_result is not None:
@@ -234,8 +234,8 @@ class ResultStore(BaseModel):
             update["storage_key_fn"] = partial(
                 _format_user_supplied_storage_key, task.result_storage_key
             )
-        if self.storage_block is None and update.get("storage_block") is None:
-            update["storage_block"] = await get_default_result_storage()
+        if self.result_storage is None and update.get("result_storage") is None:
+            update["result_storage"] = await get_default_result_storage()
         return self.model_copy(update=update)
 
     @sync_compatible
@@ -252,10 +252,10 @@ class ResultStore(BaseModel):
         Returns:
             A result record.
         """
-        if self.storage_block is None:
-            self.storage_block = await get_default_result_storage()
+        if self.result_storage is None:
+            self.result_storage = await get_default_result_storage()
 
-        content = await self.storage_block.read_path(f"{key}")
+        content = await self.result_storage.read_path(f"{key}")
         return ResultRecord.deserialize(content)
 
     def read(self, key: str) -> "ResultRecord":
@@ -300,8 +300,8 @@ class ResultStore(BaseModel):
             obj: The object to write to storage.
             expiration: The expiration time for the result record.
         """
-        if self.storage_block is None:
-            self.storage_block = await get_default_result_storage()
+        if self.result_storage is None:
+            self.result_storage = await get_default_result_storage()
         key = key or self.storage_key_fn()
 
         record = ResultRecord(
@@ -344,10 +344,10 @@ class ResultStore(BaseModel):
         Args:
             result_record: The result record to persist.
         """
-        if self.storage_block is None:
-            self.storage_block = await get_default_result_storage()
+        if self.result_storage is None:
+            self.result_storage = await get_default_result_storage()
 
-        await self.storage_block.write_path(
+        await self.result_storage.write_path(
             result_record.metadata.storage_key, content=result_record.serialize()
         )
 
@@ -393,13 +393,13 @@ class ResultStore(BaseModel):
         else:
             storage_key_fn = self.storage_key_fn
 
-        if self.storage_block is None:
-            self.storage_block = await get_default_result_storage()
+        if self.result_storage is None:
+            self.result_storage = await get_default_result_storage()
 
         return await PersistedResult.create(
             obj,
-            storage_block=self.storage_block,
-            storage_block_id=self.storage_block_id,
+            storage_block=self.result_storage,
+            storage_block_id=self.result_storage_block_id,
             storage_key_fn=storage_key_fn,
             serializer=self.serializer,
             cache_object=should_cache_object,
@@ -417,21 +417,21 @@ class ResultStore(BaseModel):
                 serializer=self.serializer, storage_key=str(identifier)
             ),
         )
-        await self.storage_block.write_path(
+        await self.result_storage.write_path(
             f"parameters/{identifier}", content=record.serialize()
         )
 
     @sync_compatible
     async def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
         record = ResultRecord.deserialize(
-            await self.storage_block.read_path(f"parameters/{identifier}")
+            await self.result_storage.read_path(f"parameters/{identifier}")
         )
         return record.result
 
 
 def get_current_result_store() -> ResultStore:
     """
-    Get the current result factory.
+    Get the current result store.
     """
     from prefect.context import get_run_context
 
@@ -726,7 +726,7 @@ class PersistedResult(BaseResult):
         if self._serializer:
             result_store_kwargs["serializer"] = resolve_serializer(self._serializer)
         storage_block = await self._get_storage_block(client=client)
-        result_store = ResultStore(storage_block=storage_block, **result_store_kwargs)
+        result_store = ResultStore(result_storage=storage_block, **result_store_kwargs)
 
         record = await result_store.aread(self.storage_key)
         self.expiration = record.expiration
@@ -775,7 +775,7 @@ class PersistedResult(BaseResult):
             # this could error if the serializer requires kwargs
             serializer = Serializer(type=self.serializer_type)
 
-        result_store = ResultStore(storage_block=storage_block, serializer=serializer)
+        result_store = ResultStore(result_storage=storage_block, serializer=serializer)
         await result_store.awrite(
             obj=obj, key=self.storage_key, expiration=self.expiration
         )
