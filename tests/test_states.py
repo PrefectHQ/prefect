@@ -135,9 +135,9 @@ class TestReturnValueToState:
     async def store(self):
         return ResultStore()
 
-    async def test_returns_single_state_unaltered(self, factory):
+    async def test_returns_single_state_unaltered(self, store):
         state = Completed(data="hello!")
-        assert await return_value_to_state(state, factory) is state
+        assert await return_value_to_state(state, store) is state
 
     async def test_returns_single_state_with_null_data_and_persist_off(self):
         store = ResultStore(persist_result=False)
@@ -177,9 +177,9 @@ class TestReturnValueToState:
         assert result_state.data == result
         assert await result_state.result() == "test"
 
-    async def test_all_completed_states(self, factory):
+    async def test_all_completed_states(self, store):
         states = [Completed(message="hi"), Completed(message="bye")]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result() == states
         # Message explains aggregate
@@ -187,13 +187,13 @@ class TestReturnValueToState:
         # Aggregate type is completed
         assert result_state.is_completed()
 
-    async def test_some_failed_states(self, factory):
+    async def test_some_failed_states(self, store):
         states = [
             Completed(message="hi"),
             Failed(message="bye"),
             Failed(message="err"),
         ]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
@@ -201,13 +201,13 @@ class TestReturnValueToState:
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_some_unfinal_states(self, factory):
+    async def test_some_unfinal_states(self, store):
         states = [
             Completed(message="hi"),
             Running(message="bye"),
             Pending(message="err"),
         ]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
@@ -216,16 +216,16 @@ class TestReturnValueToState:
         assert result_state.is_failed()
 
     @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
-    async def test_single_state_in_future_is_processed(self, run_identifier, factory):
+    async def test_single_state_in_future_is_processed(self, run_identifier, store):
         state = Completed(data="test", state_details={run_identifier: uuid.uuid4()})
         # The engine is responsible for resolving the futures
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store)
         assert await result_state.result() == state
         assert result_state.is_completed()
         assert result_state.message == "All states completed."
 
-    async def test_non_prefect_types_return_completed_state(self, factory):
-        result_state = await return_value_to_state("foo", factory)
+    async def test_non_prefect_types_return_completed_state(self, store):
+        result_state = await return_value_to_state("foo", store)
         assert result_state.is_completed()
         assert await result_state.result() == "foo"
 
