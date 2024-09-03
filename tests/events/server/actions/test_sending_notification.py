@@ -205,10 +205,10 @@ async def test_success_event(
     await action.succeed(notify_me)
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.executed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.block-document.{email_me_block_id}",
@@ -223,7 +223,29 @@ async def test_success_event(
             }
         ),
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "send-notification",
+        "invocation": str(notify_me.id),
+    }
+
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.block-document.{email_me_block_id}",
+                "prefect.resource.role": "block",
+                "prefect.resource.name": "debug-print-notification",
+            }
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": "prefect.block-type.debug-print-notification",
+                "prefect.resource.role": "block-type",
+            }
+        ),
+    ]
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "send-notification",
         "invocation": str(notify_me.id),
@@ -248,10 +270,10 @@ async def test_captures_notification_failures(
     await action.fail(notify_me, captured.value.reason)
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, failed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.failed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.block-document.{email_me_block_id}",
@@ -266,7 +288,29 @@ async def test_captures_notification_failures(
             }
         ),
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "send-notification",
+        "invocation": str(notify_me.id),
+    }
+
+    assert failed_event.event == "prefect.automation.action.failed"
+    assert failed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.block-document.{email_me_block_id}",
+                "prefect.resource.role": "block",
+                "prefect.resource.name": "debug-print-notification",
+            }
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": "prefect.block-type.debug-print-notification",
+                "prefect.resource.role": "block-type",
+            }
+        ),
+    ]
+    assert failed_event.payload == {
         "action_index": 0,
         "action_type": "send-notification",
         "invocation": str(notify_me.id),

@@ -356,3 +356,58 @@ class TestNestedHydration:
     )
     def test_nested_hydration(self, input_object, expected_output, ctx):
         assert hydrate(input_object, ctx) == expected_output
+
+    @pytest.mark.parametrize(
+        "input_object, expected_output, ctx",
+        [
+            (
+                {
+                    "my_object": {
+                        "__prefect_kind": "json",
+                        "value": {
+                            "__prefect_kind": "jinja",
+                            "template": "{{ event.payload.body | tojson }}",
+                        },
+                    }
+                },
+                {"my_object": {"json_key": "json_value"}},
+                HydrationContext(
+                    jinja_context={
+                        "event": {"payload": {"body": {"json_key": "json_value"}}}
+                    },
+                    render_jinja=True,
+                ),
+            ),
+        ],
+    )
+    def test_extract_an_object(self, input_object, expected_output, ctx):
+        assert hydrate(input_object, ctx) == expected_output
+
+    @pytest.mark.parametrize(
+        "input_object, expected_output, ctx",
+        [
+            (
+                {
+                    "my_object": {
+                        "__prefect_kind": "json",
+                        "value": {
+                            "__prefect_kind": "jinja",
+                            "template": "{{ event.payload.body | tojson }}",
+                        },
+                    }
+                },
+                {"my_object": ValidJinja("{{ event.payload.body | tojson }}")},
+                HydrationContext(
+                    jinja_context={
+                        "event": {"payload": {"body": {"json_key": "json_value"}}}
+                    },
+                    render_jinja=False,
+                ),
+            ),
+        ],
+    )
+    def test_placeholders_bubble_up(self, input_object, expected_output, ctx):
+        # render_jinja=False, so the jinja template is not rendered.
+        # If the parent __prefect_kind sees a Placeholder, it should just continue to bubble
+        # the Placeholder up the chain.
+        assert hydrate(input_object, ctx) == expected_output

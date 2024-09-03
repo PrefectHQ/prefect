@@ -63,7 +63,7 @@ TERMINAL_STATUS_CODES = (
 )
 async def jobs_runs_submit_and_wait_for_completion(
     databricks_credentials: DatabricksCredentials,
-    tasks: List[RunSubmitTaskSettings] = None,
+    tasks: Optional[List[RunSubmitTaskSettings]] = None,
     run_name: Optional[str] = None,
     max_wait_seconds: int = 900,
     poll_frequency_seconds: int = 10,
@@ -72,8 +72,9 @@ async def jobs_runs_submit_and_wait_for_completion(
     idempotency_token: Optional[str] = None,
     access_control_list: Optional[List[AccessControlRequest]] = None,
     return_metadata: bool = False,
+    job_submission_handler: Optional[Callable] = None,
     **jobs_runs_submit_kwargs: Dict[str, Any],
-) -> Union[NotebookOutput, Tuple[NotebookOutput, JobMetadata]]:
+) -> Union[NotebookOutput, Tuple[NotebookOutput, JobMetadata], None]:
     """
     Flow that triggers a job run and waits for the triggered run to complete.
 
@@ -187,6 +188,7 @@ async def jobs_runs_submit_and_wait_for_completion(
             run completion.
         return_metadata: When True, method will return a tuple of notebook output as well as
             job run metadata; by default though, the method only returns notebook output
+        job_submission_handler: An optional callable to intercept job submission.
         **jobs_runs_submit_kwargs: Additional keyword arguments to pass to `jobs_runs_submit`.
 
     Returns:
@@ -267,6 +269,10 @@ async def jobs_runs_submit_and_wait_for_completion(
         **jobs_runs_submit_kwargs,
     )
     multi_task_jobs_runs = multi_task_jobs_runs_future.result()
+    if job_submission_handler:
+        result = job_submission_handler(multi_task_jobs_runs)
+        if inspect.isawaitable(result):
+            await result
     multi_task_jobs_runs_id = multi_task_jobs_runs["run_id"]
 
     # wait for all the jobs runs to complete in a separate flow

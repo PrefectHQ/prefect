@@ -25,7 +25,7 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.results import BaseResult, R, ResultFactory
+from prefect.results import BaseResult, R, ResultStore
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
@@ -167,7 +167,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 
 async def exception_to_crashed_state(
     exc: BaseException,
-    result_factory: Optional[ResultFactory] = None,
+    result_store: Optional[ResultStore] = None,
 ) -> State:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
@@ -206,8 +206,8 @@ async def exception_to_crashed_state(
             f" {format_exception(exc)}"
         )
 
-    if result_factory:
-        data = await result_factory.create_result(exc)
+    if result_store:
+        data = await result_store.create_result(exc)
     else:
         # Attach the exception for local usage, will not be available when retrieved
         # from the API
@@ -218,7 +218,7 @@ async def exception_to_crashed_state(
 
 async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
-    result_factory: Optional[ResultFactory] = None,
+    result_store: Optional[ResultStore] = None,
     write_result: bool = False,
     **kwargs,
 ) -> State:
@@ -239,8 +239,8 @@ async def exception_to_failed_state(
     else:
         pass
 
-    if result_factory:
-        data = await result_factory.create_result(exc)
+    if result_store:
+        data = await result_store.create_result(exc)
         if write_result:
             try:
                 await data.write()
@@ -270,7 +270,7 @@ async def exception_to_failed_state(
 
 async def return_value_to_state(
     retval: R,
-    result_factory: ResultFactory,
+    result_store: ResultStore,
     key: Optional[str] = None,
     expiration: Optional[datetime.datetime] = None,
     write_result: bool = False,
@@ -307,10 +307,10 @@ async def return_value_to_state(
         and not retval.state_details.task_run_id
     ):
         state = retval
-        # Unless the user has already constructed a result explicitly, use the factory
+        # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
-            result = await result_factory.create_result(
+            result = await result_store.create_result(
                 state.data,
                 key=key,
                 expiration=expiration,
@@ -359,7 +359,7 @@ async def return_value_to_state(
         # TODO: We may actually want to set the data to a `StateGroup` object and just
         #       allow it to be unpacked into a tuple and such so users can interact with
         #       it
-        result = await result_factory.create_result(
+        result = await result_store.create_result(
             retval,
             key=key,
             expiration=expiration,
@@ -388,7 +388,7 @@ async def return_value_to_state(
     if isinstance(data, BaseResult):
         return Completed(data=data)
     else:
-        result = await result_factory.create_result(
+        result = await result_store.create_result(
             data,
             key=key,
             expiration=expiration,

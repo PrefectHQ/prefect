@@ -8,9 +8,22 @@ import tempfile
 import anyio
 import httpx
 import pytest
+import readchar
+from typer import Exit
 
 from prefect.cli.server import PID_FILE
-from prefect.settings import PREFECT_HOME, get_current_settings
+from prefect.context import get_settings_context
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_HOME,
+    PREFECT_PROFILES_PATH,
+    Profile,
+    ProfilesCollection,
+    get_current_settings,
+    load_profiles,
+    save_profiles,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.fixtures import is_port_in_use
 from prefect.utilities.processutils import open_process
@@ -314,3 +327,89 @@ class TestUvicornSignalForwarding:
                 "When sending a SIGINT, the main process should send a"
                 f" CTRL_BREAK_EVENT to the uvicorn subprocess. Output:\n{out}"
             )
+
+
+class TestPrestartCheck:
+    @pytest.fixture(autouse=True)
+    def interactive_console(self, monkeypatch):
+        monkeypatch.setattr("prefect.cli.server.is_interactive", lambda: True)
+
+        # `readchar` does not like the fake stdin provided by typer isolation so we provide
+        # a version that does not require a fd to be attached
+        def readchar():
+            sys.stdin.flush()
+            position = sys.stdin.tell()
+            if not sys.stdin.read():
+                print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+                raise Exit(-2)
+            else:
+                sys.stdin.seek(position)
+            return sys.stdin.read(1)
+
+        monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+
+    @pytest.fixture(autouse=True)
+    def temporary_profiles_path(self, tmp_path):
+        path = tmp_path / "profiles.toml"
+        with temporary_settings({PREFECT_PROFILES_PATH: path}):
+            save_profiles(
+                profiles=ProfilesCollection(profiles=[get_settings_context().profile])
+            )
+            yield path
+
+    @pytest.fixture(autouse=True)
+    def stop_server(self):
+        yield
+        invoke_and_assert(
+            command=[
+                "server",
+                "stop",
+            ],
+            expected_output_contains="Server stopped!",
+            expected_code=0,
+        )
+
+    def test_switch_to_local_profile_by_default(self):
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--background",
+            ],
+            expected_output_contains="Switched to profile 'local'",
+            expected_code=0,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "local"
+
+    def test_choose_when_multiple_profiles_have_same_api_url(self):
+        save_profiles(
+            profiles=ProfilesCollection(
+                profiles=[
+                    Profile(
+                        name="local-server",
+                        settings={PREFECT_API_URL: "http://127.0.0.1:4200/api"},
+                    ),
+                    Profile(
+                        name="local",
+                        settings={PREFECT_API_URL: "http://127.0.0.1:4200/api"},
+                    ),
+                    get_settings_context().profile,
+                ]
+            )
+        )
+
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--background",
+            ],
+            expected_output_contains="Switched to profile 'local'",
+            expected_code=0,
+            user_input=readchar.key.ENTER,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "local"
