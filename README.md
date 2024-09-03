@@ -26,11 +26,11 @@ With Prefect, you can build resilient, dynamic data pipelines that react to the 
 
 With just a few lines of code, data teams can confidently automate any data process with features such as scheduling, caching, retries, and event-based automations.
 
-Workflow activity is tracked and can be monitored with a self-hosted [Prefect server](https://docs.prefect.io/latest/guides/host/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
+Workflow activity is tracked and can be monitored with a self-hosted [Prefect server](https://docs.prefect.io/latest/manage/self-host/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
 
 ## Getting started
 
-Prefect requires Python 3.9 or later. To [install the latest or upgrade to the latest version of Prefect](https://docs.prefect.io/getting-started/installation/), run the following command:
+Prefect requires Python 3.9 or later. To [install the latest or upgrade to the latest version of Prefect](https://docs.prefect.io/get-started/install), run the following command:
 
 ```bash
 pip install -U prefect
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 ```
 
 You now have a server running locally that is looking for scheduled deployments!
-Additionally you can run your workflow manually from the UI or CLI. You can even run deployments in response to [events](https://docs.prefect.io/latest/concepts/automations/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
+Additionally you can run your workflow manually from the UI or CLI. You can even run deployments in response to [events](https://docs.prefect.io/latest/automate/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
 
 ## Prefect Cloud
 
@@ -93,4 +93,4 @@ If your use case is geared towards communicating with Prefect Cloud or a remote 
 
 - Check out the [Docs](https://docs.prefect.io/).
 - Join the [Prefect Slack community](https://prefect.io/slack).
-- Learn how to [contribute to Prefect](https://docs.prefect.io/contributing/overview/).
+- Learn how to [contribute to Prefect](https://docs.prefect.io/contribute/).

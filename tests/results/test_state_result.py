@@ -10,7 +10,12 @@ import pytest
 import prefect.states
 from prefect.exceptions import UnfinishedRun
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
-from prefect.results import PersistedResult, ResultFactory, ResultRecord
+from prefect.results import (
+    PersistedResult,
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+)
 from prefect.serializers import JSONSerializer
 from prefect.states import State, StateType
 from prefect.utilities.annotations import NotSet
@@ -35,13 +40,9 @@ async def test_unfinished_states_raise_on_result_retrieval(
     "state_type",
     [StateType.CRASHED, StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED],
 )
-async def test_finished_states_allow_result_retrieval(
-    prefect_client, state_type: StateType
-):
-    factory = await ResultFactory.default_factory(
-        client=prefect_client, persist_result=True
-    )
-    state = State(type=state_type, data=await factory.create_result("test"))
+async def test_finished_states_allow_result_retrieval(state_type: StateType):
+    store = ResultStore(persist_result=True)
+    state = State(type=state_type, data=await store.create_result("test"))
 
     assert await state.result(raise_on_failure=False) == "test"
 
@@ -136,8 +137,14 @@ async def test_graceful_retries_eventually_succeed_while(
 ):
     # now write the result so it's available
     await a_real_result.write()
-    expected_record = await a_real_result._read_result_record()
-    assert isinstance(expected_record, ResultRecord)
+    expected_record = ResultRecord(
+        result="test-graceful-retry",
+        metadata=ResultRecordMetadata(
+            storage_key=a_real_result.storage_key,
+            expiration=a_real_result.expiration,
+            serializer=JSONSerializer(),
+        ),
+    )
 
     # even if it misses a couple times, it will eventually return the data
     now = time.monotonic()

@@ -40,11 +40,10 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultFactory
+from prefect.results import ResultStore
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
-from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
@@ -95,20 +94,15 @@ def hydrated_context(
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
                     task_runner=task_runner,
                     detached=True,
                 )
                 stack.enter_context(flow_run_context)
             # Set up parent task run context
             if parent_task_run_context := serialized_context.get("task_run_context"):
-                parent_task = parent_task_run_context["task"]
                 task_run_context = TaskRunContext(
                     **parent_task_run_context,
                     client=client,
-                    result_factory=run_coro_as_sync(
-                        ResultFactory.from_autonomous_task(parent_task)
-                    ),
                 )
                 stack.enter_context(task_run_context)
             # Set up tags context
@@ -346,7 +340,7 @@ class EngineContext(RunContext):
     detached: bool = False
 
     # Result handling
-    result_factory: ResultFactory
+    result_store: ResultStore
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -375,6 +369,7 @@ class EngineContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
+                "result_store",
             },
             exclude_unset=True,
         )
@@ -399,7 +394,7 @@ class TaskRunContext(RunContext):
     parameters: Dict[str, Any]
 
     # Result handling
-    result_factory: ResultFactory
+    result_store: ResultStore
 
     __var__ = ContextVar("task_run")
 
@@ -412,6 +407,7 @@ class TaskRunContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
+                "result_store",
             },
             exclude_unset=True,
         )
