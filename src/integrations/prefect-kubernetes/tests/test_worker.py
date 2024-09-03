@@ -2117,7 +2117,12 @@ class TestKubernetesWorker:
         mock_batch_client,
         mock_job,
         mock_pod,
+        monkeypatch,
     ):
+        monkeypatch.setattr(
+            "prefect_kubernetes.worker.enable_socket_keep_alive", MagicMock()
+        )
+
         async def mock_stream(*args, **kwargs):
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
@@ -2143,7 +2148,12 @@ class TestKubernetesWorker:
         mock_core_client_lean,
         mock_job,
         mock_pod,
+        monkeypatch,
     ):
+        monkeypatch.setattr(
+            "prefect_kubernetes.worker.enable_socket_keep_alive", MagicMock()
+        )
+
         async def mock_stream(*args, **kwargs):
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
