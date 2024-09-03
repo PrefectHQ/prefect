@@ -75,8 +75,13 @@ class Variable(BaseModel):
                 )
             await client.update_variable(variable=VariableUpdate(**var_dict))
             variable = await client.read_variable_by_name(name)
+            var_dict = {
+                "name": variable.name,
+                "value": variable.value,
+                "tags": variable.tags or [],
+            }
         else:
-            variable = await client.create_variable(variable=VariableCreate(**var_dict))
+            await client.create_variable(variable=VariableCreate(**var_dict))
 
         return cls(**var_dict)
 
