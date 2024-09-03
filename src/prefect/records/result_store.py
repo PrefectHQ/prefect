@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import pendulum
 
-from prefect.results import BaseResult, PersistedResult, ResultFactory
+from prefect.results import BaseResult, PersistedResult, ResultStore
 from prefect.transactions import IsolationLevel
 from prefect.utilities.asyncutils import run_coro_as_sync
 
@@ -11,8 +11,14 @@ from .base import RecordStore, TransactionRecord
 
 
 @dataclass
-class ResultFactoryStore(RecordStore):
-    result_factory: ResultFactory
+class ResultRecordStore(RecordStore):
+    """
+    A record store for result records.
+
+    Collocates result metadata with result data.
+    """
+
+    result_store: ResultStore
     cache: Optional[PersistedResult] = None
 
     def exists(self, key: str) -> bool:
@@ -38,8 +44,8 @@ class ResultFactoryStore(RecordStore):
             return TransactionRecord(key=key, result=self.cache)
         try:
             result = PersistedResult(
-                serializer_type=self.result_factory.serializer.type,
-                storage_block_id=self.result_factory.storage_block_id,
+                serializer_type=self.result_store.serializer.type,
+                storage_block_id=self.result_store.result_storage_block_id,
                 storage_key=key,
             )
             return TransactionRecord(key=key, result=result)
@@ -52,7 +58,7 @@ class ResultFactoryStore(RecordStore):
             # if the value is already a persisted result, write it
             result.write(_sync=True)
         elif not isinstance(result, BaseResult):
-            run_coro_as_sync(self.result_factory.create_result(obj=result, key=key))
+            run_coro_as_sync(self.result_store.create_result(obj=result, key=key))
 
     def supports_isolation_level(self, isolation_level: IsolationLevel) -> bool:
         return isolation_level == IsolationLevel.READ_COMMITTED

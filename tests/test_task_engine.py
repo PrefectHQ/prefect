@@ -32,7 +32,7 @@ from prefect.context import (
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResult, ResultFactory
+from prefect.results import PersistedResult, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -126,13 +126,13 @@ class TestRunTask:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultFactory().update_for_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -174,13 +174,13 @@ class TestTaskRunsAsync:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultFactory().update_for_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -1497,13 +1497,13 @@ class TestRunCountTracking:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.run_count == 1
 
-        result_factory = await ResultFactory().update_for_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         return EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -1649,8 +1649,8 @@ class TestPersistence:
     async def test_task_can_return_persisted_result(self):
         @task
         async def async_task():
-            factory = ResultFactory(persist_result=True)
-            result = await factory.create_result(42)
+            store = ResultStore(persist_result=True)
+            result = await store.create_result(42)
             await result.write()
             return result
 
@@ -1659,8 +1659,8 @@ class TestPersistence:
         assert await state.result() == 42
 
     async def test_task_loads_result_if_exists_using_result_storage_key(self):
-        factory = ResultFactory(persist_result=True)
-        result = await factory.create_result(-92, key="foo-bar")
+        store = ResultStore(persist_result=True)
+        result = await store.create_result(-92, key="foo-bar")
         await result.write()
 
         @task(result_storage_key="foo-bar", persist_result=True)
