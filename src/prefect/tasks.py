@@ -206,8 +206,17 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
 
     qualname = fn.__qualname__.split(".")[-1]
 
+    try:
+        code_obj = getattr(fn, "__code__", None)
+        if code_obj is None:
+            code_obj = fn.__call__.__code__
+    except AttributeError:
+        raise AttributeError(
+            f"{fn} is not a standard Python function object and could not be converted to a task."
+        ) from None
+
     code_hash = (
-        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(fn.__code__)) else "unknown"
+        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(code_obj)) else "unknown"
     )
 
     return f"{qualname}-{code_hash}"
