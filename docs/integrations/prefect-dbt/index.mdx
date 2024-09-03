@@ -9,27 +9,22 @@ Prefect provides a global view of the state of your workflows and allows you to 
 
 ### Prerequisites
 
-- [Prefect installed](3.0/get-started/install).
 - A [dbt Cloud account](https://cloud.getdbt.com/signup) if using dbt Cloud.
 
 ### Install prefect-dbt
 
+The following command will install a version of prefect-dbt compatible with your installed version of Prefect. 
+If you don't already have Prefect installed, it will install the newest version of Prefect as well.
 
-Install or update to the latest version of the prefect-dbt library and dependencies.
+```bash
+pip install "prefect[dbt]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-dbt
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-dbt
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of Prefect and prefect-dbt:
 
+```bash
+pip install -U "prefect[dbt]"
+```
 
 If necessary, see [additional installation options for dbt Core with BigQuery, Snowflake, and Postgres](#additional-installation-options).
 
@@ -328,24 +323,25 @@ Additional installation options for dbt Core with BigQuery, Snowflake, and Postg
 
 #### Additional capabilities for dbt Core and Snowflake profiles
 
+First install the main library compatible with your Prefect version:
 
 ```bash
-pip install -U "prefect-dbt[snowflake]"
+pip install "prefect[dbt]"
 ```
 
+Then install the additional capabilities you need.
+```bash
+pip install "prefect-dbt[snowflake]"
+```
 
 #### Additional capabilities for dbt Core and BigQuery profiles
 
-
 ```bash
-pip install -U "prefect-dbt[bigquery]"
+pip install "prefect-dbt[bigquery]"
 ```
-
 
 #### Additional capabilities for dbt Core and Postgres profiles
 
-
 ```bash
-pip install -U "prefect-dbt[postgres]"
+pip install "prefect-dbt[postgres]"
 ```
-

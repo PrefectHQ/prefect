@@ -8,25 +8,22 @@ Prefect integrations for interacting with Databricks.
 
 ### Prerequisites
 
-- [Prefect installed](/3.0/get-started/install) in a virtual environment.
 - A [Databricks account](https://databricks.com/) and the necessary permissions to access desired services.
 
 ### Install `prefect-databricks`
 
-Install or update to the latest version of the prefect-databrickslibrary and dependencies.
+The following command will install a version of prefect-databricks compatible with your installed version of Prefect. 
+If you don't already have Prefect installed, it will install the newest version of Prefect as well.
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-databricks
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-databricks
-    ```
-    </Tab>
-</Tabs>
+```bash
+pip install "prefect[databricks]"
+```
+
+Upgrade to the latest versions of Prefect and prefect-databricks:
+
+```bash
+pip install -U "prefect[databricks]"
+```
 
 ### List jobs on the Databricks instance
 
