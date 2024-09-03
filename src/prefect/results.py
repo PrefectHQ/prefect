@@ -256,7 +256,7 @@ class ResultFactory(BaseModel):
         return ResultRecord.deserialize(content)
 
     @sync_compatible
-    async def write(
+    async def _write(
         self,
         obj: Any,
         key: Optional[str] = None,
@@ -265,7 +265,8 @@ class ResultFactory(BaseModel):
         """
         Write a result to storage.
 
-        Handles the creation of a `ResultRecord` and its serialization to storage.
+        This is the internal implementation. Use `write` or `awrite` for synchronous and
+        asynchronous result writing respectively.
 
         Args:
             key: The key to write the result record to.
@@ -284,8 +285,32 @@ class ResultFactory(BaseModel):
         )
         await self.persist_result_record(record)
 
+    def write(self, key: str, obj: Any, expiration: Optional[DateTime] = None):
+        """
+        Write a result to storage.
+
+        Handles the creation of a `ResultRecord` and its serialization to storage.
+
+        Args:
+            key: The key to write the result record to.
+            obj: The object to write to storage.
+            expiration: The expiration time for the result record.
+        """
+        return self._write(obj=obj, key=key, expiration=expiration, _sync=True)
+
+    async def awrite(self, key: str, obj: Any, expiration: Optional[DateTime] = None):
+        """
+        Write a result to storage.
+
+        Args:
+            key: The key to write the result record to.
+            obj: The object to write to storage.
+            expiration: The expiration time for the result record.
+        """
+        return self._write(obj=obj, key=key, expiration=expiration, _sync=False)
+
     @sync_compatible
-    async def persist_result_record(self, result_record: "ResultRecord"):
+    async def _persist_result_record(self, result_record: "ResultRecord"):
         """
         Persist a result record to storage.
 
@@ -298,6 +323,24 @@ class ResultFactory(BaseModel):
         await self.storage_block.write_path(
             result_record.metadata.storage_key, content=result_record.serialize()
         )
+
+    async def persist_result_record(self, result_record: "ResultRecord"):
+        """
+        Persist a result record to storage.
+
+        Args:
+            result_record: The result record to persist.
+        """
+        return self._persist_result_record(result_record=result_record, _sync=False)
+
+    async def apersist_result_record(self, result_record: "ResultRecord"):
+        """
+        Persist a result record to storage.
+
+        Args:
+            result_record: The result record to persist.
+        """
+        return self._persist_result_record(result_record=result_record, _sync=True)
 
     @sync_compatible
     async def create_result(
@@ -708,7 +751,7 @@ class PersistedResult(BaseResult):
         result_factory = ResultFactory(
             storage_block=storage_block, serializer=serializer
         )
-        await result_factory.write(
+        await result_factory.awrite(
             obj=obj, key=self.storage_key, expiration=self.expiration
         )
 
