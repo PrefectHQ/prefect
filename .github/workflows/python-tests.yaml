@@ -58,7 +58,7 @@ jobs:
           - name: Client Tests
             modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
         database:
-          - "postgres:14"
+          - "postgres:16"
           - "sqlite"
         python-version:
           - "3.9"
