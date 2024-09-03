@@ -12,26 +12,30 @@ Prefect provides a Helm chart for deploying a worker, a self-hosted Prefect serv
 
 ### Prerequisites
 
-- [Prefect installed](3.0/get-started/install) in a virtual environment.
 - [Kubernetes installed](https://kubernetes.io/).
 
 ### Install `prefect-kubernetes`
 
-<div class="terminal">
+The following command will install a version of prefect-kubernetes compatible with your installed version of Prefect. 
+If you don't already have Prefect installed, it will install the newest version of Prefect as well.
+
 ```bash
- pip install -U prefect-kubernetes
- ```
- </div>
+pip install "prefect[kubernetes]"
+```
+
+Upgrade to the latest versions of Prefect and prefect-kubernetes:
+
+```bash
+pip install -U "prefect[kubernetes]"
+```
 
 ### Register newly installed block types
 
 Register the block types in the prefect-aws module to make them available for use.
 
-<div class="terminal">
 ```bash
 prefect block register -m prefect_kubernetes
 ```
-</div>
 
 ## Examples
 
@@ -90,6 +94,7 @@ from prefect import flow
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.jobs import list_namespaced_job
 
+
 @flow
 def kubernetes_orchestrator():
     v1_job_list = list_namespaced_job(
@@ -107,6 +112,7 @@ from prefect import flow
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.deployments import patch_namespaced_deployment
 from prefect_kubernetes.utilities import convert_manifest_to_model
+
 
 @flow
 def kubernetes_orchestrator():

@@ -8,32 +8,26 @@ The prefect-gitlab library makes it easy to interact with GitLab repositories an
 
 ### Prerequisites
 
-- [Prefect installed](/3.0/get-started/install/).
 - A [GitLab account](https://gitlab.com/).
 
 ### Install prefect-gitlab
 
+The following command will install a version of prefect-gitlab compatible with your installed version of Prefect. 
+If you don't already have Prefect installed, it will install the newest version of Prefect as well.
 
-Install or update to the latest version of the prefect-gitlab library and dependencies.
+```bash
+pip install "prefect[gitlab]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-gitlab
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-gitlab
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of Prefect and prefect-gitlab:
 
+```bash
+pip install -U "prefect[gitlab]"
+```
 
 ### Register newly installed block types
 
 Register the block types in the prefect-gitlab module to make them available for use.
-
 
 ```bash
 prefect block register -m prefect_gitlab
