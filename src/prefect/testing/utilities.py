@@ -18,7 +18,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
 from prefect.logging.handlers import APILogWorker
-from prefect.results import PersistedResult, ResultFactory
+from prefect.results import PersistedResult, ResultStore
 from prefect.serializers import Serializer
 from prefect.server.api.server import SubprocessASGIServer
 from prefect.states import State
@@ -196,8 +196,8 @@ async def assert_uses_result_serializer(
         if isinstance(serializer, str)
         else serializer.type
     )
-    blob = await ResultFactory(
-        storage_block=await state.data._get_storage_block()
+    blob = await ResultStore(
+        result_storage=await state.data._get_storage_block()
     ).aread(state.data.storage_key)
     assert (
         blob.metadata.serializer == serializer

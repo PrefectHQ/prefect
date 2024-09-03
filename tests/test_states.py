@@ -6,7 +6,7 @@ from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
     PersistedResult,
-    ResultFactory,
+    ResultStore,
 )
 from prefect.states import (
     Cancelled,
@@ -132,43 +132,43 @@ class TestRaiseStateException:
 
 class TestReturnValueToState:
     @pytest.fixture
-    async def factory(self):
-        return ResultFactory()
+    async def store(self):
+        return ResultStore()
 
-    async def test_returns_single_state_unaltered(self, factory):
+    async def test_returns_single_state_unaltered(self, store):
         state = Completed(data="hello!")
-        assert await return_value_to_state(state, factory) is state
+        assert await return_value_to_state(state, store) is state
 
     async def test_returns_single_state_with_null_data_and_persist_off(self):
-        factory = ResultFactory(persist_result=False)
+        store = ResultStore(persist_result=False)
         state = Completed(data=None)
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store)
         assert result_state is state
         assert isinstance(result_state.data, PersistedResult)
         assert result_state.data._persisted is False
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self):
-        factory = ResultFactory(persist_result=True)
+        store = ResultStore(persist_result=True)
         state = Completed(data=1)
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store)
         assert result_state is state
         assert isinstance(result_state.data, PersistedResult)
         assert await result_state.result() == 1
 
     async def test_returns_persisted_results_unaltered(self):
-        factory = ResultFactory(persist_result=True)
-        result = await factory.create_result(42)
-        result_state = await return_value_to_state(result, factory)
+        store = ResultStore(persist_result=True)
+        result = await store.create_result(42)
+        result_state = await return_value_to_state(result, store)
         assert result_state.data == result
         assert await result_state.result() == 42
 
     async def test_returns_single_state_unaltered_with_user_created_reference(
-        self, factory
+        self, store
     ):
-        result = await factory.create_result("test")
+        result = await store.create_result("test")
         state = Completed(data=result)
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store)
         assert result_state is state
         # Pydantic makes a copy of the result type during state so we cannot assert that
         # it is the original `result` object but we can assert there is not a copy in
@@ -177,9 +177,9 @@ class TestReturnValueToState:
         assert result_state.data == result
         assert await result_state.result() == "test"
 
-    async def test_all_completed_states(self, factory):
+    async def test_all_completed_states(self, store):
         states = [Completed(message="hi"), Completed(message="bye")]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result() == states
         # Message explains aggregate
@@ -187,13 +187,13 @@ class TestReturnValueToState:
         # Aggregate type is completed
         assert result_state.is_completed()
 
-    async def test_some_failed_states(self, factory):
+    async def test_some_failed_states(self, store):
         states = [
             Completed(message="hi"),
             Failed(message="bye"),
             Failed(message="err"),
         ]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
@@ -201,13 +201,13 @@ class TestReturnValueToState:
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_some_unfinal_states(self, factory):
+    async def test_some_unfinal_states(self, store):
         states = [
             Completed(message="hi"),
             Running(message="bye"),
             Pending(message="err"),
         ]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
@@ -216,16 +216,16 @@ class TestReturnValueToState:
         assert result_state.is_failed()
 
     @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
-    async def test_single_state_in_future_is_processed(self, run_identifier, factory):
+    async def test_single_state_in_future_is_processed(self, run_identifier, store):
         state = Completed(data="test", state_details={run_identifier: uuid.uuid4()})
         # The engine is responsible for resolving the futures
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store)
         assert await result_state.result() == state
         assert result_state.is_completed()
         assert result_state.message == "All states completed."
 
-    async def test_non_prefect_types_return_completed_state(self, factory):
-        result_state = await return_value_to_state("foo", factory)
+    async def test_non_prefect_types_return_completed_state(self, store):
+        result_state = await return_value_to_state("foo", store)
         assert result_state.is_completed()
         assert await result_state.result() == "foo"
 
