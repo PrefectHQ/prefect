@@ -51,12 +51,12 @@
     {
       "group": "Get started",
       "pages": [
-        "3.0rc/get-started/index",
-        "3.0rc/resources/whats-new-prefect-3",
-        "3.0rc/get-started/install",
-        "3.0rc/get-started/quickstart"
+        "3.0/get-started/index",
+        "3.0/resources/whats-new-prefect-3",
+        "3.0/get-started/install",
+        "3.0/get-started/quickstart"
       ],
-      "version": "3.0rc"
+      "version": "3.0"
     },
     {
       "group": "Get started",
@@ -68,146 +68,146 @@
     {
       "group": "Develop",
       "pages": [
-        "3.0rc/develop/index",
+        "3.0/develop/index",
         {
           "group": "Write and run workflows",
           "pages": [
-            "3.0rc/develop/write-flows",
-            "3.0rc/develop/write-tasks",
-            "3.0rc/develop/deferred-tasks"
+            "3.0/develop/write-flows",
+            "3.0/develop/write-tasks",
+            "3.0/develop/deferred-tasks"
           ],
-          "version": "3.0rc"
+          "version": "3.0"
         },
         {
           "group": "Configure runtime behavior",
           "pages": [
-            "3.0rc/develop/logging",
-            "3.0rc/develop/task-caching",
-            "3.0rc/develop/transactions",
-            "3.0rc/develop/pause-resume",
-            "3.0rc/develop/inputs",
-            "3.0rc/develop/runtime-context"
+            "3.0/develop/logging",
+            "3.0/develop/task-caching",
+            "3.0/develop/transactions",
+            "3.0/develop/pause-resume",
+            "3.0/develop/inputs",
+            "3.0/develop/runtime-context"
           ],
-          "version": "3.0rc"
+          "version": "3.0"
         },
         {
           "group": "Manage state and configuration",
           "pages": [
-            "3.0rc/develop/manage-states",
-            "3.0rc/develop/results",
-            "3.0rc/develop/artifacts",
-            "3.0rc/develop/variables",
-            "3.0rc/develop/blocks"
+            "3.0/develop/manage-states",
+            "3.0/develop/results",
+            "3.0/develop/artifacts",
+            "3.0/develop/variables",
+            "3.0/develop/blocks"
           ],
-          "version": "3.0rc"
+          "version": "3.0"
         },
         {
           "group": "Manage concurrency",
           "pages": [
-            "3.0rc/develop/task-runners",
-            "3.0rc/develop/task-run-limits",
-            "3.0rc/develop/global-concurrency-limits"
+            "3.0/develop/task-runners",
+            "3.0/develop/task-run-limits",
+            "3.0/develop/global-concurrency-limits"
           ],
-          "version": "3.0rc"
+          "version": "3.0"
         },
-        "3.0rc/develop/test-workflows"
+        "3.0/develop/test-workflows"
       ],
-      "version": "3.0rc"
+      "version": "3.0"
     },
     {
       "group": "Deploy",
       "pages": [
-        "3.0rc/deploy/index",
-        "3.0rc/deploy/run-flows-in-local-processes",
+        "3.0/deploy/index",
+        "3.0/deploy/run-flows-in-local-processes",
         {
           "group": "Run flows on dynamic infrastructure",
           "pages": [
-            "3.0rc/deploy/infrastructure-concepts/work-pools",
-            "3.0rc/deploy/infrastructure-concepts/workers",
-            "3.0rc/deploy/infrastructure-concepts/store-flow-code",
-            "3.0rc/deploy/infrastructure-concepts/deploy-via-python",
-            "3.0rc/deploy/infrastructure-concepts/prefect-yaml",
-            "3.0rc/deploy/infrastructure-concepts/deploy-ci-cd",
-            "3.0rc/deploy/infrastructure-concepts/customize"
+            "3.0/deploy/infrastructure-concepts/work-pools",
+            "3.0/deploy/infrastructure-concepts/workers",
+            "3.0/deploy/infrastructure-concepts/store-flow-code",
+            "3.0/deploy/infrastructure-concepts/deploy-via-python",
+            "3.0/deploy/infrastructure-concepts/prefect-yaml",
+            "3.0/deploy/infrastructure-concepts/deploy-ci-cd",
+            "3.0/deploy/infrastructure-concepts/customize"
           ],
-          "version": "3.0rc"
+          "version": "3.0"
         },
         {
           "group": "Infrastructure-specific examples",
           "pages": [
-            "3.0rc/deploy/infrastructure-examples/managed",
-            "3.0rc/deploy/infrastructure-examples/serverless",
-            "3.0rc/deploy/infrastructure-examples/docker",
-            "3.0rc/deploy/infrastructure-examples/kubernetes"
+            "3.0/deploy/infrastructure-examples/managed",
+            "3.0/deploy/infrastructure-examples/serverless",
+            "3.0/deploy/infrastructure-examples/docker",
+            "3.0/deploy/infrastructure-examples/kubernetes"
           ],
-          "version": "3.0rc"
+          "version": "3.0"
         }
       ],
-      "version": "3.0rc"
+      "version": "3.0"
     },
     {
       "group": "Automate",
       "pages": [
-        "3.0rc/automate/index",
-        "3.0rc/automate/add-schedules",
-        "3.0rc/automate/events/events",
-        "3.0rc/automate/events/automations-triggers",
-        "3.0rc/automate/events/custom-triggers",
-        "3.0rc/automate/events/webhook-triggers",
-        "3.0rc/automate/incidents"
+        "3.0/automate/index",
+        "3.0/automate/add-schedules",
+        "3.0/automate/events/events",
+        "3.0/automate/events/automations-triggers",
+        "3.0/automate/events/custom-triggers",
+        "3.0/automate/events/webhook-triggers",
+        "3.0/automate/incidents"
       ],
-      "version": "3.0rc"
+      "version": "3.0"
     },
     {
       "group": "Cloud and Server",
       "pages": [
-        "3.0rc/manage/index",
+        "3.0/manage/index",
         {
           "group": "Use Prefect Cloud",
           "pages": [
-            "3.0rc/manage/cloud/index",
-            "3.0rc/manage/cloud/connect-to-cloud",
-            "3.0rc/manage/cloud/workspaces",
+            "3.0/manage/cloud/index",
+            "3.0/manage/cloud/connect-to-cloud",
+            "3.0/manage/cloud/workspaces",
             {
               "group": "Manage accounts",
               "pages": [
-                "3.0rc/manage/cloud/manage-users/index",
-                "3.0rc/manage/cloud/manage-users/service-accounts",
-                "3.0rc/manage/cloud/manage-users/manage-teams",
-                "3.0rc/manage/cloud/manage-users/manage-roles",
-                "3.0rc/manage/cloud/manage-users/api-keys",
-                "3.0rc/manage/cloud/manage-users/configure-sso",
-                "3.0rc/manage/cloud/manage-users/audit-logs",
-                "3.0rc/manage/cloud/manage-users/object-access-control-lists",
-                "3.0rc/manage/cloud/manage-users/secure-access-by-ip-address"
+                "3.0/manage/cloud/manage-users/index",
+                "3.0/manage/cloud/manage-users/service-accounts",
+                "3.0/manage/cloud/manage-users/manage-teams",
+                "3.0/manage/cloud/manage-users/manage-roles",
+                "3.0/manage/cloud/manage-users/api-keys",
+                "3.0/manage/cloud/manage-users/configure-sso",
+                "3.0/manage/cloud/manage-users/audit-logs",
+                "3.0/manage/cloud/manage-users/object-access-control-lists",
+                "3.0/manage/cloud/manage-users/secure-access-by-ip-address"
               ],
-              "version": "3.0rc"
+              "version": "3.0"
             },
-            "3.0rc/manage/cloud/rate-limits",
-            "3.0rc/manage/cloud/terraform-provider",
-            "3.0rc/manage/cloud/troubleshoot-cloud"
+            "3.0/manage/cloud/rate-limits",
+            "3.0/manage/cloud/terraform-provider",
+            "3.0/manage/cloud/troubleshoot-cloud"
           ],
-          "version": "3.0rc"
+          "version": "3.0"
         },
-        "3.0rc/manage/self-host",
-        "3.0rc/manage/settings-and-profiles",
-        "3.0rc/manage/interact-with-api"
+        "3.0/manage/self-host",
+        "3.0/manage/settings-and-profiles",
+        "3.0/manage/interact-with-api"
       ],
-      "version": "3.0rc"
+      "version": "3.0"
     },
     {
       "group": "Resources",
       "pages": [
-        "3.0rc/resources/upgrade-to-prefect-3",
-        "3.0rc/resources/upgrade-agents-to-workers",
-        "3.0rc/resources/cancel",
-        "3.0rc/resources/visualize-flow-structure",
-        "3.0rc/resources/daemonize-processes",
-        "3.0rc/resources/big-data",
-        "3.0rc/resources/cli-shell",
-        "3.0rc/resources/secrets"
+        "3.0/resources/upgrade-to-prefect-3",
+        "3.0/resources/upgrade-agents-to-workers",
+        "3.0/resources/cancel",
+        "3.0/resources/visualize-flow-structure",
+        "3.0/resources/daemonize-processes",
+        "3.0/resources/big-data",
+        "3.0/resources/cli-shell",
+        "3.0/resources/secrets"
       ],
-      "version": "3.0rc"
+      "version": "3.0"
     },
     {
       "group": "Integrations",
@@ -342,339 +342,339 @@
     {
       "group": "APIs & SDK",
       "pages": [
-        "3.0rc/api-ref/index",
-        "3.0rc/api-ref/python/index",
+        "3.0/api-ref/index",
+        "3.0/api-ref/python/index",
         {
           "group": "REST API",
           "pages": [
-            "3.0rc/api-ref/rest-api/index",
+            "3.0/api-ref/rest-api/index",
             {
               "group": "Cloud API",
               "pages": [
-                "3.0rc/api-ref/rest-api/cloud/index"
+                "3.0/api-ref/rest-api/cloud/index"
               ],
-              "version": "3.0rc"
+              "version": "3.0"
             },
             {
               "group": "Server API",
               "pages": [
-                "3.0rc/api-ref/rest-api/server/index",
+                "3.0/api-ref/rest-api/server/index",
                 {
                   "group": "Root",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/root/health-check",
-                    "3.0rc/api-ref/rest-api/server/root/server-version",
-                    "3.0rc/api-ref/rest-api/server/root/hello",
-                    "3.0rc/api-ref/rest-api/server/root/perform-readiness-check"
+                    "3.0/api-ref/rest-api/server/root/health-check",
+                    "3.0/api-ref/rest-api/server/root/server-version",
+                    "3.0/api-ref/rest-api/server/root/hello",
+                    "3.0/api-ref/rest-api/server/root/perform-readiness-check"
                   ]
                 },
                 {
                   "group": "Flows",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/flows/create-flow",
-                    "3.0rc/api-ref/rest-api/server/flows/read-flow",
-                    "3.0rc/api-ref/rest-api/server/flows/delete-flow",
-                    "3.0rc/api-ref/rest-api/server/flows/update-flow",
-                    "3.0rc/api-ref/rest-api/server/flows/count-flows",
-                    "3.0rc/api-ref/rest-api/server/flows/read-flow-by-name",
-                    "3.0rc/api-ref/rest-api/server/flows/read-flows",
-                    "3.0rc/api-ref/rest-api/server/flows/paginate-flows",
-                    "3.0rc/api-ref/rest-api/server/flows/count-deployments-by-flow",
-                    "3.0rc/api-ref/rest-api/server/flows/next-runs-by-flow"
+                    "3.0/api-ref/rest-api/server/flows/create-flow",
+                    "3.0/api-ref/rest-api/server/flows/read-flow",
+                    "3.0/api-ref/rest-api/server/flows/delete-flow",
+                    "3.0/api-ref/rest-api/server/flows/update-flow",
+                    "3.0/api-ref/rest-api/server/flows/count-flows",
+                    "3.0/api-ref/rest-api/server/flows/read-flow-by-name",
+                    "3.0/api-ref/rest-api/server/flows/read-flows",
+                    "3.0/api-ref/rest-api/server/flows/paginate-flows",
+                    "3.0/api-ref/rest-api/server/flows/count-deployments-by-flow",
+                    "3.0/api-ref/rest-api/server/flows/next-runs-by-flow"
                   ]
                 },
                 {
                   "group": "Flow Runs",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/flow-runs/create-flow-run",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/read-flow-run",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/delete-flow-run",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/update-flow-run",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/count-flow-runs",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/average-flow-run-lateness",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/flow-run-history",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v1",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v2",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/resume-flow-run",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/read-flow-runs",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/set-flow-run-state",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/create-flow-run-input",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/filter-flow-run-input",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/read-flow-run-input",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/delete-flow-run-input",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/paginate-flow-runs",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/download-logs",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/read-flow-run-history",
-                    "3.0rc/api-ref/rest-api/server/flow-runs/count-task-runs-by-flow-run"
+                    "3.0/api-ref/rest-api/server/flow-runs/create-flow-run",
+                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run",
+                    "3.0/api-ref/rest-api/server/flow-runs/delete-flow-run",
+                    "3.0/api-ref/rest-api/server/flow-runs/update-flow-run",
+                    "3.0/api-ref/rest-api/server/flow-runs/count-flow-runs",
+                    "3.0/api-ref/rest-api/server/flow-runs/average-flow-run-lateness",
+                    "3.0/api-ref/rest-api/server/flow-runs/flow-run-history",
+                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v1",
+                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v2",
+                    "3.0/api-ref/rest-api/server/flow-runs/resume-flow-run",
+                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-runs",
+                    "3.0/api-ref/rest-api/server/flow-runs/set-flow-run-state",
+                    "3.0/api-ref/rest-api/server/flow-runs/create-flow-run-input",
+                    "3.0/api-ref/rest-api/server/flow-runs/filter-flow-run-input",
+                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run-input",
+                    "3.0/api-ref/rest-api/server/flow-runs/delete-flow-run-input",
+                    "3.0/api-ref/rest-api/server/flow-runs/paginate-flow-runs",
+                    "3.0/api-ref/rest-api/server/flow-runs/download-logs",
+                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run-history",
+                    "3.0/api-ref/rest-api/server/flow-runs/count-task-runs-by-flow-run"
                   ]
                 },
                 {
                   "group": "Task Runs",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/task-runs/create-task-run",
-                    "3.0rc/api-ref/rest-api/server/task-runs/read-task-run",
-                    "3.0rc/api-ref/rest-api/server/task-runs/delete-task-run",
-                    "3.0rc/api-ref/rest-api/server/task-runs/update-task-run",
-                    "3.0rc/api-ref/rest-api/server/task-runs/count-task-runs",
-                    "3.0rc/api-ref/rest-api/server/task-runs/task-run-history",
-                    "3.0rc/api-ref/rest-api/server/task-runs/read-task-runs",
-                    "3.0rc/api-ref/rest-api/server/task-runs/set-task-run-state",
-                    "3.0rc/api-ref/rest-api/server/task-runs/read-dashboard-task-run-counts",
-                    "3.0rc/api-ref/rest-api/server/task-runs/read-task-run-counts-by-state"
+                    "3.0/api-ref/rest-api/server/task-runs/create-task-run",
+                    "3.0/api-ref/rest-api/server/task-runs/read-task-run",
+                    "3.0/api-ref/rest-api/server/task-runs/delete-task-run",
+                    "3.0/api-ref/rest-api/server/task-runs/update-task-run",
+                    "3.0/api-ref/rest-api/server/task-runs/count-task-runs",
+                    "3.0/api-ref/rest-api/server/task-runs/task-run-history",
+                    "3.0/api-ref/rest-api/server/task-runs/read-task-runs",
+                    "3.0/api-ref/rest-api/server/task-runs/set-task-run-state",
+                    "3.0/api-ref/rest-api/server/task-runs/read-dashboard-task-run-counts",
+                    "3.0/api-ref/rest-api/server/task-runs/read-task-run-counts-by-state"
                   ]
                 },
                 {
                   "group": "Flow Run States",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/flow-run-states/read-flow-run-state",
-                    "3.0rc/api-ref/rest-api/server/flow-run-states/read-flow-run-states"
+                    "3.0/api-ref/rest-api/server/flow-run-states/read-flow-run-state",
+                    "3.0/api-ref/rest-api/server/flow-run-states/read-flow-run-states"
                   ]
                 },
                 {
                   "group": "Task Run States",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/task-run-states/read-task-run-state",
-                    "3.0rc/api-ref/rest-api/server/task-run-states/read-task-run-states"
+                    "3.0/api-ref/rest-api/server/task-run-states/read-task-run-state",
+                    "3.0/api-ref/rest-api/server/task-run-states/read-task-run-states"
                   ]
                 },
                 {
                   "group": "Flow Run Notification Policies",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/flow-run-notification-policies/create-flow-run-notification-policy",
-                    "3.0rc/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policy",
-                    "3.0rc/api-ref/rest-api/server/flow-run-notification-policies/delete-flow-run-notification-policy",
-                    "3.0rc/api-ref/rest-api/server/flow-run-notification-policies/update-flow-run-notification-policy",
-                    "3.0rc/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policies"
+                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/create-flow-run-notification-policy",
+                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policy",
+                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/delete-flow-run-notification-policy",
+                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/update-flow-run-notification-policy",
+                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policies"
                   ]
                 },
                 {
                   "group": "Deployments",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/deployments/create-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/read-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/delete-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/update-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/read-deployment-by-name",
-                    "3.0rc/api-ref/rest-api/server/deployments/read-deployments",
-                    "3.0rc/api-ref/rest-api/server/deployments/paginate-deployments",
-                    "3.0rc/api-ref/rest-api/server/deployments/get-scheduled-flow-runs-for-deployments",
-                    "3.0rc/api-ref/rest-api/server/deployments/count-deployments",
-                    "3.0rc/api-ref/rest-api/server/deployments/schedule-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/resume-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/pause-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/create-flow-run-from-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/work-queue-check-for-deployment",
-                    "3.0rc/api-ref/rest-api/server/deployments/read-deployment-schedules",
-                    "3.0rc/api-ref/rest-api/server/deployments/create-deployment-schedules",
-                    "3.0rc/api-ref/rest-api/server/deployments/delete-deployment-schedule",
-                    "3.0rc/api-ref/rest-api/server/deployments/update-deployment-schedule"
+                    "3.0/api-ref/rest-api/server/deployments/create-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/read-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/delete-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/update-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/read-deployment-by-name",
+                    "3.0/api-ref/rest-api/server/deployments/read-deployments",
+                    "3.0/api-ref/rest-api/server/deployments/paginate-deployments",
+                    "3.0/api-ref/rest-api/server/deployments/get-scheduled-flow-runs-for-deployments",
+                    "3.0/api-ref/rest-api/server/deployments/count-deployments",
+                    "3.0/api-ref/rest-api/server/deployments/schedule-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/resume-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/pause-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/create-flow-run-from-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/work-queue-check-for-deployment",
+                    "3.0/api-ref/rest-api/server/deployments/read-deployment-schedules",
+                    "3.0/api-ref/rest-api/server/deployments/create-deployment-schedules",
+                    "3.0/api-ref/rest-api/server/deployments/delete-deployment-schedule",
+                    "3.0/api-ref/rest-api/server/deployments/update-deployment-schedule"
                   ]
                 },
                 {
                   "group": "SavedSearches",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/savedsearches/create-saved-search",
-                    "3.0rc/api-ref/rest-api/server/savedsearches/read-saved-search",
-                    "3.0rc/api-ref/rest-api/server/savedsearches/delete-saved-search",
-                    "3.0rc/api-ref/rest-api/server/savedsearches/read-saved-searches"
+                    "3.0/api-ref/rest-api/server/savedsearches/create-saved-search",
+                    "3.0/api-ref/rest-api/server/savedsearches/read-saved-search",
+                    "3.0/api-ref/rest-api/server/savedsearches/delete-saved-search",
+                    "3.0/api-ref/rest-api/server/savedsearches/read-saved-searches"
                   ]
                 },
                 {
                   "group": "Logs",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/logs/create-logs",
-                    "3.0rc/api-ref/rest-api/server/logs/read-logs"
+                    "3.0/api-ref/rest-api/server/logs/create-logs",
+                    "3.0/api-ref/rest-api/server/logs/read-logs"
                   ]
                 },
                 {
                   "group": "Concurrency Limits",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/create-concurrency-limit",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit-by-tag",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit-by-tag",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/read-concurrency-limits",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/reset-concurrency-limit-by-tag",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/increment-concurrency-limits-v1",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits/decrement-concurrency-limits-v1"
+                    "3.0/api-ref/rest-api/server/concurrency-limits/create-concurrency-limit",
+                    "3.0/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit",
+                    "3.0/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit",
+                    "3.0/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit-by-tag",
+                    "3.0/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit-by-tag",
+                    "3.0/api-ref/rest-api/server/concurrency-limits/read-concurrency-limits",
+                    "3.0/api-ref/rest-api/server/concurrency-limits/reset-concurrency-limit-by-tag",
+                    "3.0/api-ref/rest-api/server/concurrency-limits/increment-concurrency-limits-v1",
+                    "3.0/api-ref/rest-api/server/concurrency-limits/decrement-concurrency-limits-v1"
                   ]
                 },
                 {
                   "group": "Concurrency Limits V2",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/create-concurrency-limit-v2",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/read-concurrency-limit-v2",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/delete-concurrency-limit-v2",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/update-concurrency-limit-v2",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/read-all-concurrency-limits-v2",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots",
-                    "3.0rc/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots"
+                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/create-concurrency-limit-v2",
+                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/read-concurrency-limit-v2",
+                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/delete-concurrency-limit-v2",
+                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/update-concurrency-limit-v2",
+                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/read-all-concurrency-limits-v2",
+                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots",
+                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots"
                   ]
                 },
                 {
                   "group": "Block types",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/block-types/create-block-type",
-                    "3.0rc/api-ref/rest-api/server/block-types/read-block-type-by-id",
-                    "3.0rc/api-ref/rest-api/server/block-types/delete-block-type",
-                    "3.0rc/api-ref/rest-api/server/block-types/update-block-type",
-                    "3.0rc/api-ref/rest-api/server/block-types/read-block-type-by-slug",
-                    "3.0rc/api-ref/rest-api/server/block-types/read-block-types",
-                    "3.0rc/api-ref/rest-api/server/block-types/read-block-documents-for-block-type",
-                    "3.0rc/api-ref/rest-api/server/block-types/read-block-document-by-name-for-block-type",
-                    "3.0rc/api-ref/rest-api/server/block-types/install-system-block-types"
+                    "3.0/api-ref/rest-api/server/block-types/create-block-type",
+                    "3.0/api-ref/rest-api/server/block-types/read-block-type-by-id",
+                    "3.0/api-ref/rest-api/server/block-types/delete-block-type",
+                    "3.0/api-ref/rest-api/server/block-types/update-block-type",
+                    "3.0/api-ref/rest-api/server/block-types/read-block-type-by-slug",
+                    "3.0/api-ref/rest-api/server/block-types/read-block-types",
+                    "3.0/api-ref/rest-api/server/block-types/read-block-documents-for-block-type",
+                    "3.0/api-ref/rest-api/server/block-types/read-block-document-by-name-for-block-type",
+                    "3.0/api-ref/rest-api/server/block-types/install-system-block-types"
                   ]
                 },
                 {
                   "group": "Block documents",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/block-documents/create-block-document",
-                    "3.0rc/api-ref/rest-api/server/block-documents/read-block-documents",
-                    "3.0rc/api-ref/rest-api/server/block-documents/count-block-documents",
-                    "3.0rc/api-ref/rest-api/server/block-documents/read-block-document-by-id",
-                    "3.0rc/api-ref/rest-api/server/block-documents/delete-block-document",
-                    "3.0rc/api-ref/rest-api/server/block-documents/update-block-document-data"
+                    "3.0/api-ref/rest-api/server/block-documents/create-block-document",
+                    "3.0/api-ref/rest-api/server/block-documents/read-block-documents",
+                    "3.0/api-ref/rest-api/server/block-documents/count-block-documents",
+                    "3.0/api-ref/rest-api/server/block-documents/read-block-document-by-id",
+                    "3.0/api-ref/rest-api/server/block-documents/delete-block-document",
+                    "3.0/api-ref/rest-api/server/block-documents/update-block-document-data"
                   ]
                 },
                 {
                   "group": "Work Pools",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/work-pools/create-work-pool",
-                    "3.0rc/api-ref/rest-api/server/work-pools/read-work-pool",
-                    "3.0rc/api-ref/rest-api/server/work-pools/delete-work-pool",
-                    "3.0rc/api-ref/rest-api/server/work-pools/update-work-pool",
-                    "3.0rc/api-ref/rest-api/server/work-pools/read-work-pools",
-                    "3.0rc/api-ref/rest-api/server/work-pools/count-work-pools",
-                    "3.0rc/api-ref/rest-api/server/work-pools/get-scheduled-flow-runs",
-                    "3.0rc/api-ref/rest-api/server/work-pools/create-work-queue",
-                    "3.0rc/api-ref/rest-api/server/work-pools/read-work-queue",
-                    "3.0rc/api-ref/rest-api/server/work-pools/delete-work-queue",
-                    "3.0rc/api-ref/rest-api/server/work-pools/update-work-queue",
-                    "3.0rc/api-ref/rest-api/server/work-pools/read-work-queues",
-                    "3.0rc/api-ref/rest-api/server/work-pools/worker-heartbeat",
-                    "3.0rc/api-ref/rest-api/server/work-pools/read-workers",
-                    "3.0rc/api-ref/rest-api/server/work-pools/delete-worker"
+                    "3.0/api-ref/rest-api/server/work-pools/create-work-pool",
+                    "3.0/api-ref/rest-api/server/work-pools/read-work-pool",
+                    "3.0/api-ref/rest-api/server/work-pools/delete-work-pool",
+                    "3.0/api-ref/rest-api/server/work-pools/update-work-pool",
+                    "3.0/api-ref/rest-api/server/work-pools/read-work-pools",
+                    "3.0/api-ref/rest-api/server/work-pools/count-work-pools",
+                    "3.0/api-ref/rest-api/server/work-pools/get-scheduled-flow-runs",
+                    "3.0/api-ref/rest-api/server/work-pools/create-work-queue",
+                    "3.0/api-ref/rest-api/server/work-pools/read-work-queue",
+                    "3.0/api-ref/rest-api/server/work-pools/delete-work-queue",
+                    "3.0/api-ref/rest-api/server/work-pools/update-work-queue",
+                    "3.0/api-ref/rest-api/server/work-pools/read-work-queues",
+                    "3.0/api-ref/rest-api/server/work-pools/worker-heartbeat",
+                    "3.0/api-ref/rest-api/server/work-pools/read-workers",
+                    "3.0/api-ref/rest-api/server/work-pools/delete-worker"
                   ]
                 },
                 {
                   "group": "Task Workers",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/task-workers/read-task-workers"
+                    "3.0/api-ref/rest-api/server/task-workers/read-task-workers"
                   ]
                 },
                 {
                   "group": "Work Queues",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/work-queues/create-work-queue",
-                    "3.0rc/api-ref/rest-api/server/work-queues/read-work-queue",
-                    "3.0rc/api-ref/rest-api/server/work-queues/delete-work-queue",
-                    "3.0rc/api-ref/rest-api/server/work-queues/update-work-queue",
-                    "3.0rc/api-ref/rest-api/server/work-queues/read-work-queue-by-name",
-                    "3.0rc/api-ref/rest-api/server/work-queues/read-work-queue-runs",
-                    "3.0rc/api-ref/rest-api/server/work-queues/read-work-queues",
-                    "3.0rc/api-ref/rest-api/server/work-queues/read-work-queue-status"
+                    "3.0/api-ref/rest-api/server/work-queues/create-work-queue",
+                    "3.0/api-ref/rest-api/server/work-queues/read-work-queue",
+                    "3.0/api-ref/rest-api/server/work-queues/delete-work-queue",
+                    "3.0/api-ref/rest-api/server/work-queues/update-work-queue",
+                    "3.0/api-ref/rest-api/server/work-queues/read-work-queue-by-name",
+                    "3.0/api-ref/rest-api/server/work-queues/read-work-queue-runs",
+                    "3.0/api-ref/rest-api/server/work-queues/read-work-queues",
+                    "3.0/api-ref/rest-api/server/work-queues/read-work-queue-status"
                   ]
                 },
                 {
                   "group": "Artifacts",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/artifacts/create-artifact",
-                    "3.0rc/api-ref/rest-api/server/artifacts/read-artifact",
-                    "3.0rc/api-ref/rest-api/server/artifacts/delete-artifact",
-                    "3.0rc/api-ref/rest-api/server/artifacts/update-artifact",
-                    "3.0rc/api-ref/rest-api/server/artifacts/read-latest-artifact",
-                    "3.0rc/api-ref/rest-api/server/artifacts/read-artifacts",
-                    "3.0rc/api-ref/rest-api/server/artifacts/read-latest-artifacts",
-                    "3.0rc/api-ref/rest-api/server/artifacts/count-artifacts",
-                    "3.0rc/api-ref/rest-api/server/artifacts/count-latest-artifacts"
+                    "3.0/api-ref/rest-api/server/artifacts/create-artifact",
+                    "3.0/api-ref/rest-api/server/artifacts/read-artifact",
+                    "3.0/api-ref/rest-api/server/artifacts/delete-artifact",
+                    "3.0/api-ref/rest-api/server/artifacts/update-artifact",
+                    "3.0/api-ref/rest-api/server/artifacts/read-latest-artifact",
+                    "3.0/api-ref/rest-api/server/artifacts/read-artifacts",
+                    "3.0/api-ref/rest-api/server/artifacts/read-latest-artifacts",
+                    "3.0/api-ref/rest-api/server/artifacts/count-artifacts",
+                    "3.0/api-ref/rest-api/server/artifacts/count-latest-artifacts"
                   ]
                 },
                 {
                   "group": "Block schemas",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/block-schemas/create-block-schema",
-                    "3.0rc/api-ref/rest-api/server/block-schemas/read-block-schema-by-id",
-                    "3.0rc/api-ref/rest-api/server/block-schemas/delete-block-schema",
-                    "3.0rc/api-ref/rest-api/server/block-schemas/read-block-schemas",
-                    "3.0rc/api-ref/rest-api/server/block-schemas/read-block-schema-by-checksum"
+                    "3.0/api-ref/rest-api/server/block-schemas/create-block-schema",
+                    "3.0/api-ref/rest-api/server/block-schemas/read-block-schema-by-id",
+                    "3.0/api-ref/rest-api/server/block-schemas/delete-block-schema",
+                    "3.0/api-ref/rest-api/server/block-schemas/read-block-schemas",
+                    "3.0/api-ref/rest-api/server/block-schemas/read-block-schema-by-checksum"
                   ]
                 },
                 {
                   "group": "Block capabilities",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/block-capabilities/read-available-block-capabilities"
+                    "3.0/api-ref/rest-api/server/block-capabilities/read-available-block-capabilities"
                   ]
                 },
                 {
                   "group": "Collections",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/collections/read-view-content"
+                    "3.0/api-ref/rest-api/server/collections/read-view-content"
                   ]
                 },
                 {
                   "group": "Variables",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/variables/create-variable",
-                    "3.0rc/api-ref/rest-api/server/variables/read-variable",
-                    "3.0rc/api-ref/rest-api/server/variables/delete-variable",
-                    "3.0rc/api-ref/rest-api/server/variables/update-variable",
-                    "3.0rc/api-ref/rest-api/server/variables/read-variable-by-name",
-                    "3.0rc/api-ref/rest-api/server/variables/delete-variable-by-name",
-                    "3.0rc/api-ref/rest-api/server/variables/update-variable-by-name",
-                    "3.0rc/api-ref/rest-api/server/variables/read-variables",
-                    "3.0rc/api-ref/rest-api/server/variables/count-variables"
+                    "3.0/api-ref/rest-api/server/variables/create-variable",
+                    "3.0/api-ref/rest-api/server/variables/read-variable",
+                    "3.0/api-ref/rest-api/server/variables/delete-variable",
+                    "3.0/api-ref/rest-api/server/variables/update-variable",
+                    "3.0/api-ref/rest-api/server/variables/read-variable-by-name",
+                    "3.0/api-ref/rest-api/server/variables/delete-variable-by-name",
+                    "3.0/api-ref/rest-api/server/variables/update-variable-by-name",
+                    "3.0/api-ref/rest-api/server/variables/read-variables",
+                    "3.0/api-ref/rest-api/server/variables/count-variables"
                   ]
                 },
-                "3.0rc/api-ref/rest-api/server/create-csrf-token",
+                "3.0/api-ref/rest-api/server/create-csrf-token",
                 {
                   "group": "Events",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/events/create-events",
-                    "3.0rc/api-ref/rest-api/server/events/read-events",
-                    "3.0rc/api-ref/rest-api/server/events/read-account-events-page",
-                    "3.0rc/api-ref/rest-api/server/events/count-account-events"
+                    "3.0/api-ref/rest-api/server/events/create-events",
+                    "3.0/api-ref/rest-api/server/events/read-events",
+                    "3.0/api-ref/rest-api/server/events/read-account-events-page",
+                    "3.0/api-ref/rest-api/server/events/count-account-events"
                   ]
                 },
                 {
                   "group": "Automations",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/automations/create-automation",
-                    "3.0rc/api-ref/rest-api/server/automations/read-automation",
-                    "3.0rc/api-ref/rest-api/server/automations/update-automation",
-                    "3.0rc/api-ref/rest-api/server/automations/delete-automation",
-                    "3.0rc/api-ref/rest-api/server/automations/patch-automation",
-                    "3.0rc/api-ref/rest-api/server/automations/read-automations",
-                    "3.0rc/api-ref/rest-api/server/automations/count-automations",
-                    "3.0rc/api-ref/rest-api/server/automations/read-automations-related-to-resource",
-                    "3.0rc/api-ref/rest-api/server/automations/delete-automations-owned-by-resource",
-                    "3.0rc/api-ref/rest-api/server/automations/validate-template"
+                    "3.0/api-ref/rest-api/server/automations/create-automation",
+                    "3.0/api-ref/rest-api/server/automations/read-automation",
+                    "3.0/api-ref/rest-api/server/automations/update-automation",
+                    "3.0/api-ref/rest-api/server/automations/delete-automation",
+                    "3.0/api-ref/rest-api/server/automations/patch-automation",
+                    "3.0/api-ref/rest-api/server/automations/read-automations",
+                    "3.0/api-ref/rest-api/server/automations/count-automations",
+                    "3.0/api-ref/rest-api/server/automations/read-automations-related-to-resource",
+                    "3.0/api-ref/rest-api/server/automations/delete-automations-owned-by-resource",
+                    "3.0/api-ref/rest-api/server/automations/validate-template"
                   ]
                 },
                 {
                   "group": "UI",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/ui/validate-obj"
+                    "3.0/api-ref/rest-api/server/ui/validate-obj"
                   ]
                 },
                 {
                   "group": "Admin",
                   "pages": [
-                    "3.0rc/api-ref/rest-api/server/admin/read-settings",
-                    "3.0rc/api-ref/rest-api/server/admin/read-version",
-                    "3.0rc/api-ref/rest-api/server/admin/clear-database",
-                    "3.0rc/api-ref/rest-api/server/admin/drop-database",
-                    "3.0rc/api-ref/rest-api/server/admin/create-database"
+                    "3.0/api-ref/rest-api/server/admin/read-settings",
+                    "3.0/api-ref/rest-api/server/admin/read-version",
+                    "3.0/api-ref/rest-api/server/admin/clear-database",
+                    "3.0/api-ref/rest-api/server/admin/drop-database",
+                    "3.0/api-ref/rest-api/server/admin/create-database"
                   ]
                 }
               ],
-              "version": "3.0rc"
+              "version": "3.0"
             }
           ],
-          "version": "3.0rc"
+          "version": "3.0"
         }
       ],
-      "version": "3.0rc"
+      "version": "3.0"
     },
     {
       "group": "Contribute",
@@ -1254,18 +1254,22 @@
       "source": "/latest/integrations/prefect-slack/messages"
     },
     {
-      "destination": "/3.0rc/:slug*",
+      "destination": "/3.0/:slug*",
       "source": "/latest/:slug*"
     },
     {
-      "destination": "/3.0rc/api-ref/python",
+      "destination": "/3.0/api-ref/python",
       "source": "/latest/api-ref/prefect/:slug*"
+    },
+    {
+      "source": "/3.0rc/:slug*",
+      "destination": "/3.0/:slug*"
     }
   ],
   "tabs": [
     {
       "name": "APIs & SDK",
-      "url": "3.0rc/api-ref"
+      "url": "3.0/api-ref"
     },
     {
       "name": "Integrations",
@@ -1281,7 +1285,7 @@
     "url": "https://github.com/PrefectHQ/Prefect"
   },
   "versions": [
-    "3.0rc",
+    "3.0",
     "2.x"
   ]
 }
