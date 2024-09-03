@@ -27,7 +27,6 @@ from prefect.results import (
     get_default_result_storage,
 )
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
 
@@ -385,11 +384,9 @@ def transaction(
                     }
                 )
             else:
-                new_factory = run_coro_as_sync(
-                    ResultFactory.default_factory(
-                        persist_result=True,
-                        result_storage=default_storage,
-                    )
+                new_factory = ResultFactory(
+                    persist_result=True,
+                    storage_block=default_storage,
                 )
         from prefect.records.result_store import ResultFactoryStore
 

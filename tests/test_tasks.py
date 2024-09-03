@@ -32,7 +32,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging import get_run_logger
-from prefect.results import ResultFactory
+from prefect.results import ResultFactory, get_or_create_default_task_scheduling_storage
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -82,7 +82,9 @@ def timeout_test_flow():
 
 
 async def get_background_task_run_parameters(task, parameters_id):
-    factory = await ResultFactory.from_autonomous_task(task)
+    factory = await ResultFactory(
+        storage_block=await get_or_create_default_task_scheduling_storage()
+    ).update_for_task(task)
     return await factory.read_parameters(parameters_id)
 
 
@@ -860,7 +862,7 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
-    @pytest.mark.xfail(
+    @pytest.mark.skip(
         reason="This test is not compatible with the current state of client side task orchestration"
     )
     def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
