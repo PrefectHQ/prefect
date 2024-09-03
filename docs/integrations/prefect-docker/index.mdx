@@ -4,32 +4,26 @@ title: prefect-docker
 
 The prefect-docker library is required to create deployments that will submit runs to most Prefect work pool infrastructure types.
 
-
 ## Getting started
 
 ### Prerequisites
 
-- [Prefect installed](3.0/get-started/install) in a virtual environment.
 - [Docker installed](https://www.docker.com/) and running.
 
 ### Install prefect-docker
 
+The following command will install a version of prefect-docker compatible with your installed version of Prefect. 
+If you don't already have Prefect installed, it will install the newest version of Prefect as well.
 
-Install or update to the latest version of the prefect-docker library and dependencies.
+```bash
+pip install "prefect[docker]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-docker
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-docker
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of Prefect and prefect-docker:
 
+```bash
+pip install -U "prefect[docker]"
+```
 ### Examples
 See the Prefect [Workers docs](/3.0/deploy/infrastructure-examples/docker) to learn how to create and run deployments that use Docker.
 
