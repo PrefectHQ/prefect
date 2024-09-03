@@ -5,7 +5,7 @@ import sys
 # Checks to make sure that collections are loaded prior to attempting to start a worker
 def main():
     subprocess.check_call(
-        ["python", "-m", "pip", "install", "prefect-kubernetes>0.5.0"],
+        ["python", "-m", "pip", "install", "prefect-kubernetes>=0.5.0"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
