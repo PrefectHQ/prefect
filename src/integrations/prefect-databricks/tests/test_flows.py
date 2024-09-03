@@ -413,6 +413,51 @@ class TestJobsRunsSubmitAndWaitForCompletion:
         )
         assert result == {"prefect-task": {"cell": "output"}}
 
+    @pytest.mark.parametrize(
+        "handler",
+        [
+            sync_handler,
+            async_handler,
+        ],
+    )
+    async def test_handler_invoked(
+        self,
+        common_mocks,
+        respx_mock_with_pass_through,
+        databricks_credentials,
+        handler,
+        global_state,
+    ):
+        respx_mock_with_pass_through.get(
+            "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get?run_id=36108",  # noqa
+            headers={"Authorization": "Bearer testing_token"},
+        ).mock(
+            return_value=Response(
+                200,
+                json={
+                    "state": {
+                        "life_cycle_state": "TERMINATED",
+                        "state_message": "",
+                        "result_state": "SUCCESS",
+                    },
+                    "tasks": [{"run_id": 36260, "task_key": "prefect-task"}],
+                },
+            )
+        )
+
+        respx_mock_with_pass_through.get(
+            "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/runs/get-output",  # noqa
+            headers={"Authorization": "Bearer testing_token"},
+        ).mock(return_value=Response(200, json={"notebook_output": {"cell": "output"}}))
+
+        result = await jobs_runs_submit_and_wait_for_completion(
+            databricks_credentials=databricks_credentials,
+            run_name="prefect-job",
+            job_submission_handler=partial(handler, state=global_state),
+        )
+        assert result == {"prefect-task": {"cell": "output"}}
+        assert "result" in global_state
+
 
 class TestJobsRunsIdSubmitAndWaitForCompletion:
     @pytest.mark.respx(assert_all_called=False)
