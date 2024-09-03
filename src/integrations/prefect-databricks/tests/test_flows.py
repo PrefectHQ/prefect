@@ -23,6 +23,12 @@ def prefect_db():
 
 
 @pytest.fixture
+def respx_mock_with_pass_through(respx_mock):
+    respx_mock.route(host="127.0.0.1").pass_through()
+    yield respx_mock
+
+
+@pytest.fixture
 def run_now_mocks(respx_mock):
     respx_mock.post(
         "https://dbc-abcdefgh-123d.cloud.databricks.com/api/2.1/jobs/run-now",
