@@ -16,14 +16,14 @@ Prefect provides a Helm chart for deploying a worker, a self-hosted Prefect serv
 
 ### Install `prefect-kubernetes`
 
-The following command will install a version of prefect-kubernetes compatible with your installed version of Prefect. 
-If you don't already have Prefect installed, it will install the newest version of Prefect as well.
+The following command will install a version of `prefect-kubernetes` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash
 pip install "prefect[kubernetes]"
 ```
 
-Upgrade to the latest versions of Prefect and prefect-kubernetes:
+Upgrade to the latest versions of `prefect` and `prefect-kubernetes`:
 
 ```bash
 pip install -U "prefect[kubernetes]"
@@ -31,7 +31,7 @@ pip install -U "prefect[kubernetes]"
 
 ### Register newly installed block types
 
-Register the block types in the prefect-aws module to make them available for use.
+Register the block types in the `prefect-kubernetes` module to make them available for use.
 
 ```bash
 prefect block register -m prefect_kubernetes
@@ -66,6 +66,7 @@ job = KubernetesJob.from_yaml_file( # or create in the UI with a dict manifest
 )
 
 job.save("my-k8s-job", overwrite=True)
+
 
 if __name__ == "__main__":
     # run the flow
@@ -132,4 +133,4 @@ def kubernetes_orchestrator():
 
 For assistance using Kubernetes, consult the [Kubernetes documentation](https://kubernetes.io/).
 
-Refer to the prefect-kubernetes API documentation linked in the sidebar to explore all the capabilities of the prefect-kubernetes library.
+Refer to the `prefect-kubernetes` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-kubernetes` library.
