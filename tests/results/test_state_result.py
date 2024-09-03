@@ -10,7 +10,12 @@ import pytest
 import prefect.states
 from prefect.exceptions import UnfinishedRun
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
-from prefect.results import PersistedResult, ResultFactory, ResultRecord
+from prefect.results import (
+    PersistedResult,
+    ResultFactory,
+    ResultRecord,
+    ResultRecordMetadata,
+)
 from prefect.serializers import JSONSerializer
 from prefect.states import State, StateType
 from prefect.utilities.annotations import NotSet
@@ -132,8 +137,14 @@ async def test_graceful_retries_eventually_succeed_while(
 ):
     # now write the result so it's available
     await a_real_result.write()
-    expected_record = await a_real_result.get()
-    assert isinstance(expected_record, ResultRecord)
+    expected_record = ResultRecord(
+        result="test-graceful-retry",
+        metadata=ResultRecordMetadata(
+            storage_key=a_real_result.storage_key,
+            expiration=a_real_result.expiration,
+            serializer=JSONSerializer(),
+        ),
+    )
 
     # even if it misses a couple times, it will eventually return the data
     now = time.monotonic()
