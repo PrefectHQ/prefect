@@ -239,9 +239,12 @@ class ResultFactory(BaseModel):
         return self.model_copy(update=update)
 
     @sync_compatible
-    async def read(self, key: str) -> "ResultRecord":
+    async def _read(self, key: str) -> "ResultRecord":
         """
         Read a result record from storage.
+
+        This is the internal implementation. Use `read` or `aread` for synchronous and
+        asynchronous result reading respectively.
 
         Args:
             key: The key to read the result record from.
@@ -254,6 +257,30 @@ class ResultFactory(BaseModel):
 
         content = await self.storage_block.read_path(f"{key}")
         return ResultRecord.deserialize(content)
+
+    def read(self, key: str) -> "ResultRecord":
+        """
+        Read a result record from storage.
+
+        Args:
+            key: The key to read the result record from.
+
+        Returns:
+            A result record.
+        """
+        return self._read(key=key, _sync=True)
+
+    async def aread(self, key: str) -> "ResultRecord":
+        """
+        Read a result record from storage.
+
+        Args:
+            key: The key to read the result record from.
+
+        Returns:
+            A result record.
+        """
+        return await self._read(key=key, _sync=False)
 
     @sync_compatible
     async def _write(
@@ -283,7 +310,7 @@ class ResultFactory(BaseModel):
                 serializer=self.serializer, expiration=expiration, storage_key=key
             ),
         )
-        await self.persist_result_record(record)
+        await self.apersist_result_record(record)
 
     def write(self, key: str, obj: Any, expiration: Optional[DateTime] = None):
         """
@@ -307,7 +334,7 @@ class ResultFactory(BaseModel):
             obj: The object to write to storage.
             expiration: The expiration time for the result record.
         """
-        return self._write(obj=obj, key=key, expiration=expiration, _sync=False)
+        return await self._write(obj=obj, key=key, expiration=expiration, _sync=False)
 
     @sync_compatible
     async def _persist_result_record(self, result_record: "ResultRecord"):
@@ -324,14 +351,14 @@ class ResultFactory(BaseModel):
             result_record.metadata.storage_key, content=result_record.serialize()
         )
 
-    async def persist_result_record(self, result_record: "ResultRecord"):
+    def persist_result_record(self, result_record: "ResultRecord"):
         """
         Persist a result record to storage.
 
         Args:
             result_record: The result record to persist.
         """
-        return self._persist_result_record(result_record=result_record, _sync=False)
+        return self._persist_result_record(result_record=result_record, _sync=True)
 
     async def apersist_result_record(self, result_record: "ResultRecord"):
         """
@@ -340,7 +367,9 @@ class ResultFactory(BaseModel):
         Args:
             result_record: The result record to persist.
         """
-        return self._persist_result_record(result_record=result_record, _sync=True)
+        return await self._persist_result_record(
+            result_record=result_record, _sync=False
+        )
 
     @sync_compatible
     async def create_result(
@@ -701,7 +730,7 @@ class PersistedResult(BaseResult):
             storage_block=storage_block, **result_factory_kwargs
         )
 
-        record = await result_factory.read(self.storage_key)
+        record = await result_factory.aread(self.storage_key)
         self.expiration = record.expiration
 
         if self._should_cache_object:

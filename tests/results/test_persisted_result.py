@@ -209,7 +209,7 @@ async def test_write_is_idempotent(storage_block):
     obj = await result.get()
     assert obj == "test-defer"
 
-    await result.awrite(obj="new-object!")
+    await result.write(obj="new-object!")
     obj = await result.get()
     assert obj == "test-defer"
 

@@ -198,7 +198,7 @@ async def assert_uses_result_serializer(
     )
     blob = await ResultFactory(
         storage_block=await state.data._get_storage_block()
-    ).read(state.data.storage_key)
+    ).aread(state.data.storage_key)
     assert (
         blob.metadata.serializer == serializer
         if isinstance(serializer, Serializer)
