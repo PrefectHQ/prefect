@@ -87,7 +87,12 @@ class Variable(VariableRequest):
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        return variable if variable else default
+
+        return (
+            Variable(name=variable.name, value=variable.value, tags=variable.tags)
+            if variable
+            else default
+        )
 
 
 @deprecated_callable(start_date="Apr 2024")
@@ -112,6 +117,6 @@ async def get(name: str, default: Optional[str] = None) -> Optional[str]:
     ```
     """
     variable = await Variable.get(name, default=default)
-    if not isinstance(variable, str) and hasattr(variable, "value"):
-        variable = variable.value  # type: ignore
+    if isinstance(variable, Variable):
+        variable = variable.value
     return variable
