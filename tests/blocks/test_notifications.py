@@ -119,7 +119,7 @@ class TestMattermostWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?image=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -138,7 +138,7 @@ class TestMattermostWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?image=no&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -161,7 +161,7 @@ class TestMattermostWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?image=no&format=text&overflow=upstream"
                 "&channel=death-metal-anonymous%2Cgeneral"
             )
 
@@ -194,7 +194,7 @@ class TestDiscordWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
-                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -215,7 +215,7 @@ class TestDiscordWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
-                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -244,8 +244,9 @@ class TestOpsgenieWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"opsgenie://{self.API_KEY}//?region=us&priority=normal&batch=no&"
-                "format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                f"opsgenie://{self.API_KEY}//?action=map&region=us&priority=normal&"
+                "batch=no&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure="
+                "new&format=text&overflow=upstream"
             )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -257,7 +258,7 @@ class TestOpsgenieWebhook:
             reload_modules()
 
             if params is None:
-                params = "region=us&priority=normal&batch=no"
+                params = "action=map&region=us&priority=normal&batch=no"
 
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
@@ -268,7 +269,7 @@ class TestOpsgenieWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"opsgenie://{self.API_KEY}/{targets}/?{params}"
-                "&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure=new&format=text&overflow=upstream"
             )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -279,7 +280,7 @@ class TestOpsgenieWebhook:
         self._test_notify_sync()
 
     def test_notify_sync_params(self):
-        params = "region=eu&priority=low&batch=yes"
+        params = "action=map&region=eu&priority=low&batch=yes"
         self._test_notify_sync(params=params, region_name="eu", priority=1, batch=True)
 
     def test_notify_sync_targets(self):
@@ -297,7 +298,7 @@ class TestOpsgenieWebhook:
         self._test_notify_sync(targets=targets, target_user=["user1", "user2"])
 
     def test_notify_sync_details(self):
-        params = "region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
+        params = "action=map&region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
         self._test_notify_sync(
             params=params,
             details={
@@ -321,7 +322,7 @@ class TestPagerDutyWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
-                "image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "image=yes&format=text&overflow=upstream"
             )
 
             notify_type = "info"
@@ -342,7 +343,7 @@ class TestPagerDutyWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
-                "image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "image=yes&format=text&overflow=upstream"
             )
 
             notify_type = "info"
@@ -358,7 +359,7 @@ class TestTwilioSMS:
             "twilio://ACabcdefabcdefabcdefabcdef"
             ":XXXXXXXXXXXXXXXXXXXXXXXX"
             "@%2B15555555555/%2B15555555556/%2B15555555557/"
-            "?format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            "?format=text&overflow=upstream"
         )
 
     async def test_twilio_notify_async(self, valid_apprise_url):
@@ -631,12 +632,6 @@ class TestSendgridEmail:
         "format": "html",
         # default overflow mode
         "overflow": "upstream",
-        # socket read timeout
-        "rto": 4.0,
-        # socket connect timeout
-        "cto": 4.0,
-        # ssl certificate authority verification
-        "verify": "yes",
     }
 
     async def test_notify_async(self):
@@ -725,7 +720,7 @@ class TestMicrosoftTeamsWebhook:
             apprise_instance_mock.add.assert_called_once_with(
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
                 "?image=yes&wrap=yes"
-                "&format=markdown&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "&format=markdown&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -744,7 +739,7 @@ class TestMicrosoftTeamsWebhook:
             apprise_instance_mock.add.assert_called_once_with(
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
                 "?image=yes&wrap=yes"
-                "&format=markdown&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "&format=markdown&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
