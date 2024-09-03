@@ -1,9 +1,8 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.schemas.actions import VariableCreate as VariableRequest
 from prefect.client.schemas.actions import VariableUpdate as VariableUpdateRequest
-from prefect.client.schemas.objects import Variable as VariableResponse
 from prefect.client.utilities import get_or_create_client
 from prefect.exceptions import ObjectNotFound
 from prefect.types import StrictVariableValue
@@ -29,19 +28,17 @@ class Variable(VariableRequest):
         value: StrictVariableValue,
         tags: Optional[List[str]] = None,
         overwrite: bool = False,
-        as_object: bool = False,
-    ):
+    ) -> "Variable":
         """
         Sets a new variable. If one exists with the same name, must pass `overwrite=True`
 
-        Returns the newly set value. If `as_object=True`, return the full Variable object
+        Returns the newly set variable object.
 
         Args:
             - name: The name of the variable to set.
             - value: The value of the variable to set.
             - tags: An optional list of strings to associate with the variable.
             - overwrite: Whether to overwrite the variable if it already exists.
-            - as_object: Whether to return the full Variable object.
 
         Example:
             Set a new variable and overwrite it if it already exists.
@@ -69,7 +66,7 @@ class Variable(VariableRequest):
                 variable=VariableRequest(**var_dict)
             )
 
-        return variable if as_object else variable.value
+        return variable
 
     @classmethod
     @sync_compatible
@@ -77,19 +74,15 @@ class Variable(VariableRequest):
         cls,
         name: str,
         default: StrictVariableValue = None,
-        as_object: bool = False,
-    ) -> Union[StrictVariableValue, VariableResponse]:
+    ) -> StrictVariableValue:
         """
         Get a variable's value by name.
 
         If the variable does not exist, return the default value.
 
-        If `as_object=True`, return the full variable object. `default` is ignored in this case.
-
         Args:
-            - name: The name of the variable to get.
+            - name: The name of the variable value to get.
             - default: The default value to return if the variable does not exist.
-            - as_object: Whether to return the full variable object.
 
         Example:
             Get a variable's value by name.
@@ -105,7 +98,7 @@ class Variable(VariableRequest):
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
 
-        return variable if as_object else (variable.value if variable else default)
+        return variable.value if variable else default
 
     @classmethod
     @sync_compatible
