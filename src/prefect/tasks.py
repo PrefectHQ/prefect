@@ -51,9 +51,9 @@ from prefect.context import (
 from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.logging.loggers import get_logger
 from prefect.results import (
-    ResultFactory,
     ResultSerializer,
     ResultStorage,
+    ResultStore,
     get_or_create_default_task_scheduling_storage,
 )
 from prefect.settings import (
@@ -757,7 +757,7 @@ class Task(Generic[P, R]):
                 # TODO: Improve use of result storage for parameter storage / reference
                 self.persist_result = True
 
-                factory = await ResultFactory(
+                factory = await ResultStore(
                     storage_block=await get_or_create_default_task_scheduling_storage()
                 ).update_for_task(self)
                 context = serialize_context()
@@ -860,7 +860,7 @@ class Task(Generic[P, R]):
                 # TODO: Improve use of result storage for parameter storage / reference
                 self.persist_result = True
 
-                factory = await ResultFactory(
+                factory = await ResultStore(
                     storage_block=await get_or_create_default_task_scheduling_storage()
                 ).update_for_task(task)
                 context = serialize_context()

@@ -40,7 +40,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultFactory
+from prefect.results import ResultStore
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
@@ -340,7 +340,7 @@ class EngineContext(RunContext):
     detached: bool = False
 
     # Result handling
-    result_factory: ResultFactory
+    result_factory: ResultStore
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -394,7 +394,7 @@ class TaskRunContext(RunContext):
     parameters: Dict[str, Any]
 
     # Result handling
-    result_factory: ResultFactory
+    result_factory: ResultStore
 
     __var__ = ContextVar("task_run")
 

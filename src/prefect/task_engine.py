@@ -55,7 +55,7 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
-from prefect.records.result_store import ResultFactoryStore
+from prefect.records.result_store import ResultRecordStore
 from prefect.results import (
     BaseResult,
     _format_user_supplied_storage_key,
@@ -725,7 +725,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory and result_factory.persist_result:
-            store = ResultFactoryStore(result_factory=result_factory)
+            store = ResultRecordStore(result_store=result_factory)
         else:
             store = None
 
@@ -1228,7 +1228,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         )
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory and result_factory.persist_result:
-            store = ResultFactoryStore(result_factory=result_factory)
+            store = ResultRecordStore(result_store=result_factory)
         else:
             store = None
 

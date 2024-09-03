@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from prefect.records.memory import MemoryRecordStore
-from prefect.results import ResultFactory
+from prefect.results import ResultStore
 from prefect.transactions import IsolationLevel
 
 
@@ -20,7 +20,7 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.read(key) is None
-        factory = ResultFactory(persist_result=True)
+        factory = ResultStore(persist_result=True)
         result = await factory.create_result(obj={"test": "value"})
         store.write(key, result=result)
         assert (record := store.read(key)) is not None
@@ -30,7 +30,7 @@ class TestInMemoryRecordStore:
     async def test_read_locked_key(self):
         key = str(uuid4())
         store = MemoryRecordStore()
-        factory = ResultFactory(persist_result=True)
+        factory = ResultStore(persist_result=True)
         result = await factory.create_result(obj={"test": "value"})
 
         def read_locked_key(queue):
@@ -53,7 +53,7 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.acquire_lock(key)
-        factory = ResultFactory(persist_result=True)
+        factory = ResultStore(persist_result=True)
         result = await factory.create_result(obj={"test": "value"})
         # can write to key because holder is the same
         store.write(key, result=result)
@@ -64,7 +64,7 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.acquire_lock(key, holder="holder1")
-        factory = ResultFactory(persist_result=True)
+        factory = ResultStore(persist_result=True)
         result = await factory.create_result(obj={"test": "value"})
         with pytest.raises(
             ValueError,
@@ -76,7 +76,7 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert not store.exists(key)
-        factory = ResultFactory(persist_result=True)
+        factory = ResultStore(persist_result=True)
         result = await factory.create_result(obj={"test": "value"})
         store.write(key, result=result)
         assert store.exists(key)

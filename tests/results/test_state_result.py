@@ -12,9 +12,9 @@ from prefect.exceptions import UnfinishedRun
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.results import (
     PersistedResult,
-    ResultFactory,
     ResultRecord,
     ResultRecordMetadata,
+    ResultStore,
 )
 from prefect.serializers import JSONSerializer
 from prefect.states import State, StateType
@@ -41,7 +41,7 @@ async def test_unfinished_states_raise_on_result_retrieval(
     [StateType.CRASHED, StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED],
 )
 async def test_finished_states_allow_result_retrieval(state_type: StateType):
-    factory = ResultFactory(persist_result=True)
+    factory = ResultStore(persist_result=True)
     state = State(type=state_type, data=await factory.create_result("test"))
 
     assert await state.result(raise_on_failure=False) == "test"

@@ -12,7 +12,7 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.filesystems import LocalFileSystem
-from prefect.results import ResultFactory, get_or_create_default_task_scheduling_storage
+from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.server.api.task_runs import TaskQueue
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.settings import (
@@ -24,8 +24,8 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-async def result_factory_from_task(task) -> ResultFactory:
-    return await ResultFactory(
+async def result_factory_from_task(task) -> ResultStore:
+    return await ResultStore(
         storage_block=await get_or_create_default_task_scheduling_storage()
     ).update_for_task(task)
 

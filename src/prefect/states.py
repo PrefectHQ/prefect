@@ -25,7 +25,7 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.results import BaseResult, R, ResultFactory
+from prefect.results import BaseResult, R, ResultStore
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
@@ -167,7 +167,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 
 async def exception_to_crashed_state(
     exc: BaseException,
-    result_factory: Optional[ResultFactory] = None,
+    result_factory: Optional[ResultStore] = None,
 ) -> State:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
@@ -218,7 +218,7 @@ async def exception_to_crashed_state(
 
 async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
-    result_factory: Optional[ResultFactory] = None,
+    result_factory: Optional[ResultStore] = None,
     write_result: bool = False,
     **kwargs,
 ) -> State:
@@ -270,7 +270,7 @@ async def exception_to_failed_state(
 
 async def return_value_to_state(
     retval: R,
-    result_factory: ResultFactory,
+    result_factory: ResultStore,
     key: Optional[str] = None,
     expiration: Optional[datetime.datetime] = None,
     write_result: bool = False,

@@ -169,7 +169,7 @@ def _format_user_supplied_storage_key(key: str) -> str:
     return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
-class ResultFactory(BaseModel):
+class ResultStore(BaseModel):
     """
     A utility to generate `Result` types.
     """
@@ -429,7 +429,7 @@ class ResultFactory(BaseModel):
         return record.result
 
 
-def get_current_result_factory() -> ResultFactory:
+def get_current_result_factory() -> ResultStore:
     """
     Get the current result factory.
     """
@@ -438,7 +438,7 @@ def get_current_result_factory() -> ResultFactory:
     try:
         run_context = get_run_context()
     except MissingContextError:
-        result_factory = ResultFactory()
+        result_factory = ResultStore()
     else:
         result_factory = run_context.result_factory
     return result_factory
@@ -726,7 +726,7 @@ class PersistedResult(BaseResult):
         if self._serializer:
             result_factory_kwargs["serializer"] = resolve_serializer(self._serializer)
         storage_block = await self._get_storage_block(client=client)
-        result_factory = ResultFactory(
+        result_factory = ResultStore(
             storage_block=storage_block, **result_factory_kwargs
         )
 
@@ -777,9 +777,7 @@ class PersistedResult(BaseResult):
             # this could error if the serializer requires kwargs
             serializer = Serializer(type=self.serializer_type)
 
-        result_factory = ResultFactory(
-            storage_block=storage_block, serializer=serializer
-        )
+        result_factory = ResultStore(storage_block=storage_block, serializer=serializer)
         await result_factory.awrite(
             obj=obj, key=self.storage_key, expiration=self.expiration
         )

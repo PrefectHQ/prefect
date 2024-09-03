@@ -25,7 +25,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.logging.loggers import get_logger
-from prefect.results import ResultFactory, get_or_create_default_task_scheduling_storage
+from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
@@ -273,7 +273,7 @@ class TaskWorker:
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
-            factory = await ResultFactory(
+            factory = await ResultStore(
                 storage_block=await get_or_create_default_task_scheduling_storage()
             ).update_for_task(task)
             try:

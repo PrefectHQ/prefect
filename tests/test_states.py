@@ -6,7 +6,7 @@ from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
     PersistedResult,
-    ResultFactory,
+    ResultStore,
 )
 from prefect.states import (
     Cancelled,
@@ -133,14 +133,14 @@ class TestRaiseStateException:
 class TestReturnValueToState:
     @pytest.fixture
     async def factory(self):
-        return ResultFactory()
+        return ResultStore()
 
     async def test_returns_single_state_unaltered(self, factory):
         state = Completed(data="hello!")
         assert await return_value_to_state(state, factory) is state
 
     async def test_returns_single_state_with_null_data_and_persist_off(self):
-        factory = ResultFactory(persist_result=False)
+        factory = ResultStore(persist_result=False)
         state = Completed(data=None)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
@@ -149,7 +149,7 @@ class TestReturnValueToState:
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self):
-        factory = ResultFactory(persist_result=True)
+        factory = ResultStore(persist_result=True)
         state = Completed(data=1)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
@@ -157,7 +157,7 @@ class TestReturnValueToState:
         assert await result_state.result() == 1
 
     async def test_returns_persisted_results_unaltered(self):
-        factory = ResultFactory(persist_result=True)
+        factory = ResultStore(persist_result=True)
         result = await factory.create_result(42)
         result_state = await return_value_to_state(result, factory)
         assert result_state.data == result

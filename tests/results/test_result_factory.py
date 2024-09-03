@@ -7,7 +7,7 @@ from prefect.context import FlowRunContext, get_run_context
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
     PersistedResult,
-    ResultFactory,
+    ResultStore,
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
@@ -37,7 +37,7 @@ def default_persistence_off():
 
 @pytest.fixture
 async def factory(prefect_client):
-    return ResultFactory(persist_result=True)
+    return ResultStore(persist_result=True)
 
 
 async def test_create_result_reference(factory):
@@ -570,7 +570,7 @@ async def test_nested_flow_custom_storage(tmp_path):
 
 async def _verify_default_storage_creation_with_persistence(
     prefect_client,
-    result_factory: prefect.results.ResultFactory,
+    result_factory: prefect.results.ResultStore,
 ):
     # check that the default block was created
     assert result_factory.storage_block is not None
@@ -582,7 +582,7 @@ async def _verify_default_storage_creation_with_persistence(
 
 
 async def _verify_default_storage_creation_without_persistence(
-    result_factory: prefect.results.ResultFactory,
+    result_factory: prefect.results.ResultStore,
 ):
     # check that the default block was created
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
@@ -693,7 +693,7 @@ async def test_result_factory_from_task_with_no_flow_run_context(options, expect
 
     assert FlowRunContext.get() is None
 
-    result_factory = await ResultFactory().update_for_task(task=my_task)
+    result_factory = await ResultStore().update_for_task(task=my_task)
 
     assert result_factory.persist_result == expected["persist_result"]
     assert result_factory.cache_result_in_memory == expected["cache_result_in_memory"]

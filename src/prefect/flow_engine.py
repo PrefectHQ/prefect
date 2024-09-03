@@ -47,7 +47,7 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.results import BaseResult, ResultFactory, get_current_result_factory
+from prefect.results import BaseResult, ResultStore, get_current_result_factory
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
@@ -282,7 +282,7 @@ class FlowRunEngine(Generic[P, R]):
         self,
         exc: Exception,
         msg: Optional[str] = None,
-        result_factory: Optional[ResultFactory] = None,
+        result_factory: Optional[ResultStore] = None,
     ) -> State:
         context = FlowRunContext.get()
         terminal_state = run_coro_as_sync(
