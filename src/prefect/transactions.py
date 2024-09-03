@@ -23,7 +23,7 @@ from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.results import (
     BaseResult,
-    ResultFactory,
+    ResultStore,
     get_default_result_storage,
 )
 from prefect.utilities.annotations import NotSet
@@ -362,21 +362,21 @@ def transaction(
     if key and not store:
         flow_run_context = FlowRunContext.get()
         task_run_context = TaskRunContext.get()
-        existing_factory = getattr(task_run_context, "result_factory", None) or getattr(
-            flow_run_context, "result_factory", None
+        existing_store = getattr(task_run_context, "result_store", None) or getattr(
+            flow_run_context, "result_store", None
         )
 
-        new_factory: ResultFactory
-        if existing_factory and existing_factory.storage_block_id:
-            new_factory = existing_factory.model_copy(
+        new_store: ResultStore
+        if existing_store and existing_store.result_storage_block_id:
+            new_store = existing_store.model_copy(
                 update={
                     "persist_result": True,
                 }
             )
         else:
             default_storage = get_default_result_storage(_sync=True)
-            if existing_factory:
-                new_factory = existing_factory.model_copy(
+            if existing_store:
+                new_store = existing_store.model_copy(
                     update={
                         "persist_result": True,
                         "storage_block": default_storage,
@@ -384,14 +384,14 @@ def transaction(
                     }
                 )
             else:
-                new_factory = ResultFactory(
+                new_store = ResultStore(
                     persist_result=True,
-                    storage_block=default_storage,
+                    result_storage=default_storage,
                 )
-        from prefect.records.result_store import ResultFactoryStore
+        from prefect.records.result_store import ResultRecordStore
 
-        store = ResultFactoryStore(
-            result_factory=new_factory,
+        store = ResultRecordStore(
+            result_store=new_store,
         )
 
     try:

@@ -7,9 +7,9 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.records import RecordStore
 from prefect.records.memory import MemoryRecordStore
-from prefect.records.result_store import ResultFactoryStore
+from prefect.records.result_store import ResultRecordStore
 from prefect.results import (
-    ResultFactory,
+    ResultStore,
     get_default_result_storage,
     get_or_create_default_task_scheduling_storage,
 )
@@ -273,8 +273,8 @@ class TestDefaultTransactionStorage:
 
     async def test_transaction_outside_of_run(self):
         with transaction(key="test_transaction_outside_of_run") as txn:
-            assert isinstance(txn.store, ResultFactoryStore)
-            result = await txn.store.result_factory.create_result(
+            assert isinstance(txn.store, ResultRecordStore)
+            result = await txn.store.result_store.create_result(
                 obj={"foo": "bar"}, key=txn.key
             )
             txn.stage(result)
@@ -287,8 +287,8 @@ class TestDefaultTransactionStorage:
         @flow
         def test_flow():
             with transaction(key="test_transaction_inside_flow_default_storage") as txn:
-                assert isinstance(txn.store, ResultFactoryStore)
-                result = txn.store.result_factory.create_result(
+                assert isinstance(txn.store, ResultRecordStore)
+                result = txn.store.result_store.create_result(
                     obj={"foo": "bar"}, key=txn.key, _sync=True
                 )
                 txn.stage(result)
@@ -313,8 +313,8 @@ class TestDefaultTransactionStorage:
             with transaction(
                 key="test_transaction_inside_flow_configured_storage"
             ) as txn:
-                assert isinstance(txn.store, ResultFactoryStore)
-                result = await txn.store.result_factory.create_result(
+                assert isinstance(txn.store, ResultRecordStore)
+                result = await txn.store.result_store.create_result(
                     obj={"foo": "bar"}, key=txn.key
                 )
                 txn.stage(result)
@@ -332,8 +332,8 @@ class TestDefaultTransactionStorage:
         @task
         async def test_task():
             with transaction(key="test_transaction_inside_task_default_storage") as txn:
-                assert isinstance(txn.store, ResultFactoryStore)
-                result = await txn.store.result_factory.create_result(
+                assert isinstance(txn.store, ResultRecordStore)
+                result = await txn.store.result_store.create_result(
                     obj={"foo": "bar"}, key=txn.key
                 )
                 await result.write()
@@ -356,8 +356,8 @@ class TestDefaultTransactionStorage:
             with transaction(
                 key="test_transaction_inside_task_configured_storage"
             ) as txn:
-                assert isinstance(txn.store, ResultFactoryStore)
-                result = await txn.store.result_factory.create_result(
+                assert isinstance(txn.store, ResultRecordStore)
+                result = await txn.store.result_store.create_result(
                     obj={"foo": "bar"}, key=txn.key
                 )
                 await result.write()
@@ -386,13 +386,13 @@ class TestWithMemoryRecordStore:
 
     @pytest.fixture
     async def result_1(self, default_storage_setting):
-        result_factory = ResultFactory(persist_result=True)
-        return await result_factory.create_result(obj={"foo": "bar"})
+        result_store = ResultStore(persist_result=True)
+        return await result_store.create_result(obj={"foo": "bar"})
 
     @pytest.fixture
     async def result_2(self, default_storage_setting):
-        result_factory = ResultFactory(persist_result=True)
-        return await result_factory.create_result(obj={"fizz": "buzz"})
+        result_store = ResultStore(persist_result=True)
+        return await result_store.create_result(obj={"fizz": "buzz"})
 
     async def test_basic_transaction(self, result_1):
         store = MemoryRecordStore()
@@ -522,11 +522,11 @@ class TestIsolationLevel:
     def test_raises_on_unsupported_isolation_level(self):
         with pytest.raises(
             ValueError,
-            match="Isolation level SERIALIZABLE is not supported by record store type ResultFactoryStore",
+            match="Isolation level SERIALIZABLE is not supported by record store type ResultRecordStore",
         ):
             with transaction(
                 key="test",
-                store=ResultFactoryStore(result_factory=ResultFactory()),
+                store=ResultRecordStore(result_store=ResultStore()),
                 isolation_level=IsolationLevel.SERIALIZABLE,
             ):
                 pass

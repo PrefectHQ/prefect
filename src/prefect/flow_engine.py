@@ -47,7 +47,7 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.results import BaseResult, ResultFactory, get_current_result_factory
+from prefect.results import BaseResult, ResultStore, get_current_result_store
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
@@ -202,7 +202,7 @@ class FlowRunEngine(Generic[P, R]):
                 self.handle_exception(
                     exc,
                     msg=message,
-                    result_factory=get_current_result_factory().update_for_flow(
+                    result_store=get_current_result_store().update_for_flow(
                         self.flow, _sync=True
                     ),
                 )
@@ -263,14 +263,14 @@ class FlowRunEngine(Generic[P, R]):
         return _result
 
     def handle_success(self, result: R) -> R:
-        result_factory = getattr(FlowRunContext.get(), "result_factory", None)
-        if result_factory is None:
-            raise ValueError("Result factory is not set")
+        result_store = getattr(FlowRunContext.get(), "result_store", None)
+        if result_store is None:
+            raise ValueError("Result store is not set")
         resolved_result = resolve_futures_to_states(result)
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 resolved_result,
-                result_factory=result_factory,
+                result_store=result_store,
                 write_result=True,
             )
         )
@@ -282,15 +282,14 @@ class FlowRunEngine(Generic[P, R]):
         self,
         exc: Exception,
         msg: Optional[str] = None,
-        result_factory: Optional[ResultFactory] = None,
+        result_store: Optional[ResultStore] = None,
     ) -> State:
         context = FlowRunContext.get()
         terminal_state = run_coro_as_sync(
             exception_to_failed_state(
                 exc,
                 message=msg or "Flow run encountered an exception:",
-                result_factory=result_factory
-                or getattr(context, "result_factory", None),
+                result_store=result_store or getattr(context, "result_store", None),
                 write_result=True,
             )
         )
@@ -508,7 +507,7 @@ class FlowRunEngine(Generic[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_factory=get_current_result_factory().update_for_flow(
+                    result_store=get_current_result_store().update_for_flow(
                         self.flow, _sync=True
                     ),
                     task_runner=task_runner,

@@ -8,7 +8,7 @@ import pytest
 from prefect_redis.records import RedisRecordStore
 
 from prefect.filesystems import LocalFileSystem
-from prefect.results import ResultFactory
+from prefect.results import ResultStore
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     temporary_settings,
@@ -30,10 +30,10 @@ class TestRedisRecordStore:
 
     @pytest.fixture
     async def result(self, default_storage_setting):
-        factory = ResultFactory(
+        store = ResultStore(
             persist_result=True,
         )
-        result = await factory.create_result(obj={"test": "value"})
+        result = await store.create_result(obj={"test": "value"})
         return result
 
     @pytest.fixture

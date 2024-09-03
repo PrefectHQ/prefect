@@ -24,7 +24,7 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultFactory, get_current_result_factory
+from prefect.results import ResultStore, get_current_result_store
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
@@ -96,14 +96,14 @@ async def test_flow_run_context(prefect_client):
 
     test_task_runner = ThreadPoolTaskRunner()
     flow_run = await prefect_client.create_flow_run(foo)
-    result_factory = await ResultFactory().update_for_flow(foo)
+    result_store = await ResultStore().update_for_flow(foo)
 
     with FlowRunContext(
         flow=foo,
         flow_run=flow_run,
         client=prefect_client,
         task_runner=test_task_runner,
-        result_factory=result_factory,
+        result_store=result_store,
         parameters={"x": "y"},
     ):
         ctx = FlowRunContext.get()
@@ -111,7 +111,7 @@ async def test_flow_run_context(prefect_client):
         assert ctx.flow_run == flow_run
         assert ctx.client is prefect_client
         assert ctx.task_runner is test_task_runner
-        assert ctx.result_factory == result_factory
+        assert ctx.result_store == result_store
         assert isinstance(ctx.start_time, DateTime)
         assert ctx.parameters == {"x": "y"}
 
@@ -122,19 +122,19 @@ async def test_task_run_context(prefect_client, flow_run):
         pass
 
     task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    result_factory = ResultFactory()
+    result_store = ResultStore()
 
     with TaskRunContext(
         task=foo,
         task_run=task_run,
         client=prefect_client,
-        result_factory=result_factory,
+        result_store=result_store,
         parameters={"foo": "bar"},
     ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run == task_run
-        assert ctx.result_factory == result_factory
+        assert ctx.result_store == result_store
         assert isinstance(ctx.start_time, DateTime)
         assert ctx.parameters == {"foo": "bar"}
 
@@ -172,7 +172,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
         flow_run=flow_run,
         client=prefect_client,
         task_runner=test_task_runner,
-        result_factory=await ResultFactory().update_for_flow(foo),
+        result_store=await ResultStore().update_for_flow(foo),
         parameters={"x": "y"},
     ) as flow_ctx:
         assert get_run_context() is flow_ctx
@@ -181,7 +181,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await get_current_result_factory().update_for_task(
+            result_store=await get_current_result_store().update_for_task(
                 bar, _sync=False
             ),
             parameters={"foo": "bar"},
@@ -421,14 +421,14 @@ class TestSerializeContext:
 
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo)
-        result_factory = await ResultFactory().update_for_flow(foo)
+        result_store = await ResultStore().update_for_flow(foo)
 
         with FlowRunContext(
             flow=foo,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         ) as flow_run_context:
             serialized = serialize_context()
@@ -452,7 +452,7 @@ class TestSerializeContext:
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await get_current_result_factory().update_for_task(bar),
+            result_store=await get_current_result_store().update_for_task(bar),
             parameters={"foo": "bar"},
         ) as task_ctx:
             serialized = serialize_context()
@@ -511,13 +511,13 @@ class TestHydratedContext:
 
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo)
-        result_factory = await ResultFactory().update_for_flow(foo)
+        result_store = await ResultStore().update_for_flow(foo)
         flow_run_context = FlowRunContext(
             flow=foo,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -536,8 +536,8 @@ class TestHydratedContext:
                 hydrated_flow_run_context.task_runner is not None
             )  # this won't be the same object as the original task runner
             assert (
-                hydrated_flow_run_context.result_factory is not None
-            )  # this won't be the same object as the original result factory
+                hydrated_flow_run_context.result_store is not None
+            )  # this won't be the same object as the original result store
             assert isinstance(hydrated_flow_run_context.start_time, DateTime)
             assert hydrated_flow_run_context.parameters == {"x": "y"}
 
@@ -562,13 +562,13 @@ class TestHydratedContext:
 
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo, state=Running())
-        result_factory = await ResultFactory().update_for_flow(foo)
+        result_store = await ResultStore().update_for_flow(foo)
         flow_run_context = FlowRunContext(
             flow=foo,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -595,7 +595,7 @@ class TestHydratedContext:
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await get_current_result_factory().update_for_task(bar),
+            result_store=await get_current_result_store().update_for_task(bar),
             parameters={"foo": "bar"},
         )
 
@@ -607,7 +607,7 @@ class TestHydratedContext:
             hydrated_task_ctx = TaskRunContext.get()
             assert hydrated_task_ctx.task is bar
             assert hydrated_task_ctx.task_run == task_run
-            assert hydrated_task_ctx.result_factory is not None
+            assert hydrated_task_ctx.result_store is not None
             assert isinstance(hydrated_task_ctx.start_time, DateTime)
             assert hydrated_task_ctx.parameters == {"foo": "bar"}
 

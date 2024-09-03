@@ -55,11 +55,11 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
-from prefect.records.result_store import ResultFactoryStore
+from prefect.records.result_store import ResultRecordStore
 from prefect.results import (
     BaseResult,
     _format_user_supplied_storage_key,
-    get_current_result_factory,
+    get_current_result_store,
 )
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
@@ -454,9 +454,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             return self._raised
 
     def handle_success(self, result: R, transaction: Transaction) -> R:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-        if result_factory is None:
-            raise ValueError("Result factory is not set")
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store is None:
+            raise ValueError("Result store is not set")
 
         if self.task.cache_expiration is not None:
             expiration = pendulum.now("utc") + self.task.cache_expiration
@@ -466,7 +466,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
-                result_factory=result_factory,
+                result_store=result_store,
                 key=transaction.key,
                 expiration=expiration,
             )
@@ -543,7 +543,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exception_to_failed_state(
                     exc,
                     message="Task run encountered an exception",
-                    result_factory=getattr(context, "result_factory", None),
+                    result_store=getattr(context, "result_store", None),
                     write_result=True,
                 )
             )
@@ -595,7 +595,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=get_current_result_factory().update_for_task(
+                    result_store=get_current_result_store().update_for_task(
                         self.task, _sync=True
                     ),
                     client=client,
@@ -723,9 +723,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
 
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-        if result_factory and result_factory.persist_result:
-            store = ResultFactoryStore(result_factory=result_factory)
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store and result_store.persist_result:
+            store = ResultRecordStore(result_store=result_store)
         else:
             store = None
 
@@ -966,9 +966,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             return self._raised
 
     async def handle_success(self, result: R, transaction: Transaction) -> R:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-        if result_factory is None:
-            raise ValueError("Result factory is not set")
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store is None:
+            raise ValueError("Result store is not set")
 
         if self.task.cache_expiration is not None:
             expiration = pendulum.now("utc") + self.task.cache_expiration
@@ -977,7 +977,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         terminal_state = await return_value_to_state(
             result,
-            result_factory=result_factory,
+            result_store=result_store,
             key=transaction.key,
             expiration=expiration,
         )
@@ -1052,7 +1052,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             state = await exception_to_failed_state(
                 exc,
                 message="Task run encountered an exception",
-                result_factory=getattr(context, "result_factory", None),
+                result_store=getattr(context, "result_store", None),
             )
             self.record_terminal_state_timing(state)
             await self.set_state(state)
@@ -1102,7 +1102,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=await get_current_result_factory().update_for_task(
+                    result_store=await get_current_result_store().update_for_task(
                         self.task, _sync=False
                     ),
                     client=client,
@@ -1226,9 +1226,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-        if result_factory and result_factory.persist_result:
-            store = ResultFactoryStore(result_factory=result_factory)
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store and result_store.persist_result:
+            store = ResultRecordStore(result_store=result_store)
         else:
             store = None
 
