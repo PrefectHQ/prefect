@@ -1,7 +1,7 @@
 # Creates integration SDK documentation files for MkDocs
 # Run from top level of Prefect repository
 # Latest versions of Prefect integration libraries must be installed
-# uv pip install "prefect[aws, azure, bitbucket, dask, databricks, dbt, docker, email, gcp, github, gitlab, kubernetes, ray, slack, snowflake, sqlalchemy]" --pre -U
+# uv pip install "prefect[aws, azure, bitbucket, dask, databricks, dbt, docker, email, gcp, github, gitlab, kubernetes, ray, slack, snowflake, sqlalchemy]" -U
 # Run mkdocs build to generate the documentation or mkdocs serve to preview
 # Upload the site directory to Netlify to publish the documentation after building
 
