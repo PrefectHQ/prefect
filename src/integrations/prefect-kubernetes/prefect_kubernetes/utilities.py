@@ -21,6 +21,7 @@ class KeepAliveClientRequest(ClientRequest):
     aiohttp only directly implements socket keepalive for incoming connections
     in its RequestHandler. For client connections, we need to set the keepalive
     ourselves.
+
     Refer to https://github.com/aio-libs/aiohttp/issues/3904#issuecomment-759205696
     """
 
