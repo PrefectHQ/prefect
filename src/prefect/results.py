@@ -172,9 +172,18 @@ def _format_user_supplied_storage_key(key: str) -> str:
 class ResultStore(BaseModel):
     """
     A utility to generate `Result` types.
+
+    Attributes:
+        result_storage: The storage for result records.
+        metadata_storage: The storage for result record metadata. If not provided, the metadata will be stored alongside the results.
+        persist_result: Whether to persist results.
+        cache_result_in_memory: Whether to cache results in memory.
+        serializer: The serializer to use for results.
+        storage_key_fn: The function to generate storage keys.
     """
 
     result_storage: Optional[WritableFileSystem] = Field(default=None)
+    metadata_storage: Optional[WritableFileSystem] = Field(default=None)
     persist_result: bool = Field(default_factory=get_default_persist_setting)
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
@@ -255,8 +264,15 @@ class ResultStore(BaseModel):
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
 
-        content = await self.result_storage.read_path(f"{key}")
-        return ResultRecord.deserialize(content)
+        if self.metadata_storage is not None:
+            metadata_content = await self.metadata_storage.read_path(f"{key}")
+            result_content = await self.result_storage.read_path(f"{key}")
+            return ResultRecord.deserialize_from_result_and_metadata(
+                result=result_content, metadata=metadata_content
+            )
+        else:
+            content = await self.result_storage.read_path(f"{key}")
+            return ResultRecord.deserialize(content)
 
     def read(self, key: str) -> "ResultRecord":
         """
@@ -300,8 +316,6 @@ class ResultStore(BaseModel):
             obj: The object to write to storage.
             expiration: The expiration time for the result record.
         """
-        if self.result_storage is None:
-            self.result_storage = await get_default_result_storage()
         key = key or self.storage_key_fn()
 
         record = ResultRecord(
@@ -347,9 +361,24 @@ class ResultStore(BaseModel):
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
 
-        await self.result_storage.write_path(
-            result_record.metadata.storage_key, content=result_record.serialize()
-        )
+        assert (
+            result_record.metadata.storage_key is not None
+        ), "Storage key is required on result record"
+        # If metadata storage is configured, write result and metadata separately
+        if self.metadata_storage is not None:
+            await self.result_storage.write_path(
+                result_record.metadata.storage_key,
+                content=result_record.serialize_result(),
+            )
+            await self.metadata_storage.write_path(
+                result_record.metadata.storage_key,
+                content=result_record.serialize_metadata(),
+            )
+        # Otherwise, write the result metadata and result together
+        else:
+            await self.result_storage.write_path(
+                result_record.metadata.storage_key, content=result_record.serialize()
+            )
 
     def persist_result_record(self, result_record: "ResultRecord"):
         """

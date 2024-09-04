@@ -731,3 +731,28 @@ async def test_result_store_from_task_takes_precedence_from_task(persist_result)
     result_store = foo()
 
     assert result_store.persist_result is persist_result
+
+
+async def test_result_store_read_and_write_with_metadata_storage(tmp_path):
+    metadata_storage = LocalFileSystem(basepath=tmp_path / "metadata")
+    result_storage = LocalFileSystem(basepath=tmp_path / "results")
+    result_store = ResultStore(
+        metadata_storage=metadata_storage, result_storage=result_storage
+    )
+
+    key = "test"
+    value = "test"
+    await result_store.awrite(key=key, obj=value)
+    read_value = await result_store.aread(key=key)
+    assert read_value.result == value
+
+    # Check that the result is written to the result storage
+    assert (
+        result_store.serializer.loads((tmp_path / "results" / key).read_bytes())
+        == value
+    )
+
+    # Check that the metadata is written to the metadata storage
+    assert (
+        tmp_path / "metadata" / key
+    ).read_text() == read_value.metadata.model_dump_json(serialize_as_any=True)
