@@ -10,11 +10,11 @@ For example, you can retrieve secrets, read and write Blob Storage objects, and 
 - [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 - An [Azure account](https://azure.microsoft.com/) and the necessary permissions to access desired services.
 
-### Install prefect-azure
+### Install prefect-azure for Prefect 2
 
 <div class = "terminal">
 ```bash
-pip install -U prefect-azure
+pip install 'prefect[azure]<3'
 ```
 </div>
 
@@ -24,7 +24,7 @@ To install with all additional functionality, use the following command:
 
 <div class = "terminal">
 ```bash
-pip install -U "prefect-azure[all_extras]"
+pip install "prefect-azure[all_extras]<3"
 ```
 </div>
 
@@ -94,7 +94,7 @@ To use Blob Storage:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect-azure[blob_storage]"
+pip install "prefect-azure[blob_storage]<3"
 ```
 </div>
 
@@ -102,7 +102,7 @@ To use Cosmos DB:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect-azure[cosmos_db]"
+pip install "prefect-azure[cosmos_db]<3"
 ```
 </div>
 
@@ -110,6 +110,6 @@ To use ML Datastore:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect-azure[ml_datastore]"
+pip install "prefect-azure[ml_datastore]<3"
 ```
 </div>

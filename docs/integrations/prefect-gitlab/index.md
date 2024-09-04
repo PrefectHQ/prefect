@@ -9,11 +9,11 @@ The prefect-gitlab library makes it easy to interact with GitLab repositories an
 - [Prefect installed](/getting-started/installation/).
 - A [GitLab account](https://gitlab.com/).
 
-### Install prefect-gitlab
+### Install prefect-gitlab for Prefect 2
 
 <div class = "terminal">
 ```bash
-pip install -U prefect-gitlab
+pip install 'prefect[gitlab]<3'
 ```
 </div>
 

@@ -9,11 +9,11 @@ Prefect-github makes it easy to interact with GitHub repositories and credential
 - [Prefect installed](/getting-started/installation/).
 - A [GitHub account](https://github.com/).
 
-### Install prefect-github
+### Install prefect-github for Prefect 2
 
 <div class = "terminal">
 ```bash
-pip install prefect-github
+pip install 'prefect[github]<3'
 ```
 </div>
 

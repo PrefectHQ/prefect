@@ -10,11 +10,11 @@ For example, you can retrieve secrets using AWS Secrets Manager, read and write 
 - [Prefect installed](/getting-started/installation/).
 - An [AWS account](https://aws.amazon.com/account/) and the necessary permissions to access desired services.
 
-### Install prefect-aws
+### Install prefect-aws for Prefect 2
 
 <div class = "terminal">
 ```bash
-pip install -U prefect-aws
+pip install 'prefect[aws]<3'
 ```
 </div>
 

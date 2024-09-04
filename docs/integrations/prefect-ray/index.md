@@ -9,11 +9,11 @@ The `prefect-ray` integration makes it easy speed up your flow runs by integrati
 
 - [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 
-### Install prefect-ray
+### Install prefect-ray for Prefect 2
 
 <div class="terminal">
 ```bash
-pip install prefect-ray
+pip install 'prefect[aws]<2'
 ```
 </div>
 

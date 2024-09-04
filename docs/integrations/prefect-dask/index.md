@@ -9,11 +9,11 @@ The `prefect-dask` integration makes it easy speed up your flow runs by integrat
 
 - [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 
-### Install prefect-dask
+### Install prefect-dask for Prefect 2
 
 <div class="terminal">
 ```bash
-pip install -U prefect-dask
+pip install 'prefect[dask]<3'
 ```
 </div>
 

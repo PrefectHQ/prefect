@@ -10,11 +10,11 @@ See the Prefect [tutorial](https://docs.prefect.io/latest/tutorial/) and the [Do
 - [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 - [Docker installed](https://www.docker.com/) and running.
 
-### Install prefect-docker
+### Install prefect-docker for Prefect 2
 
 <div class="terminal">
 ```bash
-pip install prefect-docker
+pip install 'prefect[docker]<3'
 ```
 </div>
 

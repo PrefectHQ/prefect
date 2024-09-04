@@ -10,11 +10,11 @@ For example, you can run flow on Vertex AI or Cloud Run, read and write data to 
 - [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 - An [GCP account](https://cloud.google.com/) and the necessary permissions to access desired services.
 
-### Install prefect-gcp
+### Install prefect-gcp for Prefect 2
 
 <div class = "terminal">
 ```bash
-pip install -U prefect-gcp
+pip install 'prefect[gcp]<3'
 ```
 </div>
 
@@ -24,7 +24,7 @@ To install with all additional functionality, use the following command:
 
 <div class = "terminal">
 ```bash
-pip install -U "prefect-gcp[all_extras]"
+pip install "prefect-gcp[all_extras]<3"
 ```
 </div>
 
@@ -251,7 +251,7 @@ pip install "prefect-gcp[cloud_storage]"
 
 <div class = "terminal">
 ```bash
-pip install "prefect-gcp[bigquery]"
+pip install "prefect-gcp[bigquery]<3"
 ```
 </div>
 
@@ -259,7 +259,7 @@ pip install "prefect-gcp[bigquery]"
 
 <div class = "terminal">
 ```bash
-pip install "prefect-gcp[secret_manager]"
+pip install "prefect-gcp[secret_manager]<3"
 ```
 </div>
 
@@ -267,6 +267,6 @@ pip install "prefect-gcp[secret_manager]"
 
 <div class = "terminal">
 ```bash
-pip install "prefect-gcp[aiplatform]"
+pip install "prefect-gcp[aiplatform]<3"
 ```
 </div>

@@ -12,11 +12,11 @@ As noted in that guide, Prefect also provides a Helm chart for deploying a worke
 - [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 - [Kubernetes installed](https://kubernetes.io/).
 
-### Install `prefect-kubernetes`
+### Install `prefect-kubernetes` for Prefect 2
 
 <div class="terminal">
 ```bash
- pip install prefect-kubernetes
+pip install 'prefect[kubernetes]<3'
  ```
  </div>
 

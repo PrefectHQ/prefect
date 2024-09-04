@@ -1,6 +1,6 @@
 # prefect-slack
 
-## Welcome!
+## Welcome
 
 `prefect-slack` is a collection of prebuilt Prefect tasks that can be used to quickly construct Prefect flows.
 
@@ -14,12 +14,10 @@ We recommend using a Python virtual environment manager such as pipenv, conda or
 
 These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
 
-### Installation
-
-Install `prefect-slack`
+### Install `prefect-slack` for Prefect 2
 
 ```bash
-pip install prefect-slack
+pip install 'prefect[slack]<3'
 ```
 
 ### Slack setup
