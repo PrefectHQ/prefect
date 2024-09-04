@@ -508,7 +508,7 @@ class RunnerDeployment(BaseModel):
             no_file_location_error = (
                 "Flows defined interactively cannot be deployed. Check out the"
                 " quickstart guide for help getting started:"
-                " https://docs.prefect.io/latest/getting-started/quickstart"
+                " https://docs.prefect.io/latest/get-started/quickstart"
             )
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
@@ -851,14 +851,14 @@ async def deploy(
                 " or specify a remote storage location for the flow with `.from_source`."
                 " If you are attempting to deploy a flow to a local process work pool,"
                 " consider using `flow.serve` instead. See the documentation for more"
-                " information: https://docs.prefect.io/latest/concepts/flows/#serving-a-flow"
+                " information: https://docs.prefect.io/latest/deploy/run-flows-in-local-processes"
             )
         elif work_pool.type == "process" and not ignore_warnings:
             console.print(
                 "Looks like you're deploying to a process work pool. If you're creating a"
                 " deployment for local development, calling `.serve` on your flow is a great"
                 " way to get started. See the documentation for more information:"
-                " https://docs.prefect.io/latest/concepts/flows/#serving-a-flow. "
+                " https://docs.prefect.io/latest/deploy/run-flows-in-local-processes "
                 " Set `ignore_warnings=True` to suppress this message.",
                 style="yellow",
             )

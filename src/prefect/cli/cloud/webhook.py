@@ -86,7 +86,7 @@ async def create(
             ' should define (at minimum) the following attributes: \n{ "event":'
             ' "your.event.name", "resource": { "prefect.resource.id":'
             ' "your.resource.id" } }'
-            " \nhttps://docs.prefect.io/latest/cloud/webhooks/#webhook-templates"
+            " \nhttps://docs.prefect.io/latest/automate/events/webhook-triggers#webhook-templates"
         )
 
     confirm_logged_in()

@@ -11,7 +11,7 @@ Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
+checkout out the [Prefect docs](https://docs.prefect.io/latest/deploy/infrastructure-concepts).
 """
 
 import enum

@@ -44,7 +44,7 @@ class JSON(Block):
     """
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/4fcef2294b6eeb423b1332d1ece5156bf296ff96-48x48.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON"
+    _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
 
     value: Any = Field(default=..., description="A JSON-compatible value.")
 
@@ -71,7 +71,7 @@ class String(Block):
     """
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c262ea2c80a2c043564e8763f3370c3db5a6b3e6-48x48.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.String"
+    _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
 
     value: str = Field(default=..., description="A string value.")
 
@@ -99,7 +99,7 @@ class DateTime(Block):
 
     _block_type_name = "Date Time"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/8b3da9a6621e92108b8e6a75b82e15374e170ff7-48x48.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime"
+    _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
 
     value: PydanticDateTime = Field(
         default=...,
@@ -129,7 +129,7 @@ class Secret(Block, Generic[T]):
     """
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c6f20e556dd16effda9df16551feecfb5822092b-48x48.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret"
+    _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
 
     value: Union[SecretStr, PydanticSecret[T]] = Field(
         default=...,

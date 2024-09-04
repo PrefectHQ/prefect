@@ -19,7 +19,9 @@ class Webhook(Block):
 
     _block_type_name = "Webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png"  # type: ignore
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook"
+    _documentation_url = (
+        "https://docs.prefect.io/latest/automate/events/webhook-triggers"
+    )
 
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(
         default="POST", description="The webhook request method. Defaults to `POST`."
