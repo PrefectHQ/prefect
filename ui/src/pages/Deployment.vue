@@ -5,7 +5,7 @@
         :deployment="deployment"
         @update="deploymentSubscription.refresh"
         @delete="routeToDeployments"
-        :deployment-disable-toggle="true"
+        deployment-disable-toggle
       />
     </template>
 
