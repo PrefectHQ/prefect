@@ -3054,7 +3054,12 @@ class PrefectClient:
         return response.json()
 
     async def increment_concurrency_slots(
-        self, names: List[str], slots: int, mode: str, create_if_missing: Optional[bool]
+        self,
+        names: List[str],
+        slots: int,
+        mode: str,
+        create_if_missing: Optional[bool],
+        active: Optional[bool] = False,
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/increment",
@@ -3063,6 +3068,7 @@ class PrefectClient:
                 "slots": slots,
                 "mode": mode,
                 "create_if_missing": create_if_missing,
+                "active": active,
             },
         )
 

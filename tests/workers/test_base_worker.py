@@ -379,6 +379,7 @@ async def test_worker_with_deployment_concurrency_limit_uses_limit(
                 timeout_seconds=None,
                 create_if_missing=True,
                 max_retries=0,
+                active=True,
             )
 
             names, occupy, occupy_seconds = release_spy.call_args[0]
@@ -418,6 +419,7 @@ async def test_worker_with_deployment_concurrency_limit_proposes_awaiting_limit_
             timeout_seconds=None,
             create_if_missing=True,
             max_retries=0,
+            active=True,
         )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)

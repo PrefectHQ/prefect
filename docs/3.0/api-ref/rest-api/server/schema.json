@@ -12695,6 +12695,11 @@
                         "type": "boolean",
                         "title": "Create If Missing",
                         "default": true
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "title": "Active",
+                        "default": false
                     }
                 },
                 "type": "object",

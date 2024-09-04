@@ -43,6 +43,7 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
                 timeout_seconds=None,
                 create_if_missing=True,
                 max_retries=None,
+                active=False,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -411,7 +412,7 @@ async def test_concurrency_creates_new_limits_if_requested(
 
     async def resource_heavy():
         nonlocal executed
-        async with concurrency("test", occupy=1, create_if_missing=True):
+        async with concurrency("test", occupy=1, create_if_missing=True, active=True):
             executed = True
 
     assert not executed
@@ -432,6 +433,7 @@ async def test_concurrency_creates_new_limits_if_requested(
                 timeout_seconds=None,
                 create_if_missing=True,
                 max_retries=None,
+                active=True,
             )
 
             # On release we calculate how many seconds the slots were occupied

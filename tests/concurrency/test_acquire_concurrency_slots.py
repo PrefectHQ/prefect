@@ -29,6 +29,7 @@ async def test_calls_increment_client_method():
             slots=1,
             mode="concurrency",
             create_if_missing=True,
+            active=False,
         )
 
 

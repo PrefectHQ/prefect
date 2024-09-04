@@ -874,7 +874,7 @@ class BaseWorker(abc.ABC):
 
         try:
             async with concurrency_ctx(
-                limit_name, occupy=concurrency_limit, max_retries=0
+                limit_name, occupy=concurrency_limit, max_retries=0, active=True
             ):
                 configuration = await self._get_configuration(flow_run, deployment)
                 submitted_event = self._emit_flow_run_submitted_event(configuration)

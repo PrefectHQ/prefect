@@ -42,12 +42,21 @@ class ConcurrencySlotAcquisitionService(QueueService):
             concurrent.futures.Future,
             Optional[bool],
             Optional[int],
+            Optional[bool],
         ],
     ) -> None:
-        occupy, mode, timeout_seconds, future, create_if_missing, max_retries = item
+        (
+            occupy,
+            mode,
+            timeout_seconds,
+            future,
+            create_if_missing,
+            max_retries,
+            active,
+        ) = item
         try:
             response = await self.acquire_slots(
-                occupy, mode, timeout_seconds, create_if_missing, max_retries
+                occupy, mode, timeout_seconds, create_if_missing, max_retries, active
             )
         except Exception as exc:
             # If the request to the increment endpoint fails in a non-standard
@@ -65,6 +74,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
         timeout_seconds: Optional[float] = None,
         create_if_missing: Optional[bool] = False,
         max_retries: Optional[int] = None,
+        active: Optional[bool] = False,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
             while True:
@@ -74,6 +84,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         slots=slots,
                         mode=mode,
                         create_if_missing=create_if_missing,
+                        active=active,
                     )
                 except Exception as exc:
                     if (
@@ -92,7 +103,10 @@ class ConcurrencySlotAcquisitionService(QueueService):
                     return response
 
     def send(
-        self, item: Tuple[int, str, Optional[float], Optional[bool], Optional[int]]
+        self,
+        item: Tuple[
+            int, str, Optional[float], Optional[bool], Optional[int], Optional[bool]
+        ],
     ) -> concurrent.futures.Future:
         with self._lock:
             if self._stopped:
@@ -101,9 +115,17 @@ class ConcurrencySlotAcquisitionService(QueueService):
             logger.debug("Service %r enqueuing item %r", self, item)
             future: concurrent.futures.Future = concurrent.futures.Future()
 
-            occupy, mode, timeout_seconds, create_if_missing, max_retries = item
+            occupy, mode, timeout_seconds, create_if_missing, max_retries, active = item
             self._queue.put_nowait(
-                (occupy, mode, timeout_seconds, future, create_if_missing, max_retries)
+                (
+                    occupy,
+                    mode,
+                    timeout_seconds,
+                    future,
+                    create_if_missing,
+                    max_retries,
+                    active,
+                )
             )
 
         return future

@@ -185,10 +185,37 @@ async def delete_concurrency_limit(
     return result.rowcount > 0
 
 
+async def create_or_update_concurrency_limit(
+    session: AsyncSession,
+    concurrency_limit: Union[
+        schemas.actions.ConcurrencyLimitV2Create, schemas.core.ConcurrencyLimitV2
+    ],
+    concurrency_limit_id: Optional[UUID] = None,
+    name: Optional[str] = None,
+) -> orm_models.ConcurrencyLimitV2:
+    if not concurrency_limit_id and not name:
+        raise ValueError("Must provide either concurrency_limit_id or name")
+
+    current_concurrency_limit = await read_concurrency_limit(
+        session, concurrency_limit_id=concurrency_limit_id, name=name
+    )
+
+    if not current_concurrency_limit:
+        return await create_concurrency_limit(session, concurrency_limit)
+    else:
+        return await update_concurrency_limit(
+            session,
+            concurrency_limit,
+            concurrency_limit_id=concurrency_limit_id,
+            name=name,
+        )
+
+
 async def bulk_read_or_create_concurrency_limits(
     session: AsyncSession,
     names: List[str],
     create_if_missing: Optional[bool] = True,
+    active: Optional[bool] = False,
 ) -> List[orm_models.ConcurrencyLimitV2]:
     # Get all existing concurrency limits in `names`.
     existing_query = sa.select(orm_models.ConcurrencyLimitV2).where(
@@ -204,7 +231,7 @@ async def bulk_read_or_create_concurrency_limits(
         new_limits = [
             orm_models.ConcurrencyLimitV2(
                 **schemas.core.ConcurrencyLimitV2(
-                    name=name, limit=1, active=False
+                    name=name, limit=1, active=active
                 ).model_dump()
             )
             for name in missing_names
