@@ -2111,9 +2111,9 @@ class TestKubernetesWorker:
             )
             assert call_image_pull_policy == "IfNotPresent"
 
+    @pytest.mark.usefixtures("mock_core_client_lean", "mock_cluster_config")
     async def test_keepalive_enabled(
         self,
-        mock_core_client_lean,
     ):
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(),
