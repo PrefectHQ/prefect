@@ -46,7 +46,7 @@ To install the latest Prefect 2 release run the following command in your termin
 
 <div class="terminal">
 ```bash
-pip install prefect<3
+pip install 'prefect<3'
 ```
 </div>
 
