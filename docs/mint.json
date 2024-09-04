@@ -1262,6 +1262,10 @@
       "source": "/latest/api-ref/prefect/:slug*"
     },
     {
+      "destination": "/3.0/api-ref/python",
+      "source": "/api-ref/prefect/:slug*"
+    },
+    {
       "source": "/3.0rc/:slug*",
       "destination": "/3.0/:slug*"
     }
