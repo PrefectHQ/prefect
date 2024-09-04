@@ -96,36 +96,28 @@ def prompt_select_from_table(
     current_idx = 0
     selected_row = None
     table_kwargs = table_kwargs or {}
+    visible_rows = min(10, console.height - 4)  # Adjust number of visible rows
+    scroll_offset = 0
 
     def build_table() -> Union[Table, Group]:
-        """
-        Generate a table of options. The `current_idx` will be highlighted.
-        """
-
+        nonlocal scroll_offset
         table = Table(**table_kwargs)
         table.add_column()
         for column in columns:
             table.add_column(column.get("header", ""))
 
-        rows = []
-        max_length = 250
-        for item in data:
-            rows.append(
-                tuple(
-                    (
-                        value[:max_length] + "...\n"
-                        if isinstance(value := item.get(column.get("key")), str)
-                        and len(value) > max_length
-                        else value
-                    )
-                    for column in columns
-                )
-            )
+        # Adjust scroll_offset if necessary
+        if current_idx < scroll_offset:
+            scroll_offset = current_idx
+        elif current_idx >= scroll_offset + visible_rows:
+            scroll_offset = current_idx - visible_rows + 1
 
-        for i, row in enumerate(rows):
-            if i == current_idx:
-                # Use blue for selected options
-                table.add_row("[bold][blue]>", f"[bold][blue]{row[0]}[/]", *row[1:])
+        for i, item in enumerate(data[scroll_offset : scroll_offset + visible_rows]):
+            row = [item.get(column.get("key", "")) for column in columns]
+            if i + scroll_offset == current_idx:
+                table.add_row(
+                    "[bold][blue]>", *[f"[bold][blue]{cell}[/]" for cell in row]
+                )
             else:
                 table.add_row("  ", *row)
 
@@ -151,19 +143,9 @@ def prompt_select_from_table(
             key = readchar.readkey()
 
             if key == readchar.key.UP:
-                current_idx = current_idx - 1
-                # wrap to bottom if at the top
-                if opt_out_message and current_idx < 0:
-                    current_idx = len(data)
-                elif not opt_out_message and current_idx < 0:
-                    current_idx = len(data) - 1
+                current_idx = max(0, current_idx - 1)
             elif key == readchar.key.DOWN:
-                current_idx = current_idx + 1
-                # wrap to top if at the bottom
-                if opt_out_message and current_idx >= len(data) + 1:
-                    current_idx = 0
-                elif not opt_out_message and current_idx >= len(data):
-                    current_idx = 0
+                current_idx = min(len(data) - 1, current_idx + 1)
             elif key == readchar.key.CTRL_C:
                 # gracefully exit with no message
                 exit_with_error("")
