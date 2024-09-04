@@ -8,11 +8,11 @@ Execute shell commands from within Prefect flows.
 
 - [Prefect installed](/getting-started/installation/).
 
-### Install `prefect-shell`
+### Install `prefect-shell` for Prefect 2
 
 <div class="terminal">
 ```bash
-pip install -U prefect-shell
+pip install 'prefect[shell]<3'
 ```
 </div>
 

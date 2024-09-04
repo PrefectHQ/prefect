@@ -7,7 +7,7 @@
         <img src="https://img.shields.io/pypi/dm/prefect-snowflake?color=26272B&labelColor=090422" /></a>
 </p>
 
-## Welcome!
+## Welcome
 
 The prefect-snowflake collection makes it easy to connect to a Snowflake database in your Prefect flows. Check out the examples below to get started!
 
@@ -156,15 +156,16 @@ For more tips on how to use tasks and flows in an integration, check out [Using 
 
 ### Installation
 
-Install `prefect-snowflake` with `pip`:
+Install `prefect-snowflake` for Prefect:
 
 <div class="terminal">
 ```bash
-pip install prefect-snowflake
+pip install 'prefect[snowflake]<3'
 ```
 </div>
 
 ### Registering blocks
+
 Register blocks in this module to make them available for use.
 
 <div class="terminal">
@@ -179,7 +180,7 @@ Note, to use the `load` method on a block, you must already have a block documen
 
 Below is a walkthrough on saving a `SnowflakeCredentials` block through code.
 
-1. Head over to https://app.snowflake.com/.
+1. Head over to <https://app.snowflake.com/>.
 2. Login to your Snowflake account, e.g. nh12345.us-east-2.aws, with your username and password.
 3. Use those credentials to fill replace the placeholders below.
 

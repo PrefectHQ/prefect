@@ -10,13 +10,11 @@ Prefect provides a global view of the state of your workflows and allows you to 
 - [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/).
 - A [dbt Cloud account](https://cloud.getdbt.com/signup) if using dbt Cloud.
 
-### Install prefect-dbt
-
-Install `prefect-dbt`:
+### Install prefect-dbt for Prefect 2
 
 <div class = "terminal">
 ```bash
-pip install -U prefect-dbt
+pip install 'prefect[dbt]<3'
 ```
 </div>
 

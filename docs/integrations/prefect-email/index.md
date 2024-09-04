@@ -10,11 +10,11 @@ The `prefect-email` library helps you send emails from your Prefect flows.
 - Many email services, such as Gmail, require an [App Password](https://support.google.com/accounts/answer/185833) to successfully send emails.
     If you encounter an error similar to `smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted...`, it's likely you are not using an App Password.
 
-### Install prefect-email
+### Install prefect-email for Prefect 2
 
 <div class = "terminal">
 ```bash
-pip install -U prefect-email
+pip install 'prefect[email]<3'
 ```
 </div>
 

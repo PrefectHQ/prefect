@@ -7,8 +7,6 @@
         <img src="https://img.shields.io/pypi/dm/prefect-sqlalchemy?color=0052FF&labelColor=090422" /></a>
 </p>
 
-Visit the full docs [here](https://PrefectHQ.github.io/prefect-sqlalchemy) to see additional examples and the API reference.
-
 The prefect-sqlalchemy collection makes it easy to connect to a database in your Prefect flows. Check out the examples below to get started!
 
 ## Getting started
@@ -140,15 +138,11 @@ Be sure to install [prefect-sqlalchemy](#installation) and [save your credential
 
 For more tips on how to use tasks and flows provided in a Prefect integration library, check out the [Prefect docs on using integrations](https://docs.prefect.io/integrations/usage/).
 
-### Installation
-
-Install `prefect-sqlalchemy` with `pip`:
+### Install `prefect-sqlalchemy` for Prefect 2
 
 ```bash
-pip install prefect-sqlalchemy
+pip install 'prefect[sqlalchemy]<3'
 ```
-
-Requires an installation of Python 3.8 or higher.
 
 We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
 
@@ -214,8 +208,7 @@ connector.save("BLOCK_NAME-PLACEHOLDER")
 
 If you encounter any bugs while using `prefect-sqlalchemy`, please open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
 
-If you have any questions or issues while using `prefect-sqlalchemy`, you can find help in the [Prefect Community Slack ](https://prefect.io/slack).
-
+If you have any questions or issues while using `prefect-sqlalchemy`, you can find help in the [Prefect Community Slack](https://prefect.io/slack).
 
 ### Contributing
 
@@ -226,13 +219,17 @@ Here are the steps:
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:
+
 ```
 pip install -e ".[dev]"
 ```
+
 4. Make desired changes
 5. Add tests
 6. Install `pre-commit` to perform quality checks prior to commit:
+
 ```
 pre-commit install
 ```
+
 7. `git commit`, `git push`, and create a pull request

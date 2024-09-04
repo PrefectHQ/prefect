@@ -9,11 +9,11 @@ The prefect-bitbucket library makes it easy to interact with Bitbucket repositor
 - [Prefect installed](/getting-started/installation/).
 - A [Bitbucket account](https://bitbucket.org/product).
 
-### Install prefect-bitbucket
+### Install prefect-bitbucket for Prefect 2
 
 <div class = "terminal">
 ```bash
-pip install -U prefect-bitbucket
+pip install 'prefect[bitbucket]<3'
 ```
 </div>
 

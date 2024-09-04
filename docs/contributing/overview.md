@@ -12,7 +12,9 @@ search:
 
 # Contributing
 
-Thanks for considering contributing to Prefect!
+Thank you for considering contributing to Prefect.
+These instructions are for working with Prefect 2.
+For Prefect 3 see the [Prefect 3 documentation](https://docs.prefect.io).
 
 ## Setting up a development environment
 
@@ -20,9 +22,10 @@ First, download the source code and install an editable version of the Python pa
 
 <div class="terminal">
 ```bash
-# Clone the repository
+# Clone the repository's 2.x branch
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
+git checkout -b new-branch-2.x 2.x
 
 # We recommend using a virtual environment
 
@@ -33,7 +36,7 @@ source .venv/bin/activate
 
 pip install -e ".[dev]"
 
-# Setup pre-commit hooks for required formatting
+# Set up pre-commit hooks for required formatting
 
 pre-commit install
 
