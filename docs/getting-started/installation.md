@@ -145,7 +145,7 @@ Install with:
 
 <div class="terminal">
 ```bash
-pip install prefect-client<3
+pip install 'prefect-client<3'
 ```
 </div>
 
