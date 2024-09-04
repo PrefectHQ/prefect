@@ -14,7 +14,6 @@ from rich.live import Live
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm, InvalidResponse, Prompt, PromptBase
 from rich.table import Table
-from rich.text import Text
 
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
@@ -96,45 +95,40 @@ def prompt_select_from_table(
     current_idx = 0
     selected_row = None
     table_kwargs = table_kwargs or {}
+    visible_rows = min(10, console.height - 4)  # Adjust number of visible rows
+    scroll_offset = 0
+    total_options = len(data) + (1 if opt_out_message else 0)
 
     def build_table() -> Union[Table, Group]:
-        """
-        Generate a table of options. The `current_idx` will be highlighted.
-        """
-
+        nonlocal scroll_offset
         table = Table(**table_kwargs)
         table.add_column()
         for column in columns:
             table.add_column(column.get("header", ""))
 
-        rows = []
-        max_length = 250
-        for item in data:
-            rows.append(
-                tuple(
-                    (
-                        value[:max_length] + "...\n"
-                        if isinstance(value := item.get(column.get("key")), str)
-                        and len(value) > max_length
-                        else value
-                    )
-                    for column in columns
-                )
-            )
+        # Adjust scroll_offset if necessary
+        if current_idx < scroll_offset:
+            scroll_offset = current_idx
+        elif current_idx >= scroll_offset + visible_rows:
+            scroll_offset = current_idx - visible_rows + 1
 
-        for i, row in enumerate(rows):
-            if i == current_idx:
-                # Use blue for selected options
-                table.add_row("[bold][blue]>", f"[bold][blue]{row[0]}[/]", *row[1:])
+        for i, item in enumerate(data[scroll_offset : scroll_offset + visible_rows]):
+            row = [item.get(column.get("key", "")) for column in columns]
+            if i + scroll_offset == current_idx:
+                table.add_row(
+                    "[bold][blue]>", *[f"[bold][blue]{cell}[/]" for cell in row]
+                )
             else:
                 table.add_row("  ", *row)
 
         if opt_out_message:
-            prefix = "  > " if current_idx == len(data) else " " * 4
-            bottom_text = Text(prefix + opt_out_message)
+            opt_out_row = [""] * (len(columns) - 1) + [opt_out_message]
             if current_idx == len(data):
-                bottom_text.stylize("bold blue")
-            return Group(table, bottom_text)
+                table.add_row(
+                    "[bold][blue]>", *[f"[bold][blue]{cell}[/]" for cell in opt_out_row]
+                )
+            else:
+                table.add_row("  ", *opt_out_row)
 
         return table
 
@@ -151,24 +145,14 @@ def prompt_select_from_table(
             key = readchar.readkey()
 
             if key == readchar.key.UP:
-                current_idx = current_idx - 1
-                # wrap to bottom if at the top
-                if opt_out_message and current_idx < 0:
-                    current_idx = len(data)
-                elif not opt_out_message and current_idx < 0:
-                    current_idx = len(data) - 1
+                current_idx = (current_idx - 1) % total_options
             elif key == readchar.key.DOWN:
-                current_idx = current_idx + 1
-                # wrap to top if at the bottom
-                if opt_out_message and current_idx >= len(data) + 1:
-                    current_idx = 0
-                elif not opt_out_message and current_idx >= len(data):
-                    current_idx = 0
+                current_idx = (current_idx + 1) % total_options
             elif key == readchar.key.CTRL_C:
                 # gracefully exit with no message
                 exit_with_error("")
             elif key == readchar.key.ENTER or key == readchar.key.CR:
-                if current_idx >= len(data):
+                if current_idx == len(data):
                     return opt_out_response
                 else:
                     selected_row = data[current_idx]
@@ -181,8 +165,6 @@ def prompt_select_from_table(
 
 
 # Interval schedule prompting utilities
-
-
 class IntervalValuePrompt(PromptBase[timedelta]):
     response_type = timedelta
     validate_error_message = (
@@ -858,6 +840,7 @@ async def prompt_select_blob_storage_credentials(
     url = urls.url_for(new_block_document)
     if url:
         console.print(
-            "\nView/Edit your new credentials block in the UI:" f"\n[blue]{url}[/]\n"
+            "\nView/Edit your new credentials block in the UI:" f"\n[blue]{url}[/]\n",
+            soft_wrap=True,
         )
     return f"{{{{ prefect.blocks.{creds_block_type_slug}.{new_block_document.name} }}}}"
