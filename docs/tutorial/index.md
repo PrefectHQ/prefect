@@ -48,7 +48,7 @@ Then install Prefect:
 
 <div class="terminal">
 ```bash
-pip install prefect<3
+pip install 'prefect<3'
 ```
 </div>
 
