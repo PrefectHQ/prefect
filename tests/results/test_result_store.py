@@ -756,3 +756,41 @@ async def test_result_store_read_and_write_with_metadata_storage(tmp_path):
     assert (
         tmp_path / "metadata" / key
     ).read_text() == read_value.metadata.model_dump_json(serialize_as_any=True)
+
+
+async def test_result_store_exists_with_metadata_storage(tmp_path):
+    metadata_storage = LocalFileSystem(basepath=tmp_path / "metadata")
+    result_storage = LocalFileSystem(basepath=tmp_path / "results")
+    result_store = ResultStore(
+        metadata_storage=metadata_storage, result_storage=result_storage
+    )
+
+    key = "test"
+    value = "test"
+    await result_store.awrite(key=key, obj=value)
+
+    assert await result_store.aexists(key=key) is True
+    assert await result_store.aexists(key="nonexistent") is False
+    assert result_store.exists(key=key) is True
+    assert result_store.exists(key="nonexistent") is False
+
+    # Remove the metadata file and check that the result is not found
+    (tmp_path / "metadata" / key).unlink()
+    assert await result_store.aexists(key=key) is False
+    assert result_store.exists(key=key) is False
+
+
+async def test_result_store_exists_with_no_metadata_storage(tmp_path):
+    result_storage = LocalFileSystem(basepath=tmp_path / "results")
+    result_store = ResultStore(result_storage=result_storage)
+
+    key = "test"
+    value = "test"
+    await result_store.awrite(key=key, obj=value)
+    assert await result_store.aexists(key=key) is True
+    assert result_store.exists(key=key) is True
+
+    # Remove the result file and check that the result is not found
+    (tmp_path / "results" / key).unlink()
+    assert await result_store.aexists(key=key) is False
+    assert result_store.exists(key=key) is False

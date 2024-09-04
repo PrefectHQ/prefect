@@ -248,6 +248,56 @@ class ResultStore(BaseModel):
         return self.model_copy(update=update)
 
     @sync_compatible
+    async def _exists(self, key: str) -> bool:
+        """
+        Check if a result record exists in storage.
+
+        Args:
+            key: The key to check for the existence of a result record.
+
+        Returns:
+            bool: True if the result record exists, False otherwise.
+        """
+        if self.metadata_storage is not None:
+            # TODO: Add an `exists` method to commonly used storage blocks
+            # so the entire payload doesn't need to be read
+            try:
+                metadata_content = await self.metadata_storage.read_path(key)
+                return metadata_content is not None
+            except Exception:
+                return False
+        else:
+            try:
+                content = await self.result_storage.read_path(key)
+                return content is not None
+            except Exception:
+                return False
+
+    def exists(self, key: str) -> bool:
+        """
+        Check if a result record exists in storage.
+
+        Args:
+            key: The key to check for the existence of a result record.
+
+        Returns:
+            bool: True if the result record exists, False otherwise.
+        """
+        return self._exists(key=key, _sync=True)
+
+    async def aexists(self, key: str) -> bool:
+        """
+        Check if a result record exists in storage.
+
+        Args:
+            key: The key to check for the existence of a result record.
+
+        Returns:
+            bool: True if the result record exists, False otherwise.
+        """
+        return await self._exists(key=key, _sync=False)
+
+    @sync_compatible
     async def _read(self, key: str) -> "ResultRecord":
         """
         Read a result record from storage.
