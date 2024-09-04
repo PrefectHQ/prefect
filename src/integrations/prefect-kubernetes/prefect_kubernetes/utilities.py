@@ -25,7 +25,7 @@ class KeepAliveClientRequest(ClientRequest):
     Refer to https://github.com/aio-libs/aiohttp/issues/3904#issuecomment-759205696
     """
 
-    async def send(self, conn: "Connection") -> "ClientResponse":
+    async def send(self, conn: Connection) -> ClientResponse:
         sock = conn.protocol.transport.get_extra_info("socket")
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
