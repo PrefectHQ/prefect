@@ -39,22 +39,24 @@ Learn more about Prefect Cloud solutions for enterprises [here](https://www.pref
 
 The following sections describe how to install Prefect in your environment.
 
-### Installing the latest version
+### Installing the Prefect 2 latest version
 
 Prefect is published as a Python package.
-To install the latest release or upgrade an existing Prefect install, and upgrade existing Python dependencies, run the following command in your terminal:
+To install the latest Prefect 2 release run the following command in your terminal:
 
 <div class="terminal">
 ```bash
-pip install -U prefect
+pip install prefect<3
 ```
 </div>
+
+See the [Prefect 3 docs](https://docs.prefect.io) to learn about the benefits of Prefect 3 and how to install it.
 
 To install a specific Prefect version, specify the version number like this:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.17.1"
+pip install "prefect==2.17.1"
 ```
 </div>
 
@@ -139,11 +141,11 @@ The `prefect-client` library is a minimal installation of Prefect designed for i
 `prefect-client` enables a subset of Prefect's functionality with a smaller installation size, making it ideal for use in lightweight, resource-constrained, or ephemeral environments.
 It omits all CLI and server components found in the `prefect` library.
 
-Install the latest version with:
+Install with:
 
 <div class="terminal">
 ```bash
-pip install -U prefect-client
+pip install prefect-client<3
 ```
 </div>
 
@@ -216,15 +218,15 @@ pip3 install prefect
 
 ## Installing unreleased code
 
-To use the most up-to-date, unreleased Prefect code, you can install directly off the `main` GitHub branch:
+To use the most up-to-date, unreleased Prefect 2 code, you can install directly off the `2.x` GitHub branch:
 
 <div class="terminal">
 ```bash
-pip install -U git+https://github.com/PrefectHQ/prefect
+pip install --branch 2.x -U git+https://github.com/PrefectHQ/prefect
 ```
 </div>
 
-!!! warning "The `main` branch may not be stable"
+!!! warning "The `2.x` branch may not be stable"
     Please be aware that this method installs unreleased code and may not be stable.
 
 ## Next steps
