@@ -210,24 +210,11 @@ Now you can install Prefect using `pip`.
 
 <div class="terminal">
 ```bash
-pip3 install prefect
+pip3 install 'prefect<3'
 ```
 </div>
 
 </details>
-
-## Installing unreleased code
-
-To use the most up-to-date, unreleased Prefect 2 code, you can install directly off the `2.x` GitHub branch:
-
-<div class="terminal">
-```bash
-pip install --branch 2.x -U git+https://github.com/PrefectHQ/prefect
-```
-</div>
-
-!!! warning "The `2.x` branch may not be stable"
-    Please be aware that this method installs unreleased code and may not be stable.
 
 ## Next steps
 
