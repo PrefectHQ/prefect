@@ -4214,6 +4214,21 @@ class TestFlowFromSource:
     def test_load_flow_from_source_on_flow_function(self):
         assert hasattr(flow, "from_source")
 
+    async def test_no_pull_for_local_storage(self, monkeypatch):
+        from prefect.runner.storage import LocalStorage
+
+        storage = LocalStorage(path="/tmp/test")
+
+        mock_load_flow = AsyncMock(return_value=MagicMock(spec=Flow))
+        monkeypatch.setattr("prefect.flows.load_flow_from_entrypoint", mock_load_flow)
+
+        pull_code_spy = AsyncMock()
+        monkeypatch.setattr(LocalStorage, "pull_code", pull_code_spy)
+
+        await Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+
+        pull_code_spy.assert_not_called()
+
 
 class TestFlowDeploy:
     @pytest.fixture
