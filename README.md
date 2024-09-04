@@ -36,7 +36,7 @@ Every activity is tracked and can be monitored with a self-hosted [Prefect serve
 Prefect requires Python 3.8 or later. To [install Prefect 2](https://docs-2.prefect.io/getting-started/installation/), run the following command:
 
 ```bash
-pip install prefect<3
+pip install 'prefect<3'
 ```
 
 See the [Prefect 3 docs](https://docs.prefect.io) to learn about the benefits of Prefect 3 and how to install it.
