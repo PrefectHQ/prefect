@@ -388,35 +388,28 @@ class ResultStore(BaseModel):
         holder = holder or self.generate_default_holder()
         return await self._read(key=key, holder=holder, _sync=False)
 
-    @sync_compatible
-    async def _write(
+    def create_result_record(
         self,
+        key: str,
         obj: Any,
-        holder: str,
-        key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
     ):
         """
-        Write a result to storage.
-
-        This is the internal implementation. Use `write` or `awrite` for synchronous and
-        asynchronous result writing respectively.
+        Create a result record.
 
         Args:
-            key: The key to write the result record to.
-            obj: The object to write to storage.
+            key: The key to create the result record for.
+            obj: The object to create the result record for.
             expiration: The expiration time for the result record.
-            holder: The holder of the lock if a lock was set on the record.
         """
         key = key or self.storage_key_fn()
 
-        record = ResultRecord(
+        return ResultRecord(
             result=obj,
             metadata=ResultRecordMetadata(
                 serializer=self.serializer, expiration=expiration, storage_key=key
             ),
         )
-        await self._persist_result_record(record, holder=holder)
 
     def write(
         self,
@@ -437,8 +430,11 @@ class ResultStore(BaseModel):
             holder: The holder of the lock if a lock was set on the record.
         """
         holder = holder or self.generate_default_holder()
-        return self._write(
-            obj=obj, key=key, expiration=expiration, holder=holder, _sync=True
+        return self.persist_result_record(
+            result_record=self.create_result_record(
+                key=key, obj=obj, expiration=expiration
+            ),
+            holder=holder,
         )
 
     async def awrite(
@@ -458,8 +454,11 @@ class ResultStore(BaseModel):
             holder: The holder of the lock if a lock was set on the record.
         """
         holder = holder or self.generate_default_holder()
-        return await self._write(
-            obj=obj, key=key, expiration=expiration, holder=holder, _sync=False
+        return await self.apersist_result_record(
+            result_record=self.create_result_record(
+                key=key, obj=obj, expiration=expiration
+            ),
+            holder=holder,
         )
 
     @sync_compatible

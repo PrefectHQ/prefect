@@ -22,7 +22,6 @@ from prefect.context import ContextModel
 from prefect.exceptions import MissingContextError, SerializationError
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
-
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name

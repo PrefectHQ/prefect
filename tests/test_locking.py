@@ -18,18 +18,16 @@ class TestMemoryLockManager:
     async def test_read_locked_key(self):
         key = str(uuid4())
         store = ResultStore(lock_manager=MemoryLockManager())
+        read_queue = queue.Queue()
 
-        def read_locked_key(queue):
+        def read_locked_key():
             record = store.read(key)
-            assert record is not None
-            queue.put(record.result)
+            read_queue.put(record.result)
 
-        thread = threading.Thread(
-            target=read_locked_key, args=(read_queue := queue.Queue(),)
-        )
+        thread = threading.Thread(target=read_locked_key)
         assert store.acquire_lock(key, holder="holder1")
         thread.start()
-        store.write(key, obj={"test": "value"}, holder="holder1")
+        await store.awrite(key, obj={"test": "value"}, holder="holder1")
         store.release_lock(key, holder="holder1")
         thread.join()
         # the read should have been blocked until the lock was released
