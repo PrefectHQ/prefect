@@ -159,10 +159,10 @@ from prefect.workers.base import (
 from prefect_kubernetes.credentials import KubernetesClusterConfig
 from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
+    KeepAliveClientRequest,
     _slugify_label_key,
     _slugify_label_value,
     _slugify_name,
-    enable_socket_keep_alive,
 )
 
 MAX_ATTEMPTS = 3
@@ -637,10 +637,6 @@ class KubernetesWorker(BaseWorker):
         Returns a configured Kubernetes client.
         """
         client = None
-        if os.environ.get(
-            "PREFECT_KUBERNETES_WORKER_ADD_TCP_KEEPALIVE", "TRUE"
-        ).strip().lower() in ("true", "1"):
-            enable_socket_keep_alive(client)
 
         if configuration.cluster_config:
             config_dict = configuration.cluster_config.config
@@ -657,6 +653,12 @@ class KubernetesWorker(BaseWorker):
             except config.ConfigException:
                 # If in-cluster config fails, load the local kubeconfig
                 client = await config.new_client_from_config()
+
+        if os.environ.get(
+            "PREFECT_KUBERNETES_WORKER_ADD_TCP_KEEPALIVE", "TRUE"
+        ).strip().lower() in ("true", "1"):
+            client.rest_client.pool_manager._request_class = KeepAliveClientRequest
+
         try:
             yield client
         finally:

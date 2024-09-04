@@ -24,7 +24,11 @@ from kubernetes_asyncio.client.models import (
 )
 from kubernetes_asyncio.config import ConfigException
 from prefect_kubernetes import KubernetesWorker
-from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
+from prefect_kubernetes.utilities import (
+    KeepAliveClientRequest,
+    _slugify_label_value,
+    _slugify_name,
+)
 from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
 from pydantic import ValidationError
 
@@ -1504,7 +1508,7 @@ class TestKubernetesWorker:
                 )
 
         # Make sure secret gets deleted
-        assert mock_core_client.return_value.delete_namespaced_secret(
+        assert await mock_core_client.return_value.delete_namespaced_secret(
             name=f"prefect-{_slugify_name(k8s_worker.name)}-api-key",
             namespace=configuration.namespace,
         )
@@ -2107,6 +2111,24 @@ class TestKubernetesWorker:
             )
             assert call_image_pull_policy == "IfNotPresent"
 
+    @pytest.mark.usefixtures("mock_core_client_lean", "mock_cluster_config")
+    async def test_keepalive_enabled(
+        self,
+    ):
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo"},
+        )
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            async with k8s_worker._get_configured_kubernetes_client(
+                configuration
+            ) as client:
+                assert (
+                    client.rest_client.pool_manager._request_class
+                    is KeepAliveClientRequest
+                )
+
     async def test_defaults_to_incluster_config(
         self,
         flow_run,
@@ -2117,12 +2139,7 @@ class TestKubernetesWorker:
         mock_batch_client,
         mock_job,
         mock_pod,
-        monkeypatch,
     ):
-        monkeypatch.setattr(
-            "prefect_kubernetes.worker.enable_socket_keep_alive", MagicMock()
-        )
-
         async def mock_stream(*args, **kwargs):
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
@@ -2148,12 +2165,7 @@ class TestKubernetesWorker:
         mock_core_client_lean,
         mock_job,
         mock_pod,
-        monkeypatch,
     ):
-        monkeypatch.setattr(
-            "prefect_kubernetes.worker.enable_socket_keep_alive", MagicMock()
-        )
-
         async def mock_stream(*args, **kwargs):
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
