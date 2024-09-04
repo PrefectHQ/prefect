@@ -2,6 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Dict
+from unittest.mock import AsyncMock, MagicMock
 
 import pydantic
 import pytest
@@ -13,9 +14,13 @@ from kubernetes_asyncio.client import (
     CoreV1Api,
     CustomObjectsApi,
 )
+from kubernetes_asyncio.config import ConfigException
 from kubernetes_asyncio.config.kube_config import list_kube_config_contexts
 from OpenSSL import crypto
-from prefect_kubernetes.credentials import KubernetesClusterConfig
+from prefect_kubernetes.credentials import (
+    KubernetesClusterConfig,
+    KubernetesCredentials,
+)
 
 
 @pytest.fixture
@@ -107,6 +112,19 @@ def config_file(tmp_path, config_context) -> Path:
     return config_file
 
 
+@pytest.fixture
+def mock_cluster_config(monkeypatch):
+    mock = MagicMock()
+    # We cannot mock this or the `except` clause will complain
+    mock.ConfigException.return_value = ConfigException
+    mock.load_kube_config = AsyncMock()
+    monkeypatch.setattr("prefect_kubernetes.credentials.config", mock)
+    monkeypatch.setattr(
+        "prefect_kubernetes.credentials.config.ConfigException", ConfigException
+    )
+    return mock
+
+
 class TestCredentials:
     @pytest.mark.parametrize(
         "resource_type,client_type",
@@ -129,6 +147,21 @@ class TestCredentials:
         ):
             async with kubernetes_credentials.get_client("shoo-ba-daba-doo"):
                 pass
+
+    async def test_incluster_config(self, mock_cluster_config):
+        kubernetes_credentials = KubernetesCredentials()
+        mock_cluster_config.load_incluster_config.return_value = None
+        async with kubernetes_credentials.get_client("batch"):
+            assert mock_cluster_config.load_incluster_config.called
+            assert not mock_cluster_config.load_kube_config.called
+
+    async def test_load_kube_config(self, mock_cluster_config):
+        kubernetes_credentials = KubernetesCredentials()
+        mock_cluster_config.load_incluster_config.side_effect = ConfigException()
+        mock_cluster_config.load_kube_config.return_value = None
+        async with kubernetes_credentials.get_client("batch"):
+            assert mock_cluster_config.load_incluster_config.called
+            assert mock_cluster_config.load_kube_config.called
 
 
 class TestKubernetesClusterConfig:
