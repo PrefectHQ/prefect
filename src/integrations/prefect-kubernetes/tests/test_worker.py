@@ -2111,7 +2111,10 @@ class TestKubernetesWorker:
             )
             assert call_image_pull_policy == "IfNotPresent"
 
-    async def test_keepalive_enabled(self):
+    async def test_keepalive_enabled(
+        self,
+        mock_core_client_lean,
+    ):
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(),
             {"image": "foo"},
