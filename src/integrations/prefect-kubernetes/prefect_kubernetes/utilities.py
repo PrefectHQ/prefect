@@ -17,18 +17,26 @@ V1KubernetesModel = TypeVar("V1KubernetesModel")
 
 
 class KeepAliveClientRequest(ClientRequest):
+    """
+    aiohttp only directly implements socket keepalive for incoming connections
+    in its RequestHandler. For client connections, we need to set the keepalive
+    ourselves.
+
+    Refer to https://github.com/aio-libs/aiohttp/issues/3904#issuecomment-759205696
+    """
+
     async def send(self, conn: "Connection") -> "ClientResponse":
         sock = conn.protocol.transport.get_extra_info("socket")
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
         if hasattr(socket, "TCP_KEEPIDLE"):
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 30)
 
         if hasattr(socket, "TCP_KEEPINTVL"):
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 2)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 6)
 
         if hasattr(socket, "TCP_KEEPCNT"):
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 5)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
 
         if sys.platform == "darwin":
             # TCP_KEEP_ALIVE not available on socket module in macOS, but defined in
