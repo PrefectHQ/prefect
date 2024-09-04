@@ -1032,8 +1032,6 @@ class Flow(Generic[P, R]):
             if not isinstance(storage, LocalStorage):
                 storage.set_base_path(Path(tmpdir))
                 await storage.pull_code()
-            storage.set_base_path(Path(tmpdir))
-            await storage.pull_code()
 
             full_entrypoint = str(storage.destination / entrypoint)
             flow: Flow = await from_async.wait_for_call_in_new_thread(
