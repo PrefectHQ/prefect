@@ -315,13 +315,17 @@ class ResultStore(BaseModel):
             self.result_storage = await get_default_result_storage()
 
         if self.metadata_storage is not None:
-            metadata_content = await self.metadata_storage.read_path(f"{key}")
-            result_content = await self.result_storage.read_path(f"{key}")
+            metadata_content = await self.metadata_storage.read_path(key)
+            metadata = ResultRecordMetadata.load_bytes(metadata_content)
+            assert (
+                metadata.storage_key is not None
+            ), "Did not find storage key in metadata"
+            result_content = await self.result_storage.read_path(metadata.storage_key)
             return ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
         else:
-            content = await self.result_storage.read_path(f"{key}")
+            content = await self.result_storage.read_path(key)
             return ResultRecord.deserialize(content)
 
     def read(self, key: str) -> "ResultRecord":
