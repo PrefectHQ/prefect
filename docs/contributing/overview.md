@@ -23,7 +23,7 @@ First, download the source code and install an editable version of the Python pa
 <div class="terminal">
 ```bash
 # Clone the repository's 2.x branch
-git clone --branch 2.x https://github.com/PrefectHQ/prefect.git
+git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 
 # We recommend using a virtual environment
