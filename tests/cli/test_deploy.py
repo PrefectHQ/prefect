@@ -804,7 +804,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -6339,7 +6339,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar --variable"
+                " 1.0.0 -v env=prod -t foo-bar --job-variable"
                 ' \'{"resources":{"limits":{"cpu": 1}}}\''
             ),
             expected_code=0,
@@ -6366,7 +6366,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar --variable 'my-variable'"
+                " 1.0.0 -v env=prod -t foo-bar --job-variable 'my-variable'"
             ),
             expected_code=1,
             expected_output_contains=[
@@ -6379,7 +6379,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar --variable ['my-variable']"
+                " 1.0.0 -v env=prod -t foo-bar --job-variable ['my-variable']"
             ),
             expected_code=1,
             expected_output_contains=[
@@ -6392,7 +6392,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar --variable "
+                " 1.0.0 -v env=prod -t foo-bar --job-variable "
                 ' \'{"resources":{"limits":{"cpu"}\''
             ),
             expected_code=1,
