@@ -20,7 +20,7 @@
 
 # Prefect
 
-Prefect is an orchestration and observability platform for building, observing, and triaging workflows. 
+Prefect is an orchestration and observability platform for building, observing, and triaging workflows.
 It's the simplest way to transform Python code into an interactive workflow application.
 
 Prefect allows you to expose your workflows through an API so teams dependent on you can programmatically access your pipelines, business logic, and more.
@@ -33,11 +33,13 @@ Every activity is tracked and can be monitored with a self-hosted [Prefect serve
 
 ## Getting started
 
-Prefect requires Python 3.8 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command:
+Prefect requires Python 3.8 or later. To [install Prefect 2](https://docs-2.prefect.io/getting-started/installation/), run the following command:
 
 ```bash
-pip install prefect
+pip install prefect<3
 ```
+
+See the [Prefect 3 docs](https://docs.prefect.io) to learn about the benefits of Prefect 3 and how to install it.
 
 Then create and run a Python file that uses Prefect `flow` and `task` decorators to orchestrate and observe your workflow - in this case, a simple script that fetches the number of GitHub stars from a repository:
 
@@ -93,8 +95,8 @@ Read more about Prefect Cloud [here](https://www.prefect.io/cloud-vs-oss?utm_sou
 
 ## prefect-client
 
-If your use case is geared towards communicating with Prefect Cloud or a remote Prefect server, check out our 
-[prefect-client](https://pypi.org/project/prefect-client/). It was designed to be a lighter-weight option for accessing 
+If your use case is geared towards communicating with Prefect Cloud or a remote Prefect server, check out our
+[prefect-client](https://pypi.org/project/prefect-client/). It was designed to be a lighter-weight option for accessing
 client-side functionality in the Prefect SDK and is ideal for use in ephemeral execution environments.
 
 ## Next steps
