@@ -1,13 +1,14 @@
 from unittest.mock import MagicMock
 
 import pytest
-from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient
+from azure.storage.blob.aio import BlobClient, BlobServiceClient, ContainerClient
 from conftest import CosmosClientMock
 from prefect_azure.credentials import (
     AzureBlobStorageCredentials,
     AzureCosmosDbCredentials,
     AzureMlCredentials,
 )
+from pydantic import SecretStr
 
 from prefect import flow
 
@@ -34,7 +35,7 @@ def test_get_blob_container_client(blob_connection_string):
 
     client = test_flow()
     assert isinstance(client, ContainerClient)
-    client.container_name == "container"
+    assert client.container_name == "container"
 
 
 def test_get_blob_client(blob_connection_string):
@@ -47,8 +48,8 @@ def test_get_blob_client(blob_connection_string):
 
     client = test_flow()
     assert isinstance(client, BlobClient)
-    client.container_name == "container"
-    client.blob_name == "blob"
+    assert client.container_name == "container"
+    assert client.blob_name == "blob"
 
 
 def test_get_service_client_either_error():
@@ -73,7 +74,7 @@ def test_get_blob_container_client_no_conn_str(account_url):
         "container"
     )
     assert isinstance(client, ContainerClient)
-    client.container_name == "container"
+    assert client.container_name == "container"
 
 
 def test_get_blob_client_no_conn_str(account_url):
@@ -81,8 +82,8 @@ def test_get_blob_client_no_conn_str(account_url):
         "container", "blob"
     )
     assert isinstance(client, BlobClient)
-    client.container_name == "container"
-    client.blob_name == "blob"
+    assert client.container_name == "container"
+    assert client.blob_name == "blob"
 
 
 def test_get_cosmos_client(cosmos_connection_string):
@@ -126,7 +127,7 @@ def test_get_workspace(monkeypatch):
         workspace = AzureMlCredentials(
             tenant_id="tenant_id",
             service_principal_id="service_principal_id",
-            service_principal_password="service_principal_password",
+            service_principal_password=SecretStr("service_principal_password"),
             subscription_id="subscription_id",
             resource_group="resource_group",
             workspace_name="workspace_name",
