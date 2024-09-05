@@ -71,9 +71,9 @@ deployments:
 
     # infra-specific fields
     work_pool:
-    name: null
-    work_queue_name: null
-    job_variables: {}
+        name: null
+        work_queue_name: null
+        job_variables: {}
 ```
 
 The metadata fields are always pre-populated for you. These fields are for bookkeeping purposes only. The other sections are 
@@ -332,7 +332,7 @@ pull:
         id: clone-step  # needed to be referenced in subsequent steps
         repository: https://github.com/org/repo.git
     - prefect.deployments.steps.pip_install_requirements:
-        directory: {{ clone-step.directory }}  # `clone-step` is a user-provided `id` field
+        directory: "{{ clone-step.directory }}"  # `clone-step` is a user-provided `id` field
         requirements_file: requirements.txt
 ```
 
