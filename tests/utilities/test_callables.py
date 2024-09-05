@@ -192,7 +192,7 @@ class TestFunctionToSchema:
             "type": "object",
             "properties": {
                 "x": {
-                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    "$ref": "#/definitions/Color",
                     "default": "RED",
                     "position": 0,
                     "title": "x",
@@ -296,7 +296,7 @@ class TestFunctionToSchema:
             },
             "properties": {
                 "x": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "$ref": "#/definitions/Foo",
                     "title": "x",
                     "position": 0,
                 }
@@ -324,7 +324,7 @@ class TestFunctionToSchema:
             "type": "object",
             "properties": {
                 "foo": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "$ref": "#/definitions/Foo",
                     "default": {"bar": "baz"},
                     "position": 0,
                     "title": "foo",
@@ -409,14 +409,14 @@ class TestFunctionToSchema:
                     "type": "array",
                 },
                 "m": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "$ref": "#/definitions/Foo",
                     "position": 2,
                     "title": "m",
                 },
                 "i": {"default": 0, "position": 3, "title": "i", "type": "integer"},
                 "x": {"default": 1.0, "position": 4, "title": "x", "type": "number"},
                 "model": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "$ref": "#/definitions/Foo",
                     "default": {"bar": "bar"},
                     "position": 5,
                     "title": "model",
@@ -434,7 +434,7 @@ class TestFunctionToSchema:
                     "title": "c",
                     "default": "BLUE",
                     "position": 9,
-                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    "$ref": "#/definitions/Color",
                 },
             },
             "required": ["a", "s", "m"],
@@ -540,7 +540,7 @@ class TestMethodToSchema:
                 "type": "object",
                 "properties": {
                     "color": {
-                        "allOf": [{"$ref": "#/definitions/Color"}],
+                        "$ref": "#/definitions/Color",
                         "default": "RED",
                         "position": 0,
                         "title": "color",
@@ -1034,7 +1034,7 @@ class TestEntrypointToSchema:
             "type": "object",
             "properties": {
                 "x": {
-                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    "$ref": "#/definitions/Color",
                     "default": "RED",
                     "position": 0,
                     "title": "x",
@@ -1155,7 +1155,7 @@ class TestEntrypointToSchema:
             },
             "properties": {
                 "x": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "$ref": "#/definitions/Foo",
                     "title": "x",
                     "position": 0,
                 }
@@ -1187,7 +1187,7 @@ class TestEntrypointToSchema:
             "type": "object",
             "properties": {
                 "foo": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "$ref": "#/definitions/Foo",
                     "default": {"bar": "baz"},
                     "position": 0,
                     "title": "foo",
@@ -1279,14 +1279,14 @@ class TestEntrypointToSchema:
                     "type": "array",
                 },
                 "m": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "$ref": "#/definitions/Foo",
                     "position": 2,
                     "title": "m",
                 },
                 "i": {"default": 0, "position": 3, "title": "i", "type": "integer"},
                 "x": {"default": 1.0, "position": 4, "title": "x", "type": "number"},
                 "model": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "$ref": "#/definitions/Foo",
                     "default": {"bar": "bar"},
                     "position": 5,
                     "title": "model",
@@ -1304,7 +1304,7 @@ class TestEntrypointToSchema:
                     "title": "c",
                     "default": "BLUE",
                     "position": 9,
-                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    "$ref": "#/definitions/Color",
                 },
             },
             "required": ["a", "s", "m"],
@@ -1504,7 +1504,7 @@ class TestEntrypointToSchema:
             "type": "object",
             "properties": {
                 "param": {
-                    "allOf": [{"$ref": "#/definitions/MyModel"}],
+                    "$ref": "#/definitions/MyModel",
                     "position": 0,
                     "title": "param",
                 }
