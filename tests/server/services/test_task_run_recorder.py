@@ -167,7 +167,7 @@ async def test_handle_client_orchestrated_task_run_event(
     client_orchestrated_task_run_event: ReceivedEvent,
     caplog: pytest.LogCaptureFixture,
 ):
-    with caplog.at_level("INFO"):
+    with caplog.at_level("DEBUG"):
         await task_run_recorder_handler(message(client_orchestrated_task_run_event))
 
     assert "Recorded task run state change" in caplog.text
@@ -179,7 +179,7 @@ async def test_skip_non_task_run_event(
     hello_event: ReceivedEvent,
     caplog: pytest.LogCaptureFixture,
 ):
-    with caplog.at_level("INFO"):
+    with caplog.at_level("DEBUG"):
         await task_run_recorder_handler(message(hello_event))
 
     assert "Received event" not in caplog.text
