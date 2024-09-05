@@ -33,6 +33,7 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import (
@@ -343,7 +344,7 @@ class ResultStore(BaseModel):
             A result record.
         """
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
-            self.wait_for_lock(key)
+            await self.await_for_lock(key)
 
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
@@ -386,7 +387,7 @@ class ResultStore(BaseModel):
             A result record.
         """
         holder = holder or self.generate_default_holder()
-        return await self._read(key=key, holder=holder, _sync=False)
+        return await self._read(key=key, holder=holder)
 
     def create_result_record(
         self,
@@ -407,7 +408,10 @@ class ResultStore(BaseModel):
         return ResultRecord(
             result=obj,
             metadata=ResultRecordMetadata(
-                serializer=self.serializer, expiration=expiration, storage_key=key
+                serializer=self.serializer,
+                expiration=expiration,
+                storage_key=key,
+                storage_block_id=self.result_storage_block_id,
             ),
         )
 
@@ -726,7 +730,7 @@ class ResultStore(BaseModel):
         return record.result
 
 
-def get_current_result_store() -> ResultStore:
+def get_result_store() -> ResultStore:
     """
     Get the current result store.
     """
@@ -741,6 +745,15 @@ def get_current_result_store() -> ResultStore:
     return result_store
 
 
+# alias for backwards compatibility
+@deprecated_callable(
+    start_date="Sep 2024",
+    help="Use `get_result_store` instead.",
+)
+def get_current_result_store():
+    return get_result_store()
+
+
 class ResultRecordMetadata(BaseModel):
     """
     Metadata for a result record.
@@ -752,6 +765,7 @@ class ResultRecordMetadata(BaseModel):
     expiration: Optional[DateTime] = Field(default=None)
     serializer: Serializer = Field(default_factory=PickleSerializer)
     prefect_version: str = Field(default=prefect.__version__)
+    storage_block_id: Optional[uuid.UUID] = Field(default=None)
 
     def dump_bytes(self) -> bytes:
         """
