@@ -75,10 +75,14 @@ assert Variable.set("answer", 42) == Variable(name="answer", value=42, tags=[])
 
 assert Variable.get("answer") == 42
 
+assert Variable.set("answer", 9001, overwrite=True) == Variable(name="answer", value=9001, tags=[])
+
 assert Variable.unset("answer") is True
 
 assert Variable.get("answer", "fallback") == "fallback"
 ```
+
+You can use `overwrite=True` to update the value of an existing variable.
 
 <Warning>
 **Contextual Behavior**
