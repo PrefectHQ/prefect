@@ -5,6 +5,7 @@ import prefect.results
 from prefect import flow, task
 from prefect.context import FlowRunContext, get_run_context
 from prefect.filesystems import LocalFileSystem
+from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     PersistedResult,
     ResultStore,
@@ -17,6 +18,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import assert_blocks_equal
+from prefect.transactions import IsolationLevel
 
 DEFAULT_SERIALIZER = PickleSerializer
 
@@ -794,3 +796,20 @@ async def test_result_store_exists_with_no_metadata_storage(tmp_path):
     (tmp_path / "results" / key).unlink()
     assert await result_store.aexists(key=key) is False
     assert result_store.exists(key=key) is False
+
+
+async def test_supports_isolation_level():
+    store_with_lock_manager = ResultStore(lock_manager=MemoryLockManager())
+    store_without_lock_manager = ResultStore()
+
+    assert store_with_lock_manager.supports_isolation_level(
+        IsolationLevel.READ_COMMITTED
+    )
+    assert store_with_lock_manager.supports_isolation_level(IsolationLevel.SERIALIZABLE)
+
+    assert store_without_lock_manager.supports_isolation_level(
+        IsolationLevel.READ_COMMITTED
+    )
+    assert not store_without_lock_manager.supports_isolation_level(
+        IsolationLevel.SERIALIZABLE
+    )

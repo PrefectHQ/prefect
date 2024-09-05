@@ -1,5 +1,8 @@
 import abc
 import inspect
+import os
+import socket
+import threading
 import uuid
 from functools import partial
 from typing import (
@@ -32,11 +35,16 @@ from typing_extensions import ParamSpec, Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import MissingContextError, SerializationError
+from prefect.exceptions import (
+    ConfigurationError,
+    MissingContextError,
+    SerializationError,
+)
 from prefect.filesystems import (
     LocalFileSystem,
     WritableFileSystem,
 )
+from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
 from prefect.serializers import PickleSerializer, Serializer
 from prefect.settings import (
@@ -53,6 +61,7 @@ from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_b
 if TYPE_CHECKING:
     from prefect import Flow, Task
     from prefect.client.orchestration import PrefectClient
+    from prefect.transactions import IsolationLevel
 
 
 ResultStorage = Union[WritableFileSystem, str]
@@ -171,19 +180,26 @@ def _format_user_supplied_storage_key(key: str) -> str:
 
 class ResultStore(BaseModel):
     """
-    A utility to generate `Result` types.
+    Manages the storage and retrieval of results.
 
     Attributes:
-        result_storage: The storage for result records.
-        metadata_storage: The storage for result record metadata. If not provided, the metadata will be stored alongside the results.
+        result_storage: The storage for result records. If not provided, the default
+            result storage will be used.
+        metadata_storage: The storage for result record metadata. If not provided,
+            the metadata will be stored alongside the results.
+        lock_manager: The lock manager to use for locking result records. If not provided,
+            the store cannot be used in transactions with the SERIALIZABLE isolation level.
         persist_result: Whether to persist results.
         cache_result_in_memory: Whether to cache results in memory.
         serializer: The serializer to use for results.
         storage_key_fn: The function to generate storage keys.
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     result_storage: Optional[WritableFileSystem] = Field(default=None)
     metadata_storage: Optional[WritableFileSystem] = Field(default=None)
+    lock_manager: Optional[LockManager] = Field(default=None)
     persist_result: bool = Field(default_factory=get_default_persist_setting)
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
@@ -247,6 +263,20 @@ class ResultStore(BaseModel):
             update["result_storage"] = await get_default_result_storage()
         return self.model_copy(update=update)
 
+    @staticmethod
+    def generate_default_holder() -> str:
+        """
+        Generate a default holder string using hostname, PID, and thread ID.
+
+        Returns:
+            str: A unique identifier string.
+        """
+        hostname = socket.gethostname()
+        pid = os.getpid()
+        thread_name = threading.current_thread().name
+        thread_id = threading.get_ident()
+        return f"{hostname}:{pid}:{thread_id}:{thread_name}"
+
     @sync_compatible
     async def _exists(self, key: str) -> bool:
         """
@@ -298,7 +328,7 @@ class ResultStore(BaseModel):
         return await self._exists(key=key, _sync=False)
 
     @sync_compatible
-    async def _read(self, key: str) -> "ResultRecord":
+    async def _read(self, key: str, holder: str) -> "ResultRecord":
         """
         Read a result record from storage.
 
@@ -307,10 +337,14 @@ class ResultStore(BaseModel):
 
         Args:
             key: The key to read the result record from.
+            holder: The holder of the lock if a lock was set on the record.
 
         Returns:
             A result record.
         """
+        if self.lock_manager is not None and not self.is_lock_holder(key, holder):
+            self.wait_for_lock(key)
+
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
 
@@ -328,59 +362,62 @@ class ResultStore(BaseModel):
             content = await self.result_storage.read_path(key)
             return ResultRecord.deserialize(content)
 
-    def read(self, key: str) -> "ResultRecord":
+    def read(self, key: str, holder: Optional[str] = None) -> "ResultRecord":
         """
         Read a result record from storage.
 
         Args:
             key: The key to read the result record from.
-
+            holder: The holder of the lock if a lock was set on the record.
         Returns:
             A result record.
         """
-        return self._read(key=key, _sync=True)
+        holder = holder or self.generate_default_holder()
+        return self._read(key=key, holder=holder, _sync=True)
 
-    async def aread(self, key: str) -> "ResultRecord":
+    async def aread(self, key: str, holder: Optional[str] = None) -> "ResultRecord":
         """
         Read a result record from storage.
 
         Args:
             key: The key to read the result record from.
-
+            holder: The holder of the lock if a lock was set on the record.
         Returns:
             A result record.
         """
-        return await self._read(key=key, _sync=False)
+        holder = holder or self.generate_default_holder()
+        return await self._read(key=key, holder=holder, _sync=False)
 
-    @sync_compatible
-    async def _write(
+    def create_result_record(
         self,
+        key: str,
         obj: Any,
-        key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
     ):
         """
-        Write a result to storage.
-
-        This is the internal implementation. Use `write` or `awrite` for synchronous and
-        asynchronous result writing respectively.
+        Create a result record.
 
         Args:
-            key: The key to write the result record to.
-            obj: The object to write to storage.
+            key: The key to create the result record for.
+            obj: The object to create the result record for.
             expiration: The expiration time for the result record.
         """
         key = key or self.storage_key_fn()
 
-        record = ResultRecord(
+        return ResultRecord(
             result=obj,
             metadata=ResultRecordMetadata(
                 serializer=self.serializer, expiration=expiration, storage_key=key
             ),
         )
-        await self.apersist_result_record(record)
 
-    def write(self, key: str, obj: Any, expiration: Optional[DateTime] = None):
+    def write(
+        self,
+        key: str,
+        obj: Any,
+        expiration: Optional[DateTime] = None,
+        holder: Optional[str] = None,
+    ):
         """
         Write a result to storage.
 
@@ -390,10 +427,23 @@ class ResultStore(BaseModel):
             key: The key to write the result record to.
             obj: The object to write to storage.
             expiration: The expiration time for the result record.
+            holder: The holder of the lock if a lock was set on the record.
         """
-        return self._write(obj=obj, key=key, expiration=expiration, _sync=True)
+        holder = holder or self.generate_default_holder()
+        return self.persist_result_record(
+            result_record=self.create_result_record(
+                key=key, obj=obj, expiration=expiration
+            ),
+            holder=holder,
+        )
 
-    async def awrite(self, key: str, obj: Any, expiration: Optional[DateTime] = None):
+    async def awrite(
+        self,
+        key: str,
+        obj: Any,
+        expiration: Optional[DateTime] = None,
+        holder: Optional[str] = None,
+    ):
         """
         Write a result to storage.
 
@@ -401,23 +451,42 @@ class ResultStore(BaseModel):
             key: The key to write the result record to.
             obj: The object to write to storage.
             expiration: The expiration time for the result record.
+            holder: The holder of the lock if a lock was set on the record.
         """
-        return await self._write(obj=obj, key=key, expiration=expiration, _sync=False)
+        holder = holder or self.generate_default_holder()
+        return await self.apersist_result_record(
+            result_record=self.create_result_record(
+                key=key, obj=obj, expiration=expiration
+            ),
+            holder=holder,
+        )
 
     @sync_compatible
-    async def _persist_result_record(self, result_record: "ResultRecord"):
+    async def _persist_result_record(self, result_record: "ResultRecord", holder: str):
         """
         Persist a result record to storage.
 
         Args:
             result_record: The result record to persist.
+            holder: The holder of the lock if a lock was set on the record.
         """
-        if self.result_storage is None:
-            self.result_storage = await get_default_result_storage()
-
         assert (
             result_record.metadata.storage_key is not None
         ), "Storage key is required on result record"
+
+        key = result_record.metadata.storage_key
+        if (
+            self.lock_manager is not None
+            and self.is_locked(key)
+            and not self.is_lock_holder(key, holder)
+        ):
+            raise RuntimeError(
+                f"Cannot write to result record with key {key} because it is locked by "
+                f"another holder."
+            )
+        if self.result_storage is None:
+            self.result_storage = await get_default_result_storage()
+
         # If metadata storage is configured, write result and metadata separately
         if self.metadata_storage is not None:
             await self.result_storage.write_path(
@@ -434,25 +503,170 @@ class ResultStore(BaseModel):
                 result_record.metadata.storage_key, content=result_record.serialize()
             )
 
-    def persist_result_record(self, result_record: "ResultRecord"):
+    def persist_result_record(
+        self, result_record: "ResultRecord", holder: Optional[str] = None
+    ):
         """
         Persist a result record to storage.
 
         Args:
             result_record: The result record to persist.
         """
-        return self._persist_result_record(result_record=result_record, _sync=True)
-
-    async def apersist_result_record(self, result_record: "ResultRecord"):
-        """
-        Persist a result record to storage.
-
-        Args:
-            result_record: The result record to persist.
-        """
-        return await self._persist_result_record(
-            result_record=result_record, _sync=False
+        holder = holder or self.generate_default_holder()
+        return self._persist_result_record(
+            result_record=result_record, holder=holder, _sync=True
         )
+
+    async def apersist_result_record(
+        self, result_record: "ResultRecord", holder: Optional[str] = None
+    ):
+        """
+        Persist a result record to storage.
+
+        Args:
+            result_record: The result record to persist.
+        """
+        holder = holder or self.generate_default_holder()
+        return await self._persist_result_record(
+            result_record=result_record, holder=holder, _sync=False
+        )
+
+    def supports_isolation_level(self, level: "IsolationLevel") -> bool:
+        """
+        Check if the result store supports a given isolation level.
+
+        Args:
+            level: The isolation level to check.
+
+        Returns:
+            bool: True if the isolation level is supported, False otherwise.
+        """
+        from prefect.transactions import IsolationLevel
+
+        if level == IsolationLevel.READ_COMMITTED:
+            return True
+        elif level == IsolationLevel.SERIALIZABLE:
+            return self.lock_manager is not None
+        else:
+            raise ValueError(f"Unsupported isolation level: {level}")
+
+    def acquire_lock(
+        self, key: str, holder: Optional[str] = None, timeout: Optional[float] = None
+    ) -> bool:
+        """
+        Acquire a lock for a result record.
+
+        Args:
+            key: The key to acquire the lock for.
+            holder: The holder of the lock. If not provided, a default holder based on the
+                current host, process, and thread will be used.
+            timeout: The timeout for the lock.
+
+        Returns:
+            bool: True if the lock was successfully acquired; False otherwise.
+        """
+        holder = holder or self.generate_default_holder()
+        if self.lock_manager is None:
+            raise ConfigurationError(
+                "Result store is not configured with a lock manager. Please set"
+                " a lock manager when creating the result store to enable locking."
+            )
+        return self.lock_manager.acquire_lock(key, holder, timeout)
+
+    async def aacquire_lock(
+        self, key: str, holder: Optional[str] = None, timeout: Optional[float] = None
+    ) -> bool:
+        """
+        Acquire a lock for a result record.
+
+        Args:
+            key: The key to acquire the lock for.
+            holder: The holder of the lock. If not provided, a default holder based on the
+                current host, process, and thread will be used.
+            timeout: The timeout for the lock.
+
+        Returns:
+            bool: True if the lock was successfully acquired; False otherwise.
+        """
+        holder = holder or self.generate_default_holder()
+        if self.lock_manager is None:
+            raise ConfigurationError(
+                "Result store is not configured with a lock manager. Please set"
+                " a lock manager when creating the result store to enable locking."
+            )
+
+        return await self.lock_manager.aacquire_lock(key, holder, timeout)
+
+    def release_lock(self, key: str, holder: Optional[str] = None):
+        """
+        Release a lock for a result record.
+
+        Args:
+            key: The key to release the lock for.
+            holder: The holder of the lock. Must match the holder that acquired the lock.
+                If not provided, a default holder based on the current host, process, and
+                thread will be used.
+        """
+        holder = holder or self.generate_default_holder()
+        if self.lock_manager is None:
+            raise ConfigurationError(
+                "Result store is not configured with a lock manager. Please set"
+                " a lock manager when creating the result store to enable locking."
+            )
+        return self.lock_manager.release_lock(key, holder)
+
+    def is_locked(self, key: str) -> bool:
+        """
+        Check if a result record is locked.
+        """
+        if self.lock_manager is None:
+            raise ConfigurationError(
+                "Result store is not configured with a lock manager. Please set"
+                " a lock manager when creating the result store to enable locking."
+            )
+        return self.lock_manager.is_locked(key)
+
+    def is_lock_holder(self, key: str, holder: Optional[str] = None) -> bool:
+        """
+        Check if the current holder is the lock holder for the result record.
+
+        Args:
+            key: The key to check the lock for.
+            holder: The holder of the lock. If not provided, a default holder based on the
+                current host, process, and thread will be used.
+
+        Returns:
+            bool: True if the current holder is the lock holder; False otherwise.
+        """
+        holder = holder or self.generate_default_holder()
+        if self.lock_manager is None:
+            raise ConfigurationError(
+                "Result store is not configured with a lock manager. Please set"
+                " a lock manager when creating the result store to enable locking."
+            )
+        return self.lock_manager.is_lock_holder(key, holder)
+
+    def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
+        """
+        Wait for the corresponding transaction record to become free.
+        """
+        if self.lock_manager is None:
+            raise ConfigurationError(
+                "Result store is not configured with a lock manager. Please set"
+                " a lock manager when creating the result store to enable locking."
+            )
+        return self.lock_manager.wait_for_lock(key, timeout)
+
+    async def await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
+        """
+        Wait for the corresponding transaction record to become free.
+        """
+        if self.lock_manager is None:
+            raise ConfigurationError(
+                "Result store is not configured with a lock manager. Please set"
+                " a lock manager when creating the result store to enable locking."
+            )
+        return await self.lock_manager.await_for_lock(key, timeout)
 
     @sync_compatible
     async def create_result(
