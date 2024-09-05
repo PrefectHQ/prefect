@@ -2563,6 +2563,55 @@ class TestPrefectClientCsrfSupport:
                 assert not prefect_client._client.enable_csrf_support
 
 
+class TestPrefectClientAPICompatibility:
+    async def test_api_compatible(self, prefect_client):
+        await prefect_client.api_compatible()
+
+    async def test_api_compatible_when_api_unreachable(
+        self, prefect_client, monkeypatch
+    ):
+        async def something_went_wrong(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(prefect_client, "api_version", something_went_wrong)
+        with pytest.raises(RuntimeError) as e:
+            await prefect_client.api_compatible()
+
+        assert "Failed to reach API" in str(e.value)
+
+    async def test_api_compatible_against_cloud(self, prefect_client, monkeypatch):
+        # manually set the server type to cloud
+        monkeypatch.setattr(prefect_client, "server_type", ServerType.CLOUD)
+
+        api_version_mock = AsyncMock()
+        monkeypatch.setattr(prefect_client, "api_version", api_version_mock)
+
+        await prefect_client.api_compatible()
+
+        api_version_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "client_version, api_version", [("3.0.0", "2.0.0"), ("2.0.0", "3.0.0")]
+    )
+    async def test_api_compatible_with_incompatible_versions(
+        self, prefect_client, monkeypatch, client_version, api_version
+    ):
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value=api_version)
+        )
+        monkeypatch.setattr(
+            prefect_client, "client_version", Mock(return_value=client_version)
+        )
+
+        with pytest.raises(RuntimeError) as e:
+            await prefect_client.api_compatible()
+
+        assert (
+            f"Client version {client_version} is incompatible with api version {api_version}"
+            in str(e.value)
+        )
+
+
 class TestSyncClient:
     def test_get_sync_client(self):
         client = get_client(sync_client=True)
@@ -2574,3 +2623,57 @@ class TestSyncClient:
     def test_hello(self, sync_prefect_client):
         response = sync_prefect_client.hello()
         assert response.json() == "👋"
+
+    def test_api_version(self, sync_prefect_client):
+        version = sync_prefect_client.api_version()
+        assert prefect.__version__
+        assert version == prefect.__version__
+
+
+class TestSyncClientAPICompatible:
+    def test_api_compatible(self, sync_prefect_client):
+        sync_prefect_client.api_compatible()
+
+    def test_api_compatible_when_api_unreachable(
+        self, sync_prefect_client, monkeypatch
+    ):
+        def something_went_wrong(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(sync_prefect_client, "api_version", something_went_wrong)
+        with pytest.raises(RuntimeError) as e:
+            sync_prefect_client.api_compatible()
+
+        assert "Failed to reach API" in str(e.value)
+
+    def test_api_compatible_against_cloud(self, sync_prefect_client, monkeypatch):
+        # manually set the server type to cloud
+        monkeypatch.setattr(sync_prefect_client, "server_type", ServerType.CLOUD)
+
+        api_version_mock = Mock()
+        monkeypatch.setattr(sync_prefect_client, "api_version", api_version_mock)
+
+        sync_prefect_client.api_compatible()
+
+        api_version_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "client_version, api_version", [("3.0.0", "2.0.0"), ("2.0.0", "3.0.0")]
+    )
+    def test_api_compatible_with_incompatible_versions(
+        self, sync_prefect_client, monkeypatch, client_version, api_version
+    ):
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value=api_version)
+        )
+        monkeypatch.setattr(
+            sync_prefect_client, "client_version", Mock(return_value=client_version)
+        )
+
+        with pytest.raises(RuntimeError) as e:
+            sync_prefect_client.api_compatible()
+
+        assert (
+            f"Client version {client_version} is incompatible with api version {api_version}"
+            in str(e.value)
+        )
