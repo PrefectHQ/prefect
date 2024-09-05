@@ -546,7 +546,7 @@ class Deployment(ORMBaseModel):
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    concurrency_limit: Optional[NonNegativeInteger] = Field(
+    concurrency_limit: Optional[PositiveInteger] = Field(
         default=None, description="The concurrency limit for the deployment."
     )
     job_variables: Dict[str, Any] = Field(
