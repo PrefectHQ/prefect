@@ -55,10 +55,11 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
+from prefect.records.result_store import ResultRecordStore
 from prefect.results import (
     BaseResult,
     _format_user_supplied_storage_key,
-    get_result_store,
+    get_current_result_store,
 )
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
@@ -594,7 +595,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=get_result_store().update_for_task(
+                    result_store=get_current_result_store().update_for_task(
                         self.task, _sync=True
                     ),
                     client=client,
@@ -722,9 +723,15 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
 
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store and result_store.persist_result:
+            store = ResultRecordStore(result_store=result_store)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=get_result_store(),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
@@ -1095,7 +1102,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=await get_result_store().update_for_task(
+                    result_store=await get_current_result_store().update_for_task(
                         self.task, _sync=False
                     ),
                     client=client,
@@ -1219,10 +1226,15 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store and result_store.persist_result:
+            store = ResultRecordStore(result_store=result_store)
+        else:
+            store = None
 
         with transaction(
             key=self.compute_transaction_key(),
-            store=get_result_store(),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:

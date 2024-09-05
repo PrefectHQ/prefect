@@ -33,7 +33,6 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import (
@@ -730,7 +729,7 @@ class ResultStore(BaseModel):
         return record.result
 
 
-def get_result_store() -> ResultStore:
+def get_current_result_store() -> ResultStore:
     """
     Get the current result store.
     """
@@ -743,15 +742,6 @@ def get_result_store() -> ResultStore:
     else:
         result_store = run_context.result_store
     return result_store
-
-
-# alias for backwards compatibility
-@deprecated_callable(
-    start_date="Sep 2024",
-    help="Use `get_result_store` instead.",
-)
-def get_current_result_store():
-    return get_result_store()
 
 
 class ResultRecordMetadata(BaseModel):
