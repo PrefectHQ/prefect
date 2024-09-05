@@ -98,25 +98,13 @@ from prefect import flow
 from prefect.variables import Variable
 
 @flow(log_prints=True)
-def space_mission_sync():
-    # retrieve native python values from variables
-    mission = Variable.get("mission")
-    crew = Variable.get("crew_members")
-
-    for member in crew:
-        print(f"Meet {member}!")
-
-    budget = Variable.get("budget", default=100)
-    per_member_budget = budget / len(crew)
-    print(f"Budget: ${budget} billion")
-    print(f"Budget per member: ${per_member_budget:.2f} billion")
+def space_mission_sync(mission_name: str):
+    crew = Variable.get("crew_members", default=["Backup1", "Backup2"])
+    print(f"Launching {mission_name} with crew: {', '.join(crew)}")
 
 if __name__ == "__main__":
-    Variable.set("mission", "Mars Expedition")
     Variable.set("crew_members", ["Zaphod", "Arthur", "Trillian"])
-    Variable.set("budget", 100_000_000)
-
-    space_mission_sync()
+    space_mission_sync("Mars Expedition")
 ```
 
 ```python Asynchronous
@@ -125,25 +113,13 @@ from prefect import flow
 from prefect.variables import Variable
 
 @flow(log_prints=True)
-async def space_mission_async():
-    # retrieve native python values from variables
-    mission = await Variable.get("mission")
-    crew = await Variable.get("crew_members")
-
-    for member in crew:
-        print(f"Meet {member}!")
-
-    budget = await Variable.get("budget", default=100)
-    per_member_budget = budget / len(crew)
-    print(f"Budget: ${budget} billion")
-    print(f"Budget per member: ${per_member_budget:.2f} billion")
+async def space_mission_async(mission_name: str):
+    crew = await Variable.get("crew_members", default=["Backup1", "Backup2"])
+    print(f"Launching {mission_name} with crew: {', '.join(crew)}")
 
 if __name__ == "__main__":
-    Variable.set("mission", "Mars Expedition")
     Variable.set("crew_members", ["Zaphod", "Arthur", "Trillian"])
-    Variable.set("budget", 100_000_000)
-
-    asyncio.run(space_mission_async())
+    asyncio.run(space_mission_async("Mars Expedition"))
 ```
 </CodeGroup>
 
