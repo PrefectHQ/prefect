@@ -20,7 +20,7 @@ def reset_imports():
         REGISTRY.unregister(collector)
 
 
-@pytest.mark.benchmark(group="imports", min_rounds=10)
+@pytest.mark.benchmark(group="imports")
 def bench_import_prefect(benchmark: BenchmarkFixture):
     def import_prefect():
         reset_imports()
@@ -31,7 +31,7 @@ def bench_import_prefect(benchmark: BenchmarkFixture):
 
 
 @pytest.mark.timeout(180)
-@pytest.mark.benchmark(group="imports", min_rounds=10)
+@pytest.mark.benchmark(group="imports")
 def bench_import_prefect_flow(benchmark: BenchmarkFixture):
     def import_prefect_flow():
         reset_imports()
