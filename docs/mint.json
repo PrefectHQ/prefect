@@ -690,6 +690,30 @@
   ],
   "redirects": [
     {
+      "destination": "/latest/getting-started/:slug*",
+      "source": "/getting-started/:slug*"
+    },
+    {
+      "destination": "/latest/tutorial/:slug*",
+      "source": "/tutorial/:slug*"
+    },
+    {
+      "destination": "/latest/guides/:slug*",
+      "source": "/guides/:slug*"
+    },
+    {
+      "destination": "/latest/concepts/:slug*",
+      "source": "/concepts/:slug*"
+    },
+    {
+      "destination": "/latest/cloud/:slug*",
+      "source": "/cloud/:slug*"
+    },
+    {
+      "destination": "/latest/api-ref/:slug*",
+      "source": "/api-ref/:slug*"
+    },
+    {
       "destination": "/latest/get-started",
       "source": "/latest/tutorial"
     },
@@ -1254,20 +1278,20 @@
       "source": "/latest/integrations/prefect-slack/messages"
     },
     {
-      "destination": "/3.0/:slug*",
-      "source": "/latest/:slug*"
-    },
-    {
-      "destination": "/3.0/api-ref/python",
+      "destination": "/latest/api-ref/python",
       "source": "/latest/api-ref/prefect/:slug*"
     },
     {
-      "destination": "/3.0/api-ref/python",
+      "destination": "/latest/api-ref/python",
       "source": "/api-ref/prefect/:slug*"
     },
     {
-      "source": "/3.0rc/:slug*",
-      "destination": "/3.0/:slug*"
+      "destination": "/3.0/:slug*",
+      "source": "/3.0rc/:slug*"
+    },
+    {
+      "destination": "/3.0/:slug*",
+      "source": "/latest/:slug*"
     }
   ],
   "tabs": [
