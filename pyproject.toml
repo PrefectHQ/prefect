@@ -238,12 +238,3 @@ branch = true
 exclude_lines = ["@(abc\\.)?abstractmethod"]
 omit = ["src/prefect/server/database/migrations/versions/*"]
 ignore_errors = true
-
-[tool.vermin]
-make_paths_absolute = false
-backports = ["typing_extensions"]
-format = "parsable"
-eval_annotations = true
-only_show_violations = true
-targets = ["3.9-"]
-exclusion_regex = "^src/prefect/_vendor/.*$|^src/prefect/utilities/compat\\.py$|^tests/workers/test_process_worker.py$|^tests/test_background_tasks.py$|^src/integrations/.*/tests/.*$"

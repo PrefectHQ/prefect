@@ -66,6 +66,7 @@ dask-worker-space/
 
 # Prefect files
 prefect.yaml
+src/prefect/_version.py
 
 # Deployment recipes
 !src/prefect/deployments/recipes/*/**
