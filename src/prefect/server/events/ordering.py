@@ -79,7 +79,7 @@ class CausalOrdering:
         """Remember that this event is waiting on another event to arrive"""
         assert event.follows
 
-        async with db.session_context(begin_transaction=True) as session:
+        async with db.session_context() as session:
             await session.execute(
                 sa.insert(AutomationEventFollower).values(
                     scope=self.scope,
@@ -97,7 +97,7 @@ class CausalOrdering:
         """Forget that this event is waiting on another event to arrive"""
         assert follower.follows
 
-        async with db.session_context(begin_transaction=True) as session:
+        async with db.session_context() as session:
             await session.execute(
                 sa.delete(AutomationEventFollower).where(
                     AutomationEventFollower.scope == self.scope,
@@ -124,7 +124,7 @@ class CausalOrdering:
         """Returns events that were waiting on a leader event that never arrived"""
         earlier = pendulum.now("UTC") - PRECEDING_EVENT_LOOKBACK
 
-        async with db.session_context(begin_transaction=True) as session:
+        async with db.session_context() as session:
             query = sa.select(AutomationEventFollower.follower).where(
                 AutomationEventFollower.scope == self.scope,
                 AutomationEventFollower.received < earlier,
@@ -133,7 +133,6 @@ class CausalOrdering:
             followers = result.scalars().all()
 
             # forget these followers, since they are never going to see their leader event
-
             await session.execute(
                 sa.delete(AutomationEventFollower).where(
                     AutomationEventFollower.scope == self.scope,
@@ -141,7 +140,7 @@ class CausalOrdering:
                 )
             )
 
-            return sorted(followers, key=lambda e: e.occurred)
+        return sorted(followers, key=lambda e: e.occurred)
 
     @asynccontextmanager
     async def preceding_event_confirmed(
