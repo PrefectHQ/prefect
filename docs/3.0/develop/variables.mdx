@@ -68,74 +68,79 @@ In addition to the UI and API, you can reference variables in code and in certai
 
 You can interact with variables through the Python SDK using the `get`, `set`, and `unset` methods. 
 
+```python
+from prefect.variables import Variable
+
+assert Variable.set("answer", 42) == Variable(name="answer", value=42, tags=[])
+
+assert Variable.get("answer") == 42
+
+assert Variable.unset("answer") is True
+
+assert Variable.get("answer", "fallback") == "fallback"
+```
+
 <Warning>
 **Contextual Behavior**
 
-In a sync context (like an `if __name__ == "__main__"` block or simple `def` scope), these methods are synchronous.
-In an async context (like an `async def` scope or ipython), they are are asynchronous.
+In a sync context (like an `if __name__ == "__main__"` block or simple `def` scope), these methods are used synchronously.
+In an async context (like an `async def` scope), they are used asynchronously.
 </Warning>
 
 <CodeGroup>
 ```python Synchronous
+
 from prefect import flow
 from prefect.variables import Variable
 
-@flow
-def my_sync_flow():
-    # set a variable
-    answer = Variable.set(name="the_answer", value="42")
-    print(answer) # 42
-    
-    # get a variable
-    answer = Variable.get("the_answer")
-    print(answer) # 42
-    
-    # overwrite an existing variable
-    answer = Variable.set(name="the_answer", value="43", overwrite=True)
-    print(answer) # 43
-    
-    # unset a variable
-    Variable.unset("the_answer")
-    
-    # get a variable that doesn't exist
-    answer = Variable.get("not_the_answer")
-    print(answer) # None
-    
-    # get a variable that doesn't exist with a default
-    answer = Variable.get("not_the_answer", default="42")
-    print(answer) # 42
+@flow(log_prints=True)
+def space_mission_sync():
+    # retrieve native python values from variables
+    mission = Variable.get("mission")
+    crew = Variable.get("crew_members")
+
+    for member in crew:
+        print(f"Meet {member}!")
+
+    budget = Variable.get("budget", default=100)
+    per_member_budget = budget / len(crew)
+    print(f"Budget: ${budget} billion")
+    print(f"Budget per member: ${per_member_budget:.2f} billion")
+
+if __name__ == "__main__":
+    Variable.set("mission", "Mars Expedition")
+    Variable.set("crew_members", ["Zaphod", "Arthur", "Trillian"])
+    Variable.set("budget", 100_000_000)
+
+    space_mission_sync()
 ```
 
 ```python Asynchronous
+import asyncio
 from prefect import flow
 from prefect.variables import Variable
 
-@flow
-async def my_async_flow():
-    # set a variable
-    answer = await Variable.set(name="the_answer", value="42")
-    print(answer) # 42
-    
-    # get a variable
-    answer = await Variable.get("the_answer")
-    print(answer) # 42
-    
-    # overwrite an existing variable
-    answer = await Variable.set(name="the_answer", value="43", overwrite=True)
-    print(answer) # 43
-    
-    # unset a variable
-    await Variable.unset("the_answer")
-    
-    # get a variable that doesn't exist
-    answer = await Variable.get("not_the_answer")
-    print(answer) # None
-    
-    # get a variable that doesn't exist with a default
-    answer = await Variable.get("not_the_answer", default="42")
-    print(answer) # 42
-```
+@flow(log_prints=True)
+async def space_mission_async():
+    # retrieve native python values from variables
+    mission = await Variable.get("mission")
+    crew = await Variable.get("crew_members")
 
+    for member in crew:
+        print(f"Meet {member}!")
+
+    budget = await Variable.get("budget", default=100)
+    per_member_budget = budget / len(crew)
+    print(f"Budget: ${budget} billion")
+    print(f"Budget per member: ${per_member_budget:.2f} billion")
+
+if __name__ == "__main__":
+    Variable.set("mission", "Mars Expedition")
+    Variable.set("crew_members", ["Zaphod", "Arthur", "Trillian"])
+    Variable.set("budget", 100_000_000)
+
+    asyncio.run(space_mission_async())
+```
 </CodeGroup>
 
 ### In `prefect.yaml` deployment steps
