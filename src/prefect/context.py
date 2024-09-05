@@ -210,7 +210,7 @@ class SyncClientContext(ContextModel):
         self._context_stack += 1
         if self._context_stack == 1:
             self.client.__enter__()
-            self.client.api_compatible()
+            self.client.raise_for_api_version_mismatch()
             return super().__enter__()
         else:
             return self
@@ -268,7 +268,7 @@ class AsyncClientContext(ContextModel):
         self._context_stack += 1
         if self._context_stack == 1:
             await self.client.__aenter__()
-            await self.client.api_compatible()
+            await self.client.raise_for_api_version_mismatch()
             return super().__enter__()
         else:
             return self

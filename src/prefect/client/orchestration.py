@@ -3337,7 +3337,7 @@ class PrefectClient:
     def client_version(self) -> str:
         return prefect.__version__
 
-    async def api_compatible(self):
+    async def raise_for_api_version_mismatch(self):
         # Cloud is always compatible as a server
         if self.server_type == ServerType.CLOUD:
             return
@@ -3656,7 +3656,7 @@ class SyncPrefectClient:
     def client_version(self) -> str:
         return prefect.__version__
 
-    def api_compatible(self):
+    def raise_for_api_version_mismatch(self):
         # Cloud is always compatible as a server
         if self.server_type == ServerType.CLOUD:
             return
