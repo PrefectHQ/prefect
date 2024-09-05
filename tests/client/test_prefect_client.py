@@ -2607,7 +2607,7 @@ class TestPrefectClientAPICompatibility:
             await prefect_client.api_compatible()
 
         assert (
-            f"Client version {client_version} is incompatible with api version {api_version}"
+            f"Client version {client_version} is incompatible with API version {api_version}"
             in str(e.value)
         )
 
@@ -2674,6 +2674,6 @@ class TestSyncClientAPICompatible:
             sync_prefect_client.api_compatible()
 
         assert (
-            f"Client version {client_version} is incompatible with api version {api_version}"
+            f"Client version {client_version} is incompatible with API version {api_version}"
             in str(e.value)
         )
