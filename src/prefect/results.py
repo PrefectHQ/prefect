@@ -343,7 +343,7 @@ class ResultStore(BaseModel):
             A result record.
         """
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
-            self.wait_for_lock(key)
+            await self.await_for_lock(key)
 
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
@@ -407,7 +407,10 @@ class ResultStore(BaseModel):
         return ResultRecord(
             result=obj,
             metadata=ResultRecordMetadata(
-                serializer=self.serializer, expiration=expiration, storage_key=key
+                serializer=self.serializer,
+                expiration=expiration,
+                storage_key=key,
+                storage_block_id=self.result_storage_block_id,
             ),
         )
 
@@ -752,6 +755,7 @@ class ResultRecordMetadata(BaseModel):
     expiration: Optional[DateTime] = Field(default=None)
     serializer: Serializer = Field(default_factory=PickleSerializer)
     prefect_version: str = Field(default=prefect.__version__)
+    storage_block_id: Optional[uuid.UUID] = Field(default=None)
 
     def dump_bytes(self) -> bytes:
         """
