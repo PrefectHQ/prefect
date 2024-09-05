@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -17,18 +18,16 @@ from typing import (
 from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
-from prefect.context import ContextModel, FlowRunContext, TaskRunContext
+from prefect.context import ContextModel
 from prefect.exceptions import MissingContextError, SerializationError
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
-from prefect.results import (
-    BaseResult,
-    ResultStore,
-    get_default_result_storage,
-)
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
+
+if TYPE_CHECKING:
+    from prefect.results import BaseResult
 
 
 class IsolationLevel(AutoEnum):
@@ -176,7 +175,7 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> Optional[BaseResult]:
+    def read(self) -> Optional["BaseResult"]:
         if self.store and self.key:
             record = self.store.read(key=self.key)
             if record is not None:
@@ -280,7 +279,7 @@ class Transaction(ContextModel):
 
     def stage(
         self,
-        value: BaseResult,
+        value: "BaseResult",
         on_rollback_hooks: Optional[List] = None,
         on_commit_hooks: Optional[List] = None,
     ) -> None:
@@ -360,6 +359,9 @@ def transaction(
     """
     # if there is no key, we won't persist a record
     if key and not store:
+        from prefect.context import FlowRunContext, TaskRunContext
+        from prefect.results import ResultStore, get_default_result_storage
+
         flow_run_context = FlowRunContext.get()
         task_run_context = TaskRunContext.get()
         existing_store = getattr(task_run_context, "result_store", None) or getattr(
