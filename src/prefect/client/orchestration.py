@@ -3352,8 +3352,8 @@ class PrefectClient:
 
         if api_version.major != client_version.major:
             raise RuntimeError(
-                f"Client version {client_version} is incompatible with api version {api_version}. "
-                f"Both client and api must be on the same major version."
+                f"Client version {client_version} is incompatible with API version {api_version}. "
+                f"Both client and API must be on the same major version."
             )
 
     async def __aenter__(self):
@@ -3671,8 +3671,8 @@ class SyncPrefectClient:
 
         if api_version.major != client_version.major:
             raise RuntimeError(
-                f"Client version {client_version} is incompatible with api version {api_version}. "
-                f"Both client and api must be on the same major version."
+                f"Client version {client_version} is incompatible with API version {api_version}. "
+                f"Both client and API must be on the same major version."
             )
 
     def create_flow(self, flow: "FlowObject") -> UUID:
