@@ -4,7 +4,6 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from functools import partial
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -22,12 +21,11 @@ from prefect.context import ContextModel
 from prefect.exceptions import MissingContextError, SerializationError
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
+from prefect.records.base import TransactionRecord
+from prefect.results import BaseResult, ResultRecord, ResultStore
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
-
-if TYPE_CHECKING:
-    from prefect.results import BaseResult
 
 
 class IsolationLevel(AutoEnum):
@@ -54,7 +52,7 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    store: Optional[RecordStore] = None
+    store: Union[RecordStore, ResultStore, None] = None
     key: Optional[str] = None
     children: List["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
@@ -175,10 +173,14 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> Optional["BaseResult"]:
+    def read(self) -> Union["BaseResult", ResultRecord, None]:
         if self.store and self.key:
             record = self.store.read(key=self.key)
-            if record is not None:
+            if isinstance(record, ResultRecord):
+                return record
+            # for backwards compatibility, if we encounter a transaction record, return the result
+            # This happens when the transaction is using a `ResultStore`
+            if isinstance(record, TransactionRecord):
                 return record.result
         return None
 
@@ -228,7 +230,13 @@ class Transaction(ContextModel):
                 self.run_hook(hook, "commit")
 
             if self.store and self.key:
-                self.store.write(key=self.key, result=self._staged_value)
+                if isinstance(self.store, ResultStore):
+                    if isinstance(self._staged_value, BaseResult):
+                        self.store.write(self.key, self._staged_value.get(_sync=True))
+                    else:
+                        self.store.write(self.key, self._staged_value)
+                else:
+                    self.store.write(self.key, self._staged_value)
             self.state = TransactionState.COMMITTED
             if (
                 self.store
@@ -279,7 +287,7 @@ class Transaction(ContextModel):
 
     def stage(
         self,
-        value: "BaseResult",
+        value: Union["BaseResult", Any],
         on_rollback_hooks: Optional[List] = None,
         on_commit_hooks: Optional[List] = None,
     ) -> None:
@@ -337,7 +345,7 @@ def get_transaction() -> Optional[Transaction]:
 @contextmanager
 def transaction(
     key: Optional[str] = None,
-    store: Optional[RecordStore] = None,
+    store: Union[RecordStore, ResultStore, None] = None,
     commit_mode: Optional[CommitMode] = None,
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
