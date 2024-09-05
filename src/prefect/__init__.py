@@ -7,8 +7,8 @@ import importlib
 import pathlib
 from typing import TYPE_CHECKING, Any
 
-__version_info__ = _version.get_versions()
-__version__ = __version_info__["version"]
+__version_info__ = _version.__version_tuple__
+__version__ = _version.__version__
 
 # The absolute path to this module
 __module_path__ = pathlib.Path(__file__).parent
