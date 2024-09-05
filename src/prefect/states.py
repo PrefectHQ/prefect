@@ -92,8 +92,7 @@ async def _get_state_result_data_with_retries(
 
     for i in range(1, max_attempts + 1):
         try:
-            result = await state.data.get()
-            return result
+            return await state.data.get()
         except Exception as e:
             if i == max_attempts:
                 raise

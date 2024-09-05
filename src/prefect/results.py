@@ -386,7 +386,7 @@ class ResultStore(BaseModel):
             A result record.
         """
         holder = holder or self.generate_default_holder()
-        return await self._read(key=key, holder=holder)
+        return await self._read(key=key, holder=holder, _sync=False)
 
     def create_result_record(
         self,
