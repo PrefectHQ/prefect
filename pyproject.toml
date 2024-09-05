@@ -1,0 +1,249 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prefect"
+dynamic = ["version"]
+description = "Workflow orchestration and management."
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+classifiers = [
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+
+
+dependencies = [
+    "aiosqlite >= 0.17.0, < 1.0.0",
+    "alembic >= 1.7.5, < 2.0.0",
+    "anyio >= 4.4.0, < 5.0.0",
+    "apprise >= 1.1.0, < 2.0.0",
+    "asgi-lifespan >= 1.0, < 3.0",
+    "asyncpg >= 0.23, < 1.0.0",
+    "cachetools >= 5.3, < 6.0",
+    "click >= 8.0, < 8.2",
+    "cloudpickle >= 2.0, < 4.0",
+    "coolname >= 1.0.4, < 3.0.0",
+    "croniter >= 1.0.12, < 4.0.0",
+    "cryptography >= 36.0.1",
+    "dateparser >= 1.1.1, < 2.0.0",
+    "docker >= 4.0, < 8.0",
+    "exceptiongroup >= 1.0.0",
+    "fastapi >= 0.111.0, < 1.0.0",
+    "fsspec >= 2022.5.0",
+    "graphviz >= 0.20.1",
+    "griffe >= 0.49.0, <2.0.0",
+    "httpcore >=1.0.5, < 2.0.0",
+    "httpx[http2] >= 0.23, != 0.23.2",
+    "humanize >= 4.9.0, < 5.0.0",
+    "importlib_metadata >= 4.4; python_version < '3.10'",
+    "jinja2 >= 3.0.0, < 4.0.0",
+    "jinja2-humanize-extension >= 0.4.0",
+    "jsonpatch >= 1.32, < 2.0",
+    "jsonschema >= 4.0.0, < 5.0.0",
+    "orjson >= 3.7, < 4.0",
+    "packaging >= 21.3, < 24.3",
+    "pathspec >= 0.8.0",
+    "pendulum >= 3.0.0, <4",
+    "prometheus-client >= 0.20.0",
+    "pydantic >= 2.7, < 3.0.0",
+    "pydantic_core >= 2.12.0, < 3.0.0",
+    "pydantic_extra_types >= 2.8.2, < 3.0.0",
+    "pydantic_settings",
+    "python_dateutil >= 2.8.2, < 3.0.0",
+    "python-slugify >= 5.0, < 9.0",
+    "pytz >= 2021.1, < 2025",
+    "pyyaml >= 5.4.1, < 7.0.0",
+    "readchar >= 4.0.0, < 5.0.0",
+    "rfc3339-validator >= 0.1.4, < 0.2.0",
+    "rich >= 11.0, < 14.0",
+    "ruamel.yaml >= 0.17.0",
+    "sniffio >=1.3.0, < 2.0.0",
+    "sqlalchemy[asyncio] >= 2.0, < 3.0.0",
+    "toml >= 0.10.0",
+    "typer >= 0.12.0, != 0.12.2, < 0.13.0",
+    "typing_extensions >= 4.5.0, < 5.0.0",
+    "ujson >= 5.8.0, < 6.0.0",
+    "uvicorn >=0.14.0, !=0.29.0",
+    "websockets >= 10.4, < 14.0",
+]
+
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "cairosvg",
+    "codespell>=2.2.6",
+    "ipython",
+    "jinja2",
+    "moto >= 5",
+    "mypy >= 1.9.0",
+    "numpy",
+    "pillow",
+    "pre-commit",
+    "pluggy >= 1.4.0",
+    "pytest > 7, < 9",
+    "pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0",
+    "pytest-benchmark",
+    "pytest-codspeed",
+    "pytest-cov",
+    "pytest-env",
+    "pytest-flakefinder",
+    "pytest-timeout",
+    "pytest-xdist >= 3.6.1",
+    "pyyaml",
+    "redis>=5.0.1",
+    "setuptools",
+    "vale",
+    "vermin",
+    "virtualenv",
+    "watchfiles",
+    "respx",
+    "types-cachetools",
+    "types-PyYAML",
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "mkdocs-gen-files",
+]
+aws = ["prefect-aws>=0.5.0rc1"]
+azure = ["prefect-azure>=0.4.0rc1"]
+gcp = ["prefect-gcp>=0.6.0rc1"]
+docker = ["prefect-docker>=0.6.0rc1"]
+kubernetes = ["prefect-kubernetes>=0.4.0rc1"]
+shell = ["prefect-shell>=0.3.0rc1"]
+dask = ["prefect-dask>=0.3.0rc1"]
+ray = ["prefect-ray>=0.4.0rc1"]
+bitbucket = ["prefect-bitbucket>=0.3.0rc1"]
+github = ["prefect-github>=0.3.0rc1"]
+gitlab = ["prefect-gitlab>=0.3.0rc1"]
+databricks = ["prefect-databricks>=0.3.0rc1"]
+dbt = ["prefect-dbt>=0.6.0rc1"]
+snowflake = ["prefect-snowflake>=0.28.0rc1"]
+sqlalchemy = ["prefect-sqlalchemy>=0.5.0rc1"]
+redis = ["redis>=5.0.1"]
+email = ["prefect-email>=0.4.0rc1"]
+slack = ["prefect-slack>=0.3.0rc1"]
+
+
+[project.urls]
+Changelog = "https://github.com/PrefectHQ/prefect/releases"
+Documentation = "https://docs.prefect.io"
+Source = "https://github.com/PrefectHQ/prefect"
+Tracker = "https://github.com/PrefectHQ/prefect/issues"
+
+[project.scripts]
+prefect = "prefect.cli:app"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["prefect*"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
+[tool.setuptools_scm]
+write_to = "src/prefect/_version.py"
+
+[tool.ruff]
+src = ["src"]
+lint.extend-select = ["I"]
+lint.ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401", "I"]
+"main.py" = ["E402", "F401", "I"]
+"src/prefect/utilities/compat.py" = ["F401", "I"]
+"tests/conftest.py" = ["F405", "E402", "F403"]
+"src/prefect/runtime/*" = ["F822"]
+"src/prefect/server/database/migrations/**/*" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-third-party = []
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:tornado.platform.asyncio.*",
+    "ignore::DeprecationWarning:tornado.ioloop",
+    "ignore:Default value default=",
+    "ignore:Implicitly cleaning up:ResourceWarning",
+    "ignore::ResourceWarning:distributed.diskutils",
+    "ignore:unclosed:ResourceWarning:distributed.node",
+    "ignore::ImportWarning:google.api_core.exceptions",
+    "ignore:coroutine 'Connection.cursor' was never awaited:RuntimeWarning",
+    "ignore:coroutine 'AsyncAdapt_asyncpg_cursor._prepare_and_execute' was never awaited:RuntimeWarning",
+    "ignore:The `RayTaskRunner` has moved:DeprecationWarning",
+    "ignore:The `DaskTaskRunner` has moved:DeprecationWarning",
+    "ignore:`DeploymentSpec` has been replaced by `Deployment`:DeprecationWarning",
+    "ignore:the imp module is deprecated:DeprecationWarning",
+    "ignore:distutils Version classes are deprecated:DeprecationWarning",
+    "ignore:The distutils package is deprecated:DeprecationWarning",
+    "ignore:Skipped unsupported reflection of expression-based index:sqlalchemy.exc.SAWarning",
+    "ignore:The --rsyncdir command line argument and rsyncdirs config variable are deprecated.:DeprecationWarning",
+    "ignore:Prefect will drop support for Python 3.7:FutureWarning",
+    "ignore:`PREFECT_API_URL` uses `/account/` but should use `/accounts/`.:UserWarning",
+    "ignore:`PREFECT_API_URL` should have `/api` after the base URL.:UserWarning",
+    "ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
+    "ignore:datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
+    "ignore::sqlalchemy.exc.SAWarning",
+    "ignore::ResourceWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    "ignore::pluggy.PluggyTeardownRaisedWarning",
+]
+testpaths = ["tests"]
+addopts = "-rfEs"
+norecursedirs = [
+    "*.egg-info",
+    ".git",
+    ".mypy_cache",
+    "node_modules",
+    ".pytest_cache",
+    ".vscode",
+]
+python_files = ["test_*.py", "bench_*.py"]
+python_functions = ["test_*", "bench_*"]
+markers = [
+    "service(arg): a service integration test. For example 'docker'",
+    "enable_api_log_handler: by default, sending logs to the API is disabled. Tests marked with this use the handler.",
+    "clear_db: marker to clear the database after test completion",
+]
+env = ["PREFECT_TEST_MODE = 1", "PREFECT_LOGGING_SERVER_LEVEL = DEBUG"]
+asyncio_mode = "auto"
+timeout = 90
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = ["@(abc\\.)?abstractmethod"]
+omit = ["src/prefect/server/database/migrations/versions/*"]
+ignore_errors = true
+
+[tool.vermin]
+make_paths_absolute = false
+backports = ["typing_extensions"]
+format = "parsable"
+eval_annotations = true
+only_show_violations = true
+targets = ["3.9-"]
+exclusion_regex = "^src/prefect/_vendor/.*$|^src/prefect/utilities/compat\\.py$|^tests/workers/test_process_worker.py$|^tests/test_background_tasks.py$|^src/integrations/.*/tests/.*$"

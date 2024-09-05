@@ -10,6 +10,8 @@ import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
+from typing_extensions import Self
+
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
@@ -22,8 +24,6 @@ from prefect.utilities.context import get_task_and_flow_run_ids
 logger = get_logger("artifacts")
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
-
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import Artifact as ArtifactResponse
 
@@ -43,7 +43,7 @@ class Artifact(ArtifactRequest):
 
     @sync_compatible
     async def create(
-        self: "Self",
+        self: Self,
         client: Optional["PrefectClient"] = None,
     ) -> "ArtifactResponse":
         """
