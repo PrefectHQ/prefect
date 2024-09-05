@@ -162,7 +162,7 @@ async def record_task_run_event(event: ReceivedEvent, depth: int = 0):
             session, task_run, denormalized_state_attributes
         )
 
-    logger.info(
+    logger.debug(
         "Recorded task run state change",
         extra={
             "task_run_id": task_run.id,
@@ -219,8 +219,11 @@ async def consumer(
         if not event.resource.get("prefect.orchestration") == "client":
             return
 
-        logger.info(
-            f"Received event: {event.event} with id: {event.id} for resource: {event.resource.get('prefect.resource.id')}"
+        logger.debug(
+            "Received event: %s with id: %s for resource: %s",
+            event.event,
+            event.id,
+            event.resource.get("prefect.resource.id"),
         )
 
         try:
