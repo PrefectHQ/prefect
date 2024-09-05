@@ -202,7 +202,7 @@ To deploy a flow with a schedule, you can use one of the following options:
             work_pool_name="my-work-pool",
             image="my-docker-image:dev",
             push=False,
-            # Run every weekday at 9am
+            # Run every weekday at 9 AM
             rrule="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9;BYMINUTE=0"
         )
     ```
@@ -345,7 +345,7 @@ Job variables can be used to customize environment variables, resources limits, 
  allowing fine-grained control over your infrastructure on a per-deployment or per-flow-run basis.
 Any variable defined in the base job template of the associated work pool can be overridden by a job variable.
 
-You can learn more about job variables [here](3.0rc/deploy/infrastructure-concepts/customize).
+You can learn more about job variables [here](/3.0/deploy/infrastructure-concepts/customize).
 
 ## Deploy multiple flows
 
