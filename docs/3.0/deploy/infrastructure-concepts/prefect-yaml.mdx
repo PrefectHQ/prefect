@@ -71,9 +71,9 @@ deployments:
 
     # infra-specific fields
     work_pool:
-    name: null
-    work_queue_name: null
-    job_variables: {}
+        name: null
+        work_queue_name: null
+        job_variables: {}
 ```
 
 The metadata fields are always pre-populated for you. These fields are for bookkeeping purposes only. The other sections are 
@@ -266,9 +266,9 @@ Below is an example of how to use an existing `GitHubCredentials` block to clone
 
 ```yaml
 pull:
-    - prefect.deployments.steps.git_clone:
-        repository: https://github.com/org/repo.git
-        credentials: "{{ prefect.blocks.github-credentials.my-credentials }}"
+- prefect.deployments.steps.git_clone:
+    repository: https://github.com/org/repo.git
+    credentials: "{{ prefect.blocks.github-credentials.my-credentials }}"
 ```
 
 Alternatively, you can specify a `BitBucketCredentials` or `GitLabCredentials` block to clone from Bitbucket or GitLab. In 
@@ -277,9 +277,9 @@ Use a Secret block to do this securely:
 
 ```yaml
 pull:
-    - prefect.deployments.steps.git_clone:
-        repository: https://bitbucket.org/org/repo.git
-        access_token: "{{ prefect.blocks.secret.bitbucket-token }}"
+- prefect.deployments.steps.git_clone:
+    repository: https://bitbucket.org/org/repo.git
+    access_token: "{{ prefect.blocks.secret.bitbucket-token }}"
 ```
 
 ### Utility steps
@@ -295,15 +295,15 @@ Here is an example of retrieving the short Git commit hash of the current reposi
 
 ```yaml
 build:
-    - prefect.deployments.steps.run_shell_script:
-        id: get-commit-hash
-        script: git rev-parse --short HEAD
-        stream_output: false
-    - prefect_docker.deployments.steps.build_docker_image:
-        requires: prefect-docker>=0.3.0
-        image_name: my-image
-        tag: "{{ get-commit-hash.stdout }}"
-        dockerfile: auto
+- prefect.deployments.steps.run_shell_script:
+    id: get-commit-hash
+    script: git rev-parse --short HEAD
+    stream_output: false
+- prefect_docker.deployments.steps.build_docker_image:
+    requires: prefect-docker>=0.3.0
+    image_name: my-image
+    tag: "{{ get-commit-hash.stdout }}"
+    dockerfile: auto
 ```
 
 <Warning>
@@ -328,12 +328,12 @@ Here is an example of installing dependencies from a `requirements.txt` file aft
 
 ```yaml
 pull:
-    - prefect.deployments.steps.git_clone:
-        id: clone-step  # needed to be referenced in subsequent steps
-        repository: https://github.com/org/repo.git
-    - prefect.deployments.steps.pip_install_requirements:
-        directory: {{ clone-step.directory }}  # `clone-step` is a user-provided `id` field
-        requirements_file: requirements.txt
+- prefect.deployments.steps.git_clone:
+    id: clone-step # needed to be referenced in subsequent steps
+    repository: https://github.com/org/repo.git
+- prefect.deployments.steps.pip_install_requirements:
+    directory: "{{ clone-step.directory }}" # `clone-step` is a user-provided `id` field
+    requirements_file: requirements.txt
 ```
 
 Here is an example that retrieves an access token from a third party key vault and uses it in a private clone step:
@@ -394,25 +394,25 @@ build:
 
 deployments:
 - # base metadata
-    name: null
-    version: "{{ build-image.tag }}"
-    tags:
-        - "{{ $my_deployment_tag }}"
-        - "{{ prefect.variables.some_common_tag }}"
-    description: null
-    schedule: null
+  name: null
+  version: "{{ build-image.tag }}"
+  tags:
+  - "{{ $my_deployment_tag }}"
+  - "{{ prefect.variables.some_common_tag }}"
+  description: null
+  schedule: null
 
-    # flow-specific fields
-    entrypoint: null
-    parameters: {}
+  # flow-specific fields
+  entrypoint: null
+  parameters: {}
 
-    # infra-specific fields
-    work_pool:
-        name: "my-k8s-work-pool"
-        work_queue_name: null
-        job_variables:
-            image: "{{ build-image.image }}"
-            cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
+  # infra-specific fields
+  work_pool:
+    name: "my-k8s-work-pool"
+    work_queue_name: null
+    job_variables:
+      image: "{{ build-image.image }}"
+      cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
 So long as your `build` steps produce fields called `image_name` and `tag`, every time you deploy a new version of our deployment, 
