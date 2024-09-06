@@ -164,7 +164,7 @@ def _get_socket_url_and_headers():
     return events_in_socket_from_api_url(api_url), headers
 
 
-def sync_raise_for_events_connection_error():
+def raise_for_events_connection_error():
     socket_url, headers = _get_socket_url_and_headers()
 
     try:
@@ -177,7 +177,7 @@ def sync_raise_for_events_connection_error():
         ) from e
 
 
-async def raise_for_events_connection_error():
+async def araise_for_events_connection_error():
     socket_url, headers = _get_socket_url_and_headers()
 
     try:
