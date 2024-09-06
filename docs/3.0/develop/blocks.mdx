@@ -81,11 +81,6 @@ tiny_cube.save("tiny")
 Block documents can also be created and updated in the UI or API for easy change management. 
 This allows you to work with slowly changing configuration without having to redeploy all workflows that rely on it; for example, you may use this to rotate credentials on a regular basis without touching your deployments.
 
-<Warning>
-When using the generic `Block.load` interface for block documents, the Python class that created the type _must_ be importable.
-For this reason, we highly recommend loading block documents by first importing the block class and then calling its `load` method with the relevant document name.
-</Warning>
-
 ### Block class
 
 A block _class_ is the primary user-facing object; it is a Python class whose attributes are loaded from a block document. Most Prefect blocks encapsulate additional functionality built on top of the block document. 
