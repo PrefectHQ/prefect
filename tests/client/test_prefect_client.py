@@ -2563,6 +2563,57 @@ class TestPrefectClientCsrfSupport:
                 assert not prefect_client._client.enable_csrf_support
 
 
+class TestPrefectClientRaiseForAPIVersionMismatch:
+    async def test_raise_for_api_version_mismatch(self, prefect_client):
+        await prefect_client.raise_for_api_version_mismatch()
+
+    async def test_raise_for_api_version_mismatch_when_api_unreachable(
+        self, prefect_client, monkeypatch
+    ):
+        async def something_went_wrong(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(prefect_client, "api_version", something_went_wrong)
+        with pytest.raises(RuntimeError) as e:
+            await prefect_client.raise_for_api_version_mismatch()
+
+        assert "Failed to reach API" in str(e.value)
+
+    async def test_raise_for_api_version_mismatch_against_cloud(
+        self, prefect_client, monkeypatch
+    ):
+        # manually set the server type to cloud
+        monkeypatch.setattr(prefect_client, "server_type", ServerType.CLOUD)
+
+        api_version_mock = AsyncMock()
+        monkeypatch.setattr(prefect_client, "api_version", api_version_mock)
+
+        await prefect_client.raise_for_api_version_mismatch()
+
+        api_version_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "client_version, api_version", [("3.0.0", "2.0.0"), ("2.0.0", "3.0.0")]
+    )
+    async def test_raise_for_api_version_mismatch_with_incompatible_versions(
+        self, prefect_client, monkeypatch, client_version, api_version
+    ):
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value=api_version)
+        )
+        monkeypatch.setattr(
+            prefect_client, "client_version", Mock(return_value=client_version)
+        )
+
+        with pytest.raises(RuntimeError) as e:
+            await prefect_client.raise_for_api_version_mismatch()
+
+        assert (
+            f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+            in str(e.value)
+        )
+
+
 class TestSyncClient:
     def test_get_sync_client(self):
         client = get_client(sync_client=True)
@@ -2574,3 +2625,59 @@ class TestSyncClient:
     def test_hello(self, sync_prefect_client):
         response = sync_prefect_client.hello()
         assert response.json() == "👋"
+
+    def test_api_version(self, sync_prefect_client):
+        version = sync_prefect_client.api_version()
+        assert prefect.__version__
+        assert version == prefect.__version__
+
+
+class TestSyncClientRaiseForAPIVersionMismatch:
+    def test_raise_for_api_version_mismatch(self, sync_prefect_client):
+        sync_prefect_client.raise_for_api_version_mismatch()
+
+    def test_raise_for_api_version_mismatch_when_api_unreachable(
+        self, sync_prefect_client, monkeypatch
+    ):
+        def something_went_wrong(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(sync_prefect_client, "api_version", something_went_wrong)
+        with pytest.raises(RuntimeError) as e:
+            sync_prefect_client.raise_for_api_version_mismatch()
+
+        assert "Failed to reach API" in str(e.value)
+
+    def test_raise_for_api_version_mismatch_against_cloud(
+        self, sync_prefect_client, monkeypatch
+    ):
+        # manually set the server type to cloud
+        monkeypatch.setattr(sync_prefect_client, "server_type", ServerType.CLOUD)
+
+        api_version_mock = Mock()
+        monkeypatch.setattr(sync_prefect_client, "api_version", api_version_mock)
+
+        sync_prefect_client.raise_for_api_version_mismatch()
+
+        api_version_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "client_version, api_version", [("3.0.0", "2.0.0"), ("2.0.0", "3.0.0")]
+    )
+    def test_raise_for_api_version_mismatch_with_incompatible_versions(
+        self, sync_prefect_client, monkeypatch, client_version, api_version
+    ):
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value=api_version)
+        )
+        monkeypatch.setattr(
+            sync_prefect_client, "client_version", Mock(return_value=client_version)
+        )
+
+        with pytest.raises(RuntimeError) as e:
+            sync_prefect_client.raise_for_api_version_mismatch()
+
+        assert (
+            f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+            in str(e.value)
+        )

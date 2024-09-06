@@ -24,6 +24,7 @@ import httpx
 import pendulum
 import pydantic
 from asgi_lifespan import LifespanManager
+from packaging import version
 from starlette import status
 from typing_extensions import ParamSpec
 
@@ -3329,6 +3330,32 @@ class PrefectClient:
     async def delete_resource_owned_automations(self, resource_id: str):
         await self._client.delete(f"/automations/owned-by/{resource_id}")
 
+    async def api_version(self) -> str:
+        res = await self._client.get("/admin/version")
+        return res.json()
+
+    def client_version(self) -> str:
+        return prefect.__version__
+
+    async def raise_for_api_version_mismatch(self):
+        # Cloud is always compatible as a server
+        if self.server_type == ServerType.CLOUD:
+            return
+
+        try:
+            api_version = await self.api_version()
+        except Exception as e:
+            raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
+
+        api_version = version.parse(api_version)
+        client_version = version.parse(self.client_version())
+
+        if api_version.major != client_version.major:
+            raise RuntimeError(
+                f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+                f"Major versions must match."
+            )
+
     async def __aenter__(self):
         """
         Start the client.
@@ -3621,6 +3648,32 @@ class SyncPrefectClient:
         Send a GET request to /hello for testing purposes.
         """
         return self._client.get("/hello")
+
+    def api_version(self) -> str:
+        res = self._client.get("/admin/version")
+        return res.json()
+
+    def client_version(self) -> str:
+        return prefect.__version__
+
+    def raise_for_api_version_mismatch(self):
+        # Cloud is always compatible as a server
+        if self.server_type == ServerType.CLOUD:
+            return
+
+        try:
+            api_version = self.api_version()
+        except Exception as e:
+            raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
+
+        api_version = version.parse(api_version)
+        client_version = version.parse(self.client_version())
+
+        if api_version.major != client_version.major:
+            raise RuntimeError(
+                f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+                f"Major versions must match."
+            )
 
     def create_flow(self, flow: "FlowObject") -> UUID:
         """
