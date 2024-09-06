@@ -53,7 +53,7 @@ from prefect.flows import (
     safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResultBlob
+from prefect.results import ResultRecord
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -3183,6 +3183,20 @@ class TestFlowHooksOnFailure:
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call(), call()]
 
+    def test_on_failure_hooks_run_on_bad_parameters(self):
+        my_mock = MagicMock()
+
+        def failure_hook(flow, flow_run, state):
+            my_mock("failure_hook")
+
+        @flow(on_failure=[failure_hook])
+        def my_flow(x: int):
+            pass
+
+        state = my_flow(x="x", return_state=True)
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failure_hook")]
+
 
 class TestFlowHooksOnCancellation:
     def test_noniterable_hook_raises(self):
@@ -3823,6 +3837,7 @@ class TestFlowToDeployment:
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
+            concurrency_limit=42,
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
@@ -3844,6 +3859,7 @@ class TestFlowToDeployment:
         assert deployment.name == "test"
         assert deployment.tags == ["price", "luggage"]
         assert deployment.parameters == {"name": "Arthur"}
+        assert deployment.concurrency_limit == 42
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
@@ -4198,6 +4214,21 @@ class TestFlowFromSource:
     def test_load_flow_from_source_on_flow_function(self):
         assert hasattr(flow, "from_source")
 
+    async def test_no_pull_for_local_storage(self, monkeypatch):
+        from prefect.runner.storage import LocalStorage
+
+        storage = LocalStorage(path="/tmp/test")
+
+        mock_load_flow = AsyncMock(return_value=MagicMock(spec=Flow))
+        monkeypatch.setattr("prefect.flows.load_flow_from_entrypoint", mock_load_flow)
+
+        pull_code_spy = AsyncMock()
+        monkeypatch.setattr(LocalStorage, "pull_code", pull_code_spy)
+
+        await Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+
+        pull_code_spy.assert_not_called()
+
 
 class TestFlowDeploy:
     @pytest.fixture
@@ -4231,6 +4262,7 @@ class TestFlowDeploy:
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
+            concurrency_limit=42,
             description="This is a test",
             version="alpha",
             work_pool_name=work_pool.name,
@@ -4248,6 +4280,7 @@ class TestFlowDeploy:
                 name="test",
                 tags=["price", "luggage"],
                 parameters={"name": "Arthur"},
+                concurrency_limit=42,
                 description="This is a test",
                 version="alpha",
                 work_queue_name="line",
@@ -4541,8 +4574,8 @@ class TestTransactions:
         assert isinstance(val, ValueError)
         assert "does not exist" in str(val)
         content = result_storage.read_path("task1-result-A", _sync=True)
-        blob = PersistedResultBlob.model_validate_json(content)
-        assert blob.load() == {"some": "data"}
+        record = ResultRecord.deserialize(content)
+        assert record.result == {"some": "data"}
 
     def test_commit_isnt_called_on_rollback(self):
         data = {}

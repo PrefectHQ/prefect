@@ -50,7 +50,12 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.logging.loggers import get_logger
-from prefect.results import ResultFactory, ResultSerializer, ResultStorage
+from prefect.results import (
+    ResultSerializer,
+    ResultStorage,
+    ResultStore,
+    get_or_create_default_task_scheduling_storage,
+)
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
@@ -201,8 +206,17 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
 
     qualname = fn.__qualname__.split(".")[-1]
 
+    try:
+        code_obj = getattr(fn, "__code__", None)
+        if code_obj is None:
+            code_obj = fn.__call__.__code__
+    except AttributeError:
+        raise AttributeError(
+            f"{fn} is not a standard Python function object and could not be converted to a task."
+        ) from None
+
     code_hash = (
-        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(fn.__code__)) else "unknown"
+        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(code_obj)) else "unknown"
     )
 
     return f"{qualname}-{code_hash}"
@@ -752,14 +766,16 @@ class Task(Generic[P, R]):
                 # TODO: Improve use of result storage for parameter storage / reference
                 self.persist_result = True
 
-                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                store = await ResultStore(
+                    result_storage=await get_or_create_default_task_scheduling_storage()
+                ).update_for_task(self)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await factory.store_parameters(parameters_id, data)
+                await store.store_parameters(parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -853,14 +869,16 @@ class Task(Generic[P, R]):
                 # TODO: Improve use of result storage for parameter storage / reference
                 self.persist_result = True
 
-                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                store = await ResultStore(
+                    result_storage=await get_or_create_default_task_scheduling_storage()
+                ).update_for_task(task)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await factory.store_parameters(parameters_id, data)
+                await store.store_parameters(parameters_id, data)
 
             # collect task inputs
             task_inputs = {

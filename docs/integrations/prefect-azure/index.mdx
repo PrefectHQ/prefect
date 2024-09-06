@@ -9,56 +9,38 @@ For example, you can retrieve secrets, read and write Blob Storage objects, and 
 
 ### Prerequisites
 
-- [Prefect installed](3.0rc/get-started/install) in a virtual environment.
 - An [Azure account](https://azure.microsoft.com/) and the necessary permissions to access desired services.
 
-### Install prefect-azure
+### Install `prefect-azure`
 
-Install or update to the latest version of the prefect-azure library and dependencies.
+The following command will install a version of `prefect-azure` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-azure
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-azure
-    ```
-    </Tab>
-</Tabs>
+```bash
+pip install "prefect[azure]"
+```
 
+Upgrade to the latest versions of `prefect` and `prefect-azure`:
+
+```bash
+pip install -U "prefect[azure]"
+```
 
 If necessary, see [additional installation options for Blob Storage, Cosmos DB, and ML Datastore](#additional-installation-options).
 
-To install with all additional capabilities, use the following command:
+To install prefect-azure with all additional capabilities, run the install command above and then run the following command:
 
-Install or update to the latest version of the prefect-aws library and dependencies.
-
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-azure[all_extras]
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-azure[all_extras]
-    ```
-    </Tab>
-</Tabs>
-
+```bash
+pip install "prefect-azure[all_extras]"
+```
 
 ### Register newly installed block types
 
 Register the block types in the module to make them available for use.
 
-
 ```bash
 prefect block register -m prefect_azure
 ```
-
 
 ## Examples
 
@@ -102,36 +84,38 @@ Run flows on [Azure Container Instances (ACI)](https://learn.microsoft.com/en-us
 
 See the [Azure Container Instances Worker Guide](/integrations/prefect-azure/aci_worker/) for a walkthrough of using ACI in a hybrid work pool.
 
-If you're using Prefect Cloud, [ACI push work pools](/3.0rc/deploy/infrastructure-examples/serverless/#__tabbed_1_2) provide all the benefits of ACI with a quick setup and no worker needed.
+If you're using Prefect Cloud, [ACI push work pools](/3.0/deploy/infrastructure-examples/serverless/#__tabbed_1_2) provide all the benefits of ACI with a quick setup and no worker needed.
 
 ## Resources
 
 For assistance using Azure, consult the [Azure documentation](https://learn.microsoft.com/en-us/azure).
 
-Refer to the prefect-azure API documentation linked in the sidebar to explore all the capabilities of the prefect-azure library.
+Refer to the `prefect-azure` API documentation linked in the sidebar to explore all the capabilities of the `prefect-azure` library.
 
 ### Additional installation options
 
-Add the `--pre` flag to install the latest pre-release version of the library for use with Prefect 3.
+First install the main library compatible with your `prefect` version:
+
+```bash
+pip install "prefect[azure]"
+```
+
+Then install the additional capabilities you need.
 
 To use Blob Storage:
 
 ```bash
-pip install -U "prefect-azure[blob_storage]"
+pip install "prefect-azure[blob_storage]"
 ```
-
 
 To use Cosmos DB:
 
 ```bash
-pip install -U "prefect-azure[cosmos_db]"
+pip install "prefect-azure[cosmos_db]"
 ```
-
 
 To use ML Datastore:
 
-
 ```bash
-pip install -U "prefect-azure[ml_datastore]"
+pip install "prefect-azure[ml_datastore]"
 ```
-

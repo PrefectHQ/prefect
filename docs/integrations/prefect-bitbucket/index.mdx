@@ -2,43 +2,36 @@
 title: prefect-bitbucket
 ---
 
-The prefect-bitbucket library makes it easy to interact with Bitbucket repositories and credentials.
+The `prefect-bitbucket` library makes it easy to interact with Bitbucket repositories and credentials.
 
 ## Getting started
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/get-started/install/).
 - A [Bitbucket account](https://bitbucket.org/product).
 
-### Install prefect-bitbucket
+### Install `prefect-bitbucket`
 
+The following command will install a version of `prefect-bitbucket` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-Install or update to the latest version of the prefect-bitbucket library and dependencies.
+```bash
+pip install "prefect[bitbucket]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-bitbucket
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-bitbucket
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of `prefect` and `prefect-bitbucket`:
 
+```bash
+pip install -U "prefect[bitbucket]"
+```
 
 ### Register newly installed block types
 
-Register the block types in the prefect-bitbucket module to make them available for use.
-
+Register the block types in the `prefect-bitbucket` module to make them available for use.
 
 ```bash
 prefect block register -m prefect_bitbucket
 ```
-
 
 ## Examples
 
@@ -52,7 +45,7 @@ To create a deployment and run a deployment where the flow code is stored in a p
 A deployment can use flow code stored in a Bitbucket repository without using this library in either of the following cases:
 
 - The repository is public
-- The deployment uses a [Secret block](/3.0rc/resources/secrets) to store the token
+- The deployment uses a [Secret block](/3.0/resources/secrets) to store the token
 
 Create a Bitbucket Credentials block:
 
@@ -145,4 +138,4 @@ if __name__ == "__main__":
 
 For assistance using Bitbucket, consult the [Bitbucket documentation](https://bitbucket.org/product/guides).
 
-Refer to the prefect-bitbucket API documentation linked in the sidebar to explore all the capabilities of the prefect-bitbucket library.
+Refer to the `prefect-bitbucket` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-bitbucket` library.

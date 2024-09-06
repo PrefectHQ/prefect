@@ -6,7 +6,6 @@ from prefect.flows import flow, Flow, serve
 from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
-from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
@@ -26,10 +25,14 @@ import prefect.context
 # Perform any forward-ref updates needed for Pydantic models
 import prefect.client.schemas
 
-prefect.context.FlowRunContext.model_rebuild()
-prefect.context.TaskRunContext.model_rebuild()
-prefect.client.schemas.State.model_rebuild()
-prefect.client.schemas.StateCreate.model_rebuild()
+prefect.context.FlowRunContext.model_rebuild(
+    _types_namespace={"Flow": Flow, "BaseResult": BaseResult}
+)
+prefect.context.TaskRunContext.model_rebuild(_types_namespace={"Task": Task})
+prefect.client.schemas.State.model_rebuild(_types_namespace={"BaseResult": BaseResult})
+prefect.client.schemas.StateCreate.model_rebuild(
+    _types_namespace={"BaseResult": BaseResult}
+)
 Transaction.model_rebuild()
 
 # Configure logging
@@ -55,7 +58,6 @@ __all__ = [
     "Flow",
     "get_client",
     "get_run_logger",
-    "Manifest",
     "State",
     "tags",
     "task",

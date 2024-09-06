@@ -425,13 +425,20 @@ def default_database_connection_url(settings: "Settings", value: Optional[str]):
                 f"Missing required database connection settings: {', '.join(missing)}"
             )
 
-        host = PREFECT_API_DATABASE_HOST.value_from(settings)
-        port = PREFECT_API_DATABASE_PORT.value_from(settings) or 5432
-        user = PREFECT_API_DATABASE_USER.value_from(settings)
-        name = PREFECT_API_DATABASE_NAME.value_from(settings)
-        password = PREFECT_API_DATABASE_PASSWORD.value_from(settings)
+        # We only need SQLAlchemy here if we're parsing a remote database connection
+        # string.  Import it here so that we don't require the prefect-client package
+        # to have SQLAlchemy installed.
+        from sqlalchemy import URL
 
-        return f"{driver}://{user}:{password}@{host}:{port}/{name}"
+        return URL(
+            drivername=driver,
+            host=PREFECT_API_DATABASE_HOST.value_from(settings),
+            port=PREFECT_API_DATABASE_PORT.value_from(settings) or 5432,
+            username=PREFECT_API_DATABASE_USER.value_from(settings),
+            password=PREFECT_API_DATABASE_PASSWORD.value_from(settings),
+            database=PREFECT_API_DATABASE_NAME.value_from(settings),
+            query=[],
+        ).render_as_string(hide_password=False)
 
     elif driver == "sqlite+aiosqlite":
         path = PREFECT_API_DATABASE_NAME.value_from(settings)
@@ -2184,13 +2191,20 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
     return path.write_text(toml.dumps(profiles.to_dict()))
 
 
-def load_profiles() -> ProfilesCollection:
+def load_profiles(include_defaults: bool = True) -> ProfilesCollection:
     """
-    Load all profiles from the default and current profile paths.
+    Load profiles from the current profile path. Optionally include profiles from the
+    default profile path.
     """
-    profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
+    default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
+
+    if not include_defaults:
+        if not PREFECT_PROFILES_PATH.value().exists():
+            return ProfilesCollection([])
+        return _read_profiles_from(PREFECT_PROFILES_PATH.value())
 
     user_profiles_path = PREFECT_PROFILES_PATH.value()
+    profiles = default_profiles
     if user_profiles_path.exists():
         user_profiles = _read_profiles_from(user_profiles_path)
 

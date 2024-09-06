@@ -1,3 +1,4 @@
+import queue
 import threading
 from time import sleep
 from uuid import uuid4
@@ -5,7 +6,8 @@ from uuid import uuid4
 import pytest
 
 from prefect.records.memory import MemoryRecordStore
-from prefect.results import ResultFactory
+from prefect.results import ResultStore
+from prefect.transactions import IsolationLevel
 
 
 class TestInMemoryRecordStore:
@@ -18,25 +20,43 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.read(key) is None
-        factory = await ResultFactory.default_factory(
-            persist_result=True,
-        )
-        result = await factory.create_result(obj={"test": "value"})
-        store.write(key, value=result)
+        result_store = ResultStore(persist_result=True)
+        result = await result_store.create_result(obj={"test": "value"})
+        store.write(key, result=result)
         assert (record := store.read(key)) is not None
         assert record.key == key
         assert record.result == result
+
+    async def test_read_locked_key(self):
+        key = str(uuid4())
+        store = MemoryRecordStore()
+        result_store = ResultStore(persist_result=True)
+        result = await result_store.create_result(obj={"test": "value"})
+
+        def read_locked_key(queue):
+            record = store.read(key)
+            assert record is not None
+            queue.put(record.result)
+
+        thread = threading.Thread(
+            target=read_locked_key, args=(read_queue := queue.Queue(),)
+        )
+        assert store.acquire_lock(key, holder="holder1")
+        thread.start()
+        store.write(key, result=result, holder="holder1")
+        store.release_lock(key, holder="holder1")
+        thread.join()
+        # the read should have been blocked until the lock was released
+        assert read_queue.get_nowait() == result
 
     async def test_write_to_key_with_same_lock_holder(self):
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.acquire_lock(key)
-        factory = await ResultFactory.default_factory(
-            persist_result=True,
-        )
-        result = await factory.create_result(obj={"test": "value"})
+        result_store = ResultStore(persist_result=True)
+        result = await result_store.create_result(obj={"test": "value"})
         # can write to key because holder is the same
-        store.write(key, value=result)
+        store.write(key, result=result)
         assert (record := store.read(key)) is not None
         assert record.result == result
 
@@ -44,25 +64,21 @@ class TestInMemoryRecordStore:
         key = str(uuid4())
         store = MemoryRecordStore()
         assert store.acquire_lock(key, holder="holder1")
-        factory = await ResultFactory.default_factory(
-            persist_result=True,
-        )
-        result = await factory.create_result(obj={"test": "value"})
+        result_store = ResultStore(persist_result=True)
+        result = await result_store.create_result(obj={"test": "value"})
         with pytest.raises(
             ValueError,
             match=f"Cannot write to transaction with key {key} because it is locked by another holder.",
         ):
-            store.write(key, value=result, holder="holder2")
+            store.write(key, result=result, holder="holder2")
 
     async def test_exists(self):
         key = str(uuid4())
         store = MemoryRecordStore()
         assert not store.exists(key)
-        factory = await ResultFactory.default_factory(
-            persist_result=True,
-        )
-        result = await factory.create_result(obj={"test": "value"})
-        store.write(key, value=result)
+        result_store = ResultStore(persist_result=True)
+        result = await result_store.create_result(obj={"test": "value"})
+        store.write(key, result=result)
         assert store.exists(key)
 
     def test_acquire_lock(self):
@@ -177,3 +193,9 @@ class TestInMemoryRecordStore:
 
         # the lock should have been acquired by the thread
         assert store.is_locked
+
+    def test_supports_serialization_level(self):
+        store = MemoryRecordStore()
+        assert store.supports_isolation_level(IsolationLevel.READ_COMMITTED)
+        assert store.supports_isolation_level(IsolationLevel.SERIALIZABLE)
+        assert not store.supports_isolation_level("UNKNOWN")

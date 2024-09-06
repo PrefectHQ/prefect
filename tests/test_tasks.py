@@ -32,7 +32,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging import get_run_logger
-from prefect.results import ResultFactory
+from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -82,8 +82,10 @@ def timeout_test_flow():
 
 
 async def get_background_task_run_parameters(task, parameters_id):
-    factory = await ResultFactory.from_autonomous_task(task)
-    return await factory.read_parameters(parameters_id)
+    store = await ResultStore(
+        result_storage=await get_or_create_default_task_scheduling_storage()
+    ).update_for_task(task)
+    return await store.read_parameters(parameters_id)
 
 
 class TestTaskName:
@@ -114,6 +116,21 @@ class TestTaskKey:
         from tests.generic_tasks import noop
 
         assert noop.task_key.startswith("noop-")
+
+    def test_task_key_with_funky_class(self):
+        class Funky:
+            def __call__(self, x):
+                return x
+
+        # set up class to trigger certain code path
+        # see https://github.com/PrefectHQ/prefect/issues/15058
+        funky = Funky()
+        funky.__qualname__ = "__main__.Funky"
+        if hasattr(funky, "__code__"):
+            del funky.__code__
+
+        tt = task(funky)
+        assert tt.task_key.startswith("Funky-")
 
 
 class TestTaskRunName:
@@ -860,7 +877,7 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
-    @pytest.mark.xfail(
+    @pytest.mark.skip(
         reason="This test is not compatible with the current state of client side task orchestration"
     )
     def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
@@ -1351,6 +1368,24 @@ class TestResultPersistence:
 
         assert my_task.persist_result is True
         assert new_task.persist_result is True
+
+    def test_logs_warning_on_serialization_error(self, caplog):
+        @task(result_serializer="json")
+        def my_task():
+            return lambda: 1
+
+        my_task()
+
+        record = next(
+            (
+                record
+                for record in caplog.records
+                if "Encountered an error while serializing result" in record.message
+            ),
+            None,
+        )
+        assert record is not None
+        assert record.levelname == "WARNING"
 
 
 class TestTaskCaching:
@@ -5052,6 +5087,19 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
+
+    def test_does_not_log_rollback_when_no_user_defined_rollback_hooks(self, caplog):
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_commit
+        def commit(txn):
+            raise Exception("oops")
+
+        my_task()
+
+        assert "Running rollback hook" not in caplog.text
 
 
 class TestApplyAsync:

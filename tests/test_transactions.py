@@ -1,12 +1,16 @@
+import threading
 import uuid
 
 import pytest
 
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
+from prefect.locking.memory import MemoryLockManager
 from prefect.records import RecordStore
-from prefect.records.result_store import ResultFactoryStore
+from prefect.records.memory import MemoryRecordStore
+from prefect.records.result_store import ResultRecordStore
 from prefect.results import (
+    ResultStore,
     get_default_result_storage,
     get_or_create_default_task_scheduling_storage,
 )
@@ -18,6 +22,7 @@ from prefect.settings import (
 from prefect.tasks import task
 from prefect.transactions import (
     CommitMode,
+    IsolationLevel,
     Transaction,
     TransactionState,
     get_transaction,
@@ -240,6 +245,9 @@ def test_overwrite_ignores_existing_record():
         def write(self, **kwargs):
             pass
 
+        def supports_isolation_level(self, *args, **kwargs):
+            return True
+
     with Transaction(
         key="test_overwrite_ignores_existing_record", store=Store()
     ) as txn:
@@ -266,26 +274,34 @@ class TestDefaultTransactionStorage:
 
     async def test_transaction_outside_of_run(self):
         with transaction(key="test_transaction_outside_of_run") as txn:
-            assert isinstance(txn.store, ResultFactoryStore)
-            txn.stage({"foo": "bar"})
+            assert isinstance(txn.store, ResultRecordStore)
+            result = await txn.store.result_store.create_result(
+                obj={"foo": "bar"}, key=txn.key
+            )
+            txn.stage(result)
 
         result = txn.read()
+        assert result
         assert await result.get() == {"foo": "bar"}
 
     async def test_transaction_inside_flow_default_storage(self):
         @flow
         def test_flow():
             with transaction(key="test_transaction_inside_flow_default_storage") as txn:
-                assert isinstance(txn.store, ResultFactoryStore)
-                txn.stage({"foo": "bar"})
+                assert isinstance(txn.store, ResultRecordStore)
+                result = txn.store.result_store.create_result(
+                    obj={"foo": "bar"}, key=txn.key, _sync=True
+                )
+                txn.stage(result)
 
             result = txn.read()
+            assert result
             # make sure we aren't using an anonymous block
             assert (
                 result.storage_block_id
                 == get_default_result_storage()._block_document_id
             )
-            return result
+            return result.get()
 
         assert test_flow() == {"foo": "bar"}
 
@@ -298,14 +314,18 @@ class TestDefaultTransactionStorage:
             with transaction(
                 key="test_transaction_inside_flow_configured_storage"
             ) as txn:
-                assert isinstance(txn.store, ResultFactoryStore)
-                txn.stage({"foo": "bar"})
+                assert isinstance(txn.store, ResultRecordStore)
+                result = await txn.store.result_store.create_result(
+                    obj={"foo": "bar"}, key=txn.key
+                )
+                txn.stage(result)
 
             result = txn.read()
-            result.storage_block_id = block._block_document_id
-            return result
+            assert result
+            assert result.storage_block_id == block._block_document_id
+            return await result.get()
 
-        await test_flow() == {"foo": "bar"}
+        assert await test_flow() == {"foo": "bar"}
 
     async def test_transaction_inside_task_default_storage(self):
         default_task_storage = await get_or_create_default_task_scheduling_storage()
@@ -313,13 +333,18 @@ class TestDefaultTransactionStorage:
         @task
         async def test_task():
             with transaction(key="test_transaction_inside_task_default_storage") as txn:
-                assert isinstance(txn.store, ResultFactoryStore)
-                txn.stage({"foo": "bar"})
+                assert isinstance(txn.store, ResultRecordStore)
+                result = await txn.store.result_store.create_result(
+                    obj={"foo": "bar"}, key=txn.key
+                )
+                await result.write()
+                txn.stage(result)
 
             result = txn.read()
+            assert result
             # make sure we aren't using an anonymous block
             assert result.storage_block_id == default_task_storage._block_document_id
-            return result
+            return await result.get()
 
         assert await test_task() == {"foo": "bar"}
 
@@ -332,14 +357,214 @@ class TestDefaultTransactionStorage:
             with transaction(
                 key="test_transaction_inside_task_configured_storage"
             ) as txn:
-                assert isinstance(txn.store, ResultFactoryStore)
-                txn.stage({"foo": "bar"})
+                assert isinstance(txn.store, ResultRecordStore)
+                result = await txn.store.result_store.create_result(
+                    obj={"foo": "bar"}, key=txn.key
+                )
+                await result.write()
+                txn.stage(result)
 
             result = txn.read()
-            result.storage_block_id = block._block_document_id
-            return result
+            assert result
+            assert result.storage_block_id == block._block_document_id
+            return await result.get()
 
-        await test_task() == {"foo": "bar"}
+        assert await test_task() == {"foo": "bar"}
+
+
+class TestWithMemoryRecordStore:
+    @pytest.fixture()
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
+        ):
+            yield
+
+    @pytest.fixture
+    async def result_1(self, default_storage_setting):
+        result_store = ResultStore(persist_result=True)
+        return await result_store.create_result(obj={"foo": "bar"})
+
+    @pytest.fixture
+    async def result_2(self, default_storage_setting):
+        result_store = ResultStore(persist_result=True)
+        return await result_store.create_result(obj={"fizz": "buzz"})
+
+    async def test_basic_transaction(self, result_1):
+        store = MemoryRecordStore()
+        with transaction(key="test_basic_transaction", store=store) as txn:
+            assert isinstance(txn.store, MemoryRecordStore)
+            txn.stage(result_1)
+
+        result_1 = txn.read()
+        assert result_1
+        assert await result_1.get() == {"foo": "bar"}
+
+        record = store.read("test_basic_transaction")
+        assert record
+        assert record.result == result_1
+        assert record.key == "test_basic_transaction"
+
+    async def test_competing_read_transaction(self, result_1):
+        transaction_1_open = threading.Event()
+        transaction_2_open = threading.Event()
+        store = MemoryRecordStore()
+
+        def writing_transaction():
+            # isolation level is SERIALIZABLE, so a lock will be taken
+            with transaction(
+                key="test_competing_read_transaction",
+                store=store,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            ) as txn:
+                transaction_1_open.set()
+                transaction_2_open.wait()
+                txn.stage(result_1)
+
+        thread = threading.Thread(target=writing_transaction)
+        thread.start()
+        transaction_1_open.wait()
+        with transaction(key="test_competing_read_transaction", store=store) as txn:
+            transaction_2_open.set()
+            read_result = txn.read()
+
+        assert read_result == result_1
+        thread.join()
+
+    async def test_competing_write_transaction(self, result_1, result_2):
+        transaction_1_open = threading.Event()
+        store = MemoryRecordStore()
+
+        def winning_transaction():
+            with transaction(
+                key="test_competing_write_transaction",
+                store=store,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            ) as txn:
+                transaction_1_open.set()
+                txn.stage(result_1)
+
+        thread = threading.Thread(target=winning_transaction)
+        thread.start()
+        transaction_1_open.wait()
+        with transaction(
+            key="test_competing_write_transaction",
+            store=store,
+            isolation_level=IsolationLevel.SERIALIZABLE,
+        ) as txn:
+            txn.stage(result_2)
+
+        thread.join()
+        record = store.read("test_competing_write_transaction")
+        assert record
+        # the first transaction should have written its result
+        # and the second transaction should not have written on exit
+        assert record.result == result_1
+
+
+class TestWithResultStore:
+    @pytest.fixture()
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
+        ):
+            yield
+
+    @pytest.fixture
+    async def result_store(self, default_storage_setting):
+        result_store = ResultStore(
+            persist_result=True, lock_manager=MemoryLockManager()
+        )
+        return result_store
+
+    async def test_basic_transaction(self, result_store):
+        with transaction(key="test_basic_transaction", store=result_store) as txn:
+            assert isinstance(txn.store, ResultStore)
+            txn.stage({"foo": "bar"})
+
+        record_1 = txn.read()
+        assert record_1
+        assert record_1.result == {"foo": "bar"}
+
+        record_2 = result_store.read("test_basic_transaction")
+        assert record_2
+        assert record_2 == record_1
+        assert record_2.metadata.storage_key == "test_basic_transaction"
+
+    async def test_competing_read_transaction(self, result_store):
+        write_transaction_open = threading.Event()
+
+        def writing_transaction():
+            # isolation level is SERIALIZABLE, so a lock will be taken
+            with transaction(
+                key="test_competing_read_transaction",
+                store=result_store,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            ) as txn:
+                write_transaction_open.set()
+                txn.stage({"foo": "bar"})
+
+        thread = threading.Thread(target=writing_transaction)
+        thread.start()
+        write_transaction_open.wait()
+        with transaction(
+            key="test_competing_read_transaction", store=result_store
+        ) as txn:
+            read_result = txn.read()
+
+        assert read_result.result == {"foo": "bar"}
+        thread.join()
+
+    async def test_competing_write_transaction(self, result_store):
+        transaction_1_open = threading.Event()
+
+        def winning_transaction():
+            with transaction(
+                key="test_competing_write_transaction",
+                store=result_store,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            ) as txn:
+                transaction_1_open.set()
+                txn.stage({"foo": "bar"})
+
+        thread = threading.Thread(target=winning_transaction)
+        thread.start()
+        transaction_1_open.wait()
+        with transaction(
+            key="test_competing_write_transaction",
+            store=result_store,
+            isolation_level=IsolationLevel.SERIALIZABLE,
+        ) as txn:
+            txn.stage({"fizz": "buzz"})
+
+        thread.join()
+        record = result_store.read("test_competing_write_transaction")
+        assert record
+        # the first transaction should have written its result
+        # and the second transaction should not have written on exit
+        assert record.result == {"foo": "bar"}
+
+    async def test_can_handle_staged_base_result(self, result_store):
+        result_1 = await result_store.create_result(obj={"foo": "bar"})
+        with transaction(
+            key="test_can_handle_staged_base_result", store=result_store
+        ) as txn:
+            txn.stage(result_1)
+
+        record = txn.read()
+        assert record
+        assert record.result == {"foo": "bar"}
+        assert record.metadata.storage_block_id == result_1.storage_block_id
 
 
 class TestHooks:
@@ -375,3 +600,34 @@ class TestHooks:
                 txn.get("foobar")
             assert txn.get("foobar", None) is None
             assert txn.get("foobar", "string") == "string"
+
+
+class TestIsolationLevel:
+    def test_default_isolation_level(self):
+        with transaction(key="test") as txn:
+            assert txn.isolation_level == IsolationLevel.READ_COMMITTED
+
+    def test_inherited_isolation_level(self):
+        with transaction(
+            key="test",
+            store=MemoryRecordStore(),
+            isolation_level=IsolationLevel.SERIALIZABLE,
+        ) as top:
+            with transaction(key="nested", store=MemoryRecordStore()) as inner:
+                assert (
+                    inner.isolation_level
+                    == top.isolation_level
+                    == IsolationLevel.SERIALIZABLE
+                )
+
+    def test_raises_on_unsupported_isolation_level(self):
+        with pytest.raises(
+            ValueError,
+            match="Isolation level SERIALIZABLE is not supported by record store type ResultRecordStore",
+        ):
+            with transaction(
+                key="test",
+                store=ResultRecordStore(result_store=ResultStore()),
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            ):
+                pass

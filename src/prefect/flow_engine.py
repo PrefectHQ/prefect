@@ -30,6 +30,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.context import ConcurrencyContext
+from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.context import FlowRunContext, SyncClientContext, TagsContext
 from prefect.exceptions import (
     Abort,
@@ -46,7 +47,7 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.results import BaseResult, ResultFactory
+from prefect.results import BaseResult, ResultStore, get_current_result_store
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
@@ -201,9 +202,12 @@ class FlowRunEngine(Generic[P, R]):
                 self.handle_exception(
                     exc,
                     msg=message,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
+                    result_store=get_current_result_store().update_for_flow(
+                        self.flow, _sync=True
+                    ),
                 )
                 self.short_circuit = True
+                self.call_hooks()
 
         new_state = Running()
         state = self.set_state(new_state)
@@ -259,14 +263,15 @@ class FlowRunEngine(Generic[P, R]):
         return _result
 
     def handle_success(self, result: R) -> R:
-        result_factory = getattr(FlowRunContext.get(), "result_factory", None)
-        if result_factory is None:
-            raise ValueError("Result factory is not set")
+        result_store = getattr(FlowRunContext.get(), "result_store", None)
+        if result_store is None:
+            raise ValueError("Result store is not set")
         resolved_result = resolve_futures_to_states(result)
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 resolved_result,
-                result_factory=result_factory,
+                result_store=result_store,
+                write_result=True,
             )
         )
         self.set_state(terminal_state)
@@ -277,15 +282,15 @@ class FlowRunEngine(Generic[P, R]):
         self,
         exc: Exception,
         msg: Optional[str] = None,
-        result_factory: Optional[ResultFactory] = None,
+        result_store: Optional[ResultStore] = None,
     ) -> State:
         context = FlowRunContext.get()
         terminal_state = run_coro_as_sync(
             exception_to_failed_state(
                 exc,
                 message=msg or "Flow run encountered an exception:",
-                result_factory=result_factory
-                or getattr(context, "result_factory", None),
+                result_store=result_store or getattr(context, "result_store", None),
+                write_result=True,
             )
         )
         state = self.set_state(terminal_state)
@@ -502,10 +507,13 @@ class FlowRunEngine(Generic[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
+                    result_store=get_current_result_store().update_for_flow(
+                        self.flow, _sync=True
+                    ),
                     task_runner=task_runner,
                 )
             )
+            stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
             # set the logger to the flow run logger

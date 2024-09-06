@@ -17,12 +17,12 @@ from prefect import Task, flow, task
 from prefect.cache_policies import FLOW_PARAMETERS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
-from prefect.concurrency.asyncio import (
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
+from prefect.concurrency.v1.asyncio import (
     _acquire_concurrency_slots,
     _release_concurrency_slots,
 )
-from prefect.concurrency.asyncio import concurrency as aconcurrency
-from prefect.concurrency.sync import concurrency
 from prefect.context import (
     EngineContext,
     FlowRunContext,
@@ -32,7 +32,7 @@ from prefect.context import (
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
+from prefect.results import PersistedResult, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -126,13 +126,13 @@ class TestRunTask:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultFactory.from_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -174,13 +174,13 @@ class TestTaskRunsAsync:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultFactory.from_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -1497,13 +1497,13 @@ class TestRunCountTracking:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.run_count == 1
 
-        result_factory = await ResultFactory.from_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         return EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -1646,26 +1646,22 @@ class TestTimeout:
 
 
 class TestPersistence:
-    async def test_task_can_return_persisted_result(self, prefect_client):
+    async def test_task_can_return_persisted_result(self):
         @task
         async def async_task():
-            factory = await ResultFactory.default_factory(
-                client=prefect_client, persist_result=True
-            )
-            result = await factory.create_result(42)
+            store = ResultStore(persist_result=True)
+            result = await store.create_result(42)
+            await result.write()
             return result
 
         assert await async_task() == 42
         state = await async_task(return_state=True)
         assert await state.result() == 42
 
-    async def test_task_loads_result_if_exists_using_result_storage_key(
-        self, prefect_client
-    ):
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True
-        )
-        await factory.create_result(-92, key="foo-bar")
+    async def test_task_loads_result_if_exists_using_result_storage_key(self):
+        store = ResultStore(persist_result=True)
+        result = await store.create_result(-92, key="foo-bar")
+        await result.write()
 
         @task(result_storage_key="foo-bar", persist_result=True)
         async def async_task():
@@ -1776,7 +1772,8 @@ class TestCachePolicy:
 
         assert state.is_completed()
         assert await state.result() == 1800
-        assert isinstance(state.data, UnpersistedResult)
+        assert isinstance(state.data, PersistedResult)
+        assert state.data._persisted is False
 
     async def test_none_return_value_does_persist(self, prefect_client, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
@@ -2271,51 +2268,59 @@ class TestAsyncGenerators:
 
 class TestTaskConcurrencyLimits:
     async def test_tag_concurrency(self):
+        task_run_id = None
+
         @task(tags=["limit-tag"])
         async def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
             return 42
 
         with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.asyncio._release_concurrency_slots",
+                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 await bar()
 
                 acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
                 )
 
-                names, occupy, occupy_seconds = release_spy.call_args[0]
+                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
                 assert names == ["limit-tag"]
-                assert occupy == 1
+                assert _task_run_id == task_run_id
                 assert occupy_seconds > 0
 
     def test_tag_concurrency_sync(self):
+        task_run_id = None
+
         @task(tags=["limit-tag"])
         def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
             return 42
 
         with mock.patch(
-            "prefect.concurrency.sync._acquire_concurrency_slots",
+            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.sync._release_concurrency_slots",
+                "prefect.concurrency.v1.sync._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 bar()
 
                 acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
                 )
 
-                names, occupy, occupy_seconds = release_spy.call_args[0]
+                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
                 assert names == ["limit-tag"]
-                assert occupy == 1
+                assert _task_run_id == task_run_id
                 assert occupy_seconds > 0
 
     async def test_no_tags_no_concurrency(self):
@@ -2324,11 +2329,11 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.asyncio._release_concurrency_slots",
+                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 await bar()
@@ -2342,11 +2347,11 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.sync._acquire_concurrency_slots",
+            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.sync._release_concurrency_slots",
+                "prefect.concurrency.v1.sync._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 bar()
@@ -2355,18 +2360,22 @@ class TestTaskConcurrencyLimits:
                 assert release_spy.call_count == 0
 
     async def test_tag_concurrency_does_not_create_limits(self, prefect_client):
+        task_run_id = None
+
         @task(tags=["limit-tag"])
         async def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
             return 42
 
         with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             await bar()
 
             acquire_spy.assert_called_once_with(
-                ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
+                ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
             )
 
             limits = await prefect_client.read_concurrency_limits(10, 0)

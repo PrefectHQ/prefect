@@ -1112,6 +1112,41 @@ async def worker_deployment_wq1(
 
 
 @pytest.fixture
+async def worker_deployment_wq1_cl1(
+    session,
+    flow,
+    flow_function,
+    work_queue_1,
+):
+    def hello(name: str = "world"):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment 1",
+            tags=["test"],
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    )
+                )
+            ],
+            concurrency_limit=1,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
 async def worker_deployment_infra_wq1(session, flow, flow_function, work_queue_1):
     def hello(name: str = "world"):
         pass

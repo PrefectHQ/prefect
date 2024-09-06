@@ -181,6 +181,14 @@ class KubernetesCredentials(Block):
                 context=context,
                 client_configuration=client_configuration,
             )
+        else:
+            try:
+                config.load_incluster_config(client_configuration=client_configuration)
+            except config.ConfigException:
+                # If in-cluster config fails, load the local kubeconfig
+                config.load_kube_config(
+                    client_configuration=client_configuration,
+                )
         async with ApiClient(configuration=client_configuration) as api_client:
             try:
                 yield await self.get_resource_specific_client(

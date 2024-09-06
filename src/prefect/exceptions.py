@@ -412,3 +412,15 @@ class PrefectImportError(ImportError):
 
     def __init__(self, message: str) -> None:
         super().__init__(message)
+
+
+class SerializationError(PrefectException):
+    """
+    Raised when an object cannot be serialized.
+    """
+
+
+class ConfigurationError(PrefectException):
+    """
+    Raised when a configuration is invalid.
+    """

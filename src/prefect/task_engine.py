@@ -5,6 +5,7 @@ import time
 from asyncio import CancelledError
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
+from functools import partial
 from textwrap import dedent
 from typing import (
     Any,
@@ -33,9 +34,10 @@ from prefect import Task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.context import ConcurrencyContext
-from prefect.concurrency.sync import concurrency
+from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
+from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
+from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
     AsyncClientContext,
     FlowRunContext,
@@ -53,8 +55,12 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
-from prefect.records.result_store import ResultFactoryStore
-from prefect.results import BaseResult, ResultFactory, _format_user_supplied_storage_key
+from prefect.records.result_store import ResultRecordStore
+from prefect.results import (
+    BaseResult,
+    _format_user_supplied_storage_key,
+    get_current_result_store,
+)
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -448,9 +454,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             return self._raised
 
     def handle_success(self, result: R, transaction: Transaction) -> R:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-        if result_factory is None:
-            raise ValueError("Result factory is not set")
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store is None:
+            raise ValueError("Result store is not set")
 
         if self.task.cache_expiration is not None:
             expiration = pendulum.now("utc") + self.task.cache_expiration
@@ -460,16 +466,19 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
-                result_factory=result_factory,
+                result_store=result_store,
                 key=transaction.key,
                 expiration=expiration,
-                # defer persistence to transaction commit
-                defer_persistence=True,
             )
         )
+
+        # Avoid logging when running this rollback hook since it is not user-defined
+        handle_rollback = partial(self.handle_rollback)
+        handle_rollback.log_on_run = False
+
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[self.handle_rollback] + self.task.on_rollback_hooks,
+            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
         if transaction.is_committed():
@@ -534,7 +543,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exception_to_failed_state(
                     exc,
                     message="Task run encountered an exception",
-                    result_factory=getattr(context, "result_factory", None),
+                    result_store=getattr(context, "result_store", None),
+                    write_result=True,
                 )
             )
             self.record_terminal_state_timing(state)
@@ -585,10 +595,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_coro_as_sync(ResultFactory.from_task(self.task)),  # type: ignore
+                    result_store=get_current_result_store().update_for_task(
+                        self.task, _sync=True
+                    ),
                     client=client,
                 )
             )
+            stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
@@ -703,17 +716,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store and result_store.persist_result:
+            store = ResultRecordStore(result_store=result_store)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
@@ -754,9 +772,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
-                with concurrency(
-                    list(self.task.tags), occupy=1, create_if_missing=False
-                ):
+                with concurrency(list(self.task.tags), self.task_run.id):
                     result = call_with_parameters(self.task.fn, parameters)
             else:
                 result = call_with_parameters(self.task.fn, parameters)
@@ -950,9 +966,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             return self._raised
 
     async def handle_success(self, result: R, transaction: Transaction) -> R:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-        if result_factory is None:
-            raise ValueError("Result factory is not set")
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store is None:
+            raise ValueError("Result store is not set")
 
         if self.task.cache_expiration is not None:
             expiration = pendulum.now("utc") + self.task.cache_expiration
@@ -961,15 +977,18 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         terminal_state = await return_value_to_state(
             result,
-            result_factory=result_factory,
+            result_store=result_store,
             key=transaction.key,
             expiration=expiration,
-            # defer persistence to transaction commit
-            defer_persistence=True,
         )
+
+        # Avoid logging when running this rollback hook since it is not user-defined
+        handle_rollback = partial(self.handle_rollback)
+        handle_rollback.log_on_run = False
+
         transaction.stage(
             terminal_state.data,
-            on_rollback_hooks=[self.handle_rollback] + self.task.on_rollback_hooks,
+            on_rollback_hooks=[handle_rollback] + self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
         if transaction.is_committed():
@@ -1033,7 +1052,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             state = await exception_to_failed_state(
                 exc,
                 message="Task run encountered an exception",
-                result_factory=getattr(context, "result_factory", None),
+                result_store=getattr(context, "result_store", None),
             )
             self.record_terminal_state_timing(state)
             await self.set_state(state)
@@ -1083,7 +1102,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=await ResultFactory.from_task(self.task),  # type: ignore
+                    result_store=await get_current_result_store().update_for_task(
+                        self.task, _sync=False
+                    ),
                     client=client,
                 )
             )
@@ -1199,17 +1220,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[Transaction, None]:
-        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
-
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+        result_store = getattr(TaskRunContext.get(), "result_store", None)
+        if result_store and result_store.persist_result:
+            store = ResultRecordStore(result_store=result_store)
+        else:
+            store = None
+
         with transaction(
             key=self.compute_transaction_key(),
-            store=ResultFactoryStore(result_factory=result_factory),
+            store=store,
             overwrite=overwrite,
             logger=self.logger,
         ) as txn:
@@ -1250,9 +1275,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
-                async with aconcurrency(
-                    list(self.task.tags), occupy=1, create_if_missing=False
-                ):
+                async with aconcurrency(list(self.task.tags), self.task_run.id):
                     result = await call_with_parameters(self.task.fn, parameters)
             else:
                 result = await call_with_parameters(self.task.fn, parameters)

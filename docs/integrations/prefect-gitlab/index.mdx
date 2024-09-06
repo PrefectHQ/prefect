@@ -8,32 +8,26 @@ The prefect-gitlab library makes it easy to interact with GitLab repositories an
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/get-started/install/).
 - A [GitLab account](https://gitlab.com/).
 
-### Install prefect-gitlab
+### Install `prefect-gitlab`
 
+The following command will install a version of `prefect-gitlab` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-Install or update to the latest version of the prefect-gitlab library and dependencies.
+```bash
+pip install "prefect[gitlab]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-gitlab
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-gitlab
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of `prefect` and `prefect-gitlab`:
 
+```bash
+pip install -U "prefect[gitlab]"
+```
 
 ### Register newly installed block types
 
-Register the block types in the prefect-gitlab module to make them available for use.
-
+Register the block types in the `prefect-gitlab` module to make them available for use.
 
 ```bash
 prefect block register -m prefect_gitlab
@@ -126,9 +120,11 @@ For example, download the repository contents with the `.get_directory()` method
 ```python
 from prefect_gitlab.repositories import GitLabRepository
 
+
 def fetch_repo():
     private_gitlab_block = GitLabRepository.load("my-gitlab-block")
     private_gitlab_block.get_directory()
+
 
 if __name__ == "__main__":
     fetch_repo()
@@ -138,4 +134,4 @@ if __name__ == "__main__":
 
 For assistance using GitLab, consult the [GitLab documentation](https://gitlab.com).
 
-Refer to the prefect-gitlab API documentation linked in the sidebar to explore all the capabilities of the prefect-gitlab library.
+Refer to the `prefect-gitlab` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-gitlab` library.

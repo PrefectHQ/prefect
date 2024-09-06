@@ -1,5 +1,6 @@
 import asyncio
 from datetime import timedelta
+from itertools import permutations
 from typing import AsyncGenerator
 from uuid import UUID
 
@@ -9,7 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
-from prefect.server.models.task_run_states import read_task_run_state
+from prefect.server.models.task_run_states import (
+    read_task_run_state,
+    read_task_run_states,
+)
 from prefect.server.models.task_runs import read_task_run
 from prefect.server.schemas.core import FlowRun, TaskRunPolicy
 from prefect.server.schemas.states import StateDetails, StateType
@@ -701,3 +705,51 @@ async def test_updates_task_run_on_out_of_order_state_change(
         pause_reschedule=False,
         untrackable_result=False,
     )
+
+
+@pytest.mark.parametrize(
+    "event_order",
+    list(permutations(["PENDING", "RUNNING", "COMPLETED"])),
+    ids=lambda x: "->".join(x),
+)
+async def test_task_run_recorder_handles_all_out_of_order_permutations(
+    session: AsyncSession,
+    pending_event: ReceivedEvent,
+    running_event: ReceivedEvent,
+    completed_event: ReceivedEvent,
+    task_run_recorder_handler: MessageHandler,
+    event_order: tuple,
+):
+    # Set up event times
+    base_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    pending_event.occurred = base_time
+    running_event.occurred = base_time.add(minutes=1)
+    completed_event.occurred = base_time.add(minutes=2)
+
+    event_map = {
+        "PENDING": pending_event,
+        "RUNNING": running_event,
+        "COMPLETED": completed_event,
+    }
+
+    # Process events in the specified order
+    for event_name in event_order:
+        await task_run_recorder_handler(message(event_map[event_name]))
+
+    # Verify the task run always has the "final" state
+    task_run = await read_task_run(
+        session=session,
+        task_run_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+    )
+
+    assert task_run
+    assert task_run.state_type == StateType.COMPLETED
+    assert task_run.state_name == "Completed"
+    assert task_run.state_timestamp == completed_event.occurred
+
+    # Verify all states are recorded
+    states = await read_task_run_states(session, task_run.id)
+    assert len(states) == 3
+
+    state_types = set(state.type for state in states)
+    assert state_types == {StateType.PENDING, StateType.RUNNING, StateType.COMPLETED}

@@ -9,37 +9,30 @@ For example, you can run flow on Vertex AI or Cloud Run, read and write data to 
 
 ### Prerequisites
 
-- [Prefect installed](3.0rc/get-started/install) in a virtual environment.
 - A [GCP account](https://cloud.google.com/) and the necessary permissions to access desired services.
 
-### Install prefect-gcp
+### Install `prefect-gcp`
 
+The following command will install a version of `prefect-gcp` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-Install or update to the latest version of the prefect-gcp library and dependencies.
+```bash
+pip install "prefect[gcp]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-gcp
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-gcp
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of `prefect` and `prefect-gcp`:
 
+```bash
+pip install -U "prefect[gcp]"
+```
 
 If using BigQuery, Cloud Storage, Secret Manager, or Vertex AI, see [additional installation options](#additional-installation-options).
 
-To install with all additional capabilities, use the following command:
-
+To install `prefect-gcp` with all additional capabilities, run the install command above and then run the following command:
 
 ```bash
-pip install -U "prefect-gcp[all_extras]"
+pip install "prefect-gcp[all_extras]"
 ```
-
 
 ### Register newly installed block types
 
@@ -48,7 +41,6 @@ Register the block types in the module to make them available for use.
 ```bash
 prefect block register -m prefect_gcp
 ```
-
 
 ## Authenticate using a GCP Credentials block
 
@@ -89,7 +81,7 @@ If `service_account_file` is used, the provided file path *must be available* in
 </Warning>
 
 Alternatively, GCP can authenticate without storing credentials in a block.
-See the [Third-pary Secrets docs](/3.0rc/resources/secrets) for an analogous example that uses AWS Secrets Manager and Snowflake.
+See the [Third-pary Secrets docs](/3.0/resources/secrets) for an analogous example that uses AWS Secrets Manager and Snowflake.
 
 ## Run flows on Google Cloud Run or Vertex AI
 
@@ -97,7 +89,7 @@ Run flows on [Google Cloud Run](https://cloud.google.com/run) or [Vertex AI](htt
 
 See the [Google Cloud Run Worker Guide](integrations/prefect-gcp/gcp-worker-guide/) for a walkthrough of using Google Cloud Run to run workflows with a hybrid work pool.
 
-If you're using Prefect Cloud, [Google Cloud Run push work pools](/3.0rc/deploy/infrastructure-examples/serverless) provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
+If you're using Prefect Cloud, [Google Cloud Run push work pools](/3.0/deploy/infrastructure-examples/serverless) provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
 
 ### Use Prefect with Google BigQuery
 
@@ -226,6 +218,7 @@ import google.cloud.bigquery
 from prefect import flow
 from prefect_gcp import GcpCredentials
 
+
 @flow
 def create_bigquery_client():
     gcp_credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
@@ -239,6 +232,7 @@ To access the underlying client, use the `get_client` method from `GcpCredential
 from prefect import flow
 from prefect_gcp import GcpCredentials
 
+
 @flow
 def create_bigquery_client():
     gcp_credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
@@ -249,38 +243,37 @@ def create_bigquery_client():
 
 For assistance using GCP, consult the [Google Cloud documentation](https://cloud.google.com/docs).
 
-Refer to the prefect-gcp API documentation linked in the sidebar to explore all the capabilities of the prefect-gcp library.
+Refer to the `prefect-gcp` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-gcp` library.
 
 ### Additional installation options
 
-Additional installation options for GCP services are shown below.
+First install the main library compatible with your `prefect` version:
+
+```bash
+pip install "prefect[gcp]"
+```
+
+Then install the additional capabilities you need.
 
 #### To use Cloud Storage
-
 
 ```bash
 pip install "prefect-gcp[cloud_storage]"
 ```
 
-
 #### To use BigQuery
-
 
 ```bash
 pip install "prefect-gcp[bigquery]"
 ```
 
-
 #### To use Secret Manager
-
 
 ```bash
 pip install "prefect-gcp[secret_manager]"
 ```
 
-
 ### To use Vertex AI
-
 
 ```bash
 pip install "prefect-gcp[aiplatform]"

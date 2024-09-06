@@ -8,36 +8,30 @@ Prefect-github makes it easy to interact with GitHub repositories and use GitHub
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/get-started/install/).
 - A [GitHub account](https://github.com/).
 
-### Install prefect-github
+### Install `prefect-github`
 
+The following command will install a version of `prefect-github` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-Install or update to the latest version of the prefect-github library and dependencies.
+```bash
+pip install "prefect[github]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-github
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-github
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of `prefect` and `prefect-github`:
 
+```bash
+pip install -U "prefect[github]"
+```
 
 ### Register newly installed block types
 
-Register the block types in the prefect-github module to make them available for use.
+Register the block types in the `prefect-github` module to make them available for use.
 
 ```bash
 prefect block register -m prefect_github
 ```
-
 
 ## Examples
 
@@ -129,4 +123,4 @@ if __name__ == "__main__":
 
 For assistance using GitHub, consult the [GitHub documentation](https://docs.github.com).
 
-Refer to the prefect-github API documentation linked in the sidebar to explore all the capabilities of the prefect-github library.
+Refer to the `prefect-github` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-github` library.

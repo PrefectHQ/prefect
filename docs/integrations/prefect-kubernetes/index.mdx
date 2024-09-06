@@ -4,7 +4,7 @@ title: prefect-kubernetes
 
 `prefect-kubernetes` contains Prefect tasks, flows, and blocks enabling orchestration, observation and management of Kubernetes resources.
 
-This library is most commonly used for installation with a Kubernetes worker. See the [Prefect docs on deploying with Kubernetes](3.0rc/deploy/infrastructure-examples/kubernetes) to learn how to create and run deployments in Kubernetes.
+This library is most commonly used for installation with a Kubernetes worker. See the [Prefect docs on deploying with Kubernetes](3.0/deploy/infrastructure-examples/kubernetes) to learn how to create and run deployments in Kubernetes.
 
 Prefect provides a Helm chart for deploying a worker, a self-hosted Prefect server instance, and other resources to a Kubernetes cluster. See the [Prefect Helm chart](https://github.com/PrefectHQ/prefect-helm) for more information.
 
@@ -12,26 +12,30 @@ Prefect provides a Helm chart for deploying a worker, a self-hosted Prefect serv
 
 ### Prerequisites
 
-- [Prefect installed](3.0rc/get-started/install) in a virtual environment.
 - [Kubernetes installed](https://kubernetes.io/).
 
 ### Install `prefect-kubernetes`
 
-<div class="terminal">
+The following command will install a version of `prefect-kubernetes` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
+
 ```bash
- pip install -U prefect-kubernetes
- ```
- </div>
+pip install "prefect[kubernetes]"
+```
+
+Upgrade to the latest versions of `prefect` and `prefect-kubernetes`:
+
+```bash
+pip install -U "prefect[kubernetes]"
+```
 
 ### Register newly installed block types
 
-Register the block types in the prefect-aws module to make them available for use.
+Register the block types in the `prefect-kubernetes` module to make them available for use.
 
-<div class="terminal">
 ```bash
 prefect block register -m prefect_kubernetes
 ```
-</div>
 
 ## Examples
 
@@ -63,6 +67,7 @@ job = KubernetesJob.from_yaml_file( # or create in the UI with a dict manifest
 
 job.save("my-k8s-job", overwrite=True)
 
+
 if __name__ == "__main__":
     # run the flow
     run_namespaced_job(job)
@@ -90,6 +95,7 @@ from prefect import flow
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.jobs import list_namespaced_job
 
+
 @flow
 def kubernetes_orchestrator():
     v1_job_list = list_namespaced_job(
@@ -107,6 +113,7 @@ from prefect import flow
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.deployments import patch_namespaced_deployment
 from prefect_kubernetes.utilities import convert_manifest_to_model
+
 
 @flow
 def kubernetes_orchestrator():
@@ -126,4 +133,4 @@ def kubernetes_orchestrator():
 
 For assistance using Kubernetes, consult the [Kubernetes documentation](https://kubernetes.io/).
 
-Refer to the prefect-kubernetes API documentation linked in the sidebar to explore all the capabilities of the prefect-kubernetes library.
+Refer to the `prefect-kubernetes` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-kubernetes` library.

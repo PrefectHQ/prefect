@@ -8,25 +8,23 @@ Prefect integrations for interacting with Databricks.
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/get-started/install) in a virtual environment.
 - A [Databricks account](https://databricks.com/) and the necessary permissions to access desired services.
 
 ### Install `prefect-databricks`
 
-Install or update to the latest version of the prefect-databrickslibrary and dependencies.
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-databricks
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-databricks
-    ```
-    </Tab>
-</Tabs>
+The following command will install a version of `prefect-bitbucket` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
+
+```bash
+pip install "prefect[databricks]"
+```
+
+Upgrade to the latest versions of `prefect` and `prefect-databricks`:
+
+```bash
+pip install -U "prefect[databricks]"
+```
 
 ### List jobs on the Databricks instance
 
@@ -45,7 +43,8 @@ def example_execute_endpoint_flow():
     )
     return jobs
 
-example_execute_endpoint_flow()
+if __name__ == "__main__":
+    example_execute_endpoint_flow()
 ```
 
 ### Use `with_options` to customize options on any existing task or flow
@@ -125,8 +124,8 @@ def jobs_runs_submit_flow(notebook_path, **base_parameters):
 
     return run
 
-
-jobs_runs_submit_flow("/Users/username@gmail.com/example.ipynb", name="Marvin")
+if __name__ == "__main__":
+    jobs_runs_submit_flow("/Users/username@gmail.com/example.ipynb", name="Marvin")
 ```
 
 Note, instead of using the built-in models, you may also input valid JSON. For example, `AutoScale(min_workers=1, max_workers=2)` is equivalent to `{"min_workers": 1, "max_workers": 2}`.
@@ -135,4 +134,4 @@ Note, instead of using the built-in models, you may also input valid JSON. For e
 
 For assistance using Databricks, consult the [Databricks documentation](https://www.databricks.com/databricks-documentation).
 
-Refer to the prefect-databricks API documentation linked in the sidebar to explore all the capabilities of the prefect-databricks library.
+Refer to the `prefect-databricks` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-databricks` library.

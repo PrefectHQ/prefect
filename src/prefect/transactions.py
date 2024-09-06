@@ -2,6 +2,7 @@ import copy
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -16,18 +17,13 @@ from typing import (
 from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
-from prefect.context import ContextModel, FlowRunContext, TaskRunContext
-from prefect.exceptions import MissingContextError
-from prefect.logging.loggers import PrefectLogAdapter, get_logger, get_run_logger
+from prefect.context import ContextModel
+from prefect.exceptions import MissingContextError, SerializationError
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
-from prefect.records.result_store import ResultFactoryStore
-from prefect.results import (
-    BaseResult,
-    ResultFactory,
-    get_default_result_storage,
-)
+from prefect.records.base import TransactionRecord
+from prefect.results import BaseResult, ResultRecord, ResultStore
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
 
@@ -56,17 +52,20 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    store: Optional[RecordStore] = None
+    store: Union[RecordStore, ResultStore, None] = None
     key: Optional[str] = None
     children: List["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
+    isolation_level: Optional[IsolationLevel] = IsolationLevel.READ_COMMITTED
     state: TransactionState = TransactionState.PENDING
     on_commit_hooks: List[Callable[["Transaction"], None]] = Field(default_factory=list)
     on_rollback_hooks: List[Callable[["Transaction"], None]] = Field(
         default_factory=list
     )
     overwrite: bool = False
-    logger: Union[logging.Logger, logging.LoggerAdapter, None] = None
+    logger: Union[logging.Logger, logging.LoggerAdapter] = Field(
+        default_factory=partial(get_logger, "transactions")
+    )
     _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
@@ -101,16 +100,27 @@ class Transaction(ContextModel):
             raise RuntimeError(
                 "Context already entered. Context enter calls cannot be nested."
             )
-        # set default commit behavior
+        parent = get_transaction()
+        if parent:
+            self._stored_values = copy.deepcopy(parent._stored_values)
+        # set default commit behavior; either inherit from parent or set a default of eager
         if self.commit_mode is None:
-            parent = get_transaction()
+            self.commit_mode = parent.commit_mode if parent else CommitMode.LAZY
+        # set default isolation level; either inherit from parent or set a default of read committed
+        if self.isolation_level is None:
+            self.isolation_level = (
+                parent.isolation_level if parent else IsolationLevel.READ_COMMITTED
+            )
 
-            # either inherit from parent or set a default of eager
-            if parent:
-                self.commit_mode = parent.commit_mode
-                self._stored_values = copy.deepcopy(parent._stored_values)
-            else:
-                self.commit_mode = CommitMode.LAZY
+        assert self.isolation_level is not None, "Isolation level was not set correctly"
+        if (
+            self.store
+            and self.key
+            and not self.store.supports_isolation_level(self.isolation_level)
+        ):
+            raise ValueError(
+                f"Isolation level {self.isolation_level.name} is not supported by record store type {self.store.__class__.__name__}"
+            )
 
         # this needs to go before begin, which could set the state to committed
         self.state = TransactionState.ACTIVE
@@ -148,8 +158,13 @@ class Transaction(ContextModel):
         self.reset()
 
     def begin(self):
-        # currently we only support READ_COMMITTED isolation
-        # i.e., no locking behavior
+        if (
+            self.store
+            and self.key
+            and self.isolation_level == IsolationLevel.SERIALIZABLE
+        ):
+            self.logger.debug(f"Acquiring lock for transaction {self.key!r}")
+            self.store.acquire_lock(self.key)
         if (
             not self.overwrite
             and self.store
@@ -158,11 +173,16 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> BaseResult:
+    def read(self) -> Union["BaseResult", ResultRecord, None]:
         if self.store and self.key:
-            return self.store.read(key=self.key)
-        else:
-            return {}  # TODO: Determine what this should be
+            record = self.store.read(key=self.key)
+            if isinstance(record, ResultRecord):
+                return record
+            # for backwards compatibility, if we encounter a transaction record, return the result
+            # This happens when the transaction is using a `ResultStore`
+            if isinstance(record, TransactionRecord):
+                return record.result
+        return None
 
     def reset(self) -> None:
         parent = self.get_parent()
@@ -192,6 +212,14 @@ class Transaction(ContextModel):
 
     def commit(self) -> bool:
         if self.state in [TransactionState.ROLLED_BACK, TransactionState.COMMITTED]:
+            if (
+                self.store
+                and self.key
+                and self.isolation_level == IsolationLevel.SERIALIZABLE
+            ):
+                self.logger.debug(f"Releasing lock for transaction {self.key!r}")
+                self.store.release_lock(self.key)
+
             return False
 
         try:
@@ -202,9 +230,30 @@ class Transaction(ContextModel):
                 self.run_hook(hook, "commit")
 
             if self.store and self.key:
-                self.store.write(key=self.key, value=self._staged_value)
+                if isinstance(self.store, ResultStore):
+                    if isinstance(self._staged_value, BaseResult):
+                        self.store.write(self.key, self._staged_value.get(_sync=True))
+                    else:
+                        self.store.write(self.key, self._staged_value)
+                else:
+                    self.store.write(self.key, self._staged_value)
             self.state = TransactionState.COMMITTED
+            if (
+                self.store
+                and self.key
+                and self.isolation_level == IsolationLevel.SERIALIZABLE
+            ):
+                self.logger.debug(f"Releasing lock for transaction {self.key!r}")
+                self.store.release_lock(self.key)
             return True
+        except SerializationError as exc:
+            if self.logger:
+                self.logger.warning(
+                    f"Encountered an error while serializing result for transaction {self.key!r}: {exc}"
+                    " Code execution will continue, but the transaction will not be committed.",
+                )
+            self.rollback()
+            return False
         except Exception:
             if self.logger:
                 self.logger.exception(
@@ -216,23 +265,29 @@ class Transaction(ContextModel):
 
     def run_hook(self, hook, hook_type: str) -> None:
         hook_name = _get_hook_name(hook)
-        self.logger.info(f"Running {hook_type} hook {hook_name!r}")
+        # Undocumented way to disable logging for a hook. Subject to change.
+        should_log = getattr(hook, "log_on_run", True)
+
+        if should_log:
+            self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
             hook(self)
         except Exception as exc:
-            self.logger.error(
-                f"An error was encountered while running {hook_type} hook {hook_name!r}",
-            )
+            if should_log:
+                self.logger.error(
+                    f"An error was encountered while running {hook_type} hook {hook_name!r}",
+                )
             raise exc
         else:
-            self.logger.info(
-                f"{hook_type.capitalize()} hook {hook_name!r} finished running successfully"
-            )
+            if should_log:
+                self.logger.info(
+                    f"{hook_type.capitalize()} hook {hook_name!r} finished running successfully"
+                )
 
     def stage(
         self,
-        value: BaseResult,
+        value: Union["BaseResult", Any],
         on_rollback_hooks: Optional[List] = None,
         on_commit_hooks: Optional[List] = None,
     ) -> None:
@@ -269,6 +324,14 @@ class Transaction(ContextModel):
                     exc_info=True,
                 )
             return False
+        finally:
+            if (
+                self.store
+                and self.key
+                and self.isolation_level == IsolationLevel.SERIALIZABLE
+            ):
+                self.logger.debug(f"Releasing lock for transaction {self.key!r}")
+                self.store.release_lock(self.key)
 
     @classmethod
     def get_active(cls: Type[Self]) -> Optional[Self]:
@@ -282,10 +345,11 @@ def get_transaction() -> Optional[Transaction]:
 @contextmanager
 def transaction(
     key: Optional[str] = None,
-    store: Optional[RecordStore] = None,
+    store: Union[RecordStore, ResultStore, None] = None,
     commit_mode: Optional[CommitMode] = None,
+    isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
-    logger: Optional[PrefectLogAdapter] = None,
+    logger: Union[logging.Logger, logging.LoggerAdapter, None] = None,
 ) -> Generator[Transaction, None, None]:
     """
     A context manager for opening and managing a transaction.
@@ -303,22 +367,26 @@ def transaction(
     """
     # if there is no key, we won't persist a record
     if key and not store:
+        from prefect.context import FlowRunContext, TaskRunContext
+        from prefect.results import ResultStore, get_default_result_storage
+
         flow_run_context = FlowRunContext.get()
         task_run_context = TaskRunContext.get()
-        existing_factory = getattr(task_run_context, "result_factory", None) or getattr(
-            flow_run_context, "result_factory", None
+        existing_store = getattr(task_run_context, "result_store", None) or getattr(
+            flow_run_context, "result_store", None
         )
 
-        if existing_factory and existing_factory.storage_block_id:
-            new_factory = existing_factory.model_copy(
+        new_store: ResultStore
+        if existing_store and existing_store.result_storage_block_id:
+            new_store = existing_store.model_copy(
                 update={
                     "persist_result": True,
                 }
             )
         else:
             default_storage = get_default_result_storage(_sync=True)
-            if existing_factory:
-                new_factory = existing_factory.model_copy(
+            if existing_store:
+                new_store = existing_store.model_copy(
                     update={
                         "persist_result": True,
                         "storage_block": default_storage,
@@ -326,14 +394,14 @@ def transaction(
                     }
                 )
             else:
-                new_factory = run_coro_as_sync(
-                    ResultFactory.default_factory(
-                        persist_result=True,
-                        result_storage=default_storage,
-                    )
+                new_store = ResultStore(
+                    persist_result=True,
+                    result_storage=default_storage,
                 )
-        store = ResultFactoryStore(
-            result_factory=new_factory,
+        from prefect.records.result_store import ResultRecordStore
+
+        store = ResultRecordStore(
+            result_store=new_store,
         )
 
     try:
@@ -345,6 +413,7 @@ def transaction(
         key=key,
         store=store,
         commit_mode=commit_mode,
+        isolation_level=isolation_level,
         overwrite=overwrite,
         logger=logger,
     ) as txn:

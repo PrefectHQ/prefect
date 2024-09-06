@@ -642,7 +642,8 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List["FlexibleScheduleList"]] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -666,6 +667,7 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
+            concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             triggers: A list of triggers that will kick off runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
@@ -718,6 +720,7 @@ class Flow(Generic[P, R]):
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
+                concurrency_limit=concurrency_limit,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -727,7 +730,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
-            )
+            )  # type: ignore # TODO: remove sync_compatible
         else:
             return RunnerDeployment.from_flow(
                 self,
@@ -737,6 +740,7 @@ class Flow(Generic[P, R]):
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
+                concurrency_limit=concurrency_limit,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -1028,8 +1032,6 @@ class Flow(Generic[P, R]):
             if not isinstance(storage, LocalStorage):
                 storage.set_base_path(Path(tmpdir))
                 await storage.pull_code()
-            storage.set_base_path(Path(tmpdir))
-            await storage.pull_code()
 
             full_entrypoint = str(storage.destination / entrypoint)
             flow: Flow = await from_async.wait_for_call_in_new_thread(
@@ -1055,6 +1057,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        concurrency_limit: Optional[int] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -1101,6 +1104,7 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
+            concurrency_limit: The maximum number of runs that can be executed concurrently.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -1175,6 +1179,7 @@ class Flow(Generic[P, R]):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            concurrency_limit=concurrency_limit,
             paused=paused,
             triggers=triggers,
             parameters=parameters,

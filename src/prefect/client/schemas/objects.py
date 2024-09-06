@@ -20,12 +20,14 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    IPvAnyNetwork,
     SerializationInfo,
     WrapValidator,
     field_validator,
     model_serializer,
     model_validator,
 )
+from pydantic.functional_validators import ModelWrapValidatorHandler
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self, TypeVar
 
@@ -293,11 +295,16 @@ class State(ObjectBaseModel, Generic[R]):
         from prefect.client.schemas.actions import StateCreate
         from prefect.results import BaseResult
 
+        if isinstance(self.data, BaseResult) and self.data.serialize_to_none is False:
+            data = self.data
+        else:
+            data = None
+
         return StateCreate(
             type=self.type,
             name=self.name,
             message=self.message,
-            data=self.data if isinstance(self.data, BaseResult) else None,
+            data=data,
             state_details=self.state_details,
         )
 
@@ -865,6 +872,35 @@ class Workspace(PrefectBaseModel):
         return hash(self.handle)
 
 
+class IPAllowlistEntry(PrefectBaseModel):
+    ip_network: IPvAnyNetwork
+    enabled: bool
+    description: Optional[str] = Field(
+        default=None, description="A description of the IP entry."
+    )
+    last_seen: Optional[str] = Field(
+        default=None,
+        description="The last time this IP was seen accessing Prefect Cloud.",
+    )
+
+
+class IPAllowlist(PrefectBaseModel):
+    """
+    A Prefect Cloud IP allowlist.
+
+    Expected payload for an IP allowlist from the Prefect Cloud API.
+    """
+
+    entries: List[IPAllowlistEntry]
+
+
+class IPAllowlistMyAccessResponse(PrefectBaseModel):
+    """Expected payload for an IP allowlist access response from the Prefect Cloud API."""
+
+    allowed: bool
+    detail: str
+
+
 class BlockType(ObjectBaseModel):
     """An ORM representation of a block type"""
 
@@ -950,7 +986,9 @@ class BlockDocument(ObjectBaseModel):
         return validate_name_present_on_nonanonymous_blocks(values)
 
     @model_serializer(mode="wrap")
-    def serialize_data(self, handler, info: SerializationInfo):
+    def serialize_data(
+        self, handler: ModelWrapValidatorHandler, info: SerializationInfo
+    ):
         self.data = visit_collection(
             self.data,
             visit_fn=partial(handle_secret_render, context=info.context or {}),

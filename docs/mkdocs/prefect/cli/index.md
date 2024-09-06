@@ -1,3 +1,0 @@
-# prefect.cli
-
-::: prefect.cli

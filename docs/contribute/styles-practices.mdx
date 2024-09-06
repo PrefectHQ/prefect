@@ -1,5 +1,5 @@
 ---
-title: Styles and practices
+title: Code and development style guide
 ---
 
 Generally, we follow the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html). 
@@ -143,8 +143,6 @@ def from_context():
 Avoid circular dependencies. They often reveal entanglement in the design.
 
 Place all deferred imports at the top of the function.
-
-##### With type annotations
 
 If you are just using the imported object for a type signature, use the `TYPE_CHECKING` flag:
 

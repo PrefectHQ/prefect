@@ -2,9 +2,12 @@
 Command line interface for working with Prefect
 """
 
+import logging
 import os
+import shlex
+import socket
+import sys
 import textwrap
-from functools import partial
 
 import anyio
 import anyio.abc
@@ -21,6 +24,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
     PREFECT_API_URL,
+    PREFECT_HOME,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_API_HOST,
@@ -35,8 +39,7 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import (
-    get_sys_executable,
-    run_process,
+    consume_process_output,
     setup_signal_handlers_server,
 )
 
@@ -49,6 +52,8 @@ server_app.add_typer(database_app)
 app.add_typer(server_app)
 
 logger = get_logger(__name__)
+
+PID_FILE = "server.pid"
 
 
 def generate_welcome_blurb(base_url, ui_enabled: bool):
@@ -96,14 +101,53 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
     return blurb
 
 
-def prestart_check():
+def prestart_check(base_url: str):
     """
     Check if `PREFECT_API_URL` is set in the current profile. If not, prompt the user to set it.
+
+    Args:
+        base_url: The base URL the server will be running on
     """
+    api_url = f"{base_url}/api"
     current_profile = load_current_profile()
-    if PREFECT_API_URL not in current_profile.settings:
+    profiles = load_profiles()
+    if current_profile and PREFECT_API_URL not in current_profile.settings:
+        profiles_with_matching_url = [
+            name
+            for name, profile in profiles.items()
+            if profile.settings.get(PREFECT_API_URL) == api_url
+        ]
+        if len(profiles_with_matching_url) == 1:
+            profiles.set_active(profiles_with_matching_url[0])
+            save_profiles(profiles)
+            app.console.print(
+                f"Switched to profile {profiles_with_matching_url[0]!r}",
+                style="green",
+            )
+            return
+        elif len(profiles_with_matching_url) > 1:
+            app.console.print(
+                "Your current profile doesn't have `PREFECT_API_URL` set to the address"
+                " of the server that's running. Some of your other profiles do."
+            )
+            selected_profile = prompt_select_from_list(
+                app.console,
+                "Which profile would you like to switch to?",
+                sorted(
+                    [profile for profile in profiles_with_matching_url],
+                ),
+            )
+            profiles.set_active(selected_profile)
+            save_profiles(profiles)
+            app.console.print(
+                f"Switched to profile {selected_profile!r}", style="green"
+            )
+            return
+
         app.console.print(
-            "`PREFECT_API_URL` is not set. You need to set it to communicate with the server.",
+            "The `PREFECT_API_URL` setting for your current profile doesn't match the"
+            " address of the server that's running. You need to set it to communicate"
+            " with the server.",
             style="yellow",
         )
 
@@ -121,7 +165,6 @@ def prestart_check():
                 ),
             ],
         )
-        profiles = load_profiles()
 
         if choice == "create":
             while True:
@@ -132,13 +175,12 @@ def prestart_check():
                         style="red",
                     )
                 else:
-                    api_url = prompt(
-                        "Enter the `PREFECT_API_URL` value",
-                        default="http://127.0.0.1:4200/api",
-                    )
                     break
+
             profiles.add_profile(
-                Profile(name=profile_name, settings={"PREFECT_API_URL": api_url})
+                Profile(
+                    name=profile_name, settings={PREFECT_API_URL: f"{base_url}/api"}
+                )
             )
             profiles.set_active(profile_name)
             save_profiles(profiles)
@@ -150,8 +192,7 @@ def prestart_check():
             api_url = prompt(
                 "Enter the `PREFECT_API_URL` value", default="http://127.0.0.1:4200/api"
             )
-            prefect_api_url_setting = {"PREFECT_API_URL": api_url}
-            update_current_profile(prefect_api_url_setting)
+            update_current_profile({PREFECT_API_URL: api_url})
             app.console.print(
                 f"Set `PREFECT_API_URL` to {api_url!r} in the current profile {current_profile.name!r}",
                 style="green",
@@ -170,12 +211,17 @@ async def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    background: bool = typer.Option(
+        False, "--background", "-b", help="Run the server in the background"
+    ),
 ):
-    """Start a Prefect server instance"""
-
+    """
+    Start a Prefect server instance
+    """
+    base_url = f"http://{host}:{port}"
     if is_interactive():
         try:
-            prestart_check()
+            prestart_check(base_url)
         except Exception:
             pass
 
@@ -187,47 +233,107 @@ async def start(
     server_env["PREFECT_UI_ENABLED"] = str(ui)
     server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
 
-    base_url = f"http://{host}:{port}"
-
-    async with anyio.create_task_group() as tg:
-        app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
-        app.console.print("\n")
-
-        server_process_id = await tg.start(
-            partial(
-                run_process,
-                command=[
-                    get_sys_executable(),
-                    "-m",
-                    "uvicorn",
-                    "--app-dir",
-                    # quote wrapping needed for windows paths with spaces
-                    f'"{prefect.__module_path__.parent}"',
-                    "--factory",
-                    "prefect.server.api.server:create_app",
-                    "--host",
-                    str(host),
-                    "--port",
-                    str(port),
-                    "--timeout-keep-alive",
-                    str(keep_alive_timeout),
-                ],
-                env=server_env,
-                stream_output=True,
+    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
+    # check if port is already in use
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+    except socket.error:
+        if await pid_file.exists():
+            exit_with_error(
+                f"A background server process is already running on port {port}. "
+                "Run `prefect server stop` to stop it or specify a different port "
+                "with the `--port` flag."
             )
+        exit_with_error(
+            f"Port {port} is already in use. Please specify a different port with the "
+            "`--port` flag."
         )
 
-        # Explicitly handle the interrupt signal here, as it will allow us to
-        # cleanly stop the uvicorn server. Failing to do that may cause a
-        # large amount of anyio error traces on the terminal, because the
-        # SIGINT is handled by Typer/Click in this process (the parent process)
-        # and will start shutting down subprocesses:
-        # https://github.com/PrefectHQ/server/issues/2475
+    # check if server is already running in the background
+    if background:
+        try:
+            await pid_file.touch(mode=0o600, exist_ok=False)
+        except FileExistsError:
+            exit_with_error(
+                "A server is already running in the background. To stop it,"
+                " run `prefect server stop`."
+            )
 
-        setup_signal_handlers_server(
-            server_process_id, "the Prefect server", app.console.print
+    app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
+    app.console.print("\n")
+
+    try:
+        command = [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "--app-dir",
+            str(prefect.__module_path__.parent),
+            "--factory",
+            "prefect.server.api.server:create_app",
+            "--host",
+            str(host),
+            "--port",
+            str(port),
+            "--timeout-keep-alive",
+            str(keep_alive_timeout),
+        ]
+        logger.debug("Opening server process with command: %s", shlex.join(command))
+        process = await anyio.open_process(
+            command=command,
+            env=server_env,
         )
 
+        process_id = process.pid
+        if background:
+            await pid_file.write_text(str(process_id))
+
+            app.console.print(
+                "The Prefect server is running in the background. Run `prefect"
+                " server stop` to stop it."
+            )
+            return
+
+        async with process:
+            # Explicitly handle the interrupt signal here, as it will allow us to
+            # cleanly stop the uvicorn server. Failing to do that may cause a
+            # large amount of anyio error traces on the terminal, because the
+            # SIGINT is handled by Typer/Click in this process (the parent process)
+            # and will start shutting down subprocesses:
+            # https://github.com/PrefectHQ/server/issues/2475
+
+            setup_signal_handlers_server(
+                process_id, "the Prefect server", app.console.print
+            )
+
+            await consume_process_output(process, sys.stdout, sys.stderr)
+
+    except anyio.EndOfStream:
+        logging.error("Subprocess stream ended unexpectedly")
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
+
+    app.console.print("Server stopped!")
+
+
+@server_app.command()
+async def stop():
+    """Stop a Prefect server instance running in the background"""
+    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
+    if not await pid_file.exists():
+        exit_with_success("No server running in the background.")
+    pid = int(await pid_file.read_text())
+    try:
+        os.kill(pid, 15)
+    except ProcessLookupError:
+        exit_with_success(
+            "The server process is not running. Cleaning up stale PID file."
+        )
+    finally:
+        # The file probably exists, but use `missing_ok` to avoid an
+        # error if the file was deleted by another actor
+        await pid_file.unlink(missing_ok=True)
     app.console.print("Server stopped!")
 
 

@@ -6,48 +6,35 @@ Execute shell commands from within Prefect flows.
 
 ## Getting started
 
-### Prerequisites
-
-Requires an installation of Python 3.9+
-
-We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
-
-These tasks are designed to work with Prefect 3. 
-
 ### Install `prefect-shell`
 
+The following command will install a version of `prefect-shell` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-Install or update to the latest version of the prefect-shell library and dependencies.
+```bash
+pip install "prefect[shell]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-shell
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-shell
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of `prefect` and `prefect-shell`:
+
+```bash
+pip install -U "prefect[shell]"
+```
 
 ### Register newly installed block types
 
-Register the block types in the prefect-shell module to make them available for use.
-
+Register the block types in the `prefect-shell` module to make them available for use.
 
 ```bash
 prefect block register -m prefect_shell
 ```
 
-
 ## Examples
 
 ### Integrate shell commands with Prefect flows
 
-With prefect-shell, you can use shell commands (and/or scripts) in Prefect flows to provide observability and resiliency.
-Prefect-shell can be a useful tool if you're transitioning your orchestration from shell scripts to Prefect.
+With `prefect-shell`, you can use shell commands (and/or scripts) in Prefect flows to provide observability and resiliency.
+`prefect-shell` can be a useful tool if you're transitioning your orchestration from shell scripts to Prefect.
 
 Let's get the shell-abration started!
 
@@ -143,4 +130,4 @@ ping_op = ShellOperation.load("block-name")
 
 ## Resources
 
-Refer to the prefect-shell SDK documentation linked in the sidebar to explore all the capabilities of the prefect-shell library.
+Refer to the `prefect-shell` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-shell` library.
