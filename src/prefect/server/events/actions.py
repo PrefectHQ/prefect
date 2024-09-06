@@ -1332,6 +1332,95 @@ class WorkPoolAction(Action):
         raise ActionFailed("No work pool could be inferred")
 
 
+class WorkPoolCommandAction(WorkPoolAction, ExternalDataAction):
+    _action_description: ClassVar[str]
+
+    _target_work_pool: Optional[WorkPool] = PrivateAttr(default=None)
+
+    async def target_work_pool(self, triggered_action: "TriggeredAction") -> WorkPool:
+        if not self._target_work_pool:
+            work_pool_id = await self.work_pool_id_to_use(triggered_action)
+
+            async with await self.orchestration_client(
+                triggered_action
+            ) as orchestration:
+                work_pool = await orchestration.read_work_pool(work_pool_id)
+
+                if not work_pool:
+                    raise ActionFailed(f"Work pool {work_pool_id} not found")
+                self._target_work_pool = work_pool
+        return self._target_work_pool
+
+    async def act(self, triggered_action: "TriggeredAction") -> None:
+        work_pool = await self.target_work_pool(triggered_action)
+
+        self._resulting_related_resources += [
+            RelatedResource.model_validate(
+                {
+                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                    "prefect.resource.name": work_pool.name,
+                    "prefect.resource.role": "target",
+                }
+            )
+        ]
+
+        logger.info(
+            self._action_description,
+            extra={
+                "work_pool_id": work_pool.id,
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await self.command(orchestration, work_pool, triggered_action)
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+    @abc.abstractmethod
+    async def command(
+        self,
+        orchestration: "OrchestrationClient",
+        work_pool: WorkPool,
+        triggered_action: "TriggeredAction",
+    ) -> Response:
+        """Issue the command to the Work Pool"""
+
+
+class PauseWorkPool(WorkPoolCommandAction):
+    """Pauses a Work Pool"""
+
+    type: Literal["pause-work-pool"] = "pause-work-pool"
+
+    _action_description: ClassVar[str] = "Pausing work pool"
+
+    async def command(
+        self,
+        orchestration: "OrchestrationClient",
+        work_pool: WorkPool,
+        triggered_action: "TriggeredAction",
+    ) -> Response:
+        return await orchestration.pause_work_pool(work_pool.name)
+
+
+class ResumeWorkPool(WorkPoolCommandAction):
+    """Resumes a Work Pool"""
+
+    type: Literal["resume-work-pool"] = "resume-work-pool"
+
+    _action_description: ClassVar[str] = "Resuming work pool"
+
+    async def command(
+        self,
+        orchestration: "OrchestrationClient",
+        work_pool: WorkPool,
+        triggered_action: "TriggeredAction",
+    ) -> Response:
+        return await orchestration.resume_work_pool(work_pool.name)
+
+
 class WorkQueueAction(Action):
     """Base class for Actions that operate on Work Queues and need to infer them from
     events"""
