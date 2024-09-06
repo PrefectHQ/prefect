@@ -503,6 +503,13 @@ class TestCachedSteps:
         assert mock_docker_client.api.push.call_count == expected_push_calls * 3
 
     def test_avoids_aggressive_caching(self, mock_docker_client):
+        """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15258
+        where all decorated functions were sharing a cache, so dict(image=..., tag=...) passed to
+        build_docker_image and push_docker_image would hit the cache for push_docker_image,
+        even though the function was different and should not have been cached.
+
+        here we test that the caches are distinct for each decorated function.
+        """
         image_name = "registry/repo"
         tag = "latest"
 
