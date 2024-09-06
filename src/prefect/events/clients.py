@@ -181,7 +181,7 @@ async def raise_for_events_connection_error():
     socket_url, headers = _get_socket_url_and_headers()
 
     try:
-        async with connect(socket_url, additional_headers=headers):
+        async with connect(socket_url, extra_headers=headers):
             pass
     except Exception as e:
         raise RuntimeError(
