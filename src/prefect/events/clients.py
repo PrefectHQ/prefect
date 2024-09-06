@@ -1,6 +1,5 @@
 import abc
 import asyncio
-from functools import partial
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -316,7 +315,6 @@ class PrefectEventsClient(EventsClient):
 
         self._events_socket_url = events_in_socket_from_api_url(api_url)
         self._connect = connect(self._events_socket_url)
-        self._sync_connect = partial(sync_connect, self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
