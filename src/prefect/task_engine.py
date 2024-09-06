@@ -443,7 +443,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 if inspect.isawaitable(_result):
                     _result = run_coro_as_sync(_result)
                 return _result
-
+            elif isinstance(self._return_value, ResultRecord):
+                return self._return_value.result
             # otherwise, return the value as is
             return self._return_value
 
@@ -946,7 +947,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             # if the return value is a BaseResult, we need to fetch it
             if isinstance(self._return_value, BaseResult):
                 return await self._return_value.get()
-
+            elif isinstance(self._return_value, ResultRecord):
+                return self._return_value.result
             # otherwise, return the value as is
             return self._return_value
 

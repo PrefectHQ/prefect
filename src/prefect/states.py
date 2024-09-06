@@ -25,7 +25,13 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.results import BaseResult, R, ResultRecord, ResultStore
+from prefect.results import (
+    BaseResult,
+    R,
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+)
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
@@ -133,6 +139,9 @@ async def _get_state_result(
         )
     elif isinstance(state.data, ResultRecord):
         result = state.data.result
+    elif isinstance(state.data, ResultRecordMetadata):
+        record = await ResultRecord.from_metadata(state.data)
+        result = record.result
 
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():

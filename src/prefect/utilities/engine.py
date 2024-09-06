@@ -735,6 +735,13 @@ def emit_task_run_state_change_event(
 ) -> Event:
     state_message_truncation_length = 100_000
 
+    if isinstance(validated_state.data, ResultRecord):
+        data = validated_state.data.metadata.model_dump(mode="json")
+    elif isinstance(validated_state.data, BaseResult):
+        data = validated_state.data.model_dump(mode="json")
+    else:
+        data = None
+
     return emit_event(
         id=validated_state.id,
         occurred=validated_state.timestamp,
@@ -773,9 +780,7 @@ def emit_task_run_state_change_event(
                     exclude_unset=True,
                     exclude={"flow_run_id", "task_run_id"},
                 ),
-                "data": validated_state.data.model_dump(mode="json")
-                if isinstance(validated_state.data, BaseResult)
-                else None,
+                "data": data,
             },
             "task_run": task_run.model_dump(
                 mode="json",

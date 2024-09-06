@@ -419,6 +419,13 @@ class ResultStore(BaseModel):
         """
         key = key or self.storage_key_fn()
 
+        if self.result_storage is None:
+            self.result_storage = get_default_result_storage(_sync=True)
+
+        if self.result_storage_block_id is None:
+            if hasattr(self.result_storage, "_resolve_path"):
+                key = str(self.result_storage._resolve_path(key))
+
         return ResultRecord(
             result=obj,
             metadata=ResultRecordMetadata(
@@ -426,6 +433,7 @@ class ResultStore(BaseModel):
                 expiration=expiration,
                 storage_key=key,
                 storage_block_id=self.result_storage_block_id,
+                serialize_to_none=not self.persist_result,
             ),
         )
 
@@ -491,6 +499,9 @@ class ResultStore(BaseModel):
         assert (
             result_record.metadata.storage_key is not None
         ), "Storage key is required on result record"
+
+        if not self.persist_result:
+            return
 
         key = result_record.metadata.storage_key
         if (
@@ -771,6 +782,13 @@ class ResultRecordMetadata(BaseModel):
     serializer: Serializer = Field(default_factory=PickleSerializer)
     prefect_version: str = Field(default=prefect.__version__)
     storage_block_id: Optional[uuid.UUID] = Field(default=None)
+    serialize_to_none: bool = Field(default=False)
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, handler, info):
+        if self.serialize_to_none:
+            return None
+        return handler(self, info)
 
     def dump_bytes(self) -> bytes:
         """
@@ -870,6 +888,20 @@ class ResultRecord(BaseModel, Generic[R]):
             if "prefect_version" in value:
                 value["metadata"]["prefect_version"] = value.pop("prefect_version")
         return value
+
+    @classmethod
+    async def from_metadata(cls, metadata: ResultRecordMetadata) -> "ResultRecord[R]":
+        if metadata.storage_block_id is None:
+            storage_block = None
+        else:
+            storage_block = await resolve_result_storage(
+                metadata.storage_block_id, _sync=False
+            )
+        store = ResultStore(
+            result_storage=storage_block, serializer=metadata.serializer
+        )
+        result = await store.aread(metadata.storage_key)
+        return result
 
     def serialize_metadata(self) -> bytes:
         return self.metadata.dump_bytes()
@@ -1072,7 +1104,6 @@ class PersistedResult(BaseResult):
         """
         Write the result to the storage block.
         """
-
         if self._persisted or self.serialize_to_none:
             # don't double write or overwrite
             return
@@ -1093,7 +1124,11 @@ class PersistedResult(BaseResult):
             # this could error if the serializer requires kwargs
             serializer = Serializer(type=self.serializer_type)
 
-        result_store = ResultStore(result_storage=storage_block, serializer=serializer)
+        result_store = ResultStore(
+            result_storage=storage_block,
+            serializer=serializer,
+            persist_result=not self.serialize_to_none,
+        )
         await result_store.awrite(
             obj=obj, key=self.storage_key, expiration=self.expiration
         )

@@ -32,7 +32,7 @@ from prefect.context import (
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResult, ResultStore
+from prefect.results import ResultRecord, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -1670,8 +1670,9 @@ class TestPersistence:
         state = await run_task_async(async_task, return_type="state")
         assert state.is_completed()
         assert await state.result() == -92
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == "foo-bar"
+        assert isinstance(state.data, ResultRecord)
+        key_path = Path(state.data.metadata.storage_key)
+        assert key_path.name == "foo-bar"
 
     async def test_task_result_persistence_references_absolute_path(self):
         @task(result_storage_key="test-absolute-path", persist_result=True)
@@ -1681,9 +1682,9 @@ class TestPersistence:
         state = await run_task_async(async_task, return_type="state")
         assert state.is_completed()
         assert await state.result() == 42
-        assert isinstance(state.data, PersistedResult)
+        assert isinstance(state.data, ResultRecord)
 
-        key_path = Path(state.data.storage_key)
+        key_path = Path(state.data.metadata.storage_key)
         assert key_path.is_absolute()
         assert key_path.name == "test-absolute-path"
 
@@ -1703,7 +1704,7 @@ class TestCachePolicy:
 
         assert state.is_completed()
         assert await state.result() == 1800
-        assert Path(state.data.storage_key).name == key
+        assert Path(state.data.metadata.storage_key).name == key
 
     async def test_cache_expiration_is_respected(self, advance_time, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
@@ -1772,8 +1773,8 @@ class TestCachePolicy:
 
         assert state.is_completed()
         assert await state.result() == 1800
-        assert isinstance(state.data, PersistedResult)
-        assert state.data._persisted is False
+        assert isinstance(state.data, ResultRecord)
+        assert not Path(state.data.metadata.storage_key).exists()
 
     async def test_none_return_value_does_persist(self, prefect_client, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
