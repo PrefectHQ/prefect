@@ -23,14 +23,14 @@ There are three layers to a block: its _type_, a _document_, and a Python _class
 
 ### Block type
 
-A block _type_ is essentially a schema registered with the Prefect API. This schema can be inspected and discovered in the UI on the Blocks page.
+A block _type_ is essentially a schema registered with the Prefect API. This schema can be inspected and discovered in the UI on the **Blocks** page.
 
 To see block types available for configuration, use `prefect block type ls` 
 from the CLI or navigate to the **Blocks** page in the UI and click **+**.
 
 ![The block catalogue in the UI](/3.0/img/ui/block-library.png)
 
-These types are what separate blocks from [Prefect variables](/3.0/develop/variables/), which are unstructured JSON documents.
+These types separate blocks from [Prefect variables](/3.0/develop/variables/), which are unstructured JSON documents.
 In addition, block schemas allow for fields of `SecretStr` type which are stored with additional encryption and not displayed by default in the UI.
 
 Block types are identified by a _slug_ that is not configurable.
@@ -90,7 +90,7 @@ For this reason, we highly recommend loading block documents by first importing 
 
 A block _class_ is the primary user-facing object; it is a Python class whose attributes are loaded from a block document. Most Prefect blocks encapsulate additional functionality built on top of the block document. 
 
-For example, an `S3` block contains methods for downloading data from, or upload data to, an S3 bucket; a `SnowflakeConnector` block contains methods for querying Snowflake databases.
+For example, an `S3Bucket` block contains methods for downloading data from, or upload data to, an S3 bucket; a `SnowflakeConnector` block contains methods for querying Snowflake databases.
 
 Returning to our `Cube` example from above:
 
@@ -112,7 +112,7 @@ rubiks_cube.get_volume() # 11.390625
 ```
 
 <Warning>
-It is very important to note that the class itself is _not_ stored server-side when registering block types and block documents. 
+The class itself is _not_ stored server-side when registering block types and block documents. 
 For this reason, we highly recommend loading block documents by first importing the block class and then calling its `load` method with the relevant document name.
 </Warning>
 
@@ -215,7 +215,7 @@ my_bucket_block.save("my_s3_bucket")
 The `aws_secret_access_key` field is typed as `SecretStr`, meaning it will be stored and displayed securely.
 </Info>
 
-Alternatively, we can also load from previously saved credentials:
+Alternatively, we can also load previously saved credentials:
 
 ```python
 my_bucket_block = S3Bucket(
@@ -341,7 +341,7 @@ print(system_configuration_block)
 # )
 ```
 
-### Customizing a block's display
+### Customize a block's display
 
 You can set metadata fields on a block type's subclass to control how a block displays.
 
