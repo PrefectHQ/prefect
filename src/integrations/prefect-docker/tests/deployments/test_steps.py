@@ -503,3 +503,22 @@ class TestCachedSteps:
         assert mock_docker_client.login.call_count == 3
         expected_push_calls = 1 + len(additional_tags)
         assert mock_docker_client.api.push.call_count == expected_push_calls * 3
+
+    def test_avoids_aggressive_caching(self, mock_docker_client):
+        image_name = "registry/repo"
+        tag = "latest"
+        credentials = {"username": "user", "password": "pass"}
+
+        build_docker_image(
+            image_name=image_name,
+            tag=tag,
+        )
+
+        # Push the image (this should not hit the cache)
+        push_docker_image(
+            image_name=image_name,
+            tag=tag,
+            credentials=credentials,
+        )
+
+        mock_docker_client.api.push.assert_called_once()
