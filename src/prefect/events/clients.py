@@ -27,6 +27,7 @@ from websockets.exceptions import (
     ConnectionClosedError,
     ConnectionClosedOK,
 )
+from websockets.sync.client import connect as sync_connect
 
 from prefect.events import Event
 from prefect.logging import get_logger
@@ -128,6 +129,16 @@ def get_events_subscriber(
         )
 
 
+async def raise_for_events_connection_error():
+    client = get_events_client()
+    await client.raise_for_connection_error()
+
+
+def sync_raise_for_events_connection_error():
+    client = get_events_client()
+    client.sync_raise_for_connection_error()
+
+
 class EventsClient(abc.ABC):
     """The abstract interface for all Prefect Events clients"""
 
@@ -164,6 +175,12 @@ class EventsClient(abc.ABC):
     ) -> None:
         del self._in_context
         return None
+
+    async def raise_for_connection_error(self):
+        pass
+
+    def sync_raise_for_connection_error(self):
+        pass
 
 
 class NullEventsClient(EventsClient):
@@ -262,6 +279,24 @@ class PrefectEventsClient(EventsClient):
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
+
+    async def raise_for_connection_error(self):
+        try:
+            async with self._connect:
+                pass
+        except Exception as e:
+            raise RuntimeError(
+                f"Unable to establish connection to {self._events_socket_url!r}. Check your network to ensure websocket connections can be made to the API."
+            ) from e
+
+    def sync_raise_for_connection_error(self):
+        try:
+            with sync_connect(self._events_socket_url):
+                pass
+        except Exception as e:
+            raise RuntimeError(
+                f"Unable to establish connection to {self._events_socket_url!r}. Check your network to ensure websocket connections can be made to the API."
+            ) from e
 
     async def __aenter__(self) -> Self:
         # Don't handle any errors in the initial connection, because these are most
@@ -417,6 +452,24 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             self._events_socket_url,
             extra_headers={"Authorization": f"bearer {api_key}"},
         )
+
+    async def raise_for_connection_error(self):
+        try:
+            async with self._connect:
+                pass
+        except Exception as e:
+            raise RuntimeError(
+                f"Unable to establish connection to {self._events_socket_url!r}. Check your network to ensure websocket connections can be made to the API."
+            ) from e
+
+    def sync_raise_for_connection_error(self):
+        try:
+            with sync_connect(self._events_socket_url):
+                pass
+        except Exception as e:
+            raise RuntimeError(
+                f"Unable to establish connection to {self._events_socket_url!r}. Check your network to ensure websocket connections can be made to the API."
+            ) from e
 
 
 SEEN_EVENTS_SIZE = 500_000
