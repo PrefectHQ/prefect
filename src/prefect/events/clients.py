@@ -148,7 +148,7 @@ def _get_socket_url_and_headers():
 
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         _, api_key = _get_api_url_and_key(api_url, None)
-        headers = {"Authorization ": f"Bearer {api_key}"}
+        headers = {"Authorization": f"bearer {api_key}"}
     elif api_url:
         pass
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
@@ -471,13 +471,9 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-        self.extra_headers = {"Authorization": f"bearer {api_key}"}
         self._connect = connect(
             self._events_socket_url,
-            extra_headers=self.extra_headers,
-        )
-        self._sync_connect = partial(
-            sync_connect, self._events_socket_url, additional_headers=self.extra_headers
+            extra_headers={"Authorization": f"bearer {api_key}"},
         )
 
 
