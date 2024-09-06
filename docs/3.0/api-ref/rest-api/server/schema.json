@@ -10882,12 +10882,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -10910,6 +10904,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
@@ -10939,12 +10939,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -10967,6 +10961,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
@@ -10996,12 +10996,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11024,6 +11018,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
@@ -11125,12 +11125,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11153,6 +11147,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
@@ -11182,12 +11182,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11210,6 +11204,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
@@ -11239,12 +11239,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11267,6 +11261,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
@@ -11458,12 +11458,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11486,6 +11480,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
@@ -11515,12 +11515,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11543,6 +11537,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
@@ -11572,12 +11572,6 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/PauseWorkPool"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeWorkPool"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11600,6 +11594,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 }
                             ]
                         },
