@@ -636,6 +636,12 @@ class ConcurrencyLimit(ORMBaseModel):
         description="A list of active run ids using a concurrency slot",
     )
 
+class ConcurrencyOptions(BaseModel):
+    """
+    Options for configuring deployment concurrency limits.
+    """
+    concurrency: int
+    collision_strategy: Literal["enqueue", "cancel"]
 
 class ConcurrencyLimitV2(ORMBaseModel):
     """An ORM representation of a v2 concurrency limit."""
