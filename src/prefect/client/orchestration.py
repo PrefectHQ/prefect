@@ -3059,7 +3059,7 @@ class PrefectClient:
         slots: int,
         mode: str,
         create_if_missing: Optional[bool],
-        active: Optional[bool] = False,
+        active: bool = False,
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/increment",

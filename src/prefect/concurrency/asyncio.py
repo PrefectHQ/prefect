@@ -143,7 +143,7 @@ async def _acquire_concurrency_slots(
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = True,
     max_retries: Optional[int] = None,
-    active: Optional[bool] = False,
+    active: bool = False,
 ) -> List[MinimalConcurrencyLimitResponse]:
     service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
     future = service.send(
