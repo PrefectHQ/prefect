@@ -72,6 +72,9 @@ P = ParamSpec("P")
 ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
 
 
+_collections_loaded = False
+
+
 def block_schema_to_key(schema: BlockSchema) -> str:
     """
     Defines the unique key used to lookup the Block class for a given schema.
@@ -739,9 +742,14 @@ class Block(BaseModel, ABC):
         """
         Retrieve the block class implementation given a key.
         """
+        global _collections_loaded
+
         # Ensure collections are imported and have the opportunity to register types
-        # before looking up the block class
-        prefect.plugins.load_prefect_collections()
+        # before looking up the block class, but only do this once
+        if not _collections_loaded:
+            print("loading collections")
+            prefect.plugins.load_prefect_collections()
+            _collections_loaded = True
 
         return lookup_type(cls, key)
 
