@@ -100,6 +100,7 @@ def cacheable(func):
         if ignore_cache := kwargs.pop("ignore_cache", False):
             logger.debug("Ignoring `@cacheable` decorator for build_docker_image.")
         key = (
+            func.__name__,
             tuple(_make_hashable(arg) for arg in args),
             tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items())),
         )
