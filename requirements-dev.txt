@@ -21,6 +21,7 @@ pytest-xdist >= 3.6.1
 pyyaml
 redis>=5.0.1
 setuptools
+uv>=0.4.5
 vale
 vermin
 virtualenv
