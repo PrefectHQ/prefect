@@ -69,6 +69,18 @@ EVENT_WEBSOCKET_CHECKPOINTS = Counter(
 logger = get_logger(__name__)
 
 
+def http_to_ws(url: str):
+    return url.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
+
+
+def events_in_socket_from_api_url(url: str):
+    return http_to_ws(url) + "/events/in"
+
+
+def events_out_socket_from_api_url(url: str):
+    return http_to_ws(url) + "/events/out"
+
+
 def get_events_client(
     reconnection_attempts: int = 10,
     checkpoint_every: int = 700,
@@ -130,14 +142,51 @@ def get_events_subscriber(
         )
 
 
-async def raise_for_events_connection_error():
-    client = get_events_client()
-    await client.raise_for_connection_error()
+def _get_socket_url_and_headers():
+    api_url = PREFECT_API_URL.value()
+    headers = None
+
+    if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
+        _, api_key = _get_api_url_and_key(api_url, None)
+        headers = {"Authorization ": f"Bearer {api_key}"}
+    elif api_url:
+        pass
+    elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+        from prefect.server.api.server import SubprocessASGIServer
+
+        server = SubprocessASGIServer()
+        server.start()
+        api_url = server.api_url
+    else:
+        raise ValueError(
+            "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
+        )
+
+    return events_in_socket_from_api_url(api_url), headers
 
 
 def sync_raise_for_events_connection_error():
-    client = get_events_client()
-    client.sync_raise_for_connection_error()
+    socket_url, headers = _get_socket_url_and_headers()
+
+    try:
+        with sync_connect(socket_url, additional_headers=headers):
+            pass
+    except Exception as e:
+        raise RuntimeError(
+            f"Unable to establish connection to {socket_url!r}. Check your network to ensure websocket connections can be made to the API."
+        ) from e
+
+
+async def raise_for_events_connection_error():
+    socket_url, headers = _get_socket_url_and_headers()
+
+    try:
+        async with connect(socket_url, additional_headers=headers):
+            pass
+    except Exception as e:
+        raise RuntimeError(
+            f"Unable to establish connection to {socket_url!r}. Check your network to ensure websocket connections can be made to the API."
+        ) from e
 
 
 class EventsClient(abc.ABC):
@@ -176,12 +225,6 @@ class EventsClient(abc.ABC):
     ) -> None:
         del self._in_context
         return None
-
-    async def raise_for_connection_error(self):
-        pass
-
-    def sync_raise_for_connection_error(self):
-        pass
 
 
 class NullEventsClient(EventsClient):
@@ -269,36 +312,13 @@ class PrefectEventsClient(EventsClient):
                 "api_url must be provided or set in the Prefect configuration"
             )
 
-        self._events_socket_url = (
-            api_url.replace("https://", "wss://")
-            .replace("http://", "ws://")
-            .rstrip("/")
-            + "/events/in"
-        )
+        self._events_socket_url = events_in_socket_from_api_url(api_url)
         self._connect = connect(self._events_socket_url)
         self._sync_connect = partial(sync_connect, self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
-
-    async def raise_for_connection_error(self):
-        try:
-            async with self._connect:
-                pass
-        except Exception as e:
-            raise RuntimeError(
-                f"Unable to establish connection to {self._events_socket_url!r}. Check your network to ensure websocket connections can be made to the API."
-            ) from e
-
-    def sync_raise_for_connection_error(self):
-        try:
-            with self._sync_connect():
-                pass
-        except Exception as e:
-            raise RuntimeError(
-                f"Unable to establish connection to {self._events_socket_url!r}. Check your network to ensure websocket connections can be made to the API."
-            ) from e
 
     async def __aenter__(self) -> Self:
         # Don't handle any errors in the initial connection, because these are most
@@ -508,11 +528,7 @@ class PrefectEventSubscriber:
         self._filter = filter or EventFilter()  # type: ignore[call-arg]
         self._seen_events = TTLCache(maxsize=SEEN_EVENTS_SIZE, ttl=SEEN_EVENTS_TTL)
 
-        socket_url = (
-            api_url.replace("https://", "wss://")
-            .replace("http://", "ws://")
-            .rstrip("/")
-        ) + "/events/out"
+        socket_url = events_out_socket_from_api_url(api_url)
 
         logger.debug("Connecting to %s", socket_url)
 
