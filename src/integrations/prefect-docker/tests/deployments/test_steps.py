@@ -505,7 +505,6 @@ class TestCachedSteps:
     def test_avoids_aggressive_caching(self, mock_docker_client):
         image_name = "registry/repo"
         tag = "latest"
-        credentials = {"username": "user", "password": "pass"}
 
         build_docker_image(
             image_name=image_name,
@@ -516,7 +515,7 @@ class TestCachedSteps:
         push_docker_image(
             image_name=image_name,
             tag=tag,
-            credentials=credentials,
         )
 
+        mock_docker_client.api.build.assert_called_once()
         mock_docker_client.api.push.assert_called_once()
