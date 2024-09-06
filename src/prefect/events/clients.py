@@ -1,5 +1,6 @@
 import abc
 import asyncio
+from functools import partial
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -275,6 +276,7 @@ class PrefectEventsClient(EventsClient):
             + "/events/in"
         )
         self._connect = connect(self._events_socket_url)
+        self._sync_connect = partial(sync_connect, self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
@@ -291,7 +293,7 @@ class PrefectEventsClient(EventsClient):
 
     def sync_raise_for_connection_error(self):
         try:
-            with sync_connect(self._events_socket_url):
+            with self._sync_connect():
                 pass
         except Exception as e:
             raise RuntimeError(
@@ -447,29 +449,14 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-
+        self.extra_headers = {"Authorization": f"bearer {api_key}"}
         self._connect = connect(
             self._events_socket_url,
-            extra_headers={"Authorization": f"bearer {api_key}"},
+            extra_headers=self.extra_headers,
         )
-
-    async def raise_for_connection_error(self):
-        try:
-            async with self._connect:
-                pass
-        except Exception as e:
-            raise RuntimeError(
-                f"Unable to establish connection to {self._events_socket_url!r}. Check your network to ensure websocket connections can be made to the API."
-            ) from e
-
-    def sync_raise_for_connection_error(self):
-        try:
-            with sync_connect(self._events_socket_url):
-                pass
-        except Exception as e:
-            raise RuntimeError(
-                f"Unable to establish connection to {self._events_socket_url!r}. Check your network to ensure websocket connections can be made to the API."
-            ) from e
+        self._sync_connect = partial(
+            sync_connect, self._events_socket_url, additional_headers=self.extra_headers
+        )
 
 
 SEEN_EVENTS_SIZE = 500_000
