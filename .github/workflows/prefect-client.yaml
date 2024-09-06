@@ -7,18 +7,14 @@ on:
     paths:
       - client/*
       - src/prefect/**/*.py
-      - requirements.txt
-      - requirements-client.txt
-      - setup.cfg
+      - pyproject.toml
   push:
     branches:
       - main
     paths:
       - client/*
       - src/prefect/**/*.py
-      - requirements.txt
-      - requirements-client.txt
-      - setup.cfg
+      - pyproject.toml
   workflow_call:
     inputs:
       upload-artifacts:

@@ -30,7 +30,7 @@ jobs:
       id: check_changes
       run: |
         latest_tag=${{ env.latest_tag }}
-        if git diff --exit-code $latest_tag HEAD -- '*.py' setup.py requirements.txt requirements-client.txt ui; then
+        if git diff --exit-code $latest_tag HEAD -- '*.py' pyproject.toml ui; then
           echo "SHOULD_CREATE_RELEASE=false" >> $GITHUB_ENV
           echo "No changes in .py files or dependencies since the latest tag."
         else

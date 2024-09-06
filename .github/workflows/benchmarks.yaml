@@ -9,9 +9,7 @@ on:
       - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
-      - requirements.txt
-      - requirements-dev.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
   push:
     branches:
@@ -55,7 +53,7 @@ jobs:
         id: cache-uv
         with:
           path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('pyproject.toml') }}
 
       - name: Install packages
         run: |

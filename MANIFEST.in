@@ -7,11 +7,7 @@ global-exclude __pycache__/**
 # Top-level Config
 include LICENSE
 include MANIFEST.in
-include setup.cfg
-include versioneer.py
-include requirements.txt
-include requirements-dev.txt
-include requirements-client.txt
+include pyproject.toml
 include src/prefect/_version.py
 include src/prefect/py.typed
 include src/prefect/profiles.toml

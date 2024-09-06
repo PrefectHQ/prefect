@@ -1,15 +1,20 @@
-import versioneer
+import toml
 from setuptools import find_packages, setup
 
-install_requires = open("requirements-client.txt").read().strip().split("\n")
+# Read pyproject.toml
+with open("pyproject.toml", "r") as f:
+    pyproject = toml.load(f)
 
-# grab and use the first three version digits (the generated tag)
-_version = versioneer.get_version().split(".")
-client_version = ".".join(_version[:3]).split("+")[0]
+# Get version from pyproject.toml
+version = pyproject["project"]["version"]
+
+# Get client dependencies
+client_deps = pyproject["project"]["optional-dependencies"]["client"]
 
 setup(
     # Package metadata
     name="prefect-client",
+    version=version,
     description="Workflow orchestration and management.",
     author="Prefect Technologies, Inc.",
     author_email="help@prefect.io",
@@ -22,15 +27,13 @@ setup(
     },
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    # Versioning
-    version=client_version,
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
     # Requirements
     python_requires=">=3.9",
-    install_requires=install_requires,
+    install_requires=client_deps,
     extras_require={"notifications": ["apprise>=1.1.0, <2.0.0"]},
     classifiers=[
         "Natural Language :: English",

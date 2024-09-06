@@ -4,9 +4,7 @@ on:
     paths:
       - .github/workflows/integration-tests.yaml
       - "src/prefect/**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
+      - pyproject.toml
       - ui/**
       - .nvmrc
       - Dockerfile
@@ -17,9 +15,7 @@ on:
     paths:
       - .github/workflows/integration-tests.yaml
       - "**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
+      - pyproject.toml
       - ui/**
       - .nvmrc
       - Dockerfile
@@ -61,7 +57,7 @@ jobs:
         id: cache-uv
         with:
           path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('pyproject.toml') }}
 
       - name: Install python packages
         run: |

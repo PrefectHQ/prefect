@@ -9,9 +9,7 @@ migration:
 upstream dependency:
   - changed-files:
       - any-glob-to-any-file: 
-        - requirements.txt
-        - requirements-client.txt
-        - requirements-dev.txt
+        - pyproject.toml
 
 2.x:
   - base-branch: '2.x'
