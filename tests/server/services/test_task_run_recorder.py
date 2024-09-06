@@ -1,25 +1,23 @@
 import asyncio
 from datetime import timedelta
+from itertools import permutations
 from typing import AsyncGenerator
-from unittest.mock import AsyncMock, patch
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.events.ordering import EventArrivedEarly
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
-from prefect.server.models.task_run_states import read_task_run_state
+from prefect.server.models.task_run_states import (
+    read_task_run_state,
+    read_task_run_states,
+)
 from prefect.server.models.task_runs import read_task_run
 from prefect.server.schemas.core import FlowRun, TaskRunPolicy
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.server.services import task_run_recorder
-from prefect.server.services.task_run_recorder import (
-    record_lost_follower_task_run_events,
-    record_task_run_event,
-)
 from prefect.server.utilities.messaging import MessageHandler
 from prefect.server.utilities.messaging.memory import MemoryMessage
 
@@ -40,9 +38,7 @@ async def test_start_and_stop_service():
 
 @pytest.fixture
 async def task_run_recorder_handler() -> AsyncGenerator[MessageHandler, None]:
-    async with task_run_recorder.consumer(
-        periodic_granularity=timedelta(seconds=0.0001)
-    ) as handler:
+    async with task_run_recorder.consumer() as handler:
         yield handler
 
 
@@ -167,7 +163,7 @@ async def test_handle_client_orchestrated_task_run_event(
     client_orchestrated_task_run_event: ReceivedEvent,
     caplog: pytest.LogCaptureFixture,
 ):
-    with caplog.at_level("INFO"):
+    with caplog.at_level("DEBUG"):
         await task_run_recorder_handler(message(client_orchestrated_task_run_event))
 
     assert "Recorded task run state change" in caplog.text
@@ -179,7 +175,7 @@ async def test_skip_non_task_run_event(
     hello_event: ReceivedEvent,
     caplog: pytest.LogCaptureFixture,
 ):
-    with caplog.at_level("INFO"):
+    with caplog.at_level("DEBUG"):
         await task_run_recorder_handler(message(hello_event))
 
     assert "Received event" not in caplog.text
@@ -711,50 +707,49 @@ async def test_updates_task_run_on_out_of_order_state_change(
     )
 
 
-async def test_lost_followers_are_recorded(monkeypatch: pytest.MonkeyPatch):
-    now = pendulum.now("UTC")
-    event = ReceivedEvent(
-        occurred=now.subtract(minutes=2),
-        received=now.subtract(minutes=1),
-        event="prefect.task-run.Running",
-        resource={
-            "prefect.resource.id": f"prefect.task-run.{str(uuid4())}",
-        },
-        account=uuid4(),
-        workspace=uuid4(),
-        follows=uuid4(),
-        id=uuid4(),
-    )
-    # record a follower that never sees its leader
-    with pytest.raises(EventArrivedEarly):
-        await record_task_run_event(event)
-
-    record_task_run_event_mock = AsyncMock()
-    monkeypatch.setattr(
-        "prefect.server.services.task_run_recorder.record_task_run_event",
-        record_task_run_event_mock,
-    )
-
-    # move time forward so we can record the lost follower
-    with patch("prefect.server.events.ordering.pendulum.now") as the_future:
-        the_future.return_value = now.add(minutes=20)
-        await record_lost_follower_task_run_events()
-
-    assert record_task_run_event_mock.await_count == 1
-    record_task_run_event_mock.assert_awaited_with(event)
-
-
-async def test_lost_followers_are_recorded_periodically(
-    task_run_recorder_handler,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    "event_order",
+    list(permutations(["PENDING", "RUNNING", "COMPLETED"])),
+    ids=lambda x: "->".join(x),
+)
+async def test_task_run_recorder_handles_all_out_of_order_permutations(
+    session: AsyncSession,
+    pending_event: ReceivedEvent,
+    running_event: ReceivedEvent,
+    completed_event: ReceivedEvent,
+    task_run_recorder_handler: MessageHandler,
+    event_order: tuple,
 ):
-    record_lost_follower_task_run_events_mock = AsyncMock()
-    monkeypatch.setattr(
-        "prefect.server.services.task_run_recorder.record_lost_follower_task_run_events",
-        record_lost_follower_task_run_events_mock,
+    # Set up event times
+    base_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    pending_event.occurred = base_time
+    running_event.occurred = base_time.add(minutes=1)
+    completed_event.occurred = base_time.add(minutes=2)
+
+    event_map = {
+        "PENDING": pending_event,
+        "RUNNING": running_event,
+        "COMPLETED": completed_event,
+    }
+
+    # Process events in the specified order
+    for event_name in event_order:
+        await task_run_recorder_handler(message(event_map[event_name]))
+
+    # Verify the task run always has the "final" state
+    task_run = await read_task_run(
+        session=session,
+        task_run_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
     )
 
-    # let the period task run a few times
-    await asyncio.sleep(0.1)
+    assert task_run
+    assert task_run.state_type == StateType.COMPLETED
+    assert task_run.state_name == "Completed"
+    assert task_run.state_timestamp == completed_event.occurred
 
-    assert record_lost_follower_task_run_events_mock.await_count >= 1
+    # Verify all states are recorded
+    states = await read_task_run_states(session, task_run.id)
+    assert len(states) == 3
+
+    state_types = set(state.type for state in states)
+    assert state_types == {StateType.PENDING, StateType.RUNNING, StateType.COMPLETED}

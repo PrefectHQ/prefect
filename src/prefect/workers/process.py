@@ -144,9 +144,7 @@ class ProcessWorker(BaseWorker):
         " when first getting started."
     )
     _display_name = "Process"
-    _documentation_url = (
-        "https://docs.prefect.io/latest/api-ref/prefect/workers/process/"
-    )
+    _documentation_url = "https://docs.prefect.io/latest/get-started/quickstart"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
 
     async def start(

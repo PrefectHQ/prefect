@@ -1,6 +1,5 @@
 import asyncio
-from contextlib import AsyncExitStack, asynccontextmanager
-from datetime import timedelta
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, Optional
 from uuid import UUID
 
@@ -119,50 +118,38 @@ def task_run_from_event(event: ReceivedEvent) -> TaskRun:
     )
 
 
-async def record_task_run_event(event: ReceivedEvent, depth: int = 0):
+async def record_task_run_event(event: ReceivedEvent):
+    task_run = task_run_from_event(event)
+
+    task_run_attributes = task_run.model_dump_for_orm(
+        exclude={
+            "state_id",
+            "state",
+            "created",
+            "estimated_run_time",
+            "estimated_start_time_delta",
+        },
+        exclude_unset=True,
+    )
+
+    assert task_run.state
+
+    denormalized_state_attributes = {
+        "state_id": task_run.state.id,
+        "state_type": task_run.state.type,
+        "state_name": task_run.state.name,
+        "state_timestamp": task_run.state.timestamp,
+    }
+
     db = provide_database_interface()
-
-    async with AsyncExitStack() as stack:
-        await stack.enter_async_context(
-            (
-                causal_ordering().preceding_event_confirmed(
-                    record_task_run_event, event, depth=depth
-                )
-            )
-        )
-
-        task_run = task_run_from_event(event)
-
-        task_run_attributes = task_run.model_dump_for_orm(
-            exclude={
-                "state_id",
-                "state",
-                "created",
-                "estimated_run_time",
-                "estimated_start_time_delta",
-            },
-            exclude_unset=True,
-        )
-
-        assert task_run.state
-
-        denormalized_state_attributes = {
-            "state_id": task_run.state.id,
-            "state_type": task_run.state.type,
-            "state_name": task_run.state.name,
-            "state_timestamp": task_run.state.timestamp,
-        }
-        session = await stack.enter_async_context(
-            db.session_context(begin_transaction=True)
-        )
-
+    async with db.session_context(begin_transaction=True) as session:
         await _insert_task_run(session, task_run, task_run_attributes)
         await _insert_task_run_state(session, task_run)
         await _update_task_run_with_state(
             session, task_run, denormalized_state_attributes
         )
 
-    logger.info(
+    logger.debug(
         "Recorded task run state change",
         extra={
             "task_run_id": task_run.id,
@@ -177,39 +164,8 @@ async def record_task_run_event(event: ReceivedEvent, depth: int = 0):
     )
 
 
-async def record_lost_follower_task_run_events():
-    events = await causal_ordering().get_lost_followers()
-
-    for event in events:
-        await record_task_run_event(event)
-
-
-async def periodically_process_followers(periodic_granularity: timedelta):
-    """Periodically process followers that are waiting on a leader event that never arrived"""
-    logger.debug(
-        "Starting periodically process followers task every %s seconds",
-        periodic_granularity.total_seconds(),
-    )
-    while True:
-        try:
-            await record_lost_follower_task_run_events()
-        except asyncio.CancelledError:
-            logger.debug("Periodically process followers task cancelled")
-            return
-        except Exception:
-            logger.exception("Error while processing task-run-recorders followers.")
-        finally:
-            await asyncio.sleep(periodic_granularity.total_seconds())
-
-
 @asynccontextmanager
-async def consumer(
-    periodic_granularity: timedelta = timedelta(seconds=5),
-) -> AsyncGenerator[MessageHandler, None]:
-    record_lost_followers_task = asyncio.create_task(
-        periodically_process_followers(periodic_granularity=periodic_granularity)
-    )
-
+async def consumer() -> AsyncGenerator[MessageHandler, None]:
     async def message_handler(message: Message):
         event: ReceivedEvent = ReceivedEvent.model_validate_json(message.data)
 
@@ -219,8 +175,11 @@ async def consumer(
         if not event.resource.get("prefect.orchestration") == "client":
             return
 
-        logger.info(
-            f"Received event: {event.event} with id: {event.id} for resource: {event.resource.get('prefect.resource.id')}"
+        logger.debug(
+            "Received event: %s with id: %s for resource: %s",
+            event.event,
+            event.id,
+            event.resource.get("prefect.resource.id"),
         )
 
         try:
@@ -231,14 +190,7 @@ async def consumer(
             # event arrives.
             pass
 
-    try:
-        yield message_handler
-    finally:
-        try:
-            record_lost_followers_task.cancel()
-            await record_lost_followers_task
-        except asyncio.CancelledError:
-            logger.debug("Periodically process followers task cancelled successfully")
+    yield message_handler
 
 
 class TaskRunRecorder:
