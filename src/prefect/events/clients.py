@@ -169,8 +169,9 @@ def sync_raise_for_events_connection_error():
     socket_url, headers = _get_socket_url_and_headers()
 
     try:
-        with sync_connect(socket_url, additional_headers=headers):
-            pass
+        with sync_connect(socket_url, additional_headers=headers) as ws:
+            pong = ws.ping()
+            pong.wait()
     except Exception as e:
         raise RuntimeError(
             f"Unable to establish connection to {socket_url!r}. Check your network to ensure websocket connections can be made to the API."
@@ -181,8 +182,9 @@ async def raise_for_events_connection_error():
     socket_url, headers = _get_socket_url_and_headers()
 
     try:
-        async with connect(socket_url, extra_headers=headers):
-            pass
+        async with connect(socket_url, extra_headers=headers) as ws:
+            pong = await ws.ping()
+            await pong
     except Exception as e:
         raise RuntimeError(
             f"Unable to establish connection to {socket_url!r}. Check your network to ensure websocket connections can be made to the API."
