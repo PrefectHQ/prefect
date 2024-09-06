@@ -14,7 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server.api.clients import OrchestrationClient
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
-from prefect.server.schemas.responses import DeploymentResponse
+from prefect.server.schemas.responses import (
+    DeploymentResponse,
+    OrchestrationResult,
+    SetStateStatus,
+    StateRejectDetails,
+)
+from prefect.server.schemas.states import Paused
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMDeployment, ORMVariable
@@ -48,6 +54,30 @@ async def test_read_deployment_raises_errors(orchestration_client: Orchestration
     ):
         with pytest.raises(httpx.HTTPStatusError):
             await orchestration_client.read_deployment(uuid4())
+
+
+async def test_resume_flow_run_raises_errors(orchestration_client: OrchestrationClient):
+    with mock.patch(
+        "prefect.server.api.flow_runs._resume_flow_run",
+        return_value=ValueError("woops"),
+    ):
+        with pytest.raises(httpx.HTTPStatusError):
+            await orchestration_client.resume_flow_run(uuid4())
+
+
+async def test_resume_flow_run_returns_result(
+    orchestration_client: OrchestrationClient,
+):
+    with mock.patch(
+        "prefect.server.api.flow_runs._resume_flow_run",
+        return_value=OrchestrationResult(
+            state=Paused(reschedule=False),
+            status=SetStateStatus.REJECT,
+            details=StateRejectDetails(reason="woops"),
+        ),
+    ):
+        response = await orchestration_client.resume_flow_run(uuid4())
+        assert response.status == SetStateStatus.REJECT
 
 
 @pytest.fixture
