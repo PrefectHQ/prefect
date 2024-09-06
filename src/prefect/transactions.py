@@ -233,6 +233,8 @@ class Transaction(ContextModel):
                 if isinstance(self.store, ResultStore):
                     if isinstance(self._staged_value, BaseResult):
                         self.store.write(self.key, self._staged_value.get(_sync=True))
+                    elif isinstance(self._staged_value, ResultRecord):
+                        self.store.persist_result_record(self._staged_value)
                     else:
                         self.store.write(self.key, self._staged_value)
                 else:

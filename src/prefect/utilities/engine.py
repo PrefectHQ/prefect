@@ -44,12 +44,11 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
-from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging.loggers import (
     get_logger,
     task_run_logger,
 )
-from prefect.results import BaseResult
+from prefect.results import BaseResult, ResultRecord
 from prefect.settings import (
     PREFECT_LOGGING_LOG_PRINTS,
 )
@@ -122,7 +121,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
 
 
 def collect_task_run_inputs_sync(
-    expr: Any, future_cls: Any = NewPrefectFuture, max_depth: int = -1
+    expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1
 ) -> Set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
@@ -131,7 +130,7 @@ def collect_task_run_inputs_sync(
 
     Examples:
         >>> task_inputs = {
-        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
+        >>>    k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
         >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
@@ -401,6 +400,8 @@ async def propose_state(
             # Avoid fetching the result unless it is cached, otherwise we defeat
             # the purpose of disabling `cache_result_in_memory`
             result = await state.result(raise_on_failure=False, fetch=True)
+        elif isinstance(state.data, ResultRecord):
+            result = state.data.result
         else:
             result = state.data
 
@@ -504,6 +505,8 @@ def propose_state_sync(
             result = state.result(raise_on_failure=False, fetch=True)
             if inspect.isawaitable(result):
                 result = run_coro_as_sync(result)
+        elif isinstance(state.data, ResultRecord):
+            result = state.data.result
         else:
             result = state.data
 
@@ -822,7 +825,7 @@ def resolve_to_final_result(expr, context):
     if isinstance(context.get("annotation"), quote):
         raise StopVisiting()
 
-    if isinstance(expr, NewPrefectFuture):
+    if isinstance(expr, PrefectFuture):
         upstream_task_run = context.get("current_task_run")
         upstream_task = context.get("current_task")
         if (

@@ -19,6 +19,7 @@ from typing import (
 )
 from uuid import UUID
 
+import pendulum
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -293,15 +294,29 @@ class ResultStore(BaseModel):
             # so the entire payload doesn't need to be read
             try:
                 metadata_content = await self.metadata_storage.read_path(key)
-                return metadata_content is not None
+                if metadata_content is None:
+                    return False
+                metadata = ResultRecordMetadata.load_bytes(metadata_content)
+
             except Exception:
                 return False
         else:
             try:
                 content = await self.result_storage.read_path(key)
-                return content is not None
+                if content is None:
+                    return False
+                record = ResultRecord.deserialize(content)
+                metadata = record.metadata
             except Exception:
                 return False
+
+        if metadata.expiration:
+            # if the result has an expiration,
+            # check if it is still in the future
+            exists = metadata.expiration > pendulum.now("utc")
+        else:
+            exists = True
+        return exists
 
     def exists(self, key: str) -> bool:
         """
@@ -390,8 +405,8 @@ class ResultStore(BaseModel):
 
     def create_result_record(
         self,
-        key: str,
         obj: Any,
+        key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
     ):
         """
