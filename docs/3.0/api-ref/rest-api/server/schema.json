@@ -21591,7 +21591,7 @@
                 },
                 "type": "object",
                 "title": "ResumeFlowRun",
-                "description": "Resumes a suspended flow run associated with the trigger"
+                "description": "Resumes a paused or suspended flow run associated with the trigger"
             },
             "ResumeWorkPool": {
                 "properties": {
