@@ -1667,6 +1667,8 @@ ServerActionTypes: TypeAlias = Union[
     ResumeDeployment,
     CancelFlowRun,
     ChangeFlowRunState,
+    PauseWorkPool,
+    ResumeWorkPool,
     PauseWorkQueue,
     ResumeWorkQueue,
     SendNotification,
