@@ -76,7 +76,7 @@ class FileSystemRecordStore(RecordStore):
             return None
 
     def read(
-        self, key: str, holder: Optional[str] = None
+        self, key: str, holder: Optional[str] = None, timeout: Optional[float] = None
     ) -> Optional[TransactionRecord]:
         if not self.exists(key):
             return None
@@ -84,7 +84,9 @@ class FileSystemRecordStore(RecordStore):
         holder = holder or self.generate_default_holder()
 
         if self.is_locked(key) and not self.is_lock_holder(key, holder):
-            self.wait_for_lock(key)
+            unlocked = self.wait_for_lock(key, timeout=timeout)
+            if not unlocked:
+                return None
         record_data = self.records_directory.joinpath(key).read_text()
         return TransactionRecord(
             key=key, result=BaseResult.model_validate_json(record_data)
