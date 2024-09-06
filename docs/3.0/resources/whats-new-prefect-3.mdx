@@ -7,9 +7,13 @@ Prefect 3 represents a significant leap forward in workflow orchestration, bring
 
 Most Prefect 2 users can upgrade without changes to their existing workflows. Please review the [upgrade guide](/3.0/resources/upgrade-to-prefect-3) for more information.
 
+<Note>
+[Prefect Cloud](/3.0/manage/cloud) is compatible with both Prefect 3 and Prefect 2 clients. 
+</Note>
+
 ## Open source events and automation system
 
-One of the most anticipated features in Prefect 3 is the introduction of the events and automation system to the open-source package. Previously exclusive to Prefect Cloud, this powerful system now allows all users to create sophisticated, event-driven workflows. 
+One of the most anticipated features in Prefect 3 is the introduction of the events and automation system to the open source package. Previously exclusive to Prefect Cloud, this powerful system now allows all users to create sophisticated, event-driven workflows. 
 
 With this new capability, you can trigger actions based on specific event payloads, cancel runs if certain conditions aren't met, or automate workflow runs based on external events. For instance, you could initiate a data processing pipeline automatically when a new file lands in an S3 bucket. The system also enables you to receive notifications for various system health events, giving you greater visibility and control over your workflows.
 
@@ -22,7 +26,6 @@ For example, you can define rollback behaviors for your tasks, ensuring that any
 ## Flexible task execution
 
 Prefect 3 has no restrictions on where tasks can run. Tasks can be nested within other tasks, allowing for more flexible and modular workflows; they can also be called outside of flows, essentially enabling Prefect to function as a background task service. You can now run tasks autonomously, apply them asynchronously, or delay their execution as needed. This flexibility opens up new possibilities for task management and execution strategies in your data pipelines.
-
 
 ## Enhanced client-side engine
 
@@ -43,4 +46,3 @@ Workers were first introduced in Prefect 2 as next-generation agents, and are no
 ## Performance enhancements
 
 Prefect 3 doesn't just bring new features; it also delivers significant performance improvements. Users running massively parallel workflows on distributed systems such as Dask and Ray will notice substantial speedups. In some benchmark cases, we've observed up to a 98% reduction in runtime overhead. These performance gains translate directly into faster execution times and more efficient resource utilization for your data pipelines.
-
