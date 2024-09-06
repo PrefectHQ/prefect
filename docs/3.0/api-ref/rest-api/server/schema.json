@@ -10882,6 +10882,12 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -10933,6 +10939,12 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -10982,6 +10994,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
@@ -11107,6 +11125,12 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11158,6 +11182,12 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11207,6 +11237,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
@@ -11422,6 +11458,12 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11473,6 +11515,12 @@
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
                                 },
                                 {
@@ -11522,6 +11570,12 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PauseWorkPool"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeWorkPool"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkQueue"
@@ -21194,6 +21248,45 @@
                 "title": "PauseDeployment",
                 "description": "Pauses the given Deployment"
             },
+            "PauseWorkPool": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "pause-work-pool"
+                        ],
+                        "const": "pause-work-pool",
+                        "title": "Type",
+                        "default": "pause-work-pool"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "selected",
+                            "inferred"
+                        ],
+                        "title": "Source",
+                        "description": "Whether this Action applies to a specific selected work pool (given by `work_pool_id`), or to a work pool that is inferred from the triggering event.  If the source is 'inferred', the `work_pool_id` may not be set.  If the source is 'selected', the `work_pool_id` must be set.",
+                        "default": "selected"
+                    },
+                    "work_pool_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Work Pool Id",
+                        "description": "The identifier of the work pool to pause"
+                    }
+                },
+                "type": "object",
+                "title": "PauseWorkPool",
+                "description": "Pauses a Work Pool"
+            },
             "PauseWorkQueue": {
                 "properties": {
                     "type": {
@@ -21499,6 +21592,45 @@
                 "type": "object",
                 "title": "ResumeFlowRun",
                 "description": "Resumes a suspended flow run associated with the trigger"
+            },
+            "ResumeWorkPool": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "resume-work-pool"
+                        ],
+                        "const": "resume-work-pool",
+                        "title": "Type",
+                        "default": "resume-work-pool"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "selected",
+                            "inferred"
+                        ],
+                        "title": "Source",
+                        "description": "Whether this Action applies to a specific selected work pool (given by `work_pool_id`), or to a work pool that is inferred from the triggering event.  If the source is 'inferred', the `work_pool_id` may not be set.  If the source is 'selected', the `work_pool_id` must be set.",
+                        "default": "selected"
+                    },
+                    "work_pool_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Work Pool Id",
+                        "description": "The identifier of the work pool to pause"
+                    }
+                },
+                "type": "object",
+                "title": "ResumeWorkPool",
+                "description": "Resumes a Work Pool"
             },
             "ResumeWorkQueue": {
                 "properties": {
