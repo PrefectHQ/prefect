@@ -174,7 +174,7 @@ In Prefect 2, agents were deprecated in favor of next-generation workers. Worker
 
 #### `AttributeError: 'coroutine' object has no attribute <some attribute>`
 
-If you do **not** `await` an asynchronous function or method, this error will be raised.
+If you do **not** `await` an asynchronous function or method, this error will be raised when you try to use the object.
 
 To fix it, `await` the asynchronous function or method.
 
