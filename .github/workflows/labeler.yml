@@ -1,6 +1,7 @@
 name: Labeler
 
-on: [pull_request]
+# see https://github.com/actions/labeler/issues/136#issuecomment-1357839196
+on: [pull_request_target]
 
 permissions:
   contents: read
@@ -12,6 +13,10 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - uses: actions/labeler@v5
         with:
           repo-token: "${{ github.token }}"
