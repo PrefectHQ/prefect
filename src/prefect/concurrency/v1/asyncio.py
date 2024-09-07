@@ -122,6 +122,7 @@ async def _acquire_concurrency_slots(
     return _response_to_concurrency_limit_response(response_or_exception)
 
 
+@sync_compatible
 async def _release_concurrency_slots(
     names: List[str],
     task_run_id: UUID,

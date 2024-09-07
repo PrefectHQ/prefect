@@ -163,6 +163,7 @@ async def _acquire_concurrency_slots(
     return _response_to_minimal_concurrency_limit_response(response_or_exception)
 
 
+@sync_compatible
 async def _release_concurrency_slots(
     names: List[str], slots: int, occupancy_seconds: float
 ) -> List[MinimalConcurrencyLimitResponse]:

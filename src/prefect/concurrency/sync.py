@@ -91,11 +91,11 @@ def concurrency(
         yield
     finally:
         occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
-        _call_async_function_from_sync(
-            _release_concurrency_slots,
+        _release_concurrency_slots(
             names,
             occupy,
             occupancy_period.total_seconds(),
+            _sync=True,
         )
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 

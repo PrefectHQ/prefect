@@ -12,7 +12,6 @@ from uuid import UUID
 import pendulum
 
 from ...client.schemas.responses import MinimalConcurrencyLimitResponse
-from ..sync import _call_async_function_from_sync
 
 try:
     from pendulum import Interval
@@ -83,10 +82,10 @@ def concurrency(
         yield
     finally:
         occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
-        _call_async_function_from_sync(
-            _release_concurrency_slots,
+        _release_concurrency_slots(
             names,
             task_run_id,
             occupancy_period.total_seconds(),
+            _sync=True,
         )
         _emit_concurrency_release_events(limits, emitted_events, task_run_id)
