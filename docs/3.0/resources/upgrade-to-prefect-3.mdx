@@ -174,9 +174,9 @@ In Prefect 2, agents were deprecated in favor of next-generation workers. Worker
 
 #### `AttributeError: 'coroutine' object has no attribute <some attribute>`
 
-If you do **not** `await` an asynchronous function or method, this error will be raised when you try to use the object.
+When within an asynchronous task or flow context, if you do **not** `await` an asynchronous function or method, this error will be raised when you try to use the object.
 
-To fix it, `await` the asynchronous function or method.
+To fix it, `await` the asynchronous function or method or use `_sync=True`.
 
 For example, `Block`'s `load` method is asynchronous in an async context:
 <CodeGroup>
@@ -195,6 +195,15 @@ async def my_async_function():
     my_secret = await Secret.load("my-secret")
     print(my_secret.get()) # This will work
 ```
+
+```python Also Correct
+from prefect.blocks.system import Secret
+
+async def my_async_function():
+    my_secret = Secret.load("my-secret", _sync=True)
+    print(my_secret.get()) # This will work
+```
+
 </CodeGroup>
 
 #### `TypeError: object <some Type> can't be used in 'await' expression`
