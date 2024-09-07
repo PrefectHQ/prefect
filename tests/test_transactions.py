@@ -278,6 +278,7 @@ class TestDefaultTransactionStorage:
             result = await txn.store.result_store.create_result(
                 obj={"foo": "bar"}, key=txn.key
             )
+            result.serialize_to_none = False
             txn.stage(result)
 
         result = txn.read()
@@ -285,7 +286,7 @@ class TestDefaultTransactionStorage:
         assert await result.get() == {"foo": "bar"}
 
     async def test_transaction_inside_flow_default_storage(self):
-        @flow
+        @flow(persist_result=True)
         def test_flow():
             with transaction(key="test_transaction_inside_flow_default_storage") as txn:
                 assert isinstance(txn.store, ResultRecordStore)
@@ -330,14 +331,16 @@ class TestDefaultTransactionStorage:
     async def test_transaction_inside_task_default_storage(self):
         default_task_storage = await get_or_create_default_task_scheduling_storage()
 
-        @task
+        @task(persist_result=True)
         async def test_task():
-            with transaction(key="test_transaction_inside_task_default_storage") as txn:
+            with transaction(
+                key="test_transaction_inside_task_default_storage",
+                commit_mode=CommitMode.EAGER,
+            ) as txn:
                 assert isinstance(txn.store, ResultRecordStore)
                 result = await txn.store.result_store.create_result(
                     obj={"foo": "bar"}, key=txn.key
                 )
-                await result.write()
                 txn.stage(result)
 
             result = txn.read()

@@ -1659,9 +1659,8 @@ class TestPersistence:
         assert await state.result() == 42
 
     async def test_task_loads_result_if_exists_using_result_storage_key(self):
-        store = ResultStore(persist_result=True)
-        result = await store.create_result(-92, key="foo-bar")
-        await result.write()
+        store = ResultStore()
+        store.write(obj=-92, key="foo-bar")
 
         @task(result_storage_key="foo-bar", persist_result=True)
         async def async_task():

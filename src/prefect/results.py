@@ -209,7 +209,7 @@ def _format_user_supplied_storage_key(key: str) -> str:
 )
 class ResultStore(BaseModel):
     """
-    Manages the storage and retrieval of results.ff
+    Manages the storage and retrieval of results.
 
     Attributes:
         result_storage: The storage for result records. If not provided, the default
@@ -404,15 +404,20 @@ class ResultStore(BaseModel):
             result_record = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
-            if self.cache_result_in_memory:
-                self.cache[key] = result_record
-            return result_record
         else:
             content = await self.result_storage.read_path(key)
             result_record = ResultRecord.deserialize(content)
-            if self.cache_result_in_memory:
-                self.cache[key] = result_record
-            return result_record
+
+        if self.cache_result_in_memory:
+            if self.result_storage_block_id is None and hasattr(
+                self.result_storage, "_resolve_path"
+            ):
+                cache_key = str(self.result_storage._resolve_path(key))
+            else:
+                cache_key = key
+
+            self.cache[cache_key] = result_record
+        return result_record
 
     def read(self, key: str, holder: Optional[str] = None) -> "ResultRecord":
         """
@@ -475,8 +480,8 @@ class ResultStore(BaseModel):
 
     def write(
         self,
-        key: str,
         obj: Any,
+        key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
         holder: Optional[str] = None,
     ):
@@ -501,8 +506,8 @@ class ResultStore(BaseModel):
 
     async def awrite(
         self,
-        key: str,
         obj: Any,
+        key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
         holder: Optional[str] = None,
     ):
