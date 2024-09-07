@@ -254,6 +254,7 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
                 mode="rate_limit",
                 timeout_seconds=None,
                 create_if_missing=True,
+                _sync=True,
             )
 
             # When used as a rate limit concurrency slots are not explicitly
