@@ -167,6 +167,7 @@ from prefect.results import ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
+    PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -1003,8 +1004,7 @@ async def pause_flow_run(
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
-) -> None:
-    ...
+) -> None: ...
 
 
 @deprecated_callable(
@@ -1019,8 +1019,7 @@ async def pause_flow_run(
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
-) -> T:
-    ...
+) -> T: ...
 
 
 @sync_compatible
@@ -1255,8 +1254,7 @@ async def suspend_flow_run(
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
     client: PrefectClient = None,
-) -> None:
-    ...
+) -> None: ...
 
 
 @overload
@@ -1266,8 +1264,7 @@ async def suspend_flow_run(
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
     client: PrefectClient = None,
-) -> T:
-    ...
+) -> T: ...
 
 
 @sync_compatible
@@ -2117,8 +2114,29 @@ async def orchestrate_task_run(
     # flag to ensure we only update the task run name once
     run_name_set = False
 
+    run_on_completion_hooks_on_cached = (
+        PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED and state.is_cached()
+    )
+
+    if run_on_completion_hooks_on_cached:
+        task_run = await client.read_task_run(task_run.id)
+        try:
+            # state = await propose_state(client, state, flow_run_id=flow_run.id)
+            await _run_task_hooks(
+                task=task,
+                task_run=task_run,
+                state=state,
+            )
+        except Exception:
+            logger.error(
+                f"An error occurred while running on_completion hooks for cached task run {task_run.id}",
+                exc_info=True,
+            )
+            # We don't want to re-raise the exception here as it's not critical to the main flow
+            # and we've already logged it. The cached state should still be returned.
+
     # Only run the task if we enter a `RUNNING` state
-    while state.is_running():
+    while state.is_running() or run_on_completion_hooks_on_cached:
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
@@ -2326,9 +2344,14 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
+    run_on_completion_hooks_on_cached = (
+        PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED and state.is_cached()
+    )
     if state.is_failed() and task.on_failure:
         hooks = task.on_failure
-    elif state.is_completed() and task.on_completion:
+    elif (
+        state.is_completed() or run_on_completion_hooks_on_cached
+    ) and task.on_completion:
         hooks = task.on_completion
 
     if hooks:

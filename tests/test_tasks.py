@@ -29,6 +29,7 @@ from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
+    PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     temporary_settings,
@@ -3767,6 +3768,106 @@ class TestTaskHooksOnCompletion:
         assert my_mock.call_args_list == [call(), call()]
 
 
+class TestOnCompletionHooksForCachedTasks:
+    @pytest.fixture(scope="class", autouse=True)
+    def run_completion_hooks_on_cached(self):
+        with temporary_settings({PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED: True}):
+            yield
+
+    @fails_with_new_engine
+    def test_on_completion_hooks_for_cached_tasks(self):
+        my_mock = MagicMock()
+
+        def completed1(task, task_run, state):
+            print("hiii")
+            my_mock("completed1")
+
+        @task(
+            cache_key_fn=lambda *_: "cache_1",
+            cache_expiration=datetime.timedelta(seconds=5),
+            on_completion=[completed1],
+        )
+        def cached_task_with_hook():
+            return "cached_result"
+
+        @flow
+        def test_flow_with_hook():
+            return cached_task_with_hook._run()
+
+        state = test_flow_with_hook()
+        assert state.is_completed()
+        assert not state.is_cached()
+        # Second run to test the hook behavior
+        state = test_flow_with_hook()
+        assert state.is_cached()
+
+        assert my_mock.call_args_list == [call("completed1")]
+
+    @fails_with_new_engine
+    def test_multiple_on_completion_hooks_for_cached_tasks(self):
+        my_mock = MagicMock()
+
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @task(
+            cache_key_fn=lambda *_: "cache_2",
+            cache_expiration=datetime.timedelta(seconds=5),
+            on_completion=[completed1, completed2],
+        )
+        def cached_task():
+            return "cached_result"
+
+        @flow
+        def test_flow():
+            return cached_task._run()
+
+        # First run to cache the result
+        test_flow()
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+        # Reset the mocks
+        # my_mock.reset_mock()
+
+        # Second run to test the hooks behavior
+        state = test_flow()
+        assert state.is_cached()
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    @fails_with_new_engine
+    def test_exception_in_on_completion_hook_for_cached_task(self, caplog):
+        def failing_hook(task, task_run, state):
+            raise ValueError("Hook failed")
+
+        @task(
+            cache_key_fn=lambda *_: "cache_3",
+            cache_expiration=datetime.timedelta(seconds=5),
+            on_completion=[failing_hook],
+        )
+        def cached_task():
+            return "cached_result"
+
+        @flow
+        def test_flow():
+            return cached_task._run()
+
+        # First run to cache the result
+        test_flow()
+
+        # Second run to test the hook behavior
+        state = test_flow()
+        assert state.is_cached()
+
+        assert (
+            "An error occurred while running on_completion hooks for cached task run"
+            in caplog.text
+        )
+        assert "ValueError: Hook failed" in caplog.text
+
+
 class TestTaskHooksOnFailure:
     def test_noniterable_hook_raises(self):
         def failure_hook():
@@ -3950,8 +4051,7 @@ class TestTaskHooksOnFailure:
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
-            def my_task():
-                ...
+            def my_task(): ...
 
 
 class TestNestedTasks:
