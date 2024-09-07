@@ -3779,7 +3779,6 @@ class TestOnCompletionHooksForCachedTasks:
         my_mock = MagicMock()
 
         def completed1(task, task_run, state):
-            print("hiii")
             my_mock("completed1")
 
         @task(
@@ -3797,6 +3796,9 @@ class TestOnCompletionHooksForCachedTasks:
         state = test_flow_with_hook()
         assert state.is_completed()
         assert not state.is_cached()
+        assert my_mock.call_args_list == [call("completed1")]
+
+        my_mock.reset_mock()
         # Second run to test the hook behavior
         state = test_flow_with_hook()
         assert state.is_cached()
@@ -3826,11 +3828,12 @@ class TestOnCompletionHooksForCachedTasks:
             return cached_task._run()
 
         # First run to cache the result
-        test_flow()
+        state = test_flow()
         assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+        assert not state.is_cached()
 
         # Reset the mocks
-        # my_mock.reset_mock()
+        my_mock.reset_mock()
 
         # Second run to test the hooks behavior
         state = test_flow()
@@ -3855,16 +3858,15 @@ class TestOnCompletionHooksForCachedTasks:
             return cached_task._run()
 
         # First run to cache the result
-        test_flow()
+        state = test_flow()
+        assert state.result() == "cached_result"
+        assert not state.is_cached()
 
         # Second run to test the hook behavior
         state = test_flow()
         assert state.is_cached()
+        assert state.result() == "cached_result"
 
-        assert (
-            "An error occurred while running on_completion hooks for cached task run"
-            in caplog.text
-        )
         assert "ValueError: Hook failed" in caplog.text
 
 

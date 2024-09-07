@@ -2120,20 +2120,11 @@ async def orchestrate_task_run(
 
     if run_on_completion_hooks_on_cached:
         task_run = await client.read_task_run(task_run.id)
-        try:
-            # state = await propose_state(client, state, flow_run_id=flow_run.id)
-            await _run_task_hooks(
-                task=task,
-                task_run=task_run,
-                state=state,
-            )
-        except Exception:
-            logger.error(
-                f"An error occurred while running on_completion hooks for cached task run {task_run.id}",
-                exc_info=True,
-            )
-            # We don't want to re-raise the exception here as it's not critical to the main flow
-            # and we've already logged it. The cached state should still be returned.
+        await _run_task_hooks(
+            task=task,
+            task_run=task_run,
+            state=state,
+        )
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
