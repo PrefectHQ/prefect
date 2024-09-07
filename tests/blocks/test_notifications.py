@@ -6,6 +6,7 @@ import cloudpickle
 import pytest
 import respx
 
+from prefect.blocks.abstract import NotificationError
 from prefect.blocks.notifications import (
     PREFECT_NOTIFY_TYPE_DEFAULT,
     AppriseNotificationBlock,
@@ -125,6 +126,27 @@ class TestAppriseNotificationBlock:
 
         with pytest.raises(ValueError, match=f"is not a valid URL.*{reason}"):
             await notification.notify(subject="example", body="example")
+
+    async def test_raises_on_url_validation_failure(self, block_class):
+        """
+        When within a raise_on_failure block, we want URL validation errors to be
+        wrapped and captured as NotificationErrors for reporting back to users.
+        """
+        block = block_class(url="https://127.0.0.1/foo/bar", allow_private_urls=False)
+
+        # outside of a raise_on_failure block, we get a ValueError directly
+        with pytest.raises(ValueError, match="not a valid URL") as captured:
+            await block.notify(subject="Test", body="Test")
+
+        # inside of a raise_on_failure block, we get a NotificationError
+        with block.raise_on_failure():
+            with pytest.raises(NotificationError) as captured:
+                await block.notify(subject="Test", body="Test")
+
+        assert captured.value.log == (
+            "'https://127.0.0.1/foo/bar' is not a valid URL.  It resolves to the "
+            "private address 127.0.0.1."
+        )
 
 
 class TestMattermostWebhook:

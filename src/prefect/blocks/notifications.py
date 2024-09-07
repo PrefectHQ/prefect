@@ -93,7 +93,12 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
         subject: Optional[str] = None,
     ):
         if not self.allow_private_urls:
-            validate_restricted_url(self.url.get_secret_value())
+            try:
+                validate_restricted_url(self.url.get_secret_value())
+            except ValueError as exc:
+                if self._raise_on_failure:
+                    raise NotificationError(str(exc))
+                raise
 
         await super().notify(body, subject)
 
