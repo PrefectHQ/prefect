@@ -16,6 +16,7 @@ except ImportError:
     from pendulum.period import Period as Interval  # type: ignore
 
 from prefect.client.orchestration import get_client
+from prefect.utilities.asyncutils import sync_compatible
 
 from .context import ConcurrencyContext
 from .events import (
@@ -98,6 +99,7 @@ async def concurrency(
         _emit_concurrency_release_events(limits, emitted_events, task_run_id)
 
 
+@sync_compatible
 async def _acquire_concurrency_slots(
     names: List[str],
     task_run_id: UUID,
