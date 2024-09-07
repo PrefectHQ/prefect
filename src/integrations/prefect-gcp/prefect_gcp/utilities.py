@@ -39,7 +39,7 @@ DEPRECATION WARNING:
 This module is deprecated as of March 2024 and will not be available after September 2024.
 It has been replaced by the Cloud Run and Cloud Run V2 workers, which offer enhanced functionality and better performance.
 
-For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+For upgrade instructions, see https://docs.prefect.io/latest/resources/upgrade-agents-to-workers.
 
 Integrations with Google Cloud Run Job.
 

@@ -2,9 +2,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from kubernetes_asyncio.config import ConfigException
-from prefect_kubernetes.utilities import (
-    enable_socket_keep_alive,
-)
 
 FAKE_CLUSTER = "fake-cluster"
 
@@ -26,14 +23,3 @@ def mock_cluster_config(monkeypatch):
 @pytest.fixture
 def mock_api_client(mock_cluster_config):
     return MagicMock()
-
-
-def test_keep_alive_updates_socket_options(mock_api_client):
-    enable_socket_keep_alive(mock_api_client)
-
-    assert (
-        mock_api_client.rest_client.pool_manager.connection_pool_kw[
-            "socket_options"
-        ]._mock_set_call
-        is not None
-    )

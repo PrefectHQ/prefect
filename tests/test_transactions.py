@@ -5,6 +5,7 @@ import pytest
 
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
+from prefect.locking.memory import MemoryLockManager
 from prefect.records import RecordStore
 from prefect.records.memory import MemoryRecordStore
 from prefect.records.result_store import ResultRecordStore
@@ -464,6 +465,106 @@ class TestWithMemoryRecordStore:
         # the first transaction should have written its result
         # and the second transaction should not have written on exit
         assert record.result == result_1
+
+
+class TestWithResultStore:
+    @pytest.fixture()
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
+        ):
+            yield
+
+    @pytest.fixture
+    async def result_store(self, default_storage_setting):
+        result_store = ResultStore(
+            persist_result=True, lock_manager=MemoryLockManager()
+        )
+        return result_store
+
+    async def test_basic_transaction(self, result_store):
+        with transaction(key="test_basic_transaction", store=result_store) as txn:
+            assert isinstance(txn.store, ResultStore)
+            txn.stage({"foo": "bar"})
+
+        record_1 = txn.read()
+        assert record_1
+        assert record_1.result == {"foo": "bar"}
+
+        record_2 = result_store.read("test_basic_transaction")
+        assert record_2
+        assert record_2 == record_1
+        assert record_2.metadata.storage_key == "test_basic_transaction"
+
+    async def test_competing_read_transaction(self, result_store):
+        write_transaction_open = threading.Event()
+
+        def writing_transaction():
+            # isolation level is SERIALIZABLE, so a lock will be taken
+            with transaction(
+                key="test_competing_read_transaction",
+                store=result_store,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            ) as txn:
+                write_transaction_open.set()
+                txn.stage({"foo": "bar"})
+
+        thread = threading.Thread(target=writing_transaction)
+        thread.start()
+        write_transaction_open.wait()
+        with transaction(
+            key="test_competing_read_transaction", store=result_store
+        ) as txn:
+            read_result = txn.read()
+
+        assert read_result.result == {"foo": "bar"}
+        thread.join()
+
+    async def test_competing_write_transaction(self, result_store):
+        transaction_1_open = threading.Event()
+
+        def winning_transaction():
+            with transaction(
+                key="test_competing_write_transaction",
+                store=result_store,
+                isolation_level=IsolationLevel.SERIALIZABLE,
+            ) as txn:
+                transaction_1_open.set()
+                txn.stage({"foo": "bar"})
+
+        thread = threading.Thread(target=winning_transaction)
+        thread.start()
+        transaction_1_open.wait()
+        with transaction(
+            key="test_competing_write_transaction",
+            store=result_store,
+            isolation_level=IsolationLevel.SERIALIZABLE,
+        ) as txn:
+            txn.stage({"fizz": "buzz"})
+
+        thread.join()
+        record = result_store.read("test_competing_write_transaction")
+        assert record
+        # the first transaction should have written its result
+        # and the second transaction should not have written on exit
+        assert record.result == {"foo": "bar"}
+
+    async def test_can_handle_staged_base_result(self, result_store):
+        result_1 = await result_store.create_result(obj={"foo": "bar"})
+        with transaction(
+            key="test_can_handle_staged_base_result", store=result_store
+        ) as txn:
+            txn.stage(result_1)
+
+        record = txn.read()
+        assert record
+        assert record.result == {"foo": "bar"}
+        assert record.metadata.storage_block_id == result_1.storage_block_id
 
 
 class TestHooks:
