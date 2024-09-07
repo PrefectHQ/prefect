@@ -41,6 +41,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
                 timeout_seconds=None,
                 create_if_missing=True,
                 max_retries=None,
+                _sync=True,
             )
 
             # On release we calculate how many seconds the slots were occupied

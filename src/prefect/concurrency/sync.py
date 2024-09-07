@@ -76,13 +76,13 @@ def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
-        _acquire_concurrency_slots,
+    limits: List[MinimalConcurrencyLimitResponse] = _acquire_concurrency_slots(
         names,
         occupy,
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
         max_retries=max_retries,
+        _sync=True,
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
