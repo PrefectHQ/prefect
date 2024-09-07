@@ -2136,7 +2136,7 @@ async def orchestrate_task_run(
             # and we've already logged it. The cached state should still be returned.
 
     # Only run the task if we enter a `RUNNING` state
-    while state.is_running() or run_on_completion_hooks_on_cached:
+    while state.is_running():
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
