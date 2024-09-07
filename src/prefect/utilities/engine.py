@@ -48,7 +48,7 @@ from prefect.logging.loggers import (
     get_logger,
     task_run_logger,
 )
-from prefect.results import BaseResult, ResultRecord
+from prefect.results import BaseResult, ResultRecord, should_persist_result
 from prefect.settings import (
     PREFECT_LOGGING_LOG_PRINTS,
 )
@@ -737,7 +737,7 @@ def emit_task_run_state_change_event(
 
     if isinstance(validated_state.data, ResultRecord):
         data = validated_state.data.metadata.model_dump(mode="json")
-    elif isinstance(validated_state.data, BaseResult):
+    elif isinstance(validated_state.data, BaseResult) and should_persist_result():
         data = validated_state.data.model_dump(mode="json")
     else:
         data = None

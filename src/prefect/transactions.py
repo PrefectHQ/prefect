@@ -22,7 +22,11 @@ from prefect.exceptions import MissingContextError, SerializationError
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.records.base import TransactionRecord
-from prefect.results import BaseResult, ResultRecord, ResultStore
+from prefect.results import (
+    BaseResult,
+    ResultRecord,
+    ResultStore,
+)
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.engine import _get_hook_name
@@ -66,6 +70,7 @@ class Transaction(ContextModel):
     logger: Union[logging.Logger, logging.LoggerAdapter] = Field(
         default_factory=partial(get_logger, "transactions")
     )
+    write_on_commit: bool = True
     _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
@@ -229,7 +234,7 @@ class Transaction(ContextModel):
             for hook in self.on_commit_hooks:
                 self.run_hook(hook, "commit")
 
-            if self.store and self.key:
+            if self.store and self.key and self.write_on_commit:
                 if isinstance(self.store, ResultStore):
                     if isinstance(self._staged_value, BaseResult):
                         self.store.write(self.key, self._staged_value.get(_sync=True))
@@ -239,6 +244,7 @@ class Transaction(ContextModel):
                         self.store.write(self.key, self._staged_value)
                 else:
                     self.store.write(self.key, self._staged_value)
+
             self.state = TransactionState.COMMITTED
             if (
                 self.store
@@ -351,6 +357,7 @@ def transaction(
     commit_mode: Optional[CommitMode] = None,
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
+    write_on_commit: bool = True,
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None,
 ) -> Generator[Transaction, None, None]:
     """
@@ -363,7 +370,7 @@ def transaction(
         - commit_mode: The commit mode controlling when the transaction and
             child transactions are committed
         - overwrite: Whether to overwrite an existing transaction record in the store
-
+        - write_on_commit: Whether to write the result to the store on commit
     Yields:
         - Transaction: An object representing the transaction state
     """
@@ -397,7 +404,6 @@ def transaction(
                 )
             else:
                 new_store = ResultStore(
-                    persist_result=True,
                     result_storage=default_storage,
                 )
         from prefect.records.result_store import ResultRecordStore
@@ -417,6 +423,7 @@ def transaction(
         commit_mode=commit_mode,
         isolation_level=isolation_level,
         overwrite=overwrite,
+        write_on_commit=write_on_commit,
         logger=logger,
     ) as txn:
         yield txn

@@ -60,6 +60,7 @@ from prefect.results import (
     ResultRecord,
     _format_user_supplied_storage_key,
     get_current_result_store,
+    should_persist_result,
 )
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
@@ -597,6 +598,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.task, _sync=True
                     ),
                     client=client,
+                    persist_result=self.task.persist_result
+                    if self.task.persist_result is not None
+                    else should_persist_result(),
                 )
             )
             stack.enter_context(ConcurrencyContextV1())
@@ -726,6 +730,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             store=get_current_result_store(),
             overwrite=overwrite,
             logger=self.logger,
+            write_on_commit=should_persist_result(),
         ) as txn:
             yield txn
 
@@ -1096,6 +1101,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.task, _sync=False
                     ),
                     client=client,
+                    persist_result=self.task.persist_result
+                    if self.task.persist_result is not None
+                    else should_persist_result(),
                 )
             )
             stack.enter_context(ConcurrencyContext())
@@ -1222,6 +1230,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             store=get_current_result_store(),
             overwrite=overwrite,
             logger=self.logger,
+            write_on_commit=should_persist_result(),
         ) as txn:
             yield txn
 

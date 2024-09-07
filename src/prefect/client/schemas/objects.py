@@ -292,10 +292,12 @@ class State(ObjectBaseModel, Generic[R]):
         results should be sent to the API. Other data is only available locally.
         """
         from prefect.client.schemas.actions import StateCreate
-        from prefect.results import BaseResult
+        from prefect.results import BaseResult, ResultRecord, should_persist_result
 
-        if isinstance(self.data, BaseResult) and self.data.serialize_to_none is False:
+        if isinstance(self.data, BaseResult):
             data = self.data
+        elif isinstance(self.data, ResultRecord) and should_persist_result():
+            data = self.data.metadata
         else:
             data = None
 

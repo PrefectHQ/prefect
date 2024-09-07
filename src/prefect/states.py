@@ -455,6 +455,9 @@ async def get_state_exception(state: State) -> BaseException:
         result = await _get_state_result_data_with_retries(state)
     elif isinstance(state.data, ResultRecord):
         result = state.data.result
+    elif isinstance(state.data, ResultRecordMetadata):
+        record = await ResultRecord.from_metadata(state.data)
+        result = record.result
     elif state.data is None:
         result = None
     else:
