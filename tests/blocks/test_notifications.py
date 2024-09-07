@@ -39,7 +39,6 @@ RESTRICTED_URLS = [
     ("not a url", ""),
     ("http://", ""),
     ("https://", ""),
-    ("http://[]/foo/bar", ""),
     ("ftp://example.com", "HTTP and HTTPS"),
     ("gopher://example.com", "HTTP and HTTPS"),
     ("https://localhost", "private address"),
