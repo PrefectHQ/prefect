@@ -169,3 +169,75 @@ This change affects you if: You're using agents from an early version of Prefect
 </info>
 
 In Prefect 2, agents were deprecated in favor of next-generation workers. Workers are now standard in Prefect 3. For detailed information on upgrading from agents to workers, please refer to our [upgrade guide](https://docs-3.prefect.io/3.0/resources/upgrade-agents-to-workers).
+
+### Resolving common gotchas
+
+#### `AttributeError: 'coroutine' object has no attribute <some attribute>`
+
+When within an asynchronous task or flow context, if you do **not** `await` an asynchronous function or method, this error will be raised when you try to use the object.
+
+To fix it, `await` the asynchronous function or method or use `_sync=True`.
+
+For example, `Block`'s `load` method is asynchronous in an async context:
+<CodeGroup>
+```python Wrong
+from prefect.blocks.system import Secret
+
+async def my_async_function():
+    my_secret = Secret.load("my-secret")
+    print(my_secret.get()) # AttributeError: 'coroutine' object has no attribute 'get'
+```
+
+```python Correct
+from prefect.blocks.system import Secret
+
+async def my_async_function():
+    my_secret = await Secret.load("my-secret")
+    print(my_secret.get()) # This will work
+```
+
+```python Also Correct
+from prefect.blocks.system import Secret
+
+async def my_async_function():
+    my_secret = Secret.load("my-secret", _sync=True)
+    print(my_secret.get()) # This will work
+```
+
+</CodeGroup>
+
+#### `TypeError: object <some Type> can't be used in 'await' expression`
+
+This error occurs when using the `await` keyword before an object that is not a coroutine.
+
+To fix it, remove the `await`.
+
+For example, `my_task.submit(...)` is _always_ synchronous in Prefect 3.x:
+
+<CodeGroup>
+```python Incorrect
+from prefect import flow, task
+
+@task
+async def my_task():
+    pass
+
+@flow
+async def my_flow():
+    future = await my_task.submit() # TypeError: object PrefectConcurrentFuture can't be used in 'await' expression
+```
+
+```python Correct
+from prefect import flow, task
+
+@task
+async def my_task():
+    pass
+
+@flow
+async def my_flow():
+    future = my_task.submit() # This will work
+```
+</CodeGroup>
+
+See the [Futures interface section](#futures-interface) for more information on this particular gotcha.
