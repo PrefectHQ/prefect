@@ -215,7 +215,7 @@ To fix it, remove the `await`.
 For example, `my_task.submit(...)` is _always_ synchronous in Prefect 3.x:
 
 <CodeGroup>
-```python Wrong
+```python Incorrect
 from prefect import flow, task
 
 @task
