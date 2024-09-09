@@ -885,31 +885,26 @@ class TestS3Bucket:
     def test_download_object_with_bucket_folder(
         self, s3_bucket_empty: S3Bucket, client_parameters, tmp_path
     ):
-        # Set up a bucket folder
-        s3_bucket_empty.bucket_folder = "EAGLES"
-
-        # Upload a test file
+        """regression test for https://github.com/PrefectHQ/prefect/issues/12848"""
+        s3_bucket_empty.bucket_folder = "some_folder"
+        
         test_content = b"This is a test file."
         s3_bucket_empty.upload_from_file_object(
-            io.BytesIO(test_content), to_path="rob_c_testing.txt"
+            io.BytesIO(test_content), to_path="testing.txt"
         )
 
-        # List objects to verify upload
         objects = s3_bucket_empty.list_objects()
         assert len(objects) == 1
-        assert objects[0]["Key"] == "EAGLES/rob_c_testing.txt"
+        assert objects[0]["Key"] == "some_folder/testing.txt"
 
-        # Download the file
         download_path = tmp_path / "downloaded_test_file.txt"
-        s3_bucket_empty.download_object_to_path("rob_c_testing.txt", download_path)
+        s3_bucket_empty.download_object_to_path("testing.txt", download_path)
 
-        # Verify the downloaded content
         assert download_path.read_bytes() == test_content
 
-        # Clean up
         s3_bucket_empty.credentials.get_s3_client().delete_object(
             Bucket=s3_bucket_empty.bucket_name,
-            Key=s3_bucket_empty._join_bucket_folder("rob_c_testing.txt"),
+            Key=s3_bucket_empty._join_bucket_folder("testing.txt"),
         )
 
     @pytest.mark.parametrize("to_path", ["to_path", None])
