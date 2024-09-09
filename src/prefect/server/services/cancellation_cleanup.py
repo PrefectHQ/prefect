@@ -87,8 +87,8 @@ class CancellationCleanup(LoopService):
                         orm_models.FlowRun.state_type == states.StateType.RUNNING,
                         orm_models.FlowRun.state_type == states.StateType.PAUSED,
                         orm_models.FlowRun.state_type == states.StateType.CANCELLING,
-                        orm_models.FlowRun.id > high_water_mark,
                     ),
+                    orm_models.FlowRun.id > high_water_mark,
                     orm_models.FlowRun.parent_task_run_id.is_not(None),
                 )
                 .order_by(orm_models.FlowRun.id)
