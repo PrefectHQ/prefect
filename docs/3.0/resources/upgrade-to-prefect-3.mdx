@@ -58,7 +58,7 @@ Some less-commonly used modules have been renamed, reorganized, or removed for c
 This change affects you if: you use advanced asynchronous behaviors in your flows.
 </info>
 
-In Prefect 2, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3 removes this behavior to reduce complexity and potential issues and edge cases. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
+In Prefect 2.0, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3.0 removes this behavior to reduce complexity and potential issues and edge cases. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
 
 ### Flow final states
 
