@@ -497,10 +497,11 @@ class ResultStore(BaseModel):
             holder: The holder of the lock if a lock was set on the record.
         """
         holder = holder or self.generate_default_holder()
+        result_record = self.create_result_record(
+            key=key, obj=obj, expiration=expiration
+        )
         return self.persist_result_record(
-            result_record=self.create_result_record(
-                key=key, obj=obj, expiration=expiration
-            ),
+            result_record=result_record,
             holder=holder,
         )
 
@@ -542,13 +543,22 @@ class ResultStore(BaseModel):
         ), "Storage key is required on result record"
 
         key = result_record.metadata.storage_key
+        if result_record.metadata.storage_block_id is None:
+            basepath = (
+                self.result_storage._resolve_path("")
+                if hasattr(self.result_storage, "_resolve_path")
+                else Path(".").resolve()
+            )
+            base_key = str(Path(key).relative_to(basepath))
+        else:
+            base_key = key
         if (
             self.lock_manager is not None
-            and self.is_locked(key)
-            and not self.is_lock_holder(key, holder)
+            and self.is_locked(base_key)
+            and not self.is_lock_holder(base_key, holder)
         ):
             raise RuntimeError(
-                f"Cannot write to result record with key {key} because it is locked by "
+                f"Cannot write to result record with key {base_key} because it is locked by "
                 f"another holder."
             )
         if self.result_storage is None:
@@ -560,19 +570,8 @@ class ResultStore(BaseModel):
                 result_record.metadata.storage_key,
                 content=result_record.serialize_result(),
             )
-            if result_record.metadata.storage_block_id is None:
-                basepath = (
-                    Path(self.result_storage.basepath)
-                    if hasattr(self.result_storage, "basepath")
-                    else Path(".")
-                )
-                metadata_key = str(
-                    Path(result_record.metadata.storage_key).relative_to(basepath)
-                )
-            else:
-                metadata_key = result_record.metadata.storage_key
             await self.metadata_storage.write_path(
-                metadata_key,
+                base_key,
                 content=result_record.serialize_metadata(),
             )
         # Otherwise, write the result metadata and result together
@@ -761,6 +760,11 @@ class ResultStore(BaseModel):
         """
         # Null objects are "cached" in memory at no cost
         should_cache_object = self.cache_result_in_memory or obj is None
+        should_persist_result = (
+            self.persist_result
+            if self.persist_result is not None
+            else not should_cache_object
+        )
 
         if key:
 
@@ -782,7 +786,7 @@ class ResultStore(BaseModel):
             serializer=self.serializer,
             cache_object=should_cache_object,
             expiration=expiration,
-            serialize_to_none=not should_persist_result(),
+            serialize_to_none=not should_persist_result,
         )
 
     # TODO: These two methods need to find a new home
