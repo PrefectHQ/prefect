@@ -41,6 +41,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
                 timeout_seconds=None,
                 create_if_missing=True,
                 max_retries=None,
+                _sync=True,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -253,6 +254,7 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
                 mode="rate_limit",
                 timeout_seconds=None,
                 create_if_missing=True,
+                _sync=True,
             )
 
             # When used as a rate limit concurrency slots are not explicitly

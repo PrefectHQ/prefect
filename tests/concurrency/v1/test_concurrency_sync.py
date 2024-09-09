@@ -38,7 +38,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimit):
             resource_heavy()
 
             acquire_spy.assert_called_once_with(
-                ["test"], timeout_seconds=None, task_run_id=task_run_id
+                ["test"], timeout_seconds=None, task_run_id=task_run_id, _sync=True
             )
 
             names, _task_run_id, occupy_seconds = release_spy.call_args[0]
