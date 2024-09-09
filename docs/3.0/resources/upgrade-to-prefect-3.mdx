@@ -13,7 +13,7 @@ For the majority of users, upgrading to Prefect 3.0 will be a seamless process t
 This guide highlights key changes that you may need to consider when upgrading.
 
 <Info>
-**Prefect 2** refers to the 2.x lineage of the prefect package, and prefect 3 refers exclusively to the 3.x lineage of the prefect package. Neither version is strictly tied to any aspect of Prefect's commercial product, [Prefect Cloud](/manage/cloud). 
+**Prefect 2.0** refers to the 2.x lineage of the open source prefect package, and **Prefect 3.0** refers exclusively to the 3.x lineage of the prefect package. Neither version is strictly tied to any aspect of Prefect's commercial product, [Prefect Cloud](/manage/cloud). 
 </Info>
 
 ## Quickstart
@@ -44,7 +44,7 @@ pip install -U 'prefect[aws]'
 This change affects you if: you use custom Pydantic models with Prefect features.
 </Info>
 
-Prefect 3 is built with Pydantic 2 for improved performance. All Prefect objects will automatically upgrade, but if you use custom Pydantic models for flow parameters or custom blocks, you'll need to ensure they are compatible with Pydantic 2. You can continue to use Pydantic 1 models in your own code if they do not interact directly with Prefect.
+Prefect 3.0 is built with Pydantic 2.0 for improved performance. All Prefect objects will automatically upgrade, but if you use custom Pydantic models for flow parameters or custom blocks, you'll need to ensure they are compatible with Pydantic 2.0. You can continue to use Pydantic 1.0 models in your own code if they do not interact directly with Prefect.
 
 Refer to [Pydantic's migration guide](https://docs.pydantic.dev/latest/migration/) for detailed information on necessary changes.
 
@@ -58,7 +58,7 @@ Some less-commonly used modules have been renamed, reorganized, or removed for c
 This change affects you if: you use advanced asynchronous behaviors in your flows.
 </info>
 
-In Prefect 2, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3 removes this behavior to reduce complexity and potential issues and edge cases. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
+In Prefect 2.0, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3.0 removes this behavior to reduce complexity and potential issues and edge cases. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
 
 ### Flow final states
 
@@ -66,11 +66,11 @@ In Prefect 2, it was possible to call native `async` tasks from synchronous flow
 This change affects you if: you want your flow to fail if any task in the flow fails, and you invoke your tasks in a way that doesn't automatically raise an error (including submitting them to a `TaskRunners`).
 </info>
 
-In Prefect 2, the final state of a flow run was influenced by the states of its task runs; if any task run failed, the flow run was marked as failed.
+In Prefect 2.0, the final state of a flow run was influenced by the states of its task runs; if any task run failed, the flow run was marked as failed.
 
-In Prefect 3, the final state of a flow run is entirely determined by:
+In Prefect 3.0, the final state of a flow run is entirely determined by:
 
-1. The `return` value of the flow function (same as in Prefect 2):
+1. The `return` value of the flow function (same as in Prefect 2.0):
    - Literal values are considered successful.
    - Any explicit `State` that is returned will be considered the final state of the flow run. If an iterable of `State` objects is returned, all must be `Completed` for the flow run to be considered `Completed`. If any are `Failed`, the flow run will be marked as `Failed`.
 
@@ -81,7 +81,7 @@ In Prefect 3, the final state of a flow run is entirely determined by:
 This change means that task failures within a flow do not automatically cause the flow run to fail unless they affect the flow's return value or raise an uncaught exception.
 
 <Warning>
-When migrating from Prefect 2 to Prefect 3, be aware that flows may now complete successfully even if they contain failed tasks, unless you explicitly handle task failures.
+When migrating from Prefect 2.0 to Prefect 3, be aware that flows may now complete successfully even if they contain failed tasks, unless you explicitly handle task failures.
 </Warning>
 
 To ensure your flow fails when critical tasks fail, consider these approaches:
@@ -169,15 +169,15 @@ PrefectFutures now have a standard synchronous interface, with an asynchronous o
 This change affects you if: you rely on side effects in your tasks
 </info>
 
-Prefect 3 introduces a powerful idempotency engine. By default, tasks in a flow run are automatically cached if they are called more than once with the same inputs. If you rely on tasks with side effects, this may result in surprising behavior. To disable caching, pass `cache_policy=None` to your task.
+Prefect 3.0 introduces a powerful idempotency engine. By default, tasks in a flow run are automatically cached if they are called more than once with the same inputs. If you rely on tasks with side effects, this may result in surprising behavior. To disable caching, pass `cache_policy=None` to your task.
 
 ### Workers
 
 <info>
-This change affects you if: you're using agents from an early version of Prefect 2.
+This change affects you if: you're using agents from an early version of Prefect 2.0.
 </info>
 
-In Prefect 2, agents were deprecated in favor of next-generation workers. Workers are now standard in Prefect 3. For detailed information on upgrading from agents to workers, please refer to our [upgrade guide](https://docs-3.prefect.io/3.0/resources/upgrade-agents-to-workers).
+In Prefect 2.0, agents were deprecated in favor of next-generation workers. Workers are now standard in Prefect 3. For detailed information on upgrading from agents to workers, please refer to our [upgrade guide](https://docs-3.prefect.io/3.0/resources/upgrade-agents-to-workers).
 
 ### Resolving common gotchas
 
