@@ -887,7 +887,7 @@ class TestS3Bucket:
     ):
         """regression test for https://github.com/PrefectHQ/prefect/issues/12848"""
         s3_bucket_empty.bucket_folder = "some_folder"
-        
+
         test_content = b"This is a test file."
         s3_bucket_empty.upload_from_file_object(
             io.BytesIO(test_content), to_path="testing.txt"

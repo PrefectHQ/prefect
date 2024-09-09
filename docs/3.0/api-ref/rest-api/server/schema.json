@@ -10665,9 +10665,6 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -10722,9 +10719,6 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -10777,9 +10771,6 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SuspendFlowRun"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkPool"
@@ -10908,9 +10899,6 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -10965,9 +10953,6 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -11020,9 +11005,6 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SuspendFlowRun"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkPool"
@@ -11237,9 +11219,6 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -11294,9 +11273,6 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
-                                },
-                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -11349,9 +11325,6 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SuspendFlowRun"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResumeFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkPool"
@@ -20854,22 +20827,6 @@
                 "type": "object",
                 "title": "ResumeDeployment",
                 "description": "Resumes the given Deployment"
-            },
-            "ResumeFlowRun": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "resume-flow-run"
-                        ],
-                        "const": "resume-flow-run",
-                        "title": "Type",
-                        "default": "resume-flow-run"
-                    }
-                },
-                "type": "object",
-                "title": "ResumeFlowRun",
-                "description": "Resumes a paused or suspended flow run associated with the trigger"
             },
             "ResumeWorkPool": {
                 "properties": {
