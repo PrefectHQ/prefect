@@ -325,7 +325,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev] 'pydantic>=2.4,<3'
+          uv pip install --upgrade --system -e .[dev] 'pydantic>=2.4,<2.9.0'
 
       - name: Set PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS env var
         run: echo "PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS=1" >> $GITHUB_ENV
