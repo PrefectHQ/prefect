@@ -462,6 +462,7 @@ class RunnerDeployment(BaseModel):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
+            concurrency_limit: The maximum number of concurrent runs this deployment will allow.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
