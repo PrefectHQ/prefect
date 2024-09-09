@@ -151,6 +151,24 @@ class UpdatedBy(BaseModel):
     )
 
 
+class ConcurrencyCollisionStrategy(AutoEnum):
+    """
+    Enumeration of concurrency collision strategies.
+    """
+
+    ENQUEUE = AutoEnum.auto()
+    CANCEL = AutoEnum.auto()
+
+
+class ConcurrencyOptions(BaseModel):
+    """
+    Options for configuring deployment concurrency limits.
+    """
+
+    concurrency: int
+    collision_strategy: ConcurrencyCollisionStrategy
+
+
 class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
@@ -528,19 +546,6 @@ class DeploymentSchedule(ORMBaseModel):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
-    
-class ConcurrencyCollisionStrategy(AutoEnum):
-    """
-    Enumeration of concurrency collision strategies.
-    """
-    ENQUEUE = AutoEnum.auto()
-    CANCEL = AutoEnum.auto()
-class ConcurrencyOptions(BaseModel):
-    """
-    Options for configuring deployment concurrency limits.
-    """
-    concurrency: int
-    collision_strategy: ConcurrencyCollisionStrategy
 
 
 class Deployment(ORMBaseModel):
