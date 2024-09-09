@@ -14,6 +14,7 @@ except ImportError:
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
+from prefect.utilities.asyncutils import sync_compatible
 
 from .context import ConcurrencyContext
 from .events import (
@@ -134,6 +135,7 @@ async def rate_limit(
     _emit_concurrency_acquisition_events(limits, occupy)
 
 
+@sync_compatible
 async def _acquire_concurrency_slots(
     names: List[str],
     slots: int,
@@ -161,6 +163,7 @@ async def _acquire_concurrency_slots(
     return _response_to_minimal_concurrency_limit_response(response_or_exception)
 
 
+@sync_compatible
 async def _release_concurrency_slots(
     names: List[str], slots: int, occupancy_seconds: float
 ) -> List[MinimalConcurrencyLimitResponse]:
