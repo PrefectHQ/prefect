@@ -1104,7 +1104,7 @@ class ResumeFlowRun(FlowRunAction):
             )
         )
 
-        logger.info(
+        logger.debug(
             "Resuming flow run",
             extra={
                 "flow_run_id": str(flow_run_id),
