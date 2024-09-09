@@ -212,6 +212,7 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6989
           docker stop "prefect-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
+          prefect version
           prefect server start --port 4201 --analytics-off > server-logs.txt 2>&1 &
           ./scripts/wait-for-server.py
 
