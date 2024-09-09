@@ -26,6 +26,7 @@ from prefect.results import (
     BaseResult,
     ResultRecord,
     ResultStore,
+    should_persist_result,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
@@ -299,7 +300,7 @@ class Transaction(ContextModel):
 
     def stage(
         self,
-        value: Union["BaseResult", Any],
+        value: Any,
         on_rollback_hooks: Optional[List] = None,
         on_commit_hooks: Optional[List] = None,
     ) -> None:
@@ -361,7 +362,7 @@ def transaction(
     commit_mode: Optional[CommitMode] = None,
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
-    write_on_commit: bool = True,
+    write_on_commit: Optional[bool] = None,
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None,
 ) -> Generator[Transaction, None, None]:
     """
@@ -374,7 +375,10 @@ def transaction(
         - commit_mode: The commit mode controlling when the transaction and
             child transactions are committed
         - overwrite: Whether to overwrite an existing transaction record in the store
-        - write_on_commit: Whether to write the result to the store on commit
+        - write_on_commit: Whether to write the result to the store on commit. If not provided,
+            will default will be determined by the current run context. If no run context is
+            available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
+
     Yields:
         - Transaction: An object representing the transaction state
     """
@@ -427,7 +431,9 @@ def transaction(
         commit_mode=commit_mode,
         isolation_level=isolation_level,
         overwrite=overwrite,
-        write_on_commit=write_on_commit,
+        write_on_commit=write_on_commit
+        if write_on_commit is not None
+        else should_persist_result(),
         logger=logger,
     ) as txn:
         yield txn

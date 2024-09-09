@@ -180,7 +180,10 @@ def get_default_persist_setting() -> bool:
 
 def should_persist_result() -> bool:
     """
-    Return the default option for result persistence (False).
+    Return the default option for result persistence determined by the current run context.
+
+    If there is no current run context, the default value set by
+    `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be returned.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
