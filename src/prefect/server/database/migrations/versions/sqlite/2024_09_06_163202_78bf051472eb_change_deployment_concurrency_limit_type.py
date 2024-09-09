@@ -5,10 +5,10 @@ Revises: f93e1439f022
 Create Date: 2024-09-06 16:32:02.584968
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
+
 import prefect
-from sqlalchemy.dialects import sqlite
 from prefect.server.schemas.core import ConcurrencyOptions
 
 # revision identifiers, used by Alembic.
