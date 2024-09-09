@@ -1,6 +1,7 @@
 import io
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from unittest.mock import Mock
 
 import boto3
 import pytest
@@ -749,8 +750,57 @@ def test_write_path_in_sync_context(s3_bucket):
     assert content == b"hello"
 
 
-def test_resolve_path(s3_bucket):
-    assert s3_bucket._resolve_path("") == ""
+@pytest.mark.parametrize(
+    "bucket_folder, path, expected",
+    [
+        # No bucket folder
+        (None, "", ""),
+        (None, "file.txt", "file.txt"),
+        (None, "/file.txt", "file.txt"),
+        (None, "folder/file.txt", "folder/file.txt"),
+        (None, "/folder/file.txt", "folder/file.txt"),
+        # Simple bucket folder
+        ("prefix", "", "prefix"),
+        ("prefix", "file.txt", "prefix/file.txt"),
+        ("prefix", "/file.txt", "prefix/file.txt"),
+        ("prefix", "folder/file.txt", "prefix/folder/file.txt"),
+        ("prefix", "/folder/file.txt", "prefix/folder/file.txt"),
+        # Bucket folder with trailing slash
+        ("prefix/", "", "prefix"),
+        ("prefix/", "file.txt", "prefix/file.txt"),
+        ("prefix/", "/file.txt", "prefix/file.txt"),
+        ("prefix/", "folder/file.txt", "prefix/folder/file.txt"),
+        ("prefix/", "/folder/file.txt", "prefix/folder/file.txt"),
+        # Bucket folder with leading slash
+        ("/prefix", "", "prefix"),
+        ("/prefix", "file.txt", "prefix/file.txt"),
+        ("/prefix", "/file.txt", "prefix/file.txt"),
+        ("/prefix", "folder/file.txt", "prefix/folder/file.txt"),
+        ("/prefix", "/folder/file.txt", "prefix/folder/file.txt"),
+        # Bucket folder with both leading and trailing slashes
+        ("/prefix/", "", "prefix"),
+        ("/prefix/", "file.txt", "prefix/file.txt"),
+        ("/prefix/", "/file.txt", "prefix/file.txt"),
+        ("/prefix/", "folder/file.txt", "prefix/folder/file.txt"),
+        ("/prefix/", "/folder/file.txt", "prefix/folder/file.txt"),
+        # Multi-level bucket folder
+        ("prefix1/prefix2", "", "prefix1/prefix2"),
+        ("prefix1/prefix2", "file.txt", "prefix1/prefix2/file.txt"),
+        ("prefix1/prefix2", "/file.txt", "prefix1/prefix2/file.txt"),
+        ("prefix1/prefix2", "folder/file.txt", "prefix1/prefix2/folder/file.txt"),
+        ("prefix1/prefix2", "/folder/file.txt", "prefix1/prefix2/folder/file.txt"),
+        # Edge cases
+        ("", "file.txt", "file.txt"),
+        ("/", "file.txt", "file.txt"),
+        ("///", "file.txt", "file.txt"),
+        ("prefix", "///file.txt", "prefix/file.txt"),
+    ],
+)
+def test_resolve_path(bucket_folder, path, expected):
+    s3_bucket = Mock()
+    s3_bucket.bucket_folder = bucket_folder
+    s3_bucket._resolve_path = lambda p: S3Bucket._resolve_path(s3_bucket, p)
+    assert s3_bucket._resolve_path(path) == expected
 
 
 class TestS3Bucket:

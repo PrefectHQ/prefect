@@ -478,21 +478,24 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         A helper function used in write_path to join `self.basepath` and `path`.
 
         Args:
-
             path: Name of the key, e.g. "file1". Each object in your
                 bucket has a unique key (or key name).
-
         """
-        # If bucket_folder provided, it means we won't write to the root dir of
-        # the bucket. So we need to add it on the front of the path.
-        #
-        # AWS object key naming guidelines require '/' for bucket folders.
-        # Get POSIX path to prevent `pathlib` from inferring '\' on Windows OS
-        path = (
-            (Path(self.bucket_folder) / path).as_posix() if self.bucket_folder else path
-        )
+        # Always remove leading slash from path
+        path = path.lstrip("/")
 
-        return path
+        if self.bucket_folder:
+            # Remove leading and trailing slashes from bucket_folder
+            bucket_folder = self.bucket_folder.strip("/")
+            if bucket_folder:
+                # Join bucket_folder and path, ensuring a single slash between them
+                path = f"{bucket_folder}/{path}" if path else bucket_folder
+
+        # Ensure the path uses forward slashes and remove any duplicate slashes
+        path = "/".join(filter(None, path.replace("\\", "/").split("/")))
+
+        # Remove trailing slash, except when path is empty
+        return path.rstrip("/") or path
 
     def _get_s3_client(self) -> boto3.client:
         """
