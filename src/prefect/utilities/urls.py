@@ -1,17 +1,22 @@
 import inspect
+import ipaddress
+import socket
 import urllib.parse
-from typing import Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from urllib.parse import urlparse
 from uuid import UUID
 
 from pydantic import BaseModel
 
 from prefect import settings
-from prefect.blocks.core import Block
-from prefect.events.schemas.automations import Automation
-from prefect.events.schemas.events import ReceivedEvent, Resource
-from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.variables import Variable
+
+if TYPE_CHECKING:
+    from prefect.blocks.core import Block
+    from prefect.events.schemas.automations import Automation
+    from prefect.events.schemas.events import ReceivedEvent, Resource
+    from prefect.futures import PrefectFuture
+    from prefect.variables import Variable
 
 logger = get_logger("utilities.urls")
 
@@ -58,6 +63,54 @@ URLType = Literal["ui", "api"]
 RUN_TYPES = {"flow-run", "task-run"}
 
 
+def validate_restricted_url(url: str):
+    """
+    Validate that the provided URL is safe for outbound requests.  This prevents
+    attacks like SSRF (Server Side Request Forgery), where an attacker can make
+    requests to internal services (like the GCP metadata service, localhost addresses,
+    or in-cluster Kubernetes services)
+
+    Args:
+        url: The URL to validate.
+
+    Raises:
+        ValueError: If the URL is a restricted URL.
+    """
+
+    try:
+        parsed_url = urlparse(url)
+    except ValueError:
+        raise ValueError(f"{url!r} is not a valid URL.")
+
+    if parsed_url.scheme not in ("http", "https"):
+        raise ValueError(
+            f"{url!r} is not a valid URL.  Only HTTP and HTTPS URLs are allowed."
+        )
+
+    hostname = parsed_url.hostname or ""
+
+    # Remove IPv6 brackets if present
+    if hostname.startswith("[") and hostname.endswith("]"):
+        hostname = hostname[1:-1]
+
+    if not hostname:
+        raise ValueError(f"{url!r} is not a valid URL.")
+
+    try:
+        ip_address = socket.gethostbyname(hostname)
+        ip = ipaddress.ip_address(ip_address)
+    except socket.gaierror:
+        try:
+            ip = ipaddress.ip_address(hostname)
+        except ValueError:
+            raise ValueError(f"{url!r} is not a valid URL.  It could not be resolved.")
+
+    if ip.is_private:
+        raise ValueError(
+            f"{url!r} is not a valid URL.  It resolves to the private address {ip}."
+        )
+
+
 def convert_class_to_name(obj: Any) -> str:
     """
     Convert CamelCase class name to dash-separated lowercase name
@@ -69,12 +122,12 @@ def convert_class_to_name(obj: Any) -> str:
 
 def url_for(
     obj: Union[
-        PrefectFuture,
-        Block,
-        Variable,
-        Automation,
-        Resource,
-        ReceivedEvent,
+        "PrefectFuture",
+        "Block",
+        "Variable",
+        "Automation",
+        "Resource",
+        "ReceivedEvent",
         BaseModel,
         str,
     ],
@@ -105,6 +158,11 @@ def url_for(
         url_for(obj=my_flow_run)
         url_for("flow-run", obj_id="123e4567-e89b-12d3-a456-426614174000")
     """
+    from prefect.blocks.core import Block
+    from prefect.events.schemas.automations import Automation
+    from prefect.events.schemas.events import ReceivedEvent, Resource
+    from prefect.futures import PrefectFuture
+
     if isinstance(obj, PrefectFuture):
         name = "task-run"
     elif isinstance(obj, Block):

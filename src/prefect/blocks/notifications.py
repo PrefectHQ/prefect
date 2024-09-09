@@ -10,6 +10,7 @@ from prefect.logging import LogEavesdropper
 from prefect.types import SecretDict
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.templating import apply_values, find_placeholders
+from prefect.utilities.urls import validate_restricted_url
 
 PREFECT_NOTIFY_TYPE_DEFAULT = "prefect_default"
 
@@ -80,6 +81,26 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
         description="Incoming webhook URL used to send notifications.",
         examples=["https://hooks.example.com/XXX"],
     )
+    allow_private_urls: bool = Field(
+        default=True,
+        description="Whether to allow notifications to private URLs. Defaults to True.",
+    )
+
+    @sync_compatible
+    async def notify(
+        self,
+        body: str,
+        subject: Optional[str] = None,
+    ):
+        if not self.allow_private_urls:
+            try:
+                validate_restricted_url(self.url.get_secret_value())
+            except ValueError as exc:
+                if self._raise_on_failure:
+                    raise NotificationError(str(exc))
+                raise
+
+        await super().notify(body, subject)
 
 
 # TODO: Move to prefect-slack once collection block auto-registration is
