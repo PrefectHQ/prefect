@@ -46,5 +46,6 @@ repos:
               .pre-commit-config.yaml|
               src/prefect/server/api/.*|
               src/prefect/server/schemas/.*|
+              src/prefect/server/events/.*|
               scripts/generate_mintlify_openapi_docs.py
           )$
