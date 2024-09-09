@@ -180,7 +180,7 @@ To fix it, `await` the asynchronous function or method or use `_sync=True`.
 
 For example, `Block`'s `load` method is asynchronous in an async context:
 <CodeGroup>
-```python Wrong
+```python Incorrect
 from prefect.blocks.system import Secret
 
 async def my_async_function():
