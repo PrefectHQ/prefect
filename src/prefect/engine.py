@@ -2123,7 +2123,6 @@ async def orchestrate_task_run(
     )
 
     if run_on_completion_hooks_on_cached:
-        task_run = await client.read_task_run(task_run.id)
         await _run_task_hooks(
             task=task,
             task_run=task_run,
