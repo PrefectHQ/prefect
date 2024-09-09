@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 import prefect
+from prefect.server.schemas.core import ConcurrencyOptions
 
 # revision identifiers, used by Alembic.
 revision = "3b4bc664921d"
@@ -22,7 +23,7 @@ def upgrade():
         "deployment",
         "concurrency_limit",
         existing_type=sa.INTEGER(),
-        type_=prefect.server.utilities.database.Pydantic(),
+        type_=prefect.server.utilities.database.Pydantic(ConcurrencyOptions),
         existing_nullable=True,
     )
 
@@ -31,7 +32,7 @@ def downgrade():
     op.alter_column(
         "deployment",
         "concurrency_limit",
-        existing_type=prefect.server.utilities.database.Pydantic(),
+        existing_type=prefect.server.utilities.database.Pydantic(ConcurrencyOptions),
         type_=sa.INTEGER(),
         existing_nullable=True,
     )

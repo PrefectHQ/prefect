@@ -246,7 +246,8 @@ class TestCreateDeployment:
 
     async def test_create_deployment_with_concurrency_limit(self, session, flow):
         concurrency_options = schemas.core.ConcurrencyOptions(
-            concurrency=10, collision_strategy=schemas.core.ConcurrencyCollisionStrategy.ENQUEUE
+            concurrency=10,
+            collision_strategy=schemas.core.ConcurrencyCollisionStrategy.ENQUEUE,
         )
         deployment = await models.deployments.create_deployment(
             session=session,
@@ -257,7 +258,6 @@ class TestCreateDeployment:
             ),
         )
         assert deployment.concurrency_limit == concurrency_options
-
 
 
 class TestReadDeployment:
