@@ -12,9 +12,15 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.api.clients import OrchestrationClient
+from prefect.server.models import deployments, flow_runs, flows
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
-from prefect.server.schemas.responses import DeploymentResponse
+from prefect.server.schemas.core import Deployment, Flow, FlowRun
+from prefect.server.schemas.responses import (
+    DeploymentResponse,
+    SetStateStatus,
+)
+from prefect.server.schemas.states import Paused, Suspended
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMDeployment, ORMVariable
@@ -24,6 +30,60 @@ if TYPE_CHECKING:
 async def orchestration_client() -> AsyncGenerator[OrchestrationClient, None]:
     async with OrchestrationClient() as client:
         yield client
+
+
+@pytest.fixture
+async def paused_flow_run(session: AsyncSession) -> FlowRun:
+    flow = await flows.create_flow(
+        session=session,
+        flow=Flow(name="test-flow"),
+    )
+    deployment = await deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="test-deployment",
+            flow_id=flow.id,
+            paused=False,
+        ),
+    )
+    assert deployment
+    flow_run = await flow_runs.create_flow_run(
+        session=session,
+        flow_run=FlowRun(
+            flow_id=flow.id,
+            deployment_id=deployment.id,
+            state=Paused(),
+        ),
+    )
+    await session.commit()
+    return FlowRun.model_validate(flow_run, from_attributes=True)
+
+
+@pytest.fixture
+async def suspended_flow_run(session: AsyncSession) -> FlowRun:
+    flow = await flows.create_flow(
+        session=session,
+        flow=Flow(name="test-flow"),
+    )
+    deployment = await deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="test-deployment",
+            flow_id=flow.id,
+            paused=False,
+        ),
+    )
+    assert deployment
+    flow_run = await flow_runs.create_flow_run(
+        session=session,
+        flow_run=FlowRun(
+            flow_id=flow.id,
+            deployment_id=deployment.id,
+            state=Suspended(),
+        ),
+    )
+    await session.commit()
+    return FlowRun.model_validate(flow_run, from_attributes=True)
 
 
 async def test_read_deployment(
@@ -48,6 +108,29 @@ async def test_read_deployment_raises_errors(orchestration_client: Orchestration
     ):
         with pytest.raises(httpx.HTTPStatusError):
             await orchestration_client.read_deployment(uuid4())
+
+
+async def test_resume_flow_run_raises_errors(orchestration_client: OrchestrationClient):
+    with mock.patch(
+        "prefect.server.api.flow_runs.models.flow_runs.read_flow_run",
+        return_value=ValueError("woops"),
+    ):
+        with pytest.raises(httpx.HTTPStatusError):
+            await orchestration_client.resume_flow_run(uuid4())
+
+
+async def test_resume_flow_run_returns_result_paused_flow_run(
+    orchestration_client: OrchestrationClient, paused_flow_run: FlowRun
+):
+    response = await orchestration_client.resume_flow_run(paused_flow_run.id)
+    assert response.status == SetStateStatus.ACCEPT
+
+
+async def test_resume_flow_run_returns_result_suspended_flow_run(
+    orchestration_client: OrchestrationClient, suspended_flow_run: FlowRun
+):
+    response = await orchestration_client.resume_flow_run(suspended_flow_run.id)
+    assert response.status == SetStateStatus.ACCEPT
 
 
 @pytest.fixture
