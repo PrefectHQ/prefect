@@ -2315,7 +2315,10 @@ class TestTaskConcurrencyLimits:
                 bar()
 
                 acquire_spy.assert_called_once_with(
-                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
+                    ["limit-tag"],
+                    task_run_id=task_run_id,
+                    timeout_seconds=None,
+                    _sync=True,
                 )
 
                 names, _task_run_id, occupy_seconds = release_spy.call_args[0]
