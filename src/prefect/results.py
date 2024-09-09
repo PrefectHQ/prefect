@@ -946,7 +946,18 @@ class ResultRecord(BaseModel, Generic[R]):
         return value
 
     @classmethod
-    async def from_metadata(cls, metadata: ResultRecordMetadata) -> "ResultRecord[R]":
+    async def _from_metadata(cls, metadata: ResultRecordMetadata) -> "ResultRecord[R]":
+        """
+        Create a result record from metadata.
+
+        Will use the result record metadata to fetch data via a result store.
+
+        Args:
+            metadata: The metadata to create the result record from.
+
+        Returns:
+            ResultRecord: The result record.
+        """
         if metadata.storage_block_id is None:
             storage_block = None
         else:

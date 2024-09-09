@@ -140,7 +140,7 @@ async def _get_state_result(
     elif isinstance(state.data, ResultRecord):
         result = state.data.result
     elif isinstance(state.data, ResultRecordMetadata):
-        record = await ResultRecord.from_metadata(state.data)
+        record = await ResultRecord._from_metadata(state.data)
         result = record.result
 
     elif state.data is None:
@@ -456,7 +456,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif isinstance(state.data, ResultRecord):
         result = state.data.result
     elif isinstance(state.data, ResultRecordMetadata):
-        record = await ResultRecord.from_metadata(state.data)
+        record = await ResultRecord._from_metadata(state.data)
         result = record.result
     elif state.data is None:
         result = None
