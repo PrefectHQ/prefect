@@ -4,7 +4,7 @@ import os
 import socket
 import threading
 import uuid
-from functools import partial, wraps
+from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -17,7 +17,6 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    overload,
 )
 from uuid import UUID
 
@@ -61,7 +60,6 @@ from prefect.settings import (
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
 
 if TYPE_CHECKING:
@@ -206,36 +204,12 @@ def _format_user_supplied_storage_key(key: str) -> str:
 T = TypeVar("T")
 
 
-def _backwards_compatible_obj_key_order(func: Callable[..., T]) -> Callable[..., T]:
-    """
-    This decorator is used to make the `ResultStore` writing method
-    backwards compatible with the old-style call:
-    `create_result_record(key, obj)` and the new-style call: `create_result_record(obj, key)`.
-    """
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        parameters = get_call_parameters(func, args, kwargs)
-
-        key = parameters.get("key", None)
-        if key is not None and not isinstance(key, str):
-            # If key is not a string, assume the old-style call: `create_result_record(key, obj)`
-            # and swap the key and obj values
-            obj = parameters["obj"]
-            parameters["obj"] = key
-            parameters["key"] = obj
-
-        # Call the original function with updated kwargs
-        return func(**parameters)
-
-    return wrapper
-
-
 @deprecated_field(
     "persist_result",
     when=lambda x: x is not None,
     when_message="use the `should_persist_result` utility function instead",
     start_date="Sep 2024",
+    end_date="Nov 2024",
 )
 class ResultStore(BaseModel):
     """
@@ -475,25 +449,6 @@ class ResultStore(BaseModel):
         holder = holder or self.generate_default_holder()
         return await self._read(key=key, holder=holder, _sync=False)
 
-    @overload
-    def create_result_record(
-        self,
-        obj: Any,
-        key: Optional[str] = None,
-        expiration: Optional[DateTime] = None,
-    ) -> "ResultRecord":
-        ...
-
-    @overload
-    def create_result_record(
-        self,
-        key: str,
-        obj: Any,
-        expiration: Optional[DateTime] = None,
-    ) -> "ResultRecord":
-        ...
-
-    @_backwards_compatible_obj_key_order
     def create_result_record(
         self,
         obj: Any,
@@ -527,28 +482,6 @@ class ResultStore(BaseModel):
             ),
         )
 
-    @overload
-    def write(
-        self,
-        obj: Any,
-        key: Optional[str] = None,
-        expiration: Optional[DateTime] = None,
-        holder: Optional[str] = None,
-    ) -> None:
-        ...
-
-    # for backwards compatibility
-    @overload
-    def write(
-        self,
-        key: str,
-        obj: Any,
-        expiration: Optional[DateTime] = None,
-        holder: Optional[str] = None,
-    ) -> None:
-        ...
-
-    @_backwards_compatible_obj_key_order
     def write(
         self,
         obj: Any,
@@ -576,28 +509,6 @@ class ResultStore(BaseModel):
             holder=holder,
         )
 
-    @overload
-    async def awrite(
-        self,
-        obj: Any,
-        key: Optional[str] = None,
-        expiration: Optional[DateTime] = None,
-        holder: Optional[str] = None,
-    ) -> None:
-        ...
-
-    # for backwards compatibility
-    @overload
-    async def awrite(
-        self,
-        key: str,
-        obj: Any,
-        expiration: Optional[DateTime] = None,
-        holder: Optional[str] = None,
-    ) -> None:
-        ...
-
-    @_backwards_compatible_obj_key_order
     async def awrite(
         self,
         obj: Any,

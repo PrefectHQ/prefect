@@ -1,6 +1,3 @@
-from inspect import isawaitable
-
-import pendulum
 import pytest
 
 import prefect.exceptions
@@ -841,68 +838,9 @@ async def test_supports_isolation_level():
     )
 
 
-@pytest.mark.parametrize("method", ["awrite", "write"])
-async def test_handles_key_and_obj_args_in_different_order_writes(tmp_path, method):
-    store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path / "results"))
+async def test_deprecation_warning_on_persist_result():
+    with pytest.warns(DeprecationWarning):
+        ResultStore(persist_result=True)
 
-    method = getattr(store, method)
-
-    key = "test-awrite"
-    ret = method(key, {"obj": "obj-second"})
-    if isawaitable(ret):
-        await ret
-    result = await store.aread(key)
-    assert result.result == {"obj": "obj-second"}
-
-    ret = method({"obj": "obj-first"}, key)
-    if isawaitable(ret):
-        await ret
-    result = await store.aread(key)
-    assert result.result == {"obj": "obj-first"}
-
-    ret = method(key=key, obj={"obj": "obj-kwarg"})
-    if isawaitable(ret):
-        await ret
-    result = await store.aread(key)
-    assert result.result == {"obj": "obj-kwarg"}
-
-    ret = method({"obj": "obj-first"}, key=key)
-    if isawaitable(ret):
-        await ret
-    result = await store.aread(key)
-    assert result.result == {"obj": "obj-first"}
-
-    ret = method({"obj": "obj-first-with-extra-arg"}, key, pendulum.now(), "holder")
-    if isawaitable(ret):
-        await ret
-    result = await store.aread(key)
-    assert result.result == {"obj": "obj-first-with-extra-arg"}
-
-
-async def test_handles_key_and_obj_args_in_different_order_create_result_record(
-    tmp_path,
-):
-    store = ResultStore(result_storage=LocalFileSystem(basepath=tmp_path / "results"))
-
-    key = "test-awrite"
-    ret = store.create_result_record(key, {"obj": "obj-second"})
-    assert key in ret.metadata.storage_key
-    assert ret.result == {"obj": "obj-second"}
-
-    ret = store.create_result_record({"obj": "obj-first"}, key)
-    assert key in ret.metadata.storage_key
-    assert ret.result == {"obj": "obj-first"}
-
-    ret = store.create_result_record(key=key, obj={"obj": "obj-kwarg"})
-    assert key in ret.metadata.storage_key
-    assert ret.result == {"obj": "obj-kwarg"}
-
-    ret = store.create_result_record({"obj": "obj-first"}, key=key)
-    assert key in ret.metadata.storage_key
-    assert ret.result == {"obj": "obj-first"}
-
-    ret = store.create_result_record(
-        {"obj": "obj-first-with-extra-arg"}, key, pendulum.now()
-    )
-    assert key in ret.metadata.storage_key
-    assert ret.result == {"obj": "obj-first-with-extra-arg"}
+    with pytest.warns(DeprecationWarning):
+        ResultStore(persist_result=False)
