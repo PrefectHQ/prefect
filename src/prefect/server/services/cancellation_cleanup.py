@@ -84,8 +84,8 @@ class CancellationCleanup(LoopService):
                         db.FlowRun.state_type == states.StateType.RUNNING,
                         db.FlowRun.state_type == states.StateType.PAUSED,
                         db.FlowRun.state_type == states.StateType.CANCELLING,
-                        db.FlowRun.id > high_water_mark,
                     ),
+                    db.FlowRun.id > high_water_mark,
                     db.FlowRun.parent_task_run_id.is_not(None),
                 )
                 .order_by(db.FlowRun.id)
