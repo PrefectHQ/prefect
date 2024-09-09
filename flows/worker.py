@@ -15,7 +15,7 @@ def main():
         TEST_SERVER_VERSION
     ) >= Version("2.8"):
         subprocess.check_call(
-            ["python", "-m", "pip", "install", "prefect-kubernetes"],
+            ["python", "-m", "pip", "install", "prefect-kubernetes<0.5.0"],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
