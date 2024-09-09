@@ -1764,6 +1764,7 @@ PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED = Setting(bool, default=False)
 Whether or not to run on_completion hooks on cached task runs.
 """
 
+
 def automation_settings_enabled() -> bool:
     """
     Whether or not automations are enabled.
