@@ -815,7 +815,7 @@ class ResultStore(BaseModel):
         return record.result
 
 
-def get_current_result_store() -> ResultStore:
+def get_result_store() -> ResultStore:
     """
     Get the current result store.
     """

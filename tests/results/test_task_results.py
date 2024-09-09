@@ -4,7 +4,7 @@ import pytest
 
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
-from prefect.results import get_current_result_store
+from prefect.results import get_result_store
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
     PREFECT_HOME,
@@ -96,7 +96,7 @@ async def test_task_result_is_cached_in_memory_by_default(prefect_client):
     @task(persist_result=True)
     def bar():
         nonlocal store
-        store = get_current_result_store()
+        store = get_result_store()
         return 1
 
     flow_state = foo(return_state=True)
@@ -115,7 +115,7 @@ async def test_task_with_uncached_but_persisted_result(prefect_client, events_pi
     @task(persist_result=True, cache_result_in_memory=False)
     def bar():
         nonlocal store
-        store = get_current_result_store()
+        store = get_result_store()
         return 1
 
     flow_state = foo(return_state=True)
@@ -140,7 +140,7 @@ async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
     def foo():
         state = bar(return_state=True)
         nonlocal store
-        store = get_current_result_store()
+        store = get_result_store()
         assert state.data.metadata.storage_key not in store.cache
         assert state.result() == 1
         assert state.data.metadata.storage_key not in store.cache

@@ -9,7 +9,7 @@ from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
     ResultRecord,
-    get_current_result_store,
+    get_result_store,
 )
 from prefect.serializers import (
     CompressedSerializer,
@@ -80,7 +80,7 @@ async def test_flow_with_uncached_but_persisted_result(prefect_client):
     @flow(persist_result=True, cache_result_in_memory=False)
     def foo():
         nonlocal store
-        store = get_current_result_store()
+        store = get_result_store()
         return 1
 
     state = foo(return_state=True)

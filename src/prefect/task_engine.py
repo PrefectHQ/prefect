@@ -59,7 +59,7 @@ from prefect.results import (
     BaseResult,
     ResultRecord,
     _format_user_supplied_storage_key,
-    get_current_result_store,
+    get_result_store,
     should_persist_result,
 )
 from prefect.settings import (
@@ -466,7 +466,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
-                result_store=get_current_result_store(),
+                result_store=get_result_store(),
                 key=transaction.key,
                 expiration=expiration,
             )
@@ -542,7 +542,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 exception_to_failed_state(
                     exc,
                     message="Task run encountered an exception",
-                    result_store=get_current_result_store(),
+                    result_store=get_result_store(),
                     write_result=True,
                 )
             )
@@ -594,7 +594,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=get_current_result_store().update_for_task(
+                    result_store=get_result_store().update_for_task(
                         self.task, _sync=True
                     ),
                     client=client,
@@ -727,7 +727,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         with transaction(
             key=self.compute_transaction_key(),
-            store=get_current_result_store(),
+            store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
@@ -973,7 +973,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         terminal_state = await return_value_to_state(
             result,
-            result_store=get_current_result_store(),
+            result_store=get_result_store(),
             key=transaction.key,
             expiration=expiration,
         )
@@ -1047,7 +1047,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             state = await exception_to_failed_state(
                 exc,
                 message="Task run encountered an exception",
-                result_store=get_current_result_store(),
+                result_store=get_result_store(),
             )
             self.record_terminal_state_timing(state)
             await self.set_state(state)
@@ -1097,7 +1097,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=await get_current_result_store().update_for_task(
+                    result_store=await get_result_store().update_for_task(
                         self.task, _sync=False
                     ),
                     client=client,
@@ -1227,7 +1227,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         with transaction(
             key=self.compute_transaction_key(),
-            store=get_current_result_store(),
+            store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
