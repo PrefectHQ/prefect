@@ -16,6 +16,7 @@ except ImportError:
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
+from prefect.logging.loggers import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 
 from .context import ConcurrencyContext
@@ -188,8 +189,13 @@ async def _acquire_concurrency_slots(
             f"Concurrency limits {names!r} must be created before acquiring slots"
         )
     elif not retval:
-        # add a warning log
-        return retval
+        try:
+            logger = get_run_logger()
+            logger.warning(
+                f"Concurrency limits {names!r} do not exist - skipping acquisition."
+            )
+        except Exception:
+            pass
     return retval
 
 
