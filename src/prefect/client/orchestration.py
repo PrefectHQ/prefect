@@ -94,7 +94,6 @@ from prefect.client.schemas.objects import (
     FlowRunPolicy,
     Log,
     Parameter,
-    QueueFilter,
     TaskRunPolicy,
     TaskRunResult,
     Variable,
@@ -994,7 +993,6 @@ class PrefectClient:
     async def create_work_queue(
         self,
         name: str,
-        tags: Optional[List[str]] = None,
         description: Optional[str] = None,
         is_paused: Optional[bool] = None,
         concurrency_limit: Optional[int] = None,
@@ -1006,8 +1004,6 @@ class PrefectClient:
 
         Args:
             name: a unique name for the work queue
-            tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
-                will be included in the queue. This option will be removed on 2023-02-23.
             description: An optional description for the work queue.
             is_paused: Whether or not the work queue is paused.
             concurrency_limit: An optional concurrency limit for the work queue.
@@ -1021,18 +1017,7 @@ class PrefectClient:
         Returns:
             The created work queue
         """
-        if tags:
-            warnings.warn(
-                (
-                    "The use of tags for creating work queue filters is deprecated."
-                    " This option will be removed on 2023-02-23."
-                ),
-                DeprecationWarning,
-            )
-            filter = QueueFilter(tags=tags)
-        else:
-            filter = None
-        create_model = WorkQueueCreate(name=name, filter=filter)
+        create_model = WorkQueueCreate(name=name, filter=None)
         if description is not None:
             create_model.description = description
         if is_paused is not None:

@@ -138,8 +138,6 @@ class APILogHandler(logging.Handler):
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_api", True):
                 return  # Do not send records that have opted out
-            if not getattr(record, "send_to_orion", True):
-                return  # Backwards compatibility
 
             log = self.prepare(record)
             APILogWorker.instance().send(log)
