@@ -104,16 +104,21 @@ async def read_concurrency_limit(
     session: AsyncSession,
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
+    omit_internally_used_limits: bool = True,
 ) -> Union[orm_models.ConcurrencyLimitV2, None]:
     if not concurrency_limit_id and not name:
         raise ValueError("Must provide either concurrency_limit_id or name")
 
-    where = (
-        orm_models.ConcurrencyLimitV2.id == concurrency_limit_id
-        if concurrency_limit_id
-        else orm_models.ConcurrencyLimitV2.name == name
-    )
-    query = sa.select(orm_models.ConcurrencyLimitV2).where(where)
+    filters = []
+    if concurrency_limit_id:
+        filters.append(orm_models.ConcurrencyLimitV2.id == concurrency_limit_id)
+    elif name:
+        filters.append(orm_models.ConcurrencyLimitV2.name == name)
+
+    if omit_internally_used_limits:
+        filters.append(orm_models.ConcurrencyLimitV2.used_for.is_(None))
+
+    query = sa.select(orm_models.ConcurrencyLimitV2).where(*filters)
     result = await session.execute(query)
     return result.scalar()
 
@@ -122,10 +127,14 @@ async def read_all_concurrency_limits(
     session: AsyncSession,
     limit: int,
     offset: int,
+    omit_internally_used_limits: bool = True,
 ) -> Sequence[orm_models.ConcurrencyLimitV2]:
     query = sa.select(orm_models.ConcurrencyLimitV2).order_by(
         orm_models.ConcurrencyLimitV2.name
     )
+
+    if omit_internally_used_limits:
+        query = query.where(orm_models.ConcurrencyLimitV2.used_for.is_(None))
 
     if offset is not None:
         query = query.offset(offset)

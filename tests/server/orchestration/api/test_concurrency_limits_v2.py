@@ -146,6 +146,16 @@ async def test_read_concurrency_non_existent_limit(
     assert response.status_code == 404
 
 
+async def test_read_concurrency_deployment_concurrency_limit(
+    concurrency_limit_used_for_deployment_concurrency_limiting: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.get(
+        f"/v2/concurrency_limits/{concurrency_limit_used_for_deployment_concurrency_limiting.id}"
+    )
+    assert response.status_code == 404
+
+
 async def test_read_all_concurrency_limits(
     concurrency_limit: ConcurrencyLimitV2,
     locked_concurrency_limit: ConcurrencyLimitV2,
