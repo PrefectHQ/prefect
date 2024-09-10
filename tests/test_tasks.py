@@ -460,6 +460,18 @@ class TestTaskCall:
         # assert that the value IS the original and was never copied
         assert f.get_x() is f.x
 
+    def test_task_run_name_can_access_self_arg_for_instance_methods(self):
+        class Foo:
+            a = 10
+
+            @task(task_run_name="{self.a}|{x}")
+            def instance_method(self, x):
+                return TaskRunContext.get()
+
+        f = Foo()
+        context = f.instance_method(x=5)
+        assert context.task_run.name == "10|5"
+
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_task_supports_async_instance_methods(self, T):
         class Foo(T):
