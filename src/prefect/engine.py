@@ -2119,7 +2119,9 @@ async def orchestrate_task_run(
     run_name_set = False
 
     run_on_completion_hooks_on_cached = (
-        PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED and state.is_cached()
+        PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED
+        and state.is_completed()
+        and state.name == "Cached"
     )
 
     if run_on_completion_hooks_on_cached:
@@ -2339,7 +2341,9 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     """
     hooks = None
     run_on_completion_hooks_on_cached = (
-        PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED and state.is_cached()
+        PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED
+        and state.is_completed()
+        and state.name == "Cached"
     )
     if state.is_failed() and task.on_failure:
         hooks = task.on_failure

@@ -3797,13 +3797,13 @@ class TestOnCompletionHooksForCachedTasks:
             # First run to cache the result
             state = test_flow()
             assert my_mock.call_args_list == [call("completed1"), call("completed2")]
-            assert not state.is_cached()
+            assert not (state.is_completed() and state.name == "Cached")
 
             my_mock.reset_mock()
 
             # Second run to test the hooks behavior
             state = test_flow()
-            assert state.is_cached()
+            assert state.is_completed() and state.name == "Cached"
             if run_hooks_on_cached:
                 assert my_mock.call_args_list == [
                     call("completed1"),
@@ -3837,13 +3837,13 @@ class TestOnCompletionHooksForCachedTasks:
             # First run to cache the result
             state = test_flow()
             assert state.result() == "cached_result"
-            assert not state.is_cached()
+            assert not (state.is_completed() and state.name == "Cached")
 
             caplog.clear()
 
             # Second run to test the hook behavior
             state = test_flow()
-            assert state.is_cached()
+            assert state.is_completed() and state.name == "Cached"
             assert state.result() == "cached_result"
 
             if run_hooks_on_cached:
