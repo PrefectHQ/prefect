@@ -1,10 +1,10 @@
-import json
 import time
 from pathlib import Path
 from typing import Dict, Optional
 
 import anyio
 import pendulum
+import pydantic_core
 from typing_extensions import TypedDict
 
 from prefect.logging.loggers import get_logger
@@ -57,8 +57,8 @@ class FileSystemLockManager(LockManager):
         lock_path = self._lock_path_for_key(key)
 
         try:
-            with open(lock_path, "r") as lock_file:
-                lock_info = json.load(lock_file)
+            with open(lock_path, "rb") as lock_file:
+                lock_info = pydantic_core.from_json(lock_file.read())
                 lock_info["path"] = lock_path
                 expiration = lock_info.get("expiration")
                 lock_info["expiration"] = (
@@ -79,8 +79,8 @@ class FileSystemLockManager(LockManager):
         lock_path = self._lock_path_for_key(key)
 
         try:
-            lock_info = await anyio.Path(lock_path).read_text()
-            lock_info = json.loads(lock_info)
+            lock_info_bytes = await anyio.Path(lock_path).read_bytes()
+            lock_info = pydantic_core.from_json(lock_info_bytes)
             lock_info["path"] = lock_path
             expiration = lock_info.get("expiration")
             lock_info["expiration"] = (
@@ -120,13 +120,16 @@ class FileSystemLockManager(LockManager):
             else None
         )
 
-        with open(Path(lock_path), "w") as lock_file:
-            json.dump(
-                {
-                    "holder": holder,
-                    "expiration": str(expiration) if expiration is not None else None,
-                },
-                lock_file,
+        with open(Path(lock_path), "wb") as lock_file:
+            lock_file.write(
+                pydantic_core.to_json(
+                    {
+                        "holder": holder,
+                        "expiration": str(expiration)
+                        if expiration is not None
+                        else None,
+                    },
+                )
             )
 
         self._locks[key] = {
@@ -141,14 +144,14 @@ class FileSystemLockManager(LockManager):
         self,
         key: str,
         holder: str,
-        acquire_timeout: float | None = None,
-        hold_timeout: float | None = None,
+        acquire_timeout: Optional[float] = None,
+        hold_timeout: Optional[float] = None,
     ) -> bool:
         await anyio.Path(self.lock_files_directory).mkdir(parents=True, exist_ok=True)
         lock_path = self._lock_path_for_key(key)
 
         if self.is_locked(key) and not self.is_lock_holder(key, holder):
-            lock_free = self.wait_for_lock(key, acquire_timeout)
+            lock_free = await self.await_for_lock(key, acquire_timeout)
             if not lock_free:
                 return False
 
@@ -166,9 +169,9 @@ class FileSystemLockManager(LockManager):
             else None
         )
 
-        async with await anyio.Path(lock_path).open("w") as lock_file:
+        async with await anyio.Path(lock_path).open("wb") as lock_file:
             await lock_file.write(
-                json.dumps(
+                pydantic_core.to_json(
                     {
                         "holder": holder,
                         "expiration": str(expiration)
@@ -230,7 +233,7 @@ class FileSystemLockManager(LockManager):
             time.sleep(0.1)
         return True
 
-    async def await_for_lock(self, key: str, timeout: float | None = None) -> bool:
+    async def await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         seconds_waited = 0
         while self.is_locked(key, use_cache=False):
             if timeout and seconds_waited >= timeout:

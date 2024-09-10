@@ -209,6 +209,13 @@ class TestFileSystemLockManager:
         store.release_lock(key, holder="holder1")
         assert not store.is_locked(key)
 
+    async def test_acquire_lock_async(self, store):
+        key = str(uuid4())
+        assert await store.aacquire_lock(key, holder="holder1")
+        assert store.is_locked(key)
+        store.release_lock(key, holder="holder1")
+        assert not store.is_locked(key)
+
     def test_acquire_lock_idempotent(self, store):
         key = str(uuid4())
         assert store.acquire_lock(key, holder="holder1")
@@ -278,6 +285,29 @@ class TestFileSystemLockManager:
         key = str(uuid4())
         assert not store.is_locked(key)
         assert store.wait_for_lock(key)
+
+    async def test_wait_for_lock_async(self, store):
+        key = str(uuid4())
+        assert await store.aacquire_lock(key, holder="holder1")
+        assert store.is_locked(key)
+        assert not await store.await_for_lock(key, timeout=0.1)
+        assert store.is_locked(key)
+        store.release_lock(key, holder="holder1")
+        assert not store.is_locked(key)
+
+    async def test_wait_for_lock_async_with_timeout(self, store):
+        key = str(uuid4())
+        assert await store.aacquire_lock(key, holder="holder1")
+        assert store.is_locked(key)
+        assert not await store.await_for_lock(key, timeout=0.1)
+        assert store.is_locked(key)
+        store.release_lock(key, holder="holder1")
+        assert not store.is_locked(key)
+
+    async def test_wait_for_lock_async_never_been_locked(self, store):
+        key = str(uuid4())
+        assert not store.is_locked(key)
+        assert await store.await_for_lock(key)
 
     def test_locking_works_across_threads(self, store):
         key = str(uuid4())
