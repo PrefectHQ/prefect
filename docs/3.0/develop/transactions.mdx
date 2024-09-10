@@ -63,7 +63,7 @@ def quality_test():
 def pipeline(contents: str):
     with transaction():
         write_file(contents)
-        sleep(2)
+        sleep(2) # sleeping to give you a chance to see the file
         quality_test()
 
 
@@ -141,45 +141,42 @@ from prefect.transactions import get_transaction, transaction
 
 
 @task
-def write_file(contents: str):
+def write_file(contents: str, filename: str):
     "Writes to a file."
-    with open("side-effect.txt", "w") as f:
+    with open(filename, "w") as f:
         f.write(contents)
 
 
 @write_file.on_rollback
-def del_file(transaction):
+def del_file(txn):
     "Deletes file."
-    os.unlink("side-effect.txt")
-    txn1 = get_transaction()      # get the transaction object
-    print(txn1.get("contents"))   # prints "hello world"
+    os.unlink(txn.get("file_name"))
 
 
 @task
-def quality_test():
+def quality_test(filename):
     "Checks contents of file."
-    with open("side-effect.txt", "r") as f:
+    with open(filename, "r") as f:
         data = f.readlines()
 
     if len(data) < 2:
-        txn2 = get_transaction()      # get the transaction object
-        raise ValueError(f"Not enough data! {(txn2.get("contents"))}") 
-        # prints "hello world" as part of the error message
+        raise ValueError(f"Not enough data!")
 
 
 @flow
 def pipeline(contents: str):
     with transaction() as txn:
-        write_file(contents)
-        sleep(2)
-        txn.set("contents", contents)  # set the contents key to the value of the contents variable
-        quality_test()
+        filename = "side-effect.txt"
+        txn.set("file_name", filename)
+        write_file(contents, filename)
+        sleep(2)  # sleeping to give you a chance to see the file
+        quality_test(filename)
 
 
 if __name__ == "__main__":
     pipeline(contents="hello world")
 ```
 
-The value of `contents` is accessible within the `on_rollback` hook and from within any tasks that are called from within the transaction context block. 
+The value of `contents` is accessible within the `on_rollback` hook. 
 
 Use `get_transaction()` to access the transaction object and `txn.get("key")` to access the value of the key.
