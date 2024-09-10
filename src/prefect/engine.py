@@ -167,6 +167,7 @@ from prefect.results import ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
+    PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -2117,6 +2118,19 @@ async def orchestrate_task_run(
     # flag to ensure we only update the task run name once
     run_name_set = False
 
+    run_on_completion_hooks_on_cached = (
+        PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED
+        and state.is_completed()
+        and state.name == "Cached"
+    )
+
+    if run_on_completion_hooks_on_cached:
+        await _run_task_hooks(
+            task=task,
+            task_run=task_run,
+            state=state,
+        )
+
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
         # Retrieve the latest metadata for the task run context
@@ -2326,9 +2340,16 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
+    run_on_completion_hooks_on_cached = (
+        PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED
+        and state.is_completed()
+        and state.name == "Cached"
+    )
     if state.is_failed() and task.on_failure:
         hooks = task.on_failure
-    elif state.is_completed() and task.on_completion:
+    elif (
+        state.is_completed() or run_on_completion_hooks_on_cached
+    ) and task.on_completion:
         hooks = task.on_completion
 
     if hooks:

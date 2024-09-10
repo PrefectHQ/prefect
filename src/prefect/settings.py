@@ -1759,6 +1759,11 @@ PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
 How long to cache related resource data for emitting server-side vents
 """
 
+PREFECT_RUN_ON_COMPLETION_HOOKS_ON_CACHED = Setting(bool, default=False)
+"""
+Whether or not to run on_completion hooks on cached task runs.
+"""
+
 
 def automation_settings_enabled() -> bool:
     """
