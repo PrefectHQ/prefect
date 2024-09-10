@@ -63,7 +63,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
         slots: int,
         mode: str,
         timeout_seconds: Optional[float] = None,
-        create_if_missing: Optional[bool] = False,
+        create_if_missing: Optional[bool] = None,
         max_retries: Optional[int] = None,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):

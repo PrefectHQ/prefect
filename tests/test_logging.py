@@ -431,7 +431,7 @@ class TestAPILogHandler:
                 PrefectDeprecationWarning,
                 match=(
                     'The "send_to_orion" option has been deprecated. It will not be'
-                    ' available after Nov 2023. Use "send_to_api" instead.'
+                    ' available in new releases after Nov 2023. Use "send_to_api" instead.'
                 ),
             ):
                 PrefectLogAdapter(logger, extra={}).info(

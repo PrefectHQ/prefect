@@ -85,7 +85,7 @@ class TestSettingClass:
             DeprecationWarning,
             match=(
                 "Setting 'PREFECT_TEST_SETTING' has been deprecated. It will not be"
-                " available after Jul 2023. test help"
+                " available in new releases after Jul 2023. test help"
             ),
         ):
             PREFECT_TEST_SETTING.value()
@@ -114,7 +114,7 @@ class TestSettingClass:
                 DeprecationWarning,
                 match=(
                     "Setting 'PREFECT_TEST_SETTING' has been deprecated when the value"
-                    " is foo. It will not be available after Jul 2023."
+                    " is foo. It will not be available in new releases after Jul 2023."
                 ),
             ):
                 PREFECT_TEST_SETTING.value()

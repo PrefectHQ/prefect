@@ -41,8 +41,9 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
                 ["test"],
                 1,
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
                 max_retries=None,
+                strict=False,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -77,6 +78,22 @@ async def test_concurrency_can_be_used_within_a_flow(
     await my_flow()
 
     assert executed
+
+
+async def test_concurrency_can_be_used_within_a_flow_strictly():
+    @task
+    async def resource_heavy():
+        async with concurrency("santa-clause", occupy=1, strict=True):
+            return
+
+    @flow
+    async def my_flow():
+        await resource_heavy()
+
+    state = await my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        await state.result()
 
 
 async def test_concurrency_emits_events(
@@ -218,7 +235,8 @@ async def test_rate_limit_orchestrates_api(
                 1,
                 mode="rate_limit",
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
+                strict=False,
             )
 
             # When used as a rate limit concurrency slots are not explicitly
@@ -248,6 +266,22 @@ async def test_rate_limit_can_be_used_within_a_flow(
     await my_flow()
 
     assert executed
+
+
+async def test_rate_limit_can_be_used_within_a_flow_with_strict():
+    @task
+    async def resource_heavy():
+        await rate_limit("easter-bunny", occupy=1, strict=True)
+        return
+
+    @flow
+    async def my_flow():
+        await resource_heavy()
+
+    state = await my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        await state.result()
 
 
 async def test_rate_limit_emits_events(
@@ -382,6 +416,7 @@ async def test_concurrency_creates_new_limits_if_requested(
                 timeout_seconds=None,
                 create_if_missing=True,
                 max_retries=None,
+                strict=False,
             )
 
             # On release we calculate how many seconds the slots were occupied

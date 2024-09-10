@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
@@ -185,10 +186,17 @@ async def delete_concurrency_limit(
     return result.rowcount > 0
 
 
+@deprecated_parameter(
+    name="create_if_missing",
+    start_date="Sep 2024",
+    end_date="Oct 2024",
+    when=lambda x: x is not None,
+    help="Limits must be explicitly created before acquiring concurrency slots.",
+)
 async def bulk_read_or_create_concurrency_limits(
     session: AsyncSession,
     names: List[str],
-    create_if_missing: Optional[bool] = True,
+    create_if_missing: Optional[bool] = None,
 ) -> List[orm_models.ConcurrencyLimitV2]:
     # Get all existing concurrency limits in `names`.
     existing_query = sa.select(orm_models.ConcurrencyLimitV2).where(
