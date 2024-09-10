@@ -30,7 +30,7 @@ M = TypeVar("M", bound=BaseModel)
 
 
 DEPRECATED_WARNING = (
-    "{name} has been deprecated{when}. It will not be available after {end_date}."
+    "{name} has been deprecated{when}. It will not be available in new releases after {end_date}."
     " {help}"
 )
 DEPRECATED_MOVED_WARNING = (
