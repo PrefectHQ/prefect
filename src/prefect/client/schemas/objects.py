@@ -3,6 +3,7 @@ import warnings
 from functools import partial
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Dict,
     Generic,
@@ -17,10 +18,12 @@ import orjson
 import pendulum
 from pydantic import (
     ConfigDict,
+    Discriminator,
     Field,
     HttpUrl,
     IPvAnyNetwork,
     SerializationInfo,
+    Tag,
     field_validator,
     model_serializer,
     model_validator,
@@ -59,7 +62,7 @@ from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
-    from prefect.results import BaseResult
+    from prefect.results import BaseResult, ResultRecordMetadata
 
 
 R = TypeVar("R", default=Any)
@@ -158,6 +161,14 @@ class StateDetails(PrefectBaseModel):
     task_parameters_id: Optional[UUID] = None
 
 
+def data_discriminator(x: Any) -> str:
+    if isinstance(x, dict) and "type" in x:
+        return "BaseResult"
+    elif isinstance(x, dict) and "storage_key" in x:
+        return "ResultRecordMetadata"
+    return "Any"
+
+
 class State(ObjectBaseModel, Generic[R]):
     """
     The state of a run.
@@ -168,9 +179,14 @@ class State(ObjectBaseModel, Generic[R]):
     timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", Any] = Field(
-        default=None,
-    )
+    data: Annotated[
+        Union[
+            Annotated["BaseResult[R]", Tag("BaseResult")],
+            Annotated["ResultRecordMetadata", Tag("ResultRecordMetadata")],
+            Annotated[Any, Tag("Any")],
+        ],
+        Discriminator(data_discriminator),
+    ] = Field(default=None)
 
     @overload
     def result(self: "State[R]", raise_on_failure: bool = True) -> R:
@@ -276,10 +292,12 @@ class State(ObjectBaseModel, Generic[R]):
         results should be sent to the API. Other data is only available locally.
         """
         from prefect.client.schemas.actions import StateCreate
-        from prefect.results import BaseResult
+        from prefect.results import BaseResult, ResultRecord, should_persist_result
 
-        if isinstance(self.data, BaseResult) and self.data.serialize_to_none is False:
+        if isinstance(self.data, BaseResult):
             data = self.data
+        elif isinstance(self.data, ResultRecord) and should_persist_result():
+            data = self.data.metadata
         else:
             data = None
 

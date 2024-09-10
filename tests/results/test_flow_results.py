@@ -8,8 +8,8 @@ from prefect.context import get_run_context
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
-    PersistedResult,
     ResultRecord,
+    get_result_store,
 )
 from prefect.serializers import (
     CompressedSerializer,
@@ -75,12 +75,16 @@ async def test_flow_with_uncached_and_unpersisted_null_result(prefect_client):
 
 
 async def test_flow_with_uncached_but_persisted_result(prefect_client):
+    store = None
+
     @flow(persist_result=True, cache_result_in_memory=False)
     def foo():
+        nonlocal store
+        store = get_result_store()
         return 1
 
     state = foo(return_state=True)
-    assert not state.data.has_cached_object()
+    assert state.data.metadata.storage_key not in store.cache
     assert await state.result() == 1
 
     api_state = (
@@ -161,13 +165,13 @@ async def test_flow_result_serializer(serializer, prefect_client):
 
     state = foo(return_state=True)
     assert await state.result() == 1
-    await assert_uses_result_serializer(state, serializer)
+    await assert_uses_result_serializer(state, serializer, prefect_client)
 
     api_state = (
         await prefect_client.read_flow_run(state.state_details.flow_run_id)
     ).state
     assert await api_state.result() == 1
-    await assert_uses_result_serializer(api_state, serializer)
+    await assert_uses_result_serializer(api_state, serializer, prefect_client)
 
 
 async def test_flow_result_storage_by_instance(prefect_client):
@@ -245,13 +249,13 @@ async def test_child_flow_result_serializer(prefect_client, source):
     parent_state = foo(return_state=True)
     child_state = await parent_state.result()
     assert await child_state.result() == 1
-    await assert_uses_result_serializer(child_state, serializer)
+    await assert_uses_result_serializer(child_state, serializer, prefect_client)
 
     api_state = (
         await prefect_client.read_flow_run(child_state.state_details.flow_run_id)
     ).state
     assert await api_state.result() == 1
-    await assert_uses_result_serializer(api_state, serializer)
+    await assert_uses_result_serializer(api_state, serializer, prefect_client)
 
 
 @pytest.mark.parametrize("source", ["child", "parent"])
@@ -290,8 +294,7 @@ async def test_child_flow_result_missing_with_null_return(prefect_client):
 
     parent_state = foo(return_state=True)
     child_state = await parent_state.result()
-    assert isinstance(child_state.data, PersistedResult)
-    assert child_state.data._persisted is False
+    assert isinstance(child_state.data, ResultRecord)
     assert await child_state.result() is None
 
     api_state = (

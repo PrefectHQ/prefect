@@ -44,12 +44,11 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
-from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging.loggers import (
     get_logger,
     task_run_logger,
 )
-from prefect.results import BaseResult
+from prefect.results import BaseResult, ResultRecord, should_persist_result
 from prefect.settings import (
     PREFECT_LOGGING_LOG_PRINTS,
 )
@@ -122,7 +121,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
 
 
 def collect_task_run_inputs_sync(
-    expr: Any, future_cls: Any = NewPrefectFuture, max_depth: int = -1
+    expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1
 ) -> Set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
@@ -131,7 +130,7 @@ def collect_task_run_inputs_sync(
 
     Examples:
         >>> task_inputs = {
-        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
+        >>>    k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
         >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
@@ -401,6 +400,8 @@ async def propose_state(
             # Avoid fetching the result unless it is cached, otherwise we defeat
             # the purpose of disabling `cache_result_in_memory`
             result = await state.result(raise_on_failure=False, fetch=True)
+        elif isinstance(state.data, ResultRecord):
+            result = state.data.result
         else:
             result = state.data
 
@@ -504,6 +505,8 @@ def propose_state_sync(
             result = state.result(raise_on_failure=False, fetch=True)
             if inspect.isawaitable(result):
                 result = run_coro_as_sync(result)
+        elif isinstance(state.data, ResultRecord):
+            result = state.data.result
         else:
             result = state.data
 
@@ -732,6 +735,13 @@ def emit_task_run_state_change_event(
 ) -> Event:
     state_message_truncation_length = 100_000
 
+    if isinstance(validated_state.data, ResultRecord) and should_persist_result():
+        data = validated_state.data.metadata.model_dump(mode="json")
+    elif isinstance(validated_state.data, BaseResult):
+        data = validated_state.data.model_dump(mode="json")
+    else:
+        data = None
+
     return emit_event(
         id=validated_state.id,
         occurred=validated_state.timestamp,
@@ -770,9 +780,7 @@ def emit_task_run_state_change_event(
                     exclude_unset=True,
                     exclude={"flow_run_id", "task_run_id"},
                 ),
-                "data": validated_state.data.model_dump(mode="json")
-                if isinstance(validated_state.data, BaseResult)
-                else None,
+                "data": data,
             },
             "task_run": task_run.model_dump(
                 mode="json",
@@ -822,7 +830,7 @@ def resolve_to_final_result(expr, context):
     if isinstance(context.get("annotation"), quote):
         raise StopVisiting()
 
-    if isinstance(expr, NewPrefectFuture):
+    if isinstance(expr, PrefectFuture):
         upstream_task_run = context.get("current_task_run")
         upstream_task = context.get("current_task")
         if (

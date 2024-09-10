@@ -47,7 +47,12 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.results import BaseResult, ResultStore, get_current_result_store
+from prefect.results import (
+    BaseResult,
+    ResultStore,
+    get_result_store,
+    should_persist_result,
+)
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
@@ -202,7 +207,7 @@ class FlowRunEngine(Generic[P, R]):
                 self.handle_exception(
                     exc,
                     msg=message,
-                    result_store=get_current_result_store().update_for_flow(
+                    result_store=get_result_store().update_for_flow(
                         self.flow, _sync=True
                     ),
                 )
@@ -271,7 +276,7 @@ class FlowRunEngine(Generic[P, R]):
             return_value_to_state(
                 resolved_result,
                 result_store=result_store,
-                write_result=True,
+                write_result=should_persist_result(),
             )
         )
         self.set_state(terminal_state)
@@ -507,10 +512,13 @@ class FlowRunEngine(Generic[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_store=get_current_result_store().update_for_flow(
+                    result_store=get_result_store().update_for_flow(
                         self.flow, _sync=True
                     ),
                     task_runner=task_runner,
+                    persist_result=self.flow.persist_result
+                    if self.flow.persist_result is not None
+                    else should_persist_result(),
                 )
             )
             stack.enter_context(ConcurrencyContextV1())
