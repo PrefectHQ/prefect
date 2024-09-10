@@ -305,9 +305,6 @@ class State(ObjectBaseModel, Generic[R]):
     def is_cancelling(self) -> bool:
         return self.type == StateType.CANCELLING
 
-    def is_cached(self) -> bool:
-        return self.name == "Cached" and self.type == StateType.COMPLETED
-
     def is_final(self) -> bool:
         return self.type in {
             StateType.CANCELLED,
