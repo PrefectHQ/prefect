@@ -273,11 +273,14 @@ class TestDefaultTransactionStorage:
             yield
 
     async def test_transaction_outside_of_run(self):
-        with transaction(key="test_transaction_outside_of_run") as txn:
+        with transaction(
+            key="test_transaction_outside_of_run", write_on_commit=True
+        ) as txn:
             assert isinstance(txn.store, ResultRecordStore)
             result = await txn.store.result_store.create_result(
                 obj={"foo": "bar"}, key=txn.key
             )
+            result.serialize_to_none = False
             txn.stage(result)
 
         result = txn.read()
@@ -285,7 +288,7 @@ class TestDefaultTransactionStorage:
         assert await result.get() == {"foo": "bar"}
 
     async def test_transaction_inside_flow_default_storage(self):
-        @flow
+        @flow(persist_result=True)
         def test_flow():
             with transaction(key="test_transaction_inside_flow_default_storage") as txn:
                 assert isinstance(txn.store, ResultRecordStore)
@@ -330,14 +333,16 @@ class TestDefaultTransactionStorage:
     async def test_transaction_inside_task_default_storage(self):
         default_task_storage = await get_or_create_default_task_scheduling_storage()
 
-        @task
+        @task(persist_result=True)
         async def test_task():
-            with transaction(key="test_transaction_inside_task_default_storage") as txn:
+            with transaction(
+                key="test_transaction_inside_task_default_storage",
+                commit_mode=CommitMode.EAGER,
+            ) as txn:
                 assert isinstance(txn.store, ResultRecordStore)
                 result = await txn.store.result_store.create_result(
                     obj={"foo": "bar"}, key=txn.key
                 )
-                await result.write()
                 txn.stage(result)
 
             result = txn.read()
@@ -397,7 +402,9 @@ class TestWithMemoryRecordStore:
 
     async def test_basic_transaction(self, result_1):
         store = MemoryRecordStore()
-        with transaction(key="test_basic_transaction", store=store) as txn:
+        with transaction(
+            key="test_basic_transaction", store=store, write_on_commit=True
+        ) as txn:
             assert isinstance(txn.store, MemoryRecordStore)
             txn.stage(result_1)
 
@@ -421,6 +428,7 @@ class TestWithMemoryRecordStore:
                 key="test_competing_read_transaction",
                 store=store,
                 isolation_level=IsolationLevel.SERIALIZABLE,
+                write_on_commit=True,
             ) as txn:
                 transaction_1_open.set()
                 transaction_2_open.wait()
@@ -429,7 +437,9 @@ class TestWithMemoryRecordStore:
         thread = threading.Thread(target=writing_transaction)
         thread.start()
         transaction_1_open.wait()
-        with transaction(key="test_competing_read_transaction", store=store) as txn:
+        with transaction(
+            key="test_competing_read_transaction", store=store, write_on_commit=True
+        ) as txn:
             transaction_2_open.set()
             read_result = txn.read()
 
@@ -445,6 +455,7 @@ class TestWithMemoryRecordStore:
                 key="test_competing_write_transaction",
                 store=store,
                 isolation_level=IsolationLevel.SERIALIZABLE,
+                write_on_commit=True,
             ) as txn:
                 transaction_1_open.set()
                 txn.stage(result_1)
@@ -456,6 +467,7 @@ class TestWithMemoryRecordStore:
             key="test_competing_write_transaction",
             store=store,
             isolation_level=IsolationLevel.SERIALIZABLE,
+            write_on_commit=True,
         ) as txn:
             txn.stage(result_2)
 
@@ -488,7 +500,9 @@ class TestWithResultStore:
         return result_store
 
     async def test_basic_transaction(self, result_store):
-        with transaction(key="test_basic_transaction", store=result_store) as txn:
+        with transaction(
+            key="test_basic_transaction", store=result_store, write_on_commit=True
+        ) as txn:
             assert isinstance(txn.store, ResultStore)
             txn.stage({"foo": "bar"})
 
@@ -510,6 +524,7 @@ class TestWithResultStore:
                 key="test_competing_read_transaction",
                 store=result_store,
                 isolation_level=IsolationLevel.SERIALIZABLE,
+                write_on_commit=True,
             ) as txn:
                 write_transaction_open.set()
                 txn.stage({"foo": "bar"})
@@ -533,6 +548,7 @@ class TestWithResultStore:
                 key="test_competing_write_transaction",
                 store=result_store,
                 isolation_level=IsolationLevel.SERIALIZABLE,
+                write_on_commit=True,
             ) as txn:
                 transaction_1_open.set()
                 txn.stage({"foo": "bar"})
@@ -544,6 +560,7 @@ class TestWithResultStore:
             key="test_competing_write_transaction",
             store=result_store,
             isolation_level=IsolationLevel.SERIALIZABLE,
+            write_on_commit=True,
         ) as txn:
             txn.stage({"fizz": "buzz"})
 
@@ -557,7 +574,9 @@ class TestWithResultStore:
     async def test_can_handle_staged_base_result(self, result_store):
         result_1 = await result_store.create_result(obj={"foo": "bar"})
         with transaction(
-            key="test_can_handle_staged_base_result", store=result_store
+            key="test_can_handle_staged_base_result",
+            store=result_store,
+            write_on_commit=True,
         ) as txn:
             txn.stage(result_1)
 

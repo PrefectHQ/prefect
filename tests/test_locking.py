@@ -27,7 +27,7 @@ class TestMemoryLockManager:
         thread = threading.Thread(target=read_locked_key)
         assert store.acquire_lock(key, holder="holder1")
         thread.start()
-        await store.awrite(key, obj={"test": "value"}, holder="holder1")
+        await store.awrite(key=key, obj={"test": "value"}, holder="holder1")
         store.release_lock(key, holder="holder1")
         thread.join()
         # the read should have been blocked until the lock was released
@@ -38,7 +38,7 @@ class TestMemoryLockManager:
         store = ResultStore(lock_manager=MemoryLockManager())
         assert store.acquire_lock(key)
         # can write to key because holder is the same
-        store.write(key, obj={"test": "value"})
+        store.write(key=key, obj={"test": "value"})
         assert (record := store.read(key)) is not None
         assert record.result == {"test": "value"}
 
@@ -50,7 +50,7 @@ class TestMemoryLockManager:
             RuntimeError,
             match=f"Cannot write to result record with key {key} because it is locked by another holder.",
         ):
-            store.write(key, obj={"test": "value"}, holder="holder2")
+            store.write(key=key, obj={"test": "value"}, holder="holder2")
 
     def test_acquire_lock(self):
         key = str(uuid4())
