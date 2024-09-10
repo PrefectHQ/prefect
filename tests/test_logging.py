@@ -19,7 +19,6 @@ import prefect
 import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import MissingContextError
@@ -420,23 +419,6 @@ class TestAPILogHandler:
     def test_does_not_send_logs_that_opt_out(self, logger, mock_log_worker, task_run):
         with TaskRunContext.model_construct(task_run=task_run):
             logger.info("test", extra={"send_to_api": False})
-
-        mock_log_worker.instance().send.assert_not_called()
-
-    def test_does_not_send_logs_that_opt_out_deprecated(
-        self, logger, mock_log_worker, task_run
-    ):
-        with TaskRunContext.model_construct(task_run=task_run):
-            with pytest.warns(
-                PrefectDeprecationWarning,
-                match=(
-                    'The "send_to_orion" option has been deprecated. It will not be'
-                    ' available after Nov 2023. Use "send_to_api" instead.'
-                ),
-            ):
-                PrefectLogAdapter(logger, extra={}).info(
-                    "test", extra={"send_to_orion": False}
-                )
 
         mock_log_worker.instance().send.assert_not_called()
 
