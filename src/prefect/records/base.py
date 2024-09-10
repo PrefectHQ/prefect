@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 @deprecated.deprecated_class(
     start_date="Sep 2024",
     end_date="Nov 2024",
-    help="Use `ResultRecord` instead to represent a result and it's associated metadata.",
+    help="Use `ResultRecord` instead to represent a result and its associated metadata.",
 )
 @dataclass
 class TransactionRecord:
