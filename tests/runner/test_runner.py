@@ -676,6 +676,7 @@ class TestRunner:
                     timeout_seconds=None,
                     create_if_missing=None,
                     max_retries=0,
+                    strict=False,
                 )
 
                 names, occupy, occupy_seconds = release_spy.call_args[0]
@@ -722,6 +723,7 @@ class TestRunner:
                 timeout_seconds=None,
                 create_if_missing=None,
                 max_retries=0,
+                strict=False,
             )
 
             flow_run = await prefect_client.read_flow_run(flow_run.id)

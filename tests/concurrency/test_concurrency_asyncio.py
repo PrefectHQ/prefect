@@ -43,6 +43,7 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
                 timeout_seconds=None,
                 create_if_missing=None,
                 max_retries=None,
+                strict=False,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -235,6 +236,7 @@ async def test_rate_limit_orchestrates_api(
                 mode="rate_limit",
                 timeout_seconds=None,
                 create_if_missing=None,
+                strict=False,
             )
 
             # When used as a rate limit concurrency slots are not explicitly
@@ -414,6 +416,7 @@ async def test_concurrency_creates_new_limits_if_requested(
                 timeout_seconds=None,
                 create_if_missing=True,
                 max_retries=None,
+                strict=False,
             )
 
             # On release we calculate how many seconds the slots were occupied
