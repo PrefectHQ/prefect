@@ -881,6 +881,32 @@ class TestS3Bucket:
         to_path = Path(to_path)
         assert (to_path / "object").read_text() == "TEST OBJECT IN FOLDER"
 
+    @pytest.mark.parametrize("client_parameters", aws_clients[-1:], indirect=True)
+    def test_download_object_with_bucket_folder(
+        self, s3_bucket_empty: S3Bucket, client_parameters, tmp_path
+    ):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/12848"""
+        s3_bucket_empty.bucket_folder = "some_folder"
+
+        test_content = b"This is a test file."
+        s3_bucket_empty.upload_from_file_object(
+            io.BytesIO(test_content), to_path="testing.txt"
+        )
+
+        objects = s3_bucket_empty.list_objects()
+        assert len(objects) == 1
+        assert objects[0]["Key"] == "some_folder/testing.txt"
+
+        download_path = tmp_path / "downloaded_test_file.txt"
+        s3_bucket_empty.download_object_to_path("testing.txt", download_path)
+
+        assert download_path.read_bytes() == test_content
+
+        s3_bucket_empty.credentials.get_s3_client().delete_object(
+            Bucket=s3_bucket_empty.bucket_name,
+            Key=s3_bucket_empty._join_bucket_folder("testing.txt"),
+        )
+
     @pytest.mark.parametrize("to_path", ["to_path", None])
     @pytest.mark.parametrize("client_parameters", aws_clients[-1:], indirect=True)
     def test_stream_from(

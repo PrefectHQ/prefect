@@ -835,7 +835,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         await run_sync_in_worker_thread(
             client.download_file,
             Bucket=self.bucket_name,
-            Key=from_path,
+            Key=bucket_path,
             Filename=to_path,
             **download_kwargs,
         )
