@@ -746,6 +746,15 @@ class ListOrder(str, Enum):
     asc = "ASC"
 
 
+class RuntimeEngine(str, Enum):
+    """
+    Decides which runtime engine to be use, e.g. Standard vs. Photon. If unspecified, the runtime engine is inferred from spark_version.
+    """
+
+    standard = "STANDARD"
+    photon = "PHOTON"
+
+
 class LogSyncStatus(BaseModel):
     """
     See source code for the fields' description.
