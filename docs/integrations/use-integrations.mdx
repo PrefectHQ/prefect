@@ -8,11 +8,19 @@ description: Prefect integrations are PyPI packages you can install to help you 
 
 Install an integration package with `pip`.
 
-For example, to use `prefect-aws`:
+For example, to install `prefect-aws` you can:
 
+- install the package directly:
 ```bash
-pip install -U prefect-aws
+pip install prefect-aws
 ```
+
+- install the corresponding extra:
+```bash
+pip install 'prefect[aws]'
+```
+
+See [the `setup.py`](https://github.com/PrefectHQ/prefect/blob/main/setup.py) for the full list of extras and the versions they specify.
 
 ## Register blocks from an integration
 

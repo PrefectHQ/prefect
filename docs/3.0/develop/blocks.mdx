@@ -421,49 +421,49 @@ For example, an AWS Secret block can be created, but not used until the [`prefec
 Find available block types in many of the published [Prefect integrations libraries](/integrations/).
 If a block type is not available in the UI, you can [register it](#register-blocks) through the CLI.
 
-| Integration                                                             | Block                                                                                                                                                       | Slug                                   |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| [prefect-aws](/integrations/prefect-aws/)                 | ECS Task                            | `ecs-task`                             |
-| [prefect-aws](/integrations/prefect-aws/)                 | MinIO Credentials            | `minio-credentials`                    |
-| [prefect-aws](/integrations/prefect-aws/)                 | S3 Bucket                       | `s3-bucket`                            |
-| [prefect-azure](/integrations/prefect-azure/)             | Azure Blob Storage Credentials           | `azure-blob-storage-credentials`       |
-| [prefect-azure](/integrations/prefect-azure/)             | Azure Container Instance Credentials | `azure-container-instance-credentials` |
-| [prefect-azure](/integrations/prefect-azure/)             | Azure Container Instance Job]   | `azure-container-instance-job`         |
-| [prefect-azure](/integrations/prefect-azure/)             | Azure Cosmos DB Credentials      | `azure-cosmos-db-credentials`          |
-| [prefect-azure](/integrations/prefect-azure/)             | AzureML Credentials    | `azureml-credentials`                  |
-| [prefect-bitbucket](/integrations/prefect-bitbucket/)     | BitBucket Credentials         | `bitbucket-credentials`                |
-| [prefect-bitbucket](/integrations/prefect-bitbucket/)     | BitBucket Repository               | `bitbucket-repository`                 |
-| [prefect-databricks](/integrations/prefect-databricks/)   | Databricks Credentials             | `databricks-credentials`               |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI BigQuery Target Configs      |`dbt-cli-bigquery-target-configs`      |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Profile         | `dbt-cli-profile`                      |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt Cloud Credentials               | `dbt-cloud-credentials`                |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Global Configs       | `dbt-cli-global-configs`               |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Postgres Target Configs     | `dbt-cli-postgres-target-configs`      |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Snowflake Target Configs   | `dbt-cli-snowflake-target-configs`     |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Target Configs        | `dbt-cli-target-configs`               |
-| [prefect-docker](/integrations/prefect-docker/)           | Docker Container                    | `docker-container`                    |
-| [prefect-docker](/integrations/prefect-docker/)           | Docker Host                         | `docker-host`                          |
-| [prefect-docker](/integrations/prefect-docker/)           | Docker Registry Credentials          | `docker-registry-credentials`          |
-| [prefect-email](/integrations/prefect-email/)             | Email Server Credentials        | `email-server-credentials`             |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | BigQuery Warehouse     | `bigquery-warehouse`                   |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | GCP Cloud Run Job              | `cloud-run-job`                        |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | GCP Credentials          | `gcp-credentials`                      |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | GcpSecret         | `gcpsecret`                            |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | GCS Bucket      | `gcs-bucket`                           |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | Vertex AI Custom Training Job   | `vertex-ai-custom-training-job`        |
-| [prefect-github](/integrations/prefect-github/)           | GitHub Credentials                    | `github-credentials`                   |
-| [prefect-github](/integrations/prefect-github/)           | GitHub Repository          | `github-repository`                    |
-| [prefect-gitlab](/integrations/prefect-gitlab/)           | GitLab Credentials         | `gitlab-credentials`                   |
-| [prefect-gitlab](/integrations/prefect-gitlab/)           | GitLab Repository           | `gitlab-repository`                    |
-| [prefect-kubernetes](/integrations/prefect-kubernetes/)   | Kubernetes Cluster Config        | `kubernetes-cluster-config`               |
-| [prefect-kubernetes](/integrations/prefect-kubernetes/)   | Kubernetes Credentials        | `kubernetes-credentials`               |
-| [prefect-kubernetes](/integrations/prefect-kubernetes/)   | Kubernetes Job        | `kubernetes-job`               |
-| [prefect-shell](/integrations/prefect-shell/)             | Shell Operation                 | `shell-operation`|
-| [prefect-slack](/integrations/prefect-slack/)             | Slack Credentials   | `slack-credentials`                    |
-| [prefect-slack](/integrations/prefect-slack/)             | Slack Incoming Webhook   | `slack-incoming-webhook`               |
-| [prefect-snowflake](/integrations/prefect-snowflake/)       | Snowflake Connector    | `snowflake-connector`                  |
-| [prefect-snowflake](/integrations/prefect-snowflake/)       | Snowflake Credentials      | `snowflake-credentials`                |
-| [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   | Database Credentials      | `database-credentials`                 |
-| [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   | SQLAlchemy Connector              | `sqlalchemy-connector`                 |
+| Block                                                                                                                                                       | Slug                                   | Integration                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------- |
+| ECS Task                            | `ecs-task`                             | [prefect-aws](/integrations/prefect-aws/)                 |
+| MinIO Credentials            | `minio-credentials`                    | [prefect-aws](/integrations/prefect-aws/)                 |
+| S3 Bucket                       | `s3-bucket`                            | [prefect-aws](/integrations/prefect-aws/)                 |
+| Azure Blob Storage Credentials           | `azure-blob-storage-credentials`       | [prefect-azure](/integrations/prefect-azure/)             |
+| Azure Container Instance Credentials | `azure-container-instance-credentials` | [prefect-azure](/integrations/prefect-azure/)             |
+| Azure Container Instance Job]   | `azure-container-instance-job`         | [prefect-azure](/integrations/prefect-azure/)             |
+| Azure Cosmos DB Credentials      | `azure-cosmos-db-credentials`          | [prefect-azure](/integrations/prefect-azure/)             |
+| AzureML Credentials    | `azureml-credentials`                  | [prefect-azure](/integrations/prefect-azure/)             |
+| BitBucket Credentials         | `bitbucket-credentials`                | [prefect-bitbucket](/integrations/prefect-bitbucket/)     |
+| BitBucket Repository               | `bitbucket-repository`                 | [prefect-bitbucket](/integrations/prefect-bitbucket/)     |
+| Databricks Credentials             | `databricks-credentials`               | [prefect-databricks](/integrations/prefect-databricks/)   |
+| dbt CLI BigQuery Target Configs      |`dbt-cli-bigquery-target-configs`      | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Profile         | `dbt-cli-profile`                      | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt Cloud Credentials               | `dbt-cloud-credentials`                | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Global Configs       | `dbt-cli-global-configs`               | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Postgres Target Configs     | `dbt-cli-postgres-target-configs`      | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Snowflake Target Configs   | `dbt-cli-snowflake-target-configs`     | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Target Configs        | `dbt-cli-target-configs`               | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| Docker Container                    | `docker-container`                    | [prefect-docker](/integrations/prefect-docker/)           |
+| Docker Host                         | `docker-host`                          | [prefect-docker](/integrations/prefect-docker/)           |
+| Docker Registry Credentials          | `docker-registry-credentials`          | [prefect-docker](/integrations/prefect-docker/)           |
+| Email Server Credentials        | `email-server-credentials`             | [prefect-email](/integrations/prefect-email/)             |
+| BigQuery Warehouse     | `bigquery-warehouse`                   | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GCP Cloud Run Job              | `cloud-run-job`                        | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GCP Credentials          | `gcp-credentials`                      | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GcpSecret         | `gcpsecret`                            | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GCS Bucket      | `gcs-bucket`                           | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| Vertex AI Custom Training Job   | `vertex-ai-custom-training-job`        | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GitHub Credentials                    | `github-credentials`                   | [prefect-github](/integrations/prefect-github/)           |
+| GitHub Repository          | `github-repository`                    | [prefect-github](/integrations/prefect-github/)           |
+| GitLab Credentials         | `gitlab-credentials`                   | [prefect-gitlab](/integrations/prefect-gitlab/)           |
+| GitLab Repository           | `gitlab-repository`                    | [prefect-gitlab](/integrations/prefect-gitlab/)           |
+| Kubernetes Cluster Config        | `kubernetes-cluster-config`               | [prefect-kubernetes](/integrations/prefect-kubernetes/)   |
+| Kubernetes Credentials        | `kubernetes-credentials`               | [prefect-kubernetes](/integrations/prefect-kubernetes/)   |
+| Kubernetes Job        | `kubernetes-job`               | [prefect-kubernetes](/integrations/prefect-kubernetes/)   |
+| Shell Operation                 | `shell-operation`| [prefect-shell](/integrations/prefect-shell/)             |
+| Slack Credentials   | `slack-credentials`                    | [prefect-slack](/integrations/prefect-slack/)             |
+| Slack Incoming Webhook   | `slack-incoming-webhook`               | [prefect-slack](/integrations/prefect-slack/)             |
+| Snowflake Connector    | `snowflake-connector`                  | [prefect-snowflake](/integrations/prefect-snowflake/)       |
+| Snowflake Credentials      | `snowflake-credentials`                | [prefect-snowflake](/integrations/prefect-snowflake/)       |
+| Database Credentials      | `database-credentials`                 | [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   |
+| SQLAlchemy Connector              | `sqlalchemy-connector`                 | [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   |
 
 Anyone can create a custom block type and, optionally, share it with the community.
