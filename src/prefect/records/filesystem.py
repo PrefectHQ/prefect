@@ -6,6 +6,7 @@ from typing import Dict, Optional
 import pendulum
 from typing_extensions import TypedDict
 
+from prefect._internal.compatibility import deprecated
 from prefect.logging.loggers import get_logger
 from prefect.records.base import RecordStore, TransactionRecord
 from prefect.results import BaseResult
@@ -29,6 +30,11 @@ class _LockInfo(TypedDict):
     path: Path
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024",
+    end_date="Nov 2024",
+    help="Use `ResultStore` with a `LocalFileSystem` for `metadata_storage` and a `FileSystemLockManager` instead.",
+)
 class FileSystemRecordStore(RecordStore):
     """
     A record store that stores data on the local filesystem.

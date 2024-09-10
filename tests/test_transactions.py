@@ -10,6 +10,7 @@ from prefect.records import RecordStore
 from prefect.records.memory import MemoryRecordStore
 from prefect.records.result_store import ResultRecordStore
 from prefect.results import (
+    ResultRecord,
     ResultStore,
     get_default_result_storage,
     get_or_create_default_task_scheduling_storage,
@@ -276,35 +277,28 @@ class TestDefaultTransactionStorage:
         with transaction(
             key="test_transaction_outside_of_run", write_on_commit=True
         ) as txn:
-            assert isinstance(txn.store, ResultRecordStore)
-            result = await txn.store.result_store.create_result(
-                obj={"foo": "bar"}, key=txn.key
-            )
-            result.serialize_to_none = False
-            txn.stage(result)
+            assert isinstance(txn.store, ResultStore)
+            txn.stage({"foo": "bar"})
 
-        result = txn.read()
-        assert result
-        assert await result.get() == {"foo": "bar"}
+        record = txn.read()
+        assert isinstance(record, ResultRecord)
+        assert record.result == {"foo": "bar"}
 
     async def test_transaction_inside_flow_default_storage(self):
         @flow(persist_result=True)
         def test_flow():
             with transaction(key="test_transaction_inside_flow_default_storage") as txn:
-                assert isinstance(txn.store, ResultRecordStore)
-                result = txn.store.result_store.create_result(
-                    obj={"foo": "bar"}, key=txn.key, _sync=True
-                )
-                txn.stage(result)
+                assert isinstance(txn.store, ResultStore)
+                txn.stage({"foo": "bar"})
 
-            result = txn.read()
-            assert result
+            record = txn.read()
+            assert isinstance(record, ResultRecord)
             # make sure we aren't using an anonymous block
             assert (
-                result.storage_block_id
+                record.metadata.storage_block_id
                 == get_default_result_storage()._block_document_id
             )
-            return result.get()
+            return record.result
 
         assert test_flow() == {"foo": "bar"}
 
@@ -317,16 +311,13 @@ class TestDefaultTransactionStorage:
             with transaction(
                 key="test_transaction_inside_flow_configured_storage"
             ) as txn:
-                assert isinstance(txn.store, ResultRecordStore)
-                result = await txn.store.result_store.create_result(
-                    obj={"foo": "bar"}, key=txn.key
-                )
-                txn.stage(result)
+                assert isinstance(txn.store, ResultStore)
+                txn.stage({"foo": "bar"})
 
-            result = txn.read()
-            assert result
-            assert result.storage_block_id == block._block_document_id
-            return await result.get()
+            record = txn.read()
+            assert isinstance(record, ResultRecord)
+            assert record.metadata.storage_block_id == block._block_document_id
+            return record.result
 
         assert await test_flow() == {"foo": "bar"}
 
@@ -339,17 +330,17 @@ class TestDefaultTransactionStorage:
                 key="test_transaction_inside_task_default_storage",
                 commit_mode=CommitMode.EAGER,
             ) as txn:
-                assert isinstance(txn.store, ResultRecordStore)
-                result = await txn.store.result_store.create_result(
-                    obj={"foo": "bar"}, key=txn.key
-                )
-                txn.stage(result)
+                assert isinstance(txn.store, ResultStore)
+                txn.stage({"foo": "bar"})
 
-            result = txn.read()
-            assert result
+            record = txn.read()
+            assert isinstance(record, ResultRecord)
             # make sure we aren't using an anonymous block
-            assert result.storage_block_id == default_task_storage._block_document_id
-            return await result.get()
+            assert (
+                record.metadata.storage_block_id
+                == default_task_storage._block_document_id
+            )
+            return record.result
 
         assert await test_task() == {"foo": "bar"}
 
@@ -360,19 +351,16 @@ class TestDefaultTransactionStorage:
         @task(result_storage=block)
         async def test_task():
             with transaction(
-                key="test_transaction_inside_task_configured_storage"
+                key="test_transaction_inside_task_configured_storage",
+                commit_mode=CommitMode.EAGER,
             ) as txn:
-                assert isinstance(txn.store, ResultRecordStore)
-                result = await txn.store.result_store.create_result(
-                    obj={"foo": "bar"}, key=txn.key
-                )
-                await result.write()
-                txn.stage(result)
+                assert isinstance(txn.store, ResultStore)
+                txn.stage({"foo": "bar"})
 
-            result = txn.read()
-            assert result
-            assert result.storage_block_id == block._block_document_id
-            return await result.get()
+            record = txn.read()
+            assert isinstance(record, ResultRecord)
+            assert record.metadata.storage_block_id == block._block_document_id
+            return record.result
 
         assert await test_task() == {"foo": "bar"}
 

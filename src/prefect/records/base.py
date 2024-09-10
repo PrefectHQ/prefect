@@ -6,11 +6,18 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
+from prefect._internal.compatibility import deprecated
+
 if TYPE_CHECKING:
     from prefect.results import BaseResult
     from prefect.transactions import IsolationLevel
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024",
+    end_date="Nov 2024",
+    help="Use `ResultRecord` instead to represent a result and its associated metadata.",
+)
 @dataclass
 class TransactionRecord:
     """
@@ -21,6 +28,11 @@ class TransactionRecord:
     result: "BaseResult"
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024",
+    end_date="Nov 2024",
+    help="Use `ResultStore` and provide a `WritableFileSystem` for `metadata_storage` instead.",
+)
 class RecordStore(abc.ABC):
     @abc.abstractmethod
     def read(
