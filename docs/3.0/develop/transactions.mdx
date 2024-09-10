@@ -180,6 +180,6 @@ if __name__ == "__main__":
     pipeline(contents="hello world")
 ```
 
-The value of `contents` is accessible within the `on_rollback` hook and from within any tasks that are called with the transaction context block. 
+The value of `contents` is accessible within the `on_rollback` hook and from within any tasks that are called from within the transaction context block. 
 
 Use `get_transaction()` to access the transaction object and `txn.get("key")` to access the value of the key.
