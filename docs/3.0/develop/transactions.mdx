@@ -141,7 +141,7 @@ from prefect.transactions import transaction
 
 
 @task
-def write_file(contents: str, filename: str):
+def write_file(filename: str, contents: str):
     "Writes to a file."
     with open(filename, "w") as f:
         f.write(contents)
@@ -166,8 +166,8 @@ def quality_test(filename):
 @flow
 def pipeline(filename: str, contents: str):
     with transaction() as txn:
-        txn.set("file_name", filename)
-        write_file(contents, filename)
+        txn.set("filename", filename)
+        write_file(filename, contents)
         sleep(2)  # sleeping to give you a chance to see the file
         quality_test(filename)
 
