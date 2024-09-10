@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 import pendulum
 
+from prefect._internal.compatibility import deprecated
 from prefect.results import BaseResult, PersistedResult, ResultStore
 from prefect.transactions import IsolationLevel
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -10,6 +11,11 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from .base import RecordStore, TransactionRecord
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024",
+    end_date="Nov 2024",
+    help="Use `ResultStore` directly instead.",
+)
 @dataclass
 class ResultRecordStore(RecordStore):
     """
