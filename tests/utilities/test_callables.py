@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 import pendulum
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -444,6 +444,9 @@ class TestFunctionToSchema:
             },
         }
 
+    @pytest.mark.skipif(
+        USE_PYDANTIC_V2, reason="pydantic internals not relevant for this test"
+    )
     def test_function_with_complex_args_across_v1_and_v2(self):
         # this import ensures this test imports the installed version of
         # pydantic (not pydantic.v1) and allows us to test that we
