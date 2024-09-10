@@ -24,6 +24,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import flow
 from prefect.server import models
+from prefect.server.schemas.actions import WorkPoolUpdate as ServerWorkPoolUpdate
 from prefect.server.schemas.core import Deployment, Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
@@ -1774,7 +1775,9 @@ class TestBaseWorkerStart:
         assert worker.run.call_args[1]["flow_run"].id == flow_run.id
 
 
-async def test_env_merge_logic_is_deep(prefect_client, session, flow):
+async def test_flow_run_into_deployment_env_merge_logic_is_deep(
+    prefect_client, session, flow
+):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=Deployment(
@@ -1803,3 +1806,113 @@ async def test_env_merge_logic_is_deep(prefect_client, session, flow):
 
     assert config.env["test-var"] == "foo"
     assert config.env["another-var"] == "boo"
+
+
+async def test_deployment_into_work_pool_env_merge_logic_is_deep(
+    prefect_client, session, flow, work_pool
+):
+    await models.workers.update_work_pool(  # type: ignore
+        session=session,
+        work_pool_id=work_pool.id,
+        work_pool=ServerWorkPoolUpdate(  # type: ignore
+            base_job_template={
+                "job_configuration": {
+                    "env": {
+                        "A": "1",
+                        "B": "2",
+                    }
+                },
+                "variables": {
+                    "properties": {
+                        "env": {
+                            "type": "object",
+                        }
+                    },
+                },
+            },
+        ),
+    )
+    await session.commit()
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="env-testing",
+            tags=["test"],
+            flow_id=flow.id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema={},
+            job_variables={"env": {"C": "3", "D": "4"}},
+        ),
+    )
+    await session.commit()
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=Pending(),
+    )
+
+    async with WorkerTestImpl(name="test", work_pool_name=work_pool.name) as worker:
+        await worker.sync_with_backend()
+        config = await worker._get_configuration(flow_run, deployment)
+
+    assert config.env["A"] == "1"
+    assert config.env["B"] == "2"
+    assert config.env["C"] == "3"
+    assert config.env["D"] == "4"
+
+
+async def test_flow_run_into_work_pool_env_merge_logic_is_deep(
+    prefect_client, session, flow, work_pool
+):
+    await models.workers.update_work_pool(  # type: ignore
+        session=session,
+        work_pool_id=work_pool.id,
+        work_pool=ServerWorkPoolUpdate(  # type: ignore
+            base_job_template={
+                "job_configuration": {
+                    "env": {
+                        "A": "1",
+                        "B": "2",
+                    }
+                },
+                "variables": {
+                    "properties": {
+                        "env": {
+                            "type": "object",
+                        }
+                    },
+                },
+            },
+        ),
+    )
+    await session.commit()
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="env-testing",
+            tags=["test"],
+            flow_id=flow.id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema={},
+        ),
+    )
+    await session.commit()
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=Pending(),
+        job_variables={"env": {"C": "3", "D": "4"}},
+    )
+
+    async with WorkerTestImpl(name="test", work_pool_name=work_pool.name) as worker:
+        await worker.sync_with_backend()
+        config = await worker._get_configuration(flow_run, deployment)
+
+    assert config.env["A"] == "1"
+    assert config.env["B"] == "2"
+    assert config.env["C"] == "3"
+    assert config.env["D"] == "4"
