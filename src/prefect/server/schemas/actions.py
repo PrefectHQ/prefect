@@ -623,6 +623,10 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
         default=0,
         description="The decay rate for active slots when used as a rate limit.",
     )
+    used_for: Optional[schemas.core.InternalConcurrencyLimitUsedFor] = Field(
+        default=None,
+        description="If set, this concurrency object is used internally by the system rather than being user defined.",
+    )
 
 
 class ConcurrencyLimitV2Update(ActionBaseModel):

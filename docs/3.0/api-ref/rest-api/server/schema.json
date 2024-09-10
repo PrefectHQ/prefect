@@ -14658,6 +14658,17 @@
                         "title": "Avg Slot Occupancy Seconds",
                         "description": "The average amount of time a slot is occupied.",
                         "default": 2.0
+                    },
+                    "used_for": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/InternalConcurrencyLimitUsedFor"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "If set, this concurrency object is used internally by the system rather than being user defined."
                     }
                 },
                 "type": "object",
@@ -14708,6 +14719,17 @@
                         "title": "Slot Decay Per Second",
                         "description": "The decay rate for active slots when used as a rate limit.",
                         "default": 0
+                    },
+                    "used_for": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/InternalConcurrencyLimitUsedFor"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "If set, this concurrency object is used internally by the system rather than being user defined."
                     }
                 },
                 "additionalProperties": false,
@@ -19887,6 +19909,14 @@
                 ],
                 "title": "HistoryResponseState",
                 "description": "Represents a single state's history over an interval."
+            },
+            "InternalConcurrencyLimitUsedFor": {
+                "type": "string",
+                "enum": [
+                    "DEPLOYMENT_CONCURRENCY_LIMITING"
+                ],
+                "const": "DEPLOYMENT_CONCURRENCY_LIMITING",
+                "title": "InternalConcurrencyLimitUsedFor"
             },
             "IntervalSchedule": {
                 "properties": {

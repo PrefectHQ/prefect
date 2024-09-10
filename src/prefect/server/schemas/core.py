@@ -48,7 +48,12 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
+from prefect.utilities.collections import (
+    AutoEnum,
+    dict_to_flatdict,
+    flatdict_to_dict,
+    listrepr,
+)
 from prefect.utilities.names import generate_slug, obfuscate
 
 if TYPE_CHECKING:
@@ -637,6 +642,10 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
+class InternalConcurrencyLimitUsedFor(AutoEnum):
+    DEPLOYMENT_CONCURRENCY_LIMITING = AutoEnum.auto()
+
+
 class ConcurrencyLimitV2(ORMBaseModel):
     """An ORM representation of a v2 concurrency limit."""
 
@@ -653,6 +662,10 @@ class ConcurrencyLimitV2(ORMBaseModel):
     )
     avg_slot_occupancy_seconds: float = Field(
         default=2.0, description="The average amount of time a slot is occupied."
+    )
+    used_for: Optional[InternalConcurrencyLimitUsedFor] = Field(
+        default=None,
+        description="If set, this concurrency object is used internally by the system rather than being user defined.",
     )
 
 

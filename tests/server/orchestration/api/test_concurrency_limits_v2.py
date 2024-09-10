@@ -11,7 +11,10 @@ from prefect.server.models.concurrency_limits_v2 import (
     create_concurrency_limit,
     read_concurrency_limit,
 )
-from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.server.schemas.core import (
+    ConcurrencyLimitV2,
+    InternalConcurrencyLimitUsedFor,
+)
 
 
 @pytest.fixture
@@ -57,6 +60,23 @@ async def locked_concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
 
 
 @pytest.fixture
+async def concurrency_limit_used_for_deployment_concurrency_limiting(
+    session: AsyncSession,
+) -> ConcurrencyLimitV2:
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="deployment_concurrency_limit",
+            limit=10,
+            used_for=InternalConcurrencyLimitUsedFor.DEPLOYMENT_CONCURRENCY_LIMITING,
+        ),
+    )
+    await session.commit()
+
+    return ConcurrencyLimitV2.model_validate(concurrency_limit)
+
+
+@pytest.fixture
 async def locked_concurrency_limit_with_decay(
     session: AsyncSession,
 ) -> ConcurrencyLimitV2:
@@ -78,6 +98,18 @@ async def test_create_concurrency_limit(client: AsyncClient):
     data = client_schemas.actions.ConcurrencyLimitV2Create(
         name="limiter",
         limit=42,
+    ).model_dump(mode="json")
+
+    response = await client.post("/v2/concurrency_limits/", json=data)
+    assert response.status_code == 201
+    assert response.json()["id"]
+
+
+async def test_create_concurrency_limit_for_deployment(client: AsyncClient):
+    data = client_schemas.actions.ConcurrencyLimitV2Create(
+        name="deployment:12345678",
+        limit=42,
+        used_for="DEPLOYMENT_CONCURRENCY_LIMITING",
     ).model_dump(mode="json")
 
     response = await client.post("/v2/concurrency_limits/", json=data)
@@ -118,14 +150,21 @@ async def test_read_all_concurrency_limits(
     concurrency_limit: ConcurrencyLimitV2,
     locked_concurrency_limit: ConcurrencyLimitV2,
     concurrency_limit_with_decay: ConcurrencyLimitV2,
+    concurrency_limit_used_for_deployment_concurrency_limiting: ConcurrencyLimitV2,
     client: AsyncClient,
 ):
     response = await client.post("/v2/concurrency_limits/filter")
     assert response.status_code == 200
 
     data = response.json()
-    assert len(data) == 3
-    assert {limit["id"] for limit in data} == {
+    returned_limit_ids = {limit["id"] for limit in data}
+
+    assert (
+        str(concurrency_limit_used_for_deployment_concurrency_limiting.id)
+        not in returned_limit_ids
+    ), "concurrency limit objects used for internal prefect operations should not be exposed to api clients"
+
+    assert returned_limit_ids == {
         str(concurrency_limit.id),
         str(locked_concurrency_limit.id),
         str(concurrency_limit_with_decay.id),

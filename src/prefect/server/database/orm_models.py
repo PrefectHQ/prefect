@@ -46,7 +46,6 @@ from prefect.server.utilities.database import (
     now,
 )
 from prefect.server.utilities.encryption import decrypt_fernet, encrypt_fernet
-from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
 
@@ -968,10 +967,6 @@ class ConcurrencyLimit(Base):
     __table_args__ = (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
 
 
-class InternalConcurrencyLimitUsedFor(AutoEnum):
-    DEPLOYMENT_CONCURRENCY_LIMITING = AutoEnum.auto()
-
-
 class ConcurrencyLimitV2(Base):
     active = sa.Column(sa.Boolean, nullable=False, default=True)
     name = sa.Column(sa.String, nullable=False)
@@ -979,7 +974,10 @@ class ConcurrencyLimitV2(Base):
     active_slots = sa.Column(sa.Integer, nullable=False)
     denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
     used_for = sa.Column(
-        sa.Enum(InternalConcurrencyLimitUsedFor, name="concurrency_limit_used_for"),
+        sa.Enum(
+            schemas.core.InternalConcurrencyLimitUsedFor,
+            name="concurrency_limit_used_for",
+        ),
         nullable=True,
         index=True,
     )
