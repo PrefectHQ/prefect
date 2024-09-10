@@ -235,8 +235,7 @@ class DbtCoreOperation(ShellOperation):
         commands: A list of commands to execute sequentially.
         stream_output: Whether to stream output.
         env: A dictionary of environment variables to set for the shell operation.
-        working_directory: The working directory context the commands
-            will be executed within.
+        working_dir: The working directory context the commands will be executed within.
         shell: The shell to use to execute the commands.
         extension: The extension to use for the temporary file.
             if unset defaults to `.ps1` on Windows and `.sh` on other platforms.
