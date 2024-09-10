@@ -56,7 +56,6 @@ class FileSystemRecordStore(RecordStore):
     def _get_lock_info(self, key: str, use_cache=True) -> Optional[_LockInfo]:
         if use_cache:
             if (lock_info := self._locks.get(key)) is not None:
-                print("Got lock info from cache")
                 return lock_info
 
         lock_path = self._lock_path_for_key(key)
@@ -70,7 +69,6 @@ class FileSystemRecordStore(RecordStore):
                     pendulum.parse(expiration) if expiration is not None else None
                 )
             self._locks[key] = lock_info
-            print("Got lock info from file")
             return lock_info
         except FileNotFoundError:
             return None
