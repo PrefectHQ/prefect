@@ -4,7 +4,7 @@ import time
 from uuid import uuid4
 
 import pytest
-from prefect_redis.records import RedisLockManager
+from prefect_redis.locking import RedisLockManager
 
 from prefect.results import ResultStore
 from prefect.transactions import IsolationLevel
