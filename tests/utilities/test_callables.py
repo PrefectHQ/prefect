@@ -21,6 +21,14 @@ from prefect.exceptions import ParameterBindError
 from prefect.utilities import callables
 
 
+def _v1_v2_compatible_allOf_ref(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """see https://github.com/pydantic/pydantic/pull/10029 for details"""
+    if HAS_PYDANTIC_V2:
+        return schema
+    else:
+        return {"allOf": [schema]}
+
+
 class TestFunctionToSchema:
     def test_simple_function_with_no_arguments(self):
         def f():
@@ -216,7 +224,11 @@ class TestFunctionToSchema:
                 "type": "object",
                 "properties": {
                     "x": {
-                        "allOf": [{"$ref": "#/definitions/Color"}],
+                        **_v1_v2_compatible_allOf_ref(
+                            {
+                                "$ref": "#/definitions/Color",
+                            }
+                        ),
                         "default": "RED",
                         "position": 0,
                         "title": "x",
@@ -412,7 +424,11 @@ class TestFunctionToSchema:
             "type": "object",
             "properties": {
                 "foo": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **_v1_v2_compatible_allOf_ref(
+                        {
+                            "$ref": "#/definitions/Foo",
+                        }
+                    ),
                     "default": {"bar": "baz"},
                     "position": 0,
                     "title": "foo",
@@ -500,14 +516,18 @@ class TestFunctionToSchema:
                     "type": "array",
                 },
                 "m": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **_v1_v2_compatible_allOf_ref(
+                        {
+                            "$ref": "#/definitions/Foo",
+                        }
+                    ),
                     "position": 2,
                     "title": "m",
                 },
                 "i": {"default": 0, "position": 3, "title": "i", "type": "integer"},
                 "x": {"default": 1.0, "position": 4, "title": "x", "type": "number"},
                 "model": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **_v1_v2_compatible_allOf_ref({"$ref": "#/definitions/Foo"}),
                     "default": {"bar": "bar"},
                     "position": 5,
                     "title": "model",
@@ -525,7 +545,7 @@ class TestFunctionToSchema:
                     "title": "c",
                     "default": "BLUE",
                     "position": 9,
-                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    **_v1_v2_compatible_allOf_ref({"$ref": "#/definitions/Color"}),
                 },
             },
             "required": ["a", "s", "m"],
@@ -635,7 +655,11 @@ class TestMethodToSchema:
                     "type": "object",
                     "properties": {
                         "color": {
-                            "allOf": [{"$ref": "#/definitions/Color"}],
+                            **_v1_v2_compatible_allOf_ref(
+                                {
+                                    "$ref": "#/definitions/Color",
+                                }
+                            ),
                             "default": "RED",
                             "position": 0,
                             "title": "color",
@@ -1188,7 +1212,11 @@ class TestEntrypointToSchema:
                 "type": "object",
                 "properties": {
                     "x": {
-                        "allOf": [{"$ref": "#/definitions/Color"}],
+                        **_v1_v2_compatible_allOf_ref(
+                            {
+                                "$ref": "#/definitions/Color",
+                            }
+                        ),
                         "default": "RED",
                         "position": 0,
                         "title": "x",
@@ -1373,7 +1401,11 @@ class TestEntrypointToSchema:
             },
             "properties": {
                 "x": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **_v1_v2_compatible_allOf_ref(
+                        {
+                            "$ref": "#/definitions/Foo",
+                        }
+                    ),
                     "title": "x",
                     "position": 0,
                 }
@@ -1405,7 +1437,11 @@ class TestEntrypointToSchema:
             "type": "object",
             "properties": {
                 "foo": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **_v1_v2_compatible_allOf_ref(
+                        {
+                            "$ref": "#/definitions/Foo",
+                        }
+                    ),
                     "default": {"bar": "baz"},
                     "position": 0,
                     "title": "foo",
@@ -1500,14 +1536,22 @@ class TestEntrypointToSchema:
                     "type": "array",
                 },
                 "m": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **_v1_v2_compatible_allOf_ref(
+                        {
+                            "$ref": "#/definitions/Foo",
+                        }
+                    ),
                     "position": 2,
                     "title": "m",
                 },
                 "i": {"default": 0, "position": 3, "title": "i", "type": "integer"},
                 "x": {"default": 1.0, "position": 4, "title": "x", "type": "number"},
                 "model": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **_v1_v2_compatible_allOf_ref(
+                        {
+                            "$ref": "#/definitions/Foo",
+                        }
+                    ),
                     "default": {"bar": "bar"},
                     "position": 5,
                     "title": "model",
@@ -1525,7 +1569,11 @@ class TestEntrypointToSchema:
                     "title": "c",
                     "default": "BLUE",
                     "position": 9,
-                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    **_v1_v2_compatible_allOf_ref(
+                        {
+                            "$ref": "#/definitions/Color",
+                        }
+                    ),
                 },
             },
             "required": ["a", "s", "m"],
@@ -1722,7 +1770,11 @@ class TestEntrypointToSchema:
             "type": "object",
             "properties": {
                 "param": {
-                    "allOf": [{"$ref": "#/definitions/MyModel"}],
+                    **_v1_v2_compatible_allOf_ref(
+                        {
+                            "$ref": "#/definitions/MyModel",
+                        }
+                    ),
                     "position": 0,
                     "title": "param",
                 }
