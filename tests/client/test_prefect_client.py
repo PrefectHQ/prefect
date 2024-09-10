@@ -1701,10 +1701,6 @@ class TestClientWorkQueues:
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await prefect_client.read_work_queue_by_name("foo")
 
-    async def test_create_work_queue_with_tags_deprecated(self, prefect_client):
-        with pytest.deprecated_call():
-            await prefect_client.create_work_queue(name="test-queue", tags=["a"])
-
     async def test_get_runs_from_queue_includes(self, prefect_client, deployment):
         wq_1 = await prefect_client.read_work_queue_by_name(name="wq")
         wq_2 = await prefect_client.create_work_queue(name="wq2")
