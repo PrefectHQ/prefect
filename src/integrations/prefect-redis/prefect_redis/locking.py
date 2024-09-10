@@ -69,7 +69,9 @@ class RedisLockManager(LockManager):
         if lock is not None and self.is_lock_holder(key, holder):
             return True
         else:
-            lock = Lock(self.client, lock_name, timeout=hold_timeout)
+            lock = Lock(
+                self.client, lock_name, timeout=hold_timeout, thread_local=False
+            )
         lock_acquired = lock.acquire(token=holder, blocking_timeout=acquire_timeout)
         if lock_acquired:
             self._locks[lock_name] = lock
@@ -87,7 +89,9 @@ class RedisLockManager(LockManager):
         if lock is not None and self.is_lock_holder(key, holder):
             return True
         else:
-            lock = AsyncLock(self.async_client, lock_name, timeout=hold_timeout)
+            lock = AsyncLock(
+                self.async_client, lock_name, timeout=hold_timeout, thread_local=False
+            )
         lock_acquired = await lock.acquire(
             token=holder, blocking_timeout=acquire_timeout
         )

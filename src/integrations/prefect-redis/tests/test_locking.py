@@ -7,7 +7,6 @@ import pytest
 from prefect_redis.locking import RedisLockManager
 
 from prefect.results import ResultStore
-from prefect.transactions import IsolationLevel
 
 
 class TestRedisLockManager:
@@ -67,29 +66,29 @@ class TestRedisLockManager:
         key = str(uuid4())
         assert store.acquire_lock(key, holder="holder1")
         with pytest.raises(
-            ValueError,
-            match=f"Cannot write to transaction with key {key} because it is locked by another holder.",
+            RuntimeError,
+            match=f"Cannot write to result record with key {key} because it is locked by another holder.",
         ):
             store.write(key=key, obj={"test": "value"}, holder="holder2")
 
     def test_acquire_lock(self, lock_manager):
         key = str(uuid4())
-        assert lock_manager.acquire_lock(key)
+        assert lock_manager.acquire_lock(key, holder="holder1")
         assert lock_manager.is_locked(key)
-        lock_manager.release_lock(key)
+        lock_manager.release_lock(key, holder="holder1")
         assert not lock_manager.is_locked(key)
 
     def test_acquire_lock_idempotent(self, lock_manager):
         key = str(uuid4())
-        assert lock_manager.acquire_lock(key)
-        assert lock_manager.acquire_lock(key)
+        assert lock_manager.acquire_lock(key, holder="holder1")
+        assert lock_manager.acquire_lock(key, holder="holder1")
         assert lock_manager.is_locked(key)
-        lock_manager.release_lock(key)
+        lock_manager.release_lock(key, holder="holder1")
         assert not lock_manager.is_locked(key)
 
     def test_acquire_lock_with_hold_timeout(self, lock_manager):
         key = str(uuid4())
-        assert lock_manager.acquire_lock(key=key, hold_timeout=0.1)
+        assert lock_manager.acquire_lock(key=key, holder="holder1", hold_timeout=0.1)
         assert lock_manager.is_locked(key)
         time.sleep(0.2)
         assert not lock_manager.is_locked(key)
@@ -137,12 +136,6 @@ class TestRedisLockManager:
         assert lock_manager.wait_for_lock(key)
         assert not lock_manager.is_locked(key)
 
-    def test_lock(self, lock_manager):
-        key = str(uuid4())
-        with lock_manager.lock(key):
-            assert lock_manager.is_locked(key)
-        assert not lock_manager.is_locked(key)
-
     def test_wait_for_lock_with_timeout(self, lock_manager):
         key = str(uuid4())
         assert lock_manager.acquire_lock(key, holder="holder1")
@@ -159,23 +152,18 @@ class TestRedisLockManager:
 
     def test_locking_works_across_threads(self, lock_manager):
         key = str(uuid4())
-        assert lock_manager.acquire_lock(key)
+        assert lock_manager.acquire_lock(key, holder="holder1")
         assert lock_manager.is_locked(key)
 
         def get_lock():
-            assert lock_manager.acquire_lock(key)
+            assert lock_manager.acquire_lock(key, holder="holder2")
             assert lock_manager.is_locked(key)
 
         thread = threading.Thread(target=get_lock)
         thread.start()
 
-        lock_manager.release_lock(key)
+        lock_manager.release_lock(key, holder="holder1")
         thread.join()
 
         # the lock should have been acquired by the thread
-        assert lock_manager.is_locked
-
-    def test_supports_serialization_level(self, lock_manager):
-        assert lock_manager.supports_isolation_level(IsolationLevel.READ_COMMITTED)
-        assert lock_manager.supports_isolation_level(IsolationLevel.SERIALIZABLE)
-        assert not lock_manager.supports_isolation_level("UNKNOWN")
+        assert lock_manager.is_locked(key)
