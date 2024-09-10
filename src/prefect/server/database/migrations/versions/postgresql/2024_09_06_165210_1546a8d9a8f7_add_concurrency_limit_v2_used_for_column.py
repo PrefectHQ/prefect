@@ -39,6 +39,17 @@ def upgrade():
         unique=False,
     )
 
+    conn = op.get_bind()
+    conn.execute(
+        sa.text(
+            """
+            UPDATE concurrency_limit_v2 
+            SET used_for = 'DEPLOYMENT_CONCURRENCY_LIMITING'
+            WHERE name LIKE 'deployment:%'
+        """
+        )
+    )
+
 
 def downgrade():
     op.drop_index(

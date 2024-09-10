@@ -30,6 +30,17 @@ def upgrade():
             batch_op.f("ix_concurrency_limit_v2__used_for"), ["used_for"], unique=False
         )
 
+    conn = op.get_bind()
+    conn.execute(
+        sa.text(
+            """
+            UPDATE concurrency_limit_v2 
+            SET used_for = 'DEPLOYMENT_CONCURRENCY_LIMITING'
+            WHERE name LIKE 'deployment:%'
+        """
+        )
+    )
+
 
 def downgrade():
     with op.batch_alter_table("concurrency_limit_v2", schema=None) as batch_op:
