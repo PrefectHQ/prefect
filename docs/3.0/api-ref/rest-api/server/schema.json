@@ -21379,7 +21379,7 @@
                     "PREFECT_API_ENABLE_HTTP2": {
                         "type": "boolean",
                         "title": "Prefect Api Enable Http2",
-                        "default": true
+                        "default": false
                     },
                     "PREFECT_CLIENT_MAX_RETRIES": {
                         "type": "integer",
