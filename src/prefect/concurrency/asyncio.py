@@ -35,13 +35,6 @@ class AcquireConcurrencySlotTimeoutError(TimeoutError):
 
 
 @asynccontextmanager
-@deprecated_parameter(
-    name="create_if_missing",
-    start_date="Sep 2024",
-    end_date="Oct 2024",
-    when=lambda x: x is not None,
-    help="Limits must be explicitly created before acquiring slots; see `strict` if you want to enforce this behavior.",
-)
 async def concurrency(
     names: Union[str, List[str]],
     occupy: int = 1,
@@ -111,13 +104,6 @@ async def concurrency(
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
-@deprecated_parameter(
-    name="create_if_missing",
-    start_date="Sep 2024",
-    end_date="Oct 2024",
-    when=lambda x: x is not None,
-    help="Limits must be explicitly created before acquiring slots; see `strict` if you want to enforce this behavior.",
-)
 async def rate_limit(
     names: Union[str, List[str]],
     occupy: int = 1,
@@ -155,7 +141,7 @@ async def rate_limit(
     start_date="Sep 2024",
     end_date="Oct 2024",
     when=lambda x: x is not None,
-    help="Limits must be explicitly created before acquiring slots; see `strict` if you want to enforce this behavior.",
+    help="Limits must be explicitly created before acquiring concurrency slots; see `strict` if you want to enforce this behavior.",
 )
 async def _acquire_concurrency_slots(
     names: List[str],
@@ -164,6 +150,7 @@ async def _acquire_concurrency_slots(
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = None,
     max_retries: Optional[int] = None,
+    strict: bool = False,
 ) -> List[MinimalConcurrencyLimitResponse]:
     service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
     future = service.send(
@@ -181,7 +168,13 @@ async def _acquire_concurrency_slots(
             f"Unable to acquire concurrency slots on {names!r}"
         ) from response_or_exception
 
-    return _response_to_minimal_concurrency_limit_response(response_or_exception)
+    retval = _response_to_minimal_concurrency_limit_response(response_or_exception)
+
+    if strict and not retval:
+        raise ConcurrencySlotAcquisitionError(
+            f"Concurrency limits {names!r} must be created before acquiring slots"
+        )
+    return retval
 
 
 @sync_compatible

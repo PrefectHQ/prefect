@@ -79,6 +79,28 @@ async def test_concurrency_can_be_used_within_a_flow(
     assert executed
 
 
+async def test_concurrency_can_be_used_within_a_flow(
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    executed = False
+
+    @task
+    async def resource_heavy():
+        nonlocal executed
+        async with concurrency("test", occupy=1):
+            executed = True
+
+    @flow
+    async def my_flow():
+        await resource_heavy()
+
+    assert not executed
+
+    await my_flow()
+
+    assert executed
+
+
 async def test_concurrency_emits_events(
     concurrency_limit: ConcurrencyLimitV2,
     other_concurrency_limit: ConcurrencyLimitV2,

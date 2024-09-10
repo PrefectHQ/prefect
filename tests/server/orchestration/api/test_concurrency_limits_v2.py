@@ -227,6 +227,17 @@ async def test_increment_concurrency_limit_slots_gt_zero_422(
     assert response.status_code == 422
 
 
+async def test_increment_concurrency_limit_slots_with_unknown_name(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={"names": ["foo-bar-limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 async def test_increment_concurrency_limit_simple(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,

@@ -35,8 +35,9 @@ def concurrency(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
-    create_if_missing: Optional[bool] = None,
     max_retries: Optional[int] = None,
+    strict: bool = False,
+    create_if_missing: Optional[bool] = None,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -47,9 +48,12 @@ def concurrency(
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
         max_retries: The maximum number of retries to acquire the concurrency slots.
+        strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
+            Defaults to `False`.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
+        ConcurrencySlotAcquisitionError: If the concurrency limit does not exist and `strict` is `True`.
 
     Example:
     A simple example of using the sync `concurrency` context manager:
@@ -75,6 +79,7 @@ def concurrency(
         occupy,
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
+        strict=strict,
         max_retries=max_retries,
         _sync=True,
     )
@@ -99,6 +104,7 @@ def rate_limit(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = None,
+    strict: bool = False,
 ) -> None:
     """Block execution until an `occupy` number of slots of the concurrency
     limits given in `names` are acquired. Requires that all given concurrency
@@ -109,6 +115,12 @@ def rate_limit(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+        strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
+            Defaults to `False`.
+
+    Raises:
+        TimeoutError: If the slots are not acquired within the given timeout.
+        ConcurrencySlotAcquisitionError: If the concurrency limit does not exist and `strict` is `True`.
     """
     if not names:
         return
@@ -121,6 +133,7 @@ def rate_limit(
         mode="rate_limit",
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
+        strict=strict,
         _sync=True,
     )
     _emit_concurrency_acquisition_events(limits, occupy)
