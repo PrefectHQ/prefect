@@ -1,11 +1,12 @@
 import uuid
+from pathlib import Path
 
 import pytest
 
 from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
-    PersistedResult,
+    ResultRecord,
     ResultStore,
 )
 from prefect.states import (
@@ -144,16 +145,17 @@ class TestReturnValueToState:
         state = Completed(data=None)
         result_state = await return_value_to_state(state, store)
         assert result_state is state
-        assert isinstance(result_state.data, PersistedResult)
-        assert result_state.data._persisted is False
+        assert isinstance(result_state.data, ResultRecord)
+        assert not Path(result_state.data.metadata.storage_key).exists()
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self):
         store = ResultStore(persist_result=True)
         state = Completed(data=1)
-        result_state = await return_value_to_state(state, store)
+        result_state = await return_value_to_state(state, store, write_result=True)
         assert result_state is state
-        assert isinstance(result_state.data, PersistedResult)
+        assert isinstance(result_state.data, ResultRecord)
+        assert Path(result_state.data.metadata.storage_key).exists()
         assert await result_state.result() == 1
 
     async def test_returns_persisted_results_unaltered(self):
@@ -161,6 +163,13 @@ class TestReturnValueToState:
         result = await store.create_result(42)
         result_state = await return_value_to_state(result, store)
         assert result_state.data == result
+        assert await result_state.result() == 42
+
+    async def test_returns_persisted_result_records_unaltered(self):
+        store = ResultStore(persist_result=True)
+        record = store.create_result_record(42)
+        result_state = await return_value_to_state(record, store)
+        assert result_state.data == record
         assert await result_state.result() == 42
 
     async def test_returns_single_state_unaltered_with_user_created_reference(

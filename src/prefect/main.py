@@ -7,7 +7,7 @@ from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.utilities.annotations import unmapped, allow_failure
-from prefect.results import BaseResult
+from prefect.results import BaseResult, ResultRecordMetadata
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
@@ -26,12 +26,26 @@ import prefect.context
 import prefect.client.schemas
 
 prefect.context.FlowRunContext.model_rebuild(
-    _types_namespace={"Flow": Flow, "BaseResult": BaseResult}
+    _types_namespace={
+        "Flow": Flow,
+        "BaseResult": BaseResult,
+        "ResultRecordMetadata": ResultRecordMetadata,
+    }
 )
-prefect.context.TaskRunContext.model_rebuild(_types_namespace={"Task": Task})
-prefect.client.schemas.State.model_rebuild(_types_namespace={"BaseResult": BaseResult})
+prefect.context.TaskRunContext.model_rebuild(
+    _types_namespace={"Task": Task, "BaseResult": BaseResult}
+)
+prefect.client.schemas.State.model_rebuild(
+    _types_namespace={
+        "BaseResult": BaseResult,
+        "ResultRecordMetadata": ResultRecordMetadata,
+    }
+)
 prefect.client.schemas.StateCreate.model_rebuild(
-    _types_namespace={"BaseResult": BaseResult}
+    _types_namespace={
+        "BaseResult": BaseResult,
+        "ResultRecordMetadata": ResultRecordMetadata,
+    }
 )
 Transaction.model_rebuild()
 

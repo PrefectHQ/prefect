@@ -5,6 +5,7 @@ import socket
 import threading
 import uuid
 from functools import partial
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -19,6 +20,8 @@ from typing import (
 )
 from uuid import UUID
 
+import pendulum
+from cachetools import LRUCache
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -33,6 +36,7 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
+from prefect._internal.compatibility.deprecated import deprecated_field
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import (
@@ -97,7 +101,7 @@ async def get_default_result_storage() -> WritableFileSystem:
 
 @sync_compatible
 async def resolve_result_storage(
-    result_storage: ResultStorage,
+    result_storage: Union[ResultStorage, UUID],
 ) -> WritableFileSystem:
     """
     Resolve one of the valid `ResultStorage` input types into a saved block
@@ -118,6 +122,9 @@ async def resolve_result_storage(
         storage_block = await Block.load(result_storage, client=client)
         storage_block_id = storage_block._block_document_id
         assert storage_block_id is not None, "Loaded storage blocks must have ids"
+    elif isinstance(result_storage, UUID):
+        block_document = await client.read_block_document(result_storage)
+        storage_block = Block._from_block_document(block_document)
     else:
         raise TypeError(
             "Result storage must be one of the following types: 'UUID', 'Block', "
@@ -171,6 +178,25 @@ def get_default_persist_setting() -> bool:
     return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
 
 
+def should_persist_result() -> bool:
+    """
+    Return the default option for result persistence determined by the current run context.
+
+    If there is no current run context, the default value set by
+    `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be returned.
+    """
+    from prefect.context import FlowRunContext, TaskRunContext
+
+    task_run_context = TaskRunContext.get()
+    if task_run_context is not None:
+        return task_run_context.persist_result
+    flow_run_context = FlowRunContext.get()
+    if flow_run_context is not None:
+        return flow_run_context.persist_result
+
+    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+
+
 def _format_user_supplied_storage_key(key: str) -> str:
     # Note here we are pinning to task runs since flow runs do not support storage keys
     # yet; we'll need to split logic in the future or have two separate functions
@@ -178,6 +204,16 @@ def _format_user_supplied_storage_key(key: str) -> str:
     return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
+T = TypeVar("T")
+
+
+@deprecated_field(
+    "persist_result",
+    when=lambda x: x is not None,
+    when_message="use the `should_persist_result` utility function instead",
+    start_date="Sep 2024",
+    end_date="Nov 2024",
+)
 class ResultStore(BaseModel):
     """
     Manages the storage and retrieval of results.
@@ -200,10 +236,13 @@ class ResultStore(BaseModel):
     result_storage: Optional[WritableFileSystem] = Field(default=None)
     metadata_storage: Optional[WritableFileSystem] = Field(default=None)
     lock_manager: Optional[LockManager] = Field(default=None)
-    persist_result: bool = Field(default_factory=get_default_persist_setting)
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
     storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
+    cache: LRUCache = Field(default_factory=lambda: LRUCache(maxsize=1000))
+
+    # Deprecated fields
+    persist_result: Optional[bool] = Field(default=None)
 
     @property
     def result_storage_block_id(self) -> Optional[UUID]:
@@ -227,8 +266,6 @@ class ResultStore(BaseModel):
             update["result_storage"] = await resolve_result_storage(flow.result_storage)
         if flow.result_serializer is not None:
             update["serializer"] = resolve_serializer(flow.result_serializer)
-        if flow.persist_result is not None:
-            update["persist_result"] = flow.persist_result
         if flow.cache_result_in_memory is not None:
             update["cache_result_in_memory"] = flow.cache_result_in_memory
         if self.result_storage is None and update.get("result_storage") is None:
@@ -251,8 +288,6 @@ class ResultStore(BaseModel):
             update["result_storage"] = await resolve_result_storage(task.result_storage)
         if task.result_serializer is not None:
             update["serializer"] = resolve_serializer(task.result_serializer)
-        if task.persist_result is not None:
-            update["persist_result"] = task.persist_result
         if task.cache_result_in_memory is not None:
             update["cache_result_in_memory"] = task.cache_result_in_memory
         if task.result_storage_key is not None:
@@ -293,15 +328,29 @@ class ResultStore(BaseModel):
             # so the entire payload doesn't need to be read
             try:
                 metadata_content = await self.metadata_storage.read_path(key)
-                return metadata_content is not None
+                if metadata_content is None:
+                    return False
+                metadata = ResultRecordMetadata.load_bytes(metadata_content)
+
             except Exception:
                 return False
         else:
             try:
                 content = await self.result_storage.read_path(key)
-                return content is not None
+                if content is None:
+                    return False
+                record = ResultRecord.deserialize(content)
+                metadata = record.metadata
             except Exception:
                 return False
+
+        if metadata.expiration:
+            # if the result has an expiration,
+            # check if it is still in the future
+            exists = metadata.expiration > pendulum.now("utc")
+        else:
+            exists = True
+        return exists
 
     def exists(self, key: str) -> bool:
         """
@@ -342,8 +391,12 @@ class ResultStore(BaseModel):
         Returns:
             A result record.
         """
+
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
             await self.await_for_lock(key)
+
+        if key in self.cache:
+            return self.cache[key]
 
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
@@ -355,12 +408,23 @@ class ResultStore(BaseModel):
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
             result_content = await self.result_storage.read_path(metadata.storage_key)
-            return ResultRecord.deserialize_from_result_and_metadata(
+            result_record = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
         else:
             content = await self.result_storage.read_path(key)
-            return ResultRecord.deserialize(content)
+            result_record = ResultRecord.deserialize(content)
+
+        if self.cache_result_in_memory:
+            if self.result_storage_block_id is None and hasattr(
+                self.result_storage, "_resolve_path"
+            ):
+                cache_key = str(self.result_storage._resolve_path(key))
+            else:
+                cache_key = key
+
+            self.cache[cache_key] = result_record
+        return result_record
 
     def read(self, key: str, holder: Optional[str] = None) -> "ResultRecord":
         """
@@ -390,10 +454,10 @@ class ResultStore(BaseModel):
 
     def create_result_record(
         self,
-        key: str,
         obj: Any,
+        key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
-    ):
+    ) -> "ResultRecord":
         """
         Create a result record.
 
@@ -403,6 +467,13 @@ class ResultStore(BaseModel):
             expiration: The expiration time for the result record.
         """
         key = key or self.storage_key_fn()
+
+        if self.result_storage is None:
+            self.result_storage = get_default_result_storage(_sync=True)
+
+        if self.result_storage_block_id is None:
+            if hasattr(self.result_storage, "_resolve_path"):
+                key = str(self.result_storage._resolve_path(key))
 
         return ResultRecord(
             result=obj,
@@ -416,8 +487,8 @@ class ResultStore(BaseModel):
 
     def write(
         self,
-        key: str,
         obj: Any,
+        key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
         holder: Optional[str] = None,
     ):
@@ -433,17 +504,18 @@ class ResultStore(BaseModel):
             holder: The holder of the lock if a lock was set on the record.
         """
         holder = holder or self.generate_default_holder()
+        result_record = self.create_result_record(
+            key=key, obj=obj, expiration=expiration
+        )
         return self.persist_result_record(
-            result_record=self.create_result_record(
-                key=key, obj=obj, expiration=expiration
-            ),
+            result_record=result_record,
             holder=holder,
         )
 
     async def awrite(
         self,
-        key: str,
         obj: Any,
+        key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
         holder: Optional[str] = None,
     ):
@@ -478,13 +550,22 @@ class ResultStore(BaseModel):
         ), "Storage key is required on result record"
 
         key = result_record.metadata.storage_key
+        if result_record.metadata.storage_block_id is None:
+            basepath = (
+                self.result_storage._resolve_path("")
+                if hasattr(self.result_storage, "_resolve_path")
+                else Path(".").resolve()
+            )
+            base_key = str(Path(key).relative_to(basepath))
+        else:
+            base_key = key
         if (
             self.lock_manager is not None
-            and self.is_locked(key)
-            and not self.is_lock_holder(key, holder)
+            and self.is_locked(base_key)
+            and not self.is_lock_holder(base_key, holder)
         ):
             raise RuntimeError(
-                f"Cannot write to result record with key {key} because it is locked by "
+                f"Cannot write to result record with key {base_key} because it is locked by "
                 f"another holder."
             )
         if self.result_storage is None:
@@ -497,7 +578,7 @@ class ResultStore(BaseModel):
                 content=result_record.serialize_result(),
             )
             await self.metadata_storage.write_path(
-                result_record.metadata.storage_key,
+                base_key,
                 content=result_record.serialize_metadata(),
             )
         # Otherwise, write the result metadata and result together
@@ -505,6 +586,9 @@ class ResultStore(BaseModel):
             await self.result_storage.write_path(
                 result_record.metadata.storage_key, content=result_record.serialize()
             )
+
+        if self.cache_result_in_memory:
+            self.cache[key] = result_record
 
     def persist_result_record(
         self, result_record: "ResultRecord", holder: Optional[str] = None
@@ -683,6 +767,11 @@ class ResultStore(BaseModel):
         """
         # Null objects are "cached" in memory at no cost
         should_cache_object = self.cache_result_in_memory or obj is None
+        should_persist_result = (
+            self.persist_result
+            if self.persist_result is not None
+            else not should_cache_object
+        )
 
         if key:
 
@@ -704,7 +793,7 @@ class ResultStore(BaseModel):
             serializer=self.serializer,
             cache_object=should_cache_object,
             expiration=expiration,
-            serialize_to_none=not self.persist_result,
+            serialize_to_none=not should_persist_result,
         )
 
     # TODO: These two methods need to find a new home
@@ -729,7 +818,7 @@ class ResultStore(BaseModel):
         return record.result
 
 
-def get_current_result_store() -> ResultStore:
+def get_result_store() -> ResultStore:
     """
     Get the current result store.
     """
@@ -855,6 +944,31 @@ class ResultRecord(BaseModel, Generic[R]):
             if "prefect_version" in value:
                 value["metadata"]["prefect_version"] = value.pop("prefect_version")
         return value
+
+    @classmethod
+    async def _from_metadata(cls, metadata: ResultRecordMetadata) -> "ResultRecord[R]":
+        """
+        Create a result record from metadata.
+
+        Will use the result record metadata to fetch data via a result store.
+
+        Args:
+            metadata: The metadata to create the result record from.
+
+        Returns:
+            ResultRecord: The result record.
+        """
+        if metadata.storage_block_id is None:
+            storage_block = None
+        else:
+            storage_block = await resolve_result_storage(
+                metadata.storage_block_id, _sync=False
+            )
+        store = ResultStore(
+            result_storage=storage_block, serializer=metadata.serializer
+        )
+        result = await store.aread(metadata.storage_key)
+        return result
 
     def serialize_metadata(self) -> bytes:
         return self.metadata.dump_bytes()
@@ -1057,7 +1171,6 @@ class PersistedResult(BaseResult):
         """
         Write the result to the storage block.
         """
-
         if self._persisted or self.serialize_to_none:
             # don't double write or overwrite
             return
@@ -1078,7 +1191,10 @@ class PersistedResult(BaseResult):
             # this could error if the serializer requires kwargs
             serializer = Serializer(type=self.serializer_type)
 
-        result_store = ResultStore(result_storage=storage_block, serializer=serializer)
+        result_store = ResultStore(
+            result_storage=storage_block,
+            serializer=serializer,
+        )
         await result_store.awrite(
             obj=obj, key=self.storage_key, expiration=self.expiration
         )

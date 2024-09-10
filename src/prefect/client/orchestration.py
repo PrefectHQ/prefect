@@ -2158,7 +2158,10 @@ class PrefectClient:
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
-                json=dict(state=state_create.model_dump(mode="json"), force=force),
+                json=dict(
+                    state=state_create.model_dump(mode="json", serialize_as_any=True),
+                    force=force,
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -3934,7 +3937,10 @@ class SyncPrefectClient:
         try:
             response = self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
-                json=dict(state=state_create.model_dump(mode="json"), force=force),
+                json=dict(
+                    state=state_create.model_dump(mode="json", serialize_as_any=True),
+                    force=force,
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:

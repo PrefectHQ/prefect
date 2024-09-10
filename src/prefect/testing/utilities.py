@@ -18,7 +18,12 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
 from prefect.logging.handlers import APILogWorker
-from prefect.results import PersistedResult, ResultStore
+from prefect.results import (
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+    get_default_result_storage,
+)
 from prefect.serializers import Serializer
 from prefect.server.api.server import SubprocessASGIServer
 from prefect.states import State
@@ -188,17 +193,31 @@ def assert_blocks_equal(
 
 
 async def assert_uses_result_serializer(
-    state: State, serializer: Union[str, Serializer]
+    state: State, serializer: Union[str, Serializer], client: "PrefectClient"
 ):
-    assert isinstance(state.data, PersistedResult)
+    assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
+    if isinstance(state.data, ResultRecord):
+        result_serializer = state.data.metadata.serializer
+        storage_block_id = state.data.metadata.storage_block_id
+        storage_key = state.data.metadata.storage_key
+    else:
+        result_serializer = state.data.serializer
+        storage_block_id = state.data.storage_block_id
+        storage_key = state.data.storage_key
+
     assert (
-        state.data.serializer_type == serializer
+        result_serializer.type == serializer
         if isinstance(serializer, str)
         else serializer.type
     )
-    blob = await ResultStore(
-        result_storage=await state.data._get_storage_block()
-    ).aread(state.data.storage_key)
+    if storage_block_id is not None:
+        block = Block._from_block_document(
+            await client.read_block_document(storage_block_id)
+        )
+    else:
+        block = await get_default_result_storage()
+
+    blob = await ResultStore(result_storage=block).aread(storage_key)
     assert (
         blob.metadata.serializer == serializer
         if isinstance(serializer, Serializer)
@@ -210,17 +229,29 @@ async def assert_uses_result_serializer(
 async def assert_uses_result_storage(
     state: State, storage: Union[str, "ReadableFileSystem"], client: "PrefectClient"
 ):
-    assert isinstance(state.data, PersistedResult)
-    assert_blocks_equal(
-        Block._from_block_document(
-            await client.read_block_document(state.data.storage_block_id)
-        ),
-        (
-            storage
-            if isinstance(storage, Block)
-            else await Block.load(storage, client=client)
-        ),
-    )
+    assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
+    if isinstance(state.data, ResultRecord):
+        assert_blocks_equal(
+            Block._from_block_document(
+                await client.read_block_document(state.data.metadata.storage_block_id)
+            ),
+            (
+                storage
+                if isinstance(storage, Block)
+                else await Block.load(storage, client=client)
+            ),
+        )
+    else:
+        assert_blocks_equal(
+            Block._from_block_document(
+                await client.read_block_document(state.data.storage_block_id)
+            ),
+            (
+                storage
+                if isinstance(storage, Block)
+                else await Block.load(storage, client=client)
+            ),
+        )
 
 
 def a_test_step(**kwargs):

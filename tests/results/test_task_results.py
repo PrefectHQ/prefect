@@ -4,6 +4,7 @@ import pytest
 
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
+from prefect.results import get_result_store
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
     PREFECT_HOME,
@@ -85,18 +86,41 @@ async def test_task_persisted_result_due_to_opt_in(prefect_client, events_pipeli
     assert await api_state.result() == 1
 
 
+async def test_task_result_is_cached_in_memory_by_default(prefect_client):
+    store = None
+
+    @flow
+    def foo():
+        return bar(return_state=True)
+
+    @task(persist_result=True)
+    def bar():
+        nonlocal store
+        store = get_result_store()
+        return 1
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result()
+    assert task_state.data.metadata.storage_key in store.cache
+    assert await task_state.result() == 1
+
+
 async def test_task_with_uncached_but_persisted_result(prefect_client, events_pipeline):
+    store = None
+
     @flow
     def foo():
         return bar(return_state=True)
 
     @task(persist_result=True, cache_result_in_memory=False)
     def bar():
+        nonlocal store
+        store = get_result_store()
         return 1
 
     flow_state = foo(return_state=True)
     task_state = await flow_state.result()
-    assert not task_state.data.has_cached_object()
+    assert task_state.data.metadata.storage_key not in store.cache
     assert await task_state.result() == 1
 
     await events_pipeline.process_events()
@@ -110,12 +134,16 @@ async def test_task_with_uncached_but_persisted_result(prefect_client, events_pi
 async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
     prefect_client, events_pipeline
 ):
+    store = None
+
     @flow
     def foo():
         state = bar(return_state=True)
-        assert not state.data.has_cached_object()
+        nonlocal store
+        store = get_result_store()
+        assert state.data.metadata.storage_key not in store.cache
         assert state.result() == 1
-        assert not state.data.has_cached_object()
+        assert state.data.metadata.storage_key not in store.cache
         assert state.result() == 1
         return state
 
@@ -125,20 +153,10 @@ async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
 
     flow_state = foo(return_state=True)
     task_state = await flow_state.result()
-    assert not task_state.data.has_cached_object()
+    assert task_state.data.metadata.storage_key not in store.cache
     assert await task_state.result() == 1
 
     await events_pipeline.process_events()
-
-    api_state = (
-        await prefect_client.read_task_run(task_state.state_details.task_run_id)
-    ).state
-    assert not api_state.data.has_cached_object()
-    assert await api_state.result() == 1
-    # After retrieval from the API, the "cache_result_in_memory" setting is dropped
-    # and caching is enabled by default
-    assert api_state.data.has_cached_object()
-    assert await api_state.result() == 1
 
 
 @pytest.mark.parametrize(
@@ -177,7 +195,7 @@ async def test_task_result_serializer(
     flow_state = foo(return_state=True)
     task_state = await flow_state.result()
     assert await task_state.result() == 1
-    await assert_uses_result_serializer(task_state, serializer)
+    await assert_uses_result_serializer(task_state, serializer, prefect_client)
 
     await events_pipeline.process_events()
 
@@ -185,7 +203,7 @@ async def test_task_result_serializer(
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() == 1
-    await assert_uses_result_serializer(api_state, serializer)
+    await assert_uses_result_serializer(api_state, serializer, prefect_client)
 
 
 @pytest.mark.parametrize("source", ["child", "parent"])
@@ -232,7 +250,7 @@ async def test_task_result_static_storage_key(
     flow_state = foo(return_state=True)
     task_state = await flow_state.result()
     assert await task_state.result() == 1
-    assert task_state.data.storage_key == "test"
+    assert task_state.data.metadata.storage_key == "test"
 
     await events_pipeline.process_events()
 
@@ -240,7 +258,7 @@ async def test_task_result_static_storage_key(
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() == 1
-    assert task_state.data.storage_key == "test"
+    assert task_state.data.metadata.storage_key == "test"
 
 
 async def test_task_result_parameter_formatted_storage_key(
@@ -264,7 +282,7 @@ async def test_task_result_parameter_formatted_storage_key(
     flow_state = foo(return_state=True)
     task_state = await flow_state.result()
     assert await task_state.result() == 1
-    assert task_state.data.storage_key == "1-foo-bar"
+    assert task_state.data.metadata.storage_key == "1-foo-bar"
 
     await events_pipeline.process_events()
 
@@ -272,7 +290,7 @@ async def test_task_result_parameter_formatted_storage_key(
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() == 1
-    assert task_state.data.storage_key == "1-foo-bar"
+    assert task_state.data.metadata.storage_key == "1-foo-bar"
 
 
 async def test_task_result_flow_run_formatted_storage_key(
@@ -296,7 +314,7 @@ async def test_task_result_flow_run_formatted_storage_key(
     flow_state = foo(return_state=True)
     task_state = await flow_state.result()
     assert await task_state.result() == 1
-    assert task_state.data.storage_key == "foo__bar"
+    assert task_state.data.metadata.storage_key == "foo__bar"
 
     await events_pipeline.process_events()
 
@@ -304,7 +322,7 @@ async def test_task_result_flow_run_formatted_storage_key(
         await prefect_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() == 1
-    assert task_state.data.storage_key == "foo__bar"
+    assert task_state.data.metadata.storage_key == "foo__bar"
 
 
 async def test_task_result_with_null_return(prefect_client, events_pipeline):

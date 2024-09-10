@@ -40,7 +40,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultStore
+from prefect.results import ResultStore, get_default_persist_setting
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
@@ -343,6 +343,7 @@ class EngineContext(RunContext):
 
     # Result handling
     result_store: ResultStore
+    persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -372,6 +373,7 @@ class EngineContext(RunContext):
                 "start_time",
                 "input_keyset",
                 "result_store",
+                "persist_result",
             },
             exclude_unset=True,
         )
@@ -397,6 +399,7 @@ class TaskRunContext(RunContext):
 
     # Result handling
     result_store: ResultStore
+    persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     __var__ = ContextVar("task_run")
 
@@ -410,6 +413,7 @@ class TaskRunContext(RunContext):
                 "start_time",
                 "input_keyset",
                 "result_store",
+                "persist_result",
             },
             exclude_unset=True,
         )
