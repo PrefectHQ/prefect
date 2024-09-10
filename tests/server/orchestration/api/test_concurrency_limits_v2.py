@@ -233,6 +233,21 @@ async def test_update_concurrency_non_existent_limit(
     assert response.status_code == 404
 
 
+async def test_update_concurrency_limit_used_for_deployment_404s(
+    concurrency_limit_used_for_deployment_concurrency_limiting: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.patch(
+        f"/v2/concurrency_limits/{concurrency_limit_used_for_deployment_concurrency_limiting.id}",
+        json=client_schemas.actions.ConcurrencyLimitV2Update(
+            # allowing clients to update these objects (like deactivating) can have unintended consequences
+            # to deployments expecting to use these limits to satisfy their concurrency requirements
+            active=False
+        ).model_dump(mode="json", exclude_unset=True),
+    )
+    assert response.status_code == 404
+
+
 async def test_delete_concurrency_limit_by_id(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
