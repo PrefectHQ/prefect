@@ -32,7 +32,7 @@ async def test_calls_increment_client_method():
             names=["test-1", "test-2"],
             slots=1,
             mode="concurrency",
-            create_if_missing=True,
+            create_if_missing=None,
         )
 
 
