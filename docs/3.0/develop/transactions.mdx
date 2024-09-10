@@ -130,7 +130,7 @@ def confirmation(transaction):
 
 Key-value pairs can be set within a transaction and accessed elsewhere within the transaction, including within the `on_rollback` hook.
 
-The code below shows how to set a key-value pair within a transaction and access it within the `on_rollback` hook and the `quality_test` task: 
+The code below shows how to set a key-value pair within a transaction and access it within the `on_rollback` hook: 
 
 ```python
 import os
