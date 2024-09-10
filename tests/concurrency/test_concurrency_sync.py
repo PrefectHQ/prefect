@@ -39,7 +39,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
                 ["test"],
                 1,
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
                 max_retries=None,
                 _sync=True,
             )
@@ -253,7 +253,7 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
                 1,
                 mode="rate_limit",
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
                 _sync=True,
             )
 

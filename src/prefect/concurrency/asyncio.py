@@ -6,6 +6,8 @@ import anyio
 import httpx
 import pendulum
 
+from prefect._internal.compatibility.deprecated import deprecated_parameter
+
 try:
     from pendulum import Interval
 except ImportError:
@@ -33,12 +35,19 @@ class AcquireConcurrencySlotTimeoutError(TimeoutError):
 
 
 @asynccontextmanager
+@deprecated_parameter(
+    name="create_if_missing",
+    start_date="Sep 2024",
+    end_date="Oct 2024",
+    when=lambda x: x is not None,
+    help="Limits must be explicitly created before acquiring slots; see `strict` if you want to enforce this behavior.",
+)
 async def concurrency(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
-    create_if_missing: bool = True,
     max_retries: Optional[int] = None,
+    create_if_missing: Optional[bool] = None,
 ) -> AsyncGenerator[None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -48,7 +57,6 @@ async def concurrency(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
-        create_if_missing: Whether to create the concurrency limits if they do not exist.
         max_retries: The maximum number of retries to acquire the concurrency slots.
 
     Raises:
@@ -103,11 +111,18 @@ async def concurrency(
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
+@deprecated_parameter(
+    name="create_if_missing",
+    start_date="Sep 2024",
+    end_date="Oct 2024",
+    when=lambda x: x is not None,
+    help="Limits must be explicitly created before acquiring slots; see `strict` if you want to enforce this behavior.",
+)
 async def rate_limit(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
-    create_if_missing: Optional[bool] = True,
+    create_if_missing: Optional[bool] = None,
 ) -> None:
     """Block execution until an `occupy` number of slots of the concurrency
     limits given in `names` are acquired. Requires that all given concurrency
@@ -118,7 +133,6 @@ async def rate_limit(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
-        create_if_missing: Whether to create the concurrency limits if they do not exist.
     """
     if not names:
         return
@@ -136,12 +150,19 @@ async def rate_limit(
 
 
 @sync_compatible
+@deprecated_parameter(
+    name="create_if_missing",
+    start_date="Sep 2024",
+    end_date="Oct 2024",
+    when=lambda x: x is not None,
+    help="Limits must be explicitly created before acquiring slots; see `strict` if you want to enforce this behavior.",
+)
 async def _acquire_concurrency_slots(
     names: List[str],
     slots: int,
     mode: Union[Literal["concurrency"], Literal["rate_limit"]] = "concurrency",
     timeout_seconds: Optional[float] = None,
-    create_if_missing: Optional[bool] = True,
+    create_if_missing: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> List[MinimalConcurrencyLimitResponse]:
     service = ConcurrencySlotAcquisitionService.instance(frozenset(names))

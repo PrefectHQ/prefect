@@ -35,7 +35,7 @@ def concurrency(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
-    create_if_missing: bool = True,
+    create_if_missing: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
@@ -46,7 +46,6 @@ def concurrency(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
-        create_if_missing: Whether to create the concurrency limits if they do not exist.
         max_retries: The maximum number of retries to acquire the concurrency slots.
 
     Raises:
@@ -99,7 +98,7 @@ def rate_limit(
     names: Union[str, List[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
-    create_if_missing: Optional[bool] = True,
+    create_if_missing: Optional[bool] = None,
 ) -> None:
     """Block execution until an `occupy` number of slots of the concurrency
     limits given in `names` are acquired. Requires that all given concurrency
@@ -110,7 +109,6 @@ def rate_limit(
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
-        create_if_missing: Whether to create the concurrency limits if they do not exist.
     """
     if not names:
         return
