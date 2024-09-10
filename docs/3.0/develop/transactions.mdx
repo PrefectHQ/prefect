@@ -88,11 +88,10 @@ This behavior makes transactions a valuable pattern for managing pipeline failur
 
 ### Transaction lifecycle
 
-Every transaction goes through at most five lifecycle stages:
-- **PENGING**: in tis phase, the transaction is waiting to be executed.
+Every transaction goes through at most four lifecycle stages:
+
 - **BEGIN**: in this phase, the transaction's key is computed and looked up. If a record already exists at 
 the key location the transaction considers itself committed.
-- **ACTIVE**: in this phase, the transaction executes its tasks.
 - **STAGE**: in this phase, the transaction stages a piece of data to be committed to its result location.
 Whether this data is committed or rolled back depends on the commit mode of the transaction.
 - **ROLLBACK**: if the transaction encounters _any_ error **after** staging, it rolls itself back and does
