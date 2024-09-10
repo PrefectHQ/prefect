@@ -158,7 +158,10 @@ class TestReturnValueToState:
         assert Path(result_state.data.metadata.storage_key).exists()
         assert await result_state.result() == 1
 
-    async def test_returns_persisted_results_unaltered(self):
+    async def test_returns_persisted_results_unaltered(
+        self, ignore_prefect_deprecation_warnings
+    ):
+        # TODO: This test will be removed in a future release when PersistedResult is removed
         store = ResultStore(persist_result=True)
         result = await store.create_result(42)
         result_state = await return_value_to_state(result, store)

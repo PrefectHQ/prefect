@@ -10,6 +10,11 @@ from prefect.results import ResultStore
 from prefect.transactions import IsolationLevel
 
 
+@pytest.fixture(autouse=True)
+def ignore_deprecations(ignore_prefect_deprecation_warnings):
+    """This file will be removed in a future release when MemoryRecordStore is removed."""
+
+
 class TestInMemoryRecordStore:
     def test_singleton(self):
         store1 = MemoryRecordStore()

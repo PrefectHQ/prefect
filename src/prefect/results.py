@@ -36,6 +36,7 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
+from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.deprecated import deprecated_field
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
@@ -755,6 +756,11 @@ class ResultStore(BaseModel):
             )
         return await self.lock_manager.await_for_lock(key, timeout)
 
+    @deprecated.deprecated_callable(
+        start_date="Sep 2024",
+        end_date="Nov 2024",
+        help="Use `create_result_record` instead.",
+    )
     @sync_compatible
     async def create_result(
         self,

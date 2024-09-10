@@ -41,8 +41,8 @@ async def test_unfinished_states_raise_on_result_retrieval(
     [StateType.CRASHED, StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED],
 )
 async def test_finished_states_allow_result_retrieval(state_type: StateType):
-    store = ResultStore(persist_result=True)
-    state = State(type=state_type, data=await store.create_result("test"))
+    store = ResultStore()
+    state = State(type=state_type, data=store.create_result_record("test"))
 
     assert await state.result(raise_on_failure=False) == "test"
 

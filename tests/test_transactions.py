@@ -366,6 +366,10 @@ class TestDefaultTransactionStorage:
 
 
 class TestWithMemoryRecordStore:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecations(self, ignore_prefect_deprecation_warnings):
+        """This file will be removed in a future release when MemoryRecordStore is removed."""
+
     @pytest.fixture()
     def default_storage_setting(self, tmp_path):
         name = str(uuid.uuid4())

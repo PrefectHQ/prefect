@@ -11,7 +11,7 @@ import pytest
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def ignore_prefect_deprecation_warnings():
     """
     Ignore deprecation warnings from the agent module to avoid

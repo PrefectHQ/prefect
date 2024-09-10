@@ -21,6 +21,11 @@ def read_locked_key(key, store, queue: multiprocessing.Queue):
     queue.put(record.result, block=False)
 
 
+@pytest.fixture(autouse=True)
+def ignore_deprecations(ignore_prefect_deprecation_warnings):
+    """This file will be removed in a future release when FileSystemRecordStore is removed."""
+
+
 class TestFileSystemRecordStore:
     @pytest.fixture()
     def default_storage_setting(self, tmp_path):
