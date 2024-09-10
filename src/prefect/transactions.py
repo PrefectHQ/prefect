@@ -26,6 +26,7 @@ from prefect.results import (
     BaseResult,
     ResultRecord,
     ResultStore,
+    get_result_store,
     should_persist_result,
 )
 from prefect.utilities.annotations import NotSet
@@ -384,41 +385,7 @@ def transaction(
     """
     # if there is no key, we won't persist a record
     if key and not store:
-        from prefect.context import FlowRunContext, TaskRunContext
-        from prefect.results import ResultStore, get_default_result_storage
-
-        flow_run_context = FlowRunContext.get()
-        task_run_context = TaskRunContext.get()
-        existing_store = getattr(task_run_context, "result_store", None) or getattr(
-            flow_run_context, "result_store", None
-        )
-
-        new_store: ResultStore
-        if existing_store and existing_store.result_storage_block_id:
-            new_store = existing_store.model_copy(
-                update={
-                    "persist_result": True,
-                }
-            )
-        else:
-            default_storage = get_default_result_storage(_sync=True)
-            if existing_store:
-                new_store = existing_store.model_copy(
-                    update={
-                        "persist_result": True,
-                        "storage_block": default_storage,
-                        "storage_block_id": default_storage._block_document_id,
-                    }
-                )
-            else:
-                new_store = ResultStore(
-                    result_storage=default_storage,
-                )
-        from prefect.records.result_store import ResultRecordStore
-
-        store = ResultRecordStore(
-            result_store=new_store,
-        )
+        store = get_result_store()
 
     try:
         logger = logger or get_run_logger()

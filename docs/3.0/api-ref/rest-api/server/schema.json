@@ -12469,9 +12469,15 @@
                         "default": "concurrency"
                     },
                     "create_if_missing": {
-                        "type": "boolean",
-                        "title": "Create If Missing",
-                        "default": true
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Create If Missing"
                     }
                 },
                 "type": "object",
@@ -21379,7 +21385,7 @@
                     "PREFECT_API_ENABLE_HTTP2": {
                         "type": "boolean",
                         "title": "Prefect Api Enable Http2",
-                        "default": true
+                        "default": false
                     },
                     "PREFECT_CLIENT_MAX_RETRIES": {
                         "type": "integer",
