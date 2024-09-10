@@ -1,6 +1,5 @@
 from . import _version
 from .credentials import (  # noqa
-    DatabaseCredentials,
     ConnectionComponents,
     AsyncDriver,
     SyncDriver,
