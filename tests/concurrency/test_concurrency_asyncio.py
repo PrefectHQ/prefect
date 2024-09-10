@@ -79,26 +79,20 @@ async def test_concurrency_can_be_used_within_a_flow(
     assert executed
 
 
-async def test_concurrency_can_be_used_within_a_flow(
-    concurrency_limit: ConcurrencyLimitV2,
-):
-    executed = False
-
+async def test_concurrency_can_be_used_within_a_flow_strictly():
     @task
     async def resource_heavy():
-        nonlocal executed
-        async with concurrency("test", occupy=1):
-            executed = True
+        async with concurrency("santa-clause", occupy=1, strict=True):
+            return
 
     @flow
     async def my_flow():
         await resource_heavy()
 
-    assert not executed
-
-    await my_flow()
-
-    assert executed
+    state = await my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        await state.result()
 
 
 async def test_concurrency_emits_events(
@@ -270,6 +264,22 @@ async def test_rate_limit_can_be_used_within_a_flow(
     await my_flow()
 
     assert executed
+
+
+async def test_rate_limit_can_be_used_within_a_flow_with_strict():
+    @task
+    async def resource_heavy():
+        await rate_limit("easter-bunny", occupy=1, strict=True)
+        return
+
+    @flow
+    async def my_flow():
+        await resource_heavy()
+
+    state = await my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        await state.result()
 
 
 async def test_rate_limit_emits_events(

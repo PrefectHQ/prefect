@@ -6,9 +6,9 @@ from starlette import status
 
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
+    ConcurrencySlotAcquisitionError,
     _acquire_concurrency_slots,
     _release_concurrency_slots,
-    ConcurrencySlotAcquisitionError,
 )
 from prefect.concurrency.sync import concurrency, rate_limit
 from prefect.events.clients import AssertingEventsClient
