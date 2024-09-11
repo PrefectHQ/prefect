@@ -7,7 +7,7 @@ from prefect.context import FlowRunContext, get_run_context
 from prefect.filesystems import LocalFileSystem
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
-    PersistedResult,
+    ResultRecord,
     ResultStore,
     should_persist_result,
 )
@@ -40,20 +40,15 @@ def default_persistence_off():
 
 @pytest.fixture
 async def store(prefect_client):
-    return ResultStore(persist_result=True)
+    return ResultStore()
 
 
-async def test_create_result_reference(store):
-    result = await store.create_result({"foo": "bar"})
-    assert isinstance(result, PersistedResult)
-    assert result.serializer_type == store.serializer.type
-    assert result.storage_block_id == store.result_storage_block_id
-    assert await result.get() == {"foo": "bar"}
-
-
-async def test_create_result_reference_has_cached_object(store):
-    result = await store.create_result({"foo": "bar"})
-    assert result.has_cached_object()
+async def test_create_result_record(store):
+    record = store.create_result_record({"foo": "bar"})
+    assert isinstance(record, ResultRecord)
+    assert record.metadata.serializer.type == store.serializer.type
+    assert record.metadata.storage_block_id == store.result_storage_block_id
+    assert record.result == {"foo": "bar"}
 
 
 def test_root_flow_default_result_store():

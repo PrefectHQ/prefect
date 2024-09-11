@@ -7,7 +7,7 @@ from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
 from prefect.blocks.system import DateTime, Secret
 
 
-def test_datetime():
+def test_datetime(ignore_prefect_deprecation_warnings):
     DateTime(value=PydanticDateTime(2022, 1, 1)).save(name="test")
     api_block = DateTime.load("test")
     assert api_block.value == pendulum.datetime(2022, 1, 1)

@@ -36,6 +36,7 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
+from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.deprecated import deprecated_field
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
@@ -755,6 +756,11 @@ class ResultStore(BaseModel):
             )
         return await self.lock_manager.await_for_lock(key, timeout)
 
+    @deprecated.deprecated_callable(
+        start_date="Sep 2024",
+        end_date="Nov 2024",
+        help="Use `create_result_record` instead.",
+    )
     @sync_compatible
     async def create_result(
         self,
@@ -867,6 +873,17 @@ class ResultRecordMetadata(BaseModel):
             ResultRecordMetadata: the deserialized metadata
         """
         return cls.model_validate_json(data)
+
+    def __eq__(self, other):
+        if not isinstance(other, ResultRecordMetadata):
+            return False
+        return (
+            self.storage_key == other.storage_key
+            and self.expiration == other.expiration
+            and self.serializer == other.serializer
+            and self.prefect_version == other.prefect_version
+            and self.storage_block_id == other.storage_block_id
+        )
 
 
 class ResultRecord(BaseModel, Generic[R]):
@@ -1027,7 +1044,15 @@ class ResultRecord(BaseModel, Generic[R]):
             result=result_record_metadata.serializer.loads(result),
         )
 
+    def __eq__(self, other):
+        if not isinstance(other, ResultRecord):
+            return False
+        return self.metadata == other.metadata and self.result == other.result
 
+
+@deprecated.deprecated_class(
+    start_date="Sep 2024", end_date="Nov 2024", help="Use `ResultRecord` instead."
+)
 @register_base_type
 class BaseResult(BaseModel, abc.ABC, Generic[R]):
     model_config = ConfigDict(extra="forbid")
@@ -1078,6 +1103,9 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         return cls.__name__ if isinstance(default, PydanticUndefinedType) else default
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024", end_date="Nov 2024", help="Use `ResultRecord` instead."
+)
 class PersistedResult(BaseResult):
     """
     Result type which stores a reference to a persisted result.

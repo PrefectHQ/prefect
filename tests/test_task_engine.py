@@ -1646,13 +1646,13 @@ class TestTimeout:
 
 
 class TestPersistence:
-    async def test_task_can_return_persisted_result(self):
+    async def test_task_can_return_result_record(self):
         @task
         async def async_task():
-            store = ResultStore(persist_result=True)
-            result = await store.create_result(42)
-            await result.write()
-            return result
+            store = ResultStore()
+            record = store.create_result_record(42)
+            store.persist_result_record(record)
+            return record
 
         assert await async_task() == 42
         state = await async_task(return_state=True)
