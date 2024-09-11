@@ -3,6 +3,7 @@ import json
 import warnings
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, Type, Union
+from unittest import mock
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
@@ -2980,3 +2981,21 @@ class TestDumpSecrets:
                 }
             ).decode()
         )
+
+
+class TestGetBlockClassFromKey:
+    class MyBlock(Block):
+        x: str
+        y: int = 1
+
+    def test_collections_loaded_only_once(self):
+        with mock.patch("prefect.plugins.load_prefect_collections") as mock_load:
+            Block.get_block_class_from_key("some_key")
+            assert mock_load.call_count == 1
+
+            # Second call should not load collections again
+            Block.get_block_class_from_key("another_key")
+            assert mock_load.call_count == 1
+
+        global _collections_loaded
+        _collections_loaded = False
