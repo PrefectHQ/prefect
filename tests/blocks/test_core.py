@@ -2983,18 +2983,25 @@ class TestDumpSecrets:
         )
 
 
-class TestGetBlockClassFromKey:
-    class MyBlock(Block):
+class TestLoadingBlocks:
+    @register_type
+    class ThisBlockIsClear(Block):
         x: str
-        y: int = 1
 
-    def test_collections_loaded_only_once(self):
+    def test_collections_loaded_only_once(self, block_type_x):
         with mock.patch("prefect.plugins.load_prefect_collections") as mock_load:
-            Block.get_block_class_from_key("some_key")
+            block_schema_id = uuid4()
+            api_block = self.ThisBlockIsClear(x="x")._to_block_document(
+                name="block",
+                block_schema_id=block_schema_id,
+                block_type_id=block_type_x.id,
+            )
+            Block._from_block_document(api_block)
+
             assert mock_load.call_count == 1
 
             # Second call should not load collections again
-            Block.get_block_class_from_key("another_key")
+            Block._from_block_document(api_block)
             assert mock_load.call_count == 1
 
         global _collections_loaded
