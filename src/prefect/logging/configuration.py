@@ -104,6 +104,7 @@ def setup_logging(incremental: Optional[bool] = None) -> dict:
             if logger.level == logging.NOTSET:
                 logger.setLevel(extra_config.level)
             logger.propagate = extra_config.propagate
+        breakpoint()
 
     PROCESS_LOGGING_CONFIG = config
 

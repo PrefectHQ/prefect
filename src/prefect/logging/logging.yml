@@ -77,6 +77,7 @@ loggers:
     prefect.extra:
         level: "${PREFECT_LOGGING_LEVEL}"
         handlers: [api]
+        propagate: false
 
     prefect.flow_runs:
         level: NOTSET
