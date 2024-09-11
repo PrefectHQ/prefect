@@ -6,9 +6,7 @@ import pytest
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.locking.memory import MemoryLockManager
-from prefect.records import RecordStore
 from prefect.records.memory import MemoryRecordStore
-from prefect.records.result_store import ResultRecordStore
 from prefect.results import (
     ResultRecord,
     ResultStore,
@@ -236,7 +234,7 @@ class TestTransactionState:
 
 
 def test_overwrite_ignores_existing_record():
-    class Store(RecordStore):
+    class Store(ResultStore):
         def exists(self, **kwargs):
             return True
 
@@ -561,7 +559,9 @@ class TestWithResultStore:
         # and the second transaction should not have written on exit
         assert record.result == {"foo": "bar"}
 
-    async def test_can_handle_staged_base_result(self, result_store):
+    async def test_can_handle_staged_base_result(
+        self, result_store, ignore_prefect_deprecation_warnings
+    ):
         result_1 = await result_store.create_result(obj={"foo": "bar"})
         with transaction(
             key="test_can_handle_staged_base_result",
@@ -619,10 +619,12 @@ class TestIsolationLevel:
     def test_inherited_isolation_level(self):
         with transaction(
             key="test",
-            store=MemoryRecordStore(),
+            store=ResultStore(lock_manager=MemoryLockManager()),
             isolation_level=IsolationLevel.SERIALIZABLE,
         ) as top:
-            with transaction(key="nested", store=MemoryRecordStore()) as inner:
+            with transaction(
+                key="nested", store=ResultStore(lock_manager=MemoryLockManager())
+            ) as inner:
                 assert (
                     inner.isolation_level
                     == top.isolation_level
@@ -632,11 +634,11 @@ class TestIsolationLevel:
     def test_raises_on_unsupported_isolation_level(self):
         with pytest.raises(
             ValueError,
-            match="Isolation level SERIALIZABLE is not supported by record store type ResultRecordStore",
+            match="Isolation level SERIALIZABLE is not supported by provided result store.",
         ):
             with transaction(
                 key="test",
-                store=ResultRecordStore(result_store=ResultStore()),
+                store=ResultStore(),
                 isolation_level=IsolationLevel.SERIALIZABLE,
             ):
                 pass

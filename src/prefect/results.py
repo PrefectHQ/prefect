@@ -874,6 +874,17 @@ class ResultRecordMetadata(BaseModel):
         """
         return cls.model_validate_json(data)
 
+    def __eq__(self, other):
+        if not isinstance(other, ResultRecordMetadata):
+            return False
+        return (
+            self.storage_key == other.storage_key
+            and self.expiration == other.expiration
+            and self.serializer == other.serializer
+            and self.prefect_version == other.prefect_version
+            and self.storage_block_id == other.storage_block_id
+        )
+
 
 class ResultRecord(BaseModel, Generic[R]):
     """
@@ -1032,6 +1043,11 @@ class ResultRecord(BaseModel, Generic[R]):
             metadata=result_record_metadata,
             result=result_record_metadata.serializer.loads(result),
         )
+
+    def __eq__(self, other):
+        if not isinstance(other, ResultRecord):
+            return False
+        return self.metadata == other.metadata and self.result == other.result
 
 
 @register_base_type

@@ -320,7 +320,7 @@ async def return_value_to_state(
         state = retval
         # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
-        if not isinstance(state.data, BaseResult):
+        if not isinstance(state.data, (BaseResult, ResultRecord, ResultRecordMetadata)):
             result_record = result_store.create_result_record(
                 state.data,
                 key=key,

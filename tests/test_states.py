@@ -178,7 +178,7 @@ class TestReturnValueToState:
     async def test_returns_single_state_unaltered_with_user_created_reference(
         self, store
     ):
-        result = await store.create_result("test")
+        result = store.create_result_record("test")
         state = Completed(data=result)
         result_state = await return_value_to_state(state, store)
         assert result_state is state

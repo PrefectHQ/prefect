@@ -253,6 +253,11 @@ class TestApplyValues:
 
 
 class TestResolveBlockDocumentReferences:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self, ignore_prefect_deprecation_warnings):
+        """Remove references to deprecated blocks when deprecation period is over."""
+        pass
+
     @pytest.fixture()
     async def block_document_id(self):
         class ArbitraryBlock(Block):
