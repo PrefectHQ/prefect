@@ -188,7 +188,7 @@ async def update_work_pool(
             [UUID, pendulum.DateTime, orm_models.WorkPool, orm_models.WorkPool],
             Awaitable[None],
         ]
-    ],
+    ] = None,
 ) -> bool:
     """
     Update a WorkPool by id.
