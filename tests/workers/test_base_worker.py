@@ -1898,6 +1898,7 @@ async def test_flow_run_into_work_pool_env_merge_logic_is_deep(
             path="./subdir",
             entrypoint="/file.py:flow",
             parameter_openapi_schema={},
+            job_variables={"env": {"C": "42"}},  # to be overwritten by flow run
         ),
     )
     await session.commit()
