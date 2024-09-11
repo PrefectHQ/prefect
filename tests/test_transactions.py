@@ -486,9 +486,7 @@ class TestWithResultStore:
 
     @pytest.fixture
     async def result_store(self, default_storage_setting):
-        result_store = ResultStore(
-            persist_result=True, lock_manager=MemoryLockManager()
-        )
+        result_store = ResultStore(lock_manager=MemoryLockManager())
         return result_store
 
     async def test_basic_transaction(self, result_store):

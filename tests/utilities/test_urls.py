@@ -194,7 +194,9 @@ def test_url_for_prefect_future(
 
 
 @pytest.mark.parametrize("url_type", ["ui", "api"])
-def test_url_for_block(block, url_type: Literal["ui", "api"]):
+def test_url_for_block(
+    block, url_type: Literal["ui", "api"], ignore_prefect_deprecation_warnings
+):
     expected_url = (
         f"{MOCK_PREFECT_UI_URL}/blocks/block/{block._block_document_id}"
         if url_type == "ui"

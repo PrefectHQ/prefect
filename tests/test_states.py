@@ -141,7 +141,7 @@ class TestReturnValueToState:
         assert await return_value_to_state(state, store) is state
 
     async def test_returns_single_state_with_null_data_and_persist_off(self):
-        store = ResultStore(persist_result=False)
+        store = ResultStore()
         state = Completed(data=None)
         result_state = await return_value_to_state(state, store)
         assert result_state is state
@@ -150,7 +150,7 @@ class TestReturnValueToState:
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self):
-        store = ResultStore(persist_result=True)
+        store = ResultStore()
         state = Completed(data=1)
         result_state = await return_value_to_state(state, store, write_result=True)
         assert result_state is state
@@ -169,7 +169,7 @@ class TestReturnValueToState:
         assert await result_state.result() == 42
 
     async def test_returns_persisted_result_records_unaltered(self):
-        store = ResultStore(persist_result=True)
+        store = ResultStore()
         record = store.create_result_record(42)
         result_state = await return_value_to_state(record, store)
         assert result_state.data == record
