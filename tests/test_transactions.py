@@ -608,6 +608,34 @@ class TestHooks:
             assert txn.get("foobar", None) is None
             assert txn.get("foobar", "string") == "string"
 
+    def test_parent_values_set_after_child_open_are_available(self):
+        parent_transaction = Transaction()
+        child_transaction = Transaction()
+
+        parent_transaction.__enter__()
+        child_transaction.__enter__()
+
+        try:
+            parent_transaction.set("key", "value")
+
+            # child can access parent's values
+            assert child_transaction.get("key") == "value"
+
+            parent_transaction.set("list", [1, 2, 3])
+
+            # child can't modify parent's values
+            assert child_transaction.get("list") == [1, 2, 3]
+            child_transaction.get("list").append(4)
+
+            assert child_transaction.get("list") == [1, 2, 3, 4]
+
+            # parent transaction isn't affected by child's modifications
+            assert parent_transaction.get("list") == [1, 2, 3]
+
+        finally:
+            child_transaction.__exit__(None, None, None)
+            parent_transaction.__exit__(None, None, None)
+
 
 class TestIsolationLevel:
     def test_default_isolation_level(self):

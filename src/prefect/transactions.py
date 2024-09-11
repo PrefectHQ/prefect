@@ -81,11 +81,22 @@ class Transaction(ContextModel):
         self._stored_values[name] = value
 
     def get(self, name: str, default: Any = NotSet) -> Any:
-        if name not in self._stored_values:
+        value = self._stored_values.get(name, NotSet)
+        if value is NotSet:
+            parent = self.get_parent()
+            if parent is not None:
+                try:
+                    value = copy.deepcopy(parent.get(name))
+                    self._stored_values[name] = value
+                except ValueError:
+                    pass
+
+        if value is NotSet:
             if default is not NotSet:
-                return default
-            raise ValueError(f"Could not retrieve value for unknown key: {name}")
-        return self._stored_values.get(name)
+                value = default
+            else:
+                raise ValueError(f"Could not retrieve value for unknown key: {name}")
+        return value
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED
@@ -108,8 +119,6 @@ class Transaction(ContextModel):
                 "Context already entered. Context enter calls cannot be nested."
             )
         parent = get_transaction()
-        if parent:
-            self._stored_values = copy.deepcopy(parent._stored_values)
         # set default commit behavior; either inherit from parent or set a default of eager
         if self.commit_mode is None:
             self.commit_mode = parent.commit_mode if parent else CommitMode.LAZY
