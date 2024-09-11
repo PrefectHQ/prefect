@@ -1796,11 +1796,18 @@ class TestBaseWorkerStart:
             {"C": "3", "D": "4"},
             {"A": "1", "B": "2", "C": "3", "D": "4"},
         ),
+        (
+            {"A": "1", "B": "2"},
+            {"B": ""},  # will be treated as unset and not apply
+            {},
+            {"A": "1", "B": "2"},
+        ),
     ],
     ids=[
         "flow_run_into_deployment",
         "deployment_into_work_pool",
         "flow_run_into_work_pool",
+        "try_overwrite_with_empty_str",
     ],
 )
 async def test_env_merge_logic_is_deep(
