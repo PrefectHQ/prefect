@@ -13,13 +13,14 @@ class RedisLockManager(LockManager):
     A lock manager that uses Redis as a backend.
 
     Attributes:
-        client: The Redis client used to communicate with the Redis server
         host: The host of the Redis server
         port: The port the Redis server is running on
         db: The database to write to and read from
         username: The username to use when connecting to the Redis server
         password: The password to use when connecting to the Redis server
         ssl: Whether to use SSL when connecting to the Redis server
+        client: The Redis client used to communicate with the Redis server
+        async_client: The asynchronous Redis client used to communicate with the Redis server
     """
 
     def __init__(
