@@ -747,7 +747,6 @@ class Block(BaseModel, ABC):
         # Ensure collections are imported and have the opportunity to register types
         # before looking up the block class, but only do this once
         if not _collections_loaded:
-            print("loading collections")
             prefect.plugins.load_prefect_collections()
             _collections_loaded = True
 

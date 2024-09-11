@@ -114,7 +114,6 @@ async def resolve_result_storage(
         else:
             storage_block_id = None
     elif isinstance(result_storage, str):
-        print("loading block")
         storage_block = await Block.load(result_storage, client=client)
         storage_block_id = storage_block._block_document_id
         assert storage_block_id is not None, "Loaded storage blocks must have ids"
