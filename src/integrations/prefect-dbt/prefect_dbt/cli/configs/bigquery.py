@@ -2,8 +2,6 @@
 
 from typing import Any, Dict, Optional
 
-from google.auth.transport.requests import Request
-
 try:
     from typing import Literal
 except ImportError:
@@ -15,6 +13,7 @@ from pydantic import Field
 from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError
 
 try:
+    from google.auth.transport.requests import Request
     from prefect_gcp.credentials import GcpCredentials
 except ModuleNotFoundError as e:
     raise MissingExtrasRequireError("BigQuery") from e
