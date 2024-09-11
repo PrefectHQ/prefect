@@ -320,7 +320,7 @@ async def test_delete_concurrency_limit_by_name(
 
 
 async def test_bulk_read_or_create_concurrency_limits_with_deprecated_flag(
-    session: AsyncSession,
+    session: AsyncSession, ignore_prefect_deprecation_warnings
 ):
     names = ["Chase", "Marshall", "Skye", "Rubble", "Zuma", "Rocky", "Everest"]
 

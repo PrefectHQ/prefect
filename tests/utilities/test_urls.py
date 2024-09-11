@@ -6,7 +6,7 @@ from typing import Literal
 import pendulum
 import pytest
 
-from prefect.blocks.system import DateTime
+from prefect.blocks.webhook import Webhook
 from prefect.events.schemas.automations import Automation, EventTrigger, Posture
 from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.futures import PrefectConcurrentFuture, PrefectDistributedFuture
@@ -95,8 +95,8 @@ def prefect_distributed_future(task_run):
 
 @pytest.fixture
 def block():
-    block = DateTime(value="2022-01-01T00:00:00Z")
-    block.save("my-date-block", overwrite=True)
+    block = Webhook(url="https://example.com")
+    block.save("my-webhook-block", overwrite=True)
     return block
 
 

@@ -458,6 +458,7 @@ async def test_increment_concurrency_limit_rate_limit_mode(
 async def test_increment_concurrency_limit_rate_limit_mode_implicitly_created_limit(
     client: AsyncClient,
     session: AsyncSession,
+    ignore_prefect_deprecation_warnings,
 ):
     # DEPRECATED BEHAVIOR
     response = await client.post(
@@ -546,6 +547,7 @@ async def test_decrement_concurrency_limit(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
+    ignore_prefect_deprecation_warnings,
 ):
     assert concurrency_limit.active_slots == 0
     response = await client.post(

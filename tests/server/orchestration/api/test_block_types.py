@@ -491,7 +491,9 @@ class TestSystemBlockTypes:
         await client.post("/block_types/install_system_block_types")
         await client.post("/block_types/install_system_block_types")
 
-    async def test_create_system_block_type(self, hosted_api_client, session):
+    async def test_create_system_block_type(
+        self, hosted_api_client, session, ignore_prefect_deprecation_warnings
+    ):
         # install system blocks
         await hosted_api_client.post("/block_types/install_system_block_types")
 

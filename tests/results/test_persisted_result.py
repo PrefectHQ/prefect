@@ -14,6 +14,12 @@ from prefect.results import (
 from prefect.serializers import JSONSerializer, PickleSerializer
 
 
+@pytest.fixture(autouse=True)
+def ignore_deprecation(ignore_prefect_deprecation_warnings):
+    """Remove this test file when deprecation warning period is over"""
+    pass
+
+
 @pytest.fixture
 async def storage_block(tmp_path):
     block = LocalFileSystem(basepath=tmp_path)

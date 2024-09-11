@@ -389,7 +389,7 @@ async def test_rate_limit_without_limit_names(names):
 
 
 async def test_concurrency_creates_new_limits_if_requested(
-    concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit: ConcurrencyLimitV2, ignore_prefect_deprecation_warnings
 ):
     executed = False
 

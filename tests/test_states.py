@@ -141,7 +141,7 @@ class TestReturnValueToState:
         assert await return_value_to_state(state, store) is state
 
     async def test_returns_single_state_with_null_data_and_persist_off(self):
-        store = ResultStore(persist_result=False)
+        store = ResultStore()
         state = Completed(data=None)
         result_state = await return_value_to_state(state, store)
         assert result_state is state
@@ -150,7 +150,7 @@ class TestReturnValueToState:
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self):
-        store = ResultStore(persist_result=True)
+        store = ResultStore()
         state = Completed(data=1)
         result_state = await return_value_to_state(state, store, write_result=True)
         assert result_state is state
@@ -158,7 +158,10 @@ class TestReturnValueToState:
         assert Path(result_state.data.metadata.storage_key).exists()
         assert await result_state.result() == 1
 
-    async def test_returns_persisted_results_unaltered(self):
+    async def test_returns_persisted_results_unaltered(
+        self, ignore_prefect_deprecation_warnings
+    ):
+        # TODO: This test will be removed in a future release when PersistedResult is removed
         store = ResultStore(persist_result=True)
         result = await store.create_result(42)
         result_state = await return_value_to_state(result, store)
@@ -166,7 +169,7 @@ class TestReturnValueToState:
         assert await result_state.result() == 42
 
     async def test_returns_persisted_result_records_unaltered(self):
-        store = ResultStore(persist_result=True)
+        store = ResultStore()
         record = store.create_result_record(42)
         result_state = await return_value_to_state(record, store)
         assert result_state.data == record
@@ -175,7 +178,7 @@ class TestReturnValueToState:
     async def test_returns_single_state_unaltered_with_user_created_reference(
         self, store
     ):
-        result = await store.create_result("test")
+        result = store.create_result_record("test")
         state = Completed(data=result)
         result_state = await return_value_to_state(state, store)
         assert result_state is state

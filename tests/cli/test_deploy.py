@@ -4895,11 +4895,12 @@ class TestSaveUserInputs:
 
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_resolves_block_references_in_deployments_section(
-        self, prefect_client, work_pool
+        self, prefect_client, work_pool, ignore_prefect_deprecation_warnings
     ):
         """
         Ensure block references are resolved in deployments section of prefect.yaml
         """
+        # TODO: Remove this test when `JSON` block is removed
         await JSON(value={"work_pool_name": work_pool.name}).save(
             name="test-json-block"
         )

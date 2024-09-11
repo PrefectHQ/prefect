@@ -14,7 +14,7 @@ from pydantic_core import to_json
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
-from prefect.blocks.system import JSON, Secret
+from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
@@ -1089,9 +1089,9 @@ class TestAPICompatibility:
             uuid4().hex
         )  # represents a version that does not exist on the server
 
-        JSON._block_schema_version = mock_version
+        Secret._block_schema_version = mock_version
 
-        block_document_id = await JSON(value={"the_answer": 42}).save("test")
+        block_document_id = await Secret(value="secret").save("test")
 
         block_document = await prefect_client.read_block_document(block_document_id)
         assert block_document.block_schema.version == mock_version
