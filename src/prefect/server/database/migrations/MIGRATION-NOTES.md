@@ -8,10 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
-# Expands `Deployments.concurrency_limit` to use either int or `ConcurrencyOptions`
+# Adds `concurrency_options` to `Deployments`
 
-SQLite: `78bf051472eb`
-Postgres: `3b4bc664921d`
+SQLite: `7d6350aea855`
+Postgres: `555ed31b284d`
 
 # Add `concurrency_limit` to `Deployments`
 SQLite: `f93e1439f022`
