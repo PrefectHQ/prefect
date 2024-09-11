@@ -875,12 +875,19 @@ class Deployment(Base):
         order_by=sa.desc(sa.text("updated")),
     )
 
-    concurrency_limit: Mapped[
-        Union[int, schemas.core.ConcurrencyOptions, None]
+    concurrency_limit: Mapped[Union[int, None]] = mapped_column(
+        sa.Integer,
+        server_default=None,
+        nullable=True,
+        default=None,
+    )
+    concurrency_options: Mapped[
+        Union[schemas.core.ConcurrencyOptions, None]
     ] = mapped_column(
         Pydantic(schemas.core.ConcurrencyOptions),
-        default=None,
+        server_default=None,
         nullable=True,
+        default=None,
     )
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False

@@ -14506,6 +14506,15 @@
                 "title": "CompoundTrigger",
                 "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
             },
+            "ConcurrencyCollisionStrategy": {
+                "type": "string",
+                "enum": [
+                    "ENQUEUE",
+                    "CANCEL"
+                ],
+                "title": "ConcurrencyCollisionStrategy",
+                "description": "Enumeration of concurrency collision strategies."
+            },
             "ConcurrencyLimit": {
                 "properties": {
                     "id": {
@@ -14797,6 +14806,24 @@
                 "type": "object",
                 "title": "ConcurrencyLimitV2Update",
                 "description": "Data used by the Prefect REST API to update a v2 concurrency limit."
+            },
+            "ConcurrencyOptions": {
+                "properties": {
+                    "concurrency": {
+                        "type": "integer",
+                        "title": "Concurrency"
+                    },
+                    "collision_strategy": {
+                        "$ref": "#/components/schemas/ConcurrencyCollisionStrategy"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "concurrency",
+                    "collision_strategy"
+                ],
+                "title": "ConcurrencyOptions",
+                "description": "Options for configuring deployment concurrency limits."
             },
             "Constant": {
                 "properties": {
@@ -16380,6 +16407,9 @@
                             {
                                 "type": "integer",
                                 "exclusiveMinimum": 0.0
+                            },
+                            {
+                                "$ref": "#/components/schemas/ConcurrencyOptions"
                             },
                             {
                                 "type": "null"
