@@ -29,8 +29,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.futures import PrefectDistributedFuture
-from prefect.futures import PrefectFuture as NewPrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging import get_run_logger
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.runtime import task_run as task_run_ctx
@@ -461,6 +460,18 @@ class TestTaskCall:
         # assert that the value IS the original and was never copied
         assert f.get_x() is f.x
 
+    def test_task_run_name_can_access_self_arg_for_instance_methods(self):
+        class Foo:
+            a = 10
+
+            @task(task_run_name="{self.a}|{x}")
+            def instance_method(self, x):
+                return TaskRunContext.get()
+
+        f = Foo()
+        context = f.instance_method(x=5)
+        assert context.task_run.name == "10|5"
+
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_task_supports_async_instance_methods(self, T):
         class Foo(T):
@@ -635,7 +646,7 @@ class TestTaskSubmit:
         @flow
         def bar():
             future = foo.submit(1)
-            assert isinstance(future, NewPrefectFuture)
+            assert isinstance(future, PrefectFuture)
             return future
 
         task_state = bar()
@@ -677,7 +688,7 @@ class TestTaskSubmit:
         @flow
         async def bar():
             future = foo.submit(1)
-            assert isinstance(future, NewPrefectFuture)
+            assert isinstance(future, PrefectFuture)
             return future
 
         task_state = await bar()
@@ -691,7 +702,7 @@ class TestTaskSubmit:
         @flow
         async def bar():
             future = foo.submit(1)
-            assert isinstance(future, NewPrefectFuture)
+            assert isinstance(future, PrefectFuture)
             return future
 
         task_state = await bar()
@@ -705,7 +716,7 @@ class TestTaskSubmit:
         @flow
         def bar():
             future = foo.submit(1)
-            assert isinstance(future, NewPrefectFuture)
+            assert isinstance(future, PrefectFuture)
             return future
 
         task_state = bar()
@@ -3449,7 +3460,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map([1, 2, 3])
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3469,7 +3480,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map((1, 2, 3))
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3485,7 +3496,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(generate_numbers())
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3508,7 +3519,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3518,7 +3529,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
