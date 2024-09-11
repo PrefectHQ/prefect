@@ -965,10 +965,10 @@ class ResumeDeployment(DeploymentCommandAction):
         return await orchestration.resume_deployment(deployment_id)
 
 
-class FlowRunStateChangeAction(ExternalDataAction):
-    """Changes the state of a flow run associated with the trigger"""
+class FlowRunAction(ExternalDataAction):
+    """An action that operates on a flow run"""
 
-    async def flow_run_to_change(self, triggered_action: "TriggeredAction") -> UUID:
+    async def flow_run(self, triggered_action: "TriggeredAction") -> UUID:
         # Proactive triggers won't have an event, but they might be tracking
         # buckets per-resource, so check for that first
         labels = triggered_action.triggering_labels
@@ -983,12 +983,16 @@ class FlowRunStateChangeAction(ExternalDataAction):
 
         raise ActionFailed("No flow run could be inferred")
 
+
+class FlowRunStateChangeAction(FlowRunAction):
+    """Changes the state of a flow run associated with the trigger"""
+
     @abc.abstractmethod
     async def new_state(self, triggered_action: "TriggeredAction") -> StateCreate:
         """Return the new state for the flow run"""
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        flow_run_id = await self.flow_run_to_change(triggered_action)
+        flow_run_id = await self.flow_run(triggered_action)
 
         self._resulting_related_resources.append(
             RelatedResource.model_validate(
@@ -1081,6 +1085,40 @@ class SuspendFlowRun(FlowRunStateChangeAction):
             message=state.message,
             state_details=state.state_details,
         )
+
+
+class ResumeFlowRun(FlowRunAction):
+    """Resumes a paused or suspended flow run associated with the trigger"""
+
+    type: Literal["resume-flow-run"] = "resume-flow-run"
+
+    async def act(self, triggered_action: "TriggeredAction") -> None:
+        flow_run_id = await self.flow_run(triggered_action)
+
+        self._resulting_related_resources.append(
+            RelatedResource.model_validate(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        )
+
+        logger.debug(
+            "Resuming flow run",
+            extra={
+                "flow_run_id": str(flow_run_id),
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            result = await orchestration.resume_flow_run(flow_run_id)
+
+            if not isinstance(result.details, StateAcceptDetails):
+                raise ActionFailed(
+                    f"Failed to resume flow run: {result.details.reason}"
+                )
 
 
 class CallWebhook(JinjaTemplateAction):
@@ -1636,6 +1674,7 @@ ServerActionTypes: TypeAlias = Union[
     PauseAutomation,
     ResumeAutomation,
     SuspendFlowRun,
+    ResumeFlowRun,
     PauseWorkPool,
     ResumeWorkPool,
 ]

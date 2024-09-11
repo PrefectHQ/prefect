@@ -6,6 +6,7 @@ from typing import Dict, Optional
 import pendulum
 from typing_extensions import TypedDict
 
+from prefect._internal.compatibility import deprecated
 from prefect.logging.loggers import get_logger
 from prefect.records.base import RecordStore, TransactionRecord
 from prefect.results import BaseResult
@@ -29,6 +30,11 @@ class _LockInfo(TypedDict):
     path: Path
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024",
+    end_date="Nov 2024",
+    help="Use `ResultStore` with a `LocalFileSystem` for `metadata_storage` and a `FileSystemLockManager` instead.",
+)
 class FileSystemRecordStore(RecordStore):
     """
     A record store that stores data on the local filesystem.
@@ -56,7 +62,6 @@ class FileSystemRecordStore(RecordStore):
     def _get_lock_info(self, key: str, use_cache=True) -> Optional[_LockInfo]:
         if use_cache:
             if (lock_info := self._locks.get(key)) is not None:
-                print("Got lock info from cache")
                 return lock_info
 
         lock_path = self._lock_path_for_key(key)
@@ -70,13 +75,12 @@ class FileSystemRecordStore(RecordStore):
                     pendulum.parse(expiration) if expiration is not None else None
                 )
             self._locks[key] = lock_info
-            print("Got lock info from file")
             return lock_info
         except FileNotFoundError:
             return None
 
     def read(
-        self, key: str, holder: Optional[str] = None
+        self, key: str, holder: Optional[str] = None, timeout: Optional[float] = None
     ) -> Optional[TransactionRecord]:
         if not self.exists(key):
             return None
@@ -84,7 +88,9 @@ class FileSystemRecordStore(RecordStore):
         holder = holder or self.generate_default_holder()
 
         if self.is_locked(key) and not self.is_lock_holder(key, holder):
-            self.wait_for_lock(key)
+            unlocked = self.wait_for_lock(key, timeout=timeout)
+            if not unlocked:
+                return None
         record_data = self.records_directory.joinpath(key).read_text()
         return TransactionRecord(
             key=key, result=BaseResult.model_validate_json(record_data)

@@ -17,14 +17,17 @@ from typing import (
 from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
-from prefect.context import ContextModel, FlowRunContext, TaskRunContext
+from prefect.context import ContextModel
 from prefect.exceptions import MissingContextError, SerializationError
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
+from prefect.records.base import TransactionRecord
 from prefect.results import (
     BaseResult,
+    ResultRecord,
     ResultStore,
-    get_default_result_storage,
+    get_result_store,
+    should_persist_result,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
@@ -55,7 +58,7 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    store: Optional[RecordStore] = None
+    store: Union[RecordStore, ResultStore, None] = None
     key: Optional[str] = None
     children: List["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
@@ -69,6 +72,7 @@ class Transaction(ContextModel):
     logger: Union[logging.Logger, logging.LoggerAdapter] = Field(
         default_factory=partial(get_logger, "transactions")
     )
+    write_on_commit: bool = True
     _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
     __var__: ContextVar = ContextVar("transaction")
@@ -122,7 +126,7 @@ class Transaction(ContextModel):
             and not self.store.supports_isolation_level(self.isolation_level)
         ):
             raise ValueError(
-                f"Isolation level {self.isolation_level.name} is not supported by record store type {self.store.__class__.__name__}"
+                f"Isolation level {self.isolation_level.name} is not supported by provided result store."
             )
 
         # this needs to go before begin, which could set the state to committed
@@ -176,10 +180,14 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> Optional[BaseResult]:
+    def read(self) -> Union["BaseResult", ResultRecord, None]:
         if self.store and self.key:
             record = self.store.read(key=self.key)
-            if record is not None:
+            if isinstance(record, ResultRecord):
+                return record
+            # for backwards compatibility, if we encounter a transaction record, return the result
+            # This happens when the transaction is using a `ResultStore`
+            if isinstance(record, TransactionRecord):
                 return record.result
         return None
 
@@ -228,8 +236,21 @@ class Transaction(ContextModel):
             for hook in self.on_commit_hooks:
                 self.run_hook(hook, "commit")
 
-            if self.store and self.key:
-                self.store.write(key=self.key, result=self._staged_value)
+            if self.store and self.key and self.write_on_commit:
+                if isinstance(self.store, ResultStore):
+                    if isinstance(self._staged_value, BaseResult):
+                        self.store.write(
+                            key=self.key, obj=self._staged_value.get(_sync=True)
+                        )
+                    elif isinstance(self._staged_value, ResultRecord):
+                        self.store.persist_result_record(
+                            result_record=self._staged_value
+                        )
+                    else:
+                        self.store.write(key=self.key, obj=self._staged_value)
+                else:
+                    self.store.write(key=self.key, result=self._staged_value)
+
             self.state = TransactionState.COMMITTED
             if (
                 self.store
@@ -280,7 +301,7 @@ class Transaction(ContextModel):
 
     def stage(
         self,
-        value: BaseResult,
+        value: Any,
         on_rollback_hooks: Optional[List] = None,
         on_commit_hooks: Optional[List] = None,
     ) -> None:
@@ -338,10 +359,11 @@ def get_transaction() -> Optional[Transaction]:
 @contextmanager
 def transaction(
     key: Optional[str] = None,
-    store: Optional[RecordStore] = None,
+    store: Union[RecordStore, ResultStore, None] = None,
     commit_mode: Optional[CommitMode] = None,
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
+    write_on_commit: Optional[bool] = None,
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None,
 ) -> Generator[Transaction, None, None]:
     """
@@ -354,45 +376,16 @@ def transaction(
         - commit_mode: The commit mode controlling when the transaction and
             child transactions are committed
         - overwrite: Whether to overwrite an existing transaction record in the store
+        - write_on_commit: Whether to write the result to the store on commit. If not provided,
+            will default will be determined by the current run context. If no run context is
+            available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
 
     Yields:
         - Transaction: An object representing the transaction state
     """
     # if there is no key, we won't persist a record
     if key and not store:
-        flow_run_context = FlowRunContext.get()
-        task_run_context = TaskRunContext.get()
-        existing_store = getattr(task_run_context, "result_store", None) or getattr(
-            flow_run_context, "result_store", None
-        )
-
-        new_store: ResultStore
-        if existing_store and existing_store.result_storage_block_id:
-            new_store = existing_store.model_copy(
-                update={
-                    "persist_result": True,
-                }
-            )
-        else:
-            default_storage = get_default_result_storage(_sync=True)
-            if existing_store:
-                new_store = existing_store.model_copy(
-                    update={
-                        "persist_result": True,
-                        "storage_block": default_storage,
-                        "storage_block_id": default_storage._block_document_id,
-                    }
-                )
-            else:
-                new_store = ResultStore(
-                    persist_result=True,
-                    result_storage=default_storage,
-                )
-        from prefect.records.result_store import ResultRecordStore
-
-        store = ResultRecordStore(
-            result_store=new_store,
-        )
+        store = get_result_store()
 
     try:
         logger = logger or get_run_logger()
@@ -405,6 +398,9 @@ def transaction(
         commit_mode=commit_mode,
         isolation_level=isolation_level,
         overwrite=overwrite,
+        write_on_commit=write_on_commit
+        if write_on_commit is not None
+        else should_persist_result(),
         logger=logger,
     ) as txn:
         yield txn

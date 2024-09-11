@@ -40,7 +40,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultStore
+from prefect.results import ResultStore, get_default_persist_setting
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
@@ -210,6 +210,7 @@ class SyncClientContext(ContextModel):
         self._context_stack += 1
         if self._context_stack == 1:
             self.client.__enter__()
+            self.client.raise_for_api_version_mismatch()
             return super().__enter__()
         else:
             return self
@@ -267,6 +268,7 @@ class AsyncClientContext(ContextModel):
         self._context_stack += 1
         if self._context_stack == 1:
             await self.client.__aenter__()
+            await self.client.raise_for_api_version_mismatch()
             return super().__enter__()
         else:
             return self
@@ -341,6 +343,7 @@ class EngineContext(RunContext):
 
     # Result handling
     result_store: ResultStore
+    persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -370,6 +373,7 @@ class EngineContext(RunContext):
                 "start_time",
                 "input_keyset",
                 "result_store",
+                "persist_result",
             },
             exclude_unset=True,
         )
@@ -395,6 +399,7 @@ class TaskRunContext(RunContext):
 
     # Result handling
     result_store: ResultStore
+    persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     __var__ = ContextVar("task_run")
 
@@ -408,6 +413,7 @@ class TaskRunContext(RunContext):
                 "start_time",
                 "input_keyset",
                 "result_store",
+                "persist_result",
             },
             exclude_unset=True,
         )

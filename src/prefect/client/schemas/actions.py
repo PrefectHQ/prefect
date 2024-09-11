@@ -38,7 +38,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect.results import BaseResult
+    from prefect.results import BaseResult, ResultRecordMetadata
 
 R = TypeVar("R")
 
@@ -50,7 +50,7 @@ class StateCreate(ActionBaseModel):
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", Any] = Field(
+    data: Union["BaseResult[R]", "ResultRecordMetadata", Any] = Field(
         default=None,
     )
 

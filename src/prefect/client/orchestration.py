@@ -24,6 +24,7 @@ import httpx
 import pendulum
 import pydantic
 from asgi_lifespan import LifespanManager
+from packaging import version
 from starlette import status
 from typing_extensions import ParamSpec
 
@@ -93,7 +94,6 @@ from prefect.client.schemas.objects import (
     FlowRunPolicy,
     Log,
     Parameter,
-    QueueFilter,
     TaskRunPolicy,
     TaskRunResult,
     Variable,
@@ -993,7 +993,6 @@ class PrefectClient:
     async def create_work_queue(
         self,
         name: str,
-        tags: Optional[List[str]] = None,
         description: Optional[str] = None,
         is_paused: Optional[bool] = None,
         concurrency_limit: Optional[int] = None,
@@ -1005,8 +1004,6 @@ class PrefectClient:
 
         Args:
             name: a unique name for the work queue
-            tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
-                will be included in the queue. This option will be removed on 2023-02-23.
             description: An optional description for the work queue.
             is_paused: Whether or not the work queue is paused.
             concurrency_limit: An optional concurrency limit for the work queue.
@@ -1020,18 +1017,7 @@ class PrefectClient:
         Returns:
             The created work queue
         """
-        if tags:
-            warnings.warn(
-                (
-                    "The use of tags for creating work queue filters is deprecated."
-                    " This option will be removed on 2023-02-23."
-                ),
-                DeprecationWarning,
-            )
-            filter = QueueFilter(tags=tags)
-        else:
-            filter = None
-        create_model = WorkQueueCreate(name=name, filter=filter)
+        create_model = WorkQueueCreate(name=name, filter=None)
         if description is not None:
             create_model.description = description
         if is_paused is not None:
@@ -2157,7 +2143,10 @@ class PrefectClient:
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
-                json=dict(state=state_create.model_dump(mode="json"), force=force),
+                json=dict(
+                    state=state_create.model_dump(mode="json", serialize_as_any=True),
+                    force=force,
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -3054,7 +3043,11 @@ class PrefectClient:
         return response.json()
 
     async def increment_concurrency_slots(
-        self, names: List[str], slots: int, mode: str, create_if_missing: Optional[bool]
+        self,
+        names: List[str],
+        slots: int,
+        mode: str,
+        create_if_missing: Optional[bool] = None,
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/increment",
@@ -3062,7 +3055,7 @@ class PrefectClient:
                 "names": names,
                 "slots": slots,
                 "mode": mode,
-                "create_if_missing": create_if_missing,
+                "create_if_missing": create_if_missing if create_if_missing else False,
             },
         )
 
@@ -3328,6 +3321,32 @@ class PrefectClient:
 
     async def delete_resource_owned_automations(self, resource_id: str):
         await self._client.delete(f"/automations/owned-by/{resource_id}")
+
+    async def api_version(self) -> str:
+        res = await self._client.get("/admin/version")
+        return res.json()
+
+    def client_version(self) -> str:
+        return prefect.__version__
+
+    async def raise_for_api_version_mismatch(self):
+        # Cloud is always compatible as a server
+        if self.server_type == ServerType.CLOUD:
+            return
+
+        try:
+            api_version = await self.api_version()
+        except Exception as e:
+            raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
+
+        api_version = version.parse(api_version)
+        client_version = version.parse(self.client_version())
+
+        if api_version.major != client_version.major:
+            raise RuntimeError(
+                f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+                f"Major versions must match."
+            )
 
     async def __aenter__(self):
         """
@@ -3622,6 +3641,32 @@ class SyncPrefectClient:
         """
         return self._client.get("/hello")
 
+    def api_version(self) -> str:
+        res = self._client.get("/admin/version")
+        return res.json()
+
+    def client_version(self) -> str:
+        return prefect.__version__
+
+    def raise_for_api_version_mismatch(self):
+        # Cloud is always compatible as a server
+        if self.server_type == ServerType.CLOUD:
+            return
+
+        try:
+            api_version = self.api_version()
+        except Exception as e:
+            raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
+
+        api_version = version.parse(api_version)
+        client_version = version.parse(self.client_version())
+
+        if api_version.major != client_version.major:
+            raise RuntimeError(
+                f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+                f"Major versions must match."
+            )
+
     def create_flow(self, flow: "FlowObject") -> UUID:
         """
         Create a flow in the Prefect API.
@@ -3881,7 +3926,10 @@ class SyncPrefectClient:
         try:
             response = self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
-                json=dict(state=state_create.model_dump(mode="json"), force=force),
+                json=dict(
+                    state=state_create.model_dump(mode="json", serialize_as_any=True),
+                    force=force,
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:

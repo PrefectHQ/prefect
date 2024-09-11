@@ -146,6 +146,12 @@ class BaseJobConfiguration(BaseModel):
         )
         variables.update(values)
 
+        # deep merge `env`
+        if isinstance(job_config.get("env"), dict) and (
+            hardcoded_env := variables.get("env")
+        ):
+            job_config["env"] = hardcoded_env | job_config.get("env")
+
         populated_configuration = apply_values(template=job_config, values=variables)
         populated_configuration = await resolve_block_document_references(
             template=populated_configuration, client=client

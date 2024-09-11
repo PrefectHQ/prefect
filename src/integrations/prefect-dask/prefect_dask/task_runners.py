@@ -402,6 +402,18 @@ class DaskTaskRunner(TaskRunner):
         - Creates a cluster if an external address is not set.
         - Creates a client to connect to the cluster.
         """
+        in_dask = False
+        try:
+            client = distributed.get_client()
+            if client.cluster is not None:
+                self._cluster = client.cluster
+            elif client.scheduler is not None:
+                self.address = client.scheduler.address
+            else:
+                raise RuntimeError("No global client found and no address provided")
+            in_dask = True
+        except ValueError:
+            pass
         super().__enter__()
         exit_stack = self._exit_stack.__enter__()
         if self._cluster:
@@ -434,7 +446,7 @@ class DaskTaskRunner(TaskRunner):
             PrefectDaskClient(self._connect_to, **self.client_kwargs)
         )
 
-        if self._client.dashboard_link:
+        if self._client.dashboard_link and not in_dask:
             self.logger.info(
                 f"The Dask dashboard is available at {self._client.dashboard_link}",
             )
