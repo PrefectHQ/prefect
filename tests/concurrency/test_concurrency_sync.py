@@ -6,6 +6,7 @@ from starlette import status
 
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
+    ConcurrencySlotAcquisitionError,
     _acquire_concurrency_slots,
     _release_concurrency_slots,
 )
@@ -20,7 +21,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
 
     def resource_heavy():
         nonlocal executed
-        with concurrency("test", occupy=1):
+        with concurrency(concurrency_limit.name, occupy=1):
             executed = True
 
     assert not executed
@@ -39,8 +40,10 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
                 ["test"],
                 1,
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
                 max_retries=None,
+                strict=False,
+                _sync=True,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -63,7 +66,9 @@ def test_concurrency_emits_events(
     reset_worker_events,
 ):
     def resource_heavy():
-        with concurrency(["test", "other"], occupy=1):
+        with concurrency(
+            [concurrency_limit.name, other_concurrency_limit.name], occupy=1
+        ):
             pass
 
     resource_heavy()
@@ -139,7 +144,7 @@ def test_concurrency_can_be_used_within_a_flow(
     @task
     def resource_heavy():
         nonlocal executed
-        with concurrency("test", occupy=1):
+        with concurrency(concurrency_limit.name, occupy=1):
             executed = True
 
     @flow
@@ -151,6 +156,22 @@ def test_concurrency_can_be_used_within_a_flow(
     my_flow()
 
     assert executed
+
+
+def test_concurrency_strict_within_a_flow():
+    @task
+    def resource_heavy():
+        with concurrency("doesnt-exist-for-sure", occupy=1, strict=True):
+            return
+
+    @flow
+    def my_flow():
+        resource_heavy()
+
+    state = my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        state.result()
 
 
 @pytest.mark.parametrize("names", [[], None])
@@ -191,7 +212,7 @@ async def test_concurrency_can_be_used_while_event_loop_is_running(
 
     def resource_heavy():
         nonlocal executed
-        with concurrency("test", occupy=1):
+        with concurrency(concurrency_limit.name, occupy=1):
             executed = True
 
     assert not executed
@@ -232,7 +253,7 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
 
     def resource_heavy():
         nonlocal executed
-        rate_limit("test", 1)
+        rate_limit(concurrency_limit_with_decay.name, 1)
         executed = True
 
     assert not executed
@@ -252,7 +273,9 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
                 1,
                 mode="rate_limit",
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
+                strict=False,
+                _sync=True,
             )
 
             # When used as a rate limit concurrency slots are not explicitly
@@ -270,7 +293,7 @@ def test_rate_limit_can_be_used_within_a_flow(
     @task
     def resource_heavy():
         nonlocal executed
-        rate_limit("test", occupy=1)
+        rate_limit(concurrency_limit_with_decay.name, occupy=1)
         executed = True
 
     @flow
@@ -284,6 +307,21 @@ def test_rate_limit_can_be_used_within_a_flow(
     assert executed
 
 
+def test_rate_limit_can_be_used_within_a_flow_with_strict():
+    @task
+    def resource_heavy():
+        rate_limit(["definitely-doesnt-exist"], occupy=1, strict=True)
+
+    @flow
+    def my_flow():
+        resource_heavy()
+
+    state = my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        state.result()
+
+
 def test_rate_limit_mixed_sync_async(
     concurrency_limit_with_decay: ConcurrencyLimitV2,
 ):
@@ -292,7 +330,7 @@ def test_rate_limit_mixed_sync_async(
     @task
     def resource_heavy():
         nonlocal executed
-        rate_limit("test", occupy=1)
+        rate_limit(concurrency_limit_with_decay.name, occupy=1)
         executed = True
 
     @flow
@@ -314,7 +352,13 @@ def test_rate_limit_emits_events(
     reset_worker_events,
 ):
     def resource_heavy():
-        rate_limit(["test", "other"], occupy=1)
+        rate_limit(
+            [
+                concurrency_limit_with_decay.name,
+                other_concurrency_limit_with_decay.name,
+            ],
+            occupy=1,
+        )
 
     resource_heavy()
 

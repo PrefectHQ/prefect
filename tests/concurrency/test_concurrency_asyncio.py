@@ -41,8 +41,9 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
                 ["test"],
                 1,
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
                 max_retries=None,
+                strict=False,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -79,29 +80,20 @@ async def test_concurrency_can_be_used_within_a_flow(
     assert executed
 
 
-@pytest.mark.skip(
-    reason="New engine does not support calling async from sync",
-)
-def test_concurrency_mixed_sync_async(
-    concurrency_limit: ConcurrencyLimitV2,
-):
-    executed = False
-
+async def test_concurrency_can_be_used_within_a_flow_strictly():
     @task
     async def resource_heavy():
-        nonlocal executed
-        async with concurrency("test", occupy=1):
-            executed = True
+        async with concurrency("santa-clause", occupy=1, strict=True):
+            return
 
     @flow
-    def my_flow():
-        resource_heavy()
+    async def my_flow():
+        await resource_heavy()
 
-    assert not executed
-
-    my_flow()
-
-    assert executed
+    state = await my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        await state.result()
 
 
 async def test_concurrency_emits_events(
@@ -243,7 +235,8 @@ async def test_rate_limit_orchestrates_api(
                 1,
                 mode="rate_limit",
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
+                strict=False,
             )
 
             # When used as a rate limit concurrency slots are not explicitly
@@ -275,29 +268,20 @@ async def test_rate_limit_can_be_used_within_a_flow(
     assert executed
 
 
-@pytest.mark.skip(
-    reason="New engine does not support calling async from sync",
-)
-def test_rate_limit_mixed_sync_async(
-    concurrency_limit_with_decay: ConcurrencyLimitV2,
-):
-    executed = False
-
+async def test_rate_limit_can_be_used_within_a_flow_with_strict():
     @task
     async def resource_heavy():
-        nonlocal executed
-        await rate_limit("test", occupy=1)
-        executed = True
+        await rate_limit("easter-bunny", occupy=1, strict=True)
+        return
 
     @flow
-    def my_flow():
-        resource_heavy()
+    async def my_flow():
+        await resource_heavy()
 
-    assert not executed
-
-    my_flow()
-
-    assert executed
+    state = await my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        await state.result()
 
 
 async def test_rate_limit_emits_events(
@@ -405,7 +389,7 @@ async def test_rate_limit_without_limit_names(names):
 
 
 async def test_concurrency_creates_new_limits_if_requested(
-    concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit: ConcurrencyLimitV2, ignore_prefect_deprecation_warnings
 ):
     executed = False
 
@@ -432,6 +416,7 @@ async def test_concurrency_creates_new_limits_if_requested(
                 timeout_seconds=None,
                 create_if_missing=True,
                 max_retries=None,
+                strict=False,
             )
 
             # On release we calculate how many seconds the slots were occupied

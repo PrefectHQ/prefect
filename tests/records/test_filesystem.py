@@ -21,6 +21,11 @@ def read_locked_key(key, store, queue: multiprocessing.Queue):
     queue.put(record.result, block=False)
 
 
+@pytest.fixture(autouse=True)
+def ignore_deprecations(ignore_prefect_deprecation_warnings):
+    """This file will be removed in a future release when FileSystemRecordStore is removed."""
+
+
 class TestFileSystemRecordStore:
     @pytest.fixture()
     def default_storage_setting(self, tmp_path):
@@ -53,23 +58,12 @@ class TestFileSystemRecordStore:
 
     async def test_read_locked_key(self, store, result):
         key = str(uuid4())
-
-        process = multiprocessing.Process(
-            target=read_locked_key,
-            args=(
-                key,
-                store,
-                (read_queue := multiprocessing.Queue()),
-            ),
-            daemon=True,
-        )
         assert store.acquire_lock(key, holder="holder1")
-        process.start()
+        assert store.read(key, holder="holder2", timeout=0) is None
         store.write(key, result=result, holder="holder1")
+        assert store.read(key, holder="holder2", timeout=1) is None
         store.release_lock(key, holder="holder1")
-        # the read should have been blocked until the lock was released
-        assert read_queue.get(timeout=10) == result
-        process.join(timeout=1)
+        assert store.read(key, holder="holder2")
 
     async def test_write_to_key_with_same_lock_holder(self, store, result):
         key = str(uuid4())

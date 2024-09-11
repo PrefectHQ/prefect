@@ -6,6 +6,7 @@ from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.types import SecretDict
+from prefect.utilities.urls import validate_restricted_url
 
 # Use a global HTTP transport to maintain a process-wide connection pool for
 # interservice requests
@@ -19,7 +20,9 @@ class Webhook(Block):
 
     _block_type_name = "Webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png"  # type: ignore
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook"
+    _documentation_url = (
+        "https://docs.prefect.io/latest/automate/events/webhook-triggers"
+    )
 
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(
         default="POST", description="The webhook request method. Defaults to `POST`."
@@ -37,6 +40,10 @@ class Webhook(Block):
         title="Webhook Headers",
         description="A dictionary of headers to send with the webhook request.",
     )
+    allow_private_urls: bool = Field(
+        default=True,
+        description="Whether to allow notifications to private URLs. Defaults to True.",
+    )
 
     def block_initialization(self):
         self._client = AsyncClient(transport=_http_transport)
@@ -48,6 +55,9 @@ class Webhook(Block):
         Args:
             payload: an optional payload to send when calling the webhook.
         """
+        if not self.allow_private_urls:
+            validate_restricted_url(self.url.get_secret_value())
+
         async with self._client:
             return await self._client.request(
                 method=self.method,

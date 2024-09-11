@@ -39,12 +39,13 @@ repos:
       - id: generate-mintlify-openapi-docs
         name: Generating OpenAPI docs for Mintlify
         language: system
-        entry: ./scripts/generate_mintlify_openapi_docs.py
+        entry: uv run --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
         pass_filenames: false
         files: |
           (?x)^(
               .pre-commit-config.yaml|
               src/prefect/server/api/.*|
               src/prefect/server/schemas/.*|
+              src/prefect/server/events/.*|
               scripts/generate_mintlify_openapi_docs.py
           )$

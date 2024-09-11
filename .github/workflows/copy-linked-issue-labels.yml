@@ -11,4 +11,12 @@ jobs:
       - name: copy-labels
         uses: michalvankodev/copy-issue-labels@v1.3.0
         with:
+          custom-keywords: |
+            in
+            references
+            reference
+            to
+          labels-to-exclude: |
+            great writeup
+            good first issue
           repo-token: ${{ secrets.GITHUB_TOKEN }}

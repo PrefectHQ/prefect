@@ -59,7 +59,7 @@ See the [REST reference](https://app.prefect.cloud/api/docs#tag/Variables) for m
 - `prefect variable unset` deletes a variable.
 - `prefect variable ls` lists all variables.
 - `prefect variable inspect` shows a variable's details.
-- 
+
 ## Access variables
 
 In addition to the UI and API, you can reference variables in code and in certain Prefect configuration files.
@@ -68,77 +68,69 @@ In addition to the UI and API, you can reference variables in code and in certai
 
 You can interact with variables through the Python SDK using the `get`, `set`, and `unset` methods. 
 
-Outside of a `flow` or `task`, these methods are always invoked asynchronously.
-
-#### In an asynchronous context
 ```python
+from prefect.variables import Variable
+
+assert Variable.set("answer", 42) == Variable(name="answer", value=42, tags=[])
+
+assert Variable.get("answer") == 42
+
+assert Variable.set("answer", 9001, overwrite=True) == Variable(name="answer", value=9001, tags=[])
+
+assert Variable.unset("answer") is True
+
+assert Variable.get("answer", "fallback") == "fallback"
+```
+
+You can use `overwrite=True` to update the value of an existing variable.
+
+<Warning>
+**Contextual Behavior**
+
+In a sync context (such as an `if __name__ == "__main__"` block or simple `def` scope), these methods are used synchronously.
+In an async context (such as an `async def` scope), they are used asynchronously.
+</Warning>
+
+<CodeGroup>
+```python Synchronous
+
 from prefect import flow
 from prefect.variables import Variable
 
-@flow
-async def my_async_flow():
-    # set a variable
-    answer = await Variable.set(name="the_answer", value="42")
-    print(answer) # 42
-    
-    # get a variable
-    answer = await Variable.get("the_answer")
-    print(answer) # 42
-    
-    # overwrite an existing variable
-    answer = await Variable.set(name="the_answer", value="43", overwrite=True)
-    print(answer) # 43
-    
-    # unset a variable
-    await Variable.unset("the_answer")
-    
-    # get a variable that doesn't exist
-    answer = await Variable.get("not_the_answer")
-    print(answer) # None
-    
-    # get a variable that doesn't exist with a default
-    answer = await Variable.get("not_the_answer", default="42")
-    print(answer) # 42
+@flow(log_prints=True)
+def space_mission_sync(mission_name: str):
+    crew = Variable.get("crew_members", default=["Backup1", "Backup2"])
+    print(f"Launching {mission_name} with crew: {', '.join(crew)}")
+
+if __name__ == "__main__":
+    Variable.set("crew_members", ["Zaphod", "Arthur", "Trillian"])
+    space_mission_sync("Mars Expedition")
 ```
 
-While inside a `flow` or `task`, variables should be invoked synchronously or asynchronously 
-depending on whether the current context is synchronous or asynchronous.
-
-#### In a synchronous context
-```python
+```python Asynchronous
+import asyncio
 from prefect import flow
 from prefect.variables import Variable
 
-@flow
-def my_sync_flow():
-    # set a variable
-    answer = Variable.set(name="the_answer", value="42")
-    print(answer) # 42
-    
-    # get a variable
-    answer = Variable.get("the_answer")
-    print(answer) # 42
-    
-    # overwrite an existing variable
-    answer = Variable.set(name="the_answer", value="43", overwrite=True)
-    print(answer) # 43
-    
-    # unset a variable
-    Variable.unset("the_answer")
-    
-    # get a variable that doesn't exist
-    answer = Variable.get("not_the_answer")
-    print(answer) # None
-    
-    # get a variable that doesn't exist with a default
-    answer = Variable.get("not_the_answer", default="42")
-    print(answer) # 42
+@flow(log_prints=True)
+async def space_mission_async(mission_name: str):
+    crew = await Variable.get("crew_members", default=["Backup1", "Backup2"])
+    print(f"Launching {mission_name} with crew: {', '.join(crew)}")
+
+if __name__ == "__main__":
+    Variable.set("crew_members", ["Zaphod", "Arthur", "Trillian"])
+    asyncio.run(space_mission_async("Mars Expedition"))
 ```
+</CodeGroup>
 
 ### In `prefect.yaml` deployment steps
 
-In `.yaml` files, variables are denoted by quotes and double curly brackets, such as: 
-`"{{ prefect.variables.my_variable }}"`. Use variables to templatize deployment steps by 
+In `.yaml` files, variables are expressed as strings wrapped in quotes and double curly brackets: 
+```
+"{{ prefect.variables.my_variable }}"
+```
+
+Use variables to templatize deployment steps by 
 referencing them in the `prefect.yaml` file that creates the deployments.
 
 For example, you can pass in a variable to specify a branch for a git repo in a deployment `pull` step:

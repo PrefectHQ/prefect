@@ -16,7 +16,7 @@ prefect worker start --pool 'my-vertex-pool'
 
 ## Configuration
 Read more about configuring work pools
-[here](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-overview).
+[here](https://docs.prefect.io/3.0/deploy/infrastructure-concepts/work-pools).
 """
 
 import asyncio

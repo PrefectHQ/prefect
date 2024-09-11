@@ -1,30 +1,11 @@
 ---
-title: Connect to external systems
-description: Prefect blocks package configuration storage, infrastructure, and secrets for use with deployments or flow scripts.
+title: Securely store typed configuration
+description: Prefect blocks allow you to manage configuration schemas, infrastructure, and secrets for use with deployments or flow scripts.
 ---
 
-Prefect blocks store configuration and provide an interface for interacting with external systems.
-
-Blocks expose methods that provide capabilities specific to these systems.
-For example, you can use blocks to:
-
-- Download data from, or upload data to, an S3 bucket
-- Query data from, or write data to, a database
-- Send a message to a Slack channel.
-
-Block types are Python classes with a UI webform for configuration. 
-Blocks are instantiation of these classes with specific values.
-
-Configure blocks through Python code or through the UI. 
-Access blocks for use in Python code.
-
-Blocks are stored in your Prefect Cloud account or your self-hosted Prefect server instance.
-You can share blocks with other users in your Prefect Cloud workspace.
-
-To see block types available for configuration, use `prefect block type ls` 
-from the CLI or navigate to the **Blocks** page in the UI and click **+**.
-
-![The block catalogue in the UI](/3.0/img/ui/block-library.png)
+Prefect blocks store typed configuration that can be used across workflows and deployments.
+The most common use case for blocks is storing credentials used to access external systems such as AWS or GCP.
+Prefect supports [a large number of common blocks](#pre-registered-blocks) and it's also easy to create your own!
 
 <Tip>
 **Blocks and parameters**
@@ -34,128 +15,129 @@ Blocks are useful for sharing configuration across flow runs and between flows.
 For configuration that will change between flow runs, we recommend using [parameters](/3.0/develop/write-flows/#parameters).
 </Tip>
 
-## Prefect built-in blocks
+## How blocks work
 
-Commonly used block types come built-in with Prefect. 
-You can create and use these block types through the UI without installing any additional packages.
+To get the most out of blocks it's important to understand how they work. 
 
-| Block                                                                                                                | Slug                                                     | Description                                                                                                                             |
-| -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Custom Webhook              | `custom-webhook`         | Call custom webhooks.                                                        |
-| Discord Webhook             | `discord-webhook`        | Call Discord webhooks.                                                       |
-| Local File System           | `local-file-system`       | Store data as a file on a local file system.                                   |
-| Mattermost Webhook          | `mattermost-webhook`     | Send notifications through a provided Mattermost webhook.                     |
-| Microsoft Teams Webhook     | `ms-teams-webhook`       | Send notifications through a provided Microsoft Teams webhook.                |
-| Opsgenie Webhook            | `opsgenie-webhook`       | Send notifications through a provided Opsgenie webhook.                       |
-| Pager Duty Webhook          | `pager-duty-webhook`     | Send notifications through a provided PagerDuty webhook.                      |
-| Remote File System          | `remote-file-system`      | Access files on a remote file system.                                          |
-| Secret                      | `secret`                 | Store a secret value. The value will be obfuscated when this block is logged or shown in the UI. |
-| Sendgrid Email              | `sendgrid-email`         | Send notifications through Sendgrid email.                                   |
-| Slack Webhook               | `slack-webhook`          | Send notifications through a provided Slack webhook.                         |
-| SMB                         | `smb`                    | Store data as a file on a SMB share.                                         |
-| Twilio SMS                  | `twilio-sms`             | Send notifications through Twilio SMS.                                       |
+There are three layers to a block: its _type_, a _document_, and a Python _class_. 
 
+### Block type
+
+A block _type_ is essentially a schema registered with the Prefect API. This schema can be inspected and discovered in the UI on the **Blocks** page.
+
+To see block types available for configuration, use `prefect block type ls` 
+from the CLI or navigate to the **Blocks** page in the UI and click **+**.
+
+![The block catalogue in the UI](/3.0/img/ui/block-library.png)
+
+These types separate blocks from [Prefect variables](/3.0/develop/variables/), which are unstructured JSON documents.
+In addition, block schemas allow for fields of `SecretStr` type which are stored with additional encryption and not displayed by default in the UI.
+
+Block types are identified by a _slug_ that is not configurable.
+
+```python
+from prefect.blocks.core import Block
+
+
+class Cube(Block):
+    edge_length_inches: float
+
+
+# register the block type under the slug 'cube'
+Cube.register_type_and_schema()
+```
+
+<Note>
+Users should rarely need to register types in this way - saving a block document will also automatically register its type.
+</Note>
+
+### Block document
+
+A block _document_ is an instantiation of the schema, or block type. A document contains _specific_ values for each field defined in the schema.
+
+All block types allow for the creation of as many documents as you wish. Building on our example above:
+
+```python
+from prefect.blocks.core import Block
+
+
+class Cube(Block):
+    edge_length_inches: float
+
+
+# instantiate the type with specific values
+rubiks_cube = Cube(edge_length_inches=2.25)
+
+# store those values in a block document 
+# on the server for future use
+rubiks_cube.save("rubiks-cube")
+
+
+# instantiate and save another block document
+tiny_cube = Cube(edge_length_inches=0.001)
+tiny_cube.save("tiny")
+```
+
+Block documents can also be created and updated in the UI or API for easy change management. 
+This allows you to work with slowly changing configuration without having to redeploy all workflows that rely on it; for example, you may use this to rotate credentials on a regular basis without touching your deployments.
+
+### Block class
+
+A block _class_ is the primary user-facing object; it is a Python class whose attributes are loaded from a block document. Most Prefect blocks encapsulate additional functionality built on top of the block document. 
+
+For example, an `S3Bucket` block contains methods for downloading data from, or upload data to, an S3 bucket; a `SnowflakeConnector` block contains methods for querying Snowflake databases.
+
+Returning to our `Cube` example from above:
+
+```python
+from prefect.blocks.core import Block
+
+class Cube(Block):
+    edge_length_inches: float
+
+    def get_volume(self):
+        return self.edge_length_inches ** 3
+
+    def get_surface_area(self):
+        return 6 * self.edge_length_inches ** 2
+
+
+rubiks_cube = Cube.load("rubiks-cube")
+rubiks_cube.get_volume() # 11.390625
+```
 
 <Warning>
-The `S3`, `Azure`, `GCS`, and `GitHub` blocks are deprecated in favor of the corresponding `S3Bucket`, 
-`AzureBlobStorageCredentials`, `GCSBucket`, and `GitHubRepository` blocks found in the 
-[Prefect integration libraries](/integrations/).
-The JSON, DateTime, and String blocks are deprecated in favor of [Variables](/3.0/develop/variables/).
+The class itself is _not_ stored server-side when registering block types and block documents. 
+For this reason, we highly recommend loading block documents by first importing the block class and then calling its `load` method with the relevant document name.
 </Warning>
 
-## Blocks in Prefect integration libraries
+## Using blocks
 
-Some block types that appear in the UI can be created immediately, with the corresponding integration library installed for use.
-For example, an AWS Secret block can be created, but not used until the [`prefect-aws` library](/integrations/prefect-aws/) is installed.
+Using existing or built-in Prefect blocks is as simple as importing the relevant class and calling its `save` and `load` methods.
+Note that many Prefect blocks are packaged into one of [Prefect's integration libraries](#blocks-in-prefect-integration-libraries).
 
-Find available block types in many of the published [Prefect integrations libraries](/integrations/).
-If a block type is not available in the UI, you can [register it](#register-blocks) through the CLI.
-
-| Integration                                                             | Block                                                                                                                                                       | Slug                                   |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| [prefect-aws](/integrations/prefect-aws/)                 | ECS Task                            | `ecs-task`                             |
-| [prefect-aws](/integrations/prefect-aws/)                 | MinIO Credentials            | `minio-credentials`                    |
-| [prefect-aws](/integrations/prefect-aws/)                 | S3 Bucket                       | `s3-bucket`                            |
-| [prefect-azure](/integrations/prefect-azure/)             | Azure Blob Storage Credentials           | `azure-blob-storage-credentials`       |
-| [prefect-azure](/integrations/prefect-azure/)             | Azure Container Instance Credentials | `azure-container-instance-credentials` |
-| [prefect-azure](/integrations/prefect-azure/)             | Azure Container Instance Job]   | `azure-container-instance-job`         |
-| [prefect-azure](/integrations/prefect-azure/)             | Azure Cosmos DB Credentials      | `azure-cosmos-db-credentials`          |
-| [prefect-azure](/integrations/prefect-azure/)             | AzureML Credentials    | `azureml-credentials`                  |
-| [prefect-bitbucket](/integrations/prefect-bitbucket/)     | BitBucket Credentials         | `bitbucket-credentials`                |
-| [prefect-bitbucket](/integrations/prefect-bitbucket/)     | BitBucket Repository               | `bitbucket-repository`                 |
-| [prefect-databricks](/integrations/prefect-databricks/)   | Databricks Credentials             | `databricks-credentials`               |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI BigQuery Target Configs      |`dbt-cli-bigquery-target-configs`      |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Profile         | `dbt-cli-profile`                      |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt Cloud Credentials               | `dbt-cloud-credentials`                |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Global Configs       | `dbt-cli-global-configs`               |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Postgres Target Configs     | `dbt-cli-postgres-target-configs`      |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Snowflake Target Configs   | `dbt-cli-snowflake-target-configs`     |
-| [prefect-dbt](/integrations/prefect-dbt/)                 | dbt CLI Target Configs        | `dbt-cli-target-configs`               |
-| [prefect-docker](/integrations/prefect-docker/)           | Docker Container                    | `docker-container`                    |
-| [prefect-docker](/integrations/prefect-docker/)           | Docker Host                         | `docker-host`                          |
-| [prefect-docker](/integrations/prefect-docker/)           | Docker Registry Credentials          | `docker-registry-credentials`          |
-| [prefect-email](/integrations/prefect-email/)             | Email Server Credentials        | `email-server-credentials`             |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | BigQuery Warehouse     | `bigquery-warehouse`                   |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | GCP Cloud Run Job              | `cloud-run-job`                        |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | GCP Credentials          | `gcp-credentials`                      |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | GcpSecret         | `gcpsecret`                            |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | GCS Bucket      | `gcs-bucket`                           |
-| [prefect-gcp](/integrations/prefect-gcp/)                 | Vertex AI Custom Training Job   | `vertex-ai-custom-training-job`        |
-| [prefect-github](/integrations/prefect-github/)           | GitHub Credentials                    | `github-credentials`                   |
-| [prefect-github](/integrations/prefect-github/)           | GitHub Repository          | `github-repository`                    |
-| [prefect-gitlab](/integrations/prefect-gitlab/)           | GitLab Credentials         | `gitlab-credentials`                   |
-| [prefect-gitlab](/integrations/prefect-gitlab/)           | GitLab Repository           | `gitlab-repository`                    |
-| [prefect-kubernetes](/integrations/prefect-kubernetes/)   | Kubernetes Cluster Config        | `kubernetes-cluster-config`               |
-| [prefect-kubernetes](/integrations/prefect-kubernetes/)   | Kubernetes Credentials        | `kubernetes-credentials`               |
-| [prefect-kubernetes](/integrations/prefect-kubernetes/)   | Kubernetes Job        | `kubernetes-job`               |
-| [prefect-shell](/integrations/prefect-shell/)             | Shell Operation                 | `shell-operation`|
-| [prefect-slack](/integrations/prefect-slack/)             | Slack Credentials   | `slack-credentials`                    |
-| [prefect-slack](/integrations/prefect-slack/)             | Slack Incoming Webhook   | `slack-incoming-webhook`               |
-| [prefect-snowflake](/integrations/prefect-snowflake/)       | Snowflake Connector    | `snowflake-connector`                  |
-| [prefect-snowflake](/integrations/prefect-snowflake/)       | Snowflake Credentials      | `snowflake-credentials`                |
-| [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   | Database Credentials      | `database-credentials`                 |
-| [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   | SQLAlchemy Connector              | `sqlalchemy-connector`                 |
-
-Anyone can create a custom block type and, optionally, share it with the community.
-
-## Use existing block types
-
-Blocks are classes that subclass the `Block` base class. You can instantiate and use them like normal classes.
-
-### Instantiate blocks
-
-To instantiate a block that stores an S3 bucket value, use the `S3Bucket` block:
+To instantiate a block document that stores an S3 bucket value, use the `S3Bucket` block:
 
 ```python
 from prefect_aws.s3 import S3Bucket
 
+# note that the S3Bucket contains many other fields
 bucket_block = S3Bucket(bucket_name="data-bucket")
-
 ```
 
-### Save blocks
-
-To retrieve this saved value use the `.save()` method:
+To store this block document for future use, use the `.save()` method:
 
 ```python
 bucket_block.save(name="my-data-bucket-block")
 ```
 
-To update saved block value stored for a given block, overwrite the existing block by passing `overwrite=True`:
+To update a previously saved block document, overwrite the existing document by passing `overwrite=True`:
 
 ```python
 bucket_block.save(overwrite=True)
 ```
 
-Create a new `S3Bucket` by setting the `name` parameter to a new value:
-
-```python
-new_bucket_block.save(name="my-new-data-bucket-block")
-```
-
-### Load blocks
-
-You can use the block name to load the block:
+You can now use the block document name to load the block:
 
 ```python
 from prefect import flow
@@ -177,13 +159,16 @@ To load the `S3Bucket` block from above, run the following:
 ```python
 from prefect_aws.s3 import S3Bucket
 
-s3_block = Block.load("S3Bucket/my_s3_bucket_block")
+s3_block = Block.load("s3-bucket/my_s3_bucket_block")
 print(s3_bucket.bucket_name) # data-bucket
 ```
 
-### Delete blocks
+<Warning>
+When using the generic `Block.load` interface for block documents, the Python class that created the type _must_ be importable.
+For this reason, we highly recommend loading block documents by first importing the block class and then calling its `load` method with the relevant document name.
+</Warning>
 
-Delete a block with the `.delete()` method:
+You can also delete a block document with the `.delete()` method:
 
 ```python
 from prefect.blocks.core import Block
@@ -201,22 +186,50 @@ prefect block delete s3-bucket/my-data-bucket-block
 prefect block delete --id <my-id>
 ```
 
+### Nested blocks
+
+Blocks are composable: a block can be used within other blocks.
+You can create a block type that uses capabilities from another block type by giving it the appropriate type.
+
+Nested blocks are loosely coupled, and configuration can be changed for each block independently. 
+This allows sharing configuration across multiple block documents.
+
+For example, we can expand our basic `S3Bucket` example above using the `AwsCredentials` block:
+
+```python
+from prefect_aws import AwsCredentials
+from prefect_aws.s3 import S3Bucket
+
+credentials = AwsCredentials(aws_access_key_id="AKIAJKLJKLJKLJKLJKLJK", 
+                             aws_secret_access_key="password")
+my_bucket_block = S3Bucket(bucket_name="my-bucket", credentials=credentials)
+my_bucket_block.save("my_s3_bucket")
+```
+
+<Info>
+The `aws_secret_access_key` field is typed as `SecretStr`, meaning it will be stored and displayed securely.
+</Info>
+
+Alternatively, we can also load previously saved credentials:
+
+```python
+my_bucket_block = S3Bucket(
+    bucket_name="my-bucket",
+    credentials=AwsCredentials.load("my_aws_credentials")
+)
+
+my_bucket_block.save("my_s3_bucket")
+```
+
+Both of these create a reference from the `AwsCredentials` block document `my_aws_credentials` to the `S3Bucket` block document `my_s3_bucket`, 
+so that changes to the values in `my_aws_credentials` propagate to `my_s3_bucket`.
+
 ## Create a new block type
 
 To create a custom block type, define a class that subclasses `Block`. The `Block` base class builds 
-on Pydantic's `BaseModel`, so you can declare custom blocks just like a [Pydantic model](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage).
+on Pydantic's `BaseModel`, so you can declare custom fields just like a [Pydantic model](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage).
 
-Here's a block that represents a cube and holds information about the length of each edge in inches:
-
-```python
-from prefect.blocks.core import Block
-
-class Cube(Block):
-    edge_length_inches: float
-```
-
-You can add methods to a block to provide additional capabilities. 
-Here's the same cube block with methods to calculate the volume and surface area of the cube:
+We've already seen an example of a `Cube` block that represents a cube and holds information about the length of each edge in inches:
 
 ```python
 from prefect.blocks.core import Block
@@ -224,29 +237,27 @@ from prefect.blocks.core import Block
 class Cube(Block):
     edge_length_inches: float
 
-    def get_volume(self):
-        return self.edge_length_inches**3
 
-    def get_surface_area(self):
-        return 6 * self.edge_length_inches**2
+Cube.register_type_and_schema()
 ```
 
-Use the new `Cube` block type in a flow:
+### Register custom blocks
 
-```python
-from prefect import flow
+In addition to the `register_type_and_schema` method shown above, you can register blocks from a Python module with a CLI command:
 
-rubiks_cube = Cube(edge_length_inches=2.25)
-rubiks_cube.save("rubiks-cube")
-
-@flow
-def calculate_cube_surface_area(cube_name):
-    cube = Cube.load(cube_name)
-    print(cube.get_surface_area())
-
-if __name__ == "__main__":
-    calculate_cube_surface_area("rubiks-cube") # 30.375
+```bash
+prefect block register --module prefect_aws.credentials
 ```
+
+This command is useful for registering all blocks found within a module in a [Prefect Integration library](/integrations/).
+
+Alternatively, if a custom block was created in a `.py` file, you can register the block with the CLI command:
+
+```bash
+prefect block register --file my_block.py
+```
+
+Block documents can now be created with the registered block schema.
 
 ### Secret fields
 
@@ -255,7 +266,7 @@ If you have values that you would not like visible in the UI or in logs,
 use the `SecretStr` field type provided by Pydantic to automatically obfuscate those values.
 You can use this capability for fields that store credentials such as passwords and API tokens.
 
-Here's an example of an `AWSCredentials` block that uses `SecretStr`:
+Here's an example of an `AwsCredentials` block that uses `SecretStr`:
 
 ```python
 from typing import Optional
@@ -263,7 +274,7 @@ from typing import Optional
 from prefect.blocks.core import Block
 from pydantic import SecretStr  # if pydantic version >= 2.0, use: from pydantic.v1 import SecretStr
 
-class AWSCredentials(Block):
+class AwsCredentials(Block):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[SecretStr] = None
     aws_session_token: Optional[str] = None
@@ -275,7 +286,7 @@ Since `aws_secret_access_key` has the `SecretStr` type hint assigned to it,
 the value of that field is not exposed if the object is logged:
 
 ```python
-aws_credentials_block = AWSCredentials(
+aws_credentials_block = AwsCredentials(
     aws_access_key_id="AKIAJKLJKLJKLJKLJKLJK",
     aws_secret_access_key="secret_access_key"
 )
@@ -325,109 +336,19 @@ print(system_configuration_block)
 # )
 ```
 
-### Block type metadata
+### Customize a block's display
 
-Set metadata fields on a block type's subclass to control how a block displays.
+You can set metadata fields on a block type's subclass to control how a block displays.
 
 Available metadata fields include:
 
 | Property          | Description                                                                                                                                  |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| \_block_type_name | Display name of the block in the UI. Defaults to the class name.                                                                             |
-| \_block_type_slug | Unique slug used to reference the block type in the API. Defaults to a lowercase, dash-delimited version of the block type name.             |
-| \_logo_url        | URL pointing to an image that should be displayed for the block type in the UI. Default to `None`.                                           |
-| \_description     | Short description of block type. Defaults to docstring, if provided.                                                                         |
-| \_code_example    | Short code snippet shown in UI for how to load/use block type. Default to first example provided in the docstring of the class, if provided. |
-
-### Nested blocks
-
-Blocks are composable: a block can be used within other blocks.
-You can create a block type that uses capabilities from another block type by declaring it as an attribute.
-
-Nestable blocks are loosely coupled, and configuration can be changed for each block independently. 
-This allows sharing configuration across multiple use cases.
-
-For example, here's an expanded `AWSCredentials` block that enables an authenticated session through the `boto3` library:
-
-```python
-from typing import Optional
-
-import boto3
-from prefect.blocks.core import Block
-from pydantic import SecretStr
-
-class AWSCredentials(Block):
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[SecretStr] = None
-    aws_session_token: Optional[str] = None
-    profile_name: Optional[str] = None
-    region_name: Optional[str] = None
-
-    def get_boto3_session(self):
-        return boto3.Session(
-            aws_access_key_id = self.aws_access_key_id
-            aws_secret_access_key = self.aws_secret_access_key
-            aws_session_token = self.aws_session_token
-            profile_name = self.profile_name
-            region_name = self.region
-        )
-```
-
-You can use the `AWSCredentials` block within an `S3Bucket` block to provide authentication when interacting with an S3 bucket:
-
-```python
-import io
-
-class S3Bucket(Block):
-    bucket_name: str
-    credentials: AWSCredentials
-
-    def read(self, key: str) -> bytes:
-        s3_client = self.credentials.get_boto3_session().client("s3")
-
-        stream = io.BytesIO()
-        s3_client.download_fileobj(Bucket=self.bucket_name, key=key, Fileobj=stream)
-
-        stream.seek(0)
-        output = stream.read()
-
-        return output
-
-    def write(self, key: str, data: bytes) -> None:
-        s3_client = self.credentials.get_boto3_session().client("s3")
-        stream = io.BytesIO(data)
-        s3_client.upload_fileobj(stream, Bucket=self.bucket_name, Key=key)
-```
-
-You can use this `S3Bucket` block with previously saved `AWSCredentials` block values to interact with the configured S3 bucket:
-
-```python
-my_s3_bucket = S3Bucket(
-    bucket_name="my_s3_bucket",
-    credentials=AWSCredentials.load("my_aws_credentials")
-)
-
-my_s3_bucket.save("my_s3_bucket")
-```
-
-This creates a reference from the AWSCredentials block my_aws_credentials to the S3Bucket block my_s3_bucket, 
-so that changes to the values in my_aws_credentials propagate to my_s3_bucket.
-
-Values for nested blocks can also be specified in place:
-
-```python
-my_s3_bucket = S3Bucket(
-    bucket_name="my_s3_bucket",
-    credentials=AWSCredentials(
-        aws_access_key_id="AKIAJKLJKLJKLJKLJKLJK",
-        aws_secret_access_key="secret_access_key"
-    )
-)
-
-my_s3_bucket.save("my_s3_bucket")
-```
-
-In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and are not usable with any other blocks.
+| `_block_type_name` | Display name of the block in the UI. Defaults to the class name.                                                                             |
+| `_block_type_slug` | Unique slug used to reference the block type in the API. Defaults to a lowercase, dash-delimited version of the block type name.             |
+| `_logo_url`        | URL pointing to an image that should be displayed for the block type in the UI. Default to `None`.                                           |
+| `_description`     | Short description of block type. Defaults to docstring, if provided.                                                                         |
+| `_code_example`    | Short code snippet shown in UI for how to load/use block type. Defaults to first example provided in the docstring of the class, if provided. |
 
 ### Update custom `Block` types
 
@@ -439,7 +360,7 @@ Add the new field to the class definition:
 ```python
 class S3Bucket(Block):
     bucket_name: str
-    credentials: AWSCredentials
+    credentials: AwsCredentials
     bucket_folder: Optional[str] = None
     ...
 ```
@@ -460,24 +381,89 @@ my_s3_bucket_block.bucket_path = "my-default-bucket-path"
 my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
 ```
 
-## Register blocks
 
-Prefect comes with many blocks pre-registered and ready to use.
-If you do not have a block available for use, you can register it.
+## Pre-registered blocks
 
-Register blocks from a Python module available in the current environment with a CLI command:
+### Built-in blocks
 
-```bash
-prefect block register --module prefect_aws.credentials
-```
+Commonly used block types come built-in with Prefect. 
+You can create and use these block types through the UI without installing any additional packages.
 
-This command is useful for registering all blocks found within a module in a [Prefect Integration library](/integrations/).
+| Block                                                                                                                | Slug                                                     | Description                                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Custom Webhook              | `custom-webhook`         | Call custom webhooks.                                                        |
+| Discord Webhook             | `discord-webhook`        | Call Discord webhooks.                                                       |
+| Local File System           | `local-file-system`       | Store data as a file on a local file system.                                   |
+| Mattermost Webhook          | `mattermost-webhook`     | Send notifications through a provided Mattermost webhook.                     |
+| Microsoft Teams Webhook     | `ms-teams-webhook`       | Send notifications through a provided Microsoft Teams webhook.                |
+| Opsgenie Webhook            | `opsgenie-webhook`       | Send notifications through a provided Opsgenie webhook.                       |
+| Pager Duty Webhook          | `pager-duty-webhook`     | Send notifications through a provided PagerDuty webhook.                      |
+| Remote File System          | `remote-file-system`      | Access files on a remote file system.                                          |
+| Secret                      | `secret`                 | Store a secret value. The value will be obfuscated when this block is logged or shown in the UI. |
+| Sendgrid Email              | `sendgrid-email`         | Send notifications through Sendgrid email.                                   |
+| Slack Webhook               | `slack-webhook`          | Send notifications through a provided Slack webhook.                         |
+| SMB                         | `smb`                    | Store data as a file on a SMB share.                                         |
+| Twilio SMS                  | `twilio-sms`             | Send notifications through Twilio SMS.                                       |
 
-Alternatively, if a custom block was created in a `.py` file, you can register the block with the CLI command:
 
-```bash
-prefect block register --file my_block.py
-```
+<Warning>
+The `S3`, `Azure`, `GCS`, and `GitHub` blocks are deprecated in favor of the corresponding `S3Bucket`, 
+`AzureBlobStorageCredentials`, `GCSBucket`, and `GitHubRepository` blocks found in the 
+[Prefect integration libraries](/integrations/).
+The JSON, DateTime, and String blocks are deprecated in favor of [Variables](/3.0/develop/variables/).
+</Warning>
 
+### Blocks in Prefect integration libraries
 
-The registered block is now available for configuration.
+Some block types that appear in the UI can be created immediately, with the corresponding integration library installed for use.
+For example, an AWS Secret block can be created, but not used until the [`prefect-aws` library](/integrations/prefect-aws/) is installed.
+
+Find available block types in many of the published [Prefect integrations libraries](/integrations/).
+If a block type is not available in the UI, you can [register it](#register-blocks) through the CLI.
+
+| Block                                                                                                                                                       | Slug                                   | Integration                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------- |
+| ECS Task                            | `ecs-task`                             | [prefect-aws](/integrations/prefect-aws/)                 |
+| MinIO Credentials            | `minio-credentials`                    | [prefect-aws](/integrations/prefect-aws/)                 |
+| S3 Bucket                       | `s3-bucket`                            | [prefect-aws](/integrations/prefect-aws/)                 |
+| Azure Blob Storage Credentials           | `azure-blob-storage-credentials`       | [prefect-azure](/integrations/prefect-azure/)             |
+| Azure Container Instance Credentials | `azure-container-instance-credentials` | [prefect-azure](/integrations/prefect-azure/)             |
+| Azure Container Instance Job]   | `azure-container-instance-job`         | [prefect-azure](/integrations/prefect-azure/)             |
+| Azure Cosmos DB Credentials      | `azure-cosmos-db-credentials`          | [prefect-azure](/integrations/prefect-azure/)             |
+| AzureML Credentials    | `azureml-credentials`                  | [prefect-azure](/integrations/prefect-azure/)             |
+| BitBucket Credentials         | `bitbucket-credentials`                | [prefect-bitbucket](/integrations/prefect-bitbucket/)     |
+| BitBucket Repository               | `bitbucket-repository`                 | [prefect-bitbucket](/integrations/prefect-bitbucket/)     |
+| Databricks Credentials             | `databricks-credentials`               | [prefect-databricks](/integrations/prefect-databricks/)   |
+| dbt CLI BigQuery Target Configs      |`dbt-cli-bigquery-target-configs`      | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Profile         | `dbt-cli-profile`                      | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt Cloud Credentials               | `dbt-cloud-credentials`                | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Global Configs       | `dbt-cli-global-configs`               | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Postgres Target Configs     | `dbt-cli-postgres-target-configs`      | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Snowflake Target Configs   | `dbt-cli-snowflake-target-configs`     | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| dbt CLI Target Configs        | `dbt-cli-target-configs`               | [prefect-dbt](/integrations/prefect-dbt/)                 |
+| Docker Container                    | `docker-container`                    | [prefect-docker](/integrations/prefect-docker/)           |
+| Docker Host                         | `docker-host`                          | [prefect-docker](/integrations/prefect-docker/)           |
+| Docker Registry Credentials          | `docker-registry-credentials`          | [prefect-docker](/integrations/prefect-docker/)           |
+| Email Server Credentials        | `email-server-credentials`             | [prefect-email](/integrations/prefect-email/)             |
+| BigQuery Warehouse     | `bigquery-warehouse`                   | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GCP Cloud Run Job              | `cloud-run-job`                        | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GCP Credentials          | `gcp-credentials`                      | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GcpSecret         | `gcpsecret`                            | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GCS Bucket      | `gcs-bucket`                           | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| Vertex AI Custom Training Job   | `vertex-ai-custom-training-job`        | [prefect-gcp](/integrations/prefect-gcp/)                 |
+| GitHub Credentials                    | `github-credentials`                   | [prefect-github](/integrations/prefect-github/)           |
+| GitHub Repository          | `github-repository`                    | [prefect-github](/integrations/prefect-github/)           |
+| GitLab Credentials         | `gitlab-credentials`                   | [prefect-gitlab](/integrations/prefect-gitlab/)           |
+| GitLab Repository           | `gitlab-repository`                    | [prefect-gitlab](/integrations/prefect-gitlab/)           |
+| Kubernetes Cluster Config        | `kubernetes-cluster-config`               | [prefect-kubernetes](/integrations/prefect-kubernetes/)   |
+| Kubernetes Credentials        | `kubernetes-credentials`               | [prefect-kubernetes](/integrations/prefect-kubernetes/)   |
+| Kubernetes Job        | `kubernetes-job`               | [prefect-kubernetes](/integrations/prefect-kubernetes/)   |
+| Shell Operation                 | `shell-operation`| [prefect-shell](/integrations/prefect-shell/)             |
+| Slack Credentials   | `slack-credentials`                    | [prefect-slack](/integrations/prefect-slack/)             |
+| Slack Incoming Webhook   | `slack-incoming-webhook`               | [prefect-slack](/integrations/prefect-slack/)             |
+| Snowflake Connector    | `snowflake-connector`                  | [prefect-snowflake](/integrations/prefect-snowflake/)       |
+| Snowflake Credentials      | `snowflake-credentials`                | [prefect-snowflake](/integrations/prefect-snowflake/)       |
+| Database Credentials      | `database-credentials`                 | [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   |
+| SQLAlchemy Connector              | `sqlalchemy-connector`                 | [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   |
+
+Anyone can create a custom block type and, optionally, share it with the community.

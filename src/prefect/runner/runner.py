@@ -66,6 +66,11 @@ from prefect.client.schemas.filters import (
 )
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import FlowRun, State, StateType
+from prefect.concurrency.asyncio import (
+    AcquireConcurrencySlotTimeoutError,
+    ConcurrencySlotAcquisitionError,
+    concurrency,
+)
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
@@ -81,7 +86,12 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     get_current_settings,
 )
-from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.states import (
+    AwaitingConcurrencySlot,
+    Crashed,
+    Pending,
+    exception_to_failed_state,
+)
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
@@ -226,6 +236,7 @@ class Runner:
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[int] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -248,6 +259,10 @@ class Runner:
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not to set the created deployment as paused.
+            schedules: A list of schedule objects defining when to execute runs of this flow.
+                Used to define multiple schedules or additional scheduling options like `timezone`.
+            concurrency_limit: The maximum number of concurrent runs of this flow to allow.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -280,6 +295,7 @@ class Runner:
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
             entrypoint_type=entrypoint_type,
+            concurrency_limit=concurrency_limit,
         )
         return await self.add_deployment(deployment)
 
@@ -959,6 +975,7 @@ class Runner:
         """
         submittable_flow_runs = flow_run_response
         submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
+
         for i, flow_run in enumerate(submittable_flow_runs):
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
@@ -1025,12 +1042,40 @@ class Runner:
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
+        if flow_run.deployment_id:
+            deployment = await self._client.read_deployment(flow_run.deployment_id)
+        if deployment and deployment.concurrency_limit:
+            limit_name = f"deployment:{deployment.id}"
+            concurrency_ctx = concurrency
+        else:
+            limit_name = None
+            concurrency_ctx = asyncnullcontext
+
         try:
-            status_code = await self._run_process(
-                flow_run=flow_run,
-                task_status=task_status,
-                entrypoint=entrypoint,
+            async with concurrency_ctx(
+                limit_name, occupy=deployment.concurrency_limit, max_retries=0
+            ):
+                status_code = await self._run_process(
+                    flow_run=flow_run,
+                    task_status=task_status,
+                    entrypoint=entrypoint,
+                )
+        except (
+            AcquireConcurrencySlotTimeoutError,
+            ConcurrencySlotAcquisitionError,
+        ) as exc:
+            self._logger.info(
+                (
+                    "Deployment %s reached its concurrency limit when attempting to execute flow run %s. Will attempt to execute later."
+                ),
+                flow_run.deployment_id,
+                flow_run.name,
             )
+            await self._propose_scheduled_state(flow_run)
+
+            if not task_status._future.done():
+                task_status.started(exc)
+            return exc
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
@@ -1115,6 +1160,26 @@ class Runner:
                 f"Failed to update state of flow run '{flow_run.id}'",
                 exc_info=True,
             )
+
+    async def _propose_scheduled_state(self, flow_run: "FlowRun") -> None:
+        run_logger = self._get_flow_run_logger(flow_run)
+        try:
+            state = await propose_state(
+                self._client,
+                AwaitingConcurrencySlot(),
+                flow_run_id=flow_run.id,
+            )
+            self._logger.info(f"Flow run {flow_run.id} now has state {state.name}")
+        except Abort as exc:
+            run_logger.info(
+                (
+                    f"Aborted rescheduling of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
+            )
+            pass
+        except Exception:
+            run_logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
 
     async def _propose_crashed_state(self, flow_run: "FlowRun", message: str) -> None:
         run_logger = self._get_flow_run_logger(flow_run)
