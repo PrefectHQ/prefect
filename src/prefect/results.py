@@ -1050,6 +1050,9 @@ class ResultRecord(BaseModel, Generic[R]):
         return self.metadata == other.metadata and self.result == other.result
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024", end_date="Nov 2024", help="Use `ResultRecord` instead."
+)
 @register_base_type
 class BaseResult(BaseModel, abc.ABC, Generic[R]):
     model_config = ConfigDict(extra="forbid")
@@ -1100,6 +1103,9 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         return cls.__name__ if isinstance(default, PydanticUndefinedType) else default
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024", end_date="Nov 2024", help="Use `ResultRecord` instead."
+)
 class PersistedResult(BaseResult):
     """
     Result type which stores a reference to a persisted result.
