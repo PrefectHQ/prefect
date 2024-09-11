@@ -98,7 +98,11 @@ async def _get_state_result_data_with_retries(
 
     for i in range(1, max_attempts + 1):
         try:
-            return await state.data.get()
+            if isinstance(state.data, ResultRecordMetadata):
+                record = await ResultRecord._from_metadata(state.data)
+                return record.result
+            else:
+                return await state.data.get()
         except Exception as e:
             if i == max_attempts:
                 raise
@@ -133,15 +137,12 @@ async def _get_state_result(
     ):
         raise await get_state_exception(state)
 
-    if isinstance(state.data, BaseResult):
+    if isinstance(state.data, (BaseResult, ResultRecordMetadata)):
         result = await _get_state_result_data_with_retries(
             state, retry_result_failure=retry_result_failure
         )
     elif isinstance(state.data, ResultRecord):
         result = state.data.result
-    elif isinstance(state.data, ResultRecordMetadata):
-        record = await ResultRecord._from_metadata(state.data)
-        result = record.result
 
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():

@@ -14,7 +14,7 @@ from prefect.results import (
 from prefect.serializers import JSONSerializer, PickleSerializer
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def ignore_deprecation(ignore_prefect_deprecation_warnings):
     """Remove this test file when deprecation warning period is over"""
     pass
