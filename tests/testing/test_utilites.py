@@ -1,12 +1,17 @@
 import uuid
 import warnings
+from unittest.mock import MagicMock
 
 import pytest
 
 from prefect import flow, task
 from prefect.client.orchestration import get_client
 from prefect.server import schemas
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL, PREFECT_API_URL
+from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_URL,
+    PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
+)
 from prefect.testing.utilities import assert_does_not_warn, prefect_test_harness
 
 
@@ -75,3 +80,27 @@ async def test_prefect_test_harness():
             flow_filter=schemas.filters.FlowFilter(name={"any_": [very_specific_name]})
         )
         assert len(flows) == 0
+
+
+def test_prefect_test_harness_timeout(monkeypatch):
+    server = MagicMock()
+    monkeypatch.setattr(
+        "prefect.testing.utilities.SubprocessASGIServer",
+        server,
+    )
+    server().api_url = "http://localhost:42000"
+
+    with prefect_test_harness():
+        server().start.assert_called_once_with(timeout=30)
+
+    server().start.reset_mock()
+
+    with prefect_test_harness(server_startup_timeout=120):
+        server().start.assert_called_once_with(timeout=120)
+
+    server().start.reset_mock()
+
+    with prefect_test_harness(server_startup_timeout=None):
+        server().start.assert_called_once_with(
+            timeout=PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+        )
