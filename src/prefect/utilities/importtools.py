@@ -398,6 +398,7 @@ def safe_load_namespace(
         # Save original sys.path and modify it
         original_sys_path = sys.path.copy()
         sys.path.insert(0, parent_dir)
+        sys.path.insert(0, file_dir)
 
         # Create a temporary module for import context
         temp_module = ModuleType(package_name)

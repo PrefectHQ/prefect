@@ -330,3 +330,15 @@ def test_safe_load_namespace_does_not_execute_function_body():
     namespace = safe_load_namespace(source_code)
 
     assert not namespace["you_done_goofed"]
+
+
+def test_safe_load_namespace_implicit_relative_imports():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/15352
+    """
+    path = TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py"
+    source_code = path.read_text()
+
+    namespace = safe_load_namespace(source_code, filepath=str(path))
+    assert "get_foo" in namespace
+    assert "get_bar" in namespace
