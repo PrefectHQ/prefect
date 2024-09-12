@@ -766,10 +766,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if self.task.tags:
+            if self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
-                with concurrency(list(self.task.tags), self.task_run.id):
+                with concurrency(list(self.task_run.tags), self.task_run.id):
                     result = call_with_parameters(self.task.fn, parameters)
             else:
                 result = call_with_parameters(self.task.fn, parameters)
@@ -1266,10 +1266,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if self.task.tags:
+            if self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
-                async with aconcurrency(list(self.task.tags), self.task_run.id):
+                async with aconcurrency(list(self.task_run.tags), self.task_run.id):
                     result = await call_with_parameters(self.task.fn, parameters)
             else:
                 result = await call_with_parameters(self.task.fn, parameters)
