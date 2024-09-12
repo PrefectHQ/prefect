@@ -78,16 +78,78 @@ class Transaction(ContextModel):
     __var__: ContextVar = ContextVar("transaction")
 
     def set(self, name: str, value: Any) -> None:
+        """
+        Set a stored value in the transaction.
+
+        Args:
+            name: The name of the value to set
+            value: The value to set
+
+        Examples:
+            Set a value for use later in the transaction:
+            ```python
+            with transaction() as txn:
+                txn.set("key", "value")
+                ...
+                assert txn.get("key") == "value"
+            ```
+        """
         self._stored_values[name] = value
 
     def get(self, name: str, default: Any = NotSet) -> Any:
+        """
+        Get a stored value from the transaction.
+
+        Child transactions will return values from their parents unless a value with
+        the same name is set in the child transaction.
+
+        Direct changes to returned values will not update the stored value. To update the
+        stored value, use the `set` method.
+
+        Args:
+            name: The name of the value to get
+            default: The default value to return if the value is not found
+
+        Returns:
+            The value from the transaction
+
+        Examples:
+            Get a value from the transaction:
+            ```python
+            with transaction() as txn:
+                txn.set("key", "value")
+                ...
+                assert txn.get("key") == "value"
+            ```
+
+            Get a value from a parent transaction:
+            ```python
+            with transaction() as parent:
+                parent.set("key", "parent_value")
+                with transaction() as child:
+                    assert child.get("key") == "parent_value"
+            ```
+
+            Update a stored value:
+            ```python
+            with transaction() as txn:
+                txn.set("key", [1, 2, 3])
+                value = txn.get("key")
+                value.append(4)
+                # Stored value is not updated until `.set` is called
+                assert value == [1, 2, 3, 4]
+                assert txn.get("key") == [1, 2, 3]
+
+                txn.set("key", value)
+                assert txn.get("key") == [1, 2, 3, 4]
+            ```
+        """
         value = self._stored_values.get(name, NotSet)
         if value is NotSet:
             parent = self.get_parent()
             if parent is not None:
                 try:
-                    value = copy.deepcopy(parent.get(name))
-                    self._stored_values[name] = value
+                    value = parent.get(name)
                 except ValueError:
                     pass
 
@@ -96,7 +158,7 @@ class Transaction(ContextModel):
                 value = default
             else:
                 raise ValueError(f"Could not retrieve value for unknown key: {name}")
-        return value
+        return copy.deepcopy(value)
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED

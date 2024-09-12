@@ -596,7 +596,9 @@ class TestHooks:
         with transaction(key="test") as top:
             top.set("key", {"x": [42]})
             with transaction(key="nested") as inner:
-                inner.get("key")["x"].append(43)
+                inner_value = inner.get("key")
+                inner_value["x"].append(43)
+                inner.set("key", inner_value)
                 assert inner.get("key") == {"x": [42, 43]}
                 assert top.get("key") == {"x": [42]}
             assert top.get("key") == {"x": [42]}
@@ -622,11 +624,12 @@ class TestHooks:
             assert child_transaction.get("key") == "value"
 
             parent_transaction.set("list", [1, 2, 3])
-
-            # child can't modify parent's values
             assert child_transaction.get("list") == [1, 2, 3]
-            child_transaction.get("list").append(4)
 
+            # Mutating the value doesn't update the stored value
+            child_transaction.get("list").append(4)
+            assert child_transaction.get("list") == [1, 2, 3]
+            child_transaction.set("list", [1, 2, 3, 4])
             assert child_transaction.get("list") == [1, 2, 3, 4]
 
             # parent transaction isn't affected by child's modifications
