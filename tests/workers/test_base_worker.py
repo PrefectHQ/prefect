@@ -2164,7 +2164,7 @@ async def test_env_merge_logic_is_deep(
     ) as worker:
         await worker.sync_with_backend()
         config = await worker._get_configuration(
-            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+            flow_run, schemas.responses.DeploymentResponse.parse_obj(deployment)
         )
 
     for key, value in expected_env.items():
