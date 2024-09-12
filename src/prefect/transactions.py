@@ -144,7 +144,8 @@ class Transaction(ContextModel):
                 assert txn.get("key") == [1, 2, 3, 4]
             ```
         """
-        value = self._stored_values.get(name, NotSet)
+        # deepcopy to prevent mutation of stored values
+        value = copy.deepcopy(self._stored_values.get(name, NotSet))
         if value is NotSet:
             # if there's a parent transaction, get the value from the parent
             parent = self.get_parent()
@@ -155,8 +156,7 @@ class Transaction(ContextModel):
                 value = default
             else:
                 raise ValueError(f"Could not retrieve value for unknown key: {name}")
-        # deepcopy to prevent mutation of stored values
-        return copy.deepcopy(value)
+        return value
 
     def is_committed(self) -> bool:
         return self.state == TransactionState.COMMITTED
