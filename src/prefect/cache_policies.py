@@ -1,12 +1,13 @@
 import inspect
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from prefect.context import TaskRunContext
 from prefect.filesystems import WritableFileSystem
 from prefect.utilities.hashing import hash_objects
 
-CacheStorage = Union[WritableFileSystem, str]
+CacheStorage = Union[WritableFileSystem, Path, str]
 
 
 @dataclass
