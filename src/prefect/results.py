@@ -284,6 +284,8 @@ class ResultStore(BaseModel):
         Returns:
             An updated result store.
         """
+        from prefect.cache_policies import CompoundCachePolicy
+
         update = {}
         if task.result_storage is not None:
             update["result_storage"] = await resolve_result_storage(task.result_storage)
@@ -295,6 +297,14 @@ class ResultStore(BaseModel):
             update["storage_key_fn"] = partial(
                 _format_user_supplied_storage_key, task.result_storage_key
             )
+        if (
+            isinstance(task.cache_policy, CompoundCachePolicy)
+            and task.cache_policy.storage is not None
+        ):
+            update["metadata_storage"] = await resolve_result_storage(
+                task.cache_policy.storage
+            )
+
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
         return self.model_copy(update=update)

@@ -1,9 +1,12 @@
 import inspect
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
 from prefect.context import TaskRunContext
+from prefect.filesystems import WritableFileSystem
 from prefect.utilities.hashing import hash_objects
+
+CacheStorage = Union[WritableFileSystem, str]
 
 
 @dataclass
@@ -44,7 +47,9 @@ class CachePolicy:
             new = Inputs(exclude=[other])
             return CompoundCachePolicy(policies=[self, new])
 
-    def __add__(self, other: "CachePolicy") -> "CompoundCachePolicy":
+    def __add__(
+        self, other: Union["CachePolicy", CacheStorage]
+    ) -> "CompoundCachePolicy":
         # adding _None is a no-op
         if isinstance(other, _None):
             return self
@@ -52,11 +57,19 @@ class CachePolicy:
             return other
 
         if isinstance(self, CompoundCachePolicy):
-            policies = self.policies or []
-            return CompoundCachePolicy(policies=policies + [other])
+            if isinstance(other, CacheStorage):
+                if self.storage is None:
+                    return CompoundCachePolicy(policies=self.policies, storage=other)
+                else:
+                    raise ValueError("Policy already has cache storage defined.")
+            else:
+                policies = self.policies or []
+                return CompoundCachePolicy(policies=policies + [other])
         elif isinstance(other, CompoundCachePolicy):
             policies = other.policies or []
             return CompoundCachePolicy(policies=policies + [self])
+        elif isinstance(other, CacheStorage):
+            return CompoundCachePolicy(policies=[self], storage=other)
         else:
             return CompoundCachePolicy(policies=[self, other])
 
@@ -94,6 +107,7 @@ class CompoundCachePolicy(CachePolicy):
     """
 
     policies: Optional[list] = None
+    storage: Optional[CacheStorage] = None
 
     def compute_key(
         self,
