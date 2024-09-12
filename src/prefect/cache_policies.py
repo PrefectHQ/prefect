@@ -1,6 +1,6 @@
 import inspect
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional, Union
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from prefect.context import TaskRunContext
 from prefect.filesystems import WritableFileSystem
@@ -13,6 +13,15 @@ CacheStorage = Union[WritableFileSystem, str]
 class CachePolicy:
     """
     Base class for all cache policies.
+    """
+
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        raise NotImplementedError
+
+
+class CacheKeyPolicy(CachePolicy):
+    """
+    Base class for all cache key policies.
     """
 
     @classmethod
@@ -33,49 +42,50 @@ class CachePolicy:
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def __sub__(self, other: str) -> "CompoundCachePolicy":
-        if not isinstance(other, str):
-            raise TypeError("Can only subtract strings from key policies.")
-        if isinstance(self, Inputs):
-            exclude = self.exclude or []
-            return Inputs(exclude=exclude + [other])
-        elif isinstance(self, CompoundCachePolicy):
-            new = Inputs(exclude=[other])
-            policies = self.policies or []
-            return CompoundCachePolicy(policies=policies + [new])
-        else:
-            new = Inputs(exclude=[other])
-            return CompoundCachePolicy(policies=[self, new])
-
-    def __add__(
-        self, other: Union["CachePolicy", CacheStorage]
-    ) -> "CompoundCachePolicy":
-        # adding _None is a no-op
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
         if isinstance(other, _None):
             return self
-        elif isinstance(self, _None):
-            return other
-
-        if isinstance(self, CompoundCachePolicy):
-            if isinstance(other, CacheStorage):
-                if self.storage is None:
-                    return CompoundCachePolicy(policies=self.policies, storage=other)
-                else:
-                    raise ValueError("Policy already has cache storage defined.")
-            else:
-                policies = self.policies or []
-                return CompoundCachePolicy(policies=policies + [other])
         elif isinstance(other, CompoundCachePolicy):
-            policies = other.policies or []
-            return CompoundCachePolicy(policies=policies + [self])
-        elif isinstance(other, CacheStorage):
-            return CompoundCachePolicy(policies=[self], storage=other)
-        else:
+            return CompoundCachePolicy(policies=[self] + other.policies)
+        elif isinstance(other, CacheStoragePolicy):
+            return CompoundCachePolicy(policies=[self], storage=other.storage)
+        elif isinstance(other, CacheKeyPolicy):
             return CompoundCachePolicy(policies=[self, other])
+        else:
+            raise TypeError(f"Cannot add {type(self)} and {type(other)}")
+
+    def __sub__(self, other: str) -> "CachePolicy":
+        if not isinstance(other, str):
+            raise TypeError("Can only subtract strings from key policies.")
+        new = Inputs(exclude=[other])
+        return CompoundCachePolicy(policies=[self, new])
 
 
 @dataclass
-class CacheKeyFnPolicy(CachePolicy):
+class CacheStoragePolicy(CachePolicy):
+    """
+    Policy that defines a storage location for a cache.
+    """
+
+    storage: CacheStorage
+
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        if isinstance(other, _None):
+            return self
+        elif isinstance(other, CacheStoragePolicy):
+            raise ValueError("Cannot add two storage policies.")
+        elif isinstance(other, CompoundCachePolicy):
+            if other.storage is not None:
+                raise ValueError("Policy already has cache storage defined.")
+            return CompoundCachePolicy(policies=other.policies, storage=self.storage)
+        elif isinstance(other, CacheKeyPolicy):
+            return CompoundCachePolicy(policies=[other], storage=self.storage)
+        else:
+            raise TypeError(f"Cannot add CacheStoragePolicy and {type(other)}")
+
+
+@dataclass
+class CacheKeyFnPolicy(CacheKeyPolicy):
     """
     This policy accepts a custom function with signature f(task_run_context, task_parameters, flow_parameters) -> str
     and uses it to compute a task run cache key.
@@ -98,7 +108,7 @@ class CacheKeyFnPolicy(CachePolicy):
 
 
 @dataclass
-class CompoundCachePolicy(CachePolicy):
+class CompoundCachePolicy(CacheKeyPolicy):
     """
     This policy is constructed from two or more other cache policies and works by computing the keys
     for each policy individually, and then hashing a sorted tuple of all computed keys.
@@ -106,7 +116,7 @@ class CompoundCachePolicy(CachePolicy):
     Any keys that return `None` will be ignored.
     """
 
-    policies: Optional[list] = None
+    policies: List[CacheKeyPolicy] = field(default_factory=list)
     storage: Optional[CacheStorage] = None
 
     def compute_key(
@@ -130,9 +140,28 @@ class CompoundCachePolicy(CachePolicy):
             return None
         return hash_objects(*keys)
 
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        if isinstance(other, _None):
+            return self
+        elif isinstance(other, CompoundCachePolicy):
+            return CompoundCachePolicy(policies=self.policies + other.policies)
+        elif isinstance(other, CacheStoragePolicy):
+            return CompoundCachePolicy(policies=self.policies, storage=other.storage)
+        elif isinstance(other, CacheKeyPolicy):
+            return CompoundCachePolicy(policies=self.policies + [other])
+        else:
+            raise TypeError(f"Cannot add {type(self)} and {type(other)}")
+
+    def __sub__(self, other: str) -> "CompoundCachePolicy":
+        if not isinstance(other, str):
+            raise TypeError("Can only subtract strings from key policies.")
+        new = Inputs(exclude=[other])
+        policies = self.policies or []
+        return CompoundCachePolicy(policies=policies + [new])
+
 
 @dataclass
-class _None(CachePolicy):
+class _None(CacheKeyPolicy):
     """
     Policy that always returns `None` for the computed cache key.
     This policy prevents persistence.
@@ -149,7 +178,7 @@ class _None(CachePolicy):
 
 
 @dataclass
-class TaskSource(CachePolicy):
+class TaskSource(CacheKeyPolicy):
     """
     Policy for computing a cache key based on the source code of the task.
     """
@@ -177,7 +206,7 @@ class TaskSource(CachePolicy):
 
 
 @dataclass
-class FlowParameters(CachePolicy):
+class FlowParameters(CacheKeyPolicy):
     """
     Policy that computes the cache key based on a hash of the flow parameters.
     """
@@ -195,7 +224,7 @@ class FlowParameters(CachePolicy):
 
 
 @dataclass
-class RunId(CachePolicy):
+class RunId(CacheKeyPolicy):
     """
     Returns either the prevailing flow run ID, or if not found, the prevailing task
     run ID.
@@ -217,7 +246,7 @@ class RunId(CachePolicy):
 
 
 @dataclass
-class Inputs(CachePolicy):
+class Inputs(CacheKeyPolicy):
     """
     Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
     """
@@ -243,6 +272,12 @@ class Inputs(CachePolicy):
                 hashed_inputs[key] = val
 
         return hash_objects(hashed_inputs)
+
+    def __sub__(self, other: str) -> "Inputs":
+        if not isinstance(other, str):
+            raise TypeError("Can only subtract strings from key policies.")
+        exclude = self.exclude or []
+        return Inputs(exclude=exclude + [other])
 
 
 INPUTS = Inputs()
