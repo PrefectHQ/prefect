@@ -7,5 +7,5 @@ if TYPE_CHECKING:
     from prefect.client.schemas.schedules import SCHEDULE_TYPES
 
 FlexibleScheduleList: TypeAlias = Sequence[
-    Union[DeploymentScheduleCreate, dict[str, Any], "SCHEDULE_TYPES"]
+    Union["DeploymentScheduleCreate", dict[str, Any], "SCHEDULE_TYPES"]
 ]
