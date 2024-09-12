@@ -664,3 +664,60 @@ async def test_rapid_fire_events_with_a_threshold(
     assert firing.triggered == frozen_time
     assert firing.triggering_labels == {}
     assert firing.triggering_event == events[-1]
+
+
+@pytest.fixture
+async def simple_recurring_automation(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+) -> Automation:
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="Expects 1 event every 10 seconds",
+            trigger=EventTrigger(
+                expect={"some-event"},
+                posture=Posture.Reactive,
+                threshold=1,
+                within=timedelta(seconds=10),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+    return automation
+
+
+async def test_reactive_automation_can_trigger_on_events_arriving_in_the_future(
+    act: mock.AsyncMock,
+    simple_recurring_automation: Automation,
+    start_of_test: pendulum.DateTime,
+    frozen_time: pendulum.DateTime,
+):
+    """Regression test for an issue where a simple reactive recurring automation would
+    not trigger when the event arrived slightly in the future."""
+
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=start_of_test,
+            event="some-event",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+    )
+
+    act.assert_awaited_once()
+    act.reset_mock()
+
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=start_of_test + timedelta(seconds=999),
+            event="some-event",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+    )
+
+    act.assert_awaited_once()
