@@ -870,7 +870,7 @@ class BaseWorker(abc.ABC):
         if flow_run.deployment_id:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
         if deployment and deployment.concurrency_limit:
-            limit_name = f"deployment:{deployment.id}"
+            limit_name = f"deployment/{deployment.id}"
             concurrency_ctx = concurrency
 
             # ensure that the global concurrency limit is available
