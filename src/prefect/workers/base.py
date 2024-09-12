@@ -873,6 +873,12 @@ class BaseWorker(abc.ABC):
             limit_name = f"deployment:{deployment.id}"
             concurrency_limit = deployment.concurrency_limit
             concurrency_ctx = concurrency
+
+            # ensure that the global concurrency limit is available
+            # and up-to-date before attempting to acquire a slot
+            await self._client.upsert_global_concurrency_limit_by_name(
+                limit_name, deployment.concurrency_limit
+            )
         else:
             limit_name = None
             concurrency_limit = None
