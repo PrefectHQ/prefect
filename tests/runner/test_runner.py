@@ -655,7 +655,7 @@ class TestRunner:
                     deployment = RunnerDeployment.from_flow(
                         flow=dummy_flow_1,
                         name=__file__,
-                        concurrency_limit=1,
+                        concurrency_limit=2,
                     )
 
                     deployment_id = await runner.add_deployment(deployment)
@@ -675,7 +675,7 @@ class TestRunner:
                     1,
                     timeout_seconds=None,
                     create_if_missing=None,
-                    max_retries=0,
+                    max_retries=3,
                     strict=False,
                 )
 
@@ -702,7 +702,7 @@ class TestRunner:
                 deployment = RunnerDeployment.from_flow(
                     flow=dummy_flow_1,
                     name=__file__,
-                    concurrency_limit=1,
+                    concurrency_limit=2,
                 )
 
                 deployment_id = await runner.add_deployment(deployment)
@@ -722,7 +722,7 @@ class TestRunner:
                 1,
                 timeout_seconds=None,
                 create_if_missing=None,
-                max_retries=0,
+                max_retries=3,
                 strict=False,
             )
 

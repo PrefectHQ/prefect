@@ -379,7 +379,7 @@ async def test_worker_with_deployment_concurrency_limit_uses_limit(
                 1,
                 timeout_seconds=None,
                 create_if_missing=None,
-                max_retries=0,
+                max_retries=3,
                 strict=False,
             )
 
@@ -419,7 +419,7 @@ async def test_worker_with_deployment_concurrency_limit_proposes_awaiting_limit_
             1,
             timeout_seconds=None,
             create_if_missing=None,
-            max_retries=0,
+            max_retries=3,
             strict=False,
         )
 
