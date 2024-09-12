@@ -9,7 +9,7 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import prefect.context
 import prefect.settings
@@ -108,9 +108,14 @@ def assert_does_not_warn(ignore_warnings=[]):
 
 
 @contextmanager
-def prefect_test_harness():
+def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
     """
     Temporarily run flows against a local SQLite database for testing.
+
+    Args:
+        server_startup_timeout: The maximum time to wait for the server to start.
+            Defaults to 30 seconds. If set to `None`, the value of
+            `PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS` will be used.
 
     Examples:
         >>> from prefect import flow
@@ -149,7 +154,11 @@ def prefect_test_harness():
         )
         # start a subprocess server to test against
         test_server = SubprocessASGIServer()
-        test_server.start(timeout=30)
+        test_server.start(
+            timeout=server_startup_timeout
+            if server_startup_timeout is not None
+            else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+        )
         stack.enter_context(
             prefect.settings.temporary_settings(
                 # Use a temporary directory for the database
