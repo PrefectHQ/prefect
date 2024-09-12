@@ -1058,7 +1058,7 @@ class Runner:
             concurrency_ctx = asyncnullcontext
 
         try:
-            async with concurrency_ctx(limit_name, max_retries=3):
+            async with concurrency_ctx(limit_name, max_retries=0, strict=True):
                 status_code = await self._run_process(
                     flow_run=flow_run,
                     task_status=task_status,
