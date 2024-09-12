@@ -53,9 +53,9 @@ Prior to running this flow, [save your dbt Cloud credentials to a DbtCloudCreden
 
 ```python
 from prefect import flow
-
 from prefect_dbt.cloud import DbtCloudJob
 from prefect_dbt.cloud.jobs import run_dbt_cloud_job
+
 
 @flow
 def run_dbt_job_flow():
@@ -85,6 +85,7 @@ To create a dbt Cloud Credentials block:
 ```python
 from prefect_dbt.cloud import DbtCloudCredentials
 
+
 DbtCloudCredentials(
     api_key="API-KEY-PLACEHOLDER",
     account_id="ACCOUNT-ID-PLACEHOLDER"
@@ -101,6 +102,7 @@ Then, create a dbt Cloud job block:
 
 ```python
 from prefect_dbt.cloud import DbtCloudCredentials, DbtCloudJob
+
 
 dbt_cloud_credentials = DbtCloudCredentials.load("CREDENTIALS-BLOCK-PLACEHOLDER")
 dbt_cloud_job = DbtCloudJob(
@@ -162,6 +164,7 @@ If you use environment variables in `profiles.yml`, set a Prefect Secret block a
 import os
 from prefect.blocks.system import Secret
 
+
 secret_block = Secret.load("DBT_PASSWORD_PLACEHOLDER")
 
 # Access the stored secret
@@ -194,6 +197,7 @@ from prefect import flow
 from prefect_dbt.cli.tasks import from prefect import flow
 from prefect_dbt.cli.commands import trigger_dbt_cli_command, dbt_build_task
 
+
 @flow
 def dbt_build_flow():
     trigger_dbt_cli_command(
@@ -205,6 +209,8 @@ def dbt_build_flow():
         summary_artifact_key: str = "dbt-build-task-summary",
         extra_command_args=["--model", "foo_model"]
     )
+
+
 if __name__ == "__main__":
     dbt_build_flow()
 ```
@@ -214,9 +220,6 @@ See the [SDK docs](https://prefect-python-sdk-docs.netlify.app/prefect_dbt/) for
 ### Create a summary artifact
 
 These pre-built tasks can also create artifacts. These artifacts have extra information about dbt Core runs, such as messages and compiled code for nodes that fail or have errors.
-
-<img height="200" src="https://private-user-images.githubusercontent.com/104510333/331339770-3868b961-5aff-4115-b409-f86d3992704d.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTg3NDcyOTQsIm5iZiI6MTcxODc0Njk5NCwicGF0aCI6Ii8xMDQ1MTAzMzMvMzMxMzM5NzcwLTM4NjhiOTYxLTVhZmYtNDExNS1iNDA5LWY4NmQzOTkyNzA0ZC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjQwNjE4JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI0MDYxOFQyMTQzMTRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT00NmM2Y2FlZTRkZGVjYTAyNzU4NTc4MzRjMzVmYzdlYmEyNGUzYmUwMzEzM2U4MTVkYzk1ODE0MmQ1MTRlZmMzJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZhY3Rvcl9pZD0wJmtleV9pZD0wJnJlcG9faWQ9MCJ9.OktdY5qg1ocVoD1fCNFLnvqPIJWi7OwDbwef4KyY4cU" />  {/* image url from 2.19.1 release notes */}  
-
 
 ### Create a new profile with blocks
 
