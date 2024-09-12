@@ -146,18 +146,16 @@ class Transaction(ContextModel):
         """
         value = self._stored_values.get(name, NotSet)
         if value is NotSet:
+            # if there's a parent transaction, get the value from the parent
             parent = self.get_parent()
             if parent is not None:
-                try:
-                    value = parent.get(name)
-                except ValueError:
-                    pass
-
-        if value is NotSet:
-            if default is not NotSet:
+                value = parent.get(name, default)
+            # if there's no parent transaction, use the default
+            elif default is not NotSet:
                 value = default
             else:
                 raise ValueError(f"Could not retrieve value for unknown key: {name}")
+        # deepcopy to prevent mutation of stored values
         return copy.deepcopy(value)
 
     def is_committed(self) -> bool:
