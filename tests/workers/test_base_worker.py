@@ -2163,9 +2163,7 @@ async def test_env_merge_logic_is_deep(
         work_pool_name=work_pool.name if work_pool_env else "test-work-pool",
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker._get_configuration(
-            flow_run, schemas.responses.DeploymentResponse.parse_obj(deployment)
-        )
+        config = await worker._get_configuration(flow_run)
 
     for key, value in expected_env.items():
         assert config.env[key] == value
