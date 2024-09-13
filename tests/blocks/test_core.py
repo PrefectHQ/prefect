@@ -3,7 +3,6 @@ import json
 import warnings
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, Type, Union
-from unittest import mock
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
@@ -2981,28 +2980,3 @@ class TestDumpSecrets:
                 }
             ).decode()
         )
-
-
-class TestLoadingBlocks:
-    @register_type
-    class ThisBlockIsClear(Block):
-        x: str
-
-    def test_collections_loaded_only_once(self, block_type_x):
-        with mock.patch("prefect.plugins.load_prefect_collections") as mock_load:
-            block_schema_id = uuid4()
-            api_block = self.ThisBlockIsClear(x="x")._to_block_document(
-                name="block",
-                block_schema_id=block_schema_id,
-                block_type_id=block_type_x.id,
-            )
-            Block._from_block_document(api_block)
-
-            assert mock_load.call_count == 1
-
-            # Second call should not load collections again
-            Block._from_block_document(api_block)
-            assert mock_load.call_count == 1
-
-        global _collections_loaded
-        _collections_loaded = False

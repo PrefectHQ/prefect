@@ -40,7 +40,6 @@ from pydantic import (
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, get_args
 
-import prefect
 import prefect.exceptions
 from prefect.client.schemas import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
@@ -52,6 +51,7 @@ from prefect.client.schemas import (
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
+from prefect.plugins import load_prefect_collections
 from prefect.types import SecretDict
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys, visit_collection
@@ -70,9 +70,6 @@ R = TypeVar("R")
 P = ParamSpec("P")
 
 ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
-
-
-_collections_loaded = False
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -742,13 +739,10 @@ class Block(BaseModel, ABC):
         """
         Retrieve the block class implementation given a key.
         """
-        global _collections_loaded
 
         # Ensure collections are imported and have the opportunity to register types
         # before looking up the block class, but only do this once
-        if not _collections_loaded:
-            prefect.plugins.load_prefect_collections()
-            _collections_loaded = True
+        load_prefect_collections()
 
         return lookup_type(cls, key)
 
