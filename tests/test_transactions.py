@@ -665,7 +665,7 @@ class TestIsolationLevel:
     def test_raises_on_unsupported_isolation_level(self):
         with pytest.raises(
             ValueError,
-            match="Isolation level SERIALIZABLE is not supported by provided result store.",
+            match="Isolation level SERIALIZABLE is not supported by provided configuration",
         ):
             with transaction(
                 key="test",
