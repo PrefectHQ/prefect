@@ -3149,7 +3149,6 @@ class PrefectClient:
                 GlobalConcurrencyLimitCreate(
                     name=name,
                     limit=limit,
-                    # active=True
                 )
             )
         elif existing_limit.limit != limit:
