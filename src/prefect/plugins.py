@@ -14,6 +14,8 @@ from typing import Any, Dict, Union
 import prefect.settings
 from prefect.utilities.compat import EntryPoints, entry_points
 
+COLLECTIONS: Union[None, Dict[str, Union[ModuleType, Exception]]] = None
+
 
 def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception, Any]]:
     """
@@ -38,11 +40,16 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception
     return results
 
 
-def load_prefect_collections() -> Dict[str, ModuleType]:
+def load_prefect_collections() -> Dict[str, Union[ModuleType, Exception]]:
     """
     Load all Prefect collections that define an entrypoint in the group
     `prefect.collections`.
     """
+    global COLLECTIONS
+
+    if COLLECTIONS is not None:
+        return COLLECTIONS
+
     collection_entrypoints: EntryPoints = entry_points(group="prefect.collections")
     collections = safe_load_entrypoints(collection_entrypoints)
 
@@ -61,4 +68,5 @@ def load_prefect_collections() -> Dict[str, ModuleType]:
             if prefect.settings.PREFECT_DEBUG_MODE:
                 print(f"Loaded collection {name!r}.")
 
+    COLLECTIONS = collections
     return collections
