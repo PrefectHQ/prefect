@@ -98,15 +98,6 @@ class CompoundCachePolicy(CachePolicy):
             return None
         return hash_objects(*keys)
 
-    def __add__(self, other: "CachePolicy") -> "CachePolicy":
-        # adding _None is a no-op
-        if isinstance(other, _None):
-            return self
-        elif isinstance(other, CompoundCachePolicy):
-            return CompoundCachePolicy(policies=other.policies + self.policies)
-        else:
-            return CompoundCachePolicy(policies=self.policies + [other])
-
     def __sub__(self, other: str) -> "CompoundCachePolicy":
         if not isinstance(other, str):
             raise TypeError("Can only subtract strings from key policies.")
