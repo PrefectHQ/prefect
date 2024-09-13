@@ -4,11 +4,12 @@ Intended for internal use by the Prefect REST API.
 """
 
 from copy import copy
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, TypeVar, Union
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 import prefect.server.models as models
 from prefect.server import schemas
@@ -16,22 +17,26 @@ from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas.actions import BlockDocumentReferenceCreate
-from prefect.server.schemas.core import BlockDocument, BlockDocumentReference
+from prefect.server.schemas.core import BlockDocument
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 from prefect.utilities.names import obfuscate
 
+T = TypeVar("T", bound=tuple)
+
 
 async def create_block_document(
     session: AsyncSession,
     block_document: schemas.actions.BlockDocumentCreate,
-):
+) -> BlockDocument:
     # lookup block type name and copy to the block document table
     block_type = await models.block_types.read_block_type(
         session=session, block_type_id=block_document.block_type_id
     )
+    assert block_type, f"Block type {block_document.block_type_id} not found"
 
+    name: Union[str, None]
     # anonymous block documents can be given a random name if none is provided
     if block_document.is_anonymous and not block_document.name:
         name = f"anonymous-{uuid4()}"
@@ -70,11 +75,14 @@ async def create_block_document(
 
     # reload the block document in order to load the associated block schema
     # relationship
-    return await read_block_document_by_id(
+    new_block_document = await read_block_document_by_id(
         session=session,
         block_document_id=orm_block.id,
         include_secrets=False,
     )
+    assert new_block_document
+
+    return new_block_document
 
 
 async def block_document_with_unique_values_exists(
@@ -129,7 +137,7 @@ async def read_block_document_by_id(
     session: AsyncSession,
     block_document_id: UUID,
     include_secrets: bool = False,
-):
+) -> Union[BlockDocument, None]:
     block_documents = await read_block_documents(
         session=session,
         block_document_filter=schemas.filters.BlockDocumentFilter(
@@ -145,7 +153,7 @@ async def read_block_document_by_id(
 
 async def _construct_full_block_document(
     session: AsyncSession,
-    block_documents_with_references: List[
+    block_documents_with_references: Sequence[
         Tuple[orm_models.ORMBlockDocument, Optional[str], Optional[UUID]]
     ],
     parent_block_document: Optional[BlockDocument] = None,
@@ -183,6 +191,7 @@ async def _construct_full_block_document(
                 parent_block_document=copy(block_document),
                 include_secrets=include_secrets,
             )
+            assert full_child_block_document
             parent_block_document.data[name] = full_child_block_document.data
             parent_block_document.block_document_references[name] = {
                 "block_document": {
@@ -200,8 +209,12 @@ async def _construct_full_block_document(
 
 
 async def _find_parent_block_document(
-    session, block_documents_with_references, include_secrets: bool = False
-):
+    session: AsyncSession,
+    block_documents_with_references: Sequence[
+        Tuple[orm_models.ORMBlockDocument, Optional[str], Optional[UUID]]
+    ],
+    include_secrets: bool = False,
+) -> Union[BlockDocument, None]:
     parent_orm_block_document = next(
         (
             block_document
@@ -230,7 +243,7 @@ async def read_block_document_by_name(
     name: str,
     block_type_slug: str,
     include_secrets: bool = False,
-):
+) -> Union[BlockDocument, None]:
     """
     Read a block document with the given name and block type slug.
     """
@@ -251,11 +264,11 @@ async def read_block_document_by_name(
 
 
 def _apply_block_document_filters(
-    query,
+    query: Select[T],
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
-):
+) -> Select[T]:
     # if no filter is provided, one is created that excludes anonymous blocks
     if block_document_filter is None:
         block_document_filter = schemas.filters.BlockDocumentFilter(
@@ -288,12 +301,10 @@ async def read_block_documents(
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     include_secrets: bool = False,
-    sort: Optional[
-        schemas.sorting.BlockDocumentSort
-    ] = schemas.sorting.BlockDocumentSort.NAME_ASC,
+    sort: schemas.sorting.BlockDocumentSort = schemas.sorting.BlockDocumentSort.NAME_ASC,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-):
+) -> List[BlockDocument]:
     """
     Read block documents with an optional limit and offset
     """
@@ -315,7 +326,7 @@ async def read_block_documents(
     if limit is not None:
         filtered_block_documents_query = filtered_block_documents_query.limit(limit)
 
-    filtered_block_documents_query = filtered_block_documents_query.cte(
+    filtered_block_documents_cte = filtered_block_documents_query.cte(
         "filtered_block_documents"
     )
 
@@ -325,13 +336,13 @@ async def read_block_documents(
     # references it and name it's referenced by, if applicable.
     parent_documents = (
         sa.select(
-            filtered_block_documents_query.c.id,
+            filtered_block_documents_cte.c.id,
             sa.cast(sa.null(), sa.String).label("reference_name"),
             sa.cast(sa.null(), UUIDTypeDecorator).label(
                 "reference_parent_block_document_id"
             ),
         )
-        .select_from(filtered_block_documents_query)
+        .select_from(filtered_block_documents_cte)
         .cte("all_block_documents", recursive=True)
     )
     # recursive part of query
@@ -382,7 +393,7 @@ async def read_block_documents(
     ]
 
     # walk the resulting dataset and hydrate all block documents
-    fully_constructed_block_documents = []
+    fully_constructed_block_documents: List[BlockDocument] = []
     visited_block_document_ids = []
     for root_orm_block_document, _, _ in block_documents_with_references:
         if (
@@ -392,14 +403,15 @@ async def read_block_documents(
             root_block_document = await BlockDocument.from_orm_model(
                 session, root_orm_block_document, include_secrets=include_secrets
             )
-            fully_constructed_block_documents.append(
-                await _construct_full_block_document(
-                    session,
-                    block_documents_with_references,
-                    root_block_document,
-                    include_secrets=include_secrets,
-                )
+            constructed = await _construct_full_block_document(
+                session,
+                block_documents_with_references,  # type: ignore
+                root_block_document,
+                include_secrets=include_secrets,
             )
+            assert constructed
+
+            fully_constructed_block_documents.append(constructed)
             visited_block_document_ids.append(root_orm_block_document.id)
 
     block_schema_ids = [
@@ -417,6 +429,7 @@ async def read_block_documents(
             if block_schema.id == block_document.block_schema_id
         )
         block_document.block_schema = corresponding_block_schema
+
     return fully_constructed_block_documents
 
 
@@ -543,6 +556,9 @@ async def update_block_document(
             proposed_block_schema = await session.get(
                 orm_models.BlockSchema, proposed_block_schema_id
             )
+            assert (
+                proposed_block_schema
+            ), f"Block schema {proposed_block_schema_id} not found"
 
             # make sure the proposed schema is of the same block type as the current document
             if (
@@ -560,10 +576,10 @@ async def update_block_document(
             )
 
         unchanged_block_document_references = []
-        for secret_key, reference_block_document_id in new_block_document_references:
+        for name, reference_block_document_id in new_block_document_references:
             matching_current_block_document_reference = _find_block_document_reference(
                 current_block_document_references,
-                secret_key,
+                name,
                 reference_block_document_id,
             )
             if matching_current_block_document_reference is None:
@@ -572,7 +588,7 @@ async def update_block_document(
                     block_document_reference=BlockDocumentReferenceCreate(
                         parent_block_document_id=block_document_id,
                         reference_block_document_id=reference_block_document_id,
-                        name=secret_key,
+                        name=name,
                     ),
                 )
             else:
@@ -590,10 +606,10 @@ async def update_block_document(
 
 
 def _find_block_document_reference(
-    block_document_references: List[BlockDocumentReference],
+    block_document_references: Sequence[orm_models.BlockDocumentReference],
     name: str,
     reference_block_document_id: UUID,
-) -> Optional[BlockDocumentReference]:
+) -> Optional[orm_models.BlockDocumentReference]:
     return next(
         (
             block_document_reference
@@ -611,7 +627,7 @@ async def create_block_document_reference(
     db: PrefectDBInterface,
     session: AsyncSession,
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
-):
+) -> Union[orm_models.BlockDocumentReference, None]:
     insert_stmt = db.insert(orm_models.BlockDocumentReference).values(
         **block_document_reference.model_dump_for_orm(
             exclude_unset=True, exclude={"created", "updated"}
@@ -631,7 +647,7 @@ async def create_block_document_reference(
 async def delete_block_document_reference(
     session: AsyncSession,
     block_document_reference_id: UUID,
-):
+) -> bool:
     query = sa.delete(orm_models.BlockDocumentReference).where(
         orm_models.BlockDocumentReference.id == block_document_reference_id
     )

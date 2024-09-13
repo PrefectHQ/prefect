@@ -1178,9 +1178,9 @@ class TestReadFlowRunTaskRunDependencies:
         )
 
         # We do this because read_task_run_dependencies doesn't guarantee any ordering
-        d1 = next(filter(lambda d: d["id"] == task_run_1.id, dependencies))
-        d2 = next(filter(lambda d: d["id"] == task_run_2.id, dependencies))
-        d3 = next(filter(lambda d: d["id"] == task_run_3.id, dependencies))
+        d1 = next(filter(lambda d: d.id == task_run_1.id, dependencies))
+        d2 = next(filter(lambda d: d.id == task_run_2.id, dependencies))
+        d3 = next(filter(lambda d: d.id == task_run_3.id, dependencies))
 
         assert len(dependencies) == 3
 
@@ -1196,14 +1196,14 @@ class TestReadFlowRunTaskRunDependencies:
         ]
 
         for field in fields:
-            assert d1[field] == getattr(task_run_1, field)
-            assert d2[field] == getattr(task_run_2, field)
-            assert d3[field] == getattr(task_run_3, field)
+            assert getattr(d1, field) == getattr(task_run_1, field)
+            assert getattr(d2, field) == getattr(task_run_2, field)
+            assert getattr(d3, field) == getattr(task_run_3, field)
 
-        assert len(d1["upstream_dependencies"]) == 0
-        assert len(d2["upstream_dependencies"]) == len(d3["upstream_dependencies"]) == 1
-        assert d2["upstream_dependencies"][0].id == d1["id"]
-        assert d3["upstream_dependencies"][0].id == d2["id"]
+        assert len(d1.upstream_dependencies) == 0
+        assert len(d2.upstream_dependencies) == len(d3.upstream_dependencies) == 1
+        assert d2.upstream_dependencies[0].id == d1.id
+        assert d3.upstream_dependencies[0].id == d2.id
 
     async def test_read_task_run_dependencies_throws_error_if_does_not_exist(
         self, session

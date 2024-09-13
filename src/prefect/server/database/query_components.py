@@ -117,7 +117,7 @@ class BaseQueryComponents(ABC):
     async def queue_flow_run_notifications(
         self,
         session: sa.orm.session,
-        flow_run: schemas.core.FlowRun,
+        flow_run: Union[schemas.core.FlowRun, orm_models.FlowRun],
         db: "PrefectDBInterface",
     ):
         """Database-specific implementation of queueing notifications for a flow run"""

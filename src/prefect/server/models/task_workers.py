@@ -17,7 +17,7 @@ class TaskWorkerResponse(BaseModel):
 
 
 class InMemoryTaskWorkerTracker:
-    def __init__(self):
+    def __init__(self) -> None:
         self.workers: dict[WorkerId, Set[TaskKey]] = {}
         self.task_keys: Dict[TaskKey, Set[WorkerId]] = defaultdict(set)
         self.worker_timestamps: Dict[WorkerId, float] = {}
@@ -68,7 +68,7 @@ class InMemoryTaskWorkerTracker:
             timestamp=DateTime.utcnow().subtract(seconds=timestamp),
         )
 
-    def reset(self):
+    def reset(self) -> None:
         """Testing utility to reset the state of the task worker tracker"""
         self.workers.clear()
         self.task_keys.clear()

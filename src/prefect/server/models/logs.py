@@ -3,7 +3,7 @@ Functions for interacting with log ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import List, Optional
+from typing import Generator, List, Optional, Sequence, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from prefect.logging import get_logger
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.schemas.actions import LogCreate
 from prefect.utilities.collections import batched_iterable
 
 # We have a limit of 32,767 parameters at a time for a single query...
@@ -27,7 +28,9 @@ LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS
 logger = get_logger(__name__)
 
 
-def split_logs_into_batches(logs):
+def split_logs_into_batches(
+    logs: List[schemas.actions.LogCreate],
+) -> Generator[Tuple[LogCreate, ...], None, None]:
     for batch in batched_iterable(logs, LOG_BATCH_SIZE):
         yield batch
 
@@ -35,7 +38,7 @@ def split_logs_into_batches(logs):
 @db_injector
 async def create_logs(
     db: PrefectDBInterface, session: AsyncSession, logs: List[schemas.core.Log]
-):
+) -> None:
     """
     Creates new logs
 
@@ -66,7 +69,7 @@ async def read_logs(
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC,
-):
+) -> Sequence[orm_models.Log]:
     """
     Read logs.
 

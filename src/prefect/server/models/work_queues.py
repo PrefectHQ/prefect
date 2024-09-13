@@ -11,6 +11,8 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
+    cast,
 )
 from uuid import UUID
 
@@ -34,13 +36,14 @@ from prefect.server.models.workers import (
 )
 from prefect.server.schemas.states import StateType
 from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.server.utilities.database import UUID as PrefectUUID
 
 WORK_QUEUE_LAST_POLLED_TIMEOUT = datetime.timedelta(seconds=60)
 
 
 async def create_work_queue(
     session: AsyncSession,
-    work_queue: schemas.core.WorkQueue,
+    work_queue: Union[schemas.core.WorkQueue, schemas.actions.WorkQueueCreate],
 ) -> orm_models.WorkQueue:
     """
     Inserts a WorkQueue.
@@ -74,10 +77,12 @@ async def create_work_queue(
             if work_queue.name == "default":
                 # If the desired work queue name is default, it was created when the
                 # work pool was created. We can just return it.
-                return await models.workers.read_work_queue(
+                default_work_queue = await models.workers.read_work_queue(
                     session=session,
                     work_queue_id=default_agent_work_pool.default_queue_id,
                 )
+                assert default_work_queue
+                return default_work_queue
             data["work_pool_id"] = default_agent_work_pool.id
 
     # Set the priority to be the max priority + 1
@@ -121,7 +126,7 @@ async def create_work_queue(
 
 
 async def read_work_queue(
-    session: AsyncSession, work_queue_id: UUID
+    session: AsyncSession, work_queue_id: Union[UUID, PrefectUUID]
 ) -> Optional[orm_models.WorkQueue]:
     """
     Reads a WorkQueue by id.
@@ -168,7 +173,7 @@ async def read_work_queues(
     session: AsyncSession,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
 ) -> Sequence[orm_models.WorkQueue]:
     """
     Read WorkQueues.
@@ -195,7 +200,7 @@ async def read_work_queues(
     return result.scalars().unique().all()
 
 
-def is_last_polled_recent(last_polled):
+def is_last_polled_recent(last_polled: Optional[pendulum.DateTime]) -> bool:
     if last_polled is None:
         return False
     return (pendulum.now("UTC") - last_polled) <= WORK_QUEUE_LAST_POLLED_TIMEOUT
@@ -244,8 +249,9 @@ async def update_work_queue(
             update_data["status"] = WorkQueueStatus.NOT_READY
 
             # Determine source of last_polled: update_data or database
+            last_polled: Optional[pendulum.DateTime]
             if "last_polled" in update_data:
-                last_polled = update_data["last_polled"]
+                last_polled = cast(pendulum.DateTime, update_data["last_polled"])
             else:
                 last_polled = wq.last_polled
 
@@ -264,7 +270,8 @@ async def update_work_queue(
     if updated:
         if "status" in update_data and emit_status_change:
             wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
-            await emit_status_change(work_queue=wq)
+            assert wq
+            await emit_status_change(wq)
 
     return updated
 
@@ -293,7 +300,7 @@ async def get_runs_in_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
     limit: Optional[int] = None,
-    scheduled_before: datetime.datetime = None,
+    scheduled_before: Optional[datetime.datetime] = None,
 ) -> Tuple[orm_models.WorkQueue, Sequence[orm_models.FlowRun]]:
     """
     Get runs from a work queue.
@@ -334,7 +341,7 @@ async def get_runs_in_work_queue(
 async def _legacy_get_runs_in_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
-    scheduled_before: datetime.datetime = None,
+    scheduled_before: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
 ) -> Sequence[orm_models.FlowRun]:
     """
@@ -403,7 +410,9 @@ async def _legacy_get_runs_in_work_queue(
     )
 
 
-async def ensure_work_queue_exists(session: AsyncSession, name: str):
+async def ensure_work_queue_exists(
+    session: AsyncSession, name: str
+) -> orm_models.WorkQueue:
     """
     Checks if a work queue exists and creates it if it does not.
 
@@ -436,6 +445,7 @@ async def ensure_work_queue_exists(session: AsyncSession, name: str):
                 work_queue = await models.work_queues.read_work_queue(
                     session=session, work_queue_id=default_pool.default_queue_id
                 )
+                assert work_queue, "Default work queue not found"
 
     return work_queue
 
@@ -475,7 +485,7 @@ async def read_work_queue_status(
 
     healthy = health_check_policy.evaluate_health_status(
         late_runs_count=work_queue_late_runs_count,
-        last_polled=work_queue.last_polled,
+        last_polled=work_queue.last_polled,  # type: ignore
     )
 
     return schemas.core.WorkQueueStatusDetail(
@@ -490,7 +500,7 @@ async def record_work_queue_polls(
     session: AsyncSession,
     polled_work_queue_ids: Sequence[UUID],
     ready_work_queue_ids: Sequence[UUID],
-):
+) -> None:
     """Record that the given work queues were polled, and also update the given
     ready_work_queue_ids to READY."""
     polled = pendulum.now("UTC")
@@ -515,7 +525,7 @@ async def mark_work_queues_ready(
     db: PrefectDBInterface,
     polled_work_queue_ids: Sequence[UUID],
     ready_work_queue_ids: Sequence[UUID],
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await record_work_queue_polls(
             session=session,
@@ -554,7 +564,7 @@ async def mark_work_queues_ready(
 async def mark_work_queues_not_ready(
     db: PrefectDBInterface,
     work_queue_ids: Iterable[UUID],
-):
+) -> None:
     if not work_queue_ids:
         return
 
@@ -594,7 +604,7 @@ async def mark_work_queues_not_ready(
 async def emit_work_queue_status_event(
     db: PrefectDBInterface,
     work_queue: orm_models.WorkQueue,
-):
+) -> None:
     async with db.session_context() as session:
         event = await work_queue_status_event(
             session=session,
