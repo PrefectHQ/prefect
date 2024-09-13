@@ -24,8 +24,7 @@ class CachePolicy:
     isolation_level: Union[
         Literal["SERIALIZABLE", "READ_COMMITTED"],
         "IsolationLevel",
-        None,
-    ] = None
+    ] = "SERIALIZABLE"
     locks: Union[str, Path, "LockManager", None] = None
 
     @classmethod
@@ -57,13 +56,25 @@ class CachePolicy:
         if isinstance(other, _None):
             return self
 
-        if other.storage != self.storage:
+        if (
+            other.storage is not None
+            and self.storage is not None
+            and other.storage != self.storage
+        ):
             raise ValueError("Cannot add CachePolicies with different storages.")
-        if other.isolation_level != self.isolation_level:
+        if (
+            other.isolation_level is not None
+            and self.isolation_level is not None
+            and other.isolation_level != self.isolation_level
+        ):
             raise ValueError(
                 "Cannot add CachePolicies with different isolation levels."
             )
-        if other.locks != self.locks:
+        if (
+            other.locks is not None
+            and self.locks is not None
+            and other.locks != self.locks
+        ):
             raise ValueError(
                 "Cannot add CachePolicies with different lock implementations."
             )

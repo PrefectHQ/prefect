@@ -49,6 +49,7 @@ from prefect.filesystems import (
     LocalFileSystem,
     WritableFileSystem,
 )
+from prefect.locking.filesystem import FileSystemLockManager
 from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
 from prefect.serializers import PickleSerializer, Serializer
@@ -120,9 +121,12 @@ async def resolve_result_storage(
         else:
             storage_block_id = None
     elif isinstance(result_storage, str):
-        storage_block = await Block.load(result_storage, client=client)
-        storage_block_id = storage_block._block_document_id
-        assert storage_block_id is not None, "Loaded storage blocks must have ids"
+        try:
+            storage_block = await Block.load(result_storage, client=client)
+            storage_block_id = storage_block._block_document_id
+            assert storage_block_id is not None, "Loaded storage blocks must have ids"
+        except ValueError:
+            storage_block = LocalFileSystem(basepath=result_storage)
     elif isinstance(result_storage, UUID):
         block_document = await client.read_block_document(result_storage)
         storage_block = Block._from_block_document(block_document)
@@ -295,6 +299,20 @@ class ResultStore(BaseModel):
             update["storage_key_fn"] = partial(
                 _format_user_supplied_storage_key, task.result_storage_key
             )
+        if task.cache_policy is not None and task.cache_policy is not NotSet:
+            if task.cache_policy.storage is not None:
+                update["result_storage"] = await resolve_result_storage(
+                    task.cache_policy.storage
+                )
+            if task.cache_policy.locks is not None:
+                if not isinstance(task.cache_policy.locks, LockManager):
+                    lock_manager = FileSystemLockManager(
+                        lock_files_directory=Path(task.cache_policy.locks)
+                    )
+                else:
+                    lock_manager = task.cache_policy.locks
+                update["lock_manager"] = lock_manager
+
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
         return self.model_copy(update=update)
