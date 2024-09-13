@@ -627,7 +627,7 @@ async def create_block_document_reference(
     db: PrefectDBInterface,
     session: AsyncSession,
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
-) -> orm_models.BlockDocumentReference:
+) -> Union[orm_models.BlockDocumentReference, None]:
     insert_stmt = db.insert(orm_models.BlockDocumentReference).values(
         **block_document_reference.model_dump_for_orm(
             exclude_unset=True, exclude={"created", "updated"}
@@ -641,7 +641,7 @@ async def create_block_document_reference(
         )
     )
 
-    return result.scalar_one()
+    return result.scalar()
 
 
 async def delete_block_document_reference(

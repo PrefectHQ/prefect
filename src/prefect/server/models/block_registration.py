@@ -42,6 +42,9 @@ async def _install_protected_system_blocks(session: AsyncSession) -> None:
             orm_block_type = await models.block_types.create_block_type(
                 session=session, block_type=server_block_type, override=True
             )
+            assert (
+                orm_block_type is not None
+            ), f"Failed to create block type {block_type}"
 
             await models.block_schemas.create_block_schema(
                 session=session,
@@ -118,6 +121,7 @@ async def register_block_type(
             session=session,
             block_type=block_type,
         )
+        assert new_block_type is not None, f"Failed to create block type {block_type}"
         return new_block_type.id
     else:
         await update_block_type(

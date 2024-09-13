@@ -26,7 +26,7 @@ async def create_block_type(
     session: AsyncSession,
     block_type: Union[schemas.core.BlockType, "ClientBlockType"],
     override: bool = False,
-) -> BlockType:
+) -> Union[BlockType, None]:
     """
     Create a new block type.
 
@@ -75,7 +75,7 @@ async def create_block_type(
     )
 
     result = await session.execute(query)
-    return result.scalar_one()
+    return result.scalar()
 
 
 async def read_block_type(

@@ -802,7 +802,7 @@ async def create_block_schema_reference(
     db: PrefectDBInterface,
     session: AsyncSession,
     block_schema_reference: schemas.core.BlockSchemaReference,
-) -> orm_models.BlockSchemaReference:
+) -> Union[orm_models.BlockSchemaReference, None]:
     """
     Retrieves a list of all available block capabilities.
 
@@ -837,4 +837,4 @@ async def create_block_schema_reference(
             orm_models.BlockSchemaReference.id == block_schema_reference.id
         )
     )
-    return result.scalar_one()
+    return result.scalar()

@@ -320,7 +320,7 @@ class DependencyResult(PrefectBaseModel):
     id: UUID
     name: str
     upstream_dependencies: List[TaskRunResult]
-    state: State
+    state: Optional[State]
     expected_start_time: Optional[datetime.datetime]
     start_time: Optional[datetime.datetime]
     end_time: Optional[datetime.datetime]
