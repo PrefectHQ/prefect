@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import html
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -26,7 +26,7 @@ async def create_block_type(
     session: AsyncSession,
     block_type: Union[schemas.core.BlockType, "ClientBlockType"],
     override: bool = False,
-) -> "BlockType":
+) -> Union[BlockType, None]:
     """
     Create a new block type.
 
@@ -81,7 +81,7 @@ async def create_block_type(
 async def read_block_type(
     session: AsyncSession,
     block_type_id: UUID,
-):
+) -> Union[BlockType, None]:
     """
     Reads a block type by id.
 
@@ -95,7 +95,9 @@ async def read_block_type(
     return await session.get(BlockType, block_type_id)
 
 
-async def read_block_type_by_slug(session: AsyncSession, block_type_slug: str):
+async def read_block_type_by_slug(
+    session: AsyncSession, block_type_slug: str
+) -> Union[BlockType, None]:
     """
     Reads a block type by slug.
 
@@ -119,7 +121,7 @@ async def read_block_types(
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
-):
+) -> Sequence[BlockType]:
     """
     Reads block types with an optional limit and offset
 
@@ -152,8 +154,13 @@ async def read_block_types(
 
 async def update_block_type(
     session: AsyncSession,
-    block_type_id: str,
-    block_type: Union[schemas.actions.BlockTypeUpdate, "ClientBlockTypeUpdate"],
+    block_type_id: Union[str, UUID],
+    block_type: Union[
+        schemas.actions.BlockTypeUpdate,
+        schemas.core.BlockType,
+        "ClientBlockTypeUpdate",
+        "ClientBlockType",
+    ],
 ) -> bool:
     """
     Update a block type by id.
@@ -187,7 +194,7 @@ async def update_block_type(
     return result.rowcount > 0
 
 
-async def delete_block_type(session: AsyncSession, block_type_id: str):
+async def delete_block_type(session: AsyncSession, block_type_id: str) -> bool:
     """
     Delete a block type by id.
 

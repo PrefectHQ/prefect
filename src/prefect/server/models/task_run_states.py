@@ -3,15 +3,18 @@ Functions for interacting with task run state ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
+from typing import Sequence, Union
 from uuid import UUID
 
-import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import orm_models
 
 
-async def read_task_run_state(session: sa.orm.Session, task_run_state_id: UUID):
+async def read_task_run_state(
+    session: AsyncSession, task_run_state_id: UUID
+) -> Union[orm_models.TaskRunState, None]:
     """
     Reads a task run state by id.
 
@@ -26,7 +29,9 @@ async def read_task_run_state(session: sa.orm.Session, task_run_state_id: UUID):
     return await session.get(orm_models.TaskRunState, task_run_state_id)
 
 
-async def read_task_run_states(session: sa.orm.Session, task_run_id: UUID):
+async def read_task_run_states(
+    session: AsyncSession, task_run_id: UUID
+) -> Sequence[orm_models.TaskRunState]:
     """
     Reads task runs states for a task run.
 
@@ -47,9 +52,7 @@ async def read_task_run_states(session: sa.orm.Session, task_run_id: UUID):
     return result.scalars().unique().all()
 
 
-async def delete_task_run_state(
-    session: sa.orm.Session, task_run_state_id: UUID
-) -> bool:
+async def delete_task_run_state(session: AsyncSession, task_run_state_id: UUID) -> bool:
     """
     Delete a task run state by id.
 

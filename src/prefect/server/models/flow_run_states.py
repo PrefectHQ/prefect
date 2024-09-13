@@ -3,15 +3,18 @@ Functions for interacting with flow run state ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
+from typing import Sequence, Union
 from uuid import UUID
 
-import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import orm_models
 
 
-async def read_flow_run_state(session: sa.orm.Session, flow_run_state_id: UUID):
+async def read_flow_run_state(
+    session: AsyncSession, flow_run_state_id: UUID
+) -> Union[orm_models.FlowRunState, None]:
     """
     Reads a flow run state by id.
 
@@ -26,7 +29,9 @@ async def read_flow_run_state(session: sa.orm.Session, flow_run_state_id: UUID):
     return await session.get(orm_models.FlowRunState, flow_run_state_id)
 
 
-async def read_flow_run_states(session: sa.orm.Session, flow_run_id: UUID):
+async def read_flow_run_states(
+    session: AsyncSession, flow_run_id: UUID
+) -> Sequence[orm_models.FlowRunState]:
     """
     Reads flow runs states for a flow run.
 
@@ -48,7 +53,7 @@ async def read_flow_run_states(session: sa.orm.Session, flow_run_id: UUID):
 
 
 async def delete_flow_run_state(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_state_id: UUID,
 ) -> bool:
     """

@@ -2,7 +2,7 @@ import datetime
 from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from prefect.server.database import orm_models
 from prefect.server.database.alembic_commands import alembic_downgrade, alembic_upgrade
@@ -402,7 +402,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
             session=session, limit=limit
         )
 
-    async def read_configuration_value(self, session: sa.orm.Session, key: str):
+    async def read_configuration_value(self, session: AsyncSession, key: str):
         """Read a configuration value"""
         return await self.queries.read_configuration_value(session=session, key=key)
 

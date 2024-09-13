@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, Any, Dict, List, Union, cast
+from uuid import UUID
 
-import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.core import Block
 from prefect.blocks.system import JSON, DateTime, Secret
@@ -11,6 +12,10 @@ from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 
+if TYPE_CHECKING:
+    from prefect.client.schemas import BlockSchema as ClientBlockSchema
+    from prefect.client.schemas import BlockType as ClientBlockType
+
 logger = get_logger("server")
 
 COLLECTIONS_BLOCKS_DATA_PATH = (
@@ -18,17 +23,13 @@ COLLECTIONS_BLOCKS_DATA_PATH = (
 )
 
 
-async def _install_protected_system_blocks(session):
+async def _install_protected_system_blocks(session: AsyncSession) -> None:
     """Install block types that the system expects to be present"""
+    protected_system_blocks = cast(
+        List[Block], [Webhook, JSON, DateTime, Secret, LocalFileSystem]
+    )
 
-    for block in [
-        Webhook,
-        JSON,
-        DateTime,
-        Secret,
-        LocalFileSystem,
-    ]:
-        block = cast(Block, block)
+    for block in protected_system_blocks:
         async with session.begin():
             block_type = block._to_block_type()
 
@@ -38,20 +39,24 @@ async def _install_protected_system_blocks(session):
             block_type.is_protected = True
             server_block_type.is_protected = True
 
-            block_type = await models.block_types.create_block_type(
+            orm_block_type = await models.block_types.create_block_type(
                 session=session, block_type=server_block_type, override=True
             )
+            assert (
+                orm_block_type is not None
+            ), f"Failed to create block type {block_type}"
+
             await models.block_schemas.create_block_schema(
                 session=session,
-                block_schema=block._to_block_schema(block_type_id=block_type.id),
+                block_schema=block._to_block_schema(block_type_id=orm_block_type.id),
                 override=True,
             )
 
 
 async def register_block_schema(
-    session: sa.orm.Session,
-    block_schema: schemas.core.BlockSchema,
-):
+    session: AsyncSession,
+    block_schema: Union[schemas.core.BlockSchema, "ClientBlockSchema"],
+) -> UUID:
     """
     Stores the provided block schema in the Prefect REST API database.
 
@@ -75,19 +80,19 @@ async def register_block_schema(
         session=session, checksum=block_schema.checksum, version=block_schema.version
     )
     if existing_block_schema is None:
-        block_schema = await create_block_schema(
+        new_block_schema = await create_block_schema(
             session=session,
             block_schema=block_schema,
         )
-        return block_schema.id
+        return new_block_schema.id
     else:
         return existing_block_schema.id
 
 
 async def register_block_type(
-    session: sa.orm.Session,
-    block_type: schemas.core.BlockType,
-):
+    session: AsyncSession,
+    block_type: Union[schemas.core.BlockType, "ClientBlockType"],
+) -> UUID:
     """
     Stores the provided block type in the Prefect REST API database.
 
@@ -112,11 +117,12 @@ async def register_block_type(
         block_type_slug=block_type.slug,
     )
     if existing_block_type is None:
-        block_type = await create_block_type(
+        new_block_type = await create_block_type(
             session=session,
             block_type=block_type,
         )
-        return block_type.id
+        assert new_block_type is not None, f"Failed to create block type {block_type}"
+        return new_block_type.id
     else:
         await update_block_type(
             session=session,
@@ -126,7 +132,7 @@ async def register_block_type(
         return existing_block_type.id
 
 
-async def _load_collection_blocks_data():
+async def _load_collection_blocks_data() -> Dict[str, Any]:
     """Loads blocks data for whitelisted collections."""
     import anyio
 
@@ -134,7 +140,7 @@ async def _load_collection_blocks_data():
         return json.loads(await f.read())
 
 
-async def _register_registry_blocks(session: sa.orm.Session):
+async def _register_registry_blocks(session: AsyncSession) -> None:
     """Registers block from the client block registry."""
     from prefect.blocks.core import Block
     from prefect.utilities.dispatch import get_registry_for_type
@@ -154,7 +160,7 @@ async def _register_registry_blocks(session: sa.orm.Session):
             )
 
 
-async def _register_collection_blocks(session: sa.orm.Session):
+async def _register_collection_blocks(session: AsyncSession) -> None:
     """Registers blocks from whitelisted collections."""
     collections_blocks_data = await _load_collection_blocks_data()
 
@@ -195,7 +201,7 @@ async def _register_collection_blocks(session: sa.orm.Session):
                 )
 
 
-async def run_block_auto_registration(session: sa.orm.Session):
+async def run_block_auto_registration(session: AsyncSession) -> None:
     """
     Registers all blocks in the client block registry and any blocks from Prefect
     Collections that are configured for auto-registration.

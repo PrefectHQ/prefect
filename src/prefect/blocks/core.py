@@ -86,7 +86,7 @@ class InvalidBlockRegistration(Exception):
     """
 
 
-def _collect_nested_reference_strings(obj: Dict):
+def _collect_nested_reference_strings(obj: Dict) -> List[str]:
     """
     Collects all nested reference strings (e.g. #/definitions/Model) from a given object.
     """

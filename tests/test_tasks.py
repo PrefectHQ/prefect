@@ -3563,7 +3563,7 @@ class TestTaskMap:
             session=session, flow_run_id=flow_run_id
         )
 
-        return {x["id"]: [d.id for d in x["upstream_dependencies"]] for x in graph}
+        return {x.id: [d.id for d in x.upstream_dependencies] for x in graph}
 
     async def test_map_preserves_dependencies_between_futures_all_mapped_children(
         self, session, events_pipeline
