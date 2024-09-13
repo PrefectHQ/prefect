@@ -138,8 +138,14 @@ class TestCompoundPolicy:
 
     def test_creation_via_subtraction(self):
         one = RunId()
-        policy = one - "foo"
+        policy = one - "y"
         assert isinstance(policy, CompoundCachePolicy)
+
+        assert policy.compute_key(
+            task_ctx=None, inputs={"x": 42, "y": "foo"}, flow_parameters=None
+        ) == (RunId() + Inputs(exclude=["y"])).compute_key(
+            task_ctx=None, inputs={"x": 42, "y": "foo"}, flow_parameters=None
+        )
 
     def test_nones_are_ignored(self):
         one, two = _None(), _None()
