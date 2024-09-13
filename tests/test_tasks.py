@@ -30,6 +30,7 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
+from prefect.locking.filesystem import FileSystemLockManager
 from prefect.logging import get_run_logger
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.runtime import task_run as task_run_ctx
@@ -44,7 +45,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import CommitMode, Transaction, transaction
+from prefect.transactions import CommitMode, IsolationLevel, Transaction, transaction
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
@@ -1869,6 +1870,102 @@ class TestTaskCaching:
             "Ignoring `cache_policy` because `persist_result` is False"
             not in caplog.text
         )
+
+    def test_cache_policy_storage_path(self, tmp_path):
+        cache_policy = INPUTS.configure(storage=tmp_path)
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        assert (tmp_path / expected_cache_key).exists()
+
+    def test_cache_policy_storage_str(self, tmp_path):
+        cache_policy = INPUTS.configure(storage=str(tmp_path))
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        assert (tmp_path / expected_cache_key).exists()
+
+    def test_cache_policy_storage_storage_block(self, tmp_path):
+        cache_policy = INPUTS.configure(storage=LocalFileSystem(basepath=str(tmp_path)))
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        assert (tmp_path / expected_cache_key).exists()
+
+    @pytest.mark.parametrize(
+        "isolation_level", [IsolationLevel.SERIALIZABLE, "SERIALIZABLE"]
+    )
+    def test_cache_policy_locks_path(self, tmp_path, isolation_level):
+        cache_policy = INPUTS.configure(locks=tmp_path, isolation_level=isolation_level)
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            assert (tmp_path / f"{expected_cache_key}.lock").exists()
+            return x
+
+        assert foo(1) == 1
+
+    def test_cache_policy_locks_str(self, tmp_path):
+        cache_policy = INPUTS.configure(
+            locks=str(tmp_path), isolation_level=IsolationLevel.SERIALIZABLE
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            assert (tmp_path / f"{expected_cache_key}.lock").exists()
+            return x
+
+        assert foo(1) == 1
+
+    def test_cache_policy_locks_lock_manager(self, tmp_path):
+        cache_policy = INPUTS.configure(
+            locks=FileSystemLockManager(lock_files_directory=tmp_path),
+            isolation_level=IsolationLevel.SERIALIZABLE,
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            assert (tmp_path / f"{expected_cache_key}.lock").exists()
+            return x
+
+        assert foo(1) == 1
+
+    def test_cache_policy_serializable_isolation_level_with_no_locks(self):
+        cache_policy = INPUTS.configure(isolation_level=IsolationLevel.SERIALIZABLE)
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        with pytest.raises(ValueError, match="not supported by provided configuration"):
+            foo(1)
 
 
 class TestCacheFunctionBuiltins:

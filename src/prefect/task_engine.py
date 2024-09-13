@@ -725,17 +725,21 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
 
+        isolation_level = (
+            IsolationLevel(self.task.cache_policy.isolation_level)
+            if self.task.cache_policy
+            and self.task.cache_policy is not NotSet
+            and self.task.cache_policy.isolation_level is not None
+            else None
+        )
+
         with transaction(
             key=self.compute_transaction_key(),
             store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
-            isolation_level=(
-                IsolationLevel(self.task.cache_policy.isolation_level)
-                if self.task.cache_policy and self.task.cache_policy is not NotSet
-                else None
-            ),
+            isolation_level=isolation_level,
         ) as txn:
             yield txn
 
@@ -1229,6 +1233,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+        isolation_level = (
+            IsolationLevel(self.task.cache_policy.isolation_level)
+            if self.task.cache_policy
+            and self.task.cache_policy is not NotSet
+            and self.task.cache_policy.isolation_level is not None
+            else None
+        )
 
         with transaction(
             key=self.compute_transaction_key(),
@@ -1236,11 +1247,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
-            isolation_level=(
-                IsolationLevel(self.task.cache_policy.isolation_level)
-                if self.task.cache_policy and self.task.cache_policy is not NotSet
-                else None
-            ),
+            isolation_level=isolation_level,
         ) as txn:
             yield txn
 

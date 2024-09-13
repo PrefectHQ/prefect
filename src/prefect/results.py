@@ -103,7 +103,7 @@ async def get_default_result_storage() -> WritableFileSystem:
 
 @sync_compatible
 async def resolve_result_storage(
-    result_storage: Union[ResultStorage, UUID],
+    result_storage: Union[ResultStorage, UUID, Path],
 ) -> WritableFileSystem:
     """
     Resolve one of the valid `ResultStorage` input types into a saved block
@@ -120,6 +120,8 @@ async def resolve_result_storage(
             storage_block_id = storage_block._block_document_id
         else:
             storage_block_id = None
+    elif isinstance(result_storage, Path):
+        storage_block = LocalFileSystem(basepath=str(result_storage))
     elif isinstance(result_storage, str):
         try:
             storage_block = await Block.load(result_storage, client=client)

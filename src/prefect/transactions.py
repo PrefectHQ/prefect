@@ -195,7 +195,9 @@ class Transaction(ContextModel):
             and not self.store.supports_isolation_level(self.isolation_level)
         ):
             raise ValueError(
-                f"Isolation level {self.isolation_level.name} is not supported by provided result store."
+                f"Isolation level {self.isolation_level.name} is not supported by provided "
+                "configuration. Please ensure you've provided a lock file directory or lock "
+                "manager when using the SERIALIZABLE isolation level."
             )
 
         # this needs to go before begin, which could set the state to committed
