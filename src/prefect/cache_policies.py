@@ -1,4 +1,5 @@
 import inspect
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
@@ -22,9 +23,10 @@ class CachePolicy:
 
     storage: Union["WritableFileSystem", str, Path, None] = None
     isolation_level: Union[
-        Literal["SERIALIZABLE", "READ_COMMITTED"],
+        Literal["READ_COMMITTED", "SERIALIZABLE"],
         "IsolationLevel",
-    ] = "SERIALIZABLE"
+        None,
+    ] = None
     locks: Union[str, Path, "LockManager", None] = None
 
     @classmethod
@@ -35,6 +37,37 @@ class CachePolicy:
         Given a function generates a key policy.
         """
         return CacheKeyFnPolicy(cache_key_fn=cache_key_fn)
+
+    def configure(
+        self,
+        storage: Union["WritableFileSystem", str, Path, None] = None,
+        locks: Union[str, Path, "LockManager", None] = None,
+        isolation_level: Union[
+            Literal["READ_COMMITTED", "SERIALIZABLE"], "IsolationLevel", None
+        ] = None,
+    ):
+        """
+        Configure the cache policy with the given storage, locks, and isolation level.
+
+        Args:
+            storage: The storage to use for the cache policy. If not provided,
+                the current storage will be used.
+            locks: The lock manager or storage path to use for the cache policy. If not provided,
+                the current lock manager will be used.
+            isolation_level: The isolation level to use for the cache policy. If not provided,
+                the current isolation level will be used.
+
+        Returns:
+            A new cache policy with the given storage, locks, and isolation level.
+        """
+        new = deepcopy(self)
+        if storage is not None:
+            new.storage = storage
+        if locks is not None:
+            new.locks = locks
+        if isolation_level is not None:
+            new.isolation_level = isolation_level
+        return new
 
     def compute_key(
         self,
@@ -61,7 +94,9 @@ class CachePolicy:
             and self.storage is not None
             and other.storage != self.storage
         ):
-            raise ValueError("Cannot add CachePolicies with different storages.")
+            raise ValueError(
+                "Cannot add CachePolicies with different storage locations."
+            )
         if (
             other.isolation_level is not None
             and self.isolation_level is not None
