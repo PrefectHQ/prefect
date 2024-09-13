@@ -14512,15 +14512,6 @@
                 "title": "CompoundTrigger",
                 "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
             },
-            "ConcurrencyCollisionStrategy": {
-                "type": "string",
-                "enum": [
-                    "ENQUEUE",
-                    "CANCEL"
-                ],
-                "title": "ConcurrencyCollisionStrategy",
-                "description": "Enumeration of concurrency collision strategies."
-            },
             "ConcurrencyLimit": {
                 "properties": {
                     "id": {
@@ -14601,6 +14592,15 @@
                 ],
                 "title": "ConcurrencyLimitCreate",
                 "description": "Data used by the Prefect REST API to create a concurrency limit."
+            },
+            "ConcurrencyLimitStrategy": {
+                "type": "string",
+                "enum": [
+                    "ENQUEUE",
+                    "CANCEL_NEW"
+                ],
+                "title": "ConcurrencyLimitStrategy",
+                "description": "Enumeration of concurrency collision strategies."
             },
             "ConcurrencyLimitV2": {
                 "properties": {
@@ -14815,21 +14815,16 @@
             },
             "ConcurrencyOptions": {
                 "properties": {
-                    "concurrency": {
-                        "type": "integer",
-                        "title": "Concurrency"
-                    },
                     "collision_strategy": {
-                        "$ref": "#/components/schemas/ConcurrencyCollisionStrategy"
+                        "$ref": "#/components/schemas/ConcurrencyLimitStrategy"
                     }
                 },
                 "type": "object",
                 "required": [
-                    "concurrency",
                     "collision_strategy"
                 ],
                 "title": "ConcurrencyOptions",
-                "description": "Options for configuring deployment concurrency limits."
+                "description": "Class for storing the concurrency config in database."
             },
             "Constant": {
                 "properties": {

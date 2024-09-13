@@ -245,7 +245,7 @@ class TestCreateDeployment:
         assert updated_deployment.updated_by.type == new_updated_by.type
 
     async def test_create_deployment_with_concurrency_limit(self, session, flow):
-        concurrency_options = schemas.core.ConcurrencyOptions(
+        concurrency_options = schemas.core.ConcurrencyLimitConfig(
             concurrency=10,
             collision_strategy="ENQUEUE",
         )
@@ -257,7 +257,11 @@ class TestCreateDeployment:
                 concurrency_limit=concurrency_options,
             ),
         )
-        assert deployment.concurrency_options == concurrency_options
+        assert deployment.concurrency_limit == concurrency_options.concurrency
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_options.collision_strategy
+        )
 
 
 class TestReadDeployment:
@@ -1092,8 +1096,8 @@ class TestUpdateDeployment:
             session=session,
             deployment_id=deployment.id,
             deployment=schemas.actions.DeploymentUpdate(
-                concurrency_limit=schemas.core.ConcurrencyOptions(
-                    concurrency=10, collision_strategy="CANCEL"
+                concurrency_limit=schemas.core.ConcurrencyLimitConfig(
+                    concurrency=10, collision_strategy="CANCEL_NEW"
                 ),
             ),
         )
@@ -1102,8 +1106,7 @@ class TestUpdateDeployment:
         )
         assert updated_deployment.concurrency_limit == 10
         assert updated_deployment.concurrency_options == {
-            "concurrency": 10,
-            "collision_strategy": "CANCEL",
+            "collision_strategy": "CANCEL_NEW",
         }
 
 

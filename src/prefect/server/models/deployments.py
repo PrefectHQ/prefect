@@ -88,7 +88,6 @@ async def create_deployment(
     if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyOptions):
         concurrency_options = insert_values.pop("concurrency_limit")
         insert_values["concurrency_options"] = {
-            "concurrency": concurrency_options.concurrency,
             "collision_strategy": concurrency_options.collision_strategy,
         }
         insert_values["concurrency_limit"] = concurrency_options.concurrency
@@ -215,7 +214,6 @@ async def update_deployment(
     if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyOptions):
         concurrency_options = deployment.concurrency_limit
         update_data["concurrency_options"] = {
-            "concurrency": concurrency_options.concurrency,
             "collision_strategy": concurrency_options.collision_strategy,
         }
         update_data["concurrency_limit"] = concurrency_options.concurrency
