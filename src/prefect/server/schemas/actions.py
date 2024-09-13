@@ -268,7 +268,7 @@ class DeploymentUpdate(ActionBaseModel):
         description="A list of schedules for the deployment.",
     )
     concurrency_limit: Optional[
-        Union[PositiveInteger, schemas.core.ConcurrencyOptions]
+        Union[PositiveInteger, schemas.core.ConcurrencyLimitConfig]
     ] = Field(default=None, description="The deployment's concurrency limit.")
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,

@@ -85,7 +85,7 @@ async def create_deployment(
     insert_values = deployment.model_dump_for_orm(
         exclude_unset=True, exclude={"schedules"}
     )
-    if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyOptions):
+    if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyLimitConfig):
         concurrency_options = insert_values.pop("concurrency_limit")
         insert_values["concurrency_options"] = {
             "collision_strategy": concurrency_options.collision_strategy,
@@ -211,7 +211,7 @@ async def update_deployment(
 
     should_update_schedules = update_data.pop("schedules", None) is not None
 
-    if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyOptions):
+    if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyLimitConfig):
         concurrency_options = deployment.concurrency_limit
         update_data["concurrency_options"] = {
             "collision_strategy": concurrency_options.collision_strategy,

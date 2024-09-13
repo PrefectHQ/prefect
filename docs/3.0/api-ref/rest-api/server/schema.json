@@ -14571,6 +14571,24 @@
                 "title": "ConcurrencyLimit",
                 "description": "An ORM representation of a concurrency limit."
             },
+            "ConcurrencyLimitConfig": {
+                "properties": {
+                    "concurrency": {
+                        "type": "integer",
+                        "title": "Concurrency"
+                    },
+                    "collision_strategy": {
+                        "$ref": "#/components/schemas/ConcurrencyLimitStrategy"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "concurrency",
+                    "collision_strategy"
+                ],
+                "title": "ConcurrencyLimitConfig",
+                "description": "Options for configuring deployment concurrency limits."
+            },
             "ConcurrencyLimitCreate": {
                 "properties": {
                     "tag": {
@@ -14812,19 +14830,6 @@
                 "type": "object",
                 "title": "ConcurrencyLimitV2Update",
                 "description": "Data used by the Prefect REST API to update a v2 concurrency limit."
-            },
-            "ConcurrencyOptions": {
-                "properties": {
-                    "collision_strategy": {
-                        "$ref": "#/components/schemas/ConcurrencyLimitStrategy"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "collision_strategy"
-                ],
-                "title": "ConcurrencyOptions",
-                "description": "Class for storing the concurrency config in database."
             },
             "Constant": {
                 "properties": {
@@ -16410,7 +16415,7 @@
                                 "exclusiveMinimum": 0.0
                             },
                             {
-                                "$ref": "#/components/schemas/ConcurrencyOptions"
+                                "$ref": "#/components/schemas/ConcurrencyLimitConfig"
                             },
                             {
                                 "type": "null"
