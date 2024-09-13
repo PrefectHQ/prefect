@@ -3132,6 +3132,30 @@ class PrefectClient:
             else:
                 raise
 
+    async def upsert_global_concurrency_limit_by_name(self, name: str, limit: int):
+        """Creates a global concurrency limit with the given name and limit if one does not already exist.
+
+        If one does already exist matching the name then update it's limit if it is different.
+
+        Note: This is not done atomically.
+        """
+        try:
+            existing_limit = await self.read_global_concurrency_limit_by_name(name)
+        except prefect.exceptions.ObjectNotFound:
+            existing_limit = None
+
+        if not existing_limit:
+            await self.create_global_concurrency_limit(
+                GlobalConcurrencyLimitCreate(
+                    name=name,
+                    limit=limit,
+                )
+            )
+        elif existing_limit.limit != limit:
+            await self.update_global_concurrency_limit(
+                name, GlobalConcurrencyLimitUpdate(limit=limit)
+            )
+
     async def read_global_concurrency_limits(
         self, limit: int = 10, offset: int = 0
     ) -> List[GlobalConcurrencyLimitResponse]:
