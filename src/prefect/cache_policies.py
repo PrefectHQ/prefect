@@ -1,6 +1,6 @@
 import inspect
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
 
 from prefect.context import TaskRunContext
 from prefect.utilities.hashing import hash_objects
@@ -30,35 +30,17 @@ class CachePolicy:
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def __sub__(self, other: str) -> "CompoundCachePolicy":
+    def __sub__(self, other: str) -> "CachePolicy":
         if not isinstance(other, str):
             raise TypeError("Can only subtract strings from key policies.")
-        if isinstance(self, Inputs):
-            exclude = self.exclude or []
-            return Inputs(exclude=exclude + [other])
-        elif isinstance(self, CompoundCachePolicy):
-            new = Inputs(exclude=[other])
-            policies = self.policies or []
-            return CompoundCachePolicy(policies=policies + [new])
-        else:
-            new = Inputs(exclude=[other])
-            return CompoundCachePolicy(policies=[self, new])
+        new = Inputs(exclude=[other])
+        return CompoundCachePolicy(policies=[self, new])
 
-    def __add__(self, other: "CachePolicy") -> "CompoundCachePolicy":
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
         # adding _None is a no-op
         if isinstance(other, _None):
             return self
-        elif isinstance(self, _None):
-            return other
-
-        if isinstance(self, CompoundCachePolicy):
-            policies = self.policies or []
-            return CompoundCachePolicy(policies=policies + [other])
-        elif isinstance(other, CompoundCachePolicy):
-            policies = other.policies or []
-            return CompoundCachePolicy(policies=policies + [self])
-        else:
-            return CompoundCachePolicy(policies=[self, other])
+        return CompoundCachePolicy(policies=[self, other])
 
 
 @dataclass
@@ -93,7 +75,7 @@ class CompoundCachePolicy(CachePolicy):
     Any keys that return `None` will be ignored.
     """
 
-    policies: Optional[list] = None
+    policies: List[CachePolicy] = field(default_factory=list)
 
     def compute_key(
         self,
@@ -103,7 +85,7 @@ class CompoundCachePolicy(CachePolicy):
         **kwargs,
     ) -> Optional[str]:
         keys = []
-        for policy in self.policies or []:
+        for policy in self.policies:
             policy_key = policy.compute_key(
                 task_ctx=task_ctx,
                 inputs=inputs,
@@ -132,6 +114,10 @@ class _None(CachePolicy):
         **kwargs,
     ) -> Optional[str]:
         return None
+
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        # adding _None is a no-op
+        return other
 
 
 @dataclass
@@ -208,7 +194,7 @@ class Inputs(CachePolicy):
     Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
     """
 
-    exclude: Optional[list] = None
+    exclude: List[str] = field(default_factory=list)
 
     def compute_key(
         self,
@@ -229,6 +215,11 @@ class Inputs(CachePolicy):
                 hashed_inputs[key] = val
 
         return hash_objects(hashed_inputs)
+
+    def __sub__(self, other: str) -> "CachePolicy":
+        if not isinstance(other, str):
+            raise TypeError("Can only subtract strings from key policies.")
+        return Inputs(exclude=self.exclude + [other])
 
 
 INPUTS = Inputs()
