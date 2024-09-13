@@ -655,7 +655,7 @@ class TestRunner:
                     deployment = RunnerDeployment.from_flow(
                         flow=dummy_flow_1,
                         name=__file__,
-                        concurrency_limit=1,
+                        concurrency_limit=2,
                     )
 
                     deployment_id = await runner.add_deployment(deployment)
@@ -676,7 +676,7 @@ class TestRunner:
                     timeout_seconds=None,
                     create_if_missing=None,
                     max_retries=0,
-                    strict=False,
+                    strict=True,
                 )
 
                 names, occupy, occupy_seconds = release_spy.call_args[0]
@@ -702,7 +702,7 @@ class TestRunner:
                 deployment = RunnerDeployment.from_flow(
                     flow=dummy_flow_1,
                     name=__file__,
-                    concurrency_limit=1,
+                    concurrency_limit=2,
                 )
 
                 deployment_id = await runner.add_deployment(deployment)
@@ -723,7 +723,7 @@ class TestRunner:
                 timeout_seconds=None,
                 create_if_missing=None,
                 max_retries=0,
-                strict=False,
+                strict=True,
             )
 
             flow_run = await prefect_client.read_flow_run(flow_run.id)
