@@ -267,9 +267,9 @@ class DeploymentUpdate(ActionBaseModel):
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
-    concurrency_limit: Optional[PositiveInteger] = Field(
-        default=None, description="The deployment's concurrency limit."
-    )
+    concurrency_limit: Optional[
+        Union[PositiveInteger, schemas.core.ConcurrencyOptions]
+    ] = Field(default=None, description="The deployment's concurrency limit.")
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",

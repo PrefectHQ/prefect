@@ -85,6 +85,13 @@ async def create_deployment(
     insert_values = deployment.model_dump_for_orm(
         exclude_unset=True, exclude={"schedules"}
     )
+    if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyOptions):
+        concurrency_options = insert_values.pop("concurrency_limit")
+        insert_values["concurrency_options"] = {
+            "concurrency": concurrency_options.concurrency,
+            "collision_strategy": concurrency_options.collision_strategy,
+        }
+        insert_values["concurrency_limit"] = concurrency_options.concurrency
 
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
@@ -94,7 +101,14 @@ async def create_deployment(
 
     conflict_update_fields = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"id", "created", "created_by", "schedules", "job_variables"},
+        exclude={
+            "id",
+            "created",
+            "created_by",
+            "schedules",
+            "job_variables",
+            "concurrency_limit",
+        },
     )
     if job_variables:
         conflict_update_fields["infra_overrides"] = job_variables
@@ -197,6 +211,14 @@ async def update_deployment(
         update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
+
+    if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyOptions):
+        concurrency_options = deployment.concurrency_limit
+        update_data["concurrency_options"] = {
+            "concurrency": concurrency_options.concurrency,
+            "collision_strategy": concurrency_options.collision_strategy,
+        }
+        update_data["concurrency_limit"] = concurrency_options.concurrency
 
     if deployment.work_pool_name and deployment.work_queue_name:
         # If a specific pool name/queue name combination was provided, get the

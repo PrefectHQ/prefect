@@ -48,7 +48,12 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
+from prefect.utilities.collections import (
+    AutoEnum,
+    dict_to_flatdict,
+    flatdict_to_dict,
+    listrepr,
+)
 from prefect.utilities.names import generate_slug, obfuscate
 
 if TYPE_CHECKING:
@@ -144,6 +149,24 @@ class UpdatedBy(BaseModel):
     display_value: Optional[str] = Field(
         default=None, description="The display value for the updater."
     )
+
+
+class ConcurrencyCollisionStrategy(AutoEnum):
+    """
+    Enumeration of concurrency collision strategies.
+    """
+
+    ENQUEUE = AutoEnum.auto()
+    CANCEL = AutoEnum.auto()
+
+
+class ConcurrencyOptions(BaseModel):
+    """
+    Options for configuring deployment concurrency limits.
+    """
+
+    concurrency: int
+    collision_strategy: ConcurrencyCollisionStrategy
 
 
 class FlowRun(ORMBaseModel):
@@ -546,7 +569,7 @@ class Deployment(ORMBaseModel):
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    concurrency_limit: Optional[PositiveInteger] = Field(
+    concurrency_limit: Optional[Union[NonNegativeInteger, ConcurrencyOptions]] = Field(
         default=None, description="The concurrency limit for the deployment."
     )
     job_variables: Dict[str, Any] = Field(
