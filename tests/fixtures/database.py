@@ -1135,7 +1135,7 @@ async def worker_deployment_wq1_cl1(
                     )
                 )
             ],
-            concurrency_limit=1,
+            concurrency_limit=2,
             path="./subdir",
             entrypoint="/file.py:flow",
             parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
