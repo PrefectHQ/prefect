@@ -4,13 +4,14 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -28,6 +29,8 @@ from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import TaskOrchestrationContext
 from prefect.server.schemas.responses import OrchestrationResult
 
+T = TypeVar("T", bound=tuple)
+
 logger = get_logger("server")
 
 
@@ -37,7 +40,7 @@ async def create_task_run(
     session: AsyncSession,
     task_run: schemas.core.TaskRun,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
-):
+) -> orm_models.TaskRun:
     """
     Creates a new task run.
 
@@ -54,6 +57,7 @@ async def create_task_run(
     """
 
     now = pendulum.now("UTC")
+    model: Union[orm_models.TaskRun, None]
 
     # if a dynamic key exists, we need to guard against conflicts
     if task_run.flow_run_id:
@@ -84,7 +88,7 @@ async def create_task_run(
             .execution_options(populate_existing=True)
         )
         result = await session.execute(query)
-        model = result.scalar()
+        model = result.scalar_one()
     else:
         # Upsert on (task_key, dynamic_key) application logic.
         query = (
@@ -122,6 +126,7 @@ async def create_task_run(
             force=True,
             orchestration_parameters=orchestration_parameters,
         )
+
     return model
 
 
@@ -152,7 +157,9 @@ async def update_task_run(
     return result.rowcount > 0
 
 
-async def read_task_run(session: AsyncSession, task_run_id: UUID):
+async def read_task_run(
+    session: AsyncSession, task_run_id: UUID
+) -> Union[orm_models.TaskRun, None]:
     """
     Read a task run by id.
 
@@ -169,14 +176,14 @@ async def read_task_run(session: AsyncSession, task_run_id: UUID):
 
 
 async def _apply_task_run_filters(
-    query,
+    query: Select[T],
     flow_filter: Optional[schemas.filters.FlowFilter] = None,
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
     task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
     deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
     work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
     work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
-):
+) -> Select[T]:
     """
     Applies filters to a task run query as a combination of EXISTS subqueries.
     """
@@ -189,6 +196,8 @@ async def _apply_task_run_filters(
     if (
         flow_run_filter
         and flow_run_filter.only_filters_on_id()
+        and flow_run_filter.id
+        and flow_run_filter.id.any_
         and not any(
             [flow_filter, deployment_filter, work_pool_filter, work_queue_filter]
         )
@@ -232,8 +241,10 @@ async def _apply_task_run_filters(
         if work_pool_filter:
             exists_clause = exists_clause.join(
                 orm_models.WorkPool,
-                orm_models.WorkPool.id == orm_models.WorkQueue.work_pool_id,
-                orm_models.WorkQueue.id == orm_models.FlowRun.work_queue_id,
+                sa.and_(
+                    orm_models.WorkPool.id == orm_models.WorkQueue.work_pool_id,
+                    orm_models.WorkQueue.id == orm_models.FlowRun.work_queue_id,
+                ),
             ).where(work_pool_filter.as_sql_filter())
 
         query = query.where(exists_clause.exists())
@@ -243,14 +254,14 @@ async def _apply_task_run_filters(
 
 async def read_task_runs(
     session: AsyncSession,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
-):
+) -> Sequence[orm_models.TaskRun]:
     """
     Read task runs.
 
@@ -291,10 +302,10 @@ async def read_task_runs(
 
 async def count_task_runs(
     session: AsyncSession,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
 ) -> int:
     """
     Count task runs.
@@ -320,7 +331,7 @@ async def count_task_runs(
     )
 
     result = await session.execute(query)
-    return result.scalar()
+    return result.scalar_one()
 
 
 async def count_task_runs_by_state(
@@ -393,7 +404,7 @@ async def set_task_run_state(
     task_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-    task_policy: BaseOrchestrationPolicy = None,
+    task_policy: Optional[Type[BaseOrchestrationPolicy]] = None,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
@@ -433,7 +444,7 @@ async def set_task_run_state(
     elif force or task_policy is None:
         task_policy = MinimalTaskPolicy
 
-    orchestration_rules = task_policy.compile_transition_rules(*intended_transition)
+    orchestration_rules = task_policy.compile_transition_rules(*intended_transition)  # type: ignore
     global_rules = GlobalTaskPolicy.compile_transition_rules(*intended_transition)
 
     context = TaskOrchestrationContext(

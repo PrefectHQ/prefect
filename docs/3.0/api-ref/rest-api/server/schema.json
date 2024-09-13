@@ -15044,7 +15044,14 @@
                         "title": "Upstream Dependencies"
                     },
                     "state": {
-                        "$ref": "#/components/schemas/State"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "expected_start_time": {
                         "anyOf": [
