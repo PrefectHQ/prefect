@@ -1,9 +1,17 @@
 import inspect
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+
+from typing_extensions import Literal
 
 from prefect.context import TaskRunContext
 from prefect.utilities.hashing import hash_objects
+
+if TYPE_CHECKING:
+    from prefect.filesystems import WritableFileSystem
+    from prefect.locking.protocol import LockManager
+    from prefect.transactions import IsolationLevel
 
 
 @dataclass
@@ -11,6 +19,14 @@ class CachePolicy:
     """
     Base class for all cache policies.
     """
+
+    storage: Union["WritableFileSystem", str, Path, None] = None
+    isolation_level: Union[
+        Literal["SERIALIZABLE", "READ_COMMITTED"],
+        "IsolationLevel",
+        None,
+    ] = None
+    locks: Union[str, Path, "LockManager", None] = None
 
     @classmethod
     def from_cache_key_fn(
@@ -40,7 +56,24 @@ class CachePolicy:
         # adding _None is a no-op
         if isinstance(other, _None):
             return self
-        return CompoundCachePolicy(policies=[self, other])
+
+        if other.storage != self.storage:
+            raise ValueError("Cannot add CachePolicies with different storages.")
+        if other.isolation_level != self.isolation_level:
+            raise ValueError(
+                "Cannot add CachePolicies with different isolation levels."
+            )
+        if other.locks != self.locks:
+            raise ValueError(
+                "Cannot add CachePolicies with different lock implementations."
+            )
+
+        return CompoundCachePolicy(
+            policies=[self, other],
+            storage=self.storage or other.storage,
+            isolation_level=self.isolation_level or other.isolation_level,
+            locks=self.locks or other.locks,
+        )
 
 
 @dataclass
