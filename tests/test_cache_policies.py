@@ -304,8 +304,8 @@ class TestPolicyConfiguration:
         assert policy.storage == "/path/to/storage"
 
     def test_configure_changes_locks(self):
-        policy = DEFAULT.configure(locks="/path/to/locks")
-        assert policy.locks == "/path/to/locks"
+        policy = DEFAULT.configure(lock_manager="/path/to/locks")
+        assert policy.lock_manager == "/path/to/locks"
 
     def test_configure_changes_isolation_level(self):
         policy = DEFAULT.configure(isolation_level="SERIALIZABLE")
@@ -314,30 +314,32 @@ class TestPolicyConfiguration:
     def test_configure_changes_all_attributes(self):
         policy = DEFAULT.configure(
             storage="/path/to/storage",
-            locks="/path/to/locks",
+            lock_manager="/path/to/locks",
             isolation_level="SERIALIZABLE",
         )
         assert policy.storage == "/path/to/storage"
-        assert policy.locks == "/path/to/locks"
+        assert policy.lock_manager == "/path/to/locks"
         assert policy.isolation_level == "SERIALIZABLE"
 
     def test_configure_with_none_is_noop(self):
-        policy = DEFAULT.configure(storage=None, locks=None, isolation_level=None)
+        policy = DEFAULT.configure(
+            storage=None, lock_manager=None, isolation_level=None
+        )
         assert policy == DEFAULT
 
     def test_add_policy_with_configuration(self):
         policy = DEFAULT + TaskSource().configure(
-            locks="/path/to/locks",
+            lock_manager="/path/to/locks",
             isolation_level="SERIALIZABLE",
             storage="/path/to/storage",
         )
-        assert policy.locks == "/path/to/locks"
+        assert policy.lock_manager == "/path/to/locks"
         assert policy.isolation_level == "SERIALIZABLE"
         assert policy.storage == "/path/to/storage"
 
     def test_add_policy_with_conflict_raises(self):
         policy = DEFAULT + TaskSource().configure(
-            locks="original_locks",
+            lock_manager="original_locks",
             storage="original_storage",
             isolation_level="SERIALIZABLE",
         )
@@ -345,7 +347,7 @@ class TestPolicyConfiguration:
             ValueError,
             match="Cannot add CachePolicies with different lock implementations.",
         ):
-            _policy = policy + TaskSource().configure(locks="other_locks")
+            _policy = policy + TaskSource().configure(lock_manager="other_locks")
 
         with pytest.raises(
             ValueError,

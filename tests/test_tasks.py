@@ -17,12 +17,20 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
-from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE, CachePolicy
+from prefect.cache_policies import (
+    DEFAULT,
+    INPUTS,
+    NONE,
+    TASK_SOURCE,
+    CachePolicy,
+    Inputs,
+)
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import (
+    ConfigurationError,
     MappingLengthMismatch,
     MappingMissingIterable,
     ParameterBindError,
@@ -1872,7 +1880,7 @@ class TestTaskCaching:
         )
 
     def test_cache_policy_storage_path(self, tmp_path):
-        cache_policy = INPUTS.configure(storage=tmp_path)
+        cache_policy = Inputs().configure(storage=tmp_path)
         expected_cache_key = cache_policy.compute_key(
             task_ctx=None, inputs={"x": 1}, flow_parameters=None
         )
@@ -1885,7 +1893,7 @@ class TestTaskCaching:
         assert (tmp_path / expected_cache_key).exists()
 
     def test_cache_policy_storage_str(self, tmp_path):
-        cache_policy = INPUTS.configure(storage=str(tmp_path))
+        cache_policy = Inputs().configure(storage=str(tmp_path))
         expected_cache_key = cache_policy.compute_key(
             task_ctx=None, inputs={"x": 1}, flow_parameters=None
         )
@@ -1898,7 +1906,9 @@ class TestTaskCaching:
         assert (tmp_path / expected_cache_key).exists()
 
     def test_cache_policy_storage_storage_block(self, tmp_path):
-        cache_policy = INPUTS.configure(storage=LocalFileSystem(basepath=str(tmp_path)))
+        cache_policy = Inputs().configure(
+            storage=LocalFileSystem(basepath=str(tmp_path))
+        )
         expected_cache_key = cache_policy.compute_key(
             task_ctx=None, inputs={"x": 1}, flow_parameters=None
         )
@@ -1913,37 +1923,9 @@ class TestTaskCaching:
     @pytest.mark.parametrize(
         "isolation_level", [IsolationLevel.SERIALIZABLE, "SERIALIZABLE"]
     )
-    def test_cache_policy_locks_path(self, tmp_path, isolation_level):
-        cache_policy = INPUTS.configure(locks=tmp_path, isolation_level=isolation_level)
-        expected_cache_key = cache_policy.compute_key(
-            task_ctx=None, inputs={"x": 1}, flow_parameters=None
-        )
-
-        @task(cache_policy=cache_policy)
-        def foo(x):
-            assert (tmp_path / f"{expected_cache_key}.lock").exists()
-            return x
-
-        assert foo(1) == 1
-
-    def test_cache_policy_locks_str(self, tmp_path):
-        cache_policy = INPUTS.configure(
-            locks=str(tmp_path), isolation_level=IsolationLevel.SERIALIZABLE
-        )
-        expected_cache_key = cache_policy.compute_key(
-            task_ctx=None, inputs={"x": 1}, flow_parameters=None
-        )
-
-        @task(cache_policy=cache_policy)
-        def foo(x):
-            assert (tmp_path / f"{expected_cache_key}.lock").exists()
-            return x
-
-        assert foo(1) == 1
-
-    def test_cache_policy_locks_lock_manager(self, tmp_path):
-        cache_policy = INPUTS.configure(
-            locks=FileSystemLockManager(lock_files_directory=tmp_path),
+    def test_cache_policy_lock_manager(self, tmp_path, isolation_level):
+        cache_policy = Inputs().configure(
+            lock_manager=FileSystemLockManager(lock_files_directory=tmp_path),
             isolation_level=IsolationLevel.SERIALIZABLE,
         )
         expected_cache_key = cache_policy.compute_key(
@@ -1957,14 +1939,16 @@ class TestTaskCaching:
 
         assert foo(1) == 1
 
-    def test_cache_policy_serializable_isolation_level_with_no_locks(self):
-        cache_policy = INPUTS.configure(isolation_level=IsolationLevel.SERIALIZABLE)
+    def test_cache_policy_serializable_isolation_level_with_no_manager(self):
+        cache_policy = Inputs().configure(isolation_level=IsolationLevel.SERIALIZABLE)
 
         @task(cache_policy=cache_policy)
         def foo(x):
             return x
 
-        with pytest.raises(ValueError, match="not supported by provided configuration"):
+        with pytest.raises(
+            ConfigurationError, match="not supported by provided configuration"
+        ):
             foo(1)
 
 

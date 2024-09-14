@@ -1,10 +1,9 @@
 import inspect
-from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
 
-from typing_extensions import Literal
+from typing_extensions import Self
 
 from prefect.context import TaskRunContext
 from prefect.utilities.hashing import hash_objects
@@ -27,7 +26,7 @@ class CachePolicy:
         "IsolationLevel",
         None,
     ] = None
-    locks: Union[str, Path, "LockManager", None] = None
+    lock_manager: Optional["LockManager"] = None
 
     @classmethod
     def from_cache_key_fn(
@@ -41,18 +40,18 @@ class CachePolicy:
     def configure(
         self,
         storage: Union["WritableFileSystem", str, Path, None] = None,
-        locks: Union[str, Path, "LockManager", None] = None,
+        lock_manager: Optional["LockManager"] = None,
         isolation_level: Union[
             Literal["READ_COMMITTED", "SERIALIZABLE"], "IsolationLevel", None
         ] = None,
-    ):
+    ) -> Self:
         """
         Configure the cache policy with the given storage, locks, and isolation level.
 
         Args:
             storage: The storage to use for the cache policy. If not provided,
                 the current storage will be used.
-            locks: The lock manager or storage path to use for the cache policy. If not provided,
+            locks: The lock manager to use for the cache policy. If not provided,
                 the current lock manager will be used.
             isolation_level: The isolation level to use for the cache policy. If not provided,
                 the current isolation level will be used.
@@ -60,14 +59,13 @@ class CachePolicy:
         Returns:
             A new cache policy with the given storage, locks, and isolation level.
         """
-        new = deepcopy(self)
         if storage is not None:
-            new.storage = storage
-        if locks is not None:
-            new.locks = locks
+            self.storage = storage
+        if lock_manager is not None:
+            self.lock_manager = lock_manager
         if isolation_level is not None:
-            new.isolation_level = isolation_level
-        return new
+            self.isolation_level = isolation_level
+        return self
 
     def compute_key(
         self,
@@ -106,9 +104,9 @@ class CachePolicy:
                 "Cannot add CachePolicies with different isolation levels."
             )
         if (
-            other.locks is not None
-            and self.locks is not None
-            and other.locks != self.locks
+            other.lock_manager is not None
+            and self.lock_manager is not None
+            and other.lock_manager != self.lock_manager
         ):
             raise ValueError(
                 "Cannot add CachePolicies with different lock implementations."
@@ -118,7 +116,7 @@ class CachePolicy:
             policies=[self, other],
             storage=self.storage or other.storage,
             isolation_level=self.isolation_level or other.isolation_level,
-            locks=self.locks or other.locks,
+            lock_manager=self.lock_manager or other.lock_manager,
         )
 
 

@@ -49,7 +49,6 @@ from prefect.filesystems import (
     LocalFileSystem,
     WritableFileSystem,
 )
-from prefect.locking.filesystem import FileSystemLockManager
 from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
 from prefect.serializers import PickleSerializer, Serializer
@@ -303,17 +302,9 @@ class ResultStore(BaseModel):
                 storage = task.cache_policy.storage
                 if isinstance(storage, str) and not len(storage.split("/")) == 2:
                     storage = Path(storage)
-                update["result_storage"] = await resolve_result_storage(
-                    task.cache_policy.storage
-                )
-            if task.cache_policy.locks is not None:
-                if not isinstance(task.cache_policy.locks, LockManager):
-                    lock_manager = FileSystemLockManager(
-                        lock_files_directory=Path(task.cache_policy.locks)
-                    )
-                else:
-                    lock_manager = task.cache_policy.locks
-                update["lock_manager"] = lock_manager
+                update["result_storage"] = await resolve_result_storage(storage)
+            if task.cache_policy.lock_manager is not None:
+                update["lock_manager"] = task.cache_policy.lock_manager
 
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
