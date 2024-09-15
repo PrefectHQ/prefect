@@ -300,19 +300,19 @@ class TestDefaultPolicy:
 
 class TestPolicyConfiguration:
     def test_configure_changes_storage(self):
-        policy = DEFAULT.configure(storage="/path/to/storage")
+        policy = Inputs().configure(storage="/path/to/storage")
         assert policy.storage == "/path/to/storage"
 
     def test_configure_changes_locks(self):
-        policy = DEFAULT.configure(lock_manager="/path/to/locks")
+        policy = Inputs().configure(lock_manager="/path/to/locks")
         assert policy.lock_manager == "/path/to/locks"
 
     def test_configure_changes_isolation_level(self):
-        policy = DEFAULT.configure(isolation_level="SERIALIZABLE")
+        policy = Inputs().configure(isolation_level="SERIALIZABLE")
         assert policy.isolation_level == "SERIALIZABLE"
 
     def test_configure_changes_all_attributes(self):
-        policy = DEFAULT.configure(
+        policy = Inputs().configure(
             storage="/path/to/storage",
             lock_manager="/path/to/locks",
             isolation_level="SERIALIZABLE",
@@ -322,13 +322,13 @@ class TestPolicyConfiguration:
         assert policy.isolation_level == "SERIALIZABLE"
 
     def test_configure_with_none_is_noop(self):
-        policy = DEFAULT.configure(
+        policy = Inputs().configure(
             storage=None, lock_manager=None, isolation_level=None
         )
-        assert policy == DEFAULT
+        assert policy == Inputs()
 
     def test_add_policy_with_configuration(self):
-        policy = DEFAULT + TaskSource().configure(
+        policy = Inputs() + TaskSource().configure(
             lock_manager="/path/to/locks",
             isolation_level="SERIALIZABLE",
             storage="/path/to/storage",
@@ -338,7 +338,7 @@ class TestPolicyConfiguration:
         assert policy.storage == "/path/to/storage"
 
     def test_add_policy_with_conflict_raises(self):
-        policy = DEFAULT + TaskSource().configure(
+        policy = Inputs() + TaskSource().configure(
             lock_manager="original_locks",
             storage="original_storage",
             isolation_level="SERIALIZABLE",
