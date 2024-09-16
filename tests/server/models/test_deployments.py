@@ -1096,18 +1096,17 @@ class TestUpdateDeployment:
             session=session,
             deployment_id=deployment.id,
             deployment=schemas.actions.DeploymentUpdate(
-                concurrency_limit=schemas.core.ConcurrencyLimitConfig(
-                    concurrency=10, collision_strategy="CANCEL_NEW"
+                concurrency_limit=42,
+                concurrency_options=schemas.core.ConcurrencyOptions(
+                    collision_strategy="CANCEL_NEW"
                 ),
             ),
         )
         updated_deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment.id
         )
-        assert updated_deployment.concurrency_limit == 10
-        assert updated_deployment.concurrency_options == {
-            "collision_strategy": "CANCEL_NEW",
-        }
+        assert updated_deployment.concurrency_limit == 42
+        assert updated_deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
 
 
 @pytest.fixture

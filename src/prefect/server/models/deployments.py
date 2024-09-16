@@ -211,13 +211,6 @@ async def update_deployment(
 
     should_update_schedules = update_data.pop("schedules", None) is not None
 
-    if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyLimitConfig):
-        concurrency_options = deployment.concurrency_limit
-        update_data["concurrency_options"] = {
-            "collision_strategy": concurrency_options.collision_strategy,
-        }
-        update_data["concurrency_limit"] = concurrency_options.concurrency
-
     if deployment.work_pool_name and deployment.work_queue_name:
         # If a specific pool name/queue name combination was provided, get the
         # ID for that work pool queue.
