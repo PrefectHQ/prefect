@@ -559,6 +559,7 @@ class RunnerDeployment(BaseModel):
         cls,
         entrypoint: str,
         name: str,
+        flow_name: Optional[str] = None,
         interval: Optional[
             Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
         ] = None,
@@ -584,6 +585,7 @@ class RunnerDeployment(BaseModel):
             entrypoint:  The path to a file containing a flow and the name of the flow function in
                 the format `./path/to/file.py:flow_func_name`.
             name: A name for the deployment
+            flow_name: The name of the flow to deploy
             interval: An interval on which to execute the current flow. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
@@ -621,7 +623,7 @@ class RunnerDeployment(BaseModel):
 
         deployment = cls(
             name=Path(name).stem,
-            flow_name=flow.name,
+            flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
             paused=paused,
@@ -649,6 +651,7 @@ class RunnerDeployment(BaseModel):
         storage: RunnerStorage,
         entrypoint: str,
         name: str,
+        flow_name: Optional[str] = None,
         interval: Optional[
             Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
         ] = None,
@@ -675,6 +678,7 @@ class RunnerDeployment(BaseModel):
             entrypoint:  The path to a file containing a flow and the name of the flow function in
                 the format `./path/to/file.py:flow_func_name`.
             name: A name for the deployment
+            flow_name: The name of the flow to deploy
             storage: A storage object to use for retrieving flow code. If not provided, a
                 URL must be provided.
             interval: An interval on which to execute the current flow. Accepts either a number
@@ -719,7 +723,7 @@ class RunnerDeployment(BaseModel):
 
         deployment = cls(
             name=Path(name).stem,
-            flow_name=flow.name,
+            flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
             paused=paused,
