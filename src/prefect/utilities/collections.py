@@ -18,7 +18,6 @@ from typing import (
     Generator,
     Hashable,
     Iterable,
-    Iterator,
     List,
     Optional,
     Set,
@@ -192,7 +191,9 @@ def extract_instances(
     return ret
 
 
-def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]]:
+def batched_iterable(
+    iterable: Iterable[T], size: int
+) -> Generator[Tuple[T, ...], None, None]:
     """
     Yield batches of a certain size from an iterable
 

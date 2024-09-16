@@ -91,13 +91,21 @@ async def get_default_result_storage() -> WritableFileSystem:
     Generate a default file system for result storage.
     """
     default_block = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
+    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+
+    cache_key = (str(default_block), str(basepath))
+
+    if cache_key in _default_storages:
+        return _default_storages[cache_key]
 
     if default_block is not None:
-        return await resolve_result_storage(default_block)
+        storage = await resolve_result_storage(default_block)
+    else:
+        # Use the local file system
+        storage = LocalFileSystem(basepath=str(basepath))
 
-    # otherwise, use the local file system
-    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
-    return LocalFileSystem(basepath=str(basepath))
+    _default_storages[cache_key] = storage
+    return storage
 
 
 @sync_compatible
