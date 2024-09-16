@@ -715,6 +715,7 @@ class Flow(Generic[P, R]):
                 storage=self._storage,
                 entrypoint=self._entrypoint,
                 name=name,
+                flow_name=self.name,
                 interval=interval,
                 cron=cron,
                 rrule=rrule,
@@ -735,6 +736,7 @@ class Flow(Generic[P, R]):
             return RunnerDeployment.from_flow(
                 self,
                 name=name,
+                flow_name=self.name,
                 interval=interval,
                 cron=cron,
                 rrule=rrule,
