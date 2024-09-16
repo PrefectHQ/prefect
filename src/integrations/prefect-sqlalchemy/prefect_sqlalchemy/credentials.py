@@ -18,6 +18,8 @@ class AsyncDriver(Enum):
 
         MYSQL_ASYNCMY (Enum): [mysql+asyncmy](https://docs.sqlalchemy.org/en/14/dialects/mysql.html#module-sqlalchemy.dialects.mysql.asyncmy)
         MYSQL_AIOMYSQL (Enum): [mysql+aiomysql](https://docs.sqlalchemy.org/en/14/dialects/mysql.html#module-sqlalchemy.dialects.mysql.aiomysql)
+
+        ORACLE_ORACLEDB_ASYNC (Enum): [oracle+oracledb_async](https://docs.sqlalchemy.org/en/20/dialects/oracle.html#module-sqlalchemy.dialects.oracle.oracledb)
     """  # noqa
 
     POSTGRESQL_ASYNCPG = "postgresql+asyncpg"
@@ -26,6 +28,8 @@ class AsyncDriver(Enum):
 
     MYSQL_ASYNCMY = "mysql+asyncmy"
     MYSQL_AIOMYSQL = "mysql+aiomysql"
+
+    ORACLE_ORACLEDB_ASYNC = "oracle+oracledb_async"
 
 
 class SyncDriver(Enum):
@@ -50,6 +54,7 @@ class SyncDriver(Enum):
         SQLITE_PYSQLCIPHER (Enum): [sqlite+pysqlcipher](https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#module-sqlalchemy.dialects.sqlite.pysqlcipher)
 
         ORACLE_CX_ORACLE (Enum): [oracle+cx_oracle](https://docs.sqlalchemy.org/en/14/dialects/oracle.html#module-sqlalchemy.dialects.oracle.cx_oracle)
+        ORACLE_ORACLEDB (Enum): [oracle+oracledb](https://docs.sqlalchemy.org/en/20/dialects/oracle.html#module-sqlalchemy.dialects.oracle.oracledb)
 
         MSSQL_PYODBC (Enum): [mssql+pyodbc](https://docs.sqlalchemy.org/en/14/dialects/mssql.html#module-sqlalchemy.dialects.mssql.pyodbc)
         MSSQL_MXODBC (Enum): [mssql+mxodbc](https://docs.sqlalchemy.org/en/14/dialects/mssql.html#module-sqlalchemy.dialects.mssql.mxodbc)
@@ -73,6 +78,7 @@ class SyncDriver(Enum):
     SQLITE_PYSQLCIPHER = "sqlite+pysqlcipher"
 
     ORACLE_CX_ORACLE = "oracle+cx_oracle"
+    ORACLE_ORACLEDB = "oracle+oracledb"
 
     MSSQL_PYODBC = "mssql+pyodbc"
     MSSQL_MXODBC = "mssql+mxodbc"
