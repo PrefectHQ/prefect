@@ -734,9 +734,8 @@ class Flow(Generic[P, R]):
             )  # type: ignore # TODO: remove sync_compatible
         else:
             return RunnerDeployment.from_flow(
-                self,
+                flow=self,
                 name=name,
-                flow_name=self.name,
                 interval=interval,
                 cron=cron,
                 rrule=rrule,
