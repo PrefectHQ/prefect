@@ -3969,6 +3969,7 @@ class TestFlowServe:
             version="alpha",
             enforce_parameter_schema=True,
             paused=True,
+            global_deployment_limit=42,
         )
 
         deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
@@ -3984,6 +3985,7 @@ class TestFlowServe:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.paused
+        assert deployment.concurrency_limit == 42
 
     def test_serve_can_user_a_module_path_entrypoint(self, sync_prefect_client):
         deployment = self.flow.serve(
