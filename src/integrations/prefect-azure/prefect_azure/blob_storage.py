@@ -704,3 +704,43 @@ class AzureBlobStorageContainer(
             content: The content to be written.
         """
         await self.upload_from_file_object(BytesIO(content), path)
+
+    @sync_compatible
+    async def list_blobs(self) -> List[str]:
+        """
+        Lists blobs available within the specified Azure container.
+
+        Used to introspect your containers.
+
+        Returns:
+            A list of the blobs within your container.
+
+        Example:
+            List the blobs associated with a container.
+            ```python
+            from prefect_azure import AzureBlobStorageCredentials
+            from prefect_azure.blob_storage import AzureBlobStorageContainer
+
+            credentials = AzureBlobStorageCredentials(
+                connection_string="connection_string",
+            )
+            block = AzureBlobStorageContainer(
+                container_name="container",
+                credentials=credentials,
+            )
+            block.list_blobs()
+            ```
+        """
+        self.logger.info(
+            "Listing the blobs within container %s",
+            self.container_name,
+        )
+
+        async with self.credentials.get_container_client(
+            self.container_name
+        ) as container_client:
+            blobs = container_client.list_blobs()
+            filenames = []
+            async for blob in blobs:
+                filenames.append(blob.name)
+        return filenames
