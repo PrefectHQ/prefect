@@ -21881,6 +21881,21 @@
                         "title": "Prefect Server Csrf Token Expiration",
                         "default": "PT1H"
                     },
+                    "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Origins",
+                        "default": "*"
+                    },
+                    "PREFECT_SERVER_CORS_ALLOWED_METHODS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Methods",
+                        "default": "*"
+                    },
+                    "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Headers",
+                        "default": "*"
+                    },
                     "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {
                         "type": "boolean",
                         "title": "Prefect Server Allow Ephemeral Mode",

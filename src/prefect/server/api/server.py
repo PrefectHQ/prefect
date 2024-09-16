@@ -641,9 +641,15 @@ def create_app(
     # middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=prefect.settings.PREFECT_SERVER_CORS_ALLOWED_ORIGINS.value().split(
+            ","
+        ),
+        allow_methods=prefect.settings.PREFECT_SERVER_CORS_ALLOWED_METHODS.value().split(
+            ","
+        ),
+        allow_headers=prefect.settings.PREFECT_SERVER_CORS_ALLOWED_HEADERS.value().split(
+            ","
+        ),
     )
 
     # Limit the number of concurrent requests when using a SQLite database to reduce

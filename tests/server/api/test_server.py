@@ -29,6 +29,9 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+    PREFECT_SERVER_CORS_ALLOWED_HEADERS,
+    PREFECT_SERVER_CORS_ALLOWED_METHODS,
+    PREFECT_SERVER_CORS_ALLOWED_ORIGINS,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -133,6 +136,52 @@ async def test_retryable_exception_handler(exc):
 
         response = await client.get("/api/raise_other_error")
         assert response.status_code == 500
+
+
+async def test_cors_middleware_settings():
+    with SubprocessASGIServer() as server:
+        health_response = httpx.options(
+            f"{server.api_url}/health",
+            headers={
+                "Origin": "http://example.com",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert health_response.status_code == 200
+        assert health_response.headers["Access-Control-Allow-Origin"] == "*"
+        assert (
+            health_response.headers["Access-Control-Allow-Methods"]
+            == "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"
+        )
+        assert "Access-Control-Allow-Headers" not in health_response.headers
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_CORS_ALLOWED_ORIGINS: "http://example.com",
+            PREFECT_SERVER_CORS_ALLOWED_METHODS: "GET,POST",
+            PREFECT_SERVER_CORS_ALLOWED_HEADERS: "x-tra-header",
+        }
+    ):
+        with SubprocessASGIServer() as server:
+            health_response = httpx.options(
+                f"{server.api_url}/health",
+                headers={
+                    "Origin": "http://example.com",
+                    "Access-Control-Request-Method": "GET",
+                },
+            )
+            assert health_response.status_code == 200
+            assert (
+                health_response.headers["Access-Control-Allow-Origin"]
+                == "http://example.com"
+            )
+            assert (
+                health_response.headers["Access-Control-Allow-Methods"] == "GET, POST"
+            )
+            assert (
+                "x-tra-header"
+                in health_response.headers["Access-Control-Allow-Headers"]
+            )
 
 
 async def test_health_check_route(client):
