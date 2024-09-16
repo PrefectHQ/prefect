@@ -880,6 +880,16 @@ class Deployment(Base):
     concurrency_limit: Mapped[Union[int, None]] = mapped_column(
         sa.Integer, default=None, nullable=True
     )
+    concurrency_limit_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
+        UUID,
+        sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    concurrency_limit_v2 = sa.orm.relationship(
+        "ConcurrencyLimitV2",
+        lazy="selectin",
+    )
+
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
