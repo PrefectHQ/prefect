@@ -311,3 +311,13 @@ class TestAzureBlobStorageContainer:
         result = await container.read_path("prefect-write-path.txt")
 
         assert result == b"write_path_works"
+
+    async def test_list_blobs(self, mock_blob_storage_credentials):
+        blob_container = AzureBlobStorageContainer(
+            container_name="container",
+            credentials=mock_blob_storage_credentials,
+        )
+
+        blob_result = await blob_container.list_blobs()
+
+        assert sorted(blob_result) == ["folder/prefect.txt"]
