@@ -395,17 +395,17 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
     def __enter__(self):
         super().__enter__()
 
-        if self.address and self.address != "auto":
-            self.logger.info(
-                f"Connecting to an existing Ray instance at {self.address}"
-            )
-            init_args = (self.address,)
-        elif ray.is_initialized():
+        if ray.is_initialized():
             self.logger.info(
                 "Local Ray instance is already initialized. "
                 "Using existing local instance."
             )
             return self
+        if self.address and self.address != "auto":
+            self.logger.info(
+                f"Connecting to an existing Ray instance at {self.address}"
+            )
+            init_args = (self.address,)
         else:
             self.logger.info("Creating a local Ray instance")
             init_args = ()
