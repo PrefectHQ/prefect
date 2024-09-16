@@ -341,6 +341,13 @@ def sync_compatible(
         will submit the async method to the event loop.
     - If we cannot find an event loop, we will create a new one and run the async method
         then tear down the loop.
+
+    Note: Type checkers will infer functions decorated with `@sync_compatible` are synchronous. If
+    you want to use the decorated function in an async context, you will need to ignore the types
+    and "cast" the return type to a coroutine. For example:
+    ```
+    python result: Coroutine = sync_compatible(my_async_function)(arg1, arg2) # type: ignore
+    ```
     """
 
     @wraps(async_fn)
