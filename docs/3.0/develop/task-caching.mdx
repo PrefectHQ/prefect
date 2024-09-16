@@ -188,10 +188,10 @@ def my_cached_task(x: int):
 
 ### Cache storage
 
-By default, cache records are collocated with task results. This means that files containing task results will also include metadata used for caching. 
-Configuring a cache policy with a `storage` argument will cause cache records to be stored separately from task results. 
+By default, cache records are collocated with task results and files containing task results will include metadata used for caching. 
+Configuring a cache policy with a `storage` argument allows cache records to be stored separately from task results. 
 
-This separation means that persisted task results will only include the return value of your task and cache records can be deleted or modified 
+When cache storage is configured, persisted task results will only include the return value of your task and cache records can be deleted or modified 
 without effecting your task results.
 
 You can configure where cache records are stored by using the `.configure` method with a `storage` argument on a cache policy.
@@ -203,7 +203,9 @@ For example:
 from prefect import task
 from prefect.cache_policies import TASK_SOURCE, INPUTS
 
-@task(cache_policy=(TASK_SOURCE + INPUTS).configure(storage="/path/to/cache/storage"))
+cache_policy = (TASK_SOURCE + INPUTS).configure(storage="/path/to/cache/storage")
+
+@task(cache_policy=cache_policy)
 def my_cached_task(x: int):
     return x + 42
 ```
@@ -218,7 +220,9 @@ from prefect.cache_policies import TASK_SOURCE, INPUTS
 
 from prefect_aws import S3Bucket
 
-@task(cache_policy=(TASK_SOURCE + INPUTS).configure(storage=S3Bucket.load("my-bucket")))
+cache_policy = (TASK_SOURCE + INPUTS).configure(storage=S3Bucket.load("my-bucket"))
+
+@task(cache_policy=cache_policy)
 def my_cached_task(x: int):
     return x + 42
 ```
@@ -227,11 +231,11 @@ def my_cached_task(x: int):
 
 Cache isolation controls how concurrent task runs interact with cache records. Prefect supports two isolation levels: `READ_COMMITTED` and `SERIALIZABLE`.
 
-By default, cache records operate with a `READ_COMMITTED` isolation level. This guarantees that reading a cache record will see the latest committed value,
+By default, cache records operate with a `READ_COMMITTED` isolation level. This guarantees that reading a cache record will see the latest committed cache value,
 but allows multiple executions of the same task to occur simultaneously.
 
 For stricter isolation, you can use the `SERIALIZABLE` isolation level. This ensures that only one execution of a task occurs at a time for a given cache 
-record by acquiring a lock.
+record via a locking mechanism.
 
 To configure the isolation level, use the `.configure` method with an `isolation_level` argument on a cache policy. When using `SERIALIZABLE`, you must 
 also provide a `lock_manager` that implements locking logic for your system.
@@ -244,13 +248,12 @@ from prefect.cache_policies import TASK_SOURCE, INPUTS
 from prefect.isolation_levels import SERIALIZABLE
 from prefect.locking.filesystem import FileSystemLockManager
 
-
-@task(
-    cache_policy=(INPUTS + TASK_SOURCE).configure(
-        isolation_level=SERIALIZABLE,
-        lock_manager=FileSystemLockManager(lock_files_directory="path/to/lock/files"),
-    )
+cache_policy = (INPUTS + TASK_SOURCE).configure(
+    isolation_level=SERIALIZABLE,
+    lock_manager=FileSystemLockManager(lock_files_directory="path/to/lock/files"),
 )
+
+@task(cache_policy=cache_policy)
 def my_cached_task(x: int):
     return x + 42
 ```
@@ -271,12 +274,12 @@ from prefect.isolation_levels import SERIALIZABLE
 
 from prefect_redis import RedisLockManager
 
-@task(
-    cache_policy=(INPUTS + TASK_SOURCE).configure(
-        isolation_level=SERIALIZABLE,
-        lock_manager=RedisLockManager(host="my-redis-host"),
-    )
+cache_policy = (INPUTS + TASK_SOURCE).configure(
+    isolation_level=SERIALIZABLE,
+    lock_manager=RedisLockManager(host="my-redis-host"),
 )
+
+@task(cache_policy=cache_policy)
 def my_cached_task(x: int):
     return x + 42
 ```
