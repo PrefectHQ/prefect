@@ -19,6 +19,7 @@ import anyio
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
+from prefect.runner.storage import RunnerStorage
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -3530,6 +3531,57 @@ class TestFlowToDeployment:
             expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             with pytest.raises(ValueError, match=expected_message):
                 test_flow.to_deployment(__file__, **kwargs)
+
+    async def test_to_deployment_respects_with_options_name_from_flow(self):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
+
+        @flow(name="original-name")
+        def test_flow():
+            pass
+
+        flow_with_new_name = test_flow.with_options(name="new-name")
+        deployment = await flow_with_new_name.to_deployment(name="test-deployment")
+
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.name == "test-deployment"
+        assert deployment.flow_name == "new-name"
+
+    async def test_to_deployment_respects_with_options_name_from_storage(
+        self, monkeypatch
+    ):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
+
+        @flow(name="original-name")
+        def test_flow():
+            pass
+
+        flow_with_new_name = test_flow.with_options(name="new-name")
+
+        mock_storage = MagicMock(spec=RunnerStorage)
+        mock_entrypoint = "fake_module:test_flow"
+        mock_from_storage = AsyncMock(
+            return_value=RunnerDeployment(
+                name="test-deployment", flow_name="new-name", entrypoint=mock_entrypoint
+            )
+        )
+        monkeypatch.setattr(RunnerDeployment, "from_storage", mock_from_storage)
+
+        flow_with_new_name._storage = mock_storage
+        flow_with_new_name._entrypoint = mock_entrypoint
+
+        deployment = await flow_with_new_name.to_deployment(name="test-deployment")
+
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.name == "test-deployment"
+        assert deployment.flow_name == "new-name"
+        assert deployment.entrypoint == mock_entrypoint
+
+        mock_from_storage.assert_awaited_once()
+        call_args = mock_from_storage.call_args[1]
+        assert call_args["storage"] == mock_storage
+        assert call_args["entrypoint"] == mock_entrypoint
+        assert call_args["name"] == "test-deployment"
+        assert call_args["flow_name"] == "new-name"
 
 
 class TestFlowServe:
