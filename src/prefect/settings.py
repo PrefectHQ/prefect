@@ -1288,6 +1288,36 @@ compromise. Adjust this setting based on your specific security requirements
 and usage patterns.
 """
 
+PREFECT_SERVER_CORS_ALLOWED_ORIGINS = Setting(
+    str,
+    default="*",
+)
+"""
+A comma-separated list of origins that are authorized to make cross-origin requests to the API.
+
+By default, this is set to `*`, which allows requests from all origins.
+"""
+
+PREFECT_SERVER_CORS_ALLOWED_METHODS = Setting(
+    str,
+    default="*",
+)
+"""
+A comma-separated list of methods that are authorized to make cross-origin requests to the API.
+
+By default, this is set to `*`, which allows requests with all methods.
+"""
+
+PREFECT_SERVER_CORS_ALLOWED_HEADERS = Setting(
+    str,
+    default="*",
+)
+"""
+A comma-separated list of headers that are authorized to make cross-origin requests to the API.
+
+By default, this is set to `*`, which allows requests with all headers.
+"""
+
 PREFECT_SERVER_ALLOW_EPHEMERAL_MODE = Setting(bool, default=False)
 """
 Controls whether or not a subprocess server can be started when no API URL is provided.
