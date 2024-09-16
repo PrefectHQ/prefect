@@ -245,8 +245,7 @@ class TestCreateDeployment:
         assert updated_deployment.updated_by.type == new_updated_by.type
 
     async def test_create_deployment_with_concurrency_limit(self, session, flow):
-        concurrency_options = schemas.core.ConcurrencyLimitConfig(
-            concurrency=10,
+        concurrency_options = schemas.core.ConcurrencyOptions(
             collision_strategy="ENQUEUE",
         )
         deployment = await models.deployments.create_deployment(
@@ -254,10 +253,11 @@ class TestCreateDeployment:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                concurrency_limit=concurrency_options,
+                concurrency_limit=42,
+                concurrency_options=concurrency_options,
             ),
         )
-        assert deployment.concurrency_limit == concurrency_options.concurrency
+        assert deployment.concurrency_limit == 42
         assert (
             deployment.concurrency_options.collision_strategy
             == concurrency_options.collision_strategy

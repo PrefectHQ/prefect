@@ -85,12 +85,6 @@ async def create_deployment(
     insert_values = deployment.model_dump_for_orm(
         exclude_unset=True, exclude={"schedules"}
     )
-    if isinstance(deployment.concurrency_limit, schemas.core.ConcurrencyLimitConfig):
-        concurrency_options = insert_values.pop("concurrency_limit")
-        insert_values["concurrency_options"] = {
-            "collision_strategy": concurrency_options.collision_strategy,
-        }
-        insert_values["concurrency_limit"] = concurrency_options.concurrency
 
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
