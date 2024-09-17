@@ -1795,6 +1795,24 @@ class TestUpdateDeployment:
         assert schedules[0].schedule.interval == new_schedule.interval
         assert schedules[0].active is True
 
+    async def test_updating_deployment_with_concurrency_limit(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        assert deployment.concurrency_limit is None
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"concurrency_limit": 1}
+        )
+        assert response.status_code == 204
+
+        await session.refresh(deployment)
+        assert deployment
+        assert deployment.concurrency_limit == 1
+        assert deployment.concurrency_limit_v2.limit == 1
+
 
 class TestGetScheduledFlowRuns:
     @pytest.fixture
