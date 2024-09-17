@@ -1880,7 +1880,7 @@ class TestTaskCaching:
         )
 
     def test_cache_policy_storage_path(self, tmp_path):
-        cache_policy = Inputs().configure(storage=tmp_path)
+        cache_policy = Inputs().configure(key_storage=tmp_path)
         expected_cache_key = cache_policy.compute_key(
             task_ctx=None, inputs={"x": 1}, flow_parameters=None
         )
@@ -1893,7 +1893,7 @@ class TestTaskCaching:
         assert (tmp_path / expected_cache_key).exists()
 
     def test_cache_policy_storage_str(self, tmp_path):
-        cache_policy = Inputs().configure(storage=str(tmp_path))
+        cache_policy = Inputs().configure(key_storage=str(tmp_path))
         expected_cache_key = cache_policy.compute_key(
             task_ctx=None, inputs={"x": 1}, flow_parameters=None
         )
@@ -1907,7 +1907,7 @@ class TestTaskCaching:
 
     def test_cache_policy_storage_storage_block(self, tmp_path):
         cache_policy = Inputs().configure(
-            storage=LocalFileSystem(basepath=str(tmp_path))
+            key_storage=LocalFileSystem(basepath=str(tmp_path))
         )
         expected_cache_key = cache_policy.compute_key(
             task_ctx=None, inputs={"x": 1}, flow_parameters=None

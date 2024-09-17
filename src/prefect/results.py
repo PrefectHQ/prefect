@@ -298,8 +298,8 @@ class ResultStore(BaseModel):
                 _format_user_supplied_storage_key, task.result_storage_key
             )
         if task.cache_policy is not None and task.cache_policy is not NotSet:
-            if task.cache_policy.storage is not None:
-                storage = task.cache_policy.storage
+            if task.cache_policy.key_storage is not None:
+                storage = task.cache_policy.key_storage
                 if isinstance(storage, str) and not len(storage.split("/")) == 2:
                     storage = Path(storage)
                 update["result_storage"] = await resolve_result_storage(storage)
