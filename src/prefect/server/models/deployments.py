@@ -256,6 +256,19 @@ async def update_deployment(
             ],
         )
 
+    if "concurrency_limit" in update_data:
+        deploy = await session.get(orm_models.Deployment, deployment_id)
+        assert deploy is not None
+        if deploy.concurrency_limit_v2:
+            deploy.concurrency_limit_v2.limit = update_data["concurrency_limit"]
+        else:
+            limit_name = f"deployment:{deployment_id}"
+            new_limit = orm_models.ConcurrencyLimitV2(
+                name=limit_name, limit=update_data["concurrency_limit"]
+            )
+            deploy.concurrency_limit_v2 = new_limit
+        session.add(deploy)
+
     return result.rowcount > 0
 
 

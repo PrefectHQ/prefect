@@ -1068,6 +1068,29 @@ class TestUpdateDeployment:
         assert wq is not None
         assert wq.work_pool == work_pool
 
+    async def test_update_deployment_with_concurrency_limit(
+        self,
+        session,
+        deployment,
+    ):
+        assert deployment.concurrency_limit is None
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=5,
+            ),
+        )
+        await session.commit()
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment
+        assert updated_deployment.concurrency_limit == 5
+        assert updated_deployment.concurrency_limit_v2.limit == 5
+
 
 @pytest.fixture
 async def deployment_schedules(

@@ -885,7 +885,9 @@ class Deployment(Base):
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
         nullable=True,
     )
-    concurrency_limit_v2 = sa.orm.relationship(
+    concurrency_limit_v2: Mapped[
+        Union["ConcurrencyLimitV2", None]
+    ] = sa.orm.relationship(
         "ConcurrencyLimitV2",
         lazy="selectin",
     )
@@ -983,7 +985,7 @@ class ConcurrencyLimitV2(Base):
     active = sa.Column(sa.Boolean, nullable=False, default=True)
     name = sa.Column(sa.String, nullable=False)
     limit = sa.Column(sa.Integer, nullable=False)
-    active_slots = sa.Column(sa.Integer, nullable=False)
+    active_slots = sa.Column(sa.Integer, nullable=False, default=0)
     denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
 
     slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=False)
