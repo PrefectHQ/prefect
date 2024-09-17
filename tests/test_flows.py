@@ -195,6 +195,10 @@ class TestFlow:
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
             Flow(fn=lambda: 1, name=name)
 
+    def test_lambda_name_coerced_to_legal_characters(self):
+        f = Flow(fn=lambda: 42)
+        assert f.name == "unknown-lambda"
+
     def test_invalid_run_name(self):
         class InvalidFlowRunNameArg:
             def format(*args, **kwargs):
