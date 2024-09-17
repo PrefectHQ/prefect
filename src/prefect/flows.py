@@ -258,11 +258,11 @@ class Flow(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        # Validate name if given
-        if name:
-            _raise_on_name_with_banned_characters(name)
-
-        self.name = name or fn.__name__.replace("_", "-")
+        self.name = name or fn.__name__.replace("_", "-").replace(
+            "<lambda>",
+            "unknown-lambda",  # prefect API will not accept "<" or ">" in flow names
+        )
+        _raise_on_name_with_banned_characters(self.name)
 
         if flow_run_name is not None:
             if not isinstance(flow_run_name, str) and not callable(flow_run_name):
@@ -1623,7 +1623,7 @@ def flow(
         )
 
 
-def _raise_on_name_with_banned_characters(name: str) -> str:
+def _raise_on_name_with_banned_characters(name: Optional[str]) -> Optional[str]:
     """
     Raise an InvalidNameError if the given name contains any invalid
     characters.
