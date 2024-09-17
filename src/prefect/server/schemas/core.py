@@ -160,15 +160,6 @@ class ConcurrencyLimitStrategy(AutoEnum):
     CANCEL_NEW = AutoEnum.auto()
 
 
-class ConcurrencyLimitConfig(BaseModel):
-    """
-    Options for configuring deployment concurrency limits.
-    """
-
-    concurrency: int
-    collision_strategy: ConcurrencyLimitStrategy
-
-
 class ConcurrencyOptions(BaseModel):
     """
     Class for storing the concurrency config in database.
