@@ -244,6 +244,21 @@ class TestCreateDeployment:
         )
         assert updated_deployment.updated_by.type == new_updated_by.type
 
+    async def test_create_deployment_with_concurrency_limit(self, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                concurrency_limit=2,
+            ),
+        )
+        assert deployment is not None
+        assert deployment.concurrency_limit == 2
+
+        assert deployment.concurrency_limit_v2 is not None
+        assert deployment.concurrency_limit_v2.limit == 2
+
 
 class TestReadDeployment:
     async def test_read_deployment(self, session, flow, flow_function):

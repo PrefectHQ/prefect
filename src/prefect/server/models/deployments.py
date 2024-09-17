@@ -148,6 +148,11 @@ async def create_deployment(
             ],
         )
 
+    if deployment.concurrency_limit:
+        await create_or_update_deployment_concurrency_limit(
+            session, deployment_id, deployment.concurrency_limit
+        )
+
     query = (
         sa.select(orm_models.Deployment)
         .where(
@@ -257,19 +262,27 @@ async def update_deployment(
         )
 
     if "concurrency_limit" in update_data:
-        deploy = await session.get(orm_models.Deployment, deployment_id)
-        assert deploy is not None
-        if deploy.concurrency_limit_v2:
-            deploy.concurrency_limit_v2.limit = update_data["concurrency_limit"]
-        else:
-            limit_name = f"deployment:{deployment_id}"
-            new_limit = orm_models.ConcurrencyLimitV2(
-                name=limit_name, limit=update_data["concurrency_limit"]
-            )
-            deploy.concurrency_limit_v2 = new_limit
-        session.add(deploy)
+        await create_or_update_deployment_concurrency_limit(
+            session, deployment_id, update_data["concurrency_limit"]
+        )
 
     return result.rowcount > 0
+
+
+async def create_or_update_deployment_concurrency_limit(
+    session: AsyncSession, deployment_id: UUID, limit: int
+):
+    deployment = await session.get(orm_models.Deployment, deployment_id)
+    assert deployment is not None
+
+    if deployment.concurrency_limit_v2:
+        deployment.concurrency_limit_v2.limit = limit
+    else:
+        limit_name = f"deployment:{deployment_id}"
+        new_limit = orm_models.ConcurrencyLimitV2(name=limit_name, limit=limit)
+        deployment.concurrency_limit_v2 = new_limit
+
+    session.add(deployment)
 
 
 async def read_deployment(

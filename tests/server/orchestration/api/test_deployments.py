@@ -1014,6 +1014,25 @@ class TestCreateDeployment:
         assert response.status_code == 200
         assert response.json()["paused"] is True
 
+    async def test_create_deployment_with_concurrency_limit(
+        self,
+        client,
+        flow,
+    ):
+        response = await client.post(
+            "/deployments/",
+            json=dict(
+                name="My Deployment",
+                flow_id=str(flow.id),
+                concurrency_limit=3,
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        json_response = response.json()
+        assert json_response.get("concurrency_limit") == 3
+
+        # assert json_response.get("concurrency_limit")
+
 
 class TestReadDeployment:
     async def test_read_deployment(
