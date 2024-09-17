@@ -189,13 +189,13 @@ def my_cached_task(x: int):
 ### Cache storage
 
 By default, cache records are collocated with task results and files containing task results will include metadata used for caching. 
-Configuring a cache policy with a `storage` argument allows cache records to be stored separately from task results. 
+Configuring a cache policy with a `key_storage` argument allows cache records to be stored separately from task results. 
 
-When cache storage is configured, persisted task results will only include the return value of your task and cache records can be deleted or modified 
+When cache key storage is configured, persisted task results will only include the return value of your task and cache records can be deleted or modified 
 without effecting your task results.
 
-You can configure where cache records are stored by using the `.configure` method with a `storage` argument on a cache policy.
-The `storage` argument accepts either a path to a local directory or a storage block.
+You can configure where cache records are stored by using the `.configure` method with a `key_storage` argument on a cache policy.
+The `key_storage` argument accepts either a path to a local directory or a storage block.
 
 For example:
 
@@ -203,7 +203,7 @@ For example:
 from prefect import task
 from prefect.cache_policies import TASK_SOURCE, INPUTS
 
-cache_policy = (TASK_SOURCE + INPUTS).configure(storage="/path/to/cache/storage")
+cache_policy = (TASK_SOURCE + INPUTS).configure(key_storage="/path/to/cache/storage")
 
 @task(cache_policy=cache_policy)
 def my_cached_task(x: int):
@@ -220,7 +220,7 @@ from prefect.cache_policies import TASK_SOURCE, INPUTS
 
 from prefect_aws import S3Bucket
 
-cache_policy = (TASK_SOURCE + INPUTS).configure(storage=S3Bucket.load("my-bucket"))
+cache_policy = (TASK_SOURCE + INPUTS).configure(key_storage=S3Bucket.load("my-bucket"))
 
 @task(cache_policy=cache_policy)
 def my_cached_task(x: int):
