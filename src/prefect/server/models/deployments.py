@@ -94,7 +94,14 @@ async def create_deployment(
 
     conflict_update_fields = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"id", "created", "created_by", "schedules", "job_variables"},
+        exclude={
+            "id",
+            "created",
+            "created_by",
+            "schedules",
+            "job_variables",
+            "concurrency_limit",
+        },
     )
     if job_variables:
         conflict_update_fields["infra_overrides"] = job_variables
