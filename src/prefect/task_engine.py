@@ -77,7 +77,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.transactions import Transaction, transaction
+from prefect.transactions import IsolationLevel, Transaction, transaction
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
@@ -725,12 +725,21 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
 
+        isolation_level = (
+            IsolationLevel(self.task.cache_policy.isolation_level)
+            if self.task.cache_policy
+            and self.task.cache_policy is not NotSet
+            and self.task.cache_policy.isolation_level is not None
+            else None
+        )
+
         with transaction(
             key=self.compute_transaction_key(),
             store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
+            isolation_level=isolation_level,
         ) as txn:
             yield txn
 
@@ -1224,6 +1233,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+        isolation_level = (
+            IsolationLevel(self.task.cache_policy.isolation_level)
+            if self.task.cache_policy
+            and self.task.cache_policy is not NotSet
+            and self.task.cache_policy.isolation_level is not None
+            else None
+        )
 
         with transaction(
             key=self.compute_transaction_key(),
@@ -1231,6 +1247,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
+            isolation_level=isolation_level,
         ) as txn:
             yield txn
 

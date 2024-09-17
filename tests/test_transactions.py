@@ -3,6 +3,7 @@ import uuid
 
 import pytest
 
+from prefect.exceptions import ConfigurationError
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.locking.memory import MemoryLockManager
@@ -664,8 +665,8 @@ class TestIsolationLevel:
 
     def test_raises_on_unsupported_isolation_level(self):
         with pytest.raises(
-            ValueError,
-            match="Isolation level SERIALIZABLE is not supported by provided result store.",
+            ConfigurationError,
+            match="Isolation level SERIALIZABLE is not supported by provided configuration",
         ):
             with transaction(
                 key="test",

@@ -38,10 +38,10 @@ class FileSystemLockManager(LockManager):
     """
 
     def __init__(self, lock_files_directory: Path):
-        self.lock_files_directory = lock_files_directory
+        self.lock_files_directory = lock_files_directory.expanduser().resolve()
         self._locks: Dict[str, _LockInfo] = {}
 
-    def _ensure_records_directory_exists(self):
+    def _ensure_lock_files_directory_exists(self):
         self.lock_files_directory.mkdir(parents=True, exist_ok=True)
 
     def _lock_path_for_key(self, key: str) -> Path:
@@ -98,7 +98,7 @@ class FileSystemLockManager(LockManager):
         acquire_timeout: Optional[float] = None,
         hold_timeout: Optional[float] = None,
     ) -> bool:
-        self._ensure_records_directory_exists()
+        self._ensure_lock_files_directory_exists()
         lock_path = self._lock_path_for_key(key)
 
         if self.is_locked(key) and not self.is_lock_holder(key, holder):
