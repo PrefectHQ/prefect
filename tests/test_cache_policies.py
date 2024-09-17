@@ -296,3 +296,72 @@ class TestDefaultPolicy:
         )
 
         assert key_one != key_two
+
+
+class TestPolicyConfiguration:
+    def test_configure_changes_storage(self):
+        policy = Inputs().configure(key_storage="/path/to/storage")
+        assert policy.key_storage == "/path/to/storage"
+
+    def test_configure_changes_locks(self):
+        policy = Inputs().configure(lock_manager="/path/to/locks")
+        assert policy.lock_manager == "/path/to/locks"
+
+    def test_configure_changes_isolation_level(self):
+        policy = Inputs().configure(isolation_level="SERIALIZABLE")
+        assert policy.isolation_level == "SERIALIZABLE"
+
+    def test_configure_changes_all_attributes(self):
+        policy = Inputs().configure(
+            key_storage="/path/to/storage",
+            lock_manager="/path/to/locks",
+            isolation_level="SERIALIZABLE",
+        )
+        assert policy.key_storage == "/path/to/storage"
+        assert policy.lock_manager == "/path/to/locks"
+        assert policy.isolation_level == "SERIALIZABLE"
+
+    def test_configure_with_none_is_noop(self):
+        policy = Inputs().configure(
+            key_storage=None, lock_manager=None, isolation_level=None
+        )
+        assert policy == Inputs()
+
+    def test_add_policy_with_configuration(self):
+        policy = Inputs() + TaskSource().configure(
+            lock_manager="/path/to/locks",
+            isolation_level="SERIALIZABLE",
+            key_storage="/path/to/storage",
+        )
+        assert policy.lock_manager == "/path/to/locks"
+        assert policy.isolation_level == "SERIALIZABLE"
+        assert policy.key_storage == "/path/to/storage"
+
+    def test_add_policy_with_conflict_raises(self):
+        policy = Inputs() + TaskSource().configure(
+            lock_manager="original_locks",
+            key_storage="original_storage",
+            isolation_level="SERIALIZABLE",
+        )
+        with pytest.raises(
+            ValueError,
+            match="Cannot add CachePolicies with different lock implementations.",
+        ):
+            _policy = policy + TaskSource().configure(lock_manager="other_locks")
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot add CachePolicies with different storage locations.",
+        ):
+            _policy = policy + TaskSource().configure(key_storage="other_storage")
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot add CachePolicies with different isolation levels.",
+        ):
+            _policy = policy + TaskSource().configure(isolation_level="READ_COMMITTED")
+
+    def test_configure_returns_new_policy(self):
+        policy = Inputs()
+        new_policy = policy.configure(key_storage="new_storage")
+        assert policy is not new_policy
