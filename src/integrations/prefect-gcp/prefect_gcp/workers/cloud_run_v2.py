@@ -197,7 +197,10 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         """
         envs = [{"name": k, "value": v} for k, v in self.env.items()]
         envs_from_secrets = [
-            {"name": k, "valueSource": v.model_dump()}
+            {
+                "name": k,
+                "valueSource": {"secretKeyRef": v.model_dump()},
+            }
             for k, v in self.env_from_secrets.items()
         ]
         envs.extend(envs_from_secrets)
