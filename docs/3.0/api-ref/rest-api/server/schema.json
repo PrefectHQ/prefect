@@ -15428,12 +15428,67 @@
                             }
                         ],
                         "description": "Filter criteria for `Deployment.work_queue_name`"
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilterConcurrencyLimit"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `Deployment.concurrency`"
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "DeploymentFilter",
                 "description": "Filter for deployments. Only deployments matching all criteria will be returned."
+            },
+            "DeploymentFilterConcurrencyLimit": {
+                "properties": {
+                    "ge_": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ge ",
+                        "description": "Only include deployments with a concurrency limit greater than or equal to this value"
+                    },
+                    "le_": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Le ",
+                        "description": "Only include deployments with a concurrency limit less than or equal to this value"
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null ",
+                        "description": "If true, only include deployments without a concurrency limit"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "DeploymentFilterConcurrencyLimit",
+                "description": "Filter by `Deployment.concurrency_limit`."
             },
             "DeploymentFilterId": {
                 "properties": {
