@@ -9,9 +9,11 @@ from pydantic import BaseModel, Field
 class SecretKeySelector(BaseModel):
     """
     SecretKeySelector is a data model for specifying a GCP secret to inject
-    into a Cloud Run V2 Job. Follows Cloud Run V2 rest API, docs:
+    into a Cloud Run V2 Job as an environment variable.
+    Follows Cloud Run V2 rest API, docs:
     https://cloud.google.com/run/docs/reference/rest/v2/Container#SecretKeySelector
     """
+
     secret: str
     version: str
 
