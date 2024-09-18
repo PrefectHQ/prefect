@@ -12,6 +12,7 @@ import shutil
 import socket
 import sqlite3
 import subprocess
+import sys
 import time
 from contextlib import asynccontextmanager
 from functools import partial, wraps
@@ -60,7 +61,6 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.utilities.hashing import hash_objects
-from prefect.utilities.processutils import get_sys_executable
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
@@ -821,18 +821,17 @@ class SubprocessASGIServer:
                 raise
 
     def _run_uvicorn_command(self) -> subprocess.Popen:
-        # used to turn off background services
+        # used to turn off serving the UI
         server_env = {
             "PREFECT_UI_ENABLED": "0",
         }
         return subprocess.Popen(
             args=[
-                get_sys_executable(),
+                sys.executable,
                 "-m",
                 "uvicorn",
                 "--app-dir",
-                # quote wrapping needed for windows paths with spaces
-                f'"{prefect.__module_path__.parent}"',
+                str(prefect.__module_path__.parent),
                 "--factory",
                 "prefect.server.api.server:create_app",
                 "--host",
