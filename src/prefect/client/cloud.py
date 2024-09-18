@@ -6,8 +6,6 @@ import httpx
 import pydantic
 from starlette import status
 
-import prefect.context
-import prefect.settings
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas.objects import (
     IPAllowlist,
@@ -15,11 +13,7 @@ from prefect.client.schemas.objects import (
     Workspace,
 )
 from prefect.exceptions import ObjectNotFound, PrefectException
-from prefect.settings import (
-    PREFECT_API_KEY,
-    PREFECT_CLOUD_API_URL,
-    PREFECT_UNIT_TEST_MODE,
-)
+from prefect.settings import SETTINGS
 
 PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 
@@ -37,14 +31,14 @@ def get_cloud_client(
         httpx_settings = httpx_settings.copy()
 
     if infer_cloud_url is False:
-        host = host or PREFECT_CLOUD_API_URL.value()
+        host = host or SETTINGS.cloud_api_url
     else:
-        configured_url = prefect.settings.PREFECT_API_URL.value()
+        configured_url = SETTINGS.api_url
         host = re.sub(PARSE_API_URL_REGEX, "", configured_url)
 
     return CloudClient(
         host=host,
-        api_key=api_key or PREFECT_API_KEY.value(),
+        api_key=api_key or SETTINGS.api_key,
         httpx_settings=httpx_settings,
     )
 
@@ -67,13 +61,13 @@ class CloudClient:
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
-        if not PREFECT_UNIT_TEST_MODE.value():
+        if not SETTINGS.unit_test_mode:
             httpx_settings.setdefault("follow_redirects", True)
         self._client = PrefectHttpxAsyncClient(
             **httpx_settings, enable_csrf_support=False
         )
 
-        api_url = prefect.settings.PREFECT_API_URL.value() or ""
+        api_url = SETTINGS.api_url or ""
         if match := (
             re.search(PARSE_API_URL_REGEX, host)
             or re.search(PARSE_API_URL_REGEX, api_url)

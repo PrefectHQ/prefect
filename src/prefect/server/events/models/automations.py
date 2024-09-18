@@ -15,7 +15,7 @@ from prefect.server.events.schemas.automations import (
     AutomationSort,
     AutomationUpdate,
 )
-from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
+from prefect.settings import SETTINGS
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 if TYPE_CHECKING:
@@ -102,7 +102,7 @@ async def read_automation_by_id(
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
-    if not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
+    if not SETTINGS.api_services_triggers_enabled:
         return
 
     from prefect.server.events.triggers import automation_changed

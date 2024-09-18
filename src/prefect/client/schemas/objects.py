@@ -49,7 +49,7 @@ from prefect._internal.schemas.validators import (
     validate_parent_and_ref_diff,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
+from prefect.settings import SETTINGS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
     Name,
@@ -854,7 +854,7 @@ class Workspace(PrefectBaseModel):
         Generate the API URL for accessing this workspace
         """
         return (
-            f"{PREFECT_CLOUD_API_URL.value()}"
+            f"{SETTINGS.cloud_api_url}"
             f"/accounts/{self.account_id}"
             f"/workspaces/{self.workspace_id}"
         )
@@ -864,7 +864,7 @@ class Workspace(PrefectBaseModel):
         Generate the UI URL for accessing this workspace
         """
         return (
-            f"{PREFECT_CLOUD_UI_URL.value()}"
+            f"{SETTINGS.cloud_ui_url}"
             f"/account/{self.account_id}"
             f"/workspace/{self.workspace_id}"
         )

@@ -32,9 +32,7 @@ from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.client.schemas import Workspace
 from prefect.context import get_settings_context
 from prefect.settings import (
-    PREFECT_API_KEY,
-    PREFECT_API_URL,
-    PREFECT_CLOUD_UI_URL,
+    SETTINGS,
     load_profiles,
     save_profiles,
     update_current_profile,
@@ -134,7 +132,7 @@ async def serve_login_api(cancel_scope, task_status):
 
 
 def confirm_logged_in():
-    if not PREFECT_API_KEY:
+    if not SETTINGS.api_key:
         profile = prefect.context.get_settings_context().profile
         exit_with_error(
             f"Currently not authenticated in profile {profile.name!r}. "
@@ -143,7 +141,7 @@ def confirm_logged_in():
 
 
 def get_current_workspace(workspaces: Iterable[Workspace]) -> Optional[Workspace]:
-    current_api_url = PREFECT_API_URL.value()
+    current_api_url = SETTINGS.api_url
 
     if not current_api_url:
         return None
@@ -254,9 +252,8 @@ async def login_with_browser() -> str:
         # Get the port the server is using
         server_port = server.servers[0].sockets[0].getsockname()[1]
         callback = urllib.parse.quote(f"http://localhost:{server_port}")
-        ui_login_url = (
-            PREFECT_CLOUD_UI_URL.value() + f"/auth/client?callback={callback}"
-        )
+        assert SETTINGS.cloud_ui_url is not None
+        ui_login_url = SETTINGS.cloud_ui_url + f"/auth/client?callback={callback}"
 
         # Then open the authorization page in a new browser tab
         app.console.print("Opening browser...")
@@ -365,7 +362,7 @@ async def login(
 
     profiles = load_profiles()
     current_profile = get_settings_context().profile
-    env_var_api_key = PREFECT_API_KEY.value()
+    env_var_api_key = SETTINGS.api_key.get_secret_value() if SETTINGS.api_key else None
     selected_workspace = None
 
     if env_var_api_key and key and env_var_api_key != key:
@@ -387,7 +384,11 @@ async def login(
 
     already_logged_in_profiles = []
     for name, profile in profiles.items():
-        profile_key = profile.settings.get(PREFECT_API_KEY)
+        profile_key = (
+            profile.settings.api_key.get_secret_value()
+            if profile.settings.api_key
+            else None
+        )
         if (
             # If a key is provided, only show profiles with the same key
             (key and profile_key == key)
@@ -411,7 +412,7 @@ async def login(
 
         if not should_reauth:
             app.console.print("Using the existing authentication on this profile.")
-            key = PREFECT_API_KEY.value()
+            key = SETTINGS.api_key.get_secret_value() if SETTINGS.api_key else None
 
     elif already_logged_in_profiles:
         app.console.print(
@@ -519,13 +520,13 @@ async def login(
         else:
             exit_with_error(
                 "No workspaces found! Create a workspace at"
-                f" {PREFECT_CLOUD_UI_URL.value()} and try again."
+                f" {SETTINGS.cloud_ui_url} and try again."
             )
 
     update_current_profile(
         {
-            PREFECT_API_KEY: key,
-            PREFECT_API_URL: selected_workspace.api_url(),
+            "PREFECT_API_KEY": key,
+            "PREFECT_API_URL": selected_workspace.api_url(),
         }
     )
 
@@ -544,13 +545,13 @@ async def logout():
     if current_profile is None:
         exit_with_error("There is no current profile set.")
 
-    if current_profile.settings.get(PREFECT_API_KEY) is None:
+    if current_profile.settings.api_key is None:
         exit_with_error("Current profile is not logged into Prefect Cloud.")
 
     update_current_profile(
         {
-            PREFECT_API_URL: None,
-            PREFECT_API_KEY: None,
+            "PREFECT_API_URL": None,
+            "PREFECT_API_KEY": None,
         },
     )
 
@@ -655,7 +656,7 @@ async def set(
             if workspace is None:
                 exit_with_error("No workspace selected.")
 
-        profile = update_current_profile({PREFECT_API_URL: workspace.api_url()})
+        profile = update_current_profile({"PREFECT_API_URL": workspace.api_url()})
         exit_with_success(
             f"Successfully set workspace to {workspace.handle!r} in profile"
             f" {profile.name!r}."

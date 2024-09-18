@@ -5,7 +5,7 @@ from prefect.cli._utilities import exit_with_success
 from prefect.cli.cloud import get_current_workspace
 from prefect.cli.root import app
 from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import SETTINGS
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 dashboard_app = PrefectTyper(
@@ -21,7 +21,7 @@ async def open():
     Open the Prefect UI in the browser.
     """
 
-    if not (ui_url := PREFECT_UI_URL.value()):
+    if not (ui_url := SETTINGS.ui_url):
         raise RuntimeError(
             "`PREFECT_UI_URL` must be set to the URL of a running Prefect server or Prefect Cloud workspace."
         )

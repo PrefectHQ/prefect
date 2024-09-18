@@ -49,9 +49,7 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.results import BaseResult, ResultRecord, should_persist_result
-from prefect.settings import (
-    PREFECT_LOGGING_LOG_PRINTS,
-)
+from prefect.settings import SETTINGS
 from prefect.states import (
     State,
     get_state_exception,
@@ -656,7 +654,7 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
         if flow_run_context:
             return flow_run_context.log_prints
         else:
-            return PREFECT_LOGGING_LOG_PRINTS.value()
+            return SETTINGS.logging_log_prints
 
     return flow_or_task.log_prints
 

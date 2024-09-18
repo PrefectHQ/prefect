@@ -23,31 +23,20 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import LogCreate
 from prefect.exceptions import MissingContextError
 from prefect.logging.highlighters import PrefectConsoleHighlighter
-from prefect.settings import (
-    PREFECT_API_URL,
-    PREFECT_LOGGING_COLORS,
-    PREFECT_LOGGING_INTERNAL_LEVEL,
-    PREFECT_LOGGING_MARKUP,
-    PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
-    PREFECT_LOGGING_TO_API_BATCH_SIZE,
-    PREFECT_LOGGING_TO_API_ENABLED,
-    PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
-    PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
-)
+from prefect.settings import SETTINGS
 
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
     @property
     def _max_batch_size(self):
         return max(
-            PREFECT_LOGGING_TO_API_BATCH_SIZE.value()
-            - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
-            PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
+            SETTINGS.logging_to_api_batch_size - SETTINGS.logging_to_api_max_log_size,
+            SETTINGS.logging_to_api_max_log_size,
         )
 
     @property
     def _min_interval(self):
-        return PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()
+        return SETTINGS.logging_to_api_batch_interval
 
     async def _handle_batch(self, items: List):
         try:
@@ -56,7 +45,7 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
             # Roughly replicate the behavior of the stdlib logger error handling
             if logging.raiseExceptions and sys.stderr:
                 sys.stderr.write("--- Error logging to API ---\n")
-                if PREFECT_LOGGING_INTERNAL_LEVEL.value() == "DEBUG":
+                if SETTINGS.logging_internal_level == "DEBUG":
                     traceback.print_exc(file=sys.stderr)
                 else:
                     # Only log the exception message in non-DEBUG mode
@@ -70,9 +59,9 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
     @classmethod
     def instance(cls: Type[Self]) -> Self:
         settings = (
-            PREFECT_LOGGING_TO_API_BATCH_SIZE.value(),
-            PREFECT_API_URL.value(),
-            PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
+            SETTINGS.logging_to_api_batch_size,
+            SETTINGS.api_url,
+            SETTINGS.logging_to_api_max_log_size,
         )
 
         # Ensure a unique worker is retrieved per relevant logging settings
@@ -134,7 +123,7 @@ class APILogHandler(logging.Handler):
         try:
             profile = prefect.context.get_settings_context()
 
-            if not PREFECT_LOGGING_TO_API_ENABLED.value_from(profile.settings):
+            if not profile.settings.logging_to_api_enabled:
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_api", True):
                 return  # Do not send records that have opted out
@@ -149,9 +138,7 @@ class APILogHandler(logging.Handler):
         _, exc, _ = sys.exc_info()
 
         if isinstance(exc, MissingContextError):
-            log_handling_when_missing_flow = (
-                PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW.value()
-            )
+            log_handling_when_missing_flow = SETTINGS.logging_to_api_when_missing_flow
             if log_handling_when_missing_flow == "warn":
                 # Warn when a logger is used outside of a run context, the stack level here
                 # gets us to the user logging call
@@ -225,10 +212,10 @@ class APILogHandler(logging.Handler):
         ).model_dump(mode="json")
 
         log_size = log["__payload_size__"] = self._get_payload_size(log)
-        if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():
+        if log_size > SETTINGS.logging_to_api_max_log_size:
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
-                f"{PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()}"
+                f"{SETTINGS.logging_to_api_max_log_size}"
             )
 
         return log
@@ -256,8 +243,8 @@ class PrefectConsoleHandler(logging.StreamHandler):
         """
         super().__init__(stream=stream)
 
-        styled_console = PREFECT_LOGGING_COLORS.value()
-        markup_console = PREFECT_LOGGING_MARKUP.value()
+        styled_console = SETTINGS.logging_colors
+        markup_console = SETTINGS.logging_markup
         if styled_console:
             highlighter = highlighter()
             theme = Theme(styles, inherit=False)

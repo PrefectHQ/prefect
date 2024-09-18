@@ -352,7 +352,7 @@ def pytest_sessionstart(session):
     # Create the storage path now, fixing an obscure bug where it can be created by
     # when mounted as Docker volume resulting in the directory being owned by root
     # and unwritable by the normal user
-    PREFECT_LOCAL_STORAGE_PATH.value().mkdir()
+    PREFECT_LOCAL_STORAGE_PATH.value().mkdir(exist_ok=True)
 
     # Ensure logging is configured for the test session
     setup_logging()

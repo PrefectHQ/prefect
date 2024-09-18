@@ -62,10 +62,7 @@ from prefect.results import (
     get_result_store,
     should_persist_result,
 )
-from prefect.settings import (
-    PREFECT_DEBUG_MODE,
-    PREFECT_TASKS_REFRESH_CACHE,
-)
+from prefect.settings import SETTINGS
 from prefect.states import (
     AwaitingRetry,
     Completed,
@@ -77,7 +74,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.transactions import IsolationLevel, Transaction, transaction
+from prefect.transactions import Transaction, transaction
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
@@ -217,7 +214,7 @@ class BaseTaskRunEngine(Generic[P, R]):
             return
 
         # If debugging, use the more complete `repr` than the usual `str` description
-        display_state = repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
+        display_state = repr(self.state) if SETTINGS.debug_mode else str(self.state)
         level = logging.INFO if self.state.is_completed() else logging.ERROR
         msg = f"Finished in state {display_state}"
         if self.state.is_pending():
@@ -722,15 +719,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
-
-        isolation_level = (
-            IsolationLevel(self.task.cache_policy.isolation_level)
-            if self.task.cache_policy
-            and self.task.cache_policy is not NotSet
-            and self.task.cache_policy.isolation_level is not None
-            else None
+            else SETTINGS.tasks_refresh_cache
         )
 
         with transaction(
@@ -739,7 +728,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
-            isolation_level=isolation_level,
         ) as txn:
             yield txn
 
@@ -1231,14 +1219,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         overwrite = (
             self.task.refresh_cache
             if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
-        isolation_level = (
-            IsolationLevel(self.task.cache_policy.isolation_level)
-            if self.task.cache_policy
-            and self.task.cache_policy is not NotSet
-            and self.task.cache_policy.isolation_level is not None
-            else None
+            else SETTINGS.tasks_refresh_cache
         )
 
         with transaction(
@@ -1247,7 +1228,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
-            isolation_level=isolation_level,
         ) as txn:
             yield txn
 

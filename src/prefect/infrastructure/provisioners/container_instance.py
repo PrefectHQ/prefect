@@ -33,10 +33,7 @@ from prefect.cli._prompts import prompt, prompt_select_from_table
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.settings import (
-    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
-    update_current_profile,
-)
+from prefect.settings import update_current_profile
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -991,7 +988,7 @@ class ContainerInstancePushProvisioner:
                 subscription_id=self._subscription_id,
             )
             update_current_profile(
-                {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: registry["loginServer"]}
+                {"PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": registry["loginServer"]}
             )
             progress.advance(task)
 

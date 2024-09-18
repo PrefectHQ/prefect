@@ -18,7 +18,7 @@ from prefect.server.events.storage import (
     to_page_token,
 )
 from prefect.server.utilities.database import get_dialect
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.settings import SETTINGS
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMEvent
@@ -201,7 +201,7 @@ async def write_events(session: AsyncSession, events: List[ReceivedEvent]) -> No
         events: the events to insert
     """
     if events:
-        dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
+        dialect = get_dialect(SETTINGS.api_database_connection_url)
         if dialect.name == "postgresql":
             await _write_postgres_events(session, events)
         else:
@@ -281,7 +281,7 @@ async def _write_postgres_events(
 
 
 def get_max_query_parameters() -> int:
-    dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
+    dialect = get_dialect(SETTINGS.api_database_connection_url)
     if dialect.name == "postgresql":
         return 32_767
     else:

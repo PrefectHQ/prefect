@@ -38,7 +38,6 @@ import prefect
 import prefect.server.api as api
 import prefect.server.services as services
 import prefect.settings
-from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
@@ -49,16 +48,7 @@ from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveT
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.services.task_run_recorder import TaskRunRecorder
 from prefect.server.utilities.database import get_dialect
-from prefect.settings import (
-    PREFECT_API_DATABASE_CONNECTION_URL,
-    PREFECT_API_LOG_RETRYABLE_ERRORS,
-    PREFECT_DEBUG_MODE,
-    PREFECT_MEMO_STORE_PATH,
-    PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
-    PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
-    PREFECT_UI_SERVE_BASE,
-    get_current_settings,
-)
+from prefect.settings import SETTINGS, get_current_settings
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.processutils import get_sys_executable
 
@@ -253,7 +243,7 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
     Send 503 for errors clients can retry on.
     """
     if is_client_retryable_exception(exc):
-        if PREFECT_API_LOG_RETRYABLE_ERRORS.value():
+        if SETTINGS.api_log_retryable_errors:
             logger.error("Encountered retryable exception in request:", exc_info=True)
 
         return JSONResponse(
@@ -321,13 +311,10 @@ def create_api_app(
 
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
-    base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
+    base_url = SETTINGS.ui_serve_base
     cache_key = f"{prefect.__version__}:{base_url}"
     stripped_base_url = base_url.rstrip("/")
-    static_dir = (
-        prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
-        or prefect.__ui_static_subpath__
-    )
+    static_dir = SETTINGS.ui_static_directory or prefect.__ui_static_subpath__
     reference_file_name = "UI_SERVE_BASE"
 
     if os.name == "nt":
@@ -338,9 +325,8 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     @ui_app.get(f"{stripped_base_url}/ui-settings")
     def ui_settings():
         return {
-            "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
-            "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
-            "flags": enabled_experiments(),
+            "api_url": SETTINGS.ui_api_url,
+            "csrf_enabled": SETTINGS.server_csrf_protection_enabled,
         }
 
     def reference_file_matches_base_url():
@@ -376,7 +362,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
 
     if (
         os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.PREFECT_UI_ENABLED.value()
+        and SETTINGS.ui_enabled
         and not ephemeral
     ):
         # If the static files have already been copied, check if the base_url has changed
@@ -385,7 +371,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             create_ui_static_subpath()
 
         ui_app.mount(
-            PREFECT_UI_SERVE_BASE.value(),
+            SETTINGS.ui_serve_base,
             SPAStaticFiles(directory=static_dir),
             name="ui_root",
         )
@@ -410,7 +396,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
 
     @wraps(fn)
     async def wrapper(*args, **kwargs):
-        if not PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value():
+        if not SETTINGS.memoize_block_auto_registration:
             await fn(*args, **kwargs)
             return
 
@@ -423,11 +409,11 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         current_blocks_loading_hash = hash_objects(
             blocks_registry,
             collection_blocks_data,
-            PREFECT_API_DATABASE_CONNECTION_URL.value(),
+            SETTINGS.api_database_connection_url,
             hash_algo=sha256,
         )
 
-        memo_store_path = PREFECT_MEMO_STORE_PATH.value()
+        memo_store_path = SETTINGS.memo_store_path
         try:
             if memo_store_path.exists():
                 saved_blocks_loading_hash = toml.load(memo_store_path).get(
@@ -437,7 +423,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                     saved_blocks_loading_hash is not None
                     and current_blocks_loading_hash == saved_blocks_loading_hash
                 ):
-                    if PREFECT_DEBUG_MODE.value():
+                    if SETTINGS.debug_mode:
                         logger.debug(
                             "Skipping block loading due to matching hash for block "
                             "auto-registration found in memo store."
@@ -446,7 +432,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         except Exception as exc:
             logger.warning(
                 ""
-                f"Unable to read memo_store.toml from {PREFECT_MEMO_STORE_PATH} during "
+                f"Unable to read memo_store.toml from {SETTINGS.memo_store_path} during "
                 f"block auto-registration: {exc!r}.\n"
                 "All blocks will be registered."
             )
@@ -464,7 +450,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
             except Exception as exc:
                 logger.warning(
                     "Unable to write to memo_store.toml at"
-                    f" {PREFECT_MEMO_STORE_PATH} after block auto-registration:"
+                    f" {SETTINGS.memo_store_path} after block auto-registration:"
                     f" {exc!r}.\n Subsequent server start ups will perform block"
                     " auto-registration, which may result in slower server startup."
                 )
@@ -502,7 +488,7 @@ def create_app(
     #       another dedicated location
     async def run_migrations():
         """Ensure the database is created and up to date with the current migrations"""
-        if prefect.settings.PREFECT_API_DATABASE_MIGRATE_ON_START:
+        if SETTINGS.api_database_migrate_on_start:
             from prefect.server.database.dependencies import provide_database_interface
 
             db = provide_database_interface()
@@ -511,7 +497,7 @@ def create_app(
     @_memoize_block_auto_registration
     async def add_block_types():
         """Add all registered blocks to the database"""
-        if not prefect.settings.PREFECT_API_BLOCKS_REGISTER_ON_START:
+        if not SETTINGS.api_blocks_register_on_start:
             return
 
         from prefect.server.database.dependencies import provide_database_interface
@@ -531,44 +517,44 @@ def create_app(
             return
 
         service_instances = []
-        if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
+        if SETTINGS.api_services_scheduler_enabled:
             service_instances.append(services.scheduler.Scheduler())
             service_instances.append(services.scheduler.RecentDeploymentsScheduler())
 
-        if prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value():
+        if SETTINGS.api_services_late_runs_enabled:
             service_instances.append(services.late_runs.MarkLateRuns())
 
-        if prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
+        if SETTINGS.api_services_pause_expirations_enabled:
             service_instances.append(services.pause_expirations.FailExpiredPauses())
 
-        if prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
+        if SETTINGS.api_services_cancellation_cleanup_enabled:
             service_instances.append(
                 services.cancellation_cleanup.CancellationCleanup()
             )
 
-        if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
+        if SETTINGS.server_analytics_enabled:
             service_instances.append(services.telemetry.Telemetry())
 
-        if prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value():
+        if SETTINGS.api_services_flow_run_notifications_enabled:
             service_instances.append(
                 services.flow_run_notifications.FlowRunNotifications()
             )
 
-        if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
+        if SETTINGS.api_services_foreman_enabled:
             service_instances.append(services.foreman.Foreman())
 
-        if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
+        if SETTINGS.api_services_triggers_enabled:
             service_instances.append(ReactiveTriggers())
             service_instances.append(ProactiveTriggers())
             service_instances.append(Actions())
 
-        if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
+        if SETTINGS.api_services_task_run_recorder_enabled:
             service_instances.append(TaskRunRecorder())
 
-        if prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED:
+        if SETTINGS.api_services_event_persister_enabled:
             service_instances.append(EventPersister())
 
-        if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
+        if SETTINGS.api_events_stream_out_enabled:
             service_instances.append(stream.Distributor())
 
         loop = asyncio.get_running_loop()
@@ -655,16 +641,13 @@ def create_app(
     # Limit the number of concurrent requests when using a SQLite database to reduce
     # chance of errors where the database cannot be opened due to a high number of
     # concurrent writes
-    if (
-        get_dialect(prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL.value()).name
-        == "sqlite"
-    ):
+    if get_dialect(SETTINGS.api_database_connection_url).name == "sqlite":
         app.add_middleware(RequestLimitMiddleware, limit=100)
 
-    if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():
+    if SETTINGS.server_csrf_protection_enabled:
         app.add_middleware(api.middleware.CsrfMiddleware)
 
-    if prefect.settings.PREFECT_API_ENABLE_METRICS:
+    if SETTINGS.api_enable_metrics:
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
         @api_app.get("/metrics")
@@ -784,8 +767,7 @@ class SubprocessASGIServer:
                     response = None
                     elapsed_time = 0
                     max_wait_time = (
-                        timeout
-                        or PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+                        timeout or SETTINGS.server_ephemeral_startup_timeout_seconds
                     )
                     while elapsed_time < max_wait_time:
                         if self.server_process.poll() == 3:

@@ -6,11 +6,7 @@ from uuid import UUID
 from typing_extensions import Self
 
 from prefect._internal.concurrency.services import QueueService
-from prefect.settings import (
-    PREFECT_API_KEY,
-    PREFECT_API_URL,
-    PREFECT_CLOUD_API_URL,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.context import temporary_context
 
 from .clients import (
@@ -35,19 +31,17 @@ def should_emit_events() -> bool:
 
 
 def emit_events_to_cloud() -> bool:
-    api_url = PREFECT_API_URL.value()
-    return isinstance(api_url, str) and api_url.startswith(
-        PREFECT_CLOUD_API_URL.value()
-    )
+    api_url = SETTINGS.api_url
+    return isinstance(api_url, str) and api_url.startswith(SETTINGS.cloud_api_url)
 
 
 def should_emit_events_to_running_server() -> bool:
-    api_url = PREFECT_API_URL.value()
+    api_url = SETTINGS.api_url
     return isinstance(api_url, str)
 
 
 def should_emit_events_to_ephemeral_server() -> bool:
-    return PREFECT_API_KEY.value() is None
+    return SETTINGS.api_key is None
 
 
 class EventsWorker(QueueService[Event]):
@@ -99,8 +93,8 @@ class EventsWorker(QueueService[Event]):
             if emit_events_to_cloud():
                 client_type = PrefectCloudEventsClient
                 client_kwargs = {
-                    "api_url": PREFECT_API_URL.value(),
-                    "api_key": PREFECT_API_KEY.value(),
+                    "api_url": SETTINGS.api_url,
+                    "api_key": SETTINGS.api_key,
                 }
             elif should_emit_events_to_running_server():
                 client_type = PrefectEventsClient

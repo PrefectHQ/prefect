@@ -14,7 +14,7 @@ from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import states
 from prefect.server.services.loop_service import LoopService
-from prefect.settings import PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
+from prefect.settings import SETTINGS
 
 
 class FailExpiredPauses(LoopService):
@@ -25,7 +25,7 @@ class FailExpiredPauses(LoopService):
     def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         super().__init__(
             loop_seconds=loop_seconds
-            or PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS.value(),
+            or SETTINGS.api_services_pause_expirations_loop_seconds,
             **kwargs,
         )
 

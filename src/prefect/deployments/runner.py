@@ -68,10 +68,7 @@ from prefect.exceptions import (
     PrefectHTTPStatusError,
 )
 from prefect.runner.storage import RunnerStorage
-from prefect.settings import (
-    PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_UI_URL,
-)
+from prefect.settings import SETTINGS
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
@@ -809,7 +806,7 @@ async def deploy(
             )
         ```
     """
-    work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+    work_pool_name = work_pool_name or SETTINGS.default_work_pool_name
 
     if not image and not all(
         d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
@@ -973,10 +970,10 @@ async def deploy(
             " [DEPLOYMENT_NAME]\n[/]"
         )
 
-        if PREFECT_UI_URL:
+        if SETTINGS.ui_url:
             console.print(
                 "\nYou can also trigger your deployments via the Prefect UI:"
-                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
+                f" [blue]{SETTINGS.ui_url}/deployments[/]\n"
             )
 
     return deployment_ids

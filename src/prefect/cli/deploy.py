@@ -58,10 +58,7 @@ from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.flows import load_flow_from_entrypoint
-from prefect.settings import (
-    PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_UI_URL,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.callables import (
     parameter_schema,
@@ -243,7 +240,7 @@ async def deploy(
         help=("The maximum number of concurrent runs for this deployment."),
     ),
     work_pool_name: str = SettingsOption(
-        PREFECT_DEFAULT_WORK_POOL_NAME,
+        ("PREFECT_DEFAULT_WORK_POOL_NAME", SETTINGS.default_work_pool_name),
         "-p",
         "--pool",
         help="The work pool that will handle this deployment's runs.",
@@ -705,10 +702,10 @@ async def _run_single_deploy(
         style="green",
     )
 
-    if PREFECT_UI_URL:
+    if SETTINGS.ui_url:
         app.console.print(
             "\nView Deployment in UI:"
-            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+            f" {SETTINGS.ui_url}/deployments/deployment/{deployment_id}\n"
         )
 
     identical_deployment_exists_in_prefect_file = (

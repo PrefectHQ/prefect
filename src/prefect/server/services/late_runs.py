@@ -18,10 +18,7 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MarkLateRunsPolicy
 from prefect.server.schemas import states
 from prefect.server.services.loop_service import LoopService
-from prefect.settings import (
-    PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
-    PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
-)
+from prefect.settings import SETTINGS
 
 
 class MarkLateRuns(LoopService):
@@ -35,16 +32,14 @@ class MarkLateRuns(LoopService):
 
     def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         super().__init__(
-            loop_seconds=loop_seconds
-            or PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS.value(),
+            loop_seconds=loop_seconds or SETTINGS.api_services_late_runs_loop_seconds,
             **kwargs,
         )
 
         # mark runs late if they are this far past their expected start time
         self.mark_late_after: datetime.timedelta = (
-            PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS.value()
+            SETTINGS.api_services_late_runs_after_seconds
         )
-
         # query for this many runs to mark as late at once
         self.batch_size = 400
 

@@ -5,7 +5,7 @@ from prefect.logging import get_logger
 from prefect.server.events import triggers
 from prefect.server.services.loop_service import LoopService
 from prefect.server.utilities.messaging import create_consumer
-from prefect.settings import PREFECT_EVENTS_PROACTIVE_GRANULARITY
+from prefect.settings import SETTINGS
 
 logger = get_logger(__name__)
 
@@ -46,8 +46,7 @@ class ProactiveTriggers(LoopService):
     def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         super().__init__(
             loop_seconds=(
-                loop_seconds
-                or PREFECT_EVENTS_PROACTIVE_GRANULARITY.value().total_seconds()
+                loop_seconds or SETTINGS.events_proactive_granularity.total_seconds()
             ),
             **kwargs,
         )

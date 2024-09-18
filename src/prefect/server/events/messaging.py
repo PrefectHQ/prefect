@@ -3,7 +3,7 @@ from typing import Iterable
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Publisher, create_publisher
-from prefect.settings import PREFECT_EVENTS_MAXIMUM_SIZE_BYTES
+from prefect.settings import SETTINGS
 
 logger = get_logger(__name__)
 
@@ -39,7 +39,7 @@ class EventPublisher(Publisher):
             event: the event to publish
         """
         encoded = event.model_dump_json().encode()
-        if len(encoded) > PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value():
+        if len(encoded) > SETTINGS.events_maximum_size_bytes:
             logger.warning(
                 "Refusing to publish event of size %s",
                 extra={

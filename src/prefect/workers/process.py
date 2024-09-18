@@ -50,7 +50,7 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
+from prefect.settings import SETTINGS
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import (
@@ -182,7 +182,7 @@ class ProcessWorker(BaseWorker):
                         partial(
                             critical_service_loop,
                             workload=self.get_and_submit_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                            interval=SETTINGS.worker_query_seconds,
                             run_once=run_once,
                             jitter_range=0.3,
                             backoff=4,  # Up to ~1 minute interval during backoff
@@ -203,7 +203,7 @@ class ProcessWorker(BaseWorker):
                         partial(
                             critical_service_loop,
                             workload=self.check_for_cancelled_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                            interval=SETTINGS.worker_query_seconds * 2,
                             run_once=run_once,
                             jitter_range=0.3,
                             backoff=4,
@@ -219,7 +219,7 @@ class ProcessWorker(BaseWorker):
                         # uvicorn does not block the main thread
                         healthcheck_server = build_healthcheck_server(
                             worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                            query_interval_seconds=SETTINGS.worker_query_seconds,
                         )
                         healthcheck_thread = threading.Thread(
                             name="healthcheck-server-thread",

@@ -56,10 +56,7 @@ from prefect.results import (
     ResultStore,
     get_or_create_default_task_scheduling_storage,
 )
-from prefect.settings import (
-    PREFECT_TASK_DEFAULT_RETRIES,
-    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
-)
+from prefect.settings import SETTINGS
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -449,11 +446,9 @@ class Task(Generic[P, R]):
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
 
-        self.retries = (
-            retries if retries is not None else PREFECT_TASK_DEFAULT_RETRIES.value()
-        )
+        self.retries = retries if retries is not None else SETTINGS.task_default_retries
         if retry_delay_seconds is None:
-            retry_delay_seconds = PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS.value()
+            retry_delay_seconds = SETTINGS.task_default_retry_delay_seconds
 
         if callable(retry_delay_seconds):
             self.retry_delay_seconds = retry_delay_seconds(retries)

@@ -9,7 +9,7 @@ from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_KEY
+from prefect.settings import SETTINGS
 
 logger = get_logger(__name__)
 
@@ -68,7 +68,12 @@ class Subscription(Generic[S]):
         try:
             await websocket.send(
                 orjson.dumps(
-                    {"type": "auth", "token": PREFECT_API_KEY.value()}
+                    {
+                        "type": "auth",
+                        "token": SETTINGS.api_key.get_secret_value()
+                        if SETTINGS.api_key
+                        else None,
+                    }
                 ).decode()
             )
 

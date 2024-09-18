@@ -15,15 +15,7 @@ from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas.states import StateType
 from prefect.server.services.loop_service import LoopService, run_multiple_services
-from prefect.settings import (
-    PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
-    PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
-    PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS,
-    PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
-    PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
-    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
-    PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.collections import batched_iterable
 
 
@@ -45,24 +37,22 @@ class Scheduler(LoopService):
             loop_seconds=(
                 loop_seconds
                 or self.loop_seconds
-                or PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.value()
+                or SETTINGS.api_services_scheduler_loop_seconds
             ),
             **kwargs,
         )
         self.deployment_batch_size: int = (
-            PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
+            SETTINGS.api_services_scheduler_deployment_batch_size
         )
-        self.max_runs: int = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
-        self.min_runs: int = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
+        self.max_runs: int = SETTINGS.api_services_scheduler_max_runs
+        self.min_runs: int = SETTINGS.api_services_scheduler_min_runs
         self.max_scheduled_time: datetime.timedelta = (
-            PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
+            SETTINGS.api_services_scheduler_max_scheduled_time
         )
         self.min_scheduled_time: datetime.timedelta = (
-            PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
+            SETTINGS.api_services_scheduler_min_scheduled_time
         )
-        self.insert_batch_size = (
-            PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
-        )
+        self.insert_batch_size = SETTINGS.api_services_scheduler_insert_batch_size
 
     @inject_db
     async def run_once(self, db: PrefectDBInterface):

@@ -52,13 +52,7 @@ from prefect.filesystems import (
 from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
 from prefect.serializers import PickleSerializer, Serializer
-from prefect.settings import (
-    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
-    PREFECT_LOCAL_STORAGE_PATH,
-    PREFECT_RESULTS_DEFAULT_SERIALIZER,
-    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
-    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
@@ -90,8 +84,8 @@ async def get_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """
-    default_block = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
-    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    default_block = SETTINGS.default_result_storage_block
+    basepath = SETTINGS.local_storage_path
 
     cache_key = (str(default_block), str(basepath))
 
@@ -110,7 +104,7 @@ async def get_default_result_storage() -> WritableFileSystem:
 
 @sync_compatible
 async def resolve_result_storage(
-    result_storage: Union[ResultStorage, UUID, Path],
+    result_storage: Union[ResultStorage, UUID],
 ) -> WritableFileSystem:
     """
     Resolve one of the valid `ResultStorage` input types into a saved block
@@ -127,8 +121,6 @@ async def resolve_result_storage(
             storage_block_id = storage_block._block_document_id
         else:
             storage_block_id = None
-    elif isinstance(result_storage, Path):
-        storage_block = LocalFileSystem(basepath=str(result_storage))
     elif isinstance(result_storage, str):
         storage_block = await Block.load(result_storage, client=client)
         storage_block_id = storage_block._block_document_id
@@ -165,13 +157,13 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     """
     Generate a default file system for background task parameter/result storage.
     """
-    default_block = PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value()
+    default_block = SETTINGS.task_scheduling_default_storage_block
 
     if default_block is not None:
         return await Block.load(default_block)
 
     # otherwise, use the local file system
-    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    basepath = SETTINGS.local_storage_path
     return LocalFileSystem(basepath=basepath)
 
 
@@ -179,14 +171,14 @@ def get_default_result_serializer() -> Serializer:
     """
     Generate a default file system for result storage.
     """
-    return resolve_serializer(PREFECT_RESULTS_DEFAULT_SERIALIZER.value())
+    return resolve_serializer(SETTINGS.results_default_serializer)
 
 
 def get_default_persist_setting() -> bool:
     """
     Return the default option for result persistence (False).
     """
-    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+    return SETTINGS.results_persist_by_default
 
 
 def should_persist_result() -> bool:
@@ -205,7 +197,7 @@ def should_persist_result() -> bool:
     if flow_run_context is not None:
         return flow_run_context.persist_result
 
-    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+    return SETTINGS.results_persist_by_default
 
 
 def _format_user_supplied_storage_key(key: str) -> str:
@@ -305,15 +297,6 @@ class ResultStore(BaseModel):
             update["storage_key_fn"] = partial(
                 _format_user_supplied_storage_key, task.result_storage_key
             )
-        if task.cache_policy is not None and task.cache_policy is not NotSet:
-            if task.cache_policy.key_storage is not None:
-                storage = task.cache_policy.key_storage
-                if isinstance(storage, str) and not len(storage.split("/")) == 2:
-                    storage = Path(storage)
-                update["result_storage"] = await resolve_result_storage(storage)
-            if task.cache_policy.lock_manager is not None:
-                update["lock_manager"] = task.cache_policy.lock_manager
-
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
         return self.model_copy(update=update)

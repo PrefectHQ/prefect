@@ -1,235 +1,94 @@
-"""
-Prefect settings management.
-
-Each setting is defined as a `Setting` type. The name of each setting is stylized in all
-caps, matching the environment variable that can be used to change the setting.
-
-All settings defined in this file are used to generate a dynamic Pydantic settings class
-called `Settings`. When instantiated, this class will load settings from environment
-variables and pull default values from the setting definitions.
-
-The current instance of `Settings` being used by the application is stored in a
-`SettingsContext` model which allows each instance of the `Settings` class to be
-accessed in an async-safe manner.
-
-Aside from environment variables, we allow settings to be changed during the runtime of
-the process using profiles. Profiles contain setting overrides that the user may
-persist without setting environment variables. Profiles are also used internally for
-managing settings during task run execution where differing settings may be used
-concurrently in the same process and during testing where we need to override settings
-to ensure their value is respected as intended.
-
-The `SettingsContext` is set when the `prefect` module is imported. This context is
-referred to as the "root" settings context for clarity. Generally, this is the only
-settings context that will be used. When this context is entered, we will instantiate
-a `Settings` object, loading settings from environment variables and defaults, then we
-will load the active profile and use it to override settings. See  `enter_root_settings_context`
-for details on determining the active profile.
-
-Another `SettingsContext` may be entered at any time to change the settings being
-used by the code within the context. Generally, users should not use this. Settings
-management should be left to Prefect application internals.
-
-Generally, settings should be accessed with `SETTING_VARIABLE.value()` which will
-pull the current `Settings` instance from the current `SettingsContext` and retrieve
-the value of the relevant setting.
-
-Accessing a setting's value will also call the `Setting.value_callback` which allows
-settings to be dynamically modified on retrieval. This allows us to make settings
-dependent on the value of other settings or perform other dynamic effects.
-
-"""
-
-import logging
 import os
 import re
-import string
 import warnings
 from contextlib import contextmanager
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from typing import (
+    Annotated,
     Any,
     Callable,
     Dict,
     Generator,
-    Generic,
     Iterable,
-    List,
     Mapping,
     Optional,
     Set,
-    Tuple,
-    Type,
     TypeVar,
     Union,
 )
 from urllib.parse import urlparse
 
-import pydantic
 import toml
 from pydantic import (
+    AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
-    create_model,
+    Secret,
+    SecretStr,
+    SerializationInfo,
     field_validator,
-    fields,
+    model_serializer,
     model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing_extensions import Literal
+from typing_extensions import Literal, Self
 
-from prefect._internal.compatibility.deprecated import generate_deprecation_message
-from prefect._internal.schemas.validators import validate_settings
-from prefect.exceptions import MissingProfileError
-from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
-from prefect.utilities.pydantic import add_cloudpickle_reduction
+from prefect.utilities.collections import visit_collection
+from prefect.utilities.names import OBFUSCATED_PREFIX
+from prefect.utilities.pydantic import handle_secret_render
 
 T = TypeVar("T")
-
-
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
 
-class Setting(Generic[T]):
+def env_var_to_attr_name(env_var: str) -> str:
     """
-    Setting definition type.
+    Convert an environment variable name to an attribute name.
+    """
+    return env_var.replace("PREFECT_", "").lower()
+
+
+class Setting:
+    """
+    Mimics the old Setting object for compatibility with existing code.
+    It wraps the new Pydantic settings and retains metadata.
     """
 
-    def __init__(
-        self,
-        type: Type[T],
-        *,
-        deprecated: bool = False,
-        deprecated_start_date: Optional[str] = None,
-        deprecated_end_date: Optional[str] = None,
-        deprecated_help: str = "",
-        deprecated_when_message: str = "",
-        deprecated_when: Optional[Callable[[Any], bool]] = None,
-        deprecated_renamed_to: Optional["Setting[T]"] = None,
-        value_callback: Optional[Callable[["Settings", T], T]] = None,
-        is_secret: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        self.field: fields.FieldInfo = Field(**kwargs)
-        self.type = type
-        self.value_callback = value_callback
-        self._name = None
-        self.is_secret = is_secret
-        self.deprecated = deprecated
-        self.deprecated_start_date = deprecated_start_date
-        self.deprecated_end_date = deprecated_end_date
-        self.deprecated_help = deprecated_help
-        self.deprecated_when = deprecated_when or (lambda _: True)
-        self.deprecated_when_message = deprecated_when_message
-        self.deprecated_renamed_to = deprecated_renamed_to
-        self.deprecated_renamed_from = None
-        self.__doc__ = self.field.description
-
-        # Validate the deprecation settings, will throw an error at setting definition
-        # time if the developer has not configured it correctly
-        if deprecated:
-            generate_deprecation_message(
-                name="...",  # setting names not populated until after init
-                start_date=self.deprecated_start_date,
-                end_date=self.deprecated_end_date,
-                help=self.deprecated_help,
-                when=self.deprecated_when_message,
-            )
-
-        if deprecated_renamed_to is not None:
-            # Track the deprecation both ways
-            deprecated_renamed_to.deprecated_renamed_from = self
-
-    def value(self, bypass_callback: bool = False) -> T:
-        """
-        Get the current value of a setting.
-
-        Example:
-        ```python
-        from prefect.settings import PREFECT_API_URL
-        PREFECT_API_URL.value()
-        ```
-        """
-        return self.value_from(get_current_settings(), bypass_callback=bypass_callback)
-
-    def value_from(self, settings: "Settings", bypass_callback: bool = False) -> T:
-        """
-        Get the value of a setting from a settings object
-
-        Example:
-        ```python
-        from prefect.settings import get_default_settings
-        PREFECT_API_URL.value_from(get_default_settings())
-        ```
-        """
-        value = settings.value_of(self, bypass_callback=bypass_callback)
-
-        if not bypass_callback and self.deprecated and self.deprecated_when(value):
-            # Check if this setting is deprecated and someone is accessing the value
-            # via the old name
-            warnings.warn(self.deprecated_message, DeprecationWarning, stacklevel=3)
-
-            # If the the value is empty, return the new setting's value for compat
-            if value is None and self.deprecated_renamed_to is not None:
-                return self.deprecated_renamed_to.value_from(settings)
-
-        if not bypass_callback and self.deprecated_renamed_from is not None:
-            # Check if this setting is a rename of a deprecated setting and the
-            # deprecated setting is set and should be used for compatibility
-            deprecated_value = self.deprecated_renamed_from.value_from(
-                settings, bypass_callback=True
-            )
-            if deprecated_value is not None:
-                warnings.warn(
-                    (
-                        f"{self.deprecated_renamed_from.deprecated_message} Because"
-                        f" {self.deprecated_renamed_from.name!r} is set it will be used"
-                        f" instead of {self.name!r} for backwards compatibility."
-                    ),
-                    DeprecationWarning,
-                    stacklevel=3,
-                )
-            return deprecated_value or value
-
-        return value
+    def __init__(self, name: str, default: Any):
+        self._name = name
+        self._default = default
 
     @property
     def name(self):
-        if self._name:
-            return self._name
-
-        # Lookup the name on first access
-        for name, val in tuple(globals().items()):
-            if val == self:
-                self._name = name
-                return name
-
-        raise ValueError("Setting not found in `prefect.settings` module.")
-
-    @name.setter
-    def name(self, value: str):
-        self._name = value
+        return self._name
 
     @property
-    def deprecated_message(self):
-        return generate_deprecation_message(
-            name=f"Setting {self.name!r}",
-            start_date=self.deprecated_start_date,
-            end_date=self.deprecated_end_date,
-            help=self.deprecated_help,
-            when=self.deprecated_when_message,
-        )
+    def field_name(self):
+        return env_var_to_attr_name(self.name)
 
-    def __repr__(self) -> str:
-        return f"<{self.name}: {self.type!r}>"
+    def default(self):
+        return self._default
+
+    def value(self: Self) -> Any:
+        current_settings = get_current_settings()
+        field_name = env_var_to_attr_name(self.name)
+        current_value = getattr(current_settings, field_name)
+        if isinstance(current_value, (Secret, SecretStr)):
+            return current_value.get_secret_value()
+        return current_value
 
     def __bool__(self) -> bool:
-        """
-        Returns a truthy check of the current value.
-        """
         return bool(self.value())
+
+    def __str__(self) -> str:
+        return str(self.value())
+
+    def __repr__(self) -> str:
+        return f"{self.name.upper()}"
 
     def __eq__(self, __o: object) -> bool:
         return __o.__eq__(self.value())
@@ -238,108 +97,58 @@ class Setting(Generic[T]):
         return hash((type(self), self.name))
 
 
-# Callbacks and validators
-
-
-def get_extra_loggers(_: "Settings", value: str) -> List[str]:
-    """
-    `value_callback` for `PREFECT_LOGGING_EXTRA_LOGGERS`that parses the CSV string into a
-    list and trims whitespace from logger names.
-    """
-    return [name.strip() for name in value.split(",")] if value else []
-
-
-def expanduser_in_path(_, value: Path) -> Path:
-    return value.expanduser()
-
-
-def debug_mode_log_level(settings, value):
-    """
-    `value_callback` for `PREFECT_LOGGING_LEVEL` that overrides the log level to DEBUG
-    when debug mode is enabled.
-    """
-    if PREFECT_DEBUG_MODE.value_from(settings):
-        return "DEBUG"
-    else:
+def default_ui_url(settings) -> Optional[str]:
+    value = settings.ui_url
+    if value is not None:
         return value
 
+    # Otherwise, infer a value from the API URL
+    ui_url = api_url = settings.api_url
 
-def only_return_value_in_test_mode(settings, value):
-    """
-    `value_callback` for `PREFECT_TEST_SETTING` that only allows access during test mode
-    """
-    if PREFECT_TEST_MODE.value_from(settings):
-        return value
-    else:
+    if not api_url:
         return None
 
+    cloud_url = settings.cloud_api_url
+    cloud_ui_url = settings.cloud_ui_url
+    if api_url.startswith(cloud_url):
+        ui_url = ui_url.replace(cloud_url, cloud_ui_url)
 
-def default_ui_api_url(settings, value):
-    """
-    `value_callback` for `PREFECT_UI_API_URL` that sets the default value to
-    relative path '/api', otherwise it constructs an API URL from the API settings.
-    """
-    if value is None:
-        # Set a default value
-        value = "/api"
+    if ui_url.endswith("/api"):
+        # Handles open-source APIs
+        ui_url = ui_url[:-4]
 
-    return template_with_settings(
-        PREFECT_SERVER_API_HOST, PREFECT_SERVER_API_PORT, PREFECT_API_URL
-    )(settings, value)
+    # Handles Cloud APIs with content after `/api`
+    ui_url = ui_url.replace("/api/", "/")
 
+    # Update routing
+    ui_url = ui_url.replace("/accounts/", "/account/")
+    ui_url = ui_url.replace("/workspaces/", "/workspace/")
 
-def status_codes_as_integers_in_range(_, value):
-    """
-    `value_callback` for `PREFECT_CLIENT_RETRY_EXTRA_CODES` that ensures status codes
-    are integers in the range 100-599.
-    """
-    if value == "":
-        return set()
-
-    values = {v.strip() for v in value.split(",")}
-
-    if any(not v.isdigit() or int(v) < 100 or int(v) > 599 for v in values):
-        raise ValueError(
-            "PREFECT_CLIENT_RETRY_EXTRA_CODES must be a comma separated list of "
-            "integers between 100 and 599."
-        )
-
-    values = {int(v) for v in values}
-    return values
+    return ui_url
 
 
-def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
-    """
-    Returns a `value_callback` that will template the given settings into the runtime
-    value for the setting.
-    """
+def default_cloud_ui_url(settings) -> Optional[str]:
+    value = settings.cloud_ui_url
+    if value is not None:
+        return value
 
-    def templater(settings, value):
-        if value is None:
-            return value  # Do not attempt to template a null string
+    # Otherwise, infer a value from the API URL
+    ui_url = api_url = settings.cloud_api_url
 
-        original_type = type(value)
-        template_values = {
-            setting.name: setting.value_from(settings) for setting in upstream_settings
-        }
-        template = string.Template(str(value))
-        # Note the use of `safe_substitute` to avoid raising an exception if a
-        # template value is missing. In this case, template values will be left
-        # as-is in the string. Using `safe_substitute` prevents us raising when
-        # the DB password contains a `$` character.
-        return original_type(template.safe_substitute(template_values))
+    if re.match(r"^https://api[\.\w]*.prefect.[^\.]+/", api_url):
+        ui_url = ui_url.replace("https://api", "https://app", 1)
 
-    return templater
+    if ui_url.endswith("/api"):
+        ui_url = ui_url[:-4]
+
+    return ui_url
 
 
 def max_log_size_smaller_than_batch_size(values):
     """
     Validator for settings asserting the batch size and match log size are compatible
     """
-    if (
-        values["PREFECT_LOGGING_TO_API_BATCH_SIZE"]
-        < values["PREFECT_LOGGING_TO_API_MAX_LOG_SIZE"]
-    ):
+    if values["logging_to_api_batch_size"] < values["logging_to_api_max_log_size"]:
         raise ValueError(
             "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than"
             " `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
@@ -351,15 +160,12 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
-    value = values["PREFECT_API_DATABASE_PASSWORD"]
+    value = values["api_database_password"]
     if (
         value
         and not value.startswith(OBFUSCATED_PREFIX)
-        and values["PREFECT_API_DATABASE_CONNECTION_URL"] is not None
-        and (
-            "PREFECT_API_DATABASE_PASSWORD"
-            not in values["PREFECT_API_DATABASE_CONNECTION_URL"]
-        )
+        and values["api_database_connection_url"] is not None
+        and ("api_database_password" not in values["api_database_connection_url"])
     ):
         warnings.warn(
             "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
@@ -373,7 +179,7 @@ def warn_on_misconfigured_api_url(values):
     """
     Validator for settings warning if the API URL is misconfigured.
     """
-    api_url = values["PREFECT_API_URL"]
+    api_url = values["api_url"]
     if api_url is not None:
         misconfigured_mappings = {
             "app.prefect.cloud": (
@@ -408,1382 +214,1007 @@ def warn_on_misconfigured_api_url(values):
     return values
 
 
-def default_database_connection_url(settings: "Settings", value: Optional[str]):
-    driver = PREFECT_API_DATABASE_DRIVER.value_from(settings)
-    if driver == "postgresql+asyncpg":
-        required = [
-            PREFECT_API_DATABASE_HOST,
-            PREFECT_API_DATABASE_USER,
-            PREFECT_API_DATABASE_NAME,
-            PREFECT_API_DATABASE_PASSWORD,
-        ]
-        missing = [
-            setting.name for setting in required if not setting.value_from(settings)
-        ]
-        if missing:
-            raise ValueError(
-                f"Missing required database connection settings: {', '.join(missing)}"
-            )
-
-        # We only need SQLAlchemy here if we're parsing a remote database connection
-        # string.  Import it here so that we don't require the prefect-client package
-        # to have SQLAlchemy installed.
-        from sqlalchemy import URL
-
-        return URL(
-            drivername=driver,
-            host=PREFECT_API_DATABASE_HOST.value_from(settings),
-            port=PREFECT_API_DATABASE_PORT.value_from(settings) or 5432,
-            username=PREFECT_API_DATABASE_USER.value_from(settings),
-            password=PREFECT_API_DATABASE_PASSWORD.value_from(settings),
-            database=PREFECT_API_DATABASE_NAME.value_from(settings),
-            query=[],
-        ).render_as_string(hide_password=False)
-
-    elif driver == "sqlite+aiosqlite":
-        path = PREFECT_API_DATABASE_NAME.value_from(settings)
-        if path:
-            return f"{driver}:///{path}"
-    elif driver:
-        raise ValueError(f"Unsupported database driver: {driver}")
-
-    templater = template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD)
-
-    # If the user has provided a value, use it
-    if value is not None:
-        return templater(settings, value)
-
-    # Otherwise, the default is a database in a local file
-    home = PREFECT_HOME.value_from(settings)
-
-    old_default = home / "orion.db"
-    new_default = home / "prefect.db"
-
-    # If the old one exists and the new one does not, continue using the old one
-    if not new_default.exists():
-        if old_default.exists():
-            return "sqlite+aiosqlite:///" + str(old_default)
-
-    # Otherwise, return the new default
-    return "sqlite+aiosqlite:///" + str(new_default)
-
-
-def default_ui_url(settings, value):
-    if value is not None:
-        return value
-
-    # Otherwise, infer a value from the API URL
-    ui_url = api_url = PREFECT_API_URL.value_from(settings)
-
-    if not api_url:
-        return None
-
-    cloud_url = PREFECT_CLOUD_API_URL.value_from(settings)
-    cloud_ui_url = PREFECT_CLOUD_UI_URL.value_from(settings)
-    if api_url.startswith(cloud_url):
-        ui_url = ui_url.replace(cloud_url, cloud_ui_url)
-
-    if ui_url.endswith("/api"):
-        # Handles open-source APIs
-        ui_url = ui_url[:-4]
-
-    # Handles Cloud APIs with content after `/api`
-    ui_url = ui_url.replace("/api/", "/")
-
-    # Update routing
-    ui_url = ui_url.replace("/accounts/", "/account/")
-    ui_url = ui_url.replace("/workspaces/", "/workspace/")
-
-    return ui_url
-
-
-def default_cloud_ui_url(settings, value):
-    if value is not None:
-        return value
-
-    # Otherwise, infer a value from the API URL
-    ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
-
-    if re.match(r"^https://api[\.\w]*.prefect.[^\.]+/", api_url):
-        ui_url = ui_url.replace("https://api", "https://app", 1)
-
-    if ui_url.endswith("/api"):
-        ui_url = ui_url[:-4]
-
-    return ui_url
-
-
-# Setting definitions
-
-PREFECT_HOME = Setting(
-    Path,
-    default=Path("~") / ".prefect",
-    value_callback=expanduser_in_path,
-)
-"""Prefect's home directory. Defaults to `~/.prefect`. This
-directory may be created automatically when required.
-"""
-
-PREFECT_DEBUG_MODE = Setting(
-    bool,
-    default=False,
-)
-"""If `True`, places the API in debug mode. This may modify
-behavior to facilitate debugging, including extra logs and other verbose
-assistance. Defaults to `False`.
-"""
-
-PREFECT_CLI_COLORS = Setting(
-    bool,
-    default=True,
-)
-"""If `True`, use colors in CLI output. If `False`,
-output will not include colors codes. Defaults to `True`.
-"""
-
-PREFECT_CLI_PROMPT = Setting(
-    Optional[bool],
-    default=None,
-)
-"""If `True`, use interactive prompts in CLI commands. If `False`, no interactive
-prompts will be used. If `None`, the value will be dynamically determined based on
-the presence of an interactive-enabled terminal.
-"""
-
-PREFECT_CLI_WRAP_LINES = Setting(
-    bool,
-    default=True,
-)
-"""If `True`, wrap text by inserting new lines in long lines
-in CLI output. If `False`, output will not be wrapped. Defaults to `True`.
-"""
-
-PREFECT_TEST_MODE = Setting(
-    bool,
-    default=False,
-)
-"""If `True`, places the API in test mode. This may modify
-behavior to facilitate testing. Defaults to `False`.
-"""
-
-PREFECT_UNIT_TEST_MODE = Setting(
-    bool,
-    default=False,
-)
-"""
-This variable only exists to facilitate unit testing. If `True`,
-code is executing in a unit test context. Defaults to `False`.
-"""
-PREFECT_UNIT_TEST_LOOP_DEBUG = Setting(
-    bool,
-    default=True,
-)
-"""
-If `True` turns on debug mode for the unit testing event loop.
-Defaults to `False`.
-"""
-
-PREFECT_TEST_SETTING = Setting(
-    Any,
-    default=None,
-    value_callback=only_return_value_in_test_mode,
-)
-"""
-This variable only exists to facilitate testing of settings.
-If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.
-"""
-
-PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
-    bool,
-    default=False,
-)
-"""If `True`, disables SSL checking to allow insecure requests.
-This is recommended only during development, e.g. when using self-signed certificates.
-"""
-
-PREFECT_API_SSL_CERT_FILE = Setting(
-    Optional[str],
-    default=os.environ.get("SSL_CERT_FILE"),
-)
-"""
-This configuration settings option specifies the path to an SSL certificate file.
-When set, it allows the application to use the specified certificate for secure communication.
-If left unset, the setting will default to the value provided by the `SSL_CERT_FILE` environment variable.
-"""
-
-PREFECT_API_URL = Setting(
-    Optional[str],
-    default=None,
-)
-"""
-If provided, the URL of a hosted Prefect API. Defaults to `None`.
-
-When using Prefect Cloud, this will include an account and workspace.
-"""
-
-PREFECT_SILENCE_API_URL_MISCONFIGURATION = Setting(
-    bool,
-    default=False,
-)
-"""If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
-Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
-we would like to silence this warning so we will set it to `FALSE`.
-"""
-
-PREFECT_API_KEY = Setting(
-    Optional[str],
-    default=None,
-    is_secret=True,
-)
-"""API key used to authenticate with a the Prefect API. Defaults to `None`."""
-
-PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=False)
-"""
-If true, enable support for HTTP/2 for communicating with an API.
-
-If the API does not support HTTP/2, this will have no effect and connections will be
-made via HTTP/1.1.
-"""
-
-
-PREFECT_CLIENT_MAX_RETRIES = Setting(int, default=5)
-"""
-The maximum number of retries to perform on failed HTTP requests.
-
-Defaults to 5.
-Set to 0 to disable retries.
-
-See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
-retried.
-"""
-
-PREFECT_CLIENT_RETRY_JITTER_FACTOR = Setting(float, default=0.2)
-"""
-A value greater than or equal to zero to control the amount of jitter added to retried
-client requests. Higher values introduce larger amounts of jitter.
-
-Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
-can affect retry lengths.
-"""
-
-
-PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
-    str, default="", value_callback=status_codes_as_integers_in_range
-)
-"""
-A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
-429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
-may result in unexpected behavior.
-"""
-
-PREFECT_CLIENT_CSRF_SUPPORT_ENABLED = Setting(bool, default=True)
-"""
-Determines if CSRF token handling is active in the Prefect client for API
-requests.
-
-When enabled (`True`), the client automatically manages CSRF tokens by
-retrieving, storing, and including them in applicable state-changing requests
-(POST, PUT, PATCH, DELETE) to the API.
-
-Disabling this setting (`False`) means the client will not handle CSRF tokens,
-which might be suitable for environments where CSRF protection is disabled.
-
-Defaults to `True`, ensuring CSRF protection is enabled by default.
-"""
-
-PREFECT_CLOUD_API_URL = Setting(
-    str,
-    default="https://api.prefect.cloud/api",
-)
-"""API URL for Prefect Cloud. Used for authentication."""
-
-
-PREFECT_UI_URL = Setting(
-    Optional[str],
-    default=None,
-    value_callback=default_ui_url,
-)
-"""
-The URL for the UI. By default, this is inferred from the PREFECT_API_URL.
-
-When using Prefect Cloud, this will include the account and workspace.
-When using an ephemeral server, this will be `None`.
-"""
-
-
-PREFECT_CLOUD_UI_URL = Setting(
-    Optional[str],
-    default=None,
-    value_callback=default_cloud_ui_url,
-)
-"""
-The URL for the Cloud UI. By default, this is inferred from the PREFECT_CLOUD_API_URL.
-
-Note: PREFECT_UI_URL will be workspace specific and will be usable in the open source too.
-      In contrast, this value is only valid for Cloud and will not include the workspace.
-"""
-
-PREFECT_API_REQUEST_TIMEOUT = Setting(
-    float,
-    default=60.0,
-)
-"""The default timeout for requests to the API"""
-
-PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
-"""
-If enabled, warn on usage of experimental features.
-"""
-
-PREFECT_PROFILES_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / "profiles.toml",
-    value_callback=template_with_settings(PREFECT_HOME),
-)
-"""The path to a profiles configuration files."""
-
-PREFECT_RESULTS_DEFAULT_SERIALIZER = Setting(
-    str,
-    default="pickle",
-)
-"""The default serializer to use when not otherwise specified."""
-
-
-PREFECT_RESULTS_PERSIST_BY_DEFAULT = Setting(
-    bool,
-    default=False,
-)
-"""
-The default setting for persisting results when not otherwise specified. If enabled,
-flow and task results will be persisted unless they opt out.
-"""
-
-PREFECT_TASKS_REFRESH_CACHE = Setting(
-    bool,
-    default=False,
-)
-"""
-If `True`, enables a refresh of cached results: re-executing the
-task will refresh the cached results. Defaults to `False`.
-"""
-
-PREFECT_TASK_DEFAULT_RETRIES = Setting(int, default=0)
-"""
-This value sets the default number of retries for all tasks.
-This value does not overwrite individually set retries values on tasks
-"""
-
-PREFECT_FLOW_DEFAULT_RETRIES = Setting(int, default=0)
-"""
-This value sets the default number of retries for all flows.
-This value does not overwrite individually set retries values on a flow
-"""
-
-PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = Setting(Union[int, float], default=0)
-"""
-This value sets the retry delay seconds for all flows.
-This value does not overwrite individually set retry delay seconds
-"""
-
-PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
-    Union[float, int, List[float]], default=0
-)
-"""
-This value sets the default retry delay seconds for all tasks.
-This value does not overwrite individually set retry delay seconds
-"""
-
-PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS = Setting(int, default=30)
-"""
-The number of seconds to wait before retrying when a task run
-cannot secure a concurrency slot from the server.
-"""
-
-PREFECT_LOCAL_STORAGE_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / "storage",
-    value_callback=template_with_settings(PREFECT_HOME),
-)
-"""The path to a block storage directory to store things in."""
-
-PREFECT_MEMO_STORE_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / "memo_store.toml",
-    value_callback=template_with_settings(PREFECT_HOME),
-)
-"""The path to the memo store file."""
-
-PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION = Setting(
-    bool,
-    default=True,
-)
-"""
-Controls whether or not block auto-registration on start
-up should be memoized. Setting to False may result in slower server start
-up times.
-"""
-
-PREFECT_LOGGING_LEVEL = Setting(
-    str,
-    default="INFO",
-    value_callback=debug_mode_log_level,
-)
-"""
-The default logging level for Prefect loggers. Defaults to
-"INFO" during normal operation. Is forced to "DEBUG" during debug mode.
-"""
-
-
-PREFECT_LOGGING_INTERNAL_LEVEL = Setting(
-    str,
-    default="ERROR",
-    value_callback=debug_mode_log_level,
-)
-"""
-The default logging level for Prefect's internal machinery loggers. Defaults to
-"ERROR" during normal operation. Is forced to "DEBUG" during debug mode.
-"""
-
-PREFECT_LOGGING_SERVER_LEVEL = Setting(
-    str,
-    default="WARNING",
-)
-"""The default logging level for the Prefect API server."""
-
-PREFECT_LOGGING_SETTINGS_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / "logging.yml",
-    value_callback=template_with_settings(PREFECT_HOME),
-)
-"""
-The path to a custom YAML logging configuration file. If
-no file is found, the default `logging.yml` is used.
-Defaults to a logging.yml in the Prefect home directory.
-"""
-
-PREFECT_LOGGING_EXTRA_LOGGERS = Setting(
-    str,
-    default="",
-    value_callback=get_extra_loggers,
-)
-"""
-Additional loggers to attach to Prefect logging at runtime.
-Values should be comma separated. The handlers attached to the 'prefect' logger
-will be added to these loggers. Additionally, if the level is not set, it will
-be set to the same level as the 'prefect' logger.
-"""
-
-PREFECT_LOGGING_LOG_PRINTS = Setting(
-    bool,
-    default=False,
-)
-"""
-If set, `print` statements in flows and tasks will be redirected to the Prefect logger
-for the given run. This setting can be overridden by individual tasks and flows.
-"""
-
-PREFECT_LOGGING_TO_API_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""
-Toggles sending logs to the API.
-If `False`, logs sent to the API log handler will not be sent to the API.
-"""
-
-PREFECT_LOGGING_TO_API_BATCH_INTERVAL = Setting(float, default=2.0)
-"""The number of seconds between batched writes of logs to the API."""
-
-PREFECT_LOGGING_TO_API_BATCH_SIZE = Setting(
-    int,
-    default=4_000_000,
-)
-"""The maximum size in bytes for a batch of logs."""
-
-PREFECT_LOGGING_TO_API_MAX_LOG_SIZE = Setting(
-    int,
-    default=1_000_000,
-)
-"""The maximum size in bytes for a single log."""
-
-PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW = Setting(
-    Literal["warn", "error", "ignore"],
-    default="warn",
-)
-"""
-Controls the behavior when loggers attempt to send logs to the API handler from outside
-of a flow.
-
-All logs sent to the API must be associated with a flow run. The API log handler can
-only be used outside of a flow by manually providing a flow run identifier. Logs
-that are not associated with a flow run will not be sent to the API. This setting can
-be used to determine if a warning or error is displayed when the identifier is missing.
-
-The following options are available:
-
-- "warn": Log a warning message.
-- "error": Raise an error.
-- "ignore": Do not log a warning message or raise an error.
-"""
-
-PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
-    Optional[int],
-    default=None,
-)
-"""
-Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
-"""
-
-PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
-    Optional[int],
-    default=None,
-)
-"""
-Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
-"""
-
-PREFECT_LOGGING_COLORS = Setting(
-    bool,
-    default=True,
-)
-"""Whether to style console logs with color."""
-
-PREFECT_LOGGING_MARKUP = Setting(
-    bool,
-    default=False,
-)
-"""
-Whether to interpret strings wrapped in square brackets as a style.
-This allows styles to be conveniently added to log messages, e.g.
-`[red]This is a red message.[/red]`. However, the downside is,
-if enabled, strings that contain square brackets may be inaccurately
-interpreted and lead to incomplete output, e.g.
-`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
-"""
-
-PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
-"""
-Determines whether `State.result()` fetches results automatically or not.
-In Prefect 2.6.0, the `State.result()` method was updated to be async
-to facilitate automatic retrieval of results from storage which means when
-writing async code you must `await` the call. For backwards compatibility,
-the result is not retrieved by default for async users. You may opt into this
-per call by passing  `fetch=True` or toggle this setting to change the behavior
-globally.
-This setting does not affect users writing synchronous tasks and flows.
-This setting does not affect retrieval of results when using `Future.result()`.
-"""
-
-
-PREFECT_API_BLOCKS_REGISTER_ON_START = Setting(
-    bool,
-    default=True,
-)
-"""
-If set, any block types that have been imported will be registered with the
-backend on application startup. If not set, block types must be manually
-registered.
-"""
-
-PREFECT_API_DATABASE_CONNECTION_URL = Setting(
-    Optional[str],
-    default=None,
-    value_callback=default_database_connection_url,
-    is_secret=True,
-)
-"""
-A database connection URL in a SQLAlchemy-compatible
-format. Prefect currently supports SQLite and Postgres. Note that all
-Prefect database engines must use an async driver - for SQLite, use
-`sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
-
-SQLite in-memory databases can be used by providing the url
-`sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
-which will allow the database to be accessed by multiple threads. Note
-that in-memory databases can not be accessed from multiple processes and
-should only be used for simple tests.
-
-Defaults to a sqlite database stored in the Prefect home directory.
-
-If you need to provide password via a different environment variable, you use
-the `PREFECT_API_DATABASE_PASSWORD` setting. For example:
-
-```
-PREFECT_API_DATABASE_PASSWORD='mypassword'
-PREFECT_API_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_API_DATABASE_PASSWORD}@localhost/prefect'
-```
-"""
-
-PREFECT_API_DATABASE_DRIVER = Setting(
-    Optional[Literal["postgresql+asyncpg", "sqlite+aiosqlite"]],
-    default=None,
-)
-"""
-The database driver to use when connecting to the database.
-"""
-
-PREFECT_API_DATABASE_HOST = Setting(Optional[str], default=None)
-"""
-The database server host.
-"""
-
-PREFECT_API_DATABASE_PORT = Setting(Optional[int], default=None)
-"""
-The database server port.
-"""
-
-PREFECT_API_DATABASE_USER = Setting(Optional[str], default=None)
-"""
-The user to use when connecting to the database.
-"""
-
-PREFECT_API_DATABASE_NAME = Setting(Optional[str], default=None)
-"""
-The name of the Prefect database on the remote server, or the path to the database file
-for SQLite.
-"""
-
-PREFECT_API_DATABASE_PASSWORD = Setting(
-    Optional[str],
-    default=None,
-    is_secret=True,
-)
-"""
-Password to template into the `PREFECT_API_DATABASE_CONNECTION_URL`.
-This is useful if the password must be provided separately from the connection URL.
-To use this setting, you must include it in your connection URL.
-"""
-
-PREFECT_API_DATABASE_ECHO = Setting(
-    bool,
-    default=False,
-)
-"""If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`."""
-
-PREFECT_API_DATABASE_MIGRATE_ON_START = Setting(
-    bool,
-    default=True,
-)
-"""If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually."""
-
-PREFECT_API_DATABASE_TIMEOUT = Setting(
-    Optional[float],
-    default=10.0,
-)
-"""
-A statement timeout, in seconds, applied to all database interactions made by the API.
-Defaults to 10 seconds.
-"""
-
-PREFECT_API_DATABASE_CONNECTION_TIMEOUT = Setting(
-    Optional[float],
-    default=5,
-)
-"""A connection timeout, in seconds, applied to database
-connections. Defaults to `5`.
-"""
-
-PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
-    float,
-    default=60,
-)
-"""The scheduler loop interval, in seconds. This determines
-how often the scheduler will attempt to schedule new flow runs, but has no
-impact on how quickly either flow runs or task runs are actually executed.
-Defaults to `60`.
-"""
-
-PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE = Setting(
-    int,
-    default=100,
-)
-"""The number of deployments the scheduler will attempt to
-schedule in a single batch. If there are more deployments than the batch
-size, the scheduler immediately attempts to schedule the next batch; it
-does not sleep for `scheduler_loop_seconds` until it has visited every
-deployment once. Defaults to `100`.
-"""
-
-PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS = Setting(
-    int,
-    default=100,
-)
-"""The scheduler will attempt to schedule up to this many
-auto-scheduled runs in the future. Note that runs may have fewer than
-this many scheduled runs, depending on the value of
-`scheduler_max_scheduled_time`.  Defaults to `100`.
-"""
-
-PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS = Setting(
-    int,
-    default=3,
-)
-"""The scheduler will attempt to schedule at least this many
-auto-scheduled runs in the future. Note that runs may have more than
-this many scheduled runs, depending on the value of
-`scheduler_min_scheduled_time`.  Defaults to `3`.
-"""
-
-PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
-    timedelta,
-    default=timedelta(days=100),
-)
-"""The scheduler will create new runs up to this far in the
-future. Note that this setting will take precedence over
-`scheduler_max_runs`: if a flow runs once a month and
-`scheduler_max_scheduled_time` is three months, then only three runs will be
-scheduled. Defaults to 100 days (`8640000` seconds).
-"""
-
-PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
-    timedelta,
-    default=timedelta(hours=1),
-)
-"""The scheduler will create new runs at least this far in the
-future. Note that this setting will take precedence over `scheduler_min_runs`:
-if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
-then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
-1 hour (`3600` seconds).
-"""
-
-PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
-    int,
-    default=500,
-)
-"""The number of flow runs the scheduler will attempt to insert
-in one batch across all deployments. If the number of flow runs to
-schedule exceeds this amount, the runs will be inserted in batches of this size.
-Defaults to `500`.
-"""
-
-PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
-    float,
-    default=5,
-)
-"""The late runs service will look for runs to mark as late
-this often. Defaults to `5`.
-"""
-
-PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
-    timedelta,
-    default=timedelta(seconds=15),
-)
-"""The late runs service will mark runs as late after they
-have exceeded their scheduled start time by this many seconds. Defaults
-to `5` seconds.
-"""
-
-PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
-    float,
-    default=5,
-)
-"""The pause expiration service will look for runs to mark as failed
-this often. Defaults to `5`.
-"""
-
-PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
-    float,
-    default=20,
-)
-"""The cancellation cleanup service will look non-terminal tasks and subflows
-this often. Defaults to `20`.
-"""
-
-PREFECT_API_SERVICES_FOREMAN_ENABLED = Setting(bool, default=True)
-"""Whether or not to start the Foreman service in the server application."""
-
-PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS = Setting(float, default=15)
-"""The number of seconds to wait between each iteration of the Foreman loop which checks
-for offline workers and updates work pool status."""
-
-
-PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE = Setting(int, default=3)
-"The number of heartbeats that must be missed before a worker is marked as offline."
-
-PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS = Setting(
-    int, default=30
-)
-"""The number of seconds to use for online/offline evaluation if a worker's heartbeat
-interval is not set."""
-
-PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = Setting(
-    int, default=60
-)
-"""The number of seconds before a deployment is marked as not ready if it has not been
-polled."""
-
-PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = Setting(
-    int, default=60
-)
-"""The number of seconds before a work queue is marked as not ready if it has not been
-polled."""
-
-PREFECT_API_LOG_RETRYABLE_ERRORS = Setting(bool, default=False)
-"""If `True`, log retryable errors in the API and it's services."""
-
-PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to start the task run recorder service in the server application.
-"""
-
-
-PREFECT_API_DEFAULT_LIMIT = Setting(
-    int,
-    default=200,
-)
-"""The default limit applied to queries that can return
-multiple objects, such as `POST /flow_runs/filter`.
-"""
-
-PREFECT_SERVER_API_HOST = Setting(
-    str,
-    default="127.0.0.1",
-)
-"""The API's host address (defaults to `127.0.0.1`)."""
-
-PREFECT_SERVER_API_PORT = Setting(
-    int,
-    default=4200,
-)
-"""The API's port address (defaults to `4200`)."""
-
-PREFECT_SERVER_API_KEEPALIVE_TIMEOUT = Setting(
-    int,
-    default=5,
-)
-"""
-The API's keep alive timeout (defaults to `5`).
-Refer to https://www.uvicorn.org/settings/#timeouts for details.
-
-When the API is hosted behind a load balancer, you may want to set this to a value
-greater than the load balancer's idle timeout.
-
-Note this setting only applies when calling `prefect server start`; if hosting the
-API with another tool you will need to configure this there instead.
-"""
-
-PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
-"""
-Controls the activation of CSRF protection for the Prefect server API.
-
-When enabled (`True`), the server enforces CSRF validation checks on incoming
-state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
-token to be included in the request headers or body. This adds a layer of
-security by preventing unauthorized or malicious sites from making requests on
-behalf of authenticated users.
-
-It is recommended to enable this setting in production environments where the
-API is exposed to web clients to safeguard against CSRF attacks.
-
-Note: Enabling this setting requires corresponding support in the client for
-CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
-"""
-
-PREFECT_SERVER_CSRF_TOKEN_EXPIRATION = Setting(timedelta, default=timedelta(hours=1))
-"""
-Specifies the duration for which a CSRF token remains valid after being issued
-by the server.
-
-The default expiration time is set to 1 hour, which offers a reasonable
-compromise. Adjust this setting based on your specific security requirements
-and usage patterns.
-"""
-
-PREFECT_SERVER_CORS_ALLOWED_ORIGINS = Setting(
-    str,
-    default="*",
-)
-"""
-A comma-separated list of origins that are authorized to make cross-origin requests to the API.
-
-By default, this is set to `*`, which allows requests from all origins.
-"""
-
-PREFECT_SERVER_CORS_ALLOWED_METHODS = Setting(
-    str,
-    default="*",
-)
-"""
-A comma-separated list of methods that are authorized to make cross-origin requests to the API.
-
-By default, this is set to `*`, which allows requests with all methods.
-"""
-
-PREFECT_SERVER_CORS_ALLOWED_HEADERS = Setting(
-    str,
-    default="*",
-)
-"""
-A comma-separated list of headers that are authorized to make cross-origin requests to the API.
-
-By default, this is set to `*`, which allows requests with all headers.
-"""
-
-PREFECT_SERVER_ALLOW_EPHEMERAL_MODE = Setting(bool, default=False)
-"""
-Controls whether or not a subprocess server can be started when no API URL is provided.
-"""
-
-PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS = Setting(
-    int,
-    default=10,
-)
-"""
-The number of seconds to wait for an ephemeral server to respond on start up before erroring.
-"""
-
-PREFECT_UI_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""Whether or not to serve the Prefect UI."""
-
-PREFECT_UI_API_URL = Setting(
-    Optional[str],
-    default=None,
-    value_callback=default_ui_api_url,
-)
-"""The connection url for communication from the UI to the API.
-Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
-`PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`. If providing a custom value,
-the aforementioned settings may be templated into the given string.
-"""
-
-PREFECT_SERVER_ANALYTICS_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""
-When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
-on server startup to help us improve our product.
-"""
-
-PREFECT_API_SERVICES_SCHEDULER_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""Whether or not to start the scheduling service in the server application.
-If disabled, you will need to run this service separately to schedule runs for deployments.
-"""
-
-PREFECT_API_SERVICES_LATE_RUNS_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""Whether or not to start the late runs service in the server application.
-If disabled, you will need to run this service separately to have runs past their
-scheduled start time marked as late.
-"""
-
-PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""Whether or not to start the flow run notifications service in the server application.
-If disabled, you will need to run this service separately to send flow run notifications.
-"""
-
-PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""Whether or not to start the paused flow run expiration service in the server
-application. If disabled, paused flows that have timed out will remain in a Paused state
-until a resume attempt.
-"""
-
-PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
-"""
-The maximum number of characters allowed for a task run cache key.
-This setting cannot be changed client-side, it must be set on the server.
-"""
-
-PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""Whether or not to start the cancellation cleanup service in the server
-application. If disabled, task runs and subflow runs belonging to cancelled flows may
-remain in non-terminal states.
-"""
-
-PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
-"""
-The maximum size of a flow run graph on the v2 API
-"""
-
-PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
-"""
-The maximum number of artifacts to show on a flow run graph on the v2 API
-"""
-
-# Prefect Events feature flags
-
-PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
-"""
-Maximum number of processes a runner will execute in parallel.
-"""
-
-PREFECT_RUNNER_POLL_FREQUENCY = Setting(int, default=10)
-"""
-Number of seconds a runner should wait between queries for scheduled work.
-"""
-
-PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE = Setting(int, default=2)
-"""
-Number of missed polls before a runner is considered unhealthy by its webserver.
-"""
-
-PREFECT_RUNNER_SERVER_HOST = Setting(str, default="localhost")
-"""
-The host address the runner's webserver should bind to.
-"""
-
-PREFECT_RUNNER_SERVER_PORT = Setting(int, default=8080)
-"""
-The port the runner's webserver should bind to.
-"""
-
-PREFECT_RUNNER_SERVER_LOG_LEVEL = Setting(str, default="error")
-"""
-The log level of the runner's webserver.
-"""
-
-PREFECT_RUNNER_SERVER_ENABLE = Setting(bool, default=False)
-"""
-Whether or not to enable the runner's webserver.
-"""
-
-PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS = Setting(int, default=50)
-"""
-The maximum number of scheduled runs to create for a deployment.
-"""
-
-PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
-"""
-Number of seconds a worker should wait between sending a heartbeat.
-"""
-
-PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)
-"""
-Number of seconds a worker should wait between queries for scheduled flow runs.
-"""
-
-PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
-"""
-The number of seconds into the future a worker should query for scheduled flow runs.
-Can be used to compensate for infrastructure start up time for a worker.
-"""
-
-PREFECT_WORKER_WEBSERVER_HOST = Setting(
-    str,
-    default="0.0.0.0",
-)
-"""
-The host address the worker's webserver should bind to.
-"""
-
-PREFECT_WORKER_WEBSERVER_PORT = Setting(
-    int,
-    default=8080,
-)
-"""
-The port the worker's webserver should bind to.
-"""
-
-PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(Optional[str], default=None)
-"""The `block-type/block-document` slug of a block to use as the default storage
-for autonomous tasks."""
-
-PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
-    bool,
-    default=True,
-)
-"""
-Whether or not to delete failed task submissions from the database.
-"""
-
-PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE = Setting(
-    int,
-    default=1000,
-)
-"""
-The maximum number of scheduled tasks to queue for submission.
-"""
-
-PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
-    int,
-    default=100,
-)
-"""
-The maximum number of retries to queue for submission.
-"""
-
-PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
-    timedelta,
-    default=timedelta(0),
-)
-"""
-How long before a PENDING task are made available to another task worker.  In practice,
-a task worker should move a task from PENDING to RUNNING very quickly, so runs stuck in
-PENDING for a while is a sign that the task worker may have crashed.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
-
-# Defaults -----------------------------------------------------------------------------
-
-PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    Optional[str],
-    default=None,
-)
-"""The `block-type/block-document` slug of a block to use as the default result storage."""
-
-PREFECT_DEFAULT_WORK_POOL_NAME = Setting(Optional[str], default=None)
-"""
-The default work pool to deploy to.
-"""
-
-PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE = Setting(
-    Optional[str],
-    default=None,
-)
-"""
-The default Docker namespace to use when building images.
-
-Can be either an organization/username or a registry URL with an organization/username.
-"""
-
-PREFECT_UI_SERVE_BASE = Setting(
-    str,
-    default="/",
-)
-"""
-The base URL path to serve the Prefect UI from.
-
-Defaults to the root path.
-"""
-
-PREFECT_UI_STATIC_DIRECTORY = Setting(
-    Optional[str],
-    default=None,
-)
-"""
-The directory to serve static files from. This should be used when running into permissions issues
-when attempting to serve the UI from the default directory (for example when running in a Docker container)
-"""
-
-# Messaging system settings
-
-PREFECT_MESSAGING_BROKER = Setting(
-    str, default="prefect.server.utilities.messaging.memory"
-)
-"""
-Which message broker implementation to use for the messaging system, should point to a
-module that exports a Publisher and Consumer class.
-"""
-
-PREFECT_MESSAGING_CACHE = Setting(
-    str, default="prefect.server.utilities.messaging.memory"
-)
-"""
-Which cache implementation to use for the events system.  Should point to a module that
-exports a Cache class.
-"""
-
-
-# Events settings
-
-PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
-"""
-The maximum number of labels a resource may have.
-"""
-
-PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES = Setting(int, default=500)
-"""
-The maximum number of related resources an Event may have.
-"""
-
-PREFECT_EVENTS_MAXIMUM_SIZE_BYTES = Setting(int, default=1_500_000)
-"""
-The maximum size of an Event when serialized to JSON
-"""
-
-PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to start the triggers service in the server application.
-"""
-
-PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(timedelta, default=timedelta(seconds=60))
-"""
-The amount of time to retain expired automation buckets
-"""
-
-PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(timedelta, default=timedelta(seconds=5))
-"""
-How frequently proactive automations are evaluated
-"""
-
-PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to start the event persister service in the server application.
-"""
-
-PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE = Setting(int, default=20, gt=0)
-"""
-The number of events the event persister will attempt to insert in one batch.
-"""
-
-PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, gt=0.0)
-"""
-The maximum number of seconds between flushes of the event persister.
-"""
-
-PREFECT_EVENTS_RETENTION_PERIOD = Setting(timedelta, default=timedelta(days=7))
-"""
-The amount of time to retain events in the database.
-"""
-
-PREFECT_API_EVENTS_STREAM_OUT_ENABLED = Setting(bool, default=True)
-"""
-Whether or not to allow streaming events out of via websockets.
-"""
-
-PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
-    timedelta, default=timedelta(minutes=5)
-)
-"""
-How long to cache related resource data for emitting server-side vents
-"""
-
-PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL = Setting(
-    timedelta, default=timedelta(minutes=15)
-)
-"""
-The maximum range to look back for backfilling events for a websocket subscriber
-"""
-
-PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE = Setting(int, default=250, gt=0)
-"""
-The page size for the queries to backfill events for websocket subscribers
-"""
-
-
-# Metrics settings
-
-PREFECT_API_ENABLE_METRICS = Setting(bool, default=False)
-"""
-Whether or not to enable Prometheus metrics in the server application.  Metrics are
-served at the path /api/metrics on the API server.
-"""
-
-PREFECT_CLIENT_ENABLE_METRICS = Setting(bool, default=False)
-"""
-Whether or not to enable Prometheus metrics in the client SDK.  Metrics are served
-at the path /metrics.
-"""
-
-PREFECT_CLIENT_METRICS_PORT = Setting(int, default=4201)
-"""
-The port to expose the client Prometheus metrics on.
-"""
-
-
-# Deprecated settings ------------------------------------------------------------------
-
-
-# Collect all defined settings ---------------------------------------------------------
-
-SETTING_VARIABLES: Dict[str, Any] = {
-    name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
-}
-
-# Populate names in settings objects from assignments above
-# Uses `__` to avoid setting these as global variables which can lead to sneaky bugs
-
-for __name, __setting in SETTING_VARIABLES.items():
-    __setting._name = __name
-
-# Dynamically create a pydantic model that includes all of our settings
-
-
-class PrefectBaseSettings(BaseSettings):
-    model_config = SettingsConfigDict(extra="ignore")
-
-
-SettingsFieldsMixin: Type[BaseSettings] = create_model(
-    "SettingsFieldsMixin",
-    __base__=PrefectBaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
-    **{
-        setting.name: (setting.type, setting.field)
-        for setting in SETTING_VARIABLES.values()
-    },
-)
-
-
-# Defining a class after this that inherits the dynamic class rather than setting
-# __base__ to the following class ensures that mkdocstrings properly generates
-# reference documentation. It does not support module-level variables, even if they are
-# an object which has __doc__ set.
-
-
-@add_cloudpickle_reduction
-class Settings(SettingsFieldsMixin):
-    """
-    Contains validated Prefect settings.
-
-    Settings should be accessed using the relevant `Setting` object. For example:
-    ```python
-    from prefect.settings import PREFECT_HOME
-    PREFECT_HOME.value()
-    ```
-
-    Accessing a setting attribute directly will ignore any `value_callback` mutations.
-    This is not recommended:
-    ```python
-    from prefect.settings import Settings
-    Settings().PREFECT_PROFILES_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
-    ```
-    """
-
-    def value_of(self, setting: Setting[T], bypass_callback: bool = False) -> T:
-        """
-        Retrieve a setting's value.
-        """
-        value = getattr(self, setting.name)
-        if setting.value_callback and not bypass_callback:
-            value = setting.value_callback(self, value)
-        return value
-
-    @field_validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
-    def check_valid_log_level(cls, value):
-        if isinstance(value, str):
-            value = value.upper()
-        logging._checkLevel(value)
-        return value
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=("~/.prefect/profiles.toml", "pyproject.toml", ".env"),
+        env_prefix="PREFECT_",
+        extra="ignore",
+    )
+
+    ###########################################################################
+    # CLI
+
+    cli_colors: bool = Field(
+        default=True,
+        description="If True, use colors in CLI output. If `False`, output will not include colors codes.",
+    )
+
+    cli_prompt: Optional[bool] = Field(
+        default=None,
+        description="If `True`, use interactive prompts in CLI commands. If `False`, no interactive prompts will be used. If `None`, the value will be dynamically determined based on the presence of an interactive-enabled terminal.",
+    )
+
+    cli_wrap_lines: bool = Field(
+        default=True,
+        description="If `True`, wrap text by inserting new lines in long lines in CLI output. If `False`, output will not be wrapped.",
+    )
+
+    ###########################################################################
+    # Testing
+
+    test_mode: bool = Field(
+        default=False,
+        description="If `True`, places the API in test mode. This may modify behavior to facilitate testing.",
+    )
+
+    unit_test_mode: bool = Field(
+        default=False,
+        description="This variable only exists to facilitate unit testing. If `True`, code is executing in a unit test context. Defaults to `False`.",
+    )
+
+    unit_test_loop_debug: bool = Field(
+        default=True,
+        description="If `True` turns on debug mode for the unit testing event loop.",
+    )
+
+    test_setting: Any = Field(
+        default=None,
+        description="This variable only exists to facilitate testing. If accessed when `test_mode` is not set, `None` is returned.",
+    )
+
+    ###########################################################################
+    # Results settings
+
+    results_default_serializer: str = Field(
+        default="pickle",
+        description="The default serializer to use when not otherwise specified.",
+    )
+
+    results_persist_by_default: bool = Field(
+        default=False,
+        description="The default setting for persisting results when not otherwise specified.",
+    )
+
+    ###########################################################################
+    # API settings
+
+    api_url: Optional[str] = Field(
+        default=None,
+        description="The URL of the Prefect API. If not set, the client will attempt to infer it.",
+    )
+    api_key: Optional[SecretStr] = Field(
+        default=None,
+        description="The API key used for authentication with the Prefect API. Should be kept secret.",
+    )
+
+    api_tls_insecure_skip_verify: bool = Field(
+        default=False,
+        description="If `True`, disables SSL checking to allow insecure requests. This is recommended only during development, e.g. when using self-signed certificates.",
+    )
+
+    api_ssl_cert_file: Optional[str] = Field(
+        default=os.environ.get("SSL_CERT_FILE"),
+        description="This configuration settings option specifies the path to an SSL certificate file.",
+    )
+
+    api_enable_http2: bool = Field(
+        default=False,
+        description="If true, enable support for HTTP/2 for communicating with an API. If the API does not support HTTP/2, this will have no effect and connections will be made via HTTP/1.1.",
+    )
+
+    api_request_timeout: float = Field(
+        default=60.0,
+        description="The default timeout for requests to the API",
+    )
+
+    api_blocks_register_on_start: bool = Field(
+        default=True,
+        description="If set, any block types that have been imported will be registered with the backend on application startup. If not set, block types must be manually registered.",
+    )
+
+    api_log_retryable_errors: bool = Field(
+        default=False,
+        description="If `True`, log retryable errors in the API and it's services.",
+    )
+
+    api_default_limit: int = Field(
+        default=200,
+        description="The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
+    )
+
+    api_task_cache_key_max_length: int = Field(
+        default=2000,
+        description="The maximum number of characters allowed for a task run cache key.",
+    )
+
+    api_max_flow_run_graph_nodes: int = Field(
+        default=10000,
+        description="The maximum size of a flow run graph on the v2 API",
+    )
+
+    api_max_flow_run_graph_artifacts: int = Field(
+        default=10000,
+        description="The maximum number of artifacts to show on a flow run graph on the v2 API",
+    )
+
+    ###########################################################################
+    # API Database settings
+
+    api_database_connection_url: Optional[str] = Field(
+        default=None,
+        description="""
+        A database connection URL in a SQLAlchemy-compatible
+        format. Prefect currently supports SQLite and Postgres. Note that all
+        Prefect database engines must use an async driver - for SQLite, use
+        `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
+
+        SQLite in-memory databases can be used by providing the url
+        `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
+        which will allow the database to be accessed by multiple threads. Note
+        that in-memory databases can not be accessed from multiple processes and
+        should only be used for simple tests.
+        """,
+    )
+
+    api_database_driver: Optional[
+        Literal["postgresql+asyncpg", "sqlite+aiosqlite"]
+    ] = Field(
+        default=None,
+        description="The database driver to use when connecting to the database. If not set, the driver will be inferred from the connection URL.",
+    )
+
+    api_database_host: Optional[str] = Field(
+        default=None,
+        description="The database server host.",
+    )
+
+    api_database_port: Optional[int] = Field(
+        default=None,
+        description="The database server port.",
+    )
+
+    api_database_user: Optional[str] = Field(
+        default=None,
+        description="The user to use when connecting to the database.",
+    )
+
+    api_database_name: Optional[str] = Field(
+        default=None,
+        description="The name of the Prefect database on the remote server, or the path to the database file for SQLite.",
+    )
+
+    api_database_password: Optional[str] = Field(
+        default=None,
+        description="The password to use when connecting to the database. Should be kept secret.",
+    )
+
+    api_database_echo: bool = Field(
+        default=False,
+        description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
+    )
+
+    api_database_migrate_on_start: bool = Field(
+        default=True,
+        description="If `True`, the database will be migrated on application startup.",
+    )
+
+    api_database_timeout: Optional[float] = Field(
+        default=10.0,
+        description="A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+    )
+
+    api_database_connection_timeout: Optional[float] = Field(
+        default=5,
+        description="A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
+    )
+
+    ###########################################################################
+    # API Services settings
+
+    api_services_scheduler_enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the scheduler service in the server application.",
+    )
+
+    api_services_scheduler_loop_seconds: float = Field(
+        default=60,
+        description="""
+        The scheduler loop interval, in seconds. This determines
+        how often the scheduler will attempt to schedule new flow runs, but has no
+        impact on how quickly either flow runs or task runs are actually executed.
+        Defaults to `60`.
+        """,
+    )
+
+    api_services_scheduler_deployment_batch_size: int = Field(
+        default=100,
+        description="""
+        The number of deployments the scheduler will attempt to
+        schedule in a single batch. If there are more deployments than the batch
+        size, the scheduler immediately attempts to schedule the next batch; it
+        does not sleep for `scheduler_loop_seconds` until it has visited every
+        deployment once. Defaults to `100`.
+        """,
+    )
+
+    api_services_scheduler_max_runs: int = Field(
+        default=100,
+        description="""
+        The scheduler will attempt to schedule up to this many
+        auto-scheduled runs in the future. Note that runs may have fewer than
+        this many scheduled runs, depending on the value of
+        `scheduler_max_scheduled_time`.  Defaults to `100`.
+        """,
+    )
+
+    api_services_scheduler_min_runs: int = Field(
+        default=3,
+        description="""
+        The scheduler will attempt to schedule at least this many
+        auto-scheduled runs in the future. Note that runs may have more than
+        this many scheduled runs, depending on the value of
+        `scheduler_min_scheduled_time`.  Defaults to `3`.
+        """,
+    )
+
+    api_services_scheduler_max_scheduled_time: timedelta = Field(
+        default=timedelta(days=100),
+        description="""
+        The scheduler will create new runs up to this far in the
+        future. Note that this setting will take precedence over
+        `scheduler_max_runs`: if a flow runs once a month and
+        `scheduler_max_scheduled_time` is three months, then only three runs will be
+        scheduled. Defaults to 100 days (`8640000` seconds).
+        """,
+    )
+
+    api_services_scheduler_min_scheduled_time: timedelta = Field(
+        default=timedelta(hours=1),
+        description="""
+        The scheduler will create new runs at least this far in the
+        future. Note that this setting will take precedence over `scheduler_min_runs`:
+        if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
+        then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
+        """,
+    )
+
+    api_services_scheduler_insert_batch_size: int = Field(
+        default=500,
+        description="""
+        The number of runs the scheduler will attempt to insert in a single batch.
+        Defaults to `500`.
+        """,
+    )
+
+    api_services_late_runs_enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the late runs service in the server application.",
+    )
+
+    api_services_late_runs_loop_seconds: float = Field(
+        default=5,
+        description="""
+        The late runs service will look for runs to mark as late this often. Defaults to `5`.
+        """,
+    )
+
+    api_services_late_runs_after_seconds: timedelta = Field(
+        default=timedelta(seconds=15),
+        description="""
+        The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
+        """,
+    )
+
+    api_services_pause_expirations_loop_seconds: float = Field(
+        default=5,
+        description="""
+        The pause expiration service will look for runs to mark as failed this often. Defaults to `5`.
+        """,
+    )
+
+    api_services_cancellation_cleanup_enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the cancellation cleanup service in the server application.",
+    )
+
+    api_services_cancellation_cleanup_loop_seconds: float = Field(
+        default=20,
+        description="""
+        The cancellation cleanup service will look non-terminal tasks and subflows this often. Defaults to `20`.
+        """,
+    )
+
+    api_services_foreman_enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the Foreman service in the server application.",
+    )
+
+    api_services_foreman_loop_seconds: float = Field(
+        default=15,
+        description="""
+        The number of seconds to wait between each iteration of the Foreman loop which checks
+        for offline workers and updates work pool status. Defaults to `15`.
+        """,
+    )
+
+    api_services_foreman_inactivity_heartbeat_multiple: int = Field(
+        default=3,
+        description="""
+        The number of heartbeats that must be missed before a worker is marked as offline. Defaults to `3`.
+        """,
+    )
+
+    api_services_foreman_fallback_heartbeat_interval_seconds: int = Field(
+        default=30,
+        description="""
+        The number of seconds to use for online/offline evaluation if a worker's heartbeat
+        interval is not set. Defaults to `30`.
+        """,
+    )
+
+    api_services_foreman_deployment_last_polled_timeout_seconds: int = Field(
+        default=60,
+        description="""
+        The number of seconds before a deployment is marked as not ready if it has not been
+        polled. Defaults to `60`.
+        """,
+    )
+
+    api_services_foreman_work_queue_last_polled_timeout_seconds: int = Field(
+        default=60,
+        description="""
+        The number of seconds before a work queue is marked as not ready if it has not been
+        polled. Defaults to `60`.
+        """,
+    )
+
+    api_services_task_run_recorder_enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the task run recorder service in the server application.",
+    )
+
+    api_services_flow_run_notifications_enabled: bool = Field(
+        default=True,
+        description="""
+        Whether or not to start the flow run notifications service in the server application.
+        If disabled, you will need to run this service separately to send flow run notifications.
+        """,
+    )
+
+    api_services_pause_expirations_enabled: bool = Field(
+        default=True,
+        description="""
+        Whether or not to start the paused flow run expiration service in the server
+        application. If disabled, paused flows that have timed out will remain in a Paused state
+        until a resume attempt.
+        """,
+    )
+
+    ###########################################################################
+    # Cloud settings
+
+    cloud_api_url: str = Field(
+        default="https://api.prefect.cloud/api",
+        description="API URL for Prefect Cloud. Used for authentication.",
+    )
+
+    cloud_ui_url: Optional[str] = Field(
+        default=None,
+        description="The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.",
+    )
+
+    ###########################################################################
+    # Logging settings
+
+    logging_level: str = Field(
+        default="INFO",
+        description="The default logging level for Prefect loggers.",
+    )
+
+    logging_internal_level: str = Field(
+        default="ERROR",
+        description="The default logging level for Prefect's internal machinery loggers.",
+    )
+
+    logging_server_level: str = Field(
+        default="WARNING",
+        description="The default logging level for the Prefect API server.",
+    )
+
+    logging_settings_path: Optional[Path] = Field(
+        default=None,
+        description="The path to a custom YAML logging configuration file.",
+    )
+
+    logging_extra_loggers: Annotated[
+        Union[str, list[str], None],
+        AfterValidator(lambda v: [n.strip() for n in v.split(",")] if v else []),
+    ] = Field(
+        default=None,
+        description="Additional loggers to attach to Prefect logging at runtime.",
+    )
+
+    logging_log_prints: bool = Field(
+        default=False,
+        description="If `True`, `print` statements in flows and tasks will be redirected to the Prefect logger for the given run.",
+    )
+
+    logging_to_api_enabled: bool = Field(
+        default=True,
+        description="If `True`, logs will be sent to the API.",
+    )
+
+    logging_to_api_batch_interval: float = Field(
+        default=2.0,
+        description="The number of seconds between batched writes of logs to the API.",
+    )
+
+    logging_to_api_batch_size: int = Field(
+        default=4_000_000,
+        description="The number of logs to batch before sending to the API.",
+    )
+
+    logging_to_api_max_log_size: int = Field(
+        default=1_000_000,
+        description="The maximum size in bytes for a single log.",
+    )
+
+    logging_to_api_when_missing_flow: Literal["warn", "error", "ignore"] = Field(
+        default="warn",
+        description="""
+        Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
+        
+        All logs sent to the API must be associated with a flow run. The API log handler can
+        only be used outside of a flow by manually providing a flow run identifier. Logs
+        that are not associated with a flow run will not be sent to the API. This setting can
+        be used to determine if a warning or error is displayed when the identifier is missing.
+
+        The following options are available:
+
+        - "warn": Log a warning message.
+        - "error": Raise an error.
+        - "ignore": Do not log a warning message or raise an error.
+        """,
+    )
+
+    logging_colors: bool = Field(
+        default=True,
+        description="If `True`, use colors in CLI output. If `False`, output will not include colors codes.",
+    )
+
+    logging_markup: bool = Field(
+        default=False,
+        description="""
+        Whether to interpret strings wrapped in square brackets as a style.
+        This allows styles to be conveniently added to log messages, e.g.
+        `[red]This is a red message.[/red]`. However, the downside is, if enabled,
+        strings that contain square brackets may be inaccurately interpreted and
+        lead to incomplete output, e.g.
+        `[red]This is a red message.[/red]` may be interpreted as
+        `[red]This is a red message.[/red]`.
+        """,
+    )
+
+    ###########################################################################
+    # Server settings
+
+    server_api_host: str = Field(
+        default="127.0.0.1",
+        description="The API's host address (defaults to `127.0.0.1`).",
+    )
+
+    server_api_port: int = Field(
+        default=4200,
+        description="The API's port address (defaults to `4200`).",
+    )
+
+    server_api_keepalive_timeout: int = Field(
+        default=5,
+        description="""
+        The API's keep alive timeout (defaults to `5`).
+        Refer to https://www.uvicorn.org/settings/#timeouts for details.
+
+        When the API is hosted behind a load balancer, you may want to set this to a value
+        greater than the load balancer's idle timeout.
+
+        Note this setting only applies when calling `prefect server start`; if hosting the
+        API with another tool you will need to configure this there instead.
+        """,
+    )
+
+    server_csrf_protection_enabled: bool = Field(
+        default=False,
+        description="""
+        Controls the activation of CSRF protection for the Prefect server API.
+
+        When enabled (`True`), the server enforces CSRF validation checks on incoming
+        state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
+        token to be included in the request headers or body. This adds a layer of
+        security by preventing unauthorized or malicious sites from making requests on
+        behalf of authenticated users.
+
+        It is recommended to enable this setting in production environments where the
+        API is exposed to web clients to safeguard against CSRF attacks.
+
+        Note: Enabling this setting requires corresponding support in the client for
+        CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
+        """,
+    )
+
+    server_csrf_token_expiration: timedelta = Field(
+        default=timedelta(hours=1),
+        description="""
+        Specifies the duration for which a CSRF token remains valid after being issued
+        by the server.
+
+        The default expiration time is set to 1 hour, which offers a reasonable
+        compromise. Adjust this setting based on your specific security requirements
+        and usage patterns.
+        """,
+    )
+
+    server_allow_ephemeral_mode: bool = Field(
+        default=False,
+        description="""
+        Controls whether or not a subprocess server can be started when no API URL is provided.
+        """,
+    )
+
+    server_ephemeral_startup_timeout_seconds: int = Field(
+        default=10,
+        description="""
+        The number of seconds to wait for the server to start when ephemeral mode is enabled.
+        Defaults to `10`.
+        """,
+    )
+
+    server_analytics_enabled: bool = Field(
+        default=True,
+        description="""
+        When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
+        on server startup to help us improve our product.
+        """,
+    )
+
+    ###########################################################################
+    # UI settings
+
+    ui_enabled: bool = Field(
+        default=True,
+        description="Whether or not to serve the Prefect UI.",
+    )
+
+    ui_api_url: Optional[str] = Field(
+        default=None,
+        description="The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.",
+    )
+
+    ui_serve_base: str = Field(
+        default="/",
+        description="The base URL path to serve the Prefect UI from.",
+    )
+
+    ui_static_directory: Optional[str] = Field(
+        default=None,
+        description="The directory to serve static files from. This should be used when running into permissions issues when attempting to serve the UI from the default directory (for example when running in a Docker container).",
+    )
+
+    ###########################################################################
+    # Events settings
+
+    events_maximum_labels_per_resource: int = Field(
+        default=500,
+        description="The maximum number of labels a resource may have.",
+    )
+
+    events_maximum_related_resources: int = Field(
+        default=500,
+        description="The maximum number of related resources an Event may have.",
+    )
+
+    events_maximum_size_bytes: int = Field(
+        default=1_500_000,
+        description="The maximum size of an Event when serialized to JSON",
+    )
+
+    api_services_triggers_enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the triggers service in the server application.",
+    )
+
+    events_expired_bucket_buffer: timedelta = Field(
+        default=timedelta(seconds=60),
+        description="The amount of time to retain expired automation buckets",
+    )
+
+    events_proactive_granularity: timedelta = Field(
+        default=timedelta(seconds=5),
+        description="How frequently proactive automations are evaluated",
+    )
+
+    api_services_event_persister_enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the event persister service in the server application.",
+    )
+
+    api_services_event_persister_batch_size: int = Field(
+        default=20,
+        gt=0,
+        description="The number of events the event persister will attempt to insert in one batch.",
+    )
+
+    api_services_event_persister_flush_interval: float = Field(
+        default=5,
+        gt=0.0,
+        description="The maximum number of seconds between flushes of the event persister.",
+    )
+
+    events_retention_period: timedelta = Field(
+        default=timedelta(days=7),
+        description="The amount of time to retain events in the database.",
+    )
+
+    api_events_stream_out_enabled: bool = Field(
+        default=True,
+        description="Whether or not to stream events out to the API via websockets.",
+    )
+
+    api_events_related_resource_cache_ttl: timedelta = Field(
+        default=timedelta(minutes=5),
+        description="The number of seconds to cache related resources for in the API.",
+    )
+
+    events_maximum_websocket_backfill: timedelta = Field(
+        default=timedelta(minutes=15),
+        description="The maximum range to look back for backfilling events for a websocket subscriber.",
+    )
+
+    events_websocket_backfill_page_size: int = Field(
+        default=250,
+        gt=0,
+        description="The page size for the queries to backfill events for websocket subscribers.",
+    )
+
+    api_enable_metrics: bool = Field(
+        default=False,
+        description="Whether or not to enable Prometheus metrics in the API.",
+    )
+
+    client_enable_metrics: bool = Field(
+        default=False,
+        description="Whether or not to enable Prometheus metrics in the client.",
+    )
+
+    client_metrics_port: int = Field(
+        default=4201, description="The port to expose the client Prometheus metrics on."
+    )
+
+    ###########################################################################
+    # uncategorized
+
+    home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(
+        default=Path("~") / ".prefect",
+        description="The path to the Prefect home directory. Defaults to ~/.prefect",
+    )
+    debug_mode: bool = Field(
+        default=False,
+        description="If True, enables debug mode which may provide additional logging and debugging features.",
+    )
+
+    silence_api_url_misconfiguration: bool = Field(
+        default=False,
+        description="""
+        If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+        Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+        we would like to silence this warning so we will set it to `FALSE`.
+        """,
+    )
+
+    client_max_retries: int = Field(
+        default=5,
+        description="""
+        The maximum number of retries to perform on failed HTTP requests.
+        Defaults to 5. Set to 0 to disable retries.
+        See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
+        retried.
+        """,
+    )
+
+    client_retry_jitter_factor: float = Field(
+        default=0.2,
+        description="""
+        A value greater than or equal to zero to control the amount of jitter added to retried
+        client requests. Higher values introduce larger amounts of jitter.
+        Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
+        can affect retry lengths.
+        """,
+    )
+
+    client_retry_extra_codes: list[Annotated[int, Field(ge=100, le=599)]] = Field(
+        default_factory=list,
+        description="""
+        A list of extra HTTP status codes to retry on. Defaults to an empty list.
+        429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
+        may result in unexpected behavior.
+        """,
+    )
+
+    client_csrf_support_enabled: bool = Field(
+        default=True,
+        description="""
+        Determines if CSRF token handling is active in the Prefect client for API
+        requests.
+
+        When enabled (`True`), the client automatically manages CSRF tokens by
+        retrieving, storing, and including them in applicable state-changing requests
+        """,
+    )
+
+    ui_url: Optional[str] = Field(
+        default=None,
+        description="The URL of the Prefect UI. If not set, the client will attempt to infer it.",
+    )
+
+    experimental_warn: bool = Field(
+        default=True,
+        description="If `True`, warn on usage of experimental features.",
+    )
+
+    profiles_path: Optional[Path] = Field(
+        default=None,
+        description="The path to a profiles configuration file.",
+    )
+
+    tasks_refresh_cache: bool = Field(
+        default=False,
+        description="If `True`, enables a refresh of cached results: re-executing the task will refresh the cached results.",
+    )
+
+    task_default_retries: int = Field(
+        default=0,
+        description="This value sets the default number of retries for all tasks.",
+    )
+
+    task_default_retry_delay_seconds: Union[int, float, list[float]] = Field(
+        default=0,
+        description="This value sets the default retry delay seconds for all tasks.",
+    )
+
+    task_run_tag_concurrency_slot_wait_seconds: int = Field(
+        default=30,
+        description="The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
+    )
+
+    flow_default_retries: int = Field(
+        default=0,
+        description="This value sets the default number of retries for all flows.",
+    )
+
+    flow_default_retry_delay_seconds: Union[int, float] = Field(
+        default=0,
+        description="This value sets the retry delay seconds for all flows.",
+    )
+
+    local_storage_path: Optional[Path] = Field(
+        default=None,
+        description="The path to a block storage directory to store things in.",
+    )
+
+    memo_store_path: Optional[Path] = Field(
+        default=None,
+        description="The path to the memo store file.",
+    )
+
+    memoize_block_auto_registration: bool = Field(
+        default=True,
+        description="Controls whether or not block auto-registration on start",
+    )
+
+    sqlalchemy_pool_size: Optional[int] = Field(
+        default=None,
+        description="Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
+    )
+
+    sqlalchemy_max_overflow: Optional[int] = Field(
+        default=None,
+        description="Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.",
+    )
+
+    async_fetch_state_result: bool = Field(
+        default=False,
+        description="""
+        Determines whether `State.result()` fetches results automatically or not.
+        In Prefect 2.6.0, the `State.result()` method was updated to be async
+        to facilitate automatic retrieval of results from storage which means when
+        writing async code you must `await` the call. For backwards compatibility,
+        the result is not retrieved by default for async users. You may opt into this
+        per call by passing  `fetch=True` or toggle this setting to change the behavior
+        globally.
+        """,
+    )
+
+    runner_process_limit: int = Field(
+        default=5,
+        description="Maximum number of processes a runner will execute in parallel.",
+    )
+
+    runner_poll_frequency: int = Field(
+        default=10,
+        description="Number of seconds a runner should wait between queries for scheduled work.",
+    )
+
+    runner_server_missed_polls_tolerance: int = Field(
+        default=2,
+        description="Number of missed polls before a runner is considered unhealthy by its webserver.",
+    )
+
+    runner_server_host: str = Field(
+        default="localhost",
+        description="The host address the runner's webserver should bind to.",
+    )
+
+    runner_server_port: int = Field(
+        default=8080,
+        description="The port the runner's webserver should bind to.",
+    )
+
+    runner_server_log_level: str = Field(
+        default="error",
+        description="The log level of the runner's webserver.",
+    )
+
+    runner_server_enable: bool = Field(
+        default=False,
+        description="Whether or not to enable the runner's webserver.",
+    )
+
+    runner_server_log_level: str = Field(
+        default="error",
+        description="The log level of the runner's webserver.",
+    )
+
+    deployment_schedule_max_scheduled_runs: int = Field(
+        default=50,
+        description="The maximum number of scheduled runs to create for a deployment.",
+    )
+
+    worker_heartbeat_seconds: float = Field(
+        default=30,
+        description="Number of seconds a worker should wait between sending a heartbeat.",
+    )
+
+    worker_query_seconds: float = Field(
+        default=10,
+        description="Number of seconds a worker should wait between queries for scheduled work.",
+    )
+
+    worker_prefetch_seconds: float = Field(
+        default=10,
+        description="The number of seconds into the future a worker should query for scheduled work.",
+    )
+
+    worker_webserver_host: str = Field(
+        default="0.0.0.0",
+        description="The host address the worker's webserver should bind to.",
+    )
+
+    worker_webserver_port: int = Field(
+        default=8080,
+        description="The port the worker's webserver should bind to.",
+    )
+
+    task_scheduling_default_storage_block: Optional[str] = Field(
+        default=None,
+        description="The `block-type/block-document` slug of a block to use as the default storage for autonomous tasks.",
+    )
+
+    task_scheduling_delete_failed_submissions: bool = Field(
+        default=True,
+        description="Whether or not to delete failed task submissions from the database.",
+    )
+
+    task_scheduling_max_scheduled_queue_size: int = Field(
+        default=1000,
+        description="The maximum number of scheduled tasks to queue for submission.",
+    )
+
+    task_scheduling_max_retry_queue_size: int = Field(
+        default=100,
+        description="The maximum number of retries to queue for submission.",
+    )
+
+    task_scheduling_pending_task_timeout: timedelta = Field(
+        default=timedelta(0),
+        description="How long before a PENDING task are made available to another task worker.",
+    )
+
+    experimental_enable_schedule_concurrency: bool = Field(
+        default=False,
+        description="Whether or not to enable concurrency for scheduled tasks.",
+    )
+
+    default_result_storage_block: Optional[str] = Field(
+        default=None,
+        description="The `block-type/block-document` slug of a block to use as the default result storage.",
+    )
+
+    default_work_pool_name: Optional[str] = Field(
+        default=None,
+        description="The default work pool to deploy to.",
+    )
+
+    default_docker_build_namespace: Optional[str] = Field(
+        default=None,
+        description="The default Docker namespace to use when building images.",
+    )
+
+    messaging_broker: str = Field(
+        default="prefect.server.utilities.messaging.memory",
+        description="Which message broker implementation to use for the messaging system, should point to a module that exports a Publisher and Consumer class.",
+    )
+
+    messaging_cache: str = Field(
+        default="prefect.server.utilities.messaging.memory",
+        description="Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.",
+    )
+
+    ###########################################################################
+
+    @model_validator(mode="after")
+    def post_hoc_settings(self) -> Self:
+        if self.cloud_ui_url is None:
+            self.cloud_ui_url = default_cloud_ui_url(self)
+        if self.ui_url is None:
+            self.ui_url = default_ui_url(self)
+        if self.ui_api_url is None:
+            if self.api_url:
+                self.ui_api_url = self.api_url
+            else:
+                self.ui_api_url = (
+                    f"http://{self.server_api_host}:{self.server_api_port}"
+                )
+
+        if self.profiles_path is None:
+            self.profiles_path = Path(f"{self.home}/profiles.toml")
+        if self.local_storage_path is None:
+            self.local_storage_path = Path(f"{self.home}/storage")
+        if self.memo_store_path is None:
+            self.memo_store_path = Path(f"{self.home}/memo_store.toml")
+
+        if self.debug_mode:
+            self.logging_level = "DEBUG"
+            self.logging_internal_level = "DEBUG"
+
+        if self.logging_settings_path is None:
+            self.logging_settings_path = Path(f"{self.home}/logging.yml")
+
+        return self
 
     @model_validator(mode="after")
     def emit_warnings(self):
-        """
-        Add root validation functions for settings here.
-        """
-        # TODO: We could probably register these dynamically but this is the simpler
-        #       approach for now. We can explore more interesting validation features
-        #       in the future.
+        """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
-        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+        if not self.silence_api_url_misconfiguration:
             values = warn_on_misconfigured_api_url(values)
         return self
 
+    ##########################################################################
+    # Settings methods
+
+    def value_from_name(self, name: str) -> Any:
+        """Get the value of a setting from its name, like `PREFECT_API_URL`."""
+        return getattr(self, name.lower().replace("prefect_", ""))
+
     def copy_with_update(
-        self,
+        self: Self,
         updates: Optional[Mapping[Setting, Any]] = None,
         set_defaults: Optional[Mapping[Setting, Any]] = None,
         restore_defaults: Optional[Iterable[Setting]] = None,
-    ) -> "Settings":
+    ) -> Self:
         """
-        Create a new `Settings` object with validation.
+        Create a new Settings object with validation.
 
         Arguments:
             updates: A mapping of settings to new values. Existing values for the
@@ -1793,7 +1224,7 @@ class Settings(SettingsFieldsMixin):
             restore_defaults: An iterable of settings to restore to their default values.
 
         Returns:
-            A new `Settings` object.
+            A new Settings object.
         """
         updates = updates or {}
         set_defaults = set_defaults or {}
@@ -1801,90 +1232,79 @@ class Settings(SettingsFieldsMixin):
         restore_defaults_names = {setting.name for setting in restore_defaults}
 
         return self.__class__(
-            **{
-                **{setting.name: value for setting, value in set_defaults.items()},
-                **self.model_dump(exclude_unset=True, exclude=restore_defaults_names),
-                **{setting.name: value for setting, value in updates.items()},
-            }
+            **{setting.field_name: value for setting, value in set_defaults.items()}
+            | self.model_dump(exclude_unset=True, exclude=restore_defaults_names)
+            | {setting.field_name: value for setting, value in updates.items()}
         )
-
-    def with_obfuscated_secrets(self):
-        """
-        Returns a copy of this settings object with secret setting values obfuscated.
-        """
-        settings = self.model_copy(
-            update={
-                setting.name: obfuscate(self.value_of(setting))
-                for setting in SETTING_VARIABLES.values()
-                if setting.is_secret
-                # Exclude deprecated settings with null values to avoid warnings
-                and not (setting.deprecated and self.value_of(setting) is None)
-            }
-        )
-        # Ensure that settings that have not been marked as "set" before are still so
-        # after we have updated their value above
-        with warnings.catch_warnings():
-            warnings.simplefilter(
-                "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
-            )
-            settings.__fields_set__.intersection_update(self.__fields_set__)
-        return settings
 
     def hash_key(self) -> str:
         """
         Return a hash key for the settings object.  This is needed since some
-        settings may be unhashable.  An example is lists.
+        settings may be unhashable, like lists.
         """
         env_variables = self.to_environment_variables()
         return str(hash(tuple((key, value) for key, value in env_variables.items())))
 
     def to_environment_variables(
-        self, include: Optional[Iterable[Setting]] = None, exclude_unset: bool = False
+        self,
+        include: Optional[Iterable[Setting]] = None,
+        exclude_unset: bool = False,
+        include_secrets: bool = False,
     ) -> Dict[str, str]:
-        """
-        Convert the settings object to environment variables.
-
-        Note that setting values will not be run through their `value_callback` allowing
-        dynamic resolution to occur when loaded from the returned environment.
-
-        Args:
-            include_keys: An iterable of settings to include in the return value.
-                If not set, all settings are used.
-            exclude_unset: Only include settings that have been set (i.e. the value is
-                not from the default). If set, unset keys will be dropped even if they
-                are set in `include_keys`.
-
-        Returns:
-            A dictionary of settings with values cast to strings
-        """
-        include = set(include or SETTING_VARIABLES.values())
+        """Convert the settings object to a dictionary of environment variables."""
+        include = set(include) if include else set()
 
         if exclude_unset:
-            set_keys = {
-                # Collect all of the "set" keys and cast to `Setting` objects
-                SETTING_VARIABLES[key]
-                for key in self.model_dump(exclude_unset=True)
-            }
-            include.intersection_update(set_keys)
+            include.intersection_update(
+                {
+                    key
+                    for key in self.model_dump(
+                        exclude_unset=True, context={"include_secrets": include_secrets}
+                    )
+                }
+            )
 
-        # Validate the types of items in `include` to prevent exclusion bugs
-        for key in include:
-            if not isinstance(key, Setting):
-                raise TypeError(
-                    "Invalid type {type(key).__name__!r} for key in `include`."
-                )
-
-        env: dict[str, Any] = self.model_dump(
-            mode="json", include={s.name for s in include}
+        env: Dict[str, Any] = self.model_dump(
+            include={str(s) for s in include} if include else None, mode="json"
         )
+        return {
+            f"{self.model_config.get('env_prefix')}{key.upper()}": value
+            for key, value in env.items()
+        }
 
-        # Cast to strings and drop null values
-        return {key: str(value) for key, value in env.items() if value is not None}
+    @model_serializer(mode="wrap")
+    def ser_model(self, handler: Callable, info: SerializationInfo) -> Any:
+        jsonable_self = handler(self)
+        if (ctx := info.context) and ctx.get("include_secrets") is True:
+            breakpoint()
+            fields_to_consider = set(self.model_fields.keys()).intersection(
+                (info.include or set())
+            )
+            jsonable_self.update(
+                {
+                    field_name: visit_collection(
+                        expr=getattr(self, field_name),
+                        visit_fn=partial(handle_secret_render, context=ctx),
+                        return_data=True,
+                    )
+                    for field_name in fields_to_consider
+                }
+            )
+        return jsonable_self
 
-    model_config = ConfigDict(frozen=True)
 
+############################################################################
+# Settings utils
 
 # Functions to instantiate `Settings` instances
+
+
+def _cast_settings(settings: Dict[Union[str, Setting], Any]) -> Dict[Setting, Any]:
+    return {
+        (Setting(name=k, default=None) if isinstance(k, str) else k): value
+        for k, value in settings.items()
+    }
+
 
 _DEFAULTS_CACHE: Optional[Settings] = None
 _FROM_ENV_CACHE: Dict[int, Settings] = {}
@@ -1947,9 +1367,9 @@ def get_default_settings() -> Settings:
 
 @contextmanager
 def temporary_settings(
-    updates: Optional[Mapping[Setting[T], Any]] = None,
-    set_defaults: Optional[Mapping[Setting[T], Any]] = None,
-    restore_defaults: Optional[Iterable[Setting[T]]] = None,
+    updates: Optional[Mapping[Setting, Any]] = None,
+    set_defaults: Optional[Mapping[Setting, Any]] = None,
+    restore_defaults: Optional[Iterable[Setting]] = None,
 ) -> Generator[Settings, None, None]:
     """
     Temporarily override the current settings by entering a new profile.
@@ -1986,52 +1406,28 @@ def temporary_settings(
         yield new_settings
 
 
+############################################################################
+# Profiles
+
+
 class Profile(BaseModel):
-    """
-    A user profile containing settings.
-    """
+    """A user profile containing settings."""
+
+    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
     name: str
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path] = None
-    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
+
+    def to_environment_variables(self) -> Dict[str, str]:
+        """Convert the profile settings to a dictionary of environment variables."""
+        return {setting.name: str(value) for setting, value in self.settings.items()}
 
     @field_validator("settings", mode="before")
-    def map_names_to_settings(cls, value):
-        return validate_settings(value)
-
-    def validate_settings(self) -> None:
-        """
-        Validate the settings contained in this profile.
-
-        Raises:
-            pydantic.ValidationError: When settings do not have valid values.
-        """
-        # Create a new `Settings` instance with the settings from this profile relying
-        # on Pydantic validation to raise an error.
-        # We do not return the `Settings` object because this is not the recommended
-        # path for constructing settings with a profile. See `use_profile` instead.
-        Settings(**{setting.name: value for setting, value in self.settings.items()})
-
-    def convert_deprecated_renamed_settings(self) -> List[Tuple[Setting, Setting]]:
-        """
-        Update settings in place to replace deprecated settings with new settings when
-        renamed.
-
-        Returns a list of tuples with the old and new setting.
-        """
-        changed = []
-        for setting in tuple(self.settings):
-            if (
-                setting.deprecated
-                and setting.deprecated_renamed_to
-                and setting.deprecated_renamed_to not in self.settings
-            ):
-                self.settings[setting.deprecated_renamed_to] = self.settings.pop(
-                    setting
-                )
-                changed.append((setting, setting.deprecated_renamed_to))
-        return changed
+    def validate_settings(cls, v):
+        if not isinstance(v, dict):
+            raise ValueError("Settings must be a dictionary.")
+        return _cast_settings(v)
 
 
 class ProfilesCollection:
@@ -2077,7 +1473,10 @@ class ProfilesCollection:
         self.active_name = name
 
     def update_profile(
-        self, name: str, settings: Mapping[Union[Dict, str], Any], source: Path = None
+        self,
+        name: str,
+        settings: Dict[Setting, Any],
+        source: Optional[Path] = None,
     ) -> Profile:
         """
         Add a profile to the collection or update the existing on if the name is already
@@ -2155,9 +1554,7 @@ class ProfilesCollection:
         return {
             "active": self.active_name,
             "profiles": {
-                profile.name: {
-                    setting.name: value for setting, value in profile.settings.items()
-                }
+                profile.name: profile.to_environment_variables()
                 for profile in self.profiles_by_name.values()
             },
         }
@@ -2218,7 +1615,7 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
     """
     if not path.exists():
         path.touch(mode=0o600)
-    return path.write_text(toml.dumps(profiles.to_dict()))
+    path.write_text(toml.dumps(profiles.to_dict()))
 
 
 def load_profiles(include_defaults: bool = True) -> ProfilesCollection:
@@ -2228,22 +1625,29 @@ def load_profiles(include_defaults: bool = True) -> ProfilesCollection:
     """
     default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
 
-    if not include_defaults:
-        if not PREFECT_PROFILES_PATH.value().exists():
-            return ProfilesCollection([])
-        return _read_profiles_from(PREFECT_PROFILES_PATH.value())
+    if SETTINGS.profiles_path is None:
+        raise RuntimeError(
+            "No profiles path set; please ensure `PREFECT_PROFILES_PATH` is set."
+        )
 
-    user_profiles_path = PREFECT_PROFILES_PATH.value()
+    if not include_defaults:
+        if not SETTINGS.profiles_path.exists():
+            return ProfilesCollection([])
+        return _read_profiles_from(SETTINGS.profiles_path)
+
+    user_profiles_path = SETTINGS.profiles_path
     profiles = default_profiles
     if user_profiles_path.exists():
         user_profiles = _read_profiles_from(user_profiles_path)
 
         # Merge all of the user profiles with the defaults
         for name in user_profiles:
+            if not (source := user_profiles[name].source):
+                raise ValueError(f"Profile {name!r} has no source.")
             profiles.update_profile(
                 name,
                 settings=user_profiles[name].settings,
-                source=user_profiles[name].source,
+                source=source,
             )
 
         if user_profiles.active_name:
@@ -2274,7 +1678,8 @@ def save_profiles(profiles: ProfilesCollection) -> None:
     """
     Writes all non-default profiles to the current profiles path.
     """
-    profiles_path = PREFECT_PROFILES_PATH.value()
+    profiles_path = SETTINGS.profiles_path
+    assert profiles_path is not None, "Profiles path is not set."
     profiles = profiles.without_profile_source(DEFAULT_PROFILES_PATH)
     return _write_profiles_to(profiles_path, profiles)
 
@@ -2290,7 +1695,9 @@ def load_profile(name: str) -> Profile:
         raise ValueError(f"Profile {name!r} not found.")
 
 
-def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
+def update_current_profile(
+    settings: Dict[Union[str, Setting], Any],
+) -> Profile:
     """
     Update the persisted data for the profile currently in-use.
 
@@ -2307,6 +1714,8 @@ def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
     current_profile = prefect.context.get_settings_context().profile
 
     if not current_profile:
+        from prefect.exceptions import MissingProfileError
+
         raise MissingProfileError("No profile is currently in use.")
 
     profiles = load_profiles()
@@ -2314,11 +1723,24 @@ def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
     # Ensure the current profile's settings are present
     profiles.update_profile(current_profile.name, current_profile.settings)
     # Then merge the new settings in
-    new_profile = profiles.update_profile(current_profile.name, settings)
-
-    # Validate before saving
-    new_profile.validate_settings()
+    profiles.update_profile(current_profile.name, _cast_settings(settings))
 
     save_profiles(profiles)
 
     return profiles[current_profile.name]
+
+
+############################################################################
+# Initialize the settings object
+
+SETTINGS = Settings()
+
+
+def __getattr__(name: str) -> Any:
+    if name.startswith("PREFECT_"):
+        field_name = env_var_to_attr_name(name)
+        return Setting(
+            name=name,
+            default=Settings.model_fields[field_name].default,
+        )
+    raise AttributeError(f"{name} is not a Prefect setting.")

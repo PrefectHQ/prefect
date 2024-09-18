@@ -4,7 +4,7 @@ Utilities for injecting FastAPI dependencies.
 
 import logging
 from base64 import b64decode
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import Body, Depends, Header, HTTPException, status
@@ -12,7 +12,7 @@ from packaging.version import Version
 from starlette.requests import Request
 
 from prefect.server import schemas
-from prefect.settings import PREFECT_API_DEFAULT_LIMIT
+from prefect.settings import SETTINGS
 
 
 def provide_request_api_version(x_prefect_api_version: str = Header(None)):
@@ -95,7 +95,7 @@ class EnforceMinimumAPIVersion:
         )
 
 
-def LimitBody() -> Depends:
+def LimitBody() -> Any:
     """
     A `fastapi.Depends` factory for pulling a `limit: int` parameter from the
     request body while determining the default from the current settings.
@@ -107,7 +107,7 @@ def LimitBody() -> Depends:
             description="Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.",
         ),
     ):
-        default_limit = PREFECT_API_DEFAULT_LIMIT.value()
+        default_limit = SETTINGS.api_default_limit
         limit = limit if limit is not None else default_limit
         if not limit >= 0:
             raise HTTPException(

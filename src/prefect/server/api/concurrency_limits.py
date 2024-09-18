@@ -16,7 +16,7 @@ from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models import concurrency_limits
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
+from prefect.settings import SETTINGS
 
 router = PrefectRouter(prefix="/concurrency_limits", tags=["Concurrency Limits"])
 
@@ -218,7 +218,7 @@ async def increment_concurrency_limits_v1(
                         stale_limit.active_slots = list(active_slots)
 
                     raise Delay(
-                        delay_seconds=PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
+                        delay_seconds=SETTINGS.task_run_tag_concurrency_slot_wait_seconds,
                         reason=f"Concurrency limit for the {tag} tag has been reached",
                     )
                 else:

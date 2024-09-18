@@ -20,14 +20,7 @@ except ImportError:
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from typing_extensions import Literal
 
-from prefect.settings import (
-    PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
-    PREFECT_API_DATABASE_ECHO,
-    PREFECT_API_DATABASE_TIMEOUT,
-    PREFECT_SQLALCHEMY_MAX_OVERFLOW,
-    PREFECT_SQLALCHEMY_POOL_SIZE,
-    PREFECT_UNIT_TEST_MODE,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
 SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
@@ -120,16 +113,16 @@ class BaseDatabaseConfiguration(ABC):
         sqlalchemy_max_overflow: Optional[int] = None,
     ):
         self.connection_url = connection_url
-        self.echo = echo or PREFECT_API_DATABASE_ECHO.value()
-        self.timeout = timeout or PREFECT_API_DATABASE_TIMEOUT.value()
+        self.echo = echo or SETTINGS.api_database_echo
+        self.timeout = timeout or SETTINGS.api_database_timeout
         self.connection_timeout = (
-            connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
+            connection_timeout or SETTINGS.api_database_connection_timeout
         )
         self.sqlalchemy_pool_size = (
-            sqlalchemy_pool_size or PREFECT_SQLALCHEMY_POOL_SIZE.value()
+            sqlalchemy_pool_size or SETTINGS.sqlalchemy_pool_size
         )
         self.sqlalchemy_max_overflow = (
-            sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
+            sqlalchemy_max_overflow or SETTINGS.sqlalchemy_max_overflow
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -421,7 +414,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        if PREFECT_UNIT_TEST_MODE.value() is True:
+        if SETTINGS.unit_test_mode is True:
             cursor.execute("PRAGMA busy_timeout = 5000;")  # 5s
         else:
             cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s

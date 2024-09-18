@@ -70,13 +70,7 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
-from prefect.settings import (
-    PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_FLOW_DEFAULT_RETRIES,
-    PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
-    PREFECT_UI_URL,
-    PREFECT_UNIT_TEST_MODE,
-)
+from prefect.settings import SETTINGS
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
@@ -312,14 +306,12 @@ class Flow(Generic[P, R]):
         # FlowRunPolicy settings
         # TODO: We can instantiate a `FlowRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
-        self.retries = (
-            retries if retries is not None else PREFECT_FLOW_DEFAULT_RETRIES.value()
-        )
+        self.retries = retries if retries is not None else SETTINGS.flow_default_retries
 
         self.retry_delay_seconds = (
             retry_delay_seconds
             if retry_delay_seconds is not None
-            else PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS.value()
+            else SETTINGS.flow_default_retry_delay_seconds
         )
 
         self.parameters = parameter_schema(self.fn)
@@ -905,10 +897,10 @@ class Flow(Generic[P, R]):
                 " following command:\n[blue]\n\t$ prefect deployment run"
                 f" '{self.name}/{name}'\n[/]"
             )
-            if PREFECT_UI_URL:
+            if SETTINGS.ui_url:
                 help_message += (
                     "\nYou can also run your flow via the Prefect UI:"
-                    f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
+                    f" [blue]{SETTINGS.ui_url}/deployments/deployment/{deployment_id}[/]\n"
                 )
 
             console = Console()
@@ -1157,9 +1149,7 @@ class Flow(Generic[P, R]):
                 )
             ```
         """
-        if not (
-            work_pool_name := work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
-        ):
+        if not (work_pool_name := work_pool_name or SETTINGS.default_work_pool_name):
             raise ValueError(
                 "No work pool name provided. Please provide a `work_pool_name` or set the"
                 " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
@@ -1224,10 +1214,10 @@ class Flow(Generic[P, R]):
                 f"\n\t$ prefect deployment run '{self.name}/{name}'\n",
                 style="blue",
             )
-            if PREFECT_UI_URL:
+            if SETTINGS.ui_url:
                 message = (
                     "\nYou can also run your flow via the Prefect UI:"
-                    f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_ids[0]}[/]\n"
+                    f" [blue]{SETTINGS.ui_url}/deployments/deployment/{deployment_ids[0]}[/]\n"
                 )
                 console.print(message, soft_wrap=True)
 
@@ -1358,7 +1348,7 @@ class Flow(Generic[P, R]):
             visualize_task_dependencies,
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not SETTINGS.unit_test_mode:
             warnings.warn(
                 "`flow.visualize()` will execute code inside of your flow that is not"
                 " decorated with `@task` or `@flow`."
@@ -1817,10 +1807,10 @@ def serve(
             " following command:\n[blue]\n\t$ prefect deployment run"
             " [DEPLOYMENT_NAME]\n[/]"
         )
-        if PREFECT_UI_URL:
+        if SETTINGS.ui_url:
             help_message_bottom += (
                 "\nYou can also trigger your deployments via the Prefect UI:"
-                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
+                f" [blue]{SETTINGS.ui_url}/deployments[/]\n"
             )
 
         console = Console()

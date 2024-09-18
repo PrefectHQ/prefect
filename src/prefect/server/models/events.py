@@ -20,7 +20,7 @@ from prefect.server.database.orm_models import (
 from prefect.server.events.schemas.events import Event
 from prefect.server.models import deployments
 from prefect.server.schemas.statuses import DeploymentStatus
-from prefect.settings import PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL
+from prefect.settings import SETTINGS
 from prefect.utilities.text import truncated_to
 
 ResourceData = Dict[str, Dict[str, Any]]
@@ -34,7 +34,7 @@ TRUNCATE_STATE_MESSAGES_AT = 100_000
 
 _flow_run_resource_data_cache: MutableMapping[UUID, ResourceData] = TTLCache(
     maxsize=1000,
-    ttl=PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL.value().total_seconds(),
+    ttl=SETTINGS.api_events_related_resource_cache_ttl.total_seconds(),
 )
 
 

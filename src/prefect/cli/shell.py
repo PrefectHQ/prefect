@@ -22,7 +22,7 @@ from prefect.context import tags
 from prefect.exceptions import FailedRun
 from prefect.logging.loggers import get_run_logger
 from prefect.runner import Runner
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import SETTINGS
 from prefect.types.entrypoint import EntrypointType
 
 shell_app = PrefectTyper(
@@ -231,10 +231,10 @@ async def serve(
         " command:\n[blue]\n\t$ prefect deployment run"
         f" '{runner_deployment.flow_name}/{deployment_name}'\n[/]"
     )
-    if PREFECT_UI_URL:
+    if SETTINGS.ui_url:
         help_message += (
             "\nYou can also run your flow via the Prefect UI:"
-            f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
+            f" [blue]{SETTINGS.ui_url}/deployments/deployment/{deployment_id}[/]\n"
         )
 
     app.console.print(help_message, soft_wrap=True)

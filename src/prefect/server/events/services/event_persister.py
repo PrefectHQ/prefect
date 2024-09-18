@@ -16,11 +16,7 @@ from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
 from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer
-from prefect.settings import (
-    PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
-    PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
-    PREFECT_EVENTS_RETENTION_PERIOD,
-)
+from prefect.settings import SETTINGS
 
 logger = get_logger(__name__)
 
@@ -50,9 +46,9 @@ class EventPersister:
         self.consumer = create_consumer("events")
 
         async with create_handler(
-            batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
+            batch_size=SETTINGS.api_services_event_persister_batch_size,
             flush_every=timedelta(
-                seconds=PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL.value()
+                seconds=SETTINGS.api_services_event_persister_flush_interval
             ),
         ) as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
@@ -112,7 +108,7 @@ async def create_handler(
                 queue.put_nowait(event)
 
     async def trim() -> None:
-        older_than = pendulum.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+        older_than = pendulum.now("UTC") - SETTINGS.events_retention_period
 
         try:
             async with db.session_context() as session:

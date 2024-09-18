@@ -30,10 +30,7 @@ from prefect.server.events.storage import (
 )
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import (
-    PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL,
-    PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE,
-)
+from prefect.settings import SETTINGS
 
 logger = get_logger(__name__)
 
@@ -101,7 +98,7 @@ async def stream_workspace_events_out(
                 WS_1002_PROTOCOL_ERROR, reason=f"Invalid filter: {e}"
             )
 
-        filter.occurred.clamp(PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL.value())
+        filter.occurred.clamp(SETTINGS.events_maximum_websocket_backfill)
         filter.order = EventOrder.ASC
 
         # subscribe to the ongoing event stream first so we don't miss events...
@@ -114,7 +111,7 @@ async def stream_workspace_events_out(
                     backfill, _, next_page = await database.query_events(
                         session=session,
                         filter=filter,
-                        page_size=PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE.value(),
+                        page_size=SETTINGS.events_websocket_backfill_page_size,
                     )
 
                     while backfill:

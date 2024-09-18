@@ -5,7 +5,7 @@ Custom Prefect CLI types
 import asyncio
 import functools
 import sys
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional, Tuple
 
 import typer
 from rich.console import Console
@@ -13,34 +13,35 @@ from rich.theme import Theme
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
-from prefect.settings import PREFECT_CLI_COLORS, Setting
+from prefect.settings import SETTINGS
 from prefect.utilities.asyncutils import is_async_fn
 
 
-def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
+def SettingsOption(setting: Tuple[str, Any], *args, **kwargs) -> typer.Option:
     """Custom `typer.Option` factory to load the default value from settings"""
-
+    name, value = setting
     return typer.Option(
         # The default is dynamically retrieved
-        setting.value,
+        value,
         *args,
         # Typer shows "(dynamic)" by default. We'd like to actually show the value
         # that would be used if the parameter is not specified and a reference if the
         # source is from the environment or profile, but typer does not support this
         # yet. See https://github.com/tiangolo/typer/issues/354
-        show_default=f"from {setting.name}",
+        show_default=f"from {name}",
         **kwargs,
     )
 
 
-def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
+def SettingsArgument(setting: Tuple[str, Any], *args, **kwargs) -> typer.Argument:
     """Custom `typer.Argument` factory to load the default value from settings"""
+    name, value = setting
 
     # See comments in `SettingsOption`
     return typer.Argument(
-        setting.value,
+        value,
         *args,
-        show_default=f"from {setting.name}",
+        show_default=f"from {name}",
         **kwargs,
     )
 
@@ -88,7 +89,7 @@ class PrefectTyper(typer.Typer):
         self.console = Console(
             highlight=False,
             theme=Theme({"prompt.choices": "bold blue"}),
-            color_system="auto" if PREFECT_CLI_COLORS else None,
+            color_system="auto" if SETTINGS.cli_colors else None,
         )
 
     def add_typer(
@@ -198,7 +199,7 @@ class PrefectTyper(typer.Typer):
     def setup_console(self, soft_wrap: bool, prompt: bool):
         self.console = Console(
             highlight=False,
-            color_system="auto" if PREFECT_CLI_COLORS else None,
+            color_system="auto" if SETTINGS.cli_colors else None,
             theme=Theme({"prompt.choices": "bold blue"}),
             soft_wrap=not soft_wrap,
             force_interactive=prompt,

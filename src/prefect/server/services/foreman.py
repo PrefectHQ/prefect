@@ -18,13 +18,7 @@ from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.internal import InternalWorkPoolUpdate
 from prefect.server.schemas.statuses import DeploymentStatus, WorkPoolStatus
 from prefect.server.services.loop_service import LoopService
-from prefect.settings import (
-    PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
-    PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS,
-    PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE,
-    PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS,
-    PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS,
-)
+from prefect.settings import SETTINGS
 
 
 class Foreman(LoopService):
@@ -44,27 +38,26 @@ class Foreman(LoopService):
         **kwargs,
     ):
         super().__init__(
-            loop_seconds=loop_seconds
-            or PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS.value(),
+            loop_seconds=loop_seconds or SETTINGS.api_services_foreman_loop_seconds,
             **kwargs,
         )
         self._inactivity_heartbeat_multiple = (
-            PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE.value()
+            SETTINGS.api_services_foreman_inactivity_heartbeat_multiple
             if inactivity_heartbeat_multiple is None
             else inactivity_heartbeat_multiple
         )
         self._fallback_heartbeat_interval_seconds = (
-            PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS.value()
+            SETTINGS.api_services_foreman_fallback_heartbeat_interval_seconds
             if fallback_heartbeat_interval_seconds is None
             else fallback_heartbeat_interval_seconds
         )
         self._deployment_last_polled_timeout_seconds = (
-            PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS.value()
+            SETTINGS.api_services_foreman_deployment_last_polled_timeout_seconds
             if deployment_last_polled_timeout_seconds is None
             else deployment_last_polled_timeout_seconds
         )
         self._work_queue_last_polled_timeout_seconds = (
-            PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS.value()
+            SETTINGS.api_services_foreman_work_queue_last_polled_timeout_seconds
             if work_queue_last_polled_timeout_seconds is None
             else work_queue_last_polled_timeout_seconds
         )

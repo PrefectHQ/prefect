@@ -28,7 +28,7 @@ import pendulum
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
+from prefect.settings import SETTINGS
 
 __all__ = [
     "id",
@@ -307,14 +307,14 @@ def get_flow_run_api_url() -> Optional[str]:
     flow_run_id = get_id()
     if flow_run_id is None:
         return None
-    return f"{PREFECT_API_URL.value()}/flow-runs/flow-run/{flow_run_id}"
+    return f"{SETTINGS.api_url}/flow-runs/flow-run/{flow_run_id}"
 
 
 def get_flow_run_ui_url() -> Optional[str]:
     flow_run_id = get_id()
     if flow_run_id is None:
         return None
-    return f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run_id}"
+    return f"{SETTINGS.ui_url}/flow-runs/flow-run/{flow_run_id}"
 
 
 FIELDS = {

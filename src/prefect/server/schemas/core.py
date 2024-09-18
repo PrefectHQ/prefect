@@ -37,7 +37,7 @@ from prefect.server.utilities.schemas.bases import (
     ORMBaseModel,
     PrefectBaseModel,
 )
-from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
+from prefect.settings import SETTINGS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
     LaxUrl,
@@ -543,7 +543,7 @@ class DeploymentSchedule(ORMBaseModel):
     @classmethod
     def validate_max_scheduled_runs(cls, v):
         return validate_schedule_max_scheduled_runs(
-            v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
+            v, SETTINGS.deployment_schedule_max_scheduled_runs
         )
 
 

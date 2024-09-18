@@ -22,7 +22,7 @@ from ruamel.yaml import YAML
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings import SETTINGS
 from prefect.utilities.asyncutils import LazySemaphore
 from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
 from prefect.utilities.templating import apply_values
@@ -380,13 +380,13 @@ async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
                 try:
                     tree = ast.parse(await f.read())
                 except SyntaxError:
-                    if PREFECT_DEBUG_MODE:
+                    if SETTINGS.debug_mode:
                         get_logger().debug(
                             f"Could not parse {filename} as a Python file. Skipping."
                         )
                     return decorated_functions
         except Exception as exc:
-            if PREFECT_DEBUG_MODE:
+            if SETTINGS.debug_mode:
                 get_logger().debug(f"Could not open {filename}: {exc}. Skipping.")
             return decorated_functions
 

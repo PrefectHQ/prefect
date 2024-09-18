@@ -21,11 +21,7 @@ from prefect.client.orchestration import ServerType
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectAlreadyExists
-from prefect.settings import (
-    PREFECT_DEBUG_MODE,
-    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
-    update_current_profile,
-)
+from prefect.settings import SETTINGS, update_current_profile
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -52,7 +48,7 @@ class CloudRunPushProvisioner:
         result = await run_process(shlex.split(command), check=False, *args, **kwargs)
 
         if result.returncode != 0:
-            if PREFECT_DEBUG_MODE:
+            if SETTINGS.debug_mode:
                 self._console.print(
                     "Error running command:",
                     Pretty(
@@ -366,7 +362,9 @@ class CloudRunPushProvisioner:
             progress.console.print("Setting default Docker build namespace")
             default_docker_build_namespace = f"{self._region}-docker.pkg.dev/{self._project}/{self._image_repository_name}"
             update_current_profile(
-                {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: default_docker_build_namespace}
+                {
+                    "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": default_docker_build_namespace
+                }
             )
             progress.advance(task)
 

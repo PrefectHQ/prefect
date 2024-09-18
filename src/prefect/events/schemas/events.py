@@ -20,10 +20,7 @@ from typing_extensions import Self
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
-from prefect.settings import (
-    PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
-    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
-)
+from prefect.settings import SETTINGS
 
 from .labelling import Labelled
 
@@ -35,10 +32,10 @@ class Resource(Labelled):
 
     @model_validator(mode="after")
     def enforce_maximum_labels(self) -> Self:
-        if len(self.root) > PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value():
+        if len(self.root) > SETTINGS.events_maximum_labels_per_resource:
             raise ValueError(
                 "The maximum number of labels per resource "
-                f"is {PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value()}"
+                f"is {SETTINGS.events_maximum_labels_per_resource}"
             )
 
         return self
@@ -147,10 +144,10 @@ class Event(PrefectBaseModel):
     @field_validator("related")
     @classmethod
     def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
-        if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
+        if len(value) > SETTINGS.events_maximum_related_resources:
             raise ValueError(
                 "The maximum number of related resources "
-                f"is {PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value()}"
+                f"is {SETTINGS.events_maximum_related_resources}"
             )
 
         return value

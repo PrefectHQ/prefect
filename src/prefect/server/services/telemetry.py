@@ -17,7 +17,7 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
 from prefect.server.services.loop_service import LoopService
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings import SETTINGS
 
 
 class Telemetry(LoopService):
@@ -114,7 +114,7 @@ class Telemetry(LoopService):
                 f"Failed to send telemetry: {exc}\nShutting down telemetry service...",
                 # The traceback is only needed if doing deeper debugging, otherwise
                 # this looks like an impactful server error
-                exc_info=PREFECT_DEBUG_MODE.value(),
+                exc_info=SETTINGS.debug_mode,
             )
             await self.stop(block=False)
 

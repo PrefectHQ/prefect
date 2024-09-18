@@ -23,10 +23,7 @@ from prefect.cli._prompts import prompt
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
-from prefect.settings import (
-    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
-    update_current_profile,
-)
+from prefect.settings import update_current_profile
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.importtools import lazy_import
 
@@ -930,7 +927,9 @@ class ContainerRepositoryResource:
             advance()
             console.print("Setting default Docker build namespace")
             namespace = response["repository"]["repositoryUri"].split("/")[0]
-            update_current_profile({PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: namespace})
+            update_current_profile(
+                {"PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": namespace}
+            )
             self._update_next_steps(namespace)
             advance()
 

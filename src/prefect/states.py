@@ -32,7 +32,7 @@ from prefect.results import (
     ResultRecordMetadata,
     ResultStore,
 )
-from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
+from prefect.settings import SETTINGS
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
@@ -53,7 +53,7 @@ def get_state_result(
     """
 
     if fetch is None and (
-        PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
+        SETTINGS.async_fetch_state_result or not in_async_main_thread()
     ):
         # Fetch defaults to `True` for sync users or async users who have opted in
         fetch = True

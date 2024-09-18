@@ -13,11 +13,7 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.context import FlowRunContext
 from prefect.flows import Flow
 from prefect.logging import get_logger
-from prefect.settings import (
-    PREFECT_RUNNER_PROCESS_LIMIT,
-    PREFECT_RUNNER_SERVER_HOST,
-    PREFECT_RUNNER_SERVER_PORT,
-)
+from prefect.settings import SETTINGS
 from prefect.states import Pending
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import sync_compatible
@@ -77,8 +73,8 @@ async def _submit_flow_to_runner(
 
         response = await client._client.post(
             (
-                f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
-                f":{PREFECT_RUNNER_SERVER_PORT.value()}"
+                f"http://{SETTINGS.runner_server_host}"
+                f":{SETTINGS.runner_server_port}"
                 "/flow/run"
             ),
             json={
@@ -166,7 +162,7 @@ async def submit_to_runner(
     if unsubmitted_parameters:
         logger.warning(
             f"Failed to submit {len(unsubmitted_parameters)} runs to the runner, as all"
-            f" of the available {PREFECT_RUNNER_PROCESS_LIMIT.value()} slots were"
+            f" of the available {SETTINGS.runner_process_limit} slots were"
             " occupied. To increase the number of available slots, configure"
             " the`PREFECT_RUNNER_PROCESS_LIMIT` setting."
         )

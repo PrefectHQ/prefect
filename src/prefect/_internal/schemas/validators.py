@@ -717,28 +717,6 @@ def base_image_xor_dockerfile(values: Mapping[str, Any]):
     return values
 
 
-### SETTINGS SCHEMA VALIDATORS ###
-
-
-def validate_settings(value: dict) -> dict:
-    from prefect.settings import SETTING_VARIABLES, Setting
-
-    if value is None:
-        return value
-
-    # Cast string setting names to variables
-    validated = {}
-    for setting, val in value.items():
-        if isinstance(setting, str) and setting in SETTING_VARIABLES:
-            validated[SETTING_VARIABLES[setting]] = val
-        elif isinstance(setting, Setting):
-            validated[setting] = val
-        else:
-            warnings.warn(f"Setting {setting!r} is not recognized and will be ignored.")
-
-    return validated
-
-
 def validate_yaml(value: Union[str, dict]) -> dict:
     if isinstance(value, str):
         return yaml.safe_load(value)

@@ -21,10 +21,7 @@ from prefect.client.base import determine_server_type
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
-from prefect.settings import (
-    PREFECT_CLI_WRAP_LINES,
-    PREFECT_TEST_MODE,
-)
+from prefect.settings import SETTINGS
 
 app = PrefectTyper(add_completion=True, no_args_is_help=True)
 
@@ -61,7 +58,7 @@ def main(
         is_eager=True,
     ),
     prompt: bool = SettingsOption(
-        prefect.settings.PREFECT_CLI_PROMPT,
+        ("PREFECT_CLI_PROMPT", SETTINGS.cli_prompt),
         help="Force toggle prompts for this CLI run.",
     ),
 ):
@@ -78,9 +75,9 @@ def main(
             exit(1)
 
     # Configure the output console after loading the profile
-    app.setup_console(soft_wrap=PREFECT_CLI_WRAP_LINES.value(), prompt=prompt)
+    app.setup_console(soft_wrap=SETTINGS.cli_wrap_lines, prompt=prompt)
 
-    if not PREFECT_TEST_MODE:
+    if not SETTINGS.test_mode:
         # When testing, this entrypoint can be called multiple times per process which
         # can cause logging configuration conflicts. Logging is set up in conftest
         # during tests.
@@ -105,7 +102,7 @@ async def version(
     import sqlite3
 
     from prefect.server.utilities.database import get_dialect
-    from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+    from prefect.settings import SETTINGS
 
     version_info = {
         "Version": prefect.__version__,
@@ -130,7 +127,7 @@ async def version(
     version_info["Pydantic version"] = pydantic_version
 
     if server_type == ServerType.EPHEMERAL.value:
-        database = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name
+        database = get_dialect(SETTINGS.api_database_connection_url).name
         version_info["Server"] = {"Database": database}
         if database == "sqlite":
             version_info["Server"]["SQLite version"] = sqlite3.sqlite_version

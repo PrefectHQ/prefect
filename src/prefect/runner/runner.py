@@ -79,13 +79,7 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
-from prefect.settings import (
-    PREFECT_API_URL,
-    PREFECT_RUNNER_POLL_FREQUENCY,
-    PREFECT_RUNNER_PROCESS_LIMIT,
-    PREFECT_RUNNER_SERVER_ENABLE,
-    get_current_settings,
-)
+from prefect.settings import SETTINGS, get_current_settings
 from prefect.states import (
     AwaitingConcurrencySlot,
     Crashed,
@@ -176,10 +170,10 @@ class Runner:
         self.started = False
         self.stopping = False
         self.pause_on_shutdown = pause_on_shutdown
-        self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
+        self.limit = limit or SETTINGS.runner_process_limit
         self.webserver = webserver
 
-        self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
+        self.query_seconds = query_seconds or SETTINGS.runner_poll_frequency
         self._prefetch_seconds = prefetch_seconds
 
         self._limiter: Optional[anyio.CapacityLimiter] = None
@@ -273,7 +267,7 @@ class Runner:
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
         """
-        api = PREFECT_API_URL.value()
+        api = SETTINGS.api_url
         if any([interval, cron, rrule]) and not api:
             self._logger.warning(
                 "Cannot schedule flows on an ephemeral server; run `prefect server"
@@ -379,7 +373,7 @@ class Runner:
 
         webserver = webserver if webserver is not None else self.webserver
 
-        if webserver or PREFECT_RUNNER_SERVER_ENABLE.value():
+        if webserver or SETTINGS.runner_server_enable:
             # we'll start the ASGI server in a separate thread so that
             # uvicorn does not block the main thread
             server_thread = threading.Thread(

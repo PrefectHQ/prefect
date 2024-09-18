@@ -26,10 +26,7 @@ from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
-from prefect.settings import (
-    PREFECT_API_URL,
-    PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
-)
+from prefect.settings import SETTINGS
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.annotations import NotSet
@@ -167,7 +164,7 @@ class TaskWorker:
                 if exc.status_code == 403:
                     logger.error(
                         "403: Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
-                        f" endpoint found at:\n\n {PREFECT_API_URL.value()}"
+                        f" endpoint found at:\n\n {SETTINGS.api_url}"
                         "\n\nPlease double-check the values of your"
                         " `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables."
                     )
@@ -209,7 +206,7 @@ class TaskWorker:
         return True
 
     async def _subscribe_to_task_scheduling(self):
-        base_url = PREFECT_API_URL.value()
+        base_url = SETTINGS.api_url
         if base_url is None:
             raise ValueError(
                 "`PREFECT_API_URL` must be set to use the task worker. "
@@ -256,7 +253,7 @@ class TaskWorker:
         task = next((t for t in self.tasks if t.task_key == task_run.task_key), None)
 
         if not task:
-            if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS:
+            if SETTINGS.task_scheduling_delete_failed_submissions:
                 logger.warning(
                     f"Task {task_run.name!r} not found in task worker registry."
                 )
@@ -286,7 +283,7 @@ class TaskWorker:
                     f"Failed to read parameters for task run {task_run.id!r}",
                     exc_info=exc,
                 )
-                if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
+                if SETTINGS.task_scheduling_delete_failed_submissions:
                     logger.info(
                         f"Deleting task run {task_run.id!r} because it failed to submit"
                     )

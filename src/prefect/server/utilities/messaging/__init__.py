@@ -19,7 +19,7 @@ from typing import (
 )
 from typing_extensions import Self
 
-from prefect.settings import PREFECT_MESSAGING_CACHE, PREFECT_MESSAGING_BROKER
+from prefect.settings import SETTINGS
 from prefect.logging import get_logger
 
 logger = get_logger(__name__)
@@ -137,7 +137,7 @@ def create_cache() -> Cache:
     Returns:
         a new Cache instance
     """
-    module = importlib.import_module(PREFECT_MESSAGING_CACHE.value())
+    module = importlib.import_module(SETTINGS.messaging_cache)
     assert isinstance(module, CacheModule)
     return module.Cache()
 
@@ -165,7 +165,7 @@ def create_publisher(
     """
     cache = cache or create_cache()
 
-    module = importlib.import_module(PREFECT_MESSAGING_BROKER.value())
+    module = importlib.import_module(SETTINGS.messaging_broker)
     assert isinstance(module, BrokerModule)
     return module.Publisher(topic, cache, deduplicate_by=deduplicate_by)
 
@@ -176,7 +176,7 @@ async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], N
     Creates an ephemeral subscription to the given source, removing it when the context
     exits.
     """
-    module = importlib.import_module(PREFECT_MESSAGING_BROKER.value())
+    module = importlib.import_module(SETTINGS.messaging_broker)
     assert isinstance(module, BrokerModule)
     async with module.ephemeral_subscription(topic) as consumer_create_kwargs:
         yield consumer_create_kwargs
@@ -190,6 +190,6 @@ def create_consumer(topic: str, **kwargs) -> Consumer:
     Returns:
         a new Consumer instance
     """
-    module = importlib.import_module(PREFECT_MESSAGING_BROKER.value())
+    module = importlib.import_module(SETTINGS.messaging_broker)
     assert isinstance(module, BrokerModule)
     return module.Consumer(topic, **kwargs)

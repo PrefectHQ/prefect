@@ -16,10 +16,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.exceptions import ObjectNotFound
 from prefect.plugins import load_prefect_collections
-from prefect.settings import (
-    PREFECT_WORKER_HEARTBEAT_SECONDS,
-    PREFECT_WORKER_PREFETCH_SECONDS,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.processutils import (
     get_sys_executable,
@@ -76,7 +73,7 @@ async def start(
         ),
     ),
     prefetch_seconds: int = SettingsOption(
-        PREFECT_WORKER_PREFETCH_SECONDS,
+        ("PREFECT_WORKER_PREFETCH_SECONDS", SETTINGS.worker_prefetch_seconds),
         help="Number of seconds to look into the future for scheduled flow runs.",
     ),
     run_once: bool = typer.Option(
@@ -160,7 +157,7 @@ async def start(
         work_queues=work_queues,
         limit=limit,
         prefetch_seconds=prefetch_seconds,
-        heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
+        heartbeat_interval_seconds=int(SETTINGS.worker_heartbeat_seconds),
         base_job_template=template_contents,
     )
     try:

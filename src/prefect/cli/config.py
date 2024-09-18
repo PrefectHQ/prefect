@@ -36,7 +36,9 @@ def set_(settings: List[str]):
                 f"Failed to parse argument {item!r}. Use the format 'VAR=VAL'."
             )
 
-        if setting not in prefect.settings.SETTING_VARIABLES:
+        if not hasattr(
+            prefect.settings.SETTINGS, prefect.settings.env_var_to_attr_name(setting)
+        ):
             exit_with_error(f"Unknown setting name {setting!r}.")
 
         # Guard against changing settings that tweak config locations
@@ -65,11 +67,6 @@ def set_(settings: List[str]):
                 f"override your config value. Run `unset {setting}` to clear it."
             )
 
-        if prefect.settings.SETTING_VARIABLES[setting].deprecated:
-            app.console.print(
-                f"[yellow]{prefect.settings.SETTING_VARIABLES[setting].deprecated_message}."
-            )
-
     exit_with_success(f"Updated profile {new_profile.name!r}.")
 
 
@@ -83,15 +80,8 @@ def validate():
     """
     profiles = prefect.settings.load_profiles()
     profile = profiles[prefect.context.get_settings_context().profile.name]
-    changed = profile.convert_deprecated_renamed_settings()
-    for old, new in changed:
-        app.console.print(f"Updated {old.name!r} to {new.name!r}.")
 
-    for setting in profile.settings.keys():
-        if setting.deprecated:
-            app.console.print(f"Found deprecated setting {setting.name!r}.")
-
-    profile.validate_settings()
+    type(profile).model_validate(profile.model_dump())
 
     prefect.settings.save_profiles(profiles)
     exit_with_success("Configuration valid!")
@@ -167,6 +157,10 @@ the defaults.
 """
 
 
+def _format_key(key: str) -> str:
+    return f"PREFECT_{key.upper()}"
+
+
 @config_app.command()
 def view(
     show_defaults: Optional[bool] = typer.Option(
@@ -186,6 +180,10 @@ def view(
     """
     Display the current settings.
     """
+    if show_secrets:
+        dump_context = dict(include_secrets=True)
+    else:
+        dump_context = {}
     context = prefect.context.get_settings_context()
 
     # Get settings at each level, converted to a flat dictionary for easy comparison
@@ -193,32 +191,30 @@ def view(
     env_settings = prefect.settings.get_settings_from_env()
     current_profile_settings = context.settings
 
-    # Obfuscate secrets
-    if not show_secrets:
-        default_settings = default_settings.with_obfuscated_secrets()
-        env_settings = env_settings.with_obfuscated_secrets()
-        current_profile_settings = current_profile_settings.with_obfuscated_secrets()
-
     # Display the profile first
     app.console.print(f"PREFECT_PROFILE={context.profile.name!r}")
 
     settings_output = []
 
     # The combination of environment variables and profile settings that are in use
-    profile_overrides = current_profile_settings.model_dump(exclude_unset=True)
+    profile_overrides = current_profile_settings.model_dump(
+        exclude_unset=True, context=dump_context
+    )
 
     # Used to see which settings in current_profile_settings came from env vars
-    env_overrides = env_settings.model_dump(exclude_unset=True)
+    env_overrides = env_settings.model_dump(
+        exclude_unset=True, context=dump_context, include=set(profile_overrides.keys())
+    )
 
     for key, value in profile_overrides.items():
         source = "env" if env_overrides.get(key) is not None else "profile"
         source_blurb = f" (from {source})" if show_sources else ""
-        settings_output.append(f"{key}='{value}'{source_blurb}")
+        settings_output.append(f"{_format_key(key)}='{value}'{source_blurb}")
 
     if show_defaults:
-        for key, value in default_settings.model_dump().items():
+        for key, value in default_settings.model_dump(context=dump_context).items():
             if key not in profile_overrides:
                 source_blurb = " (from defaults)" if show_sources else ""
-                settings_output.append(f"{key}='{value}'{source_blurb}")
+                settings_output.append(f"{_format_key(key)}='{value}'{source_blurb}")
 
     app.console.print("\n".join(sorted(settings_output)))

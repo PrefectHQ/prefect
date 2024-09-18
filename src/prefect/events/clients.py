@@ -30,12 +30,7 @@ from websockets.exceptions import (
 
 from prefect.events import Event
 from prefect.logging import get_logger
-from prefect.settings import (
-    PREFECT_API_KEY,
-    PREFECT_API_URL,
-    PREFECT_CLOUD_API_URL,
-    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
-)
+from prefect.settings import SETTINGS
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -71,8 +66,8 @@ def get_events_client(
     reconnection_attempts: int = 10,
     checkpoint_every: int = 700,
 ) -> "EventsClient":
-    api_url = PREFECT_API_URL.value()
-    if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
+    api_url = SETTINGS.api_url
+    if isinstance(api_url, str) and api_url.startswith(SETTINGS.cloud_api_url):
         return PrefectCloudEventsClient(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
@@ -82,7 +77,7 @@ def get_events_client(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-    elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+    elif SETTINGS.server_allow_ephemeral_mode:
         from prefect.server.api.server import SubprocessASGIServer
 
         server = SubprocessASGIServer()
@@ -102,9 +97,9 @@ def get_events_subscriber(
     filter: Optional["EventFilter"] = None,
     reconnection_attempts: int = 10,
 ) -> "PrefectEventSubscriber":
-    api_url = PREFECT_API_URL.value()
+    api_url = SETTINGS.api_url
 
-    if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
+    if isinstance(api_url, str) and api_url.startswith(SETTINGS.cloud_api_url):
         return PrefectCloudEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
@@ -112,7 +107,7 @@ def get_events_subscriber(
         return PrefectEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
-    elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+    elif SETTINGS.server_allow_ephemeral_mode:
         from prefect.server.api.server import SubprocessASGIServer
 
         server = SubprocessASGIServer()
@@ -214,8 +209,10 @@ class AssertingEventsClient(EventsClient):
 def _get_api_url_and_key(
     api_url: Optional[str], api_key: Optional[str]
 ) -> Tuple[str, str]:
-    api_url = api_url or PREFECT_API_URL.value()
-    api_key = api_key or PREFECT_API_KEY.value()
+    api_url = api_url or SETTINGS.api_url
+    api_key = api_key or (
+        SETTINGS.api_key.get_secret_value() if SETTINGS.api_key else None
+    )
 
     if not api_url or not api_key:
         raise ValueError(
@@ -245,7 +242,7 @@ class PrefectEventsClient(EventsClient):
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
         """
-        api_url = api_url or PREFECT_API_URL.value()
+        api_url = api_url or SETTINGS.api_url
         if not api_url:
             raise ValueError(
                 "api_url must be provided or set in the Prefect configuration"
@@ -461,7 +458,7 @@ class PrefectEventSubscriber:
         """
         self._api_key = None
         if not api_url:
-            api_url = cast(str, PREFECT_API_URL.value())
+            api_url = cast(str, SETTINGS.api_url)
 
         from prefect.events.filters import EventFilter
 

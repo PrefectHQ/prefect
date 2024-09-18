@@ -21,10 +21,7 @@ import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.settings import (
-    PREFECT_SERVER_API_HOST,
-    PREFECT_SERVER_API_PORT,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.dockerutils import get_prefect_image_name, python_version_minor
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import run_process
@@ -135,8 +132,8 @@ async def ui():
 
 @dev_app.command()
 async def api(
-    host: str = SettingsOption(PREFECT_SERVER_API_HOST),
-    port: int = SettingsOption(PREFECT_SERVER_API_PORT),
+    host: str = SettingsOption(("PREFECT_SERVER_API_HOST", SETTINGS.server_api_host)),
+    port: int = SettingsOption(("PREFECT_SERVER_API_PORT", SETTINGS.server_api_port)),
     log_level: str = "DEBUG",
     services: bool = True,
 ):
@@ -220,8 +217,8 @@ async def start(
                     # task group is async, so we need use the wrapped function
                     # directly
                     api.aio,
-                    host=PREFECT_SERVER_API_HOST.value(),
-                    port=PREFECT_SERVER_API_PORT.value(),
+                    host=SETTINGS.server_api_host,
+                    port=SETTINGS.server_api_port,
                 )
             )
         if not exclude_ui:

@@ -33,14 +33,7 @@ from prefect.client import constants
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
-from prefect.settings import (
-    PREFECT_API_URL,
-    PREFECT_CLIENT_MAX_RETRIES,
-    PREFECT_CLIENT_RETRY_EXTRA_CODES,
-    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
-    PREFECT_CLOUD_API_URL,
-    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
@@ -245,7 +238,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         if self.enable_csrf_support and is_change_request:
             await self._add_csrf_headers(request=request)
 
-        while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
+        while try_count <= SETTINGS.client_max_retries:
             try_count += 1
             retry_seconds = None
             exc_info = None
@@ -253,7 +246,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
             try:
                 response = await send(request, *send_args, **send_kwargs)
             except retry_exceptions:  # type: ignore
-                if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
+                if try_count > SETTINGS.client_max_retries:
                     raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
@@ -278,7 +271,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 retry_seconds = 2**try_count
 
             # Add jitter
-            jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
+            jitter_factor = SETTINGS.client_retry_jitter_factor
             if retry_seconds > 0 and jitter_factor > 0:
                 if response is not None and "Retry-After" in response.headers:
                     # Always wait for _at least_ retry seconds if requested by the API
@@ -302,7 +295,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
                 "This is attempt"
-                f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
+                f" {try_count}/{SETTINGS.client_max_retries + 1}.",
                 exc_info=exc_info,
             )
             await anyio.sleep(retry_seconds)
@@ -337,7 +330,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 status.HTTP_502_BAD_GATEWAY,
                 status.HTTP_408_REQUEST_TIMEOUT,
-                *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
+                *SETTINGS.client_retry_extra_codes,
             },
             retry_exceptions=(
                 httpx.ReadTimeout,
@@ -459,7 +452,7 @@ class PrefectHttpxSyncClient(httpx.Client):
         if self.enable_csrf_support and is_change_request:
             self._add_csrf_headers(request=request)
 
-        while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
+        while try_count <= SETTINGS.client_max_retries:
             try_count += 1
             retry_seconds = None
             exc_info = None
@@ -467,7 +460,7 @@ class PrefectHttpxSyncClient(httpx.Client):
             try:
                 response = send(request, *send_args, **send_kwargs)
             except retry_exceptions:  # type: ignore
-                if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
+                if try_count > SETTINGS.client_max_retries:
                     raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
@@ -492,7 +485,7 @@ class PrefectHttpxSyncClient(httpx.Client):
                 retry_seconds = 2**try_count
 
             # Add jitter
-            jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
+            jitter_factor = SETTINGS.client_retry_jitter_factor
             if retry_seconds > 0 and jitter_factor > 0:
                 if response is not None and "Retry-After" in response.headers:
                     # Always wait for _at least_ retry seconds if requested by the API
@@ -516,7 +509,7 @@ class PrefectHttpxSyncClient(httpx.Client):
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
                 "This is attempt"
-                f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
+                f" {try_count}/{SETTINGS.client_max_retries + 1}.",
                 exc_info=exc_info,
             )
             time.sleep(retry_seconds)
@@ -551,7 +544,7 @@ class PrefectHttpxSyncClient(httpx.Client):
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 status.HTTP_502_BAD_GATEWAY,
                 status.HTTP_408_REQUEST_TIMEOUT,
-                *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
+                *SETTINGS.client_retry_extra_codes,
             },
             retry_exceptions=(
                 httpx.ReadTimeout,
@@ -633,13 +626,13 @@ def determine_server_type() -> ServerType:
         - `ServerType.UNCONFIGURED` if no API URL is configured and ephemeral mode is
             not enabled
     """
-    api_url = PREFECT_API_URL.value()
+    api_url = SETTINGS.api_url
     if api_url is None:
-        if PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value():
+        if SETTINGS.server_allow_ephemeral_mode:
             return ServerType.EPHEMERAL
         else:
             return ServerType.UNCONFIGURED
-    if api_url.startswith(PREFECT_CLOUD_API_URL.value()):
+    if api_url.startswith(SETTINGS.cloud_api_url):
         return ServerType.CLOUD
     else:
         return ServerType.SERVER

@@ -21,16 +21,7 @@ from prefect.cli.cloud import prompt_select_from_list
 from prefect.cli.root import app, is_interactive
 from prefect.logging import get_logger
 from prefect.settings import (
-    PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
-    PREFECT_API_SERVICES_SCHEDULER_ENABLED,
-    PREFECT_API_URL,
-    PREFECT_HOME,
-    PREFECT_LOGGING_SERVER_LEVEL,
-    PREFECT_SERVER_ANALYTICS_ENABLED,
-    PREFECT_SERVER_API_HOST,
-    PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
-    PREFECT_SERVER_API_PORT,
-    PREFECT_UI_ENABLED,
+    SETTINGS,
     Profile,
     load_current_profile,
     load_profiles,
@@ -111,11 +102,11 @@ def prestart_check(base_url: str):
     api_url = f"{base_url}/api"
     current_profile = load_current_profile()
     profiles = load_profiles()
-    if current_profile and PREFECT_API_URL not in current_profile.settings:
+    if current_profile and "PREFECT_API_URL" not in current_profile.settings:
         profiles_with_matching_url = [
             name
             for name, profile in profiles.items()
-            if profile.settings.get(PREFECT_API_URL) == api_url
+            if profile.settings.get("PREFECT_API_URL") == api_url
         ]
         if len(profiles_with_matching_url) == 1:
             profiles.set_active(profiles_with_matching_url[0])
@@ -201,16 +192,30 @@ def prestart_check(base_url: str):
 
 @server_app.command()
 async def start(
-    host: str = SettingsOption(PREFECT_SERVER_API_HOST),
-    port: int = SettingsOption(PREFECT_SERVER_API_PORT),
-    keep_alive_timeout: int = SettingsOption(PREFECT_SERVER_API_KEEPALIVE_TIMEOUT),
-    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
-    scheduler: bool = SettingsOption(PREFECT_API_SERVICES_SCHEDULER_ENABLED),
-    analytics: bool = SettingsOption(
-        PREFECT_SERVER_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
+    host: str = SettingsOption(("PREFECT_SERVER_API_HOST", SETTINGS.server_api_host)),
+    port: int = SettingsOption(("PREFECT_SERVER_API_PORT", SETTINGS.server_api_port)),
+    keep_alive_timeout: int = SettingsOption(
+        ("PREFECT_SERVER_API_KEEPALIVE_TIMEOUT", SETTINGS.server_api_keepalive_timeout)
     ),
-    late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
-    ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    log_level: str = SettingsOption(
+        ("PREFECT_LOGGING_SERVER_LEVEL", SETTINGS.logging_server_level)
+    ),
+    scheduler: bool = SettingsOption(
+        (
+            "PREFECT_API_SERVICES_SCHEDULER_ENABLED",
+            SETTINGS.api_services_scheduler_enabled,
+        )
+    ),
+    analytics: bool = SettingsOption(
+        ("PREFECT_SERVER_ANALYTICS_ENABLED", SETTINGS.server_analytics_enabled)
+    ),
+    late_runs: bool = SettingsOption(
+        (
+            "PREFECT_API_SERVICES_LATE_RUNS_ENABLED",
+            SETTINGS.api_services_late_runs_enabled,
+        )
+    ),
+    ui: bool = SettingsOption(("PREFECT_UI_ENABLED", SETTINGS.ui_enabled)),
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the server in the background"
     ),
@@ -233,7 +238,7 @@ async def start(
     server_env["PREFECT_UI_ENABLED"] = str(ui)
     server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
 
-    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
+    pid_file = anyio.Path(SETTINGS.home / PID_FILE)
     # check if port is already in use
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

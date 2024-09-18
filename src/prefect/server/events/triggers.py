@@ -56,7 +56,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message, MessageHandler
-from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
+from prefect.settings import SETTINGS
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMAutomationBucket
@@ -603,7 +603,7 @@ async def periodic_evaluation(now: DateTime):
     async with automations_session() as session:
         await sweep_closed_buckets(
             session,
-            as_of - PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER.value(),
+            as_of - SETTINGS.events_expired_bucket_buffer,
         )
         await session.commit()
 

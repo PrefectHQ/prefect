@@ -22,12 +22,7 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import deployment_status_event
 from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.server.utilities.database import json_contains
-from prefect.settings import (
-    PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
-    PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
-    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
-    PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
-)
+from prefect.settings import SETTINGS
 
 T = TypeVar("T", bound=tuple)
 
@@ -524,17 +519,15 @@ async def schedule_runs(
         a list of flow run ids scheduled for the deployment
     """
     if min_runs is None:
-        min_runs = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
+        min_runs = SETTINGS.api_services_scheduler_min_runs
     if max_runs is None:
-        max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
+        max_runs = SETTINGS.api_services_scheduler_max_runs
     if start_time is None:
         start_time = pendulum.now("UTC")
     if end_time is None:
-        end_time = start_time + (
-            PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
-        )
+        end_time = start_time + (SETTINGS.api_services_scheduler_max_scheduled_time)
     if min_time is None:
-        min_time = PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
+        min_time = SETTINGS.api_services_scheduler_min_scheduled_time
 
     actual_start_time = pendulum.instance(start_time)
     actual_end_time = pendulum.instance(end_time)

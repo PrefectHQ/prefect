@@ -34,9 +34,7 @@ from prefect.deployments.base import (
 )
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities import urls
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
@@ -376,7 +374,7 @@ def prompt_schedules(console) -> List[DeploymentScheduleCreate]:
                 "active": is_schedule_active,
             }
 
-            if PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY:
+            if SETTINGS.experimental_enable_schedule_concurrency:
                 max_active_runs = prompt_for_schedule_max_active_runs(console)
                 catchup = prompt_for_schedule_catchup(console)
 

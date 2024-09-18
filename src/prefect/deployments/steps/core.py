@@ -24,7 +24,7 @@ from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.logging.loggers import get_logger
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings import SETTINGS
 from prefect.utilities.importtools import import_object
 from prefect.utilities.templating import (
     apply_values,
@@ -174,7 +174,7 @@ async def run_steps(
                         printed_messages.append(message)
 
             if not isinstance(step_output, dict):
-                if PREFECT_DEBUG_MODE:
+                if SETTINGS.debug_mode:
                     get_logger().warning(
                         "Step function %s returned unexpected type: %s",
                         fqn,

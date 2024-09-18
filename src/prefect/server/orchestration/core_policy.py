@@ -31,9 +31,7 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
-from prefect.settings import (
-    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
-)
+from prefect.settings import SETTINGS
 from prefect.utilities.math import clamped_poisson_interval
 
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
@@ -203,7 +201,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                     stale_limit.active_slots = list(active_slots)
 
                 await self.delay_transition(
-                    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
+                    SETTINGS.task_run_tag_concurrency_slot_wait_seconds,
                     f"Concurrency limit for the {tag} tag has been reached",
                 )
             else:

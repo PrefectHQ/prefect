@@ -53,7 +53,7 @@ from prefect.results import (
     get_result_store,
     should_persist_result,
 )
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings import SETTINGS
 from prefect.states import (
     Failed,
     Pending,
@@ -597,7 +597,7 @@ class FlowRunEngine(Generic[P, R]):
             finally:
                 # If debugging, use the more complete `repr` than the usual `str` description
                 display_state = (
-                    repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
+                    repr(self.state) if SETTINGS.debug_mode else str(self.state)
                 )
                 self.logger.log(
                     level=logging.INFO if self.state.is_completed() else logging.ERROR,

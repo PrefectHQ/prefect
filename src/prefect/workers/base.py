@@ -32,14 +32,7 @@ from prefect.exceptions import (
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
-from prefect.settings import (
-    PREFECT_API_URL,
-    PREFECT_TEST_MODE,
-    PREFECT_WORKER_HEARTBEAT_SECONDS,
-    PREFECT_WORKER_PREFETCH_SECONDS,
-    PREFECT_WORKER_QUERY_SECONDS,
-    get_current_settings,
-)
+from prefect.settings import SETTINGS, get_current_settings
 from prefect.states import (
     AwaitingConcurrencySlot,
     Crashed,
@@ -416,10 +409,10 @@ class BaseWorker(abc.ABC):
         self._work_queues: Set[str] = set(work_queues) if work_queues else set()
 
         self._prefetch_seconds: float = (
-            prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
+            prefetch_seconds or SETTINGS.worker_prefetch_seconds
         )
         self.heartbeat_interval_seconds = (
-            heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
+            heartbeat_interval_seconds or SETTINGS.worker_heartbeat_seconds
         )
 
         self._work_pool: Optional[WorkPool] = None
@@ -535,7 +528,7 @@ class BaseWorker(abc.ABC):
                         partial(
                             critical_service_loop,
                             workload=self.get_and_submit_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                            interval=SETTINGS.worker_query_seconds,
                             run_once=run_once,
                             jitter_range=0.3,
                             backoff=4,  # Up to ~1 minute interval during backoff
@@ -562,7 +555,7 @@ class BaseWorker(abc.ABC):
                         # uvicorn does not block the main thread
                         healthcheck_server = build_healthcheck_server(
                             worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                            query_interval_seconds=SETTINGS.worker_query_seconds,
                         )
                         healthcheck_thread = threading.Thread(
                             name="healthcheck-server-thread",
@@ -608,7 +601,7 @@ class BaseWorker(abc.ABC):
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
         )
 
-        if not PREFECT_TEST_MODE and not PREFECT_API_URL.value():
+        if not SETTINGS.test_mode and not SETTINGS.api_url:
             raise ValueError("`PREFECT_API_URL` must be set to start a Worker.")
 
         self._client = get_client()

@@ -121,19 +121,7 @@ from prefect.client.schemas.sorting import (
 from prefect.events import filters
 from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
-from prefect.settings import (
-    PREFECT_API_DATABASE_CONNECTION_URL,
-    PREFECT_API_ENABLE_HTTP2,
-    PREFECT_API_KEY,
-    PREFECT_API_REQUEST_TIMEOUT,
-    PREFECT_API_SSL_CERT_FILE,
-    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
-    PREFECT_API_URL,
-    PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
-    PREFECT_CLOUD_API_URL,
-    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
-    PREFECT_UNIT_TEST_MODE,
-)
+from prefect.settings import SETTINGS
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -207,10 +195,10 @@ def get_client(
             ):
                 return client_ctx.client
 
-    api = PREFECT_API_URL.value()
+    api = SETTINGS.api_url
     server_type = None
 
-    if not api and PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+    if not api and SETTINGS.server_allow_ephemeral_mode:
         # create an ephemeral API if none was provided
         from prefect.server.api.server import SubprocessASGIServer
 
@@ -220,7 +208,7 @@ def get_client(
 
         api = server.api_url
         server_type = ServerType.EPHEMERAL
-    elif not api and not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+    elif not api and not SETTINGS.server_allow_ephemeral_mode:
         raise ValueError(
             "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
         )
@@ -228,14 +216,14 @@ def get_client(
     if sync_client:
         return SyncPrefectClient(
             api,
-            api_key=PREFECT_API_KEY.value(),
+            api_key=SETTINGS.api_key.get_secret_value() if SETTINGS.api_key else None,
             httpx_settings=httpx_settings,
             server_type=server_type,
         )
     else:
         return PrefectClient(
             api,
-            api_key=PREFECT_API_KEY.value(),
+            api_key=SETTINGS.api_key.get_secret_value() if SETTINGS.api_key else None,
             httpx_settings=httpx_settings,
             server_type=server_type,
         )
@@ -279,10 +267,10 @@ class PrefectClient:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
 
-        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+        if SETTINGS.api_tls_insecure_skip_verify:
             httpx_settings.setdefault("verify", False)
         else:
-            cert_file = PREFECT_API_SSL_CERT_FILE.value()
+            cert_file = SETTINGS.api_ssl_cert_file
             if not cert_file:
                 cert_file = certifi.where()
             httpx_settings.setdefault("verify", cert_file)
@@ -335,14 +323,14 @@ class PrefectClient:
             # and responses will be transported over HTTP/2, since both the client and the server
             # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
             # client will use a standard HTTP/1.1 connection instead.
-            httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
+            httpx_settings.setdefault("http2", SETTINGS.api_enable_http2)
 
             if server_type:
                 self.server_type = server_type
             else:
                 self.server_type = (
                     ServerType.CLOUD
-                    if api.startswith(PREFECT_CLOUD_API_URL.value())
+                    if api.startswith(SETTINGS.cloud_api_url)
                     else ServerType.SERVER
                 )
 
@@ -377,19 +365,19 @@ class PrefectClient:
         httpx_settings.setdefault(
             "timeout",
             httpx.Timeout(
-                connect=PREFECT_API_REQUEST_TIMEOUT.value(),
-                read=PREFECT_API_REQUEST_TIMEOUT.value(),
-                write=PREFECT_API_REQUEST_TIMEOUT.value(),
-                pool=PREFECT_API_REQUEST_TIMEOUT.value(),
+                connect=SETTINGS.api_request_timeout,
+                read=SETTINGS.api_request_timeout,
+                write=SETTINGS.api_request_timeout,
+                pool=SETTINGS.api_request_timeout,
             ),
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not SETTINGS.unit_test_mode:
             httpx_settings.setdefault("follow_redirects", True)
 
         enable_csrf_support = (
             self.server_type != ServerType.CLOUD
-            and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
+            and SETTINGS.client_csrf_support_enabled
         )
 
         self._client = PrefectHttpxAsyncClient(
@@ -3407,7 +3395,7 @@ class PrefectClient:
         if self._ephemeral_app:
             self.logger.debug(
                 "Using ephemeral application with database at "
-                f"{PREFECT_API_DATABASE_CONNECTION_URL.value()}"
+                f"{SETTINGS.api_database_connection_url}"
             )
         else:
             self.logger.debug(f"Connecting to API at {self.api_url}")
@@ -3478,10 +3466,10 @@ class SyncPrefectClient:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
 
-        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+        if SETTINGS.api_tls_insecure_skip_verify:
             httpx_settings.setdefault("verify", False)
         else:
-            cert_file = PREFECT_API_SSL_CERT_FILE.value()
+            cert_file = SETTINGS.api_ssl_cert_file
             if not cert_file:
                 cert_file = certifi.where()
             httpx_settings.setdefault("verify", cert_file)
@@ -3530,14 +3518,14 @@ class SyncPrefectClient:
             # and responses will be transported over HTTP/2, since both the client and the server
             # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
             # client will use a standard HTTP/1.1 connection instead.
-            httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
+            httpx_settings.setdefault("http2", SETTINGS.api_enable_http2)
 
             if server_type:
                 self.server_type = server_type
             else:
                 self.server_type = (
                     ServerType.CLOUD
-                    if api.startswith(PREFECT_CLOUD_API_URL.value())
+                    if api.startswith(SETTINGS.cloud_api_url)
                     else ServerType.SERVER
                 )
 
@@ -3556,19 +3544,19 @@ class SyncPrefectClient:
         httpx_settings.setdefault(
             "timeout",
             httpx.Timeout(
-                connect=PREFECT_API_REQUEST_TIMEOUT.value(),
-                read=PREFECT_API_REQUEST_TIMEOUT.value(),
-                write=PREFECT_API_REQUEST_TIMEOUT.value(),
-                pool=PREFECT_API_REQUEST_TIMEOUT.value(),
+                connect=SETTINGS.api_request_timeout,
+                read=SETTINGS.api_request_timeout,
+                write=SETTINGS.api_request_timeout,
+                pool=SETTINGS.api_request_timeout,
             ),
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not SETTINGS.unit_test_mode:
             httpx_settings.setdefault("follow_redirects", True)
 
         enable_csrf_support = (
             self.server_type != ServerType.CLOUD
-            and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
+            and SETTINGS.client_csrf_support_enabled
         )
 
         self._client = PrefectHttpxSyncClient(
