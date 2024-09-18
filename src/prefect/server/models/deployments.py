@@ -155,7 +155,7 @@ async def create_deployment(
             ],
         )
 
-    await create_or_update_deployment_concurrency_limit(
+    await _create_or_update_deployment_concurrency_limit(
         session, deployment_id, deployment.concurrency_limit
     )
 
@@ -267,14 +267,14 @@ async def update_deployment(
             ],
         )
 
-    await create_or_update_deployment_concurrency_limit(
+    await _create_or_update_deployment_concurrency_limit(
         session, deployment_id, deployment.concurrency_limit
     )
 
     return result.rowcount > 0
 
 
-async def create_or_update_deployment_concurrency_limit(
+async def _create_or_update_deployment_concurrency_limit(
     session: AsyncSession, deployment_id: UUID, limit: Optional[int]
 ):
     deployment = await session.get(orm_models.Deployment, deployment_id)
