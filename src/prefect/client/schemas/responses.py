@@ -319,6 +319,10 @@ class DeploymentResponse(ObjectBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
+    concurrency_options: Optional[objects.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
+    )
     schedules: List[objects.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
