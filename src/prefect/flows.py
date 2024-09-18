@@ -799,7 +799,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        global_limit: Optional[int] = None,
+        global_limit: Optional[ConcurrencyLimitConfig] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
