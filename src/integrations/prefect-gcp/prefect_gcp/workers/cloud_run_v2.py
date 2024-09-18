@@ -101,6 +101,11 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             "the local environment."
         ),
     )
+    env_from_secrets: Dict[str, Any] = Field(
+        default_factory=dict,
+        title="Environment Variables from Secrets",
+        description="Environment variables to set from GCP secrets when starting a flow run.",
+    )
     job_body: Dict[str, Any] = Field(
         json_schema_extra=dict(template=_get_default_job_body_template()),
     )
@@ -191,6 +196,9 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         Populates the job body with environment variables.
         """
         envs = [{"name": k, "value": v} for k, v in self.env.items()]
+        envs_from_secrets = [{"name": k, "valueSource": v} for k, v in self.env_from_secrets.items()]
+        envs.extend(envs_from_secrets)
+
 
         self.job_body["template"]["template"]["containers"][0]["env"] = envs
 
