@@ -15893,6 +15893,18 @@
                     "concurrency_limit": {
                         "anyOf": [
                             {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit",
+                        "description": "DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility."
+                    },
+                    "global_concurrency_limit": {
+                        "anyOf": [
+                            {
                                 "$ref": "#/components/schemas/GlobalConcurrencyLimitResponse"
                             },
                             {

@@ -30,7 +30,7 @@ class TestCreateDeployment:
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
-        assert deployment.concurrency_limit is None
+        assert deployment.global_concurrency_limit is None
 
     async def test_creating_a_deployment_with_existing_work_queue_is_ok(
         self, session, flow, work_queue
@@ -256,8 +256,8 @@ class TestCreateDeployment:
         assert deployment is not None
         assert deployment._concurrency_limit == 2
 
-        assert deployment.concurrency_limit is not None
-        assert deployment.concurrency_limit.limit == 2
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 2
 
     async def test_create_deployment_can_remove_concurrency_limit_on_upsert(
         self, session, deployment
@@ -268,8 +268,8 @@ class TestCreateDeployment:
             schemas.actions.DeploymentUpdate(concurrency_limit=5),
         )
         await session.commit()
-        assert deployment.concurrency_limit is not None
-        assert deployment.concurrency_limit.limit == 5
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
         gcl_id = deployment.concurrency_limit_id
 
         updated_deployment = await models.deployments.create_deployment(
@@ -282,7 +282,7 @@ class TestCreateDeployment:
             ),
         )
 
-        assert updated_deployment.concurrency_limit is None
+        assert updated_deployment.global_concurrency_limit is None
         assert updated_deployment.concurrency_limit_id is None
         assert updated_deployment._concurrency_limit is None
 
@@ -619,8 +619,8 @@ class TestDeleteDeployment:
         assert deployment is not None
         assert deployment._concurrency_limit == 2
 
-        assert deployment.concurrency_limit is not None
-        assert deployment.concurrency_limit.limit == 2
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 2
 
         assert await models.deployments.delete_deployment(
             session=session, deployment_id=deployment.id
@@ -1152,7 +1152,7 @@ class TestUpdateDeployment:
         session,
         deployment,
     ):
-        assert deployment.concurrency_limit is None
+        assert deployment.global_concurrency_limit is None
 
         await models.deployments.update_deployment(
             session=session,
@@ -1168,7 +1168,7 @@ class TestUpdateDeployment:
         )
         assert updated_deployment
         assert updated_deployment._concurrency_limit == 5
-        assert updated_deployment.concurrency_limit.limit == 5
+        assert updated_deployment.global_concurrency_limit.limit == 5
 
     async def test_update_deployment_can_remove_concurrency_limit(
         self,
@@ -1185,8 +1185,8 @@ class TestUpdateDeployment:
         )
         await session.commit()
         await session.refresh(deployment)
-        assert deployment.concurrency_limit is not None
-        gcl_id = deployment.concurrency_limit.id
+        assert deployment.global_concurrency_limit is not None
+        gcl_id = deployment.concurrency_limit_id
 
         # update it to remove the concurrency limit
         await models.deployments.update_deployment(
@@ -1204,7 +1204,7 @@ class TestUpdateDeployment:
         assert updated_deployment
         assert updated_deployment._concurrency_limit is None
         assert updated_deployment.concurrency_limit_id is None
-        assert updated_deployment.concurrency_limit is None
+        assert updated_deployment.global_concurrency_limit is None
 
         assert (
             await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)

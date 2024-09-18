@@ -1016,14 +1016,14 @@ class DeploymentFilterConcurrencyLimit(PrefectFilterBaseModel):
     def _get_filter_list(self) -> List:
         filters = []
         if self.ge_ is not None:
-            filters.append(orm_models.Deployment.concurrency_limit >= self.ge_)
+            filters.append(orm_models.Deployment.global_concurrency_limit >= self.ge_)
         if self.le_ is not None:
-            filters.append(orm_models.Deployment.concurrency_limit <= self.le_)
+            filters.append(orm_models.Deployment.global_concurrency_limit <= self.le_)
         if self.is_null_ is not None:
             filters.append(
-                orm_models.Deployment.concurrency_limit.is_(None)
+                orm_models.Deployment.global_concurrency_limit.is_(None)
                 if self.is_null_
-                else orm_models.Deployment.concurrency_limit.is_not(None)
+                else orm_models.Deployment.global_concurrency_limit.is_not(None)
             )
         return filters
 

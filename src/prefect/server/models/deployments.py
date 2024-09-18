@@ -281,8 +281,9 @@ async def create_or_update_deployment_concurrency_limit(
     assert deployment is not None
 
     if (
-        deployment.concurrency_limit and deployment.concurrency_limit.limit == limit
-    ) or (deployment.concurrency_limit is None and limit is None):
+        deployment.global_concurrency_limit
+        and deployment.global_concurrency_limit.limit == limit
+    ) or (deployment.global_concurrency_limit is None and limit is None):
         return
 
     deployment._concurrency_limit = limit
@@ -291,12 +292,12 @@ async def create_or_update_deployment_concurrency_limit(
             session=session, deployment_id=deployment_id
         )
         await session.refresh(deployment)
-    elif deployment.concurrency_limit:
-        deployment.concurrency_limit.limit = limit
+    elif deployment.global_concurrency_limit:
+        deployment.global_concurrency_limit.limit = limit
     else:
         limit_name = f"deployment:{deployment_id}"
         new_limit = orm_models.ConcurrencyLimitV2(name=limit_name, limit=limit)
-        deployment.concurrency_limit = new_limit
+        deployment.global_concurrency_limit = new_limit
 
     session.add(deployment)
 

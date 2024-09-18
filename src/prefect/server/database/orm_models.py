@@ -887,7 +887,9 @@ class Deployment(Base):
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
         nullable=True,
     )
-    concurrency_limit: Mapped[Union["ConcurrencyLimitV2", None]] = sa.orm.relationship(
+    global_concurrency_limit: Mapped[
+        Union["ConcurrencyLimitV2", None]
+    ] = sa.orm.relationship(
         lazy="selectin",
     )
 

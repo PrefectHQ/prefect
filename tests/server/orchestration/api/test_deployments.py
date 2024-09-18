@@ -1030,13 +1030,16 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_201_CREATED
 
         json_response = response.json()
-        deployment_concurrency_limit = json_response.get("concurrency_limit")
-        assert deployment_concurrency_limit is not None
-        assert deployment_concurrency_limit.get("limit") == 3
-        assert deployment_concurrency_limit.get("active") is True
         assert (
-            deployment_concurrency_limit.get("name")
-            == f"deployment:{json_response['id']}"
+            json_response["concurrency_limit"] is None
+        ), "Deprecated int-only field should be None for backwards-compatibility"
+
+        global_concurrency_limit = json_response.get("global_concurrency_limit")
+        assert global_concurrency_limit is not None
+        assert global_concurrency_limit.get("limit") == 3
+        assert global_concurrency_limit.get("active") is True
+        assert (
+            global_concurrency_limit.get("name") == f"deployment:{json_response['id']}"
         )
 
 
@@ -1067,13 +1070,16 @@ class TestReadDeployment:
         assert response.status_code == status.HTTP_200_OK
 
         json_response = response.json()
-        deployment_concurrency_limit = json_response.get("concurrency_limit")
-        assert deployment_concurrency_limit is not None
-        assert deployment_concurrency_limit.get("limit") == update.concurrency_limit
-        assert deployment_concurrency_limit.get("active") is True
         assert (
-            deployment_concurrency_limit.get("name")
-            == f"deployment:{json_response['id']}"
+            json_response["concurrency_limit"] is None
+        ), "Deprecated int-only field should be None for backwards-compatibility"
+
+        global_concurrency_limit = json_response.get("global_concurrency_limit")
+        assert global_concurrency_limit is not None
+        assert global_concurrency_limit.get("limit") == update.concurrency_limit
+        assert global_concurrency_limit.get("active") is True
+        assert (
+            global_concurrency_limit.get("name") == f"deployment:{json_response['id']}"
         )
 
 
@@ -1846,7 +1852,7 @@ class TestUpdateDeployment:
         deployment,
         session,
     ):
-        assert deployment.concurrency_limit is None
+        assert deployment.global_concurrency_limit is None
 
         response = await client.patch(
             f"/deployments/{deployment.id}", json={"concurrency_limit": 1}
@@ -1856,7 +1862,7 @@ class TestUpdateDeployment:
         await session.refresh(deployment)
         assert deployment
         assert deployment._concurrency_limit == 1
-        assert deployment.concurrency_limit.limit == 1
+        assert deployment.global_concurrency_limit.limit == 1
 
 
 class TestGetScheduledFlowRuns:

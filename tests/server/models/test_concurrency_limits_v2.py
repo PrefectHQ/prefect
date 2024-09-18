@@ -280,15 +280,15 @@ async def test_delete_concurrency_limit_used_for_deployment_concurrency_limiting
     )
     await session.commit()
     await session.refresh(deployment)
-    assert deployment.concurrency_limit is not None
+    assert deployment.global_concurrency_limit is not None
 
     assert await delete_concurrency_limit(
-        session, concurrency_limit_id=deployment.concurrency_limit.id
+        session, concurrency_limit_id=deployment.concurrency_limit_id
     )
     await session.commit()
 
     await session.refresh(deployment)
-    assert deployment.concurrency_limit is None
+    assert deployment.global_concurrency_limit is None
     assert deployment.concurrency_limit_id is None
 
 
