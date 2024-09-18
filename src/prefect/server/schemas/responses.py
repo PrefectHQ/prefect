@@ -363,6 +363,7 @@ class DeploymentResponse(ORMBaseModel):
     concurrency_limit: Optional[int] = Field(
         default=None,
         description="DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility.",
+        deprecated=True,
     )
     global_concurrency_limit: Optional["GlobalConcurrencyLimitResponse"] = Field(
         default=None,

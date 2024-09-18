@@ -15438,7 +15438,8 @@
                                 "type": "null"
                             }
                         ],
-                        "description": "Filter criteria for `Deployment.concurrency`"
+                        "description": "DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`. If provided, will be ignored for backwards-compatibility.",
+                        "deprecated": true
                     }
                 },
                 "additionalProperties": false,
@@ -15488,7 +15489,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "DeploymentFilterConcurrencyLimit",
-                "description": "Filter by `Deployment.concurrency_limit`."
+                "description": "DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`."
             },
             "DeploymentFilterId": {
                 "properties": {
@@ -15922,7 +15923,8 @@
                             }
                         ],
                         "title": "Concurrency Limit",
-                        "description": "DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility."
+                        "description": "DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility.",
+                        "deprecated": true
                     },
                     "global_concurrency_limit": {
                         "anyOf": [
