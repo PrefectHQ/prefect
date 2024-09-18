@@ -499,6 +499,8 @@ class RunnerDeployment(BaseModel):
                 "collision_strategy": concurrency_limit.collision_strategy
             }
             concurrency_limit = concurrency_limit.limit
+        else:
+            concurrency_options = None
 
         deployment = cls(
             name=Path(name).stem,
@@ -639,6 +641,8 @@ class RunnerDeployment(BaseModel):
                 "collision_strategy": concurrency_limit.collision_strategy
             }
             concurrency_limit = concurrency_limit.limit
+        else:
+            concurrency_options = None
 
         deployment = cls(
             name=Path(name).stem,
@@ -735,6 +739,8 @@ class RunnerDeployment(BaseModel):
                 "collision_strategy": concurrency_limit.collision_strategy
             }
             concurrency_limit = concurrency_limit.limit
+        else:
+            concurrency_options = None
 
         job_variables = job_variables or {}
 
