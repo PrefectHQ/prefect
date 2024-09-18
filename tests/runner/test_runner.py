@@ -1409,7 +1409,7 @@ class TestRunnerDeployment:
         assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
         assert deployment.paused is False
-        assert deployment.global_concurrency_limit.limit is None
+        assert deployment.global_concurrency_limit is None
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(
