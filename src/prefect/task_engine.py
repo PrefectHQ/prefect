@@ -364,7 +364,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         new_state = Running()
 
         self.task_run.start_time = new_state.timestamp
-        self.task_run.run_count += 1
 
         flow_run_context = FlowRunContext.get()
         if flow_run_context and flow_run_context.flow_run:
@@ -511,7 +510,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
-                self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
@@ -771,6 +769,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         Convenience method to call the task function. Returns a coroutine if the
         task is async.
         """
+        self.task_run.run_count += 1
         parameters = self.parameters or {}
         if transaction.is_committed():
             result = transaction.read()
@@ -883,7 +882,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         new_state = Running()
 
         self.task_run.start_time = new_state.timestamp
-        self.task_run.run_count += 1
 
         flow_run_context = FlowRunContext.get()
         if flow_run_context:
@@ -1026,7 +1024,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
-                self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
@@ -1279,6 +1276,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         Convenience method to call the task function. Returns a coroutine if the
         task is async.
         """
+        self.task_run.run_count += 1
         parameters = self.parameters or {}
         if transaction.is_committed():
             result = transaction.read()
