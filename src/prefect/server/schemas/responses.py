@@ -360,9 +360,9 @@ class DeploymentResponse(ORMBaseModel):
     schedules: List[schemas.core.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    concurrency_limit: Optional[int] = Field(
+    concurrency_limit: Optional["GlobalConcurrencyLimitResponse"] = Field(
         default=None,
-        description="The maximum number of flow runs that can be active at once.",
+        description="The global concurrency limit object for enforcing the maximum number of flow runs that can be active at once.",
     )
     job_variables: Dict[str, Any] = Field(
         default_factory=dict,

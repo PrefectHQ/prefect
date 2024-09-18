@@ -254,10 +254,10 @@ class TestCreateDeployment:
             ),
         )
         assert deployment is not None
-        assert deployment.concurrency_limit == 2
+        assert deployment._concurrency_limit == 2
 
-        assert deployment.concurrency_limit_v2 is not None
-        assert deployment.concurrency_limit_v2.limit == 2
+        assert deployment.concurrency_limit is not None
+        assert deployment.concurrency_limit.limit == 2
 
 
 class TestReadDeployment:
@@ -1103,8 +1103,8 @@ class TestUpdateDeployment:
             session=session, deployment_id=deployment.id
         )
         assert updated_deployment
-        assert updated_deployment.concurrency_limit == 5
-        assert updated_deployment.concurrency_limit_v2.limit == 5
+        assert updated_deployment._concurrency_limit == 5
+        assert updated_deployment.concurrency_limit.limit == 5
 
 
 @pytest.fixture

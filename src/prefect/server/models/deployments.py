@@ -83,7 +83,7 @@ async def create_deployment(
 
     schedules = deployment.schedules
     insert_values = deployment.model_dump_for_orm(
-        exclude_unset=True, exclude={"schedules"}
+        exclude_unset=True, exclude={"schedules", "concurrency_limit"}
     )
 
     # The job_variables field in client and server schemas is named
@@ -94,7 +94,14 @@ async def create_deployment(
 
     conflict_update_fields = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"id", "created", "created_by", "schedules", "job_variables"},
+        exclude={
+            "id",
+            "created",
+            "created_by",
+            "schedules",
+            "job_variables",
+            "concurrency_limit",
+        },
     )
     if job_variables:
         conflict_update_fields["infra_overrides"] = job_variables
@@ -192,7 +199,7 @@ async def update_deployment(
     # the user, ignoring any defaults on the model
     update_data = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"work_pool_name"},
+        exclude={"work_pool_name", "concurrency_limit"},
     )
 
     # The job_variables field in client and server schemas is named
@@ -261,9 +268,9 @@ async def update_deployment(
             ],
         )
 
-    if "concurrency_limit" in update_data:
+    if deployment.concurrency_limit:
         await create_or_update_deployment_concurrency_limit(
-            session, deployment_id, update_data["concurrency_limit"]
+            session, deployment_id, deployment.concurrency_limit
         )
 
     return result.rowcount > 0
@@ -275,12 +282,14 @@ async def create_or_update_deployment_concurrency_limit(
     deployment = await session.get(orm_models.Deployment, deployment_id)
     assert deployment is not None
 
-    if deployment.concurrency_limit_v2:
-        deployment.concurrency_limit_v2.limit = limit
+    deployment._concurrency_limit = limit
+
+    if deployment.concurrency_limit:
+        deployment.concurrency_limit.limit = limit
     else:
         limit_name = f"deployment:{deployment_id}"
         new_limit = orm_models.ConcurrencyLimitV2(name=limit_name, limit=limit)
-        deployment.concurrency_limit_v2 = new_limit
+        deployment.concurrency_limit = new_limit
 
     session.add(deployment)
 

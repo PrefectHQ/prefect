@@ -15893,14 +15893,13 @@
                     "concurrency_limit": {
                         "anyOf": [
                             {
-                                "type": "integer"
+                                "$ref": "#/components/schemas/GlobalConcurrencyLimitResponse"
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Concurrency Limit",
-                        "description": "The maximum number of flow runs that can be active at once."
+                        "description": "The global concurrency limit object for enforcing the maximum number of flow runs that can be active at once."
                     },
                     "job_variables": {
                         "type": "object",

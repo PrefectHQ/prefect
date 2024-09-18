@@ -877,18 +877,17 @@ class Deployment(Base):
         order_by=sa.desc(sa.text("updated")),
     )
 
-    concurrency_limit: Mapped[Union[int, None]] = mapped_column(
-        sa.Integer, default=None, nullable=True
+    # deprecated in favor of `concurrency_limit_id` FK
+    _concurrency_limit: Mapped[Union[int, None]] = mapped_column(
+        sa.Integer, default=None, nullable=True, name="concurrency_limit"
     )
+
     concurrency_limit_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
         UUID,
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
         nullable=True,
     )
-    concurrency_limit_v2: Mapped[
-        Union["ConcurrencyLimitV2", None]
-    ] = sa.orm.relationship(
-        "ConcurrencyLimitV2",
+    concurrency_limit: Mapped[Union["ConcurrencyLimitV2", None]] = sa.orm.relationship(
         lazy="selectin",
     )
 
