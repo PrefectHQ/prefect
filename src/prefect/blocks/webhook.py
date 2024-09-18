@@ -47,14 +47,11 @@ class Webhook(Block):
     )
     verify: bool = Field(
         default=True,
-        description="Whether or not to allow an insecure connection to the webhook.",
+        description="Whether or not to enforce a secure connection to the webhook.",
     )
 
     def block_initialization(self):
-        if not getattr(self, "verify", True):
-            self._client = AsyncClient(transport=_insecure_http_transport)
-        else:
-            self._client = AsyncClient(transport=_http_transport)
+        self._client = AsyncClient(transport=AsyncHTTPTransport(verify=self.verify))
 
     async def call(self, payload: Optional[dict] = None) -> Response:
         """
