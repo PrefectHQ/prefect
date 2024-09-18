@@ -1138,6 +1138,46 @@ class TestUpdateDeployment:
         assert updated_deployment._concurrency_limit == 5
         assert updated_deployment.concurrency_limit.limit == 5
 
+    async def test_update_deployment_can_remove_concurrency_limit(
+        self,
+        session,
+        deployment,
+    ):
+        # Given a deployment with a concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=5,
+            ),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+        assert deployment.concurrency_limit is not None
+        gcl_id = deployment.concurrency_limit.id
+
+        # update it to remove the concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=None,
+            ),
+        )
+        await session.commit()
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment
+        assert updated_deployment._concurrency_limit is None
+        assert updated_deployment.concurrency_limit is None
+
+        assert (
+            await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
+            is None
+        ), "Expected the concurrency limit to be deleted, but it was not"
+
 
 @pytest.fixture
 async def deployment_schedules(

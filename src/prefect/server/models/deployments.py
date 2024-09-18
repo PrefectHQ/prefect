@@ -199,7 +199,7 @@ async def update_deployment(
     # the user, ignoring any defaults on the model
     update_data = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"work_pool_name", "concurrency_limit"},
+        exclude={"work_pool_name"},
     )
 
     # The job_variables field in client and server schemas is named
@@ -209,6 +209,11 @@ async def update_deployment(
         update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
+
+    should_update_concurrency_limit = (
+        # can update concurrency_limit to None so use a different sentinel value
+        update_data.pop("concurrency_limit", "unset") != "unset"
+    )
 
     if deployment.work_pool_name and deployment.work_queue_name:
         # If a specific pool name/queue name combination was provided, get the
@@ -268,7 +273,7 @@ async def update_deployment(
             ],
         )
 
-    if deployment.concurrency_limit:
+    if should_update_concurrency_limit:
         await create_or_update_deployment_concurrency_limit(
             session, deployment_id, deployment.concurrency_limit
         )
@@ -277,14 +282,18 @@ async def update_deployment(
 
 
 async def create_or_update_deployment_concurrency_limit(
-    session: AsyncSession, deployment_id: UUID, limit: int
+    session: AsyncSession, deployment_id: UUID, limit: Optional[int]
 ):
     deployment = await session.get(orm_models.Deployment, deployment_id)
     assert deployment is not None
 
     deployment._concurrency_limit = limit
-
-    if deployment.concurrency_limit:
+    if limit is None:
+        await _delete_related_concurrency_limit(
+            session=session, deployment_id=deployment_id
+        )
+        await session.refresh(deployment)
+    elif deployment.concurrency_limit:
         deployment.concurrency_limit.limit = limit
     else:
         limit_name = f"deployment:{deployment_id}"
