@@ -1,7 +1,7 @@
 """Add deployment to global concurrency limit FK
 
 Revision ID: 4ad4658cbefe
-Revises: f93e1439f022
+Revises: 7d6350aea855
 Create Date: 2024-09-16 16:27:19.451150
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "4ad4658cbefe"
-down_revision = "f93e1439f022"
+down_revision = "7d6350aea855"
 branch_labels = None
 depends_on = None
 

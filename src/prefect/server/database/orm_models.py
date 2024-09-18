@@ -881,7 +881,6 @@ class Deployment(Base):
     _concurrency_limit: Mapped[Union[int, None]] = mapped_column(
         sa.Integer, default=None, nullable=True, name="concurrency_limit"
     )
-
     concurrency_limit_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
         UUID,
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
@@ -891,6 +890,14 @@ class Deployment(Base):
         Union["ConcurrencyLimitV2", None]
     ] = sa.orm.relationship(
         lazy="selectin",
+    )
+    concurrency_options: Mapped[
+        Union[schemas.core.ConcurrencyOptions, None]
+    ] = mapped_column(
+        Pydantic(schemas.core.ConcurrencyOptions),
+        server_default=None,
+        nullable=True,
+        default=None,
     )
 
     tags: Mapped[List[str]] = mapped_column(

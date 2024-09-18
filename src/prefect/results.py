@@ -110,7 +110,7 @@ async def get_default_result_storage() -> WritableFileSystem:
 
 @sync_compatible
 async def resolve_result_storage(
-    result_storage: Union[ResultStorage, UUID],
+    result_storage: Union[ResultStorage, UUID, Path],
 ) -> WritableFileSystem:
     """
     Resolve one of the valid `ResultStorage` input types into a saved block
@@ -127,6 +127,8 @@ async def resolve_result_storage(
             storage_block_id = storage_block._block_document_id
         else:
             storage_block_id = None
+    elif isinstance(result_storage, Path):
+        storage_block = LocalFileSystem(basepath=str(result_storage))
     elif isinstance(result_storage, str):
         storage_block = await Block.load(result_storage, client=client)
         storage_block_id = storage_block._block_document_id
@@ -303,6 +305,15 @@ class ResultStore(BaseModel):
             update["storage_key_fn"] = partial(
                 _format_user_supplied_storage_key, task.result_storage_key
             )
+        if task.cache_policy is not None and task.cache_policy is not NotSet:
+            if task.cache_policy.key_storage is not None:
+                storage = task.cache_policy.key_storage
+                if isinstance(storage, str) and not len(storage.split("/")) == 2:
+                    storage = Path(storage)
+                update["result_storage"] = await resolve_result_storage(storage)
+            if task.cache_policy.lock_manager is not None:
+                update["lock_manager"] = task.cache_policy.lock_manager
+
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
         return self.model_copy(update=update)

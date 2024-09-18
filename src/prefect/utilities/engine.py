@@ -627,6 +627,9 @@ def link_state_to_result(state: State, result: Any) -> None:
     """
 
     flow_run_context = FlowRunContext.get()
+    # Drop the data field to avoid holding a strong reference to the result
+    # Holding large user objects in memory can cause memory bloat
+    linked_state = state.model_copy(update={"data": None})
 
     def link_if_trackable(obj: Any) -> None:
         """Track connection between a task run result and its associated state if it has a unique ID.
@@ -643,7 +646,7 @@ def link_state_to_result(state: State, result: Any) -> None:
         ):
             state.state_details.untrackable_result = True
             return
-        flow_run_context.task_run_results[id(obj)] = state
+        flow_run_context.task_run_results[id(obj)] = linked_state
 
     if flow_run_context:
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)

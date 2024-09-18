@@ -258,11 +258,11 @@ class Flow(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        # Validate name if given
-        if name:
-            _raise_on_name_with_banned_characters(name)
-
-        self.name = name or fn.__name__.replace("_", "-")
+        self.name = name or fn.__name__.replace("_", "-").replace(
+            "<lambda>",
+            "unknown-lambda",  # prefect API will not accept "<" or ">" in flow names
+        )
+        _raise_on_name_with_banned_characters(self.name)
 
         if flow_run_name is not None:
             if not isinstance(flow_run_name, str) and not callable(flow_run_name):
@@ -799,6 +799,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
+        global_limit: Optional[int] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -828,6 +829,7 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
+            global_limit: The maximum number of concurrent runs allowed across all served flow instances associated with the same deployment.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -839,7 +841,7 @@ class Flow(Generic[P, R]):
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
             print_starting_message: Whether or not to print the starting message when flow is served.
-            limit: The maximum number of runs that can be executed concurrently.
+            limit: The maximum number of runs that can be executed concurrently by the created runner; only applies to this served flow. To apply a limit across multiple served flows, use `global_limit`.
             webserver: Whether or not to start a monitoring webserver for this flow.
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
@@ -891,6 +893,7 @@ class Flow(Generic[P, R]):
             rrule=rrule,
             paused=paused,
             schedules=schedules,
+            concurrency_limit=global_limit,
             parameters=parameters,
             description=description,
             tags=tags,
@@ -1623,7 +1626,7 @@ def flow(
         )
 
 
-def _raise_on_name_with_banned_characters(name: str) -> str:
+def _raise_on_name_with_banned_characters(name: Optional[str]) -> Optional[str]:
     """
     Raise an InvalidNameError if the given name contains any invalid
     characters.

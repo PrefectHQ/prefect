@@ -195,6 +195,10 @@ class TestFlow:
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
             Flow(fn=lambda: 1, name=name)
 
+    def test_lambda_name_coerced_to_legal_characters(self):
+        f = Flow(fn=lambda: 42)
+        assert f.name == "unknown-lambda"
+
     def test_invalid_run_name(self):
         class InvalidFlowRunNameArg:
             def format(*args, **kwargs):
@@ -4020,6 +4024,7 @@ class TestFlowServe:
             version="alpha",
             enforce_parameter_schema=True,
             paused=True,
+            global_limit=42,
         )
 
         deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
@@ -4035,6 +4040,7 @@ class TestFlowServe:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.paused
+        assert deployment.concurrency_limit == 42
 
     def test_serve_can_user_a_module_path_entrypoint(self, sync_prefect_client):
         deployment = self.flow.serve(

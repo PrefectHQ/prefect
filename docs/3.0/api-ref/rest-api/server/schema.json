@@ -14593,6 +14593,15 @@
                 "title": "ConcurrencyLimitCreate",
                 "description": "Data used by the Prefect REST API to create a concurrency limit."
             },
+            "ConcurrencyLimitStrategy": {
+                "type": "string",
+                "enum": [
+                    "ENQUEUE",
+                    "CANCEL_NEW"
+                ],
+                "title": "ConcurrencyLimitStrategy",
+                "description": "Enumeration of concurrency collision strategies."
+            },
             "ConcurrencyLimitV2": {
                 "properties": {
                     "id": {
@@ -14803,6 +14812,19 @@
                 "type": "object",
                 "title": "ConcurrencyLimitV2Update",
                 "description": "Data used by the Prefect REST API to update a v2 concurrency limit."
+            },
+            "ConcurrencyOptions": {
+                "properties": {
+                    "collision_strategy": {
+                        "$ref": "#/components/schemas/ConcurrencyLimitStrategy"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "collision_strategy"
+                ],
+                "title": "ConcurrencyOptions",
+                "description": "Class for storing the concurrency config in database."
             },
             "Constant": {
                 "properties": {
@@ -16356,6 +16378,17 @@
                         ],
                         "title": "Concurrency Limit",
                         "description": "The deployment's concurrency limit."
+                    },
+                    "concurrency_options": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ConcurrencyOptions"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The deployment's concurrency options."
                     },
                     "parameters": {
                         "anyOf": [
@@ -21836,6 +21869,21 @@
                         "format": "duration",
                         "title": "Prefect Server Csrf Token Expiration",
                         "default": "PT1H"
+                    },
+                    "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Origins",
+                        "default": "*"
+                    },
+                    "PREFECT_SERVER_CORS_ALLOWED_METHODS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Methods",
+                        "default": "*"
+                    },
+                    "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Headers",
+                        "default": "*"
                     },
                     "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {
                         "type": "boolean",

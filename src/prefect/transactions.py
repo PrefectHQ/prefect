@@ -18,7 +18,11 @@ from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
 from prefect.context import ContextModel
-from prefect.exceptions import MissingContextError, SerializationError
+from prefect.exceptions import (
+    ConfigurationError,
+    MissingContextError,
+    SerializationError,
+)
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.records.base import TransactionRecord
@@ -194,8 +198,10 @@ class Transaction(ContextModel):
             and self.key
             and not self.store.supports_isolation_level(self.isolation_level)
         ):
-            raise ValueError(
-                f"Isolation level {self.isolation_level.name} is not supported by provided result store."
+            raise ConfigurationError(
+                f"Isolation level {self.isolation_level.name} is not supported by provided "
+                "configuration. Please ensure you've provided a lock file directory or lock "
+                "manager when using the SERIALIZABLE isolation level."
             )
 
         # this needs to go before begin, which could set the state to committed

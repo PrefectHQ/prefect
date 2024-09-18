@@ -291,6 +291,26 @@ class TestCreateDeployment:
             is None
         ), "Expected the concurrency limit to be deleted, but it was not"
 
+    async def test_create_deployment_with_concurrency_options(self, session, flow):
+        concurrency_options = schemas.core.ConcurrencyOptions(
+            collision_strategy="ENQUEUE",
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                concurrency_limit=42,
+                concurrency_options=concurrency_options,
+            ),
+        )
+        assert deployment._concurrency_limit == 42
+        assert deployment.global_concurrency_limit.limit == 42
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_options.collision_strategy
+        )
+
 
 class TestReadDeployment:
     async def test_read_deployment(self, session, flow, flow_function):
@@ -1210,6 +1230,28 @@ class TestUpdateDeployment:
             await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
             is None
         ), "Expected the concurrency limit to be deleted, but it was not"
+
+    async def test_update_deployment_with_concurrency_options(
+        self,
+        session,
+        deployment,
+    ):
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=42,
+                concurrency_options=schemas.core.ConcurrencyOptions(
+                    collision_strategy="CANCEL_NEW"
+                ),
+            ),
+        )
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment._concurrency_limit == 42
+        assert updated_deployment.global_concurrency_limit.limit == 42
+        assert updated_deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
 
 
 @pytest.fixture
