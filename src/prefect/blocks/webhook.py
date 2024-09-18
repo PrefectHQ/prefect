@@ -51,7 +51,10 @@ class Webhook(Block):
     )
 
     def block_initialization(self):
-        self._client = AsyncClient(transport=AsyncHTTPTransport(verify=self.verify))
+        if self.verify:
+            self._client = AsyncClient(transport=_http_transport)
+        else:
+            self._client = AsyncClient(transport=_insecure_http_transport)
 
     async def call(self, payload: Optional[dict] = None) -> Response:
         """
