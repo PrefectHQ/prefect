@@ -340,6 +340,17 @@ class CloudRunWorkerV2Variables(BaseVariables):
             "The arguments to pass to the Cloud Run Job V2's entrypoint command."
         ),
     )
+    env_from_secrets: Dict[str, SecretKeySelector] = Field(
+        default_factory=dict,
+        title="Environment Variables from Secrets",
+        description="Environment variables to set from GCP secrets when starting a flow run.",
+        example={
+            "ENV_VAR_NAME": {
+                "secret": "SECRET_NAME",
+                "version": "latest",
+            }
+        },
+    )
     keep_job: bool = Field(
         default=False,
         title="Keep Job After Completion",
