@@ -3969,7 +3969,7 @@ class TestFlowServe:
             version="alpha",
             enforce_parameter_schema=True,
             paused=True,
-            global_deployment_limit=42,
+            global_limit=42,
         )
 
         deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
