@@ -5,7 +5,7 @@ Intended for internal use by the Prefect REST API.
 
 import json
 from copy import copy
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -18,12 +18,13 @@ from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.block_types import read_block_type_by_slug
 from prefect.server.schemas.actions import BlockSchemaCreate
-from prefect.server.schemas.core import BlockSchema, BlockSchemaReference, BlockType
+from prefect.server.schemas.core import BlockSchema, BlockSchemaReference
 
 if TYPE_CHECKING:
     from prefect.client.schemas.actions import (
         BlockSchemaCreate as ClientBlockSchemaCreate,
     )
+    from prefect.client.schemas.objects import BlockSchema as ClientBlockSchema
 
 
 class MissingBlockTypeException(Exception):
@@ -34,10 +35,15 @@ class MissingBlockTypeException(Exception):
 async def create_block_schema(
     db: PrefectDBInterface,
     session: AsyncSession,
-    block_schema: Union[schemas.actions.BlockSchemaCreate, "ClientBlockSchemaCreate"],
+    block_schema: Union[
+        schemas.actions.BlockSchemaCreate,
+        schemas.core.BlockSchema,
+        "ClientBlockSchemaCreate",
+        "ClientBlockSchema",
+    ],
     override: bool = False,
     definitions: Optional[Dict] = None,
-):
+) -> Union[BlockSchema, orm_models.BlockSchema]:
     """
     Create a new block schema.
 
@@ -130,7 +136,7 @@ async def create_block_schema(
         query = query.where(orm_models.BlockSchema.version == block_schema.version)
 
     result = await session.execute(query)
-    created_block_schema = copy(result.scalar())
+    created_block_schema = copy(result.scalar_one())
 
     await _register_nested_block_schemas(
         session=session,
@@ -155,7 +161,7 @@ async def _register_nested_block_schemas(
     base_fields: Dict,
     definitions: Optional[Dict],
     override: bool = False,
-):
+) -> None:
     """
     Iterates through each of the block schema references declared on the block schema.
     Attempts to register each of the nested block schemas if they have not already been
@@ -191,6 +197,9 @@ async def _register_nested_block_schemas(
                     f" {reference_values_entry['block_type_slug']!r} was not found.Did"
                     " you forget to register the block type?"
                 )
+
+            reference_block_schema: Union[BlockSchema, orm_models.BlockSchema, None]
+
             # Checks to see if the visited block schema has been previously created
             reference_block_schema = await read_block_schema_by_checksum(
                 session=session,
@@ -237,8 +246,8 @@ def _get_fields_for_child_schema(
     definitions: Dict,
     base_fields: Dict,
     reference_name: str,
-    reference_block_type: BlockType,
-):
+    reference_block_type: orm_models.BlockType,
+) -> Dict[str, Any]:
     """
     Returns the field definitions for a child schema. The fields definitions are pulled from the provided `definitions`
     dictionary based on the information extracted from `base_fields` using the `reference_name`. `reference_block_type`
@@ -269,10 +278,10 @@ def _get_fields_for_child_schema(
                 # need to iterate
                 sub_block_schema_fields = potential_sub_block_schema_fields
                 break
-    return sub_block_schema_fields
+    return sub_block_schema_fields  # type: ignore
 
 
-async def delete_block_schema(session: sa.orm.Session, block_schema_id: UUID) -> bool:
+async def delete_block_schema(session: AsyncSession, block_schema_id: UUID) -> bool:
     """
     Delete a block schema by id.
 
@@ -295,7 +304,7 @@ async def delete_block_schema(session: sa.orm.Session, block_schema_id: UUID) ->
 async def read_block_schema(
     session: AsyncSession,
     block_schema_id: UUID,
-):
+) -> Union[BlockSchema, None]:
     """
     Reads a block schema by id. Will reconstruct the block schema's fields attribute
     to include block schema references.
@@ -353,7 +362,7 @@ async def read_block_schema(
     )
     result = await session.execute(nested_block_schemas_query)
 
-    return _construct_full_block_schema(result.all())
+    return _construct_full_block_schema(result.all())  # type: ignore[arg-type]
 
 
 def _construct_full_block_schema(
@@ -409,7 +418,7 @@ def _find_root_block_schema(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
-):
+) -> Union[BlockSchema, None]:
     """
     Attempts to find the root block schema from a list of block schemas
     with references. Returns None if a root block schema is not found.
@@ -430,16 +439,16 @@ def _find_root_block_schema(
 
 
 def _construct_block_schema_spec_definitions(
-    root_block_schema,
+    root_block_schema: BlockSchema,
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
-):
+) -> Dict[str, Any]:
     """
     Constructs field definitions for a block schema based on the nested block schemas
     as defined in the block_schemas_with_references list.
     """
-    definitions = {}
+    definitions: dict[str, Any] = {}
     for _, block_schema_references in root_block_schema.fields[
         "block_schema_references"
     ].items():
@@ -459,6 +468,7 @@ def _construct_block_schema_spec_definitions(
                     block_schemas_with_references=block_schemas_with_references,
                     root_block_schema=child_block_schema,
                 )
+                assert child_block_schema
                 definitions = _add_block_schemas_fields_to_definitions(
                     definitions, child_block_schema
                 )
@@ -484,7 +494,7 @@ def _find_block_schema_via_checksum(
 
 def _add_block_schemas_fields_to_definitions(
     definitions: Dict, child_block_schema: BlockSchema
-):
+) -> Dict[str, Any]:
     """
     Returns a new definitions dict with the fields of a block schema and it's child
     block schemas added to the existing definitions.
@@ -508,7 +518,7 @@ def _construct_block_schema_fields_with_block_references(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
-):
+) -> Dict[str, Any]:
     """
     Constructs the block_schema_references in a block schema's fields attributes. Returns
     a copy of the block schema with block_schema_references added.
@@ -534,6 +544,10 @@ def _construct_block_schema_fields_with_block_references(
         parent_block_schema_id,
     ) in block_schemas_with_references:
         if parent_block_schema_id == parent_block_schema.id:
+            assert (
+                nested_block_schema.block_type
+            ), f"{nested_block_schema} has no block type"
+
             new_block_schema_reference = {
                 "block_schema_checksum": nested_block_schema.checksum,
                 "block_type_slug": nested_block_schema.block_type.slug,
@@ -575,7 +589,7 @@ async def read_block_schemas(
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
-):
+) -> List[BlockSchema]:
     """
     Reads block schemas, optionally filtered by type or name.
 
@@ -668,12 +682,12 @@ async def read_block_schemas(
             root_block_schema.id in filtered_block_schema_ids
             and root_block_schema.id not in visited_block_schema_ids
         ):
-            fully_constructed_block_schemas.append(
-                _construct_full_block_schema(
-                    block_schemas_with_references=block_schemas_with_references,
-                    root_block_schema=root_block_schema,
-                )
+            constructed = _construct_full_block_schema(
+                block_schemas_with_references=block_schemas_with_references,  # type: ignore[arg-type]
+                root_block_schema=root_block_schema,
             )
+            assert constructed
+            fully_constructed_block_schemas.append(constructed)
             visited_block_schema_ids.append(root_block_schema.id)
 
     # because we reconstructed schemas ordered by created ASC, we
@@ -757,7 +771,7 @@ async def read_block_schema_by_checksum(
         )
     )
     result = await session.execute(nested_block_schemas_query)
-    return _construct_full_block_schema(result.all())
+    return _construct_full_block_schema(result.all())  # type: ignore[arg-type]
 
 
 @db_injector
@@ -788,7 +802,7 @@ async def create_block_schema_reference(
     db: PrefectDBInterface,
     session: AsyncSession,
     block_schema_reference: schemas.core.BlockSchemaReference,
-):
+) -> Union[orm_models.BlockSchemaReference, None]:
     """
     Retrieves a list of all available block capabilities.
 

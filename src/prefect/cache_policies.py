@@ -1,9 +1,18 @@
 import inspect
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from copy import deepcopy
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
+
+from typing_extensions import Self
 
 from prefect.context import TaskRunContext
 from prefect.utilities.hashing import hash_objects
+
+if TYPE_CHECKING:
+    from prefect.filesystems import WritableFileSystem
+    from prefect.locking.protocol import LockManager
+    from prefect.transactions import IsolationLevel
 
 
 @dataclass
@@ -11,6 +20,14 @@ class CachePolicy:
     """
     Base class for all cache policies.
     """
+
+    key_storage: Union["WritableFileSystem", str, Path, None] = None
+    isolation_level: Union[
+        Literal["READ_COMMITTED", "SERIALIZABLE"],
+        "IsolationLevel",
+        None,
+    ] = None
+    lock_manager: Optional["LockManager"] = None
 
     @classmethod
     def from_cache_key_fn(
@@ -21,6 +38,37 @@ class CachePolicy:
         """
         return CacheKeyFnPolicy(cache_key_fn=cache_key_fn)
 
+    def configure(
+        self,
+        key_storage: Union["WritableFileSystem", str, Path, None] = None,
+        lock_manager: Optional["LockManager"] = None,
+        isolation_level: Union[
+            Literal["READ_COMMITTED", "SERIALIZABLE"], "IsolationLevel", None
+        ] = None,
+    ) -> Self:
+        """
+        Configure the cache policy with the given key storage, lock manager, and isolation level.
+
+        Args:
+            key_storage: The storage to use for cache keys. If not provided,
+                the current key storage will be used.
+            lock_manager: The lock manager to use for the cache policy. If not provided,
+                the current lock manager will be used.
+            isolation_level: The isolation level to use for the cache policy. If not provided,
+                the current isolation level will be used.
+
+        Returns:
+            A new cache policy with the given key storage, lock manager, and isolation level.
+        """
+        new = deepcopy(self)
+        if key_storage is not None:
+            new.key_storage = key_storage
+        if lock_manager is not None:
+            new.lock_manager = lock_manager
+        if isolation_level is not None:
+            new.isolation_level = isolation_level
+        return new
+
     def compute_key(
         self,
         task_ctx: TaskRunContext,
@@ -30,35 +78,48 @@ class CachePolicy:
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def __sub__(self, other: str) -> "CompoundCachePolicy":
+    def __sub__(self, other: str) -> "CachePolicy":
         if not isinstance(other, str):
             raise TypeError("Can only subtract strings from key policies.")
-        if isinstance(self, Inputs):
-            exclude = self.exclude or []
-            return Inputs(exclude=exclude + [other])
-        elif isinstance(self, CompoundCachePolicy):
-            new = Inputs(exclude=[other])
-            policies = self.policies or []
-            return CompoundCachePolicy(policies=policies + [new])
-        else:
-            new = Inputs(exclude=[other])
-            return CompoundCachePolicy(policies=[self, new])
+        new = Inputs(exclude=[other])
+        return CompoundCachePolicy(policies=[self, new])
 
-    def __add__(self, other: "CachePolicy") -> "CompoundCachePolicy":
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
         # adding _None is a no-op
         if isinstance(other, _None):
             return self
-        elif isinstance(self, _None):
-            return other
 
-        if isinstance(self, CompoundCachePolicy):
-            policies = self.policies or []
-            return CompoundCachePolicy(policies=policies + [other])
-        elif isinstance(other, CompoundCachePolicy):
-            policies = other.policies or []
-            return CompoundCachePolicy(policies=policies + [self])
-        else:
-            return CompoundCachePolicy(policies=[self, other])
+        if (
+            other.key_storage is not None
+            and self.key_storage is not None
+            and other.key_storage != self.key_storage
+        ):
+            raise ValueError(
+                "Cannot add CachePolicies with different storage locations."
+            )
+        if (
+            other.isolation_level is not None
+            and self.isolation_level is not None
+            and other.isolation_level != self.isolation_level
+        ):
+            raise ValueError(
+                "Cannot add CachePolicies with different isolation levels."
+            )
+        if (
+            other.lock_manager is not None
+            and self.lock_manager is not None
+            and other.lock_manager != self.lock_manager
+        ):
+            raise ValueError(
+                "Cannot add CachePolicies with different lock implementations."
+            )
+
+        return CompoundCachePolicy(
+            policies=[self, other],
+            key_storage=self.key_storage or other.key_storage,
+            isolation_level=self.isolation_level or other.isolation_level,
+            lock_manager=self.lock_manager or other.lock_manager,
+        )
 
 
 @dataclass
@@ -93,7 +154,7 @@ class CompoundCachePolicy(CachePolicy):
     Any keys that return `None` will be ignored.
     """
 
-    policies: Optional[list] = None
+    policies: List[CachePolicy] = field(default_factory=list)
 
     def compute_key(
         self,
@@ -103,7 +164,7 @@ class CompoundCachePolicy(CachePolicy):
         **kwargs,
     ) -> Optional[str]:
         keys = []
-        for policy in self.policies or []:
+        for policy in self.policies:
             policy_key = policy.compute_key(
                 task_ctx=task_ctx,
                 inputs=inputs,
@@ -132,6 +193,10 @@ class _None(CachePolicy):
         **kwargs,
     ) -> Optional[str]:
         return None
+
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        # adding _None is a no-op
+        return other
 
 
 @dataclass
@@ -208,7 +273,7 @@ class Inputs(CachePolicy):
     Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
     """
 
-    exclude: Optional[list] = None
+    exclude: List[str] = field(default_factory=list)
 
     def compute_key(
         self,
@@ -229,6 +294,11 @@ class Inputs(CachePolicy):
                 hashed_inputs[key] = val
 
         return hash_objects(hashed_inputs)
+
+    def __sub__(self, other: str) -> "CachePolicy":
+        if not isinstance(other, str):
+            raise TypeError("Can only subtract strings from key policies.")
+        return Inputs(exclude=self.exclude + [other])
 
 
 INPUTS = Inputs()

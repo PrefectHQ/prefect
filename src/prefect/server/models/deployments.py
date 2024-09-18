@@ -94,7 +94,14 @@ async def create_deployment(
 
     conflict_update_fields = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"id", "created", "created_by", "schedules", "job_variables"},
+        exclude={
+            "id",
+            "created",
+            "created_by",
+            "schedules",
+            "job_variables",
+            "concurrency_limit",
+        },
     )
     if job_variables:
         conflict_update_fields["infra_overrides"] = job_variables
@@ -529,14 +536,14 @@ async def schedule_runs(
     if min_time is None:
         min_time = PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
 
-    start_time = pendulum.instance(start_time)
-    end_time = pendulum.instance(end_time)
+    actual_start_time = pendulum.instance(start_time)
+    actual_end_time = pendulum.instance(end_time)
 
     runs = await _generate_scheduled_flow_runs(
         session=session,
         deployment_id=deployment_id,
-        start_time=start_time,
-        end_time=end_time,
+        start_time=actual_start_time,
+        end_time=actual_end_time,
         min_time=min_time,
         min_runs=min_runs,
         max_runs=max_runs,
