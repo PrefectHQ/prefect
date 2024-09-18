@@ -24,7 +24,7 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_gcp.credentials import GcpCredentials
-from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2
+from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelector
 from prefect_gcp.utilities import slugify_name
 
 if TYPE_CHECKING:
@@ -101,7 +101,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             "the local environment."
         ),
     )
-    env_from_secrets: Dict[str, Any] = Field(
+    env_from_secrets: Dict[str, SecretKeySelector] = Field(
         default_factory=dict,
         title="Environment Variables from Secrets",
         description="Environment variables to set from GCP secrets when starting a flow run.",
@@ -196,9 +196,11 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         Populates the job body with environment variables.
         """
         envs = [{"name": k, "value": v} for k, v in self.env.items()]
-        envs_from_secrets = [{"name": k, "valueSource": v} for k, v in self.env_from_secrets.items()]
+        envs_from_secrets = [
+            {"name": k, "valueSource": v.model_dump()}
+            for k, v in self.env_from_secrets.items()
+        ]
         envs.extend(envs_from_secrets)
-
 
         self.job_body["template"]["template"]["containers"][0]["env"] = envs
 
