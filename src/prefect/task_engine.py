@@ -769,11 +769,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         Convenience method to call the task function. Returns a coroutine if the
         task is async.
         """
-        self.task_run.run_count += 1
         parameters = self.parameters or {}
         if transaction.is_committed():
             result = transaction.read()
         else:
+            self.task_run.run_count += 1
             if self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
@@ -1276,11 +1276,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         Convenience method to call the task function. Returns a coroutine if the
         task is async.
         """
-        self.task_run.run_count += 1
         parameters = self.parameters or {}
         if transaction.is_committed():
             result = transaction.read()
         else:
+            self.task_run.run_count += 1
             if self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
