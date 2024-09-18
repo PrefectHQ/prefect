@@ -289,6 +289,7 @@ async def test_delete_concurrency_limit_used_for_deployment_concurrency_limiting
 
     await session.refresh(deployment)
     assert deployment.concurrency_limit is None
+    assert deployment.concurrency_limit_id is None
 
 
 async def test_update_concurrency_limit_with_invalid_name_raises(

@@ -155,10 +155,9 @@ async def create_deployment(
             ],
         )
 
-    if deployment.concurrency_limit:
-        await create_or_update_deployment_concurrency_limit(
-            session, deployment_id, deployment.concurrency_limit
-        )
+    await create_or_update_deployment_concurrency_limit(
+        session, deployment_id, deployment.concurrency_limit
+    )
 
     query = (
         sa.select(orm_models.Deployment)
@@ -199,7 +198,7 @@ async def update_deployment(
     # the user, ignoring any defaults on the model
     update_data = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"work_pool_name"},
+        exclude={"work_pool_name", "concurrency_limit"},
     )
 
     # The job_variables field in client and server schemas is named
@@ -209,11 +208,6 @@ async def update_deployment(
         update_data["infra_overrides"] = job_variables
 
     should_update_schedules = update_data.pop("schedules", None) is not None
-
-    should_update_concurrency_limit = (
-        # can update concurrency_limit to None so use a different sentinel value
-        update_data.pop("concurrency_limit", "unset") != "unset"
-    )
 
     if deployment.work_pool_name and deployment.work_queue_name:
         # If a specific pool name/queue name combination was provided, get the
@@ -273,10 +267,9 @@ async def update_deployment(
             ],
         )
 
-    if should_update_concurrency_limit:
-        await create_or_update_deployment_concurrency_limit(
-            session, deployment_id, deployment.concurrency_limit
-        )
+    await create_or_update_deployment_concurrency_limit(
+        session, deployment_id, deployment.concurrency_limit
+    )
 
     return result.rowcount > 0
 
@@ -286,6 +279,11 @@ async def create_or_update_deployment_concurrency_limit(
 ):
     deployment = await session.get(orm_models.Deployment, deployment_id)
     assert deployment is not None
+
+    if (
+        deployment.concurrency_limit and deployment.concurrency_limit.limit == limit
+    ) or (deployment.concurrency_limit is None and limit is None):
+        return
 
     deployment._concurrency_limit = limit
     if limit is None:
