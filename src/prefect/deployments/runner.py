@@ -54,7 +54,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import ConcurrencyLimitConfig
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, ConcurrencyOptions
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
@@ -148,7 +148,7 @@ class RunnerDeployment(BaseModel):
         default=None,
         description="The maximum number of concurrent runs of this deployment.",
     )
-    concurrency_options: Optional[ConcurrencyLimitConfig] = Field(
+    concurrency_options: Optional[ConcurrencyOptions] = Field(
         default=None,
         description="The concurrency limit config for the deployment.",
     )
@@ -493,11 +493,12 @@ class RunnerDeployment(BaseModel):
         )
 
         job_variables = job_variables or {}
+
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
+            concurrency_options = {
+                "collision_strategy": concurrency_limit.collision_strategy
+            }
             concurrency_limit = concurrency_limit.limit
-            concurrency_options = concurrency_limit
-        else:
-            concurrency_options = None
 
         deployment = cls(
             name=Path(name).stem,
@@ -634,10 +635,10 @@ class RunnerDeployment(BaseModel):
         )
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
+            concurrency_options = {
+                "collision_strategy": concurrency_limit.collision_strategy
+            }
             concurrency_limit = concurrency_limit.limit
-            concurrency_options = concurrency_limit
-        else:
-            concurrency_options = None
 
         deployment = cls(
             name=Path(name).stem,
@@ -730,10 +731,10 @@ class RunnerDeployment(BaseModel):
         )
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
+            concurrency_options = {
+                "collision_strategy": concurrency_limit.collision_strategy
+            }
             concurrency_limit = concurrency_limit.limit
-            concurrency_options = concurrency_limit
-        else:
-            concurrency_options = None
 
         job_variables = job_variables or {}
 

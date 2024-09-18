@@ -316,6 +316,10 @@ class DeploymentResponse(ObjectBaseModel):
     concurrency_limit: Optional[int] = Field(
         default=None, description="The concurrency limit for the deployment."
     )
+    concurrency_options: Optional[objects.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
+    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )

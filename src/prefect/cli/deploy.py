@@ -41,7 +41,6 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -494,7 +493,6 @@ async def _run_single_deploy(
     deploy_config["schedules"] = _construct_schedules(
         deploy_config,
     )
-
     # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
     if work_pool_name:
@@ -671,11 +669,12 @@ async def _run_single_deploy(
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedules"] = _schedules
 
-    if isinstance(deploy_config.get("concurrency_limit"), ConcurrencyLimitConfig):
-        deploy_config["concurrency_limit"] = deploy_config["concurrency_limit"].limit
-        deploy_config["concurrency_options"] = deploy_config["concurrency_limit"]
-    else:
-        deploy_config["concurrency_limit"] = None
+    if isinstance(deploy_config.get("concurrency_limit"), dict):
+        concurrency_limit = deploy_config.pop("concurrency_limit")
+        deploy_config["concurrency_options"] = {
+            "collision_strategy": concurrency_limit["collision_strategy"]
+        }
+        deploy_config["concurrency_limit"] = concurrency_limit["limit"]
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 

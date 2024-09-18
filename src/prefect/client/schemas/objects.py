@@ -162,7 +162,7 @@ class ConcurrencyLimitConfig(PrefectBaseModel):
     """
 
     limit: int
-    strategy: ConcurrencyLimitStrategy
+    collision_strategy: ConcurrencyLimitStrategy = ConcurrencyLimitStrategy.ENQUEUE
 
 
 class StateDetails(PrefectBaseModel):
