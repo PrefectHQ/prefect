@@ -510,10 +510,25 @@ async def delete_deployment(session: AsyncSession, deployment_id: UUID) -> bool:
         session=session, deployment_id=deployment_id, auto_scheduled_only=False
     )
 
+    await _delete_related_concurrency_limit(
+        session=session, deployment_id=deployment_id
+    )
+
     result = await session.execute(
         delete(orm_models.Deployment).where(orm_models.Deployment.id == deployment_id)
     )
     return result.rowcount > 0
+
+
+async def _delete_related_concurrency_limit(session: AsyncSession, deployment_id: UUID):
+    return await session.execute(
+        delete(orm_models.ConcurrencyLimitV2).where(
+            orm_models.ConcurrencyLimitV2.id
+            == sa.select(orm_models.Deployment.concurrency_limit_id)
+            .where(orm_models.Deployment.id == deployment_id)
+            .scalar_subquery()
+        )
+    )
 
 
 async def schedule_runs(

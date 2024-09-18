@@ -575,6 +575,38 @@ class TestDeleteDeployment:
         )
         assert result is False
 
+    async def test_delete_deployment_with_concurrency_limit(self, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                concurrency_limit=2,
+            ),
+        )
+        assert deployment is not None
+        assert deployment._concurrency_limit == 2
+
+        assert deployment.concurrency_limit is not None
+        assert deployment.concurrency_limit.limit == 2
+
+        assert await models.deployments.delete_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        await session.commit()
+
+        # make sure the deployment is deleted
+        result = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert result is None
+
+        # make sure the concurrency limit is deleted
+        result = await models.concurrency_limits_v2.read_concurrency_limit(
+            session, deployment.concurrency_limit_id
+        )
+        assert result is None
+
 
 class TestScheduledRuns:
     async def test_schedule_runs_inserts_in_db(self, deployment, session):
