@@ -1245,8 +1245,7 @@ class TestTaskRetries:
         run_counts = []
         start_times = []
 
-        # Added retry_delay_seconds as a regression check for https://github.com/PrefectHQ/prefect/issues/15422
-        @task(retries=3, retry_delay_seconds=1)
+        @task(retries=3)
         def flaky_function():
             ctx = TaskRunContext.get()
             state_names.append(ctx.task_run.state_name)
