@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import inspect
+import json
 import time
 from asyncio import Event, sleep
 from functools import partial
@@ -45,6 +46,7 @@ from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -1243,7 +1245,8 @@ class TestTaskRetries:
         run_counts = []
         start_times = []
 
-        @task(retries=3)
+        # Added retry_delay_seconds as a regression check for https://github.com/PrefectHQ/prefect/issues/15422
+        @task(retries=3, retry_delay_seconds=1)
         def flaky_function():
             ctx = TaskRunContext.get()
             state_names.append(ctx.task_run.state_name)
@@ -1918,7 +1921,12 @@ class TestTaskCaching:
             return x
 
         foo(1)
+        # make sure cache key file and result file are both created
         assert (tmp_path / expected_cache_key).exists()
+        assert "prefect_version" in json.loads(
+            (tmp_path / expected_cache_key).read_text()
+        )
+        assert (PREFECT_LOCAL_STORAGE_PATH.value() / expected_cache_key).exists()
 
     @pytest.mark.parametrize(
         "isolation_level", [IsolationLevel.SERIALIZABLE, "SERIALIZABLE"]

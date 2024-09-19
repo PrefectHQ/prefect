@@ -322,8 +322,16 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="The global concurrency limit object for enforcing the maximum number of flow runs that can be active at once.",
     )
+    concurrency_options: Optional[objects.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
+    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
+    )
+    concurrency_options: Optional[objects.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
     )
     schedules: List[objects.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."

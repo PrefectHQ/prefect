@@ -1,4 +1,5 @@
-"""Redis tasks"""
+"""Prebuilt Prefect tasks for reading and writing data to Redis"""
+
 from typing import TYPE_CHECKING, Any, Optional
 
 import cloudpickle
@@ -6,12 +7,12 @@ import cloudpickle
 from prefect import task
 
 if TYPE_CHECKING:
-    from .credentials import RedisCredentials
+    from .database import RedisDatabase
 
 
 @task
 async def redis_set(
-    credentials: "RedisCredentials",
+    credentials: "RedisDatabase",
     key: str,
     value: Any,
     ex: Optional[float] = None,
@@ -19,8 +20,10 @@ async def redis_set(
     nx: bool = False,
     xx: bool = False,
 ) -> None:
-    """Set a Redis key to a any value. Will use cloudpickle to convert `value` to
-    binary representation.
+    """
+    Set a Redis key to a any value.
+
+    Will use `cloudpickle` to convert `value` to binary representation.
 
     Args:
         credentials: Redis credential block
@@ -41,7 +44,7 @@ async def redis_set(
 
 @task
 async def redis_set_binary(
-    credentials: "RedisCredentials",
+    credentials: "RedisDatabase",
     key: str,
     value: bytes,
     ex: Optional[float] = None,
@@ -49,7 +52,8 @@ async def redis_set_binary(
     nx: bool = False,
     xx: bool = False,
 ) -> None:
-    """Set a Redis key to a binary value
+    """
+    Set a Redis key to a binary value
 
     Args:
         credentials: Redis credential block
@@ -62,15 +66,13 @@ async def redis_set_binary(
         xx: If set tot `True`, set the value at `key` to `value` only if it already
             exists
     """
-    client = credentials.get_client()
-
-    await client.set(key, value, ex=ex, px=px, nx=nx, xx=xx)
-    await client.aclose()
+    async with credentials.get_async_client() as client:
+        await client.set(key, value, ex=ex, px=px, nx=nx, xx=xx)
 
 
 @task
 async def redis_get(
-    credentials: "RedisCredentials",
+    credentials: "RedisDatabase",
     key: str,
 ) -> Any:
     """Get an object stored at a redis key. Will use cloudpickle to reconstruct
@@ -90,7 +92,7 @@ async def redis_get(
 
 @task
 async def redis_get_binary(
-    credentials: "RedisCredentials",
+    credentials: "RedisDatabase",
     key: str,
 ) -> bytes:
     """Get an bytes stored at a redis key
@@ -102,19 +104,16 @@ async def redis_get_binary(
     Returns:
         Bytes from `key` in Redis
     """
-    client = credentials.get_client()
-
-    ret = await client.get(key)
-
-    await client.aclose()
-    return ret
+    async with credentials.get_async_client() as client:
+        ret = await client.get(key)
+        return ret
 
 
 @task
 async def redis_execute(
-    credentials: "RedisCredentials",
+    credentials: "RedisDatabase",
     cmd: str,
-) -> str:
+) -> Any:
     """Execute Redis command
 
     Args:
@@ -124,9 +123,7 @@ async def redis_execute(
     Returns:
         Command response
     """
-    client = credentials.get_client()
-
-    ret = await client.execute_command(cmd)
-    await client.aclose()
+    async with credentials.get_async_client() as client:
+        ret = await client.execute_command(cmd)
 
     return ret

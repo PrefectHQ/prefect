@@ -54,6 +54,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, ConcurrencyOptions
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
@@ -146,6 +147,10 @@ class RunnerDeployment(BaseModel):
     concurrency_limit: Optional[int] = Field(
         default=None,
         description="The maximum number of concurrent runs of this deployment.",
+    )
+    concurrency_options: Optional[ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency limit config for the deployment.",
     )
     paused: Optional[bool] = Field(
         default=None, description="Whether or not the deployment is paused."
@@ -279,6 +284,7 @@ class RunnerDeployment(BaseModel):
                 paused=self.paused,
                 schedules=self.schedules,
                 concurrency_limit=self.concurrency_limit,
+                concurrency_options=self.concurrency_options,
                 parameters=self.parameters,
                 description=self.description,
                 tags=self.tags,
@@ -437,7 +443,7 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[int] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -488,11 +494,20 @@ class RunnerDeployment(BaseModel):
 
         job_variables = job_variables or {}
 
+        if isinstance(concurrency_limit, ConcurrencyLimitConfig):
+            concurrency_options = {
+                "collision_strategy": concurrency_limit.collision_strategy
+            }
+            concurrency_limit = concurrency_limit.limit
+        else:
+            concurrency_options = None
+
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
+            concurrency_options=concurrency_options,
             paused=paused,
             tags=tags or [],
             triggers=triggers or [],
@@ -567,7 +582,7 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[int] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -621,11 +636,20 @@ class RunnerDeployment(BaseModel):
             schedules=schedules,
         )
 
+        if isinstance(concurrency_limit, ConcurrencyLimitConfig):
+            concurrency_options = {
+                "collision_strategy": concurrency_limit.collision_strategy
+            }
+            concurrency_limit = concurrency_limit.limit
+        else:
+            concurrency_options = None
+
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
+            concurrency_options=concurrency_options,
             paused=paused,
             tags=tags or [],
             triggers=triggers or [],
@@ -659,7 +683,7 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[int] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -710,6 +734,14 @@ class RunnerDeployment(BaseModel):
             schedules=schedules,
         )
 
+        if isinstance(concurrency_limit, ConcurrencyLimitConfig):
+            concurrency_options = {
+                "collision_strategy": concurrency_limit.collision_strategy
+            }
+            concurrency_limit = concurrency_limit.limit
+        else:
+            concurrency_options = None
+
         job_variables = job_variables or {}
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -726,6 +758,7 @@ class RunnerDeployment(BaseModel):
             flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
+            concurrency_options=concurrency_options,
             paused=paused,
             tags=tags or [],
             triggers=triggers or [],
