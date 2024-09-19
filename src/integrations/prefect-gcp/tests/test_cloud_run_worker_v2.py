@@ -1,5 +1,6 @@
 import pytest
 from prefect_gcp.credentials import GcpCredentials
+from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
 from prefect_gcp.utilities import slugify_name
 from prefect_gcp.workers.cloud_run_v2 import CloudRunWorkerJobV2Configuration
 
@@ -98,6 +99,25 @@ class TestCloudRunWorkerJobV2Configuration:
         ][0]["env"] == [
             {"name": "ENV1", "value": "VALUE1"},
             {"name": "ENV2", "value": "VALUE2"},
+        ]
+
+    def test_populate_env_with_secrets(self, cloud_run_worker_v2_job_config):
+        cloud_run_worker_v2_job_config.env_from_secrets = {
+            "SECRET_ENV1": SecretKeySelector(secret="SECRET1", version="latest")
+        }
+        cloud_run_worker_v2_job_config._populate_env()
+
+        assert cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"] == [
+            {"name": "ENV1", "value": "VALUE1"},
+            {"name": "ENV2", "value": "VALUE2"},
+            {
+                "name": "SECRET_ENV1",
+                "valueSource": {
+                    "secretKeyRef": {"secret": "SECRET1", "version": "latest"}
+                },
+            },
         ]
 
     def test_populate_image_if_not_present(self, cloud_run_worker_v2_job_config):
