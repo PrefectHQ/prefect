@@ -172,6 +172,9 @@ class DeploymentCreate(ActionBaseModel):
     concurrency_limit: Optional[PositiveInteger] = Field(
         default=None, description="The deployment's concurrency limit."
     )
+    concurrency_options: Optional[schemas.core.ConcurrencyOptions] = Field(
+        default=None, description="The deployment's concurrency options."
+    )
     enforce_parameter_schema: bool = Field(
         default=True,
         description=(

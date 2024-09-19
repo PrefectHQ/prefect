@@ -493,7 +493,6 @@ async def _run_single_deploy(
     deploy_config["schedules"] = _construct_schedules(
         deploy_config,
     )
-
     # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
     if work_pool_name:
@@ -670,6 +669,16 @@ async def _run_single_deploy(
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedules"] = _schedules
 
+    if isinstance(deploy_config.get("concurrency_limit"), dict):
+        deploy_config["concurrency_options"] = {
+            "collision_strategy": get_from_dict(
+                deploy_config, "concurrency_limit.collision_strategy"
+            )
+        }
+        deploy_config["concurrency_limit"] = get_from_dict(
+            deploy_config, "concurrency_limit.limit"
+        )
+
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
@@ -690,6 +699,7 @@ async def _run_single_deploy(
         description=deploy_config.get("description"),
         tags=deploy_config.get("tags", []),
         concurrency_limit=deploy_config.get("concurrency_limit"),
+        concurrency_options=deploy_config.get("concurrency_options"),
         entrypoint=deploy_config.get("entrypoint"),
         pull_steps=pull_steps,
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),

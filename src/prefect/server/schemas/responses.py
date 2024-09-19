@@ -364,6 +364,10 @@ class DeploymentResponse(ORMBaseModel):
         default=None,
         description="The maximum number of flow runs that can be active at once.",
     )
+    concurrency_options: Optional[schemas.core.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
+    )
     job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",

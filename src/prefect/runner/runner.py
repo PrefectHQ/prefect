@@ -64,8 +64,13 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig,
+    FlowRun,
+    State,
+    StateType,
+)
 from prefect.client.schemas.objects import Flow as APIFlow
-from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.concurrency.asyncio import (
     AcquireConcurrencySlotTimeoutError,
     ConcurrencySlotAcquisitionError,
@@ -236,7 +241,7 @@ class Runner:
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[int] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,

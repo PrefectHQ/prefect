@@ -86,6 +86,7 @@ from prefect.client.schemas.objects import (
     BlockSchema,
     BlockType,
     ConcurrencyLimit,
+    ConcurrencyOptions,
     Constant,
     DeploymentSchedule,
     Flow,
@@ -1639,6 +1640,7 @@ class PrefectClient:
         version: Optional[str] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
         concurrency_limit: Optional[int] = None,
+        concurrency_options: Optional[ConcurrencyOptions] = None,
         parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -1697,6 +1699,7 @@ class PrefectClient:
             paused=paused,
             schedules=schedules or [],
             concurrency_limit=concurrency_limit,
+            concurrency_options=concurrency_options,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
         )
