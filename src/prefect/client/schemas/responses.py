@@ -315,7 +315,7 @@ class DeploymentResponse(ObjectBaseModel):
     )
     concurrency_limit: Optional[int] = Field(
         default=None,
-        description="DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility.",
+        description="DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility. Will be removed after December 2024.",
         deprecated=True,
     )
     global_concurrency_limit: Optional["GlobalConcurrencyLimitResponse"] = Field(
