@@ -1,0 +1,34 @@
+---
+title: prefect-redis
+---
+
+Integrations to extend Prefect's functionality with Redis.
+
+## Getting started
+
+### Install `prefect-redis`
+
+The following command will install a version of `prefect-redis` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
+
+```bash
+pip install "prefect[redis]"
+```
+
+Upgrade to the latest versions of `prefect` and `prefect-redis`:
+
+```bash
+pip install -U "prefect[redis]"
+```
+
+### Register newly installed block types
+
+Register the block types in the `prefect-redis` module to make them available for use.
+
+```bash
+prefect block register -m prefect_redis
+```
+
+## Resources
+
+Refer to the [SDK documentation](https://prefect-python-sdk-docs.netlify.app/prefect_redis/) to explore all the capabilities of `prefect-redis`.
