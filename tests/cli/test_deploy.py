@@ -269,7 +269,7 @@ class TestProjectDeploy:
         )
         return uninitialized_project_dir_with_git_no_remote
 
-    async def test_project_deploy(self, project_dir, prefect_client):
+    async def test_project_deploy(self, project_dir, prefect_client: PrefectClient):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
         )
@@ -293,7 +293,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.concurrency_limit == 42
+        assert deployment.global_concurrency_limit.limit == 42
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
 
@@ -4138,7 +4138,7 @@ class TestDeployPattern:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_concurrency_limit_config_deployment_yaml(
-        self, work_pool, prefect_client
+        self, work_pool, prefect_client: PrefectClient
     ):
         concurrency_limit_config = {"limit": 42, "collision_strategy": "CANCEL_NEW"}
 
@@ -4162,7 +4162,12 @@ class TestDeployPattern:
             "An important name/test-name"
         )
 
-        assert deployment.concurrency_limit == concurrency_limit_config["limit"]
+        assert deployment.global_concurrency_limit is not None
+        assert (
+            deployment.global_concurrency_limit.limit
+            == concurrency_limit_config["limit"]
+        )
+        assert deployment.concurrency_options is not None
         assert (
             deployment.concurrency_options.collision_strategy
             == concurrency_limit_config["collision_strategy"]
