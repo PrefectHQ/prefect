@@ -670,11 +670,14 @@ async def _run_single_deploy(
     deploy_config["schedules"] = _schedules
 
     if isinstance(deploy_config.get("concurrency_limit"), dict):
-        concurrency_limit = deploy_config.pop("concurrency_limit")
         deploy_config["concurrency_options"] = {
-            "collision_strategy": concurrency_limit["collision_strategy"]
+            "collision_strategy": get_from_dict(
+                deploy_config, "concurrency_limit.collision_strategy"
+            )
         }
-        deploy_config["concurrency_limit"] = concurrency_limit["limit"]
+        deploy_config["concurrency_limit"] = get_from_dict(
+            deploy_config, "concurrency_limit.limit"
+        )
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
