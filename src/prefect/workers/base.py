@@ -42,6 +42,7 @@ from prefect.settings import (
 )
 from prefect.states import (
     AwaitingConcurrencySlot,
+    Cancelled,
     Crashed,
     Pending,
     exception_to_failed_state,
@@ -784,6 +785,7 @@ class BaseWorker(abc.ABC):
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
                 self._submitting_flow_run_ids.add(flow_run.id)
+                print("flow_run state before submit_run", flow_run.state)
                 self._runs_task_group.start_soon(
                     self._submit_run,
                     flow_run,
@@ -831,9 +833,9 @@ class BaseWorker(abc.ABC):
             )
             self._submitting_flow_run_ids.remove(flow_run.id)
             return
-
+        print("state before ready_to_submit", flow_run.state)
         ready_to_submit = await self._propose_pending_state(flow_run)
-
+        print("state after ready_to_submit", flow_run.state)
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
                 self._submit_run_and_capture_errors, flow_run
@@ -902,7 +904,15 @@ class BaseWorker(abc.ABC):
                 flow_run.deployment_id,
                 flow_run.name,
             )
-            await self._propose_scheduled_state(flow_run)
+            if deployment.concurrency_options:
+                if deployment.concurrency_options.collision_strategy == "CANCEL_NEW":
+                    self._cancelling_flow_run_ids.add(flow_run.id)
+                    flow_run.state = Cancelled()
+                    self._runs_task_group.start_soon(self._cancel_run, flow_run)
+                else:
+                    await self._propose_scheduled_state(flow_run)
+            else:
+                await self._propose_scheduled_state(flow_run)
 
             if not task_status._future.done():
                 task_status.started(exc)
@@ -1003,6 +1013,7 @@ class BaseWorker(abc.ABC):
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         run_logger = self.get_flow_run_logger(flow_run)
         state = flow_run.state
+        print("state in propose_pending_state", state)
         try:
             state = await propose_state(
                 self._client, Pending(), flow_run_id=flow_run.id
@@ -1109,6 +1120,19 @@ class BaseWorker(abc.ABC):
                 base_job_template=job_template,
             ),
         )
+
+    async def _cancel_run(self, flow_run: "FlowRun", state_msg: Optional[str] = None):
+        run_logger = self.get_flow_run_logger(flow_run)
+
+        await self._mark_flow_run_as_cancelled(
+            flow_run,
+            state_updates={
+                "message": state_msg or "Flow run was cancelled successfully."
+            },
+        )
+
+        self._emit_flow_run_cancelled_event()
+        run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
 
     async def _schedule_task(self, __in_seconds: int, fn, *args, **kwargs):
         """
@@ -1224,4 +1248,13 @@ class BaseWorker(abc.ABC):
             resource=self._event_resource(),
             related=self._event_related_resources(),
             follows=started_event,
+        )
+
+    def _emit_flow_run_cancelled_event(
+        self,
+    ):
+        emit_event(
+            event="prefect.worker.cancelled-flow-run",
+            resource=self._event_resource(),
+            related=self._event_related_resources(),
         )

@@ -732,6 +732,53 @@ class TestRunner:
             assert flow_run.state.name == "AwaitingConcurrencySlot"
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_cancels_new_flow_run_when_collision_strategy_is_cancel_new(
+        self, prefect_client: PrefectClient, caplog
+    ):
+        async def test(*args, **kwargs):
+            return 0
+
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            # Simulate a Locked response from the API
+            acquire_spy.side_effect = AcquireConcurrencySlotTimeoutError
+
+            async with Runner(pause_on_shutdown=False) as runner:
+                deployment = RunnerDeployment.from_flow(
+                    flow=dummy_flow_1,
+                    name=__file__,
+                    concurrency_limit=ConcurrencyLimitConfig(
+                        limit=2, collision_strategy="CANCEL_NEW"
+                    ),
+                )
+
+                deployment_id = await runner.add_deployment(deployment)
+
+                flow_run = await prefect_client.create_flow_run_from_deployment(
+                    deployment_id=deployment_id
+                )
+
+                assert flow_run.state.is_scheduled()
+
+                runner.run = test  # simulate running a flow
+
+                await runner._get_and_submit_flow_runs()
+
+            acquire_spy.assert_called_once_with(
+                [f"deployment:{deployment_id}"],
+                1,
+                timeout_seconds=None,
+                create_if_missing=None,
+                max_retries=0,
+                strict=True,
+            )
+
+            flow_run = await prefect_client.read_flow_run(flow_run.id)
+            assert flow_run.state.name == "Cancelled"
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_does_not_attempt_to_acquire_limit_if_deployment_has_no_concurrency_limit(
         self, prefect_client: PrefectClient, caplog
     ):

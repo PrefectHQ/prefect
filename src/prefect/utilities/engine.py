@@ -425,6 +425,7 @@ async def propose_state(
         set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
         response = await set_state_and_handle_waits(set_state)
     elif flow_run_id:
+        print("setting flow run state", state)
         set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
         response = await set_state_and_handle_waits(set_state)
     else:

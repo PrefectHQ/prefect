@@ -843,6 +843,7 @@ class Runner:
                 flow = await self._client.read_flow(flow_run.flow_id)
             except ObjectNotFound:
                 flow = None
+
             self._emit_flow_run_cancelled_event(
                 flow_run=flow_run, flow=flow, deployment=deployment
             )
@@ -1080,7 +1081,14 @@ class Runner:
                 flow_run.deployment_id,
                 flow_run.name,
             )
-            await self._propose_scheduled_state(flow_run)
+            if deployment.concurrency_options:
+                if deployment.concurrency_options.collision_strategy == "CANCEL_NEW":
+                    self._cancelling_flow_run_ids.add(flow_run.id)
+                    self._runs_task_group.start_soon(self._cancel_run, flow_run)
+                else:
+                    await self._propose_scheduled_state(flow_run)
+            else:
+                await self._propose_scheduled_state(flow_run)
 
             if not task_status._future.done():
                 task_status.started(exc)

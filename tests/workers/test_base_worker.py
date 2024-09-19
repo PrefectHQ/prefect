@@ -389,6 +389,41 @@ async def test_worker_with_deployment_concurrency_limit_uses_limit(
             assert occupy_seconds > 0
 
 
+async def test_worker_with_deployment_concurrency_options_cancel_new(
+    prefect_client: PrefectClient, worker_deployment_wq1_cl1_cancel_new, work_pool
+):
+    async def test(*args, **kwargs):
+        return BaseWorkerResult(status_code=0, identifier="123")
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1_cl1_cancel_new.id, name="test"
+    )
+
+    with mock.patch(
+        "prefect.concurrency.asyncio._acquire_concurrency_slots",
+        wraps=_acquire_concurrency_slots,
+    ) as acquire_spy:
+        # Simulate a Locked response from the API
+        acquire_spy.side_effect = AcquireConcurrencySlotTimeoutError
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            worker.run = test  # simulate running a flow
+            await worker.get_and_submit_flow_runs()
+
+        acquire_spy.assert_called_once_with(
+            [f"deployment:{worker_deployment_wq1_cl1_cancel_new.id}"],
+            1,
+            timeout_seconds=None,
+            create_if_missing=None,
+            max_retries=0,
+            strict=True,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.name == "Cancelled"
+
+
 async def test_worker_with_deployment_concurrency_limit_proposes_awaiting_limit_state_name(
     prefect_client: PrefectClient, worker_deployment_wq1_cl1, work_pool
 ):
