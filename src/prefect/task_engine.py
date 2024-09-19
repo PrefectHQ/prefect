@@ -364,7 +364,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         new_state = Running()
 
         self.task_run.start_time = new_state.timestamp
-        self.task_run.run_count += 1
 
         flow_run_context = FlowRunContext.get()
         if flow_run_context and flow_run_context.flow_run:
@@ -511,7 +510,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
-                self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
@@ -775,6 +773,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
+            self.task_run.run_count += 1
             if self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
@@ -883,7 +882,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         new_state = Running()
 
         self.task_run.start_time = new_state.timestamp
-        self.task_run.run_count += 1
 
         flow_run_context = FlowRunContext.get()
         if flow_run_context:
@@ -1026,7 +1024,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
-                self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
@@ -1283,6 +1280,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
+            self.task_run.run_count += 1
             if self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
