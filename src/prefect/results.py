@@ -47,6 +47,7 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import (
     LocalFileSystem,
+    NullFileSystem,
     WritableFileSystem,
 )
 from prefect.locking.protocol import LockManager
@@ -281,6 +282,7 @@ class ResultStore(BaseModel):
             update["cache_result_in_memory"] = flow.cache_result_in_memory
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
+        update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 
     @sync_compatible
@@ -316,6 +318,11 @@ class ResultStore(BaseModel):
 
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
+        if (
+            isinstance(self.metadata_storage, NullFileSystem)
+            and update.get("metadata_storage", NotSet) is NotSet
+        ):
+            update["metadata_storage"] = None
         return self.model_copy(update=update)
 
     @staticmethod
