@@ -6,6 +6,7 @@ import os
 from typing import List, Optional
 
 import typer
+from typing_extensions import Literal, TypeAlias
 
 import prefect.context
 import prefect.settings
@@ -14,6 +15,8 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.utilities.collections import listrepr
+
+_EnvSource: TypeAlias = Literal["env", "profile", "defaults"]
 
 help_message = """
     View and set Prefect profiles.
@@ -37,10 +40,7 @@ def set_(settings: List[str]):
                 f"Failed to parse argument {item!r}. Use the format 'VAR=VAL'."
             )
 
-        if not hasattr(
-            prefect.settings.get_current_settings(),
-            prefect.settings.env_var_to_attr_name(setting),
-        ):
+        if setting not in prefect.settings.Settings.valid_setting_names():
             exit_with_error(f"Unknown setting name {setting!r}.")
 
         # Guard against changing settings that tweak config locations
@@ -105,11 +105,7 @@ def unset(setting_names: List[str], confirm: bool = typer.Option(False, "--yes",
         if setting_name not in prefect.settings.Settings.valid_setting_names():
             exit_with_error(f"Unknown setting name {setting_name!r}.")
         # Cast to settings objects
-        parsed.add(
-            prefect.settings.SETTING_VARIABLES[
-                prefect.settings.env_var_to_attr_name(setting_name)
-            ]
-        )
+        parsed.add(prefect.settings.SETTING_VARIABLES[setting_name])
 
     for setting in parsed:
         if setting not in profile.settings:
@@ -187,33 +183,51 @@ def view(
         dump_context = dict(include_secrets=True)
     else:
         dump_context = {}
-    context = prefect.context.get_settings_context()
 
-    # Get settings at each level, converted to a flat dictionary for easy comparison
+    context = prefect.context.get_settings_context()
     default_settings = prefect.settings.get_default_settings()
-    current_profile = context.profile
-    current_profile_settings = current_profile.settings
+    current_profile_settings = context.profile.settings
 
     # Display the profile first
     app.console.print(f"[bold][blue]PREFECT_PROFILE={context.profile.name!r}[/bold]")
 
     settings_output = []
+    processed_settings = set()
 
-    for setting, value in current_profile_settings.items():
-        if env_value := os.getenv(setting.name):
-            source = "env"
-            value = env_value
-        else:
-            source = "profile"
-        value = "********" if setting.is_secret and not show_secrets else value
+    def _process_setting(
+        setting: prefect.settings.Setting, value: str, source: _EnvSource
+    ):
+        display_value = "********" if setting.is_secret and not show_secrets else value
         source_blurb = f" (from {source})" if show_sources else ""
-        settings_output.append(f"{setting.name}='{value}'{source_blurb}")
+        settings_output.append(f"{setting.name}='{display_value}'{source_blurb}")
+        processed_settings.add(setting.name)
 
+    # Process settings from the current profile
+    for setting, value in current_profile_settings.items():
+        env_value = os.getenv(setting.name)
+        if env_value is not None:
+            _process_setting(setting, env_value, "env")
+        else:
+            _process_setting(setting, value, "profile")
+
+    # Process settings from environment variables not already processed
+    env_setting_names = set(os.environ) & set(
+        prefect.settings.Settings.valid_setting_names()
+    )
+    for setting_name in env_setting_names:
+        setting = prefect.settings.SETTING_VARIABLES[setting_name]
+        if setting.name in processed_settings:
+            continue
+        env_value = os.getenv(setting.name)
+        _process_setting(setting, env_value, "env")
+
+    # Process default settings if show_defaults is True
     if show_defaults:
-        for key, value in default_settings.model_dump(context=dump_context).items():
+        default_values = default_settings.model_dump(context=dump_context)
+        for key, value in default_values.items():
             setting = prefect.settings.SETTING_VARIABLES[key]
-            if setting not in current_profile_settings:
-                source_blurb = " (from defaults)" if show_sources else ""
-                settings_output.append(f"{setting.name}='{value}'{source_blurb}")
+            if setting.name in processed_settings:
+                continue
+            _process_setting(setting, value, "defaults")
 
     app.console.print("\n".join(sorted(settings_output)))

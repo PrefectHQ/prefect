@@ -41,7 +41,6 @@ from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
-    PREFECT_API_KEY,
     PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
@@ -298,11 +297,14 @@ def pytest_sessionstart(session):
 
     This ensures that tests are isolated from existing settings, databases, etc.
 
-    We set the test profile during session startup instead of a fixture to ensure that
+    We set the test profile during configuration instead of a fixture to ensure that
     when tests are collected they respect the setting values.
     """
     global TEST_PREFECT_HOME, TEST_PROFILE_CTX
-    TEST_PREFECT_HOME = tempfile.mkdtemp()
+
+    # Ensure that the home directory is only created once per worker
+    if TEST_PREFECT_HOME is None:
+        TEST_PREFECT_HOME = tempfile.mkdtemp()
 
     profile = prefect.settings.Profile(
         name="test-session",
@@ -311,10 +313,9 @@ def pytest_sessionstart(session):
             # environments and settings
             PREFECT_HOME: TEST_PREFECT_HOME,
             PREFECT_LOCAL_STORAGE_PATH: Path(TEST_PREFECT_HOME) / "storage",
-            PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+            PREFECT_PROFILES_PATH: Path(TEST_PREFECT_HOME) / "profiles.toml",
             # Disable connection to an API
             PREFECT_API_URL: None,
-            PREFECT_API_KEY: None,
             # Disable pretty CLI output for easier assertions
             PREFECT_CLI_COLORS: False,
             PREFECT_CLI_WRAP_LINES: False,
@@ -362,7 +363,7 @@ def pytest_sessionstart(session):
     # Create the storage path now, fixing an obscure bug where it can be created by
     # when mounted as Docker volume resulting in the directory being owned by root
     # and unwritable by the normal user
-    PREFECT_LOCAL_STORAGE_PATH.value().mkdir()
+    PREFECT_LOCAL_STORAGE_PATH.value().mkdir(exist_ok=True, parents=True)
 
     # Ensure logging is configured for the test session
     setup_logging()

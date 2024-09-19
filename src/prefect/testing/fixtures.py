@@ -70,7 +70,9 @@ async def hosted_api_server(unused_tcp_port_factory):
     print(f"Running hosted API server on port {port}")
 
     # Will connect to the same database as normal test clients
-    settings = get_current_settings().to_environment_variables(exclude_unset=True)
+    settings = get_current_settings().to_environment_variables(
+        exclude_unset=True, include_secrets=True
+    )
     async with open_process(
         command=[
             "uvicorn",

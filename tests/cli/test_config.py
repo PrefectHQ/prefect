@@ -404,6 +404,7 @@ def test_view_includes_unset_settings_with_show_defaults():
         ["config", "view", "--show-sources"],
         ["config", "view", "--show-defaults"],
     ],
+    ids=["default", "show-sources", "show-defaults"],
 )
 def test_view_shows_setting_sources(monkeypatch, command):
     monkeypatch.setenv("PREFECT_API_DATABASE_CONNECTION_TIMEOUT", "2.5")

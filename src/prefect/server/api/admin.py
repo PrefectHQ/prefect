@@ -20,7 +20,7 @@ async def read_settings() -> prefect.settings.Settings:
 
     Secret setting values will be obfuscated.
     """
-    return prefect.settings.get_current_settings().with_obfuscated_secrets()
+    return prefect.settings.get_current_settings()
 
 
 @router.get("/version")

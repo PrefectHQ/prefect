@@ -17,6 +17,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypeVar,
     Union,
     get_args,
@@ -34,6 +35,7 @@ from pydantic import (
     SecretStr,
     SerializationInfo,
     TypeAdapter,
+    ValidationError,
     field_validator,
     model_serializer,
     model_validator,
@@ -48,6 +50,7 @@ from prefect.utilities.pydantic import handle_secret_render
 
 T = TypeVar("T")
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
+_SECRET_TYPES: Tuple[Type, ...] = (Secret, SecretStr)
 
 
 def env_var_to_attr_name(env_var: str) -> str:
@@ -75,9 +78,9 @@ class Setting:
 
     @property
     def is_secret(self):
-        if self._type in (Secret, SecretStr):
+        if self._type in _SECRET_TYPES:
             return True
-        for secret_type in (Secret, SecretStr):
+        for secret_type in _SECRET_TYPES:
             if secret_type in get_args(self._type):
                 return True
         return False
@@ -86,6 +89,12 @@ class Setting:
         return self._default
 
     def value(self: Self) -> Any:
+        if self.name == "PREFECT_TEST_SETTING":
+            if "PREFECT_UNIT_TEST_MODE" in os.environ:
+                return self.default()
+            else:
+                return None
+
         current_value = getattr(get_current_settings(), self.field_name)
         if isinstance(current_value, (Secret, SecretStr)):
             return current_value.get_secret_value()
@@ -108,6 +117,11 @@ class Setting:
 
     def __hash__(self) -> int:
         return hash((type(self), self.name))
+
+
+########################################################################
+# Define post init validators for use in an "after" model_validator,
+# core logic will remain similar after context-aware defaults are supported
 
 
 def default_ui_url(settings: "Settings") -> Optional[str]:
@@ -173,12 +187,21 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
-    value = values["api_database_password"]
+    value = (
+        v.get_secret_value()
+        if (v := values["api_database_password"]) and hasattr(v, "get_secret_value")
+        else None
+    )
+    api_db_connection_url = (
+        values["api_database_connection_url"].get_secret_value()
+        if hasattr(values["api_database_connection_url"], "get_secret_value")
+        else values["api_database_connection_url"]
+    )
     if (
         value
         and not value.startswith(OBFUSCATED_PREFIX)
-        and values["api_database_connection_url"] is not None
-        and ("api_database_password" not in values["api_database_connection_url"])
+        and api_db_connection_url is not None
+        and (value not in api_db_connection_url)
     ):
         warnings.warn(
             "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
@@ -227,7 +250,8 @@ def warn_on_misconfigured_api_url(values):
     return values
 
 
-def default_database_connection_url(settings: "Settings") -> str:
+def default_database_connection_url(settings: "Settings") -> SecretStr:
+    value = None
     if settings.api_database_driver == "postgresql+asyncpg":
         required = [
             "api_database_host",
@@ -248,26 +272,35 @@ def default_database_connection_url(settings: "Settings") -> str:
             host=settings.api_database_host,
             port=settings.api_database_port or 5432,
             username=settings.api_database_user,
-            password=settings.api_database_password,
+            password=(
+                settings.api_database_password.get_secret_value()
+                if settings.api_database_password
+                else None
+            ),
             database=settings.api_database_name,
             query=[],  # type: ignore
         ).render_as_string(hide_password=False)
 
     elif settings.api_database_driver == "sqlite+aiosqlite":
         if settings.api_database_name:
-            return f"{settings.api_database_driver}:///{settings.api_database_name}"
+            value = f"{settings.api_database_driver}:///{settings.api_database_name}"
         else:
-            return f"sqlite+aiosqlite:///{settings.home}/prefect.db"
+            value = f"sqlite+aiosqlite:///{settings.home}/prefect.db"
 
     elif settings.api_database_driver:
         raise ValueError(f"Unsupported database driver: {settings.api_database_driver}")
 
-    return f"sqlite+aiosqlite:///{settings.home}/prefect.db"
+    value = value if value else f"sqlite+aiosqlite:///{settings.home}/prefect.db"
+    return SecretStr(value)
+
+
+###########################################################################
+# Settings
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=("~/.prefect/profiles.toml"),
+        env_file=(".env"),
         env_prefix="PREFECT_",
         extra="ignore",
     )
@@ -300,7 +333,7 @@ class Settings(BaseSettings):
 
     unit_test_mode: bool = Field(
         default=False,
-        description="This variable only exists to facilitate unit testing. If `True`, code is executing in a unit test context. Defaults to `False`.",
+        description="This setting only exists to facilitate unit testing. If `True`, code is executing in a unit test context. Defaults to `False`.",
     )
 
     unit_test_loop_debug: bool = Field(
@@ -308,9 +341,9 @@ class Settings(BaseSettings):
         description="If `True` turns on debug mode for the unit testing event loop.",
     )
 
-    test_setting: Any = Field(
-        default=None,
-        description="This variable only exists to facilitate testing. If accessed when `test_mode` is not set, `None` is returned.",
+    test_setting: Optional[Any] = Field(
+        default="FOO",
+        description="This setting only exists to facilitate unit testing. If in test mode, this setting will return its value. Otherwise, it returns `None`.",
     )
 
     ###########################################################################
@@ -391,7 +424,7 @@ class Settings(BaseSettings):
     ###########################################################################
     # API Database settings
 
-    api_database_connection_url: Optional[str] = Field(
+    api_database_connection_url: Optional[SecretStr] = Field(
         default=None,
         description="""
         A database connection URL in a SQLAlchemy-compatible
@@ -434,7 +467,7 @@ class Settings(BaseSettings):
         description="The name of the Prefect database on the remote server, or the path to the database file for SQLite.",
     )
 
-    api_database_password: Optional[str] = Field(
+    api_database_password: Optional[SecretStr] = Field(
         default=None,
         description="The password to use when connecting to the database. Should be kept secret.",
     )
@@ -862,6 +895,11 @@ class Settings(BaseSettings):
         description="Whether or not to serve the Prefect UI.",
     )
 
+    ui_url: Optional[str] = Field(
+        default=None,
+        description="The URL of the Prefect UI. If not set, the client will attempt to infer it.",
+    )
+
     ui_api_url: Optional[str] = Field(
         default=None,
         description="The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.",
@@ -880,34 +918,9 @@ class Settings(BaseSettings):
     ###########################################################################
     # Events settings
 
-    events_maximum_labels_per_resource: int = Field(
-        default=500,
-        description="The maximum number of labels a resource may have.",
-    )
-
-    events_maximum_related_resources: int = Field(
-        default=500,
-        description="The maximum number of related resources an Event may have.",
-    )
-
-    events_maximum_size_bytes: int = Field(
-        default=1_500_000,
-        description="The maximum size of an Event when serialized to JSON",
-    )
-
     api_services_triggers_enabled: bool = Field(
         default=True,
         description="Whether or not to start the triggers service in the server application.",
-    )
-
-    events_expired_bucket_buffer: timedelta = Field(
-        default=timedelta(seconds=60),
-        description="The amount of time to retain expired automation buckets",
-    )
-
-    events_proactive_granularity: timedelta = Field(
-        default=timedelta(seconds=5),
-        description="How frequently proactive automations are evaluated",
     )
 
     api_services_event_persister_enabled: bool = Field(
@@ -927,19 +940,58 @@ class Settings(BaseSettings):
         description="The maximum number of seconds between flushes of the event persister.",
     )
 
-    events_retention_period: timedelta = Field(
-        default=timedelta(days=7),
-        description="The amount of time to retain events in the database.",
-    )
-
     api_events_stream_out_enabled: bool = Field(
         default=True,
         description="Whether or not to stream events out to the API via websockets.",
     )
 
+    api_enable_metrics: bool = Field(
+        default=False,
+        description="Whether or not to enable Prometheus metrics in the API.",
+    )
+
     api_events_related_resource_cache_ttl: timedelta = Field(
         default=timedelta(minutes=5),
         description="The number of seconds to cache related resources for in the API.",
+    )
+
+    client_enable_metrics: bool = Field(
+        default=False,
+        description="Whether or not to enable Prometheus metrics in the client.",
+    )
+
+    client_metrics_port: int = Field(
+        default=4201, description="The port to expose the client Prometheus metrics on."
+    )
+
+    events_maximum_labels_per_resource: int = Field(
+        default=500,
+        description="The maximum number of labels a resource may have.",
+    )
+
+    events_maximum_related_resources: int = Field(
+        default=500,
+        description="The maximum number of related resources an Event may have.",
+    )
+
+    events_maximum_size_bytes: int = Field(
+        default=1_500_000,
+        description="The maximum size of an Event when serialized to JSON",
+    )
+
+    events_expired_bucket_buffer: timedelta = Field(
+        default=timedelta(seconds=60),
+        description="The amount of time to retain expired automation buckets",
+    )
+
+    events_proactive_granularity: timedelta = Field(
+        default=timedelta(seconds=5),
+        description="How frequently proactive automations are evaluated",
+    )
+
+    events_retention_period: timedelta = Field(
+        default=timedelta(days=7),
+        description="The amount of time to retain events in the database.",
     )
 
     events_maximum_websocket_backfill: timedelta = Field(
@@ -951,20 +1003,6 @@ class Settings(BaseSettings):
         default=250,
         gt=0,
         description="The page size for the queries to backfill events for websocket subscribers.",
-    )
-
-    api_enable_metrics: bool = Field(
-        default=False,
-        description="Whether or not to enable Prometheus metrics in the API.",
-    )
-
-    client_enable_metrics: bool = Field(
-        default=False,
-        description="Whether or not to enable Prometheus metrics in the client.",
-    )
-
-    client_metrics_port: int = Field(
-        default=4201, description="The port to expose the client Prometheus metrics on."
     )
 
     ###########################################################################
@@ -1026,11 +1064,6 @@ class Settings(BaseSettings):
         When enabled (`True`), the client automatically manages CSRF tokens by
         retrieving, storing, and including them in applicable state-changing requests
         """,
-    )
-
-    ui_url: Optional[str] = Field(
-        default=None,
-        description="The URL of the Prefect UI. If not set, the client will attempt to infer it.",
     )
 
     experimental_warn: bool = Field(
@@ -1248,6 +1281,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
+        # TODO: refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
         if self.cloud_ui_url is None:
             self.cloud_ui_url = default_cloud_ui_url(self)
         if self.ui_url is None:
@@ -1322,16 +1356,16 @@ class Settings(BaseSettings):
         Returns:
             A new Settings object.
         """
+        restore_defaults_names = set(r.field_name for r in restore_defaults or [])
         updates = updates or {}
         set_defaults = set_defaults or {}
-        restore_defaults = restore_defaults or set()
-        restore_defaults_names = {setting.name for setting in restore_defaults}
 
-        return self.__class__(
+        new_settings = self.__class__(
             **{setting.field_name: value for setting, value in set_defaults.items()}
             | self.model_dump(exclude_unset=True, exclude=restore_defaults_names)
             | {setting.field_name: value for setting, value in updates.items()}
         )
+        return new_settings
 
     def hash_key(self) -> str:
         """
@@ -1352,16 +1386,13 @@ class Settings(BaseSettings):
 
         if exclude_unset:
             include.intersection_update(
-                {
-                    key
-                    for key in self.model_dump(
-                        exclude_unset=True, context={"include_secrets": include_secrets}
-                    )
-                }
+                {key for key in self.model_dump(exclude_unset=True)}
             )
 
         env: Dict[str, Any] = self.model_dump(
-            include={str(s) for s in include} if include else None, mode="json"
+            include={str(s) for s in include} if include else None,
+            mode="json",
+            context={"include_secrets": include_secrets},
         )
         return {
             f"{self.model_config.get('env_prefix')}{key.upper()}": str(value)
@@ -1373,9 +1404,6 @@ class Settings(BaseSettings):
     def ser_model(self, handler: Callable, info: SerializationInfo) -> Any:
         jsonable_self = handler(self)
         if (ctx := info.context) and ctx.get("include_secrets") is True:
-            fields_to_consider = set(self.model_fields.keys()).intersection(
-                (info.include or set())
-            )
             jsonable_self.update(
                 {
                     field_name: visit_collection(
@@ -1383,7 +1411,7 @@ class Settings(BaseSettings):
                         visit_fn=partial(handle_secret_render, context=ctx),
                         return_data=True,
                     )
-                    for field_name in fields_to_consider
+                    for field_name in set(self.model_fields.keys())
                 }
             )
         return jsonable_self
@@ -1443,7 +1471,8 @@ def get_settings_from_env() -> Settings:
     cache_key = hash(tuple((key, value) for key, value in os.environ.items()))
 
     if cache_key not in _FROM_ENV_CACHE:
-        _FROM_ENV_CACHE[cache_key] = Settings()
+        settings = Settings()
+        _FROM_ENV_CACHE[cache_key] = settings
 
     return _FROM_ENV_CACHE[cache_key]
 
@@ -1534,13 +1563,13 @@ class Profile(BaseModel):
         }
 
     def validate_settings(self):
-        errors: List[Tuple[Setting, Exception]] = []
+        errors: List[Tuple[Setting, ValidationError]] = []
         for setting, value in self.settings.items():
             try:
                 TypeAdapter(
                     Settings.model_fields[setting.field_name].annotation
                 ).validate_python(value)
-            except Exception as e:
+            except ValidationError as e:
                 errors.append((setting, e))
         if errors:
             raise ProfileSettingsValidationError(errors)
@@ -1860,17 +1889,50 @@ def update_current_profile(
 ############################################################################
 # Allow traditional env var access
 
-SETTING_VARIABLES = {
-    name: Setting(
-        name=f"{Settings.model_config.get('env_prefix')}{name.upper()}",
-        default=field.default,
-        type_=field.annotation,
-    )
-    for name, field in Settings.model_fields.items()
-}
+
+class _SettingsDict(dict):
+    """allow either `field_name` or `ENV_VAR_NAME` access
+    ```
+    d = _SettingsDict(Settings, "PREFECT_")
+    d["api_url"] == d["PREFECT_API_URL"]
+    ```
+    """
+
+    def __init__(self: Self, settings_cls: Type[Settings]):
+        super().__init__()
+        for field_name, field in settings_cls.model_fields.items():
+            setting = Setting(
+                name=f"{settings_cls.model_config.get('env_prefix')}{field_name.upper()}",
+                default=field.default,
+                type_=field.annotation,
+            )
+            self[field_name] = self[setting.name] = setting
+
+
+SETTING_VARIABLES: dict[str, Setting] = _SettingsDict(Settings)
 
 
 def __getattr__(name: str) -> Setting:
     if name in Settings.valid_setting_names():
-        return SETTING_VARIABLES[env_var_to_attr_name(name)]
+        return SETTING_VARIABLES[name]
     raise AttributeError(f"{name} is not a Prefect setting.")
+
+
+__all__ = [  # noqa: F822
+    "Profile",
+    "ProfilesCollection",
+    "Setting",
+    "Settings",
+    "load_current_profile",
+    "update_current_profile",
+    "load_profile",
+    "save_profiles",
+    "load_profiles",
+    "get_current_settings",
+    "get_settings_from_env",
+    "temporary_settings",
+    "DEFAULT_PROFILES_PATH",
+    # add public settings here for auto-completion
+    "PREFECT_API_KEY",  # type: ignore
+    "PREFECT_API_URL",  # type: ignore
+]
