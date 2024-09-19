@@ -310,6 +310,13 @@
           ]
         },
         {
+          "group": "Redis",
+          "pages": [
+            "integrations/prefect-redis/index",
+            "integrations/prefect-redis/sdk"
+          ]
+        },
+        {
           "group": "Shell",
           "pages": [
             "integrations/prefect-shell/index",

@@ -4,6 +4,7 @@ import time
 from uuid import uuid4
 
 import pytest
+from prefect_redis.blocks import RedisDatabase
 from prefect_redis.locking import RedisLockManager
 
 from prefect.results import ResultStore
@@ -167,3 +168,20 @@ class TestRedisLockManager:
 
         # the lock should have been acquired by the thread
         assert lock_manager.is_locked(key)
+
+    def test_configure_from_block(self):
+        block = RedisDatabase(
+            host="host",
+            port=1234,
+            db=1,
+            username="username",
+            password="password",
+            ssl=True,
+        )
+        lock_manager = RedisLockManager(**block.as_connection_params())
+        assert lock_manager.host == "host"
+        assert lock_manager.port == 1234
+        assert lock_manager.db == 1
+        assert lock_manager.username == "username"
+        assert lock_manager.password == "password"
+        assert lock_manager.ssl

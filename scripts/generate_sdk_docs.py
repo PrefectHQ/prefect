@@ -52,8 +52,7 @@ def packages() -> Generator[tuple[str, Path], None, None]:
     yield "prefect", Path("./src")
 
     for path in sorted(Path("./src/integrations").iterdir()):
-        if path.is_dir() and not path.name.endswith("redis"):
-            yield path.name, path
+        yield path.name, path
 
 
 if __name__ == "__main__":

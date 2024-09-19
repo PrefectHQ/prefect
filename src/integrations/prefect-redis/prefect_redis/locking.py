@@ -21,6 +21,33 @@ class RedisLockManager(LockManager):
         ssl: Whether to use SSL when connecting to the Redis server
         client: The Redis client used to communicate with the Redis server
         async_client: The asynchronous Redis client used to communicate with the Redis server
+
+    Example:
+        Use with a cache policy:
+        ```python
+        from prefect import task
+        from prefect.cache_policies import TASK_SOURCE, INPUTS
+        from prefect.isolation_levels import SERIALIZABLE
+
+        from prefect_redis import RedisLockManager
+
+        cache_policy = (INPUTS + TASK_SOURCE).configure(
+            isolation_level=SERIALIZABLE,
+            lock_manager=RedisLockManager(host="my-redis-host"),
+        )
+
+        @task(cache_policy=cache_policy)
+        def my_cached_task(x: int):
+            return x + 42
+        ```
+
+        Configure with a `RedisDatabase` block:
+        ```python
+        from prefect_redis import RedisDatabase, RedisLockManager
+
+        block = RedisDatabase(host="my-redis-host")
+        lock_manager = RedisLockManager(**block.as_connection_params())
+        ```
     """
 
     def __init__(

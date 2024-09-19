@@ -7,7 +7,7 @@ from typing import Dict
 
 import pytest
 from prefect_redis import (
-    RedisCredentials,
+    RedisDatabase,
     redis_execute,
     redis_get,
     redis_get_binary,
@@ -33,13 +33,13 @@ def environ_credentials() -> Dict:
 
 
 @pytest.fixture
-def redis_credentials(environ_credentials: Dict) -> RedisCredentials:
+def redis_credentials(environ_credentials: Dict) -> RedisDatabase:
     """Get `RedisCredentials` object from environment
 
     Returns:
         `RedisCredentials` object
     """
-    return RedisCredentials(**environ_credentials)
+    return RedisDatabase(**environ_credentials)
 
 
 @pytest.fixture
@@ -52,30 +52,47 @@ def random_key() -> str:
     return "".join(random.sample(string.ascii_lowercase, 10))
 
 
-@pytest.mark.asyncio
-async def test_from_credentials(redis_credentials: RedisCredentials):
+async def test_from_credentials(redis_credentials: RedisDatabase):
     """Test instantiating credentials"""
-    client = redis_credentials.get_client()
+    client = redis_credentials.get_async_client()
     await client.ping()
 
     await client.aclose()
 
 
-@pytest.mark.asyncio
+async def test_from_credentials_sync(redis_credentials: RedisDatabase):
+    """Test instantiating credentials"""
+    client = redis_credentials.get_client()
+    client.ping()
+
+    client.close()
+
+
 async def test_from_connection_string(environ_credentials: Dict):
     """Test instantiating from connection string"""
 
     connection_string = "redis://@{host}:{port}/{db}".format(**environ_credentials)
-    redis_credentials = RedisCredentials.from_connection_string(connection_string)
+    redis_credentials = RedisDatabase.from_connection_string(connection_string)
 
-    client = redis_credentials.get_client()
+    client = redis_credentials.get_async_client()
     await client.ping()
 
     await client.aclose()
 
 
-@pytest.mark.asyncio
-async def test_set_get_bytes(redis_credentials: RedisCredentials, random_key: str):
+async def test_from_connection_string_sync(environ_credentials: Dict):
+    """Test instantiating from connection string"""
+
+    connection_string = "redis://@{host}:{port}/{db}".format(**environ_credentials)
+    redis_credentials = RedisDatabase.from_connection_string(connection_string)
+
+    client = redis_credentials.get_client()
+    client.ping()
+
+    client.close()
+
+
+async def test_set_get_bytes(redis_credentials: RedisDatabase, random_key: str):
     """Test writing and reading back a byte-string"""
 
     ref_string = b"hello world"
@@ -86,7 +103,7 @@ async def test_set_get_bytes(redis_credentials: RedisCredentials, random_key: st
     assert test_value == ref_string
 
 
-async def test_set_get(redis_credentials: RedisCredentials, random_key: str):
+async def test_set_get(redis_credentials: RedisDatabase, random_key: str):
     """Test writing and reading back a string"""
 
     ref_string = "hello world"
@@ -97,7 +114,7 @@ async def test_set_get(redis_credentials: RedisCredentials, random_key: str):
     assert test_value == ref_string
 
 
-async def test_set_obj(redis_credentials: RedisCredentials, random_key: str):
+async def test_set_obj(redis_credentials: RedisDatabase, random_key: str):
     """Test writing and reading back an object"""
 
     ref_obj = ("foobar", 123, {"hello": "world"})
@@ -119,7 +136,7 @@ async def test_set_obj(redis_credentials: RedisCredentials, random_key: str):
         assert ref_dct[ref_key] == test_dct[test_key]
 
 
-async def test_execute(redis_credentials: RedisCredentials):
+async def test_execute(redis_credentials: RedisDatabase):
     """Test executing a command"""
 
     await redis_execute.fn(redis_credentials, "ping")
