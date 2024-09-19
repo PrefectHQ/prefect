@@ -692,8 +692,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
+            if self.state.name == "AwaitingRetry":
+                self.task_run.run_count += 1
             self.set_state(
-                Retrying() if self.state.name == "AwaitingRetry" else Running(),
+                new_state,
                 force=True,
             )
 
@@ -1199,8 +1202,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
+            if self.state.name == "AwaitingRetry":
+                self.task_run.run_count += 1
             await self.set_state(
-                Retrying() if self.state.name == "AwaitingRetry" else Running(),
+                new_state,
                 force=True,
             )
 
