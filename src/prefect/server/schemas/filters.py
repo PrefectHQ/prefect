@@ -1072,7 +1072,7 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     )
     concurrency_limit: Optional[DeploymentFilterConcurrencyLimit] = Field(
         default=None,
-        description="DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`. If provided, will be ignored for backwards-compatibility.",
+        description="DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`. If provided, will be ignored for backwards-compatibility. Will be removed after December 2024",
         deprecated=True,
     )
 
