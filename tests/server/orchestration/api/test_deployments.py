@@ -1014,6 +1014,34 @@ class TestCreateDeployment:
         assert response.status_code == 200
         assert response.json()["paused"] is True
 
+    async def test_create_deployment_with_concurrency_limit(
+        self,
+        client,
+        flow,
+    ):
+        response = await client.post(
+            "/deployments/",
+            json=dict(
+                name="My Deployment",
+                flow_id=str(flow.id),
+                concurrency_limit=3,
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        json_response = response.json()
+        assert (
+            json_response["concurrency_limit"] is None
+        ), "Deprecated int-only field should be None for backwards-compatibility"
+
+        global_concurrency_limit = json_response.get("global_concurrency_limit")
+        assert global_concurrency_limit is not None
+        assert global_concurrency_limit.get("limit") == 3
+        assert global_concurrency_limit.get("active") is True
+        assert (
+            global_concurrency_limit.get("name") == f"deployment:{json_response['id']}"
+        )
+
 
 class TestReadDeployment:
     async def test_read_deployment(
@@ -1030,6 +1058,29 @@ class TestReadDeployment:
     async def test_read_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/deployments/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_read_deployment_with_concurrency_limit(
+        self, session, client, deployment
+    ):
+        update = DeploymentUpdate(concurrency_limit=4)
+        await models.deployments.update_deployment(session, deployment.id, update)
+        await session.commit()
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == status.HTTP_200_OK
+
+        json_response = response.json()
+        assert (
+            json_response["concurrency_limit"] is None
+        ), "Deprecated int-only field should be None for backwards-compatibility"
+
+        global_concurrency_limit = json_response.get("global_concurrency_limit")
+        assert global_concurrency_limit is not None
+        assert global_concurrency_limit.get("limit") == update.concurrency_limit
+        assert global_concurrency_limit.get("active") is True
+        assert (
+            global_concurrency_limit.get("name") == f"deployment:{json_response['id']}"
+        )
 
 
 class TestReadDeploymentByName:
@@ -1794,6 +1845,24 @@ class TestUpdateDeployment:
         assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
         assert schedules[0].schedule.interval == new_schedule.interval
         assert schedules[0].active is True
+
+    async def test_updating_deployment_with_concurrency_limit(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        assert deployment.global_concurrency_limit is None
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"concurrency_limit": 1}
+        )
+        assert response.status_code == 204
+
+        await session.refresh(deployment)
+        assert deployment
+        assert deployment._concurrency_limit == 1
+        assert deployment.global_concurrency_limit.limit == 1
 
 
 class TestGetScheduledFlowRuns:

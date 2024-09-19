@@ -4052,7 +4052,7 @@ class TestFlowServe:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.paused
-        assert deployment.concurrency_limit == 42
+        assert deployment.global_concurrency_limit.limit == 42
 
     def test_serve_can_user_a_module_path_entrypoint(self, sync_prefect_client):
         deployment = self.flow.serve(

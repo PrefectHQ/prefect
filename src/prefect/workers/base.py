@@ -869,15 +869,9 @@ class BaseWorker(abc.ABC):
 
         if flow_run.deployment_id:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
-        if deployment and deployment.concurrency_limit:
-            limit_name = f"deployment:{deployment.id}"
+        if deployment and deployment.global_concurrency_limit:
+            limit_name = deployment.global_concurrency_limit.name
             concurrency_ctx = concurrency
-
-            # ensure that the global concurrency limit is available
-            # and up-to-date before attempting to acquire a slot
-            await self._client.upsert_global_concurrency_limit_by_name(
-                limit_name, deployment.concurrency_limit
-            )
         else:
             limit_name = ""
             concurrency_ctx = asyncnullcontext

@@ -997,7 +997,7 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
 
 
 class DeploymentFilterConcurrencyLimit(PrefectFilterBaseModel):
-    """Filter by `Deployment.concurrency_limit`."""
+    """DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`."""
 
     ge_: Optional[int] = Field(
         default=None,
@@ -1014,18 +1014,9 @@ class DeploymentFilterConcurrencyLimit(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(self) -> List:
-        filters = []
-        if self.ge_ is not None:
-            filters.append(orm_models.Deployment.concurrency_limit >= self.ge_)
-        if self.le_ is not None:
-            filters.append(orm_models.Deployment.concurrency_limit <= self.le_)
-        if self.is_null_ is not None:
-            filters.append(
-                orm_models.Deployment.concurrency_limit.is_(None)
-                if self.is_null_
-                else orm_models.Deployment.concurrency_limit.is_not(None)
-            )
-        return filters
+        # This used to filter on an `int` column that was moved to a `ForeignKey` relationship
+        # This filter is now deprecated rather than support filtering on the new relationship
+        return []
 
 
 class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
@@ -1080,7 +1071,9 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
         default=None, description="Filter criteria for `Deployment.work_queue_name`"
     )
     concurrency_limit: Optional[DeploymentFilterConcurrencyLimit] = Field(
-        default=None, description="Filter criteria for `Deployment.concurrency`"
+        default=None,
+        description="DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`. If provided, will be ignored for backwards-compatibility. Will be removed after December 2024.",
+        deprecated=True,
     )
 
     def _get_filter_list(self) -> List:
@@ -1097,8 +1090,7 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.tags.as_sql_filter())
         if self.work_queue_name is not None:
             filters.append(self.work_queue_name.as_sql_filter())
-        if self.concurrency_limit is not None:
-            filters.append(self.concurrency_limit.as_sql_filter())
+
         return filters
 
 
