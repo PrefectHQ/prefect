@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from prefect.cache_policies import Inputs
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.results import get_result_store
@@ -394,6 +395,16 @@ async def test_task_exception_is_persisted(prefect_client, events_pipeline):
     ).state
     with pytest.raises(ValueError, match="Hello world"):
         await api_state.result()
+
+
+async def test_result_store_correctly_receives_metadata_storage(tmp_path):
+    @task(persist_result=True, cache_policy=Inputs().configure(key_storage=tmp_path))
+    def bar():
+        return get_result_store()
+
+    result_store = bar()
+    assert result_store.metadata_storage == LocalFileSystem(basepath=tmp_path)
+    assert result_store.result_storage != result_store.metadata_storage
 
 
 @pytest.mark.parametrize("empty_type", [dict, list])

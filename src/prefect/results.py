@@ -310,7 +310,7 @@ class ResultStore(BaseModel):
                 storage = task.cache_policy.key_storage
                 if isinstance(storage, str) and not len(storage.split("/")) == 2:
                     storage = Path(storage)
-                update["result_storage"] = await resolve_result_storage(storage)
+                update["metadata_storage"] = await resolve_result_storage(storage)
             if task.cache_policy.lock_manager is not None:
                 update["lock_manager"] = task.cache_policy.lock_manager
 
