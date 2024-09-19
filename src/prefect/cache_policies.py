@@ -191,7 +191,7 @@ class RunId(CachePolicy):
 @dataclass
 class Inputs(CachePolicy):
     """
-    Policy that computes a cache key based on a hash of the runtime inputs provided to the task.
+    Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
     """
 
     exclude: List[str] = field(default_factory=list)
