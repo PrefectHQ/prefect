@@ -4138,7 +4138,7 @@ class TestDeployPattern:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_concurrency_limit_config_deployment_yaml(
-        self, work_pool, prefect_client
+        self, work_pool, prefect_client: PrefectClient
     ):
         concurrency_limit_config = {"limit": 42, "collision_strategy": "CANCEL_NEW"}
 
@@ -4162,7 +4162,12 @@ class TestDeployPattern:
             "An important name/test-name"
         )
 
-        assert deployment.concurrency_limit == concurrency_limit_config["limit"]
+        assert deployment.global_concurrency_limit is not None
+        assert (
+            deployment.global_concurrency_limit.limit
+            == concurrency_limit_config["limit"]
+        )
+        assert deployment.concurrency_options is not None
         assert (
             deployment.concurrency_options.collision_strategy
             == concurrency_limit_config["collision_strategy"]
