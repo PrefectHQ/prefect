@@ -141,6 +141,30 @@ class WorkQueueStatus(AutoEnum):
     PAUSED = AutoEnum.auto()
 
 
+class ConcurrencyLimitStrategy(AutoEnum):
+    """Enumeration of concurrency limit strategies."""
+
+    ENQUEUE = AutoEnum.auto()
+    CANCEL_NEW = AutoEnum.auto()
+
+
+class ConcurrencyOptions(PrefectBaseModel):
+    """
+    Class for storing the concurrency config in database.
+    """
+
+    collision_strategy: ConcurrencyLimitStrategy
+
+
+class ConcurrencyLimitConfig(PrefectBaseModel):
+    """
+    Class for storing the concurrency limit config in database.
+    """
+
+    limit: int
+    collision_strategy: ConcurrencyLimitStrategy = ConcurrencyLimitStrategy.ENQUEUE
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: Optional[UUID] = None
     task_run_id: Optional[UUID] = None

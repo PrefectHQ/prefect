@@ -51,8 +51,8 @@ from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
 from prefect.client.schemas.objects import Flow as FlowSchema
-from prefect.client.schemas.objects import FlowRun
 from prefect.client.utilities import client_injector
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
@@ -643,7 +643,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[int] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -799,7 +799,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        global_limit: Optional[int] = None,
+        global_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -1061,7 +1061,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
-        concurrency_limit: Optional[int] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
