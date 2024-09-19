@@ -506,7 +506,7 @@ class DeploymentFilterTags(PrefectBaseModel, OperatorMixin):
 
 
 class DeploymentFilterConcurrencyLimit(PrefectBaseModel):
-    """Filter by `Deployment.concurrency_limit`."""
+    """DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`."""
 
     ge_: Optional[int] = Field(
         default=None,
@@ -538,7 +538,9 @@ class DeploymentFilter(PrefectBaseModel, OperatorMixin):
         default=None, description="Filter criteria for `Deployment.work_queue_name`"
     )
     concurrency_limit: Optional[DeploymentFilterConcurrencyLimit] = Field(
-        default=None, description="Filter criteria for `Deployment.concurrency_limit`"
+        default=None,
+        description="DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`. If provided, will be ignored for backwards-compatibility. Will be removed after December 2024.",
+        deprecated=True,
     )
 
 

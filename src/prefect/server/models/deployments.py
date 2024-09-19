@@ -83,7 +83,7 @@ async def create_deployment(
 
     schedules = deployment.schedules
     insert_values = deployment.model_dump_for_orm(
-        exclude_unset=True, exclude={"schedules"}
+        exclude_unset=True, exclude={"schedules", "concurrency_limit"}
     )
 
     # The job_variables field in client and server schemas is named
@@ -155,6 +155,10 @@ async def create_deployment(
             ],
         )
 
+    await _create_or_update_deployment_concurrency_limit(
+        session, deployment_id, deployment.concurrency_limit
+    )
+
     query = (
         sa.select(orm_models.Deployment)
         .where(
@@ -194,7 +198,7 @@ async def update_deployment(
     # the user, ignoring any defaults on the model
     update_data = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"work_pool_name"},
+        exclude={"work_pool_name", "concurrency_limit"},
     )
 
     # The job_variables field in client and server schemas is named
@@ -263,7 +267,39 @@ async def update_deployment(
             ],
         )
 
+    await _create_or_update_deployment_concurrency_limit(
+        session, deployment_id, deployment.concurrency_limit
+    )
+
     return result.rowcount > 0
+
+
+async def _create_or_update_deployment_concurrency_limit(
+    session: AsyncSession, deployment_id: UUID, limit: Optional[int]
+):
+    deployment = await session.get(orm_models.Deployment, deployment_id)
+    assert deployment is not None
+
+    if (
+        deployment.global_concurrency_limit
+        and deployment.global_concurrency_limit.limit == limit
+    ) or (deployment.global_concurrency_limit is None and limit is None):
+        return
+
+    deployment._concurrency_limit = limit
+    if limit is None:
+        await _delete_related_concurrency_limit(
+            session=session, deployment_id=deployment_id
+        )
+        await session.refresh(deployment)
+    elif deployment.global_concurrency_limit:
+        deployment.global_concurrency_limit.limit = limit
+    else:
+        limit_name = f"deployment:{deployment_id}"
+        new_limit = orm_models.ConcurrencyLimitV2(name=limit_name, limit=limit)
+        deployment.global_concurrency_limit = new_limit
+
+    session.add(deployment)
 
 
 async def read_deployment(
@@ -482,10 +518,25 @@ async def delete_deployment(session: AsyncSession, deployment_id: UUID) -> bool:
         session=session, deployment_id=deployment_id, auto_scheduled_only=False
     )
 
+    await _delete_related_concurrency_limit(
+        session=session, deployment_id=deployment_id
+    )
+
     result = await session.execute(
         delete(orm_models.Deployment).where(orm_models.Deployment.id == deployment_id)
     )
     return result.rowcount > 0
+
+
+async def _delete_related_concurrency_limit(session: AsyncSession, deployment_id: UUID):
+    return await session.execute(
+        delete(orm_models.ConcurrencyLimitV2).where(
+            orm_models.ConcurrencyLimitV2.id
+            == sa.select(orm_models.Deployment.concurrency_limit_id)
+            .where(orm_models.Deployment.id == deployment_id)
+            .scalar_subquery()
+        )
+    )
 
 
 async def schedule_runs(

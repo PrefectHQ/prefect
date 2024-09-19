@@ -654,7 +654,7 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert lookup.schedules[0].schedule == schedule.schedule
     assert lookup.schedules[0].active == schedule.active
     assert lookup.schedules[0].deployment_id == deployment_id
-    assert lookup.concurrency_limit == 42
+    assert lookup.global_concurrency_limit.limit == 42
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
@@ -698,7 +698,7 @@ async def test_update_deployment(prefect_client, storage_document_id):
     updated_deployment = await prefect_client.read_deployment(deployment_id)
     # tags and concurrency should be updated
     assert updated_deployment.tags == ["new", "tags"]
-    assert updated_deployment.concurrency_limit == 42
+    assert updated_deployment.global_concurrency_limit.limit == 42
     # everything else should be the same
     assert updated_deployment.id == deployment.id
     assert updated_deployment.name == deployment.name

@@ -314,7 +314,13 @@ class DeploymentResponse(ObjectBaseModel):
         default=..., description="The flow id associated with the deployment."
     )
     concurrency_limit: Optional[int] = Field(
-        default=None, description="The concurrency limit for the deployment."
+        default=None,
+        description="DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility. Will be removed after December 2024.",
+        deprecated=True,
+    )
+    global_concurrency_limit: Optional["GlobalConcurrencyLimitResponse"] = Field(
+        default=None,
+        description="The global concurrency limit object for enforcing the maximum number of flow runs that can be active at once.",
     )
     concurrency_options: Optional[objects.ConcurrencyOptions] = Field(
         default=None,
