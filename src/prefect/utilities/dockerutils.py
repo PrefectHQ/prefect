@@ -607,3 +607,15 @@ def generate_default_dockerfile(context: Optional[Path] = None):
         yield temp_dockerfile
     finally:
         temp_dockerfile.unlink()
+
+
+def get_image_index_digest(image: str) -> Optional[str]:
+    """
+    Get the image index digest for a given image.
+    """
+    try:
+        client = docker.from_env()
+        image_info = client.images.get(image)
+        return image_info.attrs["RepoDigests"][0]  # Get the first digest
+    except Exception:
+        return None
