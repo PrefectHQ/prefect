@@ -8,6 +8,7 @@ from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Callable,
     Dict,
@@ -25,8 +26,10 @@ from cachetools import LRUCache
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Discriminator,
     Field,
     PrivateAttr,
+    Tag,
     ValidationError,
     model_serializer,
     model_validator,
@@ -219,6 +222,19 @@ def _format_user_supplied_storage_key(key: str) -> str:
 T = TypeVar("T")
 
 
+def result_storage_discriminator(x: Any) -> str:
+    if isinstance(x, dict):
+        if "block_type_slug" in x:
+            return "WritableFileSystem"
+        else:
+            return "NullFileSystem"
+    if isinstance(x, WritableFileSystem):
+        return "WritableFileSystem"
+    if isinstance(x, NullFileSystem):
+        return "NullFileSystem"
+    return "None"
+
+
 @deprecated_field(
     "persist_result",
     when=lambda x: x is not None,
@@ -246,7 +262,14 @@ class ResultStore(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     result_storage: Optional[WritableFileSystem] = Field(default=None)
-    metadata_storage: Optional[WritableFileSystem] = Field(default=None)
+    metadata_storage: Annotated[
+        Union[
+            Annotated[WritableFileSystem, Tag("WritableFileSystem")],
+            Annotated[NullFileSystem, Tag("NullFileSystem")],
+            Annotated[None, Tag("None")],
+        ],
+        Discriminator(result_storage_discriminator),
+    ] = Field(default=None)
     lock_manager: Optional[LockManager] = Field(default=None)
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
@@ -403,8 +426,16 @@ class ResultStore(BaseModel):
         """
         return await self._exists(key=key, _sync=False)
 
+    async def _read_raw_result(self, key: str) -> bytes:
+        if self.result_storage is None:
+            self.result_storage = await get_default_result_storage()
+
+        return await self.result_storage.read_path(key)
+
     @sync_compatible
-    async def _read(self, key: str, holder: str) -> "ResultRecord":
+    async def _read(
+        self, key: str, holder: str, serializer: Optional[Serializer] = None
+    ) -> "ResultRecord":
         """
         Read a result record from storage.
 
@@ -434,13 +465,13 @@ class ResultStore(BaseModel):
             assert (
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
-            result_content = await self.result_storage.read_path(metadata.storage_key)
+            result_content = await self._read_raw_result(metadata.storage_key)
             result_record = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
         else:
             content = await self.result_storage.read_path(key)
-            result_record = ResultRecord.deserialize(content)
+            result_record = ResultRecord.deserialize(content, serializer=serializer)
 
         if self.cache_result_in_memory:
             if self.result_storage_block_id is None and hasattr(
@@ -453,7 +484,12 @@ class ResultStore(BaseModel):
             self.cache[cache_key] = result_record
         return result_record
 
-    def read(self, key: str, holder: Optional[str] = None) -> "ResultRecord":
+    def read(
+        self,
+        key: str,
+        holder: Optional[str] = None,
+        serializer: Optional[Serializer] = None,
+    ) -> "ResultRecord":
         """
         Read a result record from storage.
 
@@ -464,9 +500,14 @@ class ResultStore(BaseModel):
             A result record.
         """
         holder = holder or self.generate_default_holder()
-        return self._read(key=key, holder=holder, _sync=True)
+        return self._read(key=key, holder=holder, serializer=serializer, _sync=True)
 
-    async def aread(self, key: str, holder: Optional[str] = None) -> "ResultRecord":
+    async def aread(
+        self,
+        key: str,
+        holder: Optional[str] = None,
+        serializer: Optional[Serializer] = None,
+    ) -> "ResultRecord":
         """
         Read a result record from storage.
 
@@ -477,7 +518,9 @@ class ResultStore(BaseModel):
             A result record.
         """
         holder = holder or self.generate_default_holder()
-        return await self._read(key=key, holder=holder, _sync=False)
+        return await self._read(
+            key=key, holder=holder, serializer=serializer, _sync=False
+        )
 
     def create_result_record(
         self,
@@ -1010,7 +1053,7 @@ class ResultRecord(BaseModel, Generic[R]):
         store = ResultStore(
             result_storage=storage_block, serializer=metadata.serializer
         )
-        result = await store.aread(metadata.storage_key)
+        result = await store.aread(metadata.storage_key, serializer=metadata.serializer)
         return result
 
     def serialize_metadata(self) -> bytes:
@@ -1033,7 +1076,9 @@ class ResultRecord(BaseModel, Generic[R]):
         )
 
     @classmethod
-    def deserialize(cls, data: bytes) -> "ResultRecord[R]":
+    def deserialize(
+        cls, data: bytes, serializer: Optional[Serializer] = None
+    ) -> "ResultRecord[R]":
         """
         Deserialize a record from bytes.
 
@@ -1043,7 +1088,17 @@ class ResultRecord(BaseModel, Generic[R]):
         Returns:
             ResultRecord: the deserialized record
         """
-        instance = cls.model_validate_json(data)
+        try:
+            instance = cls.model_validate_json(data)
+        except ValidationError:
+            if serializer is None:
+                raise
+            else:
+                result = serializer.loads(data)
+                return cls(
+                    metadata=ResultRecordMetadata(serializer=serializer),
+                    result=result,
+                )
         if isinstance(instance.result, bytes):
             instance.result = instance.serializer.loads(instance.result)
         elif isinstance(instance.result, str):

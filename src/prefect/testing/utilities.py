@@ -226,7 +226,9 @@ async def assert_uses_result_serializer(
     else:
         block = await get_default_result_storage()
 
-    blob = await ResultStore(result_storage=block).aread(storage_key)
+    blob = await ResultStore(result_storage=block).aread(
+        storage_key, serializer=result_serializer
+    )
     assert (
         blob.metadata.serializer == serializer
         if isinstance(serializer, Serializer)

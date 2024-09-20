@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 import anyio
 import fsspec
-from pydantic import Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from prefect._internal.schemas.validators import (
     stringify_path,
@@ -519,7 +519,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class NullFileSystem:
+class NullFileSystem(BaseModel):
     """
     A file system that does not store any data.
     """
