@@ -96,12 +96,15 @@ class Setting:
                 return None
 
         current_value = getattr(get_current_settings(), self.field_name)
-        if isinstance(current_value, (Secret, SecretStr)):
+        if isinstance(current_value, _SECRET_TYPES):
             return current_value.get_secret_value()
         return current_value
 
     def value_from(self: Self, settings: "Settings") -> Any:
-        return getattr(settings, self.field_name)
+        current_value = getattr(settings, self.field_name)
+        if isinstance(current_value, _SECRET_TYPES):
+            return current_value.get_secret_value()
+        return current_value
 
     def __bool__(self) -> bool:
         return bool(self.value())
@@ -1379,7 +1382,7 @@ class Settings(BaseSettings):
         self,
         include: Optional[Iterable[Setting]] = None,
         exclude_unset: bool = False,
-        include_secrets: bool = False,
+        include_secrets: bool = True,
     ) -> Dict[str, str]:
         """Convert the settings object to a dictionary of environment variables."""
         include = set(include) if include else set()
@@ -1440,6 +1443,7 @@ def _cast_settings(settings: Dict[Union[str, Setting], Any]) -> Dict[Setting, An
     }
 
 
+_PROCESS_ID = os.getpid()
 _DEFAULTS_CACHE: Optional[Settings] = None
 _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
@@ -1449,6 +1453,12 @@ def get_current_settings() -> Settings:
     Returns a settings object populated with values from the current settings context
     or, if no settings context is active, the environment.
     """
+    global _FROM_ENV_CACHE, _PROCESS_ID
+
+    if _PROCESS_ID != (pid := os.getpid()):
+        _FROM_ENV_CACHE = {}
+        _PROCESS_ID = pid
+
     from prefect.context import SettingsContext
 
     settings_context = SettingsContext.get()
