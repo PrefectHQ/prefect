@@ -1162,6 +1162,7 @@ class BaseWorker(abc.ABC):
         if configuration:
             related += configuration._related_resources()
 
+        if self._work_pool:
             related.append(
                 object_as_related_resource(
                     kind="work-pool", role="work-pool", object=self._work_pool
@@ -1172,15 +1173,16 @@ class BaseWorker(abc.ABC):
                 from prefect.utilities.dockerutils import get_image_index_digest
 
                 if image_digest := get_image_index_digest(image):
-                    related_image = RelatedResource.model_validate(
-                        {
-                            "prefect.resource.id": f"prefect.image.{image}",
-                            "prefect.resource.role": "image",
-                            "prefect.resource.name": image,
-                            "prefect.resource.index_digest": image_digest,
-                        }
+                    related.append(
+                        RelatedResource.model_validate(
+                            {
+                                "prefect.resource.id": f"prefect.image.{image}",
+                                "prefect.resource.role": "image",
+                                "prefect.resource.name": image,
+                                "prefect.resource.index_digest": image_digest,
+                            }
+                        )
                     )
-                    related.append(related_image)
 
         if include_self:
             worker_resource = self._event_resource()

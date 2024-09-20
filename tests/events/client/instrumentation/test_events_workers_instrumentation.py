@@ -302,3 +302,71 @@ async def test_worker_can_include_itself_as_related(work_pool):
                 "prefect.worker-type": worker.type,
             },
         ]
+
+
+async def test_dockerish_worker_includes_image_related_resource(
+    asserting_events_worker: EventsWorker,
+    reset_worker_events,
+    prefect_client: PrefectClient,
+    worker_deployment_wq1,
+    work_pool,
+    monkeypatch,
+):
+    class DockerJobConfiguration(BaseJobConfiguration):
+        image: str = "prefecthq/prefect:3-python3.12"
+
+    class DockerWorkerEventsTestImpl(WorkerEventsTestImpl):
+        type = "docker"
+        job_configuration = DockerJobConfiguration
+
+    # Mock the get_image_index_digest function to return a fixed digest
+    from prefect.utilities import dockerutils
+
+    monkeypatch.setattr(
+        dockerutils, "get_image_index_digest", lambda _: "sha256:mock_digest"
+    )
+
+    await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=pendulum.now("utc")),
+        tags=["flow-run-one"],
+    )
+
+    async with DockerWorkerEventsTestImpl(
+        work_pool_name=work_pool.name,
+    ) as worker:
+        worker._work_pool = work_pool
+        worker.run = AsyncMock()
+        await worker.get_and_submit_flow_runs()
+
+    await asserting_events_worker.drain()
+
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+    assert len(asserting_events_worker._client.events) == 2
+
+    submit_events = list(
+        filter(
+            lambda e: e.event == "prefect.worker.submitted-flow-run",
+            asserting_events_worker._client.events,
+        )
+    )
+    assert len(submit_events) == 1
+
+    related = [dict(r.items()) for r in submit_events[0].related]
+
+    # Check for the image-related resource
+    image_resource = next(
+        (r for r in related if r.get("prefect.resource.role") == "image"), None
+    )
+    assert image_resource is not None
+    assert image_resource == {
+        "prefect.resource.id": "prefect.image.prefecthq/prefect:3-python3.12",
+        "prefect.resource.role": "image",
+        "prefect.resource.name": "prefecthq/prefect:3-python3.12",
+        "prefect.resource.index_digest": "sha256:mock_digest",
+    }
+
+    assert any(r.get("prefect.resource.role") == "deployment" for r in related)
+    assert any(r.get("prefect.resource.role") == "flow" for r in related)
+    assert any(r.get("prefect.resource.role") == "flow-run" for r in related)
+    assert any(r.get("prefect.resource.role") == "work-pool" for r in related)
