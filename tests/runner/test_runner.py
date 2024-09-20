@@ -762,6 +762,33 @@ class TestRunner:
 
             acquire_spy.assert_not_called()
 
+    async def test_runner_does_not_acquire_limit_for_worker_based_deployments(
+        self, prefect_client: PrefectClient, work_pool, caplog
+    ):
+        with mock.patch(
+            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            async with Runner(pause_on_shutdown=False) as runner:
+                deployment = RunnerDeployment.from_flow(
+                    flow=dummy_flow_1,
+                    name=__file__,
+                    concurrency_limit=2,
+                    work_pool_name=work_pool.name,  # Worker-based deployments use work pools
+                )
+
+                deployment_id = await runner.add_deployment(deployment)
+
+                flow_run = await prefect_client.create_flow_run_from_deployment(
+                    deployment_id=deployment_id
+                )
+
+                assert flow_run.state.is_scheduled()
+
+                await runner._get_and_submit_flow_runs()
+
+                assert acquire_spy.call_count == 0
+
     async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/10820

@@ -1049,7 +1049,11 @@ class Runner:
 
         if flow_run.deployment_id:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
-        if deployment and deployment.global_concurrency_limit:
+        if (
+            deployment
+            and deployment.global_concurrency_limit
+            and not deployment.work_queue_id  # Workers apply limits separately
+        ):
             limit_name = deployment.global_concurrency_limit.name
             concurrency_ctx = concurrency
         else:
