@@ -437,17 +437,17 @@ class ResultStore(BaseModel):
         self, key: str, holder: str, serializer: Optional[Serializer] = None
     ) -> "ResultRecord":
         """
-        Read a result record from storage.
+                Read a result record from storage.
 
-        This is the internal implementation. Use `read` or `aread` for synchronous and
-        asynchronous result reading respectively.
+                This is the internal implementation. Use `read` or `aread` for synchronous and
+                asynchronous result reading respectively.
 
-        Args:
-            key: The key to read the result record from.
-            holder: The holder of the lock if a lock was set on the record.
-
-        Returns:
-            A result record.
+                Args:
+                    key: The key to read the result record from.
+                    holder: The holder of the lock if a lock was set on the record.
+        cc
+                Returns:
+                    A result record.
         """
 
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
@@ -496,6 +496,9 @@ class ResultStore(BaseModel):
         Args:
             key: The key to read the result record from.
             holder: The holder of the lock if a lock was set on the record.
+            serializer: The serializer to use for the result record. Only necessary if the
+                metadata for the result was not persisted.
+
         Returns:
             A result record.
         """
@@ -514,6 +517,9 @@ class ResultStore(BaseModel):
         Args:
             key: The key to read the result record from.
             holder: The holder of the lock if a lock was set on the record.
+            serializer: The serializer to use for the result record. Only necessary if the
+                metadata for the result was not persisted.
+
         Returns:
             A result record.
         """
@@ -1084,6 +1090,8 @@ class ResultRecord(BaseModel, Generic[R]):
 
         Args:
             data: the serialized record
+            serializer: The serializer to use to deserialize the result record. Only
+                necessary if the provided data does not specify a serializer.
 
         Returns:
             ResultRecord: the deserialized record
