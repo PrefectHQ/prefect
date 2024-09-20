@@ -35,6 +35,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
 
@@ -164,30 +165,36 @@ def _get_socket_url_and_headers():
     return events_in_socket_from_api_url(api_url), headers
 
 
-def raise_for_events_connection_error():
+def ensure_ws_can_connect():
     socket_url, headers = _get_socket_url_and_headers()
 
     try:
         with sync_connect(socket_url, additional_headers=headers) as ws:
             pong = ws.ping()
             pong.wait()
-    except Exception as e:
-        raise RuntimeError(
-            f"Unable to establish connection to {socket_url!r}. Check your network to ensure websocket connections can be made to the API."
-        ) from e
+    except Exception:
+        logger.error(
+            f"Unable to connect to {socket_url!r}. "
+            f"Check your network to ensure websocket connections can be made to the API, "
+            f"otherwise some data may be lost!",
+            exc_info=PREFECT_DEBUG_MODE,
+        )
 
 
-async def araise_for_events_connection_error():
+async def aensure_ws_can_connect():
     socket_url, headers = _get_socket_url_and_headers()
 
     try:
         async with connect(socket_url, extra_headers=headers) as ws:
             pong = await ws.ping()
             await pong
-    except Exception as e:
-        raise RuntimeError(
-            f"Unable to establish connection to {socket_url!r}. Check your network to ensure websocket connections can be made to the API."
-        ) from e
+    except Exception:
+        logger.error(
+            f"Unable to connect to {socket_url!r}. "
+            f"Check your network to ensure websocket connections can be made to the API, "
+            f"otherwise some data may be lost!",
+            exc_info=PREFECT_DEBUG_MODE,
+        )
 
 
 class EventsClient(abc.ABC):
