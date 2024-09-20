@@ -21820,6 +21820,18 @@
                         "title": "Prefect Api Database Connection Timeout",
                         "default": 5
                     },
+		    "PREFECT_API_DATABASE_INCLUDE_JIT_SERVER_SETTING": {
++                        "anyOf": [
++                            {
++                                "type": "boolean"
++                            },
++                            {
++                                "type": "null"
++                            }
++                        ],
++                        "title": "Prefect Api Database Include Jit Server Setting",
++                        "default": true
++                    },
                     "PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS": {
                         "type": "number",
                         "title": "Prefect Api Services Scheduler Loop Seconds",
