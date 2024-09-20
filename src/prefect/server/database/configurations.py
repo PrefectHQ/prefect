@@ -24,6 +24,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
     PREFECT_API_DATABASE_TIMEOUT,
+    PREFECT_API_DATABASE_INCLUDE_JIT_SERVER_SETTING,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
     PREFECT_SQLALCHEMY_POOL_SIZE,
     PREFECT_UNIT_TEST_MODE,
@@ -116,6 +117,7 @@ class BaseDatabaseConfiguration(ABC):
         echo: Optional[bool] = None,
         timeout: Optional[float] = None,
         connection_timeout: Optional[float] = None,
+        include_jit_server_setting: Optional[bool] = None,
         sqlalchemy_pool_size: Optional[int] = None,
         sqlalchemy_max_overflow: Optional[int] = None,
     ):
@@ -124,6 +126,10 @@ class BaseDatabaseConfiguration(ABC):
         self.timeout = timeout or PREFECT_API_DATABASE_TIMEOUT.value()
         self.connection_timeout = (
             connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
+        )
+        self.include_jit_server_setting = (
+            include_jit_server_setting
+            or PREFECT_API_DATABASE_INCLUDE_JIT_SERVER_SETTING.value()
         )
         self.sqlalchemy_pool_size = (
             sqlalchemy_pool_size or PREFECT_SQLALCHEMY_POOL_SIZE.value()
@@ -204,7 +210,8 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 connect_args["timeout"] = self.connection_timeout
 
             if connect_args:
-                connect_args["server_settings"] = {"jit": "off"}
+                if self.include_jit_server_setting:
+                    connect_args["server_settings"] = {"jit": "off"}
                 kwargs["connect_args"] = connect_args
 
             if self.sqlalchemy_pool_size is not None:
