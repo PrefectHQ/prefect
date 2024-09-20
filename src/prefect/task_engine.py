@@ -411,6 +411,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.task_run.state_type = new_state.type
         self.task_run.state_name = new_state.name
 
+        if new_state.is_running():
+            self.task_run.run_count += 1
+
         if new_state.is_final():
             if isinstance(state.data, BaseResult) and state.data.has_cached_object():
                 # Avoid fetching the result unless it is cached, otherwise we defeat
@@ -690,8 +693,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             self.set_state(
-                Retrying() if self.state.name == "AwaitingRetry" else Running(),
+                new_state,
                 force=True,
             )
 
@@ -773,7 +777,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            self.task_run.run_count += 1
             if self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
@@ -928,6 +931,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.task_run.state_id = new_state.id
         self.task_run.state_type = new_state.type
         self.task_run.state_name = new_state.name
+
+        if new_state.is_running():
+            self.task_run.run_count += 1
 
         if new_state.is_final():
             if (
@@ -1196,8 +1202,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             await self.set_state(
-                Retrying() if self.state.name == "AwaitingRetry" else Running(),
+                new_state,
                 force=True,
             )
 
@@ -1280,7 +1287,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            self.task_run.run_count += 1
             if self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.

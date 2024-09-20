@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server import models, schemas
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
     MINIMUM_OCCUPANCY_SECONDS_PER_SLOT,
@@ -269,6 +270,26 @@ async def test_delete_concurrency_limit_by_id(
     assert not await read_concurrency_limit(
         session, concurrency_limit_id=concurrency_limit.id
     )
+
+
+async def test_delete_concurrency_limit_used_for_deployment_concurrency_limiting(
+    session: AsyncSession, deployment
+):
+    await models.deployments.update_deployment(
+        session, deployment.id, schemas.actions.DeploymentUpdate(concurrency_limit=6)
+    )
+    await session.commit()
+    await session.refresh(deployment)
+    assert deployment.global_concurrency_limit is not None
+
+    assert await delete_concurrency_limit(
+        session, concurrency_limit_id=deployment.concurrency_limit_id
+    )
+    await session.commit()
+
+    await session.refresh(deployment)
+    assert deployment.global_concurrency_limit is None
+    assert deployment.concurrency_limit_id is None
 
 
 async def test_update_concurrency_limit_with_invalid_name_raises(
