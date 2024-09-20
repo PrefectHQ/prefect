@@ -366,7 +366,8 @@ async def test_dockerish_worker_includes_image_related_resource(
         "prefect.resource.index_digest": "sha256:mock_digest",
     }
 
-    assert any(r.get("prefect.resource.role") == "deployment" for r in related)
-    assert any(r.get("prefect.resource.role") == "flow" for r in related)
-    assert any(r.get("prefect.resource.role") == "flow-run" for r in related)
-    assert any(r.get("prefect.resource.role") == "work-pool" for r in related)
+    expected_roles = {"deployment", "flow", "flow-run", "work-pool", "image", "tag"}
+    actual_roles = {r.get("prefect.resource.role") for r in related}
+    assert (
+        actual_roles == expected_roles
+    ), f"Mismatch in roles. Expected: {expected_roles}, Got: {actual_roles}"
