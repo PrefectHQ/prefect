@@ -25,7 +25,13 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.results import BaseResult, R, ResultStore
+from prefect.results import (
+    BaseResult,
+    R,
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+)
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
@@ -92,7 +98,11 @@ async def _get_state_result_data_with_retries(
 
     for i in range(1, max_attempts + 1):
         try:
-            return await state.data.get()
+            if isinstance(state.data, ResultRecordMetadata):
+                record = await ResultRecord._from_metadata(state.data)
+                return record.result
+            else:
+                return await state.data.get()
         except Exception as e:
             if i == max_attempts:
                 raise
@@ -127,10 +137,12 @@ async def _get_state_result(
     ):
         raise await get_state_exception(state)
 
-    if isinstance(state.data, BaseResult):
+    if isinstance(state.data, (BaseResult, ResultRecordMetadata)):
         result = await _get_state_result_data_with_retries(
             state, retry_result_failure=retry_result_failure
         )
+    elif isinstance(state.data, ResultRecord):
+        result = state.data.result
 
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():
@@ -207,7 +219,7 @@ async def exception_to_crashed_state(
         )
 
     if result_store:
-        data = await result_store.create_result(exc)
+        data = result_store.create_result_record(exc)
     else:
         # Attach the exception for local usage, will not be available when retrieved
         # from the API
@@ -240,10 +252,10 @@ async def exception_to_failed_state(
         pass
 
     if result_store:
-        data = await result_store.create_result(exc)
+        data = result_store.create_result_record(exc)
         if write_result:
             try:
-                await data.write()
+                await result_store.apersist_result_record(data)
             except Exception as exc:
                 local_logger.warning(
                     "Failed to write result: %s Execution will continue, but the result has not been written",
@@ -309,21 +321,21 @@ async def return_value_to_state(
         state = retval
         # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
-        if not isinstance(state.data, BaseResult):
-            result = await result_store.create_result(
+        if not isinstance(state.data, (BaseResult, ResultRecord, ResultRecordMetadata)):
+            result_record = result_store.create_result_record(
                 state.data,
                 key=key,
                 expiration=expiration,
             )
             if write_result:
                 try:
-                    await result.write()
+                    await result_store.apersist_result_record(result_record)
                 except Exception as exc:
                     local_logger.warning(
                         "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                         exc,
                     )
-            state.data = result
+            state.data = result_record
         return state
 
     # Determine a new state from the aggregate of contained states
@@ -359,14 +371,14 @@ async def return_value_to_state(
         # TODO: We may actually want to set the data to a `StateGroup` object and just
         #       allow it to be unpacked into a tuple and such so users can interact with
         #       it
-        result = await result_store.create_result(
+        result_record = result_store.create_result_record(
             retval,
             key=key,
             expiration=expiration,
         )
         if write_result:
             try:
-                await result.write()
+                await result_store.apersist_result_record(result_record)
             except Exception as exc:
                 local_logger.warning(
                     "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
@@ -375,7 +387,7 @@ async def return_value_to_state(
         return State(
             type=new_state_type,
             message=message,
-            data=result,
+            data=result_record,
         )
 
     # Generators aren't portable, implicitly convert them to a list.
@@ -385,23 +397,23 @@ async def return_value_to_state(
         data = retval
 
     # Otherwise, they just gave data and this is a completed retval
-    if isinstance(data, BaseResult):
+    if isinstance(data, (BaseResult, ResultRecord)):
         return Completed(data=data)
     else:
-        result = await result_store.create_result(
+        result_record = result_store.create_result_record(
             data,
             key=key,
             expiration=expiration,
         )
         if write_result:
             try:
-                await result.write()
+                await result_store.apersist_result_record(result_record)
             except Exception as exc:
                 local_logger.warning(
                     "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                     exc,
                 )
-        return Completed(data=result)
+        return Completed(data=result_record)
 
 
 @sync_compatible
@@ -442,6 +454,11 @@ async def get_state_exception(state: State) -> BaseException:
 
     if isinstance(state.data, BaseResult):
         result = await _get_state_result_data_with_retries(state)
+    elif isinstance(state.data, ResultRecord):
+        result = state.data.result
+    elif isinstance(state.data, ResultRecordMetadata):
+        record = await ResultRecord._from_metadata(state.data)
+        result = record.result
     elif state.data is None:
         result = None
     else:

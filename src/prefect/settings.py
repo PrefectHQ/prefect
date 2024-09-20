@@ -637,7 +637,7 @@ PREFECT_API_KEY = Setting(
 )
 """API key used to authenticate with a the Prefect API. Defaults to `None`."""
 
-PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
+PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=False)
 """
 If true, enable support for HTTP/2 for communicating with an API.
 
@@ -1286,6 +1286,36 @@ by the server.
 The default expiration time is set to 1 hour, which offers a reasonable
 compromise. Adjust this setting based on your specific security requirements
 and usage patterns.
+"""
+
+PREFECT_SERVER_CORS_ALLOWED_ORIGINS = Setting(
+    str,
+    default="*",
+)
+"""
+A comma-separated list of origins that are authorized to make cross-origin requests to the API.
+
+By default, this is set to `*`, which allows requests from all origins.
+"""
+
+PREFECT_SERVER_CORS_ALLOWED_METHODS = Setting(
+    str,
+    default="*",
+)
+"""
+A comma-separated list of methods that are authorized to make cross-origin requests to the API.
+
+By default, this is set to `*`, which allows requests with all methods.
+"""
+
+PREFECT_SERVER_CORS_ALLOWED_HEADERS = Setting(
+    str,
+    default="*",
+)
+"""
+A comma-separated list of headers that are authorized to make cross-origin requests to the API.
+
+By default, this is set to `*`, which allows requests with all headers.
 """
 
 PREFECT_SERVER_ALLOW_EPHEMERAL_MODE = Setting(bool, default=False)

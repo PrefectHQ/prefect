@@ -10665,6 +10665,9 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -10719,6 +10722,9 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -10771,6 +10777,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SuspendFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkPool"
@@ -10899,6 +10908,9 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -10953,6 +10965,9 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -11005,6 +11020,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SuspendFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkPool"
@@ -11219,6 +11237,9 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -11273,6 +11294,9 @@
                                     "$ref": "#/components/schemas/SuspendFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/PauseWorkPool"
                                 },
                                 {
@@ -11325,6 +11349,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SuspendFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResumeFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/PauseWorkPool"
@@ -12442,9 +12469,15 @@
                         "default": "concurrency"
                     },
                     "create_if_missing": {
-                        "type": "boolean",
-                        "title": "Create If Missing",
-                        "default": true
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Create If Missing"
                     }
                 },
                 "type": "object",
@@ -14560,6 +14593,15 @@
                 "title": "ConcurrencyLimitCreate",
                 "description": "Data used by the Prefect REST API to create a concurrency limit."
             },
+            "ConcurrencyLimitStrategy": {
+                "type": "string",
+                "enum": [
+                    "ENQUEUE",
+                    "CANCEL_NEW"
+                ],
+                "title": "ConcurrencyLimitStrategy",
+                "description": "Enumeration of concurrency collision strategies."
+            },
             "ConcurrencyLimitV2": {
                 "properties": {
                     "id": {
@@ -14770,6 +14812,19 @@
                 "type": "object",
                 "title": "ConcurrencyLimitV2Update",
                 "description": "Data used by the Prefect REST API to update a v2 concurrency limit."
+            },
+            "ConcurrencyOptions": {
+                "properties": {
+                    "collision_strategy": {
+                        "$ref": "#/components/schemas/ConcurrencyLimitStrategy"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "collision_strategy"
+                ],
+                "title": "ConcurrencyOptions",
+                "description": "Class for storing the concurrency config in database."
             },
             "Constant": {
                 "properties": {
@@ -15011,7 +15066,14 @@
                         "title": "Upstream Dependencies"
                     },
                     "state": {
-                        "$ref": "#/components/schemas/State"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "expected_start_time": {
                         "anyOf": [
@@ -16360,6 +16422,17 @@
                         ],
                         "title": "Concurrency Limit",
                         "description": "The deployment's concurrency limit."
+                    },
+                    "concurrency_options": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ConcurrencyOptions"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The deployment's concurrency options."
                     },
                     "parameters": {
                         "anyOf": [
@@ -20828,6 +20901,22 @@
                 "title": "ResumeDeployment",
                 "description": "Resumes the given Deployment"
             },
+            "ResumeFlowRun": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "resume-flow-run"
+                        ],
+                        "const": "resume-flow-run",
+                        "title": "Type",
+                        "default": "resume-flow-run"
+                    }
+                },
+                "type": "object",
+                "title": "ResumeFlowRun",
+                "description": "Resumes a paused or suspended flow run associated with the trigger"
+            },
             "ResumeWorkPool": {
                 "properties": {
                     "type": {
@@ -21336,7 +21425,7 @@
                     "PREFECT_API_ENABLE_HTTP2": {
                         "type": "boolean",
                         "title": "Prefect Api Enable Http2",
-                        "default": true
+                        "default": false
                     },
                     "PREFECT_CLIENT_MAX_RETRIES": {
                         "type": "integer",
@@ -21824,6 +21913,21 @@
                         "format": "duration",
                         "title": "Prefect Server Csrf Token Expiration",
                         "default": "PT1H"
+                    },
+                    "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Origins",
+                        "default": "*"
+                    },
+                    "PREFECT_SERVER_CORS_ALLOWED_METHODS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Methods",
+                        "default": "*"
+                    },
+                    "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {
+                        "type": "string",
+                        "title": "Prefect Server Cors Allowed Headers",
+                        "default": "*"
                     },
                     "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {
                         "type": "boolean",

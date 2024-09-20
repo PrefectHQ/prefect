@@ -40,7 +40,6 @@ from pydantic import (
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, get_args
 
-import prefect
 import prefect.exceptions
 from prefect.client.schemas import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
@@ -52,6 +51,7 @@ from prefect.client.schemas import (
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
+from prefect.plugins import load_prefect_collections
 from prefect.types import SecretDict
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys, visit_collection
@@ -86,7 +86,7 @@ class InvalidBlockRegistration(Exception):
     """
 
 
-def _collect_nested_reference_strings(obj: Dict):
+def _collect_nested_reference_strings(obj: Dict) -> List[str]:
     """
     Collects all nested reference strings (e.g. #/definitions/Model) from a given object.
     """
@@ -739,9 +739,10 @@ class Block(BaseModel, ABC):
         """
         Retrieve the block class implementation given a key.
         """
+
         # Ensure collections are imported and have the opportunity to register types
-        # before looking up the block class
-        prefect.plugins.load_prefect_collections()
+        # before looking up the block class, but only do this once
+        load_prefect_collections()
 
         return lookup_type(cls, key)
 

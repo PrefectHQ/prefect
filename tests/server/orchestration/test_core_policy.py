@@ -8,9 +8,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.results import (
-    PersistedResult,
-)
+from prefect.results import ResultRecordMetadata
 from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, flow_runs
@@ -1337,7 +1335,7 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=PersistedResult.model_construct().model_dump(),
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
         )
 
         if run_type == "task":

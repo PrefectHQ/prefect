@@ -30,7 +30,7 @@ Tasks can be grouped into a common transaction using the `transaction` context m
 
 ```python
 import os
-
+from time import sleep
 
 from prefect import task, flow
 from prefect.transactions import transaction
@@ -63,7 +63,12 @@ def quality_test():
 def pipeline(contents: str):
     with transaction():
         write_file(contents)
+        sleep(2) # sleeping to give you a chance to see the file
         quality_test()
+
+
+if __name__ == "__main__":
+    pipeline(contents="hello world")
 ```
 
 If you run this flow `pipeline(contents="hello world!")` it will fail.
@@ -84,6 +89,7 @@ This behavior makes transactions a valuable pattern for managing pipeline failur
 ### Transaction lifecycle
 
 Every transaction goes through at most four lifecycle stages:
+
 - **BEGIN**: in this phase, the transaction's key is computed and looked up. If a record already exists at 
 the key location the transaction considers itself committed.
 - **STAGE**: in this phase, the transaction stages a piece of data to be committed to its result location.
@@ -119,3 +125,60 @@ def confirmation(transaction):
     print("committing a record now using the task's cache key!")
 ```
 </Tip>
+
+### Access data within transactions
+
+Key-value pairs can be set within a transaction and accessed elsewhere within the transaction, including within the `on_rollback` hook.
+
+The code below shows how to set a key-value pair within a transaction and access it within the `on_rollback` hook: 
+
+```python
+import os
+from time import sleep
+
+from prefect import task, flow
+from prefect.transactions import transaction
+
+
+@task
+def write_file(filename: str, contents: str):
+    "Writes to a file."
+    with open(filename, "w") as f:
+        f.write(contents)
+
+
+@write_file.on_rollback
+def del_file(txn):
+    "Deletes file."
+    os.unlink(txn.get("filename"))
+
+
+@task
+def quality_test(filename):
+    "Checks contents of file."
+    with open(filename, "r") as f:
+        data = f.readlines()
+
+    if len(data) < 2:
+        raise ValueError(f"Not enough data!")
+
+
+@flow
+def pipeline(filename: str, contents: str):
+    with transaction() as txn:
+        txn.set("filename", filename)
+        write_file(filename, contents)
+        sleep(2)  # sleeping to give you a chance to see the file
+        quality_test(filename)
+
+
+if __name__ == "__main__":
+    pipeline(
+        filename="side-effect.txt",
+        contents="hello world",
+    )
+```
+
+The value of `contents` is accessible within the `on_rollback` hook. 
+
+Use `get_transaction()` to access the transaction object and `txn.get("key")` to access the value of the key.

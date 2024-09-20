@@ -24,7 +24,7 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultStore, get_current_result_store
+from prefect.results import ResultStore, get_result_store
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
@@ -181,9 +181,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_store=await get_current_result_store().update_for_task(
-                bar, _sync=False
-            ),
+            result_store=await get_result_store().update_for_task(bar, _sync=False),
             parameters={"foo": "bar"},
         ) as task_ctx:
             assert get_run_context() is task_ctx, "Task context takes precedence"
@@ -452,7 +450,7 @@ class TestSerializeContext:
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_store=await get_current_result_store().update_for_task(bar),
+            result_store=await get_result_store().update_for_task(bar),
             parameters={"foo": "bar"},
         ) as task_ctx:
             serialized = serialize_context()
@@ -595,7 +593,7 @@ class TestHydratedContext:
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_store=await get_current_result_store().update_for_task(bar),
+            result_store=await get_result_store().update_for_task(bar),
             parameters={"foo": "bar"},
         )
 

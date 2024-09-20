@@ -227,6 +227,17 @@ async def test_increment_concurrency_limit_slots_gt_zero_422(
     assert response.status_code == 422
 
 
+async def test_increment_concurrency_limit_slots_with_unknown_name(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={"names": ["foo-bar-limit"], "slots": 1, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 async def test_increment_concurrency_limit_simple(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
@@ -447,13 +458,16 @@ async def test_increment_concurrency_limit_rate_limit_mode(
 async def test_increment_concurrency_limit_rate_limit_mode_implicitly_created_limit(
     client: AsyncClient,
     session: AsyncSession,
+    ignore_prefect_deprecation_warnings,
 ):
+    # DEPRECATED BEHAVIOR
     response = await client.post(
         "/v2/concurrency_limits/increment",
         json={
             "names": ["implicitly_created_limit"],
             "slots": 1,
             "mode": "rate_limit",
+            "create_if_missing": True,
         },
     )
 
@@ -468,6 +482,27 @@ async def test_increment_concurrency_limit_rate_limit_mode_implicitly_created_li
     assert refreshed_limit
     assert not bool(refreshed_limit.active)
     assert refreshed_limit.active_slots == 0  # Inactive limits are not incremented
+
+
+async def test_increment_concurrency_limit_rate_limit_mode_doesnt_create_by_default(
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/increment",
+        json={
+            "names": ["ignored_limit"],
+            "slots": 1,
+            "mode": "rate_limit",
+        },
+    )
+
+    assert response.status_code == 200
+
+    refreshed_limit = await read_concurrency_limit(
+        session=session, name="ignored_limit"
+    )
+    assert refreshed_limit is None
 
 
 async def test_increment_concurrency_limit_rate_limit_mode_limit_without_decay(
@@ -512,6 +547,7 @@ async def test_decrement_concurrency_limit(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
+    ignore_prefect_deprecation_warnings,
 ):
     assert concurrency_limit.active_slots == 0
     response = await client.post(

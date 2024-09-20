@@ -6,6 +6,7 @@ import distributed
 import pytest
 from distributed import LocalCluster
 from prefect_dask import DaskTaskRunner
+from prefect_dask.task_runners import PrefectDaskFuture
 
 from prefect import flow, task
 from prefect.futures import as_completed
@@ -403,3 +404,22 @@ class TestDaskTaskRunner:
             results = test_dask_flow()
 
             assert results == [Foo(value=i) for i in range(3)] + [Foo(value=0)]
+
+    def test_nested_task_submission(self, task_runner):
+        @task
+        def nested_task():
+            return "nested task"
+
+        @task
+        def parent_task():
+            nested_task_future = nested_task.submit()
+            assert isinstance(nested_task_future, PrefectDaskFuture)
+            return nested_task_future.result()
+
+        @flow(task_runner=task_runner)
+        def umbrella_flow():
+            future = parent_task.submit()
+            assert isinstance(future, PrefectDaskFuture)
+            return future.result()
+
+        assert umbrella_flow() == "nested task"

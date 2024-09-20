@@ -3,7 +3,7 @@ import json
 import warnings
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, Type, Union
-from unittest.mock import Mock
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -14,7 +14,7 @@ from pydantic_core import to_json
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
-from prefect.blocks.system import JSON, Secret
+from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
@@ -897,18 +897,14 @@ class TestAPICompatibility:
         assert my_block._block_schema_id == block_document.block_schema_id
         assert my_block.foo == "bar"
 
-    async def test_block_load_loads__collections(
+    @patch("prefect.blocks.core.load_prefect_collections")
+    async def test_block_load_loads_collections(
         self,
+        mock_load_prefect_collections,
         test_block,
         block_document: BlockDocument,
-        monkeypatch,
         in_memory_prefect_client,
     ):
-        mock_load_prefect_collections = Mock()
-        monkeypatch.setattr(
-            prefect.plugins, "load_prefect_collections", mock_load_prefect_collections
-        )
-
         await Block.load(
             block_document.block_type.slug + "/" + block_document.name,
             client=in_memory_prefect_client,
@@ -1089,9 +1085,9 @@ class TestAPICompatibility:
             uuid4().hex
         )  # represents a version that does not exist on the server
 
-        JSON._block_schema_version = mock_version
+        Secret._block_schema_version = mock_version
 
-        block_document_id = await JSON(value={"the_answer": 42}).save("test")
+        block_document_id = await Secret(value="secret").save("test")
 
         block_document = await prefect_client.read_block_document(block_document_id)
         assert block_document.block_schema.version == mock_version

@@ -244,6 +244,25 @@ class TestCreateDeployment:
         )
         assert updated_deployment.updated_by.type == new_updated_by.type
 
+    async def test_create_deployment_with_concurrency_limit(self, session, flow):
+        concurrency_options = schemas.core.ConcurrencyOptions(
+            collision_strategy="ENQUEUE",
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                concurrency_limit=42,
+                concurrency_options=concurrency_options,
+            ),
+        )
+        assert deployment.concurrency_limit == 42
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_options.collision_strategy
+        )
+
 
 class TestReadDeployment:
     async def test_read_deployment(self, session, flow, flow_function):
@@ -1067,6 +1086,27 @@ class TestUpdateDeployment:
         )
         assert wq is not None
         assert wq.work_pool == work_pool
+
+    async def test_update_deployment_with_concurrency_limit(
+        self,
+        session,
+        deployment,
+    ):
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=42,
+                concurrency_options=schemas.core.ConcurrencyOptions(
+                    collision_strategy="CANCEL_NEW"
+                ),
+            ),
+        )
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.concurrency_limit == 42
+        assert updated_deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
 
 
 @pytest.fixture

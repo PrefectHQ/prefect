@@ -17,20 +17,28 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
-from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE, CachePolicy
+from prefect.cache_policies import (
+    DEFAULT,
+    INPUTS,
+    NONE,
+    TASK_SOURCE,
+    CachePolicy,
+    Inputs,
+)
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import (
+    ConfigurationError,
     MappingLengthMismatch,
     MappingMissingIterable,
     ParameterBindError,
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.futures import PrefectDistributedFuture
-from prefect.futures import PrefectFuture as NewPrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture
+from prefect.locking.filesystem import FileSystemLockManager
 from prefect.logging import get_run_logger
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.runtime import task_run as task_run_ctx
@@ -45,7 +53,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import CommitMode, Transaction, transaction
+from prefect.transactions import CommitMode, IsolationLevel, Transaction, transaction
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
@@ -461,6 +469,18 @@ class TestTaskCall:
         # assert that the value IS the original and was never copied
         assert f.get_x() is f.x
 
+    def test_task_run_name_can_access_self_arg_for_instance_methods(self):
+        class Foo:
+            a = 10
+
+            @task(task_run_name="{self.a}|{x}")
+            def instance_method(self, x):
+                return TaskRunContext.get()
+
+        f = Foo()
+        context = f.instance_method(x=5)
+        assert context.task_run.name == "10|5"
+
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_task_supports_async_instance_methods(self, T):
         class Foo(T):
@@ -635,7 +655,7 @@ class TestTaskSubmit:
         @flow
         def bar():
             future = foo.submit(1)
-            assert isinstance(future, NewPrefectFuture)
+            assert isinstance(future, PrefectFuture)
             return future
 
         task_state = bar()
@@ -677,7 +697,7 @@ class TestTaskSubmit:
         @flow
         async def bar():
             future = foo.submit(1)
-            assert isinstance(future, NewPrefectFuture)
+            assert isinstance(future, PrefectFuture)
             return future
 
         task_state = await bar()
@@ -691,7 +711,7 @@ class TestTaskSubmit:
         @flow
         async def bar():
             future = foo.submit(1)
-            assert isinstance(future, NewPrefectFuture)
+            assert isinstance(future, PrefectFuture)
             return future
 
         task_state = await bar()
@@ -705,7 +725,7 @@ class TestTaskSubmit:
         @flow
         def bar():
             future = foo.submit(1)
-            assert isinstance(future, NewPrefectFuture)
+            assert isinstance(future, PrefectFuture)
             return future
 
         task_state = bar()
@@ -1858,6 +1878,78 @@ class TestTaskCaching:
             "Ignoring `cache_policy` because `persist_result` is False"
             not in caplog.text
         )
+
+    def test_cache_policy_storage_path(self, tmp_path):
+        cache_policy = Inputs().configure(key_storage=tmp_path)
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        assert (tmp_path / expected_cache_key).exists()
+
+    def test_cache_policy_storage_str(self, tmp_path):
+        cache_policy = Inputs().configure(key_storage=str(tmp_path))
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        assert (tmp_path / expected_cache_key).exists()
+
+    def test_cache_policy_storage_storage_block(self, tmp_path):
+        cache_policy = Inputs().configure(
+            key_storage=LocalFileSystem(basepath=str(tmp_path))
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        assert (tmp_path / expected_cache_key).exists()
+
+    @pytest.mark.parametrize(
+        "isolation_level", [IsolationLevel.SERIALIZABLE, "SERIALIZABLE"]
+    )
+    def test_cache_policy_lock_manager(self, tmp_path, isolation_level):
+        cache_policy = Inputs().configure(
+            lock_manager=FileSystemLockManager(lock_files_directory=tmp_path),
+            isolation_level=IsolationLevel.SERIALIZABLE,
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            assert (tmp_path / f"{expected_cache_key}.lock").exists()
+            return x
+
+        assert foo(1) == 1
+
+    def test_cache_policy_serializable_isolation_level_with_no_manager(self):
+        cache_policy = Inputs().configure(isolation_level=IsolationLevel.SERIALIZABLE)
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        with pytest.raises(
+            ConfigurationError, match="not supported by provided configuration"
+        ):
+            foo(1)
 
 
 class TestCacheFunctionBuiltins:
@@ -3449,7 +3541,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map([1, 2, 3])
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3469,7 +3561,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map((1, 2, 3))
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3485,7 +3577,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(generate_numbers())
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3508,7 +3600,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3518,7 +3610,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
-            assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3552,7 +3644,7 @@ class TestTaskMap:
             session=session, flow_run_id=flow_run_id
         )
 
-        return {x["id"]: [d.id for d in x["upstream_dependencies"]] for x in graph}
+        return {x.id: [d.id for d in x.upstream_dependencies] for x in graph}
 
     async def test_map_preserves_dependencies_between_futures_all_mapped_children(
         self, session, events_pipeline

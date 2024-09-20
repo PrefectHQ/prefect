@@ -1,6 +1,7 @@
 import threading
 from typing import Dict, Optional, TypedDict
 
+from prefect._internal.compatibility import deprecated
 from prefect.results import BaseResult
 from prefect.transactions import IsolationLevel
 
@@ -22,6 +23,11 @@ class _LockInfo(TypedDict):
     expiration_timer: Optional[threading.Timer]
 
 
+@deprecated.deprecated_class(
+    start_date="Sep 2024",
+    end_date="Nov 2024",
+    help="Use `ResultStore` with a `MemoryLockManager` instead.",
+)
 class MemoryRecordStore(RecordStore):
     """
     A record store that stores data in memory.

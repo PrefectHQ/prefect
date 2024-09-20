@@ -9,7 +9,7 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import prefect.context
 import prefect.settings
@@ -18,7 +18,12 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
 from prefect.logging.handlers import APILogWorker
-from prefect.results import PersistedResult, ResultStore
+from prefect.results import (
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+    get_default_result_storage,
+)
 from prefect.serializers import Serializer
 from prefect.server.api.server import SubprocessASGIServer
 from prefect.states import State
@@ -103,9 +108,14 @@ def assert_does_not_warn(ignore_warnings=[]):
 
 
 @contextmanager
-def prefect_test_harness():
+def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
     """
     Temporarily run flows against a local SQLite database for testing.
+
+    Args:
+        server_startup_timeout: The maximum time to wait for the server to start.
+            Defaults to 30 seconds. If set to `None`, the value of
+            `PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS` will be used.
 
     Examples:
         >>> from prefect import flow
@@ -144,7 +154,11 @@ def prefect_test_harness():
         )
         # start a subprocess server to test against
         test_server = SubprocessASGIServer()
-        test_server.start(timeout=30)
+        test_server.start(
+            timeout=server_startup_timeout
+            if server_startup_timeout is not None
+            else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+        )
         stack.enter_context(
             prefect.settings.temporary_settings(
                 # Use a temporary directory for the database
@@ -188,17 +202,31 @@ def assert_blocks_equal(
 
 
 async def assert_uses_result_serializer(
-    state: State, serializer: Union[str, Serializer]
+    state: State, serializer: Union[str, Serializer], client: "PrefectClient"
 ):
-    assert isinstance(state.data, PersistedResult)
+    assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
+    if isinstance(state.data, ResultRecord):
+        result_serializer = state.data.metadata.serializer
+        storage_block_id = state.data.metadata.storage_block_id
+        storage_key = state.data.metadata.storage_key
+    else:
+        result_serializer = state.data.serializer
+        storage_block_id = state.data.storage_block_id
+        storage_key = state.data.storage_key
+
     assert (
-        state.data.serializer_type == serializer
+        result_serializer.type == serializer
         if isinstance(serializer, str)
         else serializer.type
     )
-    blob = await ResultStore(
-        result_storage=await state.data._get_storage_block()
-    ).aread(state.data.storage_key)
+    if storage_block_id is not None:
+        block = Block._from_block_document(
+            await client.read_block_document(storage_block_id)
+        )
+    else:
+        block = await get_default_result_storage()
+
+    blob = await ResultStore(result_storage=block).aread(storage_key)
     assert (
         blob.metadata.serializer == serializer
         if isinstance(serializer, Serializer)
@@ -210,17 +238,29 @@ async def assert_uses_result_serializer(
 async def assert_uses_result_storage(
     state: State, storage: Union[str, "ReadableFileSystem"], client: "PrefectClient"
 ):
-    assert isinstance(state.data, PersistedResult)
-    assert_blocks_equal(
-        Block._from_block_document(
-            await client.read_block_document(state.data.storage_block_id)
-        ),
-        (
-            storage
-            if isinstance(storage, Block)
-            else await Block.load(storage, client=client)
-        ),
-    )
+    assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
+    if isinstance(state.data, ResultRecord):
+        assert_blocks_equal(
+            Block._from_block_document(
+                await client.read_block_document(state.data.metadata.storage_block_id)
+            ),
+            (
+                storage
+                if isinstance(storage, Block)
+                else await Block.load(storage, client=client)
+            ),
+        )
+    else:
+        assert_blocks_equal(
+            Block._from_block_document(
+                await client.read_block_document(state.data.storage_block_id)
+            ),
+            (
+                storage
+                if isinstance(storage, Block)
+                else await Block.load(storage, client=client)
+            ),
+        )
 
 
 def a_test_step(**kwargs):

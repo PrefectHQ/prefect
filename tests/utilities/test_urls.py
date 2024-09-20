@@ -6,18 +6,54 @@ from typing import Literal
 import pendulum
 import pytest
 
-from prefect.blocks.system import DateTime
+from prefect.blocks.webhook import Webhook
 from prefect.events.schemas.automations import Automation, EventTrigger, Posture
 from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.futures import PrefectConcurrentFuture, PrefectDistributedFuture
 from prefect.server.schemas.core import FlowRun, TaskRun
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
-from prefect.utilities.urls import url_for
+from prefect.utilities.urls import url_for, validate_restricted_url
 from prefect.variables import Variable
 
 MOCK_PREFECT_UI_URL = "https://ui.prefect.io"
 MOCK_PREFECT_API_URL = "https://api.prefect.io"
+
+RESTRICTED_URLS = [
+    ("", ""),
+    (" ", ""),
+    ("[]", ""),
+    ("not a url", ""),
+    ("http://", ""),
+    ("https://", ""),
+    ("http://[]/foo/bar", ""),
+    ("ftp://example.com", "HTTP and HTTPS"),
+    ("gopher://example.com", "HTTP and HTTPS"),
+    ("https://localhost", "private address"),
+    ("https://127.0.0.1", "private address"),
+    ("https://[::1]", "private address"),
+    ("https://[fc00:1234:5678:9abc::10]", "private address"),
+    ("https://[fd12:3456:789a:1::1]", "private address"),
+    ("https://[fe80::1234:5678:9abc]", "private address"),
+    ("https://10.0.0.1", "private address"),
+    ("https://10.255.255.255", "private address"),
+    ("https://172.16.0.1", "private address"),
+    ("https://172.31.255.255", "private address"),
+    ("https://192.168.1.1", "private address"),
+    ("https://192.168.1.255", "private address"),
+    ("https://169.254.0.1", "private address"),
+    ("https://169.254.169.254", "private address"),
+    ("https://169.254.254.255", "private address"),
+    # These will resolve to a private address in production, but not in tests,
+    # so we'll use "resolve" as the reason to catch both cases
+    ("https://metadata.google.internal", "resolve"),
+    ("https://anything.privatecloud", "resolve"),
+    ("https://anything.privatecloud.svc", "resolve"),
+    ("https://anything.privatecloud.svc.cluster.local", "resolve"),
+    ("https://cluster-internal", "resolve"),
+    ("https://network-internal.cloud.svc", "resolve"),
+    ("https://private-internal.cloud.svc.cluster.local", "resolve"),
+]
 
 
 @pytest.fixture
@@ -59,8 +95,8 @@ def prefect_distributed_future(task_run):
 
 @pytest.fixture
 def block():
-    block = DateTime(value="2022-01-01T00:00:00Z")
-    block.save("my-date-block", overwrite=True)
+    block = Webhook(url="https://example.com")
+    block.save("my-webhook-block", overwrite=True)
     return block
 
 
@@ -103,6 +139,12 @@ def received_event():
 @pytest.fixture
 def resource():
     return Resource({"prefect.resource.id": f"prefect.flow-run.{uuid.uuid4()}"})
+
+
+@pytest.mark.parametrize("value, reason", RESTRICTED_URLS)
+def test_validate_restricted_url_validates(value: str, reason: str):
+    with pytest.raises(ValueError, match=f"is not a valid URL.*{reason}"):
+        validate_restricted_url(url=value)
 
 
 @pytest.mark.parametrize("url_type", ["ui", "api"])

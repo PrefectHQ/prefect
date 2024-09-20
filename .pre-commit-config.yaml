@@ -25,11 +25,7 @@ repos:
           - types-pyyaml==6.0.12.9
         files: |
           (?x)^(
-            src/prefect/server/models/agents\.py|
-            src/prefect/server/models/artifacts\.py|
-            src/prefect/server/models/concurrency_limits_v2\.py|
-            src/prefect/server/models/concurrency_limits\.py|
-            src/prefect/server/models/flows\.py|
+            src/prefect/server/models/.*|
             src/prefect/concurrency/.*|
             src/prefect/events/.*|
             src/prefect/input/.*
@@ -39,12 +35,13 @@ repos:
       - id: generate-mintlify-openapi-docs
         name: Generating OpenAPI docs for Mintlify
         language: system
-        entry: ./scripts/generate_mintlify_openapi_docs.py
+        entry: uv run --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
         pass_filenames: false
         files: |
           (?x)^(
               .pre-commit-config.yaml|
               src/prefect/server/api/.*|
               src/prefect/server/schemas/.*|
+              src/prefect/server/events/.*|
               scripts/generate_mintlify_openapi_docs.py
           )$
