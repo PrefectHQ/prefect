@@ -1,11 +1,11 @@
 ---
 title: Trigger actions on events
-description: Automations provide a flexible and powerful framework for automatically taking action in response to events. 
+description: Automations provide a flexible and powerful framework for automatically taking action in response to events.
 ---
 
 Automations enable you to configure [actions](#actions) that execute automatically based on [trigger](#triggers) conditions.
 
-Potential triggers include the occurrence of events from changes in a flow run's state—or the absence of such events. 
+Potential triggers include the occurrence of events from changes in a flow run's state—or the absence of such events.
 You can define your own custom trigger to fire based on a custom [event](/3.0/automate/events/custom-triggers/) defined in Python code.
 With Prefect Cloud you can even create [webhooks](/3.0/automate/events/webhook-triggers/) that can receive data for use in actions.
 
@@ -33,7 +33,7 @@ Select the name of an automation to view **Details** about it and relevant **Eve
 
 ### Triggers
 
-Triggers specify the conditions under which your action should be performed. The Prefect UI includes templates for many 
+Triggers specify the conditions under which your action should be performed. The Prefect UI includes templates for many
 common conditions, such as:
 
 - Flow run state change (Flow Run Tags are only evaluated with `OR` criteria)
@@ -47,20 +47,20 @@ common conditions, such as:
 <Note>
 **Automations API**
 
-The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of 
+The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of
 trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
 </Note>
 
-Importantly, you can configure the triggers not only in reaction to events, but also proactively: in the absence of 
+Importantly, you can configure the triggers not only in reaction to events, but also proactively: in the absence of
 an expected event.
 
 ![Configuring a trigger for an automation in Prefect Cloud.](/3.0/img/ui/automations-trigger.png)
 
-For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer 
-than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. 
+For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer
+than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state.
 A trigger could kick off an action if the flow stays in a running state for more than 30 minutes.
 
-This action could be taken on the flow itself, such as cancelling or restarting it. Or the action could take the form of a 
+This action could be taken on the flow itself, such as cancelling or restarting it. Or the action could take the form of a
 notification for someone to take manual remediation steps. Or you could set both actions to take place when the trigger occurs.
 
 ### Actions
@@ -92,27 +92,26 @@ from prefect.events.schemas.automations import EventTrigger
 from prefect.server.events.actions import CancelFlowRun
 
 # creating an automation
-automation =
-  Automation(
+automation = Automation(
     name="woodchonk",
     trigger=EventTrigger(
-      expect={"animal.walked"},
-      match={
-        "genus": "Marmota",
-        "species": "monax",
+        expect={"animal.walked"},
+        match={
+            "genus": "Marmota",
+            "species": "monax",
         },
         posture="Reactive",
         threshold=3,
-        ),
-      actions=[CancelFlowRun()]
-        ).create()
+    ),
+    actions=[CancelFlowRun()],
+).create()
 print(automation)
 # name='woodchonk' description='' enabled=True trigger=EventTrigger(type='event', match=ResourceSpecification(__root__={'genus': 'Marmota', 'species': 'monax'}), match_related=ResourceSpecification(__root__={}), after=set(), expect={'animal.walked'}, for_each=set(), posture=Posture.Reactive, threshold=3, within=datetime.timedelta(seconds=10)) actions=[CancelFlowRun(type='cancel-flow-run')] actions_on_trigger=[] actions_on_resolve=[] owner_resource=None id=UUID('d641c552-775c-4dc6-a31e-541cb11137a6')
 
 # reading the automation
 
 automation = Automation.read(id ="d641c552-775c-4dc6-a31e-541cb11137a6")
-or
+# or
 automation = Automation.read("woodchonk")
 
 print(automation)
@@ -121,16 +120,16 @@ print(automation)
 
 ### Selected and inferred action targets
 
-Some actions require you to either select the target of the action, or specify that the target of the action should be 
-inferred. Selected targets are simple and useful for when you know exactly what object your action should act on. For 
+Some actions require you to either select the target of the action, or specify that the target of the action should be
+inferred. Selected targets are simple and useful for when you know exactly what object your action should act on. For
 example, the case of a cleanup flow you want to run or a specific notification you want to send.
 
 Inferred targets are deduced from the trigger itself.
 
-For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred 
+For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred
 flow run—the flow run that caused the trigger to fire.
 
-Similarly, if a trigger fires on a work queue event and the corresponding action is to pause an inferred work queue, the 
+Similarly, if a trigger fires on a work queue event and the corresponding action is to pause an inferred work queue, the
 inferred work queue is the one that emitted the event.
 
 Prefect infers the relevant event whenever possible, but sometimes one does not exist.
@@ -139,12 +138,12 @@ Specify a name and, optionally, a description for the automation.
 
 ## Create an automation with deployment triggers
 
-To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers—a shorthand for 
+To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers—a shorthand for
 creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
-Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, 
-specified trigger definitions create linked automations triggered by events matching your chosen 
-[grammar](/3.0/automate/events/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) 
+Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time,
+specified trigger definitions create linked automations triggered by events matching your chosen
+[grammar](/3.0/automate/events/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine))
 to render the triggering `event` as the `parameters` of your  deployment's flow run.
 
 ### Define triggers in `prefect.yaml`
@@ -168,7 +167,7 @@ deployments:
           param_1: "{{ event }}"
 ```
 
-This deployment creates a flow run when an `external.resource.pinged` event _and_ an `external.resource.replied` 
+This deployment creates a flow run when an `external.resource.pinged` event _and_ an `external.resource.replied`
 event have been seen from `my.external.resource`:
 
 ```yaml
@@ -197,8 +196,8 @@ deployments:
 
 ### Define triggers in `.serve` and `.deploy`
 
-To create deployments with triggers in Python, the trigger types `DeploymentEventTrigger`, 
-`DeploymentMetricTrigger`, `DeploymentCompoundTrigger`, and `DeploymentSequenceTrigger` can be imported 
+To create deployments with triggers in Python, the trigger types `DeploymentEventTrigger`,
+`DeploymentMetricTrigger`, `DeploymentCompoundTrigger`, and `DeploymentSequenceTrigger` can be imported
 from `prefect.events`:
 
 ```python
@@ -272,7 +271,7 @@ if __name__=="__main__":
 
 ### Pass triggers to `prefect deploy`
 
-You can pass one or more `--trigger` arguments to `prefect deploy` as either a JSON string or a 
+You can pass one or more `--trigger` arguments to `prefect deploy` as either a JSON string or a
 path to a `.yaml` or `.json` file.
 
 ```bash
@@ -316,7 +315,7 @@ Both of the above triggers would be attached to `test-deployment` after running 
 <Warning>
 **Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`**
 
-While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` 
+While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy`
 take precedence over those defined in `prefect.yaml`.
 </Warning>
 
@@ -325,7 +324,7 @@ Note that deployment triggers contribute to the total number of automations in y
 ## Sending notifications with automations
 
 
-Automations support sending notifications through any predefined block that is capable of and configured 
+Automations support sending notifications through any predefined block that is capable of and configured
 to send a message, including:
 
 - Slack message to a channel
@@ -336,7 +335,7 @@ to send a message, including:
 
 ## Templating with Jinja
 
-You can access templated variables with automation actions through [Jinja](https://palletsprojects.com/p/jinja/) syntax. 
+You can access templated variables with automation actions through [Jinja](https://palletsprojects.com/p/jinja/) syntax.
 Templated variables enable you to dynamically include details from an automation trigger, such as a flow or pool name.
 
 Jinja templated variable syntax wraps the variable name in double curly brackets, like this: `{{ variable }}`.
@@ -390,8 +389,8 @@ Name: {{ work_pool.name }}
 Last polled: {{ work_pool.last_polled }}
 ```
 
-In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the 
-event that triggered the automation. See the [Automations API](https://app.prefect.cloud/api/docs#tag/Automations) 
+In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the
+event that triggered the automation. See the [Automations API](https://app.prefect.cloud/api/docs#tag/Automations)
 for additional details.
 
 ```
@@ -412,19 +411,19 @@ Related Resources:
 {% endfor %}
 ```
 
-Note that this example also illustrates the ability to use Jinja features such as iterator and for loop 
-[control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when 
+Note that this example also illustrates the ability to use Jinja features such as iterator and for loop
+[control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when
 templating notifications.
 
 ## API example
 
-This example grabs data from an API and sends a notification based on the end state. 
+This example grabs data from an API and sends a notification based on the end state.
 
 ### Create the example script
 
-Start by pulling hypothetical user data from an endpoint and then performing data cleaning and transformations. 
+Start by pulling hypothetical user data from an endpoint and then performing data cleaning and transformations.
 
-First create a simple extract method that pulls the data from a random user data generator endpoint: 
+First create a simple extract method that pulls the data from a random user data generator endpoint:
 
 ```python
 from prefect import flow, task, get_run_logger
@@ -467,27 +466,27 @@ if __name__ == "__main__":
 The data cleaning workflow has visibility into each step, and sends a list of names to the next step of the pipeline.
 
 ### Create a notification block in the UI
-Next, send a notification based off a completed state outcome. Configure a notification that shows when to look into your 
-workflow logic. 
+Next, send a notification based off a completed state outcome. Configure a notification that shows when to look into your
+workflow logic.
 
 1. Prior to creating the automation, confirm the notification location. Create a notification block to help define where
-the notification is sent. 
+the notification is sent.
 ![List of available blocks](/3.0/img/guides/block-list.png)
 
-2. Navigate to the blocks page on the UI, and click into creating an email notification block. 
+2. Navigate to the blocks page on the UI, and click into creating an email notification block.
 ![Creating a notification block in the Cloud UI](/3.0/img/guides/notification-block.png)
 
 3. Go to the automations page to create your first automation.
 ![Automations page](/3.0/img/guides/automation-list.png)
 
-4. Next, find the trigger type. In this case, use a flow completion. 
+4. Next, find the trigger type. In this case, use a flow completion.
 ![Trigger type](/3.0/img/guides/automation-triggers.png)
 
-5. Create the actions for when the trigger is hit. In this case, create a notification to showcase the 
-completion. 
+5. Create the actions for when the trigger is hit. In this case, create a notification to showcase the
+completion.
 ![Notification block in automation](/3.0/img/guides/notify-auto-block.png)
 
-6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the 
+6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the
 notification is sent to your inbox after the completion. It may take a few minutes for the notification to arrive.
 ![Final notification](/3.0/img/guides/final-automation.png)
 
@@ -497,17 +496,17 @@ notification is sent to your inbox after the completion. It may take a few minut
 You do not need to create a deployment to trigger your automation. In the case above, the flow run state trigger fired in response to a flow run that was executed locally.
 </Tip>
 
-Now that you've seen how to create an email notification from a flow run completion, see how to kick off a deployment 
+Now that you've seen how to create an email notification from a flow run completion, see how to kick off a deployment
 run in response to an event.
 
-### Event-based deployment automation 
-Create an automation to kick off a deployment instead of a notification. Explore how to programmatically create this 
-automation with Prefect's REST API.  
+### Event-based deployment automation
+Create an automation to kick off a deployment instead of a notification. Explore how to programmatically create this
+automation with Prefect's REST API.
 
 See the [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) as a reference for interacting with the automation endpoints.
 
-Create a deployment to kick off some work based on how long a flow is running. For example, if the `build_names` flow 
-takes too long to execute, you can kick off a deployment with the same `build_names` flow, but replace the `count` value 
+Create a deployment to kick off some work based on how long a flow is running. For example, if the `build_names` flow
+takes too long to execute, you can kick off a deployment with the same `build_names` flow, but replace the `count` value
 with a lower number to speed up completion.
 Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.deploy`.
 <Tabs>
@@ -556,7 +555,7 @@ Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.
     To follow a more Python-based approach to create a deployment, use `flow.deploy` as in the example below:
 
     ```python
-    # .deploy only needs a name, valid work pool 
+    # .deploy only needs a name, valid work pool
     # and a reference to where the flow code exists
 
     if __name__ == "__main__":
@@ -565,21 +564,21 @@ Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.
         work_pool_name="tutorial-process-pool"
         image="my_registry/my_image:my_image_tag",
     )
-    ``` 
+    ```
   </Tab>
-</Tabs>  
+</Tabs>
 
-Grab your `deployment_id` from this deployment with the CLI and embed it in your automation. 
+Grab your `deployment_id` from this deployment with the CLI and embed it in your automation.
 
-<Tip> 
+<Tip>
 **Find deployment_id from the CLI**
-  
+
 Run `prefect deployment ls` in an authenticated command prompt.
 </Tip>
 
-```bash 
+```bash
 prefect deployment ls
-                                          Deployments                                           
+                                          Deployments
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Name                                                  ┃ ID                                   ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -587,8 +586,8 @@ prefect deployment ls
 │ build-names/deploy-build-names                        │ 8b10a65e-89ef-4c19-9065-eec5c50242f4 │
 │ ride-duration-prediction-backfill/backfill-deployment │ 76dc6581-1773-45c5-a291-7f864d064c57 │
 └───────────────────────────────────────────────────────┴──────────────────────────────────────┘
-``` 
-Create an automation with a POST call to programmatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id`. 
+```
+Create an automation with a POST call to programmatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id`.
 
 ```python
 def create_event_driven_automation():
@@ -615,33 +614,33 @@ def create_event_driven_automation():
             {
                 "type": "run-deployment",
                 "source": "selected",
-                "deployment_id": "YOUR-DEPLOYMENT-ID", 
+                "deployment_id": "YOUR-DEPLOYMENT-ID",
                 "parameters": "10"
             }
         ],
         "owner_resource": "string"
     }
-    
+
     headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
     response = requests.post(api_url, headers=headers, json=data)
-    
+
     print(response.json())
     return response.json()
 ```
- 
-After running this function, you will see the changes that came from the post request within the UI. Keep in mind the 
-context is "custom" on UI. 
 
-Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names`. 
-You can see this new deployment get initiated with the custom parameters outlined above. 
+After running this function, you will see the changes that came from the post request within the UI. Keep in mind the
+context is "custom" on UI.
 
-In a few quick changes, you can programmatically create an automation that deploys workflows with custom parameters. 
+Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names`.
+You can see this new deployment get initiated with the custom parameters outlined above.
+
+In a few quick changes, you can programmatically create an automation that deploys workflows with custom parameters.
 
 ## Use an underlying .yaml file
 
-You can take this a step further by using your own .yaml version of the automation, and registering that file with the UI. 
-This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml 
-with the API. 
+You can take this a step further by using your own .yaml version of the automation, and registering that file with the UI.
+This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml
+with the API.
 
 First start with creating the .yaml file to house the automation requirements:
 
@@ -665,7 +664,7 @@ actions:
   - type: "cancel-flow-run"
 ```
 
-Make a helper function that applies this YAML file with the REST API function. 
+Make a helper function that applies this YAML file with the REST API function.
 
 ```python
 import yaml
@@ -695,7 +694,7 @@ if __name__ == "__main__":
     create_or_update_automation()
 ```
 
-Find a complete repo with these APIs examples in this [GitHub repository](https://github.com/EmilRex/prefect-api-examples/tree/main). 
+Find a complete repo with these APIs examples in this [GitHub repository](https://github.com/EmilRex/prefect-api-examples/tree/main).
 
 In this example, you created the automation by registering the .yaml file with a helper function.
 
@@ -705,15 +704,15 @@ In this example, you created the automation by registering the .yaml file with a
 <!-- vale off -->
 */}
 
-Use webhooks to expose the events API. This allows you to extend the functionality of deployments and respond to 
-changes in your workflow. 
+Use webhooks to expose the events API. This allows you to extend the functionality of deployments and respond to
+changes in your workflow.
 
 {/*
 <!-- vale on -->
 */}
 
-By exposing a webhook endpoint, you can kick off workflows that trigger deployments, all from an event created from an 
-HTTP request. 
+By exposing a webhook endpoint, you can kick off workflows that trigger deployments, all from an event created from an
+HTTP request.
 
 Create this webhook in the UI to create these dynamic events.
 
@@ -727,26 +726,26 @@ Create this webhook in the UI to create these dynamic events.
     }
 }
 ```
-From this input, you can create an exposed webhook endpoint. 
+From this input, you can create an exposed webhook endpoint.
 
 ![webhook-simple](/3.0/img/guides/webhook-simple.png)
 
-Each webhook corresponds to a custom event created where you can react to it downstream with a separate deployment or 
-automation. 
+Each webhook corresponds to a custom event created where you can react to it downstream with a separate deployment or
+automation.
 
-For example, you can create a curl request that sends the endpoint information such as a run count for your deployment: 
+For example, you can create a curl request that sends the endpoint information such as a run count for your deployment:
 ```console
 curl -X POST https://api.prefect.cloud/hooks/34iV2SFke3mVa6y5Y-YUoA -d "model_id=adhoc" -d "run_count=10" -d "friendly_name=test-user-input"
 ```
-From here, you can make a webhook that is connected to pulling in parameters on the curl command. It kicks off a 
+From here, you can make a webhook that is connected to pulling in parameters on the curl command. It kicks off a
 deployment that uses these pulled parameters:
 ![Webhook created](/3.0/img/guides/webhook-created.png)
 
-Go into the event feed to automate straight from this event: 
+Go into the event feed to automate straight from this event:
 ![Webhook automate](/3.0/img/guides/webhook-automate.png)
 
-This allows you to create automations that respond to these webhook events. From a few clicks in the UI, you can 
-associate an external process with the Prefect events API that can trigger downstream deployments. 
+This allows you to create automations that respond to these webhook events. From a few clicks in the UI, you can
+associate an external process with the Prefect events API that can trigger downstream deployments.
 ![Automation custom](/3.0/img/guides/automation-custom.png)
 
 ## Examples
@@ -911,5 +910,5 @@ In the above example:
 ## See also
 
 - To learn more about Prefect events, which can trigger automations, see the [events docs](/3.0/automate/events/events/).
-- See the [webhooks guide](/3.0/automate/events/webhook-triggers/) 
+- See the [webhooks guide](/3.0/automate/events/webhook-triggers/)
 to learn how to create webhooks and receive external events.
