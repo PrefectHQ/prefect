@@ -5,11 +5,13 @@ import pydantic
 from pydantic import (
     BeforeValidator,
     Field,
+    GetCoreSchemaHandler,
     StrictBool,
     StrictFloat,
     StrictInt,
     StrictStr,
 )
+from pydantic_core import core_schema
 from zoneinfo import available_timezones
 
 MAX_VARIABLE_NAME_LENGTH = 255
@@ -86,7 +88,19 @@ class SecretDict(pydantic.Secret[Dict[str, Any]]):
     pass
 
 
+def validate_client_retry_extra_codes(value: Union[str, List[int]]) -> List[int]:
+    if isinstance(value, str):
+        return [int(code) for code in value.split(",") if code.strip().isdigit()]
+    return value
+
+
+ClientRetryExtraCodes = Annotated[
+    Union[str, List[int]],
+    BeforeValidator(validate_client_retry_extra_codes),
+]
+
 __all__ = [
+    "ClientRetryExtraCodes",
     "NonNegativeInteger",
     "PositiveInteger",
     "NonNegativeFloat",

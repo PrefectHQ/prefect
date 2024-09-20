@@ -44,6 +44,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Literal, Self
 
 from prefect.exceptions import ProfileSettingsValidationError
+from prefect.types import ClientRetryExtraCodes
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.names import OBFUSCATED_PREFIX
 from prefect.utilities.pydantic import handle_secret_render
@@ -1049,7 +1050,7 @@ class Settings(BaseSettings):
         """,
     )
 
-    client_retry_extra_codes: list[Annotated[int, Field(ge=100, le=599)]] = Field(
+    client_retry_extra_codes: ClientRetryExtraCodes = Field(
         default_factory=list,
         description="""
         A list of extra HTTP status codes to retry on. Defaults to an empty list.
@@ -1333,7 +1334,7 @@ class Settings(BaseSettings):
     @classmethod
     def valid_setting_names(cls) -> Set[str]:
         """
-        A set of valid setting names.
+        A set of valid setting names, e.g. "PREFECT_API_URL" or "PREFECT_API_KEY".
         """
         return set(
             f"{cls.model_config.get('env_prefix')}{key.upper()}"
@@ -1481,8 +1482,7 @@ def get_settings_from_env() -> Settings:
     cache_key = hash(tuple((key, value) for key, value in os.environ.items()))
 
     if cache_key not in _FROM_ENV_CACHE:
-        settings = Settings()
-        _FROM_ENV_CACHE[cache_key] = settings
+        _FROM_ENV_CACHE[cache_key] = Settings()
 
     return _FROM_ENV_CACHE[cache_key]
 
@@ -1903,7 +1903,7 @@ def update_current_profile(
 class _SettingsDict(dict):
     """allow either `field_name` or `ENV_VAR_NAME` access
     ```
-    d = _SettingsDict(Settings, "PREFECT_")
+    d = _SettingsDict(Settings)
     d["api_url"] == d["PREFECT_API_URL"]
     ```
     """

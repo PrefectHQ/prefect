@@ -297,14 +297,11 @@ def pytest_sessionstart(session):
 
     This ensures that tests are isolated from existing settings, databases, etc.
 
-    We set the test profile during configuration instead of a fixture to ensure that
+    We set the test profile during session startup instead of a fixture to ensure that
     when tests are collected they respect the setting values.
     """
     global TEST_PREFECT_HOME, TEST_PROFILE_CTX
-
-    # Ensure that the home directory is only created once per worker
-    if TEST_PREFECT_HOME is None:
-        TEST_PREFECT_HOME = tempfile.mkdtemp()
+    TEST_PREFECT_HOME = tempfile.mkdtemp()
 
     profile = prefect.settings.Profile(
         name="test-session",
@@ -313,7 +310,7 @@ def pytest_sessionstart(session):
             # environments and settings
             PREFECT_HOME: TEST_PREFECT_HOME,
             PREFECT_LOCAL_STORAGE_PATH: Path(TEST_PREFECT_HOME) / "storage",
-            PREFECT_PROFILES_PATH: Path(TEST_PREFECT_HOME) / "profiles.toml",
+            PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
             # Disable connection to an API
             PREFECT_API_URL: None,
             # Disable pretty CLI output for easier assertions
@@ -363,7 +360,7 @@ def pytest_sessionstart(session):
     # Create the storage path now, fixing an obscure bug where it can be created by
     # when mounted as Docker volume resulting in the directory being owned by root
     # and unwritable by the normal user
-    PREFECT_LOCAL_STORAGE_PATH.value().mkdir(exist_ok=True, parents=True)
+    PREFECT_LOCAL_STORAGE_PATH.value().mkdir()
 
     # Ensure logging is configured for the test session
     setup_logging()

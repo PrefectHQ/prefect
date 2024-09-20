@@ -609,7 +609,6 @@ def use_profile(
 
     # Create a copy of the profiles settings as we will mutate it
     profile_settings = profile.settings.copy()
-
     existing_context = SettingsContext.get()
     if existing_context and include_current_context:
         settings = existing_context.settings

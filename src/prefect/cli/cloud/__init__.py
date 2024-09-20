@@ -366,7 +366,7 @@ async def login(
 
     profiles = load_profiles()
     current_profile = get_settings_context().profile
-    env_var_api_key = PREFECT_API_KEY.value()
+    env_var_api_key = os.getenv("PREFECT_API_KEY")
     selected_workspace = None
 
     if env_var_api_key and key and env_var_api_key != key:
