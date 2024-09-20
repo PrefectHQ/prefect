@@ -245,11 +245,11 @@ For example:
 ```python
 from prefect import task
 from prefect.cache_policies import TASK_SOURCE, INPUTS
-from prefect.isolation_levels import SERIALIZABLE
+from prefect.transactions import IsolationLevel
 from prefect.locking.filesystem import FileSystemLockManager
 
 cache_policy = (INPUTS + TASK_SOURCE).configure(
-    isolation_level=SERIALIZABLE,
+    isolation_level=IsolationLevel.SERIALIZABLE,
     lock_manager=FileSystemLockManager(lock_files_directory="path/to/lock/files"),
 )
 
@@ -270,12 +270,12 @@ We recommend using the `RedisLockManager` provided by `prefect-redis` in conjunc
 ```python
 from prefect import task
 from prefect.cache_policies import TASK_SOURCE, INPUTS
-from prefect.isolation_levels import SERIALIZABLE
+from prefect.transactions import IsolationLevel
 
 from prefect_redis import RedisLockManager
 
 cache_policy = (INPUTS + TASK_SOURCE).configure(
-    isolation_level=SERIALIZABLE,
+    isolation_level=IsolationLevel.SERIALIZABLE,
     lock_manager=RedisLockManager(host="my-redis-host"),
 )
 
