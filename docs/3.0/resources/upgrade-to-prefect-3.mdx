@@ -215,6 +215,16 @@ async def my_async_function():
 
 </CodeGroup>
 
+Similarly, if you never use an un-awaited coroutine, you may see a warning like this:
+
+```python
+RuntimeWarning: coroutine 'some_async_callable' was never awaited
+...
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+```
+
+This is the same problem as above, and you may `await` the coroutine to fix it or use `_sync=True`.
+
 #### `TypeError: object <some Type> can't be used in 'await' expression`
 
 This error occurs when using the `await` keyword before an object that is not a coroutine.
