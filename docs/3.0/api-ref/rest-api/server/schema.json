@@ -21820,7 +21820,7 @@
                         "title": "Prefect Api Database Connection Timeout",
                         "default": 5
                     },
-		            "PREFECT_API_DATABASE_INCLUDE_JIT_SERVER_SETTING": {
+                    "PREFECT_API_DATABASE_INCLUDE_JIT_SERVER_SETTING": {
                         "anyOf": [
                             {
                                 "type": "boolean"
