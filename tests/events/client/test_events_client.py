@@ -11,7 +11,6 @@ from prefect.events.clients import (
     PrefectCloudEventsClient,
     PrefectEventsClient,
     get_events_subscriber,
-    warn_if_ws_connect_fails,
 )
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -347,7 +346,7 @@ async def test_recovers_from_long_lasting_error_reconnecting(
     ]
 
 
-async def test_warn_if_ws_connect_fails_logs_warning(
+async def test_events_client_warn_if_connect_fails(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ):
@@ -358,7 +357,7 @@ async def test_warn_if_ws_connect_fails_logs_warning(
     monkeypatch.setattr("prefect.events.clients.connect", mock_connect)
 
     with caplog.at_level(logging.WARNING):
-        await warn_if_ws_connect_fails("ws://localhost", "my-token")
+        await PrefectEventsClient.warn_if_ws_connect_fails("ws://localhost", "my-token")
 
     assert any(
         "Unable to connect to 'ws" in record.message for record in caplog.records
