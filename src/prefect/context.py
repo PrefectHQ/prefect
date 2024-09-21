@@ -38,10 +38,6 @@ import prefect.settings
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
-from prefect.events.clients import (
-    aensure_ws_can_connect,
-    ensure_ws_can_connect,
-)
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultStore, get_default_persist_setting
@@ -215,7 +211,6 @@ class SyncClientContext(ContextModel):
         if self._context_stack == 1:
             self.client.__enter__()
             self.client.raise_for_api_version_mismatch()
-            ensure_ws_can_connect()
             return super().__enter__()
         else:
             return self
@@ -274,7 +269,6 @@ class AsyncClientContext(ContextModel):
         if self._context_stack == 1:
             await self.client.__aenter__()
             await self.client.raise_for_api_version_mismatch()
-            await aensure_ws_can_connect()
             return super().__enter__()
         else:
             return self

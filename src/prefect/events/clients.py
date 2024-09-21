@@ -1,6 +1,5 @@
 import abc
 import asyncio
-from contextlib import contextmanager
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -28,7 +27,6 @@ from websockets.exceptions import (
     ConnectionClosedError,
     ConnectionClosedOK,
 )
-from websockets.sync.client import connect as sync_connect
 
 from prefect.events import Event
 from prefect.logging import get_logger
@@ -143,61 +141,28 @@ def get_events_subscriber(
         )
 
 
-def _get_socket_url_and_headers():
-    api_url = PREFECT_API_URL.value()
-    headers = None
+async def warn_if_ws_connect_fails(api_url: Optional[str], api_key: Optional[str]):
+    if not api_url:
+        return
 
-    if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
-        _, api_key = _get_api_url_and_key(api_url, None)
-        headers = {"Authorization": f"bearer {api_key}"}
-    elif api_url:
-        pass
-    elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
-        from prefect.server.api.server import SubprocessASGIServer
+    socket_url = events_in_socket_from_api_url(api_url)
+    headers = {"Authorization": f"bearer {api_key}"} if api_key else {}
 
-        server = SubprocessASGIServer()
-        server.start()
-        api_url = server.api_url
-    else:
-        raise ValueError(
-            "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
-        )
-
-    return events_in_socket_from_api_url(api_url), headers
-
-
-@contextmanager
-def warn_ws_connect_error(socket_url: str):
     try:
-        yield
-    except Exception:
-        logger.warning(
-            "Unable to establish websocket connection to"
-            "\n%r. Check your network to ensure "
-            "websocket connections can be made to the API, "
-            "otherwise event data, including task runs, may be lost! "
-            "Set PREFECT_DEBUG_MODE=1 to view full error.",
-            socket_url,
-            exc_info=PREFECT_DEBUG_MODE,
-        )
-
-
-def ensure_ws_can_connect():
-    socket_url, headers = _get_socket_url_and_headers()
-
-    with warn_ws_connect_error(socket_url):
-        with sync_connect(socket_url, additional_headers=headers) as ws:
-            pong = ws.ping()
-            pong.wait()
-
-
-async def aensure_ws_can_connect():
-    socket_url, headers = _get_socket_url_and_headers()
-
-    with warn_ws_connect_error(socket_url):
         async with connect(socket_url, extra_headers=headers) as ws:
             pong = await ws.ping()
             await pong
+    except Exception as e:
+        logger.warning(
+            "Unable to connect to %r: [%s] %s. "
+            "Please check your network settings to ensure websocket connections "
+            "to the API are allowed. Otherwise event data (including task run data) may be lost. "
+            "Set PREFECT_DEBUG_MODE=1 to see the full error.",
+            socket_url,
+            type(e).__name__,
+            e,
+            exc_info=PREFECT_DEBUG_MODE,
+        )
 
 
 class EventsClient(abc.ABC):

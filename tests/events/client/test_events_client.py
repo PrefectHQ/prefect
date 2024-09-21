@@ -1,5 +1,5 @@
 import logging
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager
 from typing import Type
 from unittest import mock
 
@@ -10,9 +10,8 @@ from prefect.events import Event, get_events_client
 from prefect.events.clients import (
     PrefectCloudEventsClient,
     PrefectEventsClient,
-    aensure_ws_can_connect,
-    ensure_ws_can_connect,
     get_events_subscriber,
+    warn_if_ws_connect_fails,
 )
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -348,12 +347,9 @@ async def test_recovers_from_long_lasting_error_reconnecting(
     ]
 
 
-async def test_aensure_ws_can_connect():
-    await aensure_ws_can_connect()
-
-
-async def test_aensure_ws_can_connect_logs_warning(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+async def test_warn_if_ws_connect_fails_logs_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ):
     @asynccontextmanager
     async def mock_connect(*args, **kwargs):
@@ -362,31 +358,8 @@ async def test_aensure_ws_can_connect_logs_warning(
     monkeypatch.setattr("prefect.events.clients.connect", mock_connect)
 
     with caplog.at_level(logging.WARNING):
-        await aensure_ws_can_connect()
+        await warn_if_ws_connect_fails("ws://localhost", "my-token")
 
     assert any(
-        "Unable to establish websocket connection to" in record.message
-        for record in caplog.records
-    )
-
-
-async def test_ensure_ws_can_connect():
-    ensure_ws_can_connect()
-
-
-async def test_ensure_ws_can_connect_logs_warning(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-):
-    @contextmanager
-    def mock_connect(*args, **kwargs):
-        raise Exception("Connection failed")
-
-    monkeypatch.setattr("prefect.events.clients.sync_connect", mock_connect)
-
-    with caplog.at_level(logging.WARNING):
-        ensure_ws_can_connect()
-
-    assert any(
-        "Unable to establish websocket connection to" in record.message
-        for record in caplog.records
+        "Unable to connect to 'ws" in record.message for record in caplog.records
     )

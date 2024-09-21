@@ -18,6 +18,7 @@ from .clients import (
     NullEventsClient,
     PrefectCloudEventsClient,
     PrefectEventsClient,
+    warn_if_ws_connect_fails,
 )
 from .related import related_resources_from_run_context
 from .schemas.events import Event
@@ -63,10 +64,16 @@ class EventsWorker(QueueService[Event]):
 
     @asynccontextmanager
     async def _lifespan(self):
-        self._client = self.client_type(**{k: v for k, v in self.client_options})
+        client_options = {k: v for k, v in self.client_options}
+        api_url, api_key = client_options.get("api_url"), client_options.get("api_key")
+
+        await warn_if_ws_connect_fails(api_url, api_key)
+        self._client = self.client_type(**client_options)
+
         from prefect.client.orchestration import get_client
 
         self._orchestration_client = get_client()
+
         async with self._client:
             async with self._orchestration_client:
                 yield
