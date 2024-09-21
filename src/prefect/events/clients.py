@@ -1,5 +1,6 @@
 import abc
 import asyncio
+from contextlib import contextmanager
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -165,36 +166,38 @@ def _get_socket_url_and_headers():
     return events_in_socket_from_api_url(api_url), headers
 
 
+@contextmanager
+def warn_ws_connect_error(socket_url: str):
+    try:
+        yield
+    except Exception:
+        logger.warning(
+            "Unable to establish websocket connection to"
+            "\n%r. Check your network to ensure "
+            "websocket connections can be made to the API, "
+            "otherwise event data, including task runs, may be lost! "
+            "Set PREFECT_DEBUG_MODE=1 to view full error.",
+            socket_url,
+            exc_info=PREFECT_DEBUG_MODE,
+        )
+
+
 def ensure_ws_can_connect():
     socket_url, headers = _get_socket_url_and_headers()
 
-    try:
+    with warn_ws_connect_error(socket_url):
         with sync_connect(socket_url, additional_headers=headers) as ws:
             pong = ws.ping()
             pong.wait()
-    except Exception:
-        logger.error(
-            f"Unable to connect to {socket_url!r}. "
-            f"Check your network to ensure websocket connections can be made to the API, "
-            f"otherwise some data may be lost!",
-            exc_info=PREFECT_DEBUG_MODE,
-        )
 
 
 async def aensure_ws_can_connect():
     socket_url, headers = _get_socket_url_and_headers()
 
-    try:
+    with warn_ws_connect_error(socket_url):
         async with connect(socket_url, extra_headers=headers) as ws:
             pong = await ws.ping()
             await pong
-    except Exception:
-        logger.error(
-            f"Unable to connect to {socket_url!r}. "
-            f"Check your network to ensure websocket connections can be made to the API, "
-            f"otherwise some data may be lost!",
-            exc_info=PREFECT_DEBUG_MODE,
-        )
 
 
 class EventsClient(abc.ABC):

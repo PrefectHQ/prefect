@@ -1,3 +1,5 @@
+import logging
+from contextlib import asynccontextmanager, contextmanager
 from typing import Type
 from unittest import mock
 
@@ -8,6 +10,8 @@ from prefect.events import Event, get_events_client
 from prefect.events.clients import (
     PrefectCloudEventsClient,
     PrefectEventsClient,
+    aensure_ws_can_connect,
+    ensure_ws_can_connect,
     get_events_subscriber,
 )
 from prefect.settings import (
@@ -342,3 +346,47 @@ async def test_recovers_from_long_lasting_error_reconnecting(
         # event 2 never made it because we cause that error during reconnection
         # event 3 never made it because we told the server to refuse future connects
     ]
+
+
+async def test_aensure_ws_can_connect():
+    await aensure_ws_can_connect()
+
+
+async def test_aensure_ws_can_connect_logs_warning(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+):
+    @asynccontextmanager
+    async def mock_connect(*args, **kwargs):
+        raise Exception("Connection failed")
+
+    monkeypatch.setattr("prefect.events.clients.connect", mock_connect)
+
+    with caplog.at_level(logging.WARNING):
+        await aensure_ws_can_connect()
+
+    assert any(
+        "Unable to establish websocket connection to" in record.message
+        for record in caplog.records
+    )
+
+
+async def test_ensure_ws_can_connect():
+    ensure_ws_can_connect()
+
+
+async def test_ensure_ws_can_connect_logs_warning(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+):
+    @contextmanager
+    def mock_connect(*args, **kwargs):
+        raise Exception("Connection failed")
+
+    monkeypatch.setattr("prefect.events.clients.sync_connect", mock_connect)
+
+    with caplog.at_level(logging.WARNING):
+        ensure_ws_can_connect()
+
+    assert any(
+        "Unable to establish websocket connection to" in record.message
+        for record in caplog.records
+    )
