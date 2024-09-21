@@ -201,11 +201,11 @@ class TestSettingsContext:
     def test_settings_context_variable(self):
         with SettingsContext(
             profile=Profile(name="test", settings={}),
-            settings=prefect.settings.get_settings_from_env(),
+            settings=prefect.settings.get_current_settings(),
         ) as context:
             assert get_settings_context() is context
             assert context.profile == Profile(name="test", settings={})
-            assert context.settings == prefect.settings.get_settings_from_env()
+            assert context.settings == prefect.settings.get_current_settings()
 
     def test_get_settings_context_missing(self, monkeypatch):
         # It's kind of hard to actually exit the default profile, so we patch `get`

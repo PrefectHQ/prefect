@@ -185,7 +185,7 @@ def view(
         dump_context = {}
 
     context = prefect.context.get_settings_context()
-    default_settings = prefect.settings.get_default_settings()
+    default_settings = prefect.settings.Settings()
     current_profile_settings = context.profile.settings
 
     # Display the profile first
@@ -219,6 +219,8 @@ def view(
         if setting.name in processed_settings:
             continue
         env_value = os.getenv(setting.name)
+        if env_value is None:
+            continue
         _process_setting(setting, env_value, "env")
 
     # Process default settings if show_defaults is True

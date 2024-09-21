@@ -3,7 +3,6 @@ Routes for admin-level interactions with the Prefect REST API.
 """
 
 from fastapi import Body, Depends, Response, status
-from pydantic import JsonValue
 
 import prefect
 import prefect.settings
@@ -14,15 +13,15 @@ from prefect.server.utilities.server import PrefectRouter
 router = PrefectRouter(prefix="/admin", tags=["Admin"])
 
 
-@router.get("/settings")
-async def read_settings() -> JsonValue:
+@router.get("/settings", response_model=prefect.settings.Settings)
+async def read_settings() -> dict:
     """
     Get the current Prefect REST API settings.
 
     Secret setting values will be obfuscated.
     """
     return prefect.settings.get_current_settings().model_dump(
-        mode="json", context={"include_secrets": True}
+        context={"include_secrets": True}
     )
 
 

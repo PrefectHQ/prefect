@@ -1450,70 +1450,18 @@ def _cast_settings(settings: Dict[Union[str, Setting], Any]) -> Dict[Setting, An
     }
 
 
-_PROCESS_ID = os.getpid()
-_DEFAULTS_CACHE: Optional[Settings] = None
-_FROM_ENV_CACHE: Dict[int, Settings] = {}
-
-
 def get_current_settings() -> Settings:
     """
     Returns a settings object populated with values from the current settings context
     or, if no settings context is active, the environment.
     """
-    global _FROM_ENV_CACHE, _PROCESS_ID
-
-    if _PROCESS_ID != (pid := os.getpid()):
-        _FROM_ENV_CACHE = {}
-        _PROCESS_ID = pid
-
     from prefect.context import SettingsContext
 
     settings_context = SettingsContext.get()
     if settings_context is not None:
         return settings_context.settings
 
-    return get_settings_from_env()
-
-
-def get_settings_from_env() -> Settings:
-    """
-    Returns a settings object populated with default values and overrides from
-    environment variables, ignoring any values in profiles.
-
-    Calls with the same environment return a cached object instead of reconstructing
-    to avoid validation overhead.
-    """
-    # Since os.environ is a Dict[str, str] we can safely hash it by contents, but we
-    # must be careful to avoid hashing a generator instead of a tuple
-    cache_key = hash(tuple((key, value) for key, value in os.environ.items()))
-
-    if cache_key not in _FROM_ENV_CACHE:
-        _FROM_ENV_CACHE[cache_key] = Settings()
-
-    return _FROM_ENV_CACHE[cache_key]
-
-
-def get_default_settings() -> Settings:
-    """
-    Returns a settings object populated with default values, ignoring any overrides
-    from environment variables or profiles.
-
-    This is cached since the defaults should not change during the lifetime of the
-    module.
-    """
-    global _DEFAULTS_CACHE
-
-    if not _DEFAULTS_CACHE:
-        old = os.environ
-        try:
-            os.environ = {}
-            settings = get_settings_from_env()
-        finally:
-            os.environ = old
-
-        _DEFAULTS_CACHE = settings
-
-    return _DEFAULTS_CACHE
+    return Settings()
 
 
 @contextmanager
@@ -1945,7 +1893,6 @@ __all__ = [  # noqa: F822
     "save_profiles",
     "load_profiles",
     "get_current_settings",
-    "get_settings_from_env",
     "temporary_settings",
     "DEFAULT_PROFILES_PATH",
     # add public settings here for auto-completion

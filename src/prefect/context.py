@@ -613,7 +613,7 @@ def use_profile(
     if existing_context and include_current_context:
         settings = existing_context.settings
     else:
-        settings = prefect.settings.get_settings_from_env()
+        settings = Settings()
 
     if not override_environment_variables:
         for key in os.environ:
