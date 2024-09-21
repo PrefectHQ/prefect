@@ -1032,6 +1032,7 @@ class Settings(BaseSettings):
 
     client_max_retries: int = Field(
         default=5,
+        ge=0,
         description="""
         The maximum number of retries to perform on failed HTTP requests.
         Defaults to 5. Set to 0 to disable retries.
@@ -1042,6 +1043,7 @@ class Settings(BaseSettings):
 
     client_retry_jitter_factor: float = Field(
         default=0.2,
+        ge=0.0,
         description="""
         A value greater than or equal to zero to control the amount of jitter added to retried
         client requests. Higher values introduce larger amounts of jitter.
@@ -1057,6 +1059,7 @@ class Settings(BaseSettings):
         429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
         may result in unexpected behavior.
         """,
+        examples=["404,429,503", "429", [404, 429, 503]],
     )
 
     client_csrf_support_enabled: bool = Field(
@@ -1087,6 +1090,7 @@ class Settings(BaseSettings):
 
     task_default_retries: int = Field(
         default=0,
+        ge=0,
         description="This value sets the default number of retries for all tasks.",
     )
 
@@ -1097,11 +1101,13 @@ class Settings(BaseSettings):
 
     task_run_tag_concurrency_slot_wait_seconds: int = Field(
         default=30,
+        ge=0,
         description="The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
     )
 
     flow_default_retries: int = Field(
         default=0,
+        ge=0,
         description="This value sets the default number of retries for all flows.",
     )
 

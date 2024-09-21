@@ -1,9 +1,13 @@
+from functools import partial
+from typing import Annotated, List
+
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, BeforeValidator, TypeAdapter, ValidationError
 
 from prefect.types import (
     NonNegativeInteger,
     PositiveInteger,
+    validate_list_T_from_delim_string,
 )
 
 
@@ -35,3 +39,34 @@ class TestConstrainedIntegers:
 
         with pytest.raises(ValidationError):
             Model(value=invalid_value)
+
+
+class TestCustomValidationLogic:
+    @pytest.mark.parametrize(
+        "value,delim,expected",
+        [
+            (None, None, []),
+            ("", None, []),
+            ("429", None, [429]),
+            ("404,429,503", None, [404, 429, 503]),
+            ("401|403|409", "|", [401, 403, 409]),
+            (419, None, [419]),
+            ([307, 404, 429, 503], None, [307, 404, 429, 503]),
+        ],
+        ids=[
+            "None",
+            "empty string",
+            "single int as string",
+            "comma separated ints as string",
+            "pipe separated ints as string",
+            "single int",
+            "multiple ints in list",
+        ],
+    )
+    def test_list_of_ints(self, value, delim, expected):
+        """e.g. scooping PREFECT_CLIENT_RETRY_EXTRA_CODES"""
+        scoop_list_int_from_string = BeforeValidator(
+            partial(validate_list_T_from_delim_string, type_=int, delim=delim)
+        )
+        _type = Annotated[List[int], scoop_list_int_from_string]
+        assert TypeAdapter(_type).validate_python(value) == expected
