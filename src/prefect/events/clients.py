@@ -141,27 +141,6 @@ def get_events_subscriber(
         )
 
 
-async def warn_if_ws_connect_fails(api_url: str, api_key: Optional[str]):
-    socket_url = events_in_socket_from_api_url(api_url)
-    headers = {"Authorization": f"bearer {api_key}"} if api_key else {}
-
-    try:
-        async with connect(socket_url, extra_headers=headers) as ws:
-            pong = await ws.ping()
-            await pong
-    except Exception as e:
-        logger.warning(
-            "Unable to connect to %r: [%s] %s. "
-            "Please check your network settings to ensure websocket connections "
-            "to the API are allowed. Otherwise event data (including task run data) may be lost. "
-            "Set PREFECT_DEBUG_MODE=1 to see the full error.",
-            socket_url,
-            type(e).__name__,
-            e,
-            exc_info=PREFECT_DEBUG_MODE,
-        )
-
-
 class EventsClient(abc.ABC):
     """The abstract interface for all Prefect Events clients"""
 
@@ -309,6 +288,27 @@ class PrefectEventsClient(EventsClient):
         await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
+    @classmethod
+    async def warn_if_ws_connect_fails(cls, api_url: str, api_key: Optional[str]):
+        socket_url = events_in_socket_from_api_url(api_url)
+        headers = {"Authorization": f"bearer {api_key}"} if api_key else {}
+
+        try:
+            async with connect(socket_url, extra_headers=headers) as ws:
+                pong = await ws.ping()
+                await pong
+        except Exception as e:
+            logger.warning(
+                "Unable to connect to %r: [%s] %s. "
+                "Please check your network settings to ensure websocket connections "
+                "to the API are allowed. Otherwise event data (including task run data) may be lost. "
+                "Set PREFECT_DEBUG_MODE=1 to see the full error.",
+                socket_url,
+                type(e).__name__,
+                e,
+                exc_info=PREFECT_DEBUG_MODE,
+            )
+
     async def _reconnect(self) -> None:
         if self._websocket:
             self._websocket = None
@@ -392,6 +392,10 @@ class AssertingPassthroughEventsClient(PrefectEventsClient):
         AssertingPassthroughEventsClient.all.append(self)
         self.args = args
         self.kwargs = kwargs
+
+    @classmethod
+    def warn_if_ws_connect_fails(cls, api_url: str, api_key: Optional[str]):
+        return
 
     @classmethod
     def reset(cls) -> None:
