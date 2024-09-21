@@ -141,10 +141,7 @@ def get_events_subscriber(
         )
 
 
-async def warn_if_ws_connect_fails(api_url: Optional[str], api_key: Optional[str]):
-    if not api_url:
-        return
-
+async def warn_if_ws_connect_fails(api_url: str, api_key: Optional[str]):
     socket_url = events_in_socket_from_api_url(api_url)
     headers = {"Authorization": f"bearer {api_key}"} if api_key else {}
 
