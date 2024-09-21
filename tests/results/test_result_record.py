@@ -27,7 +27,9 @@ class TestResultRecord:
             ResultRecord.deserialize(serialized)
 
         # need to pass serializer to deserialize raw result
-        deserialized = ResultRecord.deserialize(serialized, serializer=JSONSerializer())
+        deserialized = ResultRecord.deserialize(
+            serialized, backup_serializer=JSONSerializer()
+        )
         assert deserialized.result == "The results are in..."
 
     async def test_from_metadata(self):

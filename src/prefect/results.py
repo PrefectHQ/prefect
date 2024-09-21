@@ -433,21 +433,19 @@ class ResultStore(BaseModel):
         return await self.result_storage.read_path(key)
 
     @sync_compatible
-    async def _read(
-        self, key: str, holder: str, serializer: Optional[Serializer] = None
-    ) -> "ResultRecord":
+    async def _read(self, key: str, holder: str = None) -> "ResultRecord":
         """
-                Read a result record from storage.
+        Read a result record from storage.
 
-                This is the internal implementation. Use `read` or `aread` for synchronous and
-                asynchronous result reading respectively.
+        This is the internal implementation. Use `read` or `aread` for synchronous and
+        asynchronous result reading respectively.
 
-                Args:
-                    key: The key to read the result record from.
-                    holder: The holder of the lock if a lock was set on the record.
-        cc
-                Returns:
-                    A result record.
+        Args:
+            key: The key to read the result record from.
+            holder: The holder of the lock if a lock was set on the record.
+
+        Returns:
+            A result record.
         """
 
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
@@ -471,7 +469,9 @@ class ResultStore(BaseModel):
             )
         else:
             content = await self.result_storage.read_path(key)
-            result_record = ResultRecord.deserialize(content, serializer=serializer)
+            result_record = ResultRecord.deserialize(
+                content, backup_serializer=self.serializer
+            )
 
         if self.cache_result_in_memory:
             if self.result_storage_block_id is None and hasattr(
@@ -488,7 +488,6 @@ class ResultStore(BaseModel):
         self,
         key: str,
         holder: Optional[str] = None,
-        serializer: Optional[Serializer] = None,
     ) -> "ResultRecord":
         """
         Read a result record from storage.
@@ -496,20 +495,17 @@ class ResultStore(BaseModel):
         Args:
             key: The key to read the result record from.
             holder: The holder of the lock if a lock was set on the record.
-            serializer: The serializer to use for the result record. Only necessary if the
-                metadata for the result was not persisted.
 
         Returns:
             A result record.
         """
         holder = holder or self.generate_default_holder()
-        return self._read(key=key, holder=holder, serializer=serializer, _sync=True)
+        return self._read(key=key, holder=holder, _sync=True)
 
     async def aread(
         self,
         key: str,
         holder: Optional[str] = None,
-        serializer: Optional[Serializer] = None,
     ) -> "ResultRecord":
         """
         Read a result record from storage.
@@ -517,16 +513,12 @@ class ResultStore(BaseModel):
         Args:
             key: The key to read the result record from.
             holder: The holder of the lock if a lock was set on the record.
-            serializer: The serializer to use for the result record. Only necessary if the
-                metadata for the result was not persisted.
 
         Returns:
             A result record.
         """
         holder = holder or self.generate_default_holder()
-        return await self._read(
-            key=key, holder=holder, serializer=serializer, _sync=False
-        )
+        return await self._read(key=key, holder=holder, _sync=False)
 
     def create_result_record(
         self,
@@ -1059,7 +1051,7 @@ class ResultRecord(BaseModel, Generic[R]):
         store = ResultStore(
             result_storage=storage_block, serializer=metadata.serializer
         )
-        result = await store.aread(metadata.storage_key, serializer=metadata.serializer)
+        result = await store.aread(metadata.storage_key)
         return result
 
     def serialize_metadata(self) -> bytes:
@@ -1083,14 +1075,14 @@ class ResultRecord(BaseModel, Generic[R]):
 
     @classmethod
     def deserialize(
-        cls, data: bytes, serializer: Optional[Serializer] = None
+        cls, data: bytes, backup_serializer: Optional[Serializer] = None
     ) -> "ResultRecord[R]":
         """
         Deserialize a record from bytes.
 
         Args:
             data: the serialized record
-            serializer: The serializer to use to deserialize the result record. Only
+            backup_serializer: The serializer to use to deserialize the result record. Only
                 necessary if the provided data does not specify a serializer.
 
         Returns:
@@ -1099,12 +1091,12 @@ class ResultRecord(BaseModel, Generic[R]):
         try:
             instance = cls.model_validate_json(data)
         except ValidationError:
-            if serializer is None:
+            if backup_serializer is None:
                 raise
             else:
-                result = serializer.loads(data)
+                result = backup_serializer.loads(data)
                 return cls(
-                    metadata=ResultRecordMetadata(serializer=serializer),
+                    metadata=ResultRecordMetadata(serializer=backup_serializer),
                     result=result,
                 )
         if isinstance(instance.result, bytes):
