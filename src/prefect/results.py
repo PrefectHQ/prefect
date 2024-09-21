@@ -426,14 +426,8 @@ class ResultStore(BaseModel):
         """
         return await self._exists(key=key, _sync=False)
 
-    async def _read_raw_result(self, key: str) -> bytes:
-        if self.result_storage is None:
-            self.result_storage = await get_default_result_storage()
-
-        return await self.result_storage.read_path(key)
-
     @sync_compatible
-    async def _read(self, key: str, holder: str = None) -> "ResultRecord":
+    async def _read(self, key: str, holder: str) -> "ResultRecord":
         """
         Read a result record from storage.
 
@@ -463,7 +457,7 @@ class ResultStore(BaseModel):
             assert (
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
-            result_content = await self._read_raw_result(metadata.storage_key)
+            result_content = await self.result_storage.read_path(metadata.storage_key)
             result_record = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
