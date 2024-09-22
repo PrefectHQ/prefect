@@ -114,7 +114,7 @@ class Setting:
         return str(self.value())
 
     def __repr__(self) -> str:
-        return f"{self.name.upper()}"
+        return f"<{self.name}: {self._type!r}>"
 
     def __eq__(self, __o: object) -> bool:
         return __o.__eq__(self.value())
