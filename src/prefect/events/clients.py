@@ -1,6 +1,5 @@
 import abc
 import asyncio
-from contextlib import asynccontextmanager
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -239,14 +238,6 @@ def _get_api_url_and_key(
     return api_url, api_key
 
 
-@asynccontextmanager
-async def warn_if_ws_connect_fails(socket_url: str):
-    try:
-        yield
-    except Exception:
-        raise
-
-
 class PrefectEventsClient(EventsClient):
     """A Prefect Events client that streams events to a Prefect server"""
 
@@ -274,20 +265,12 @@ class PrefectEventsClient(EventsClient):
             )
 
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._warn_connect_error = True
         self._connect_kwargs = {"uri": self._events_socket_url}
+        self._connect = connect(**self._connect_kwargs)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
-        self.__connect = None
-
-    @property
-    def _connect(self):
-        # Defer connection creation until the first time it's needed
-        if self.__connect is None:
-            self.__connect = connect(**self._connect_kwargs)
-        return self.__connect
 
     async def __aenter__(self) -> Self:
         # Don't handle any errors in the initial connection, because these are most
@@ -453,7 +436,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         )
         self._connect_kwargs = {
             "uri": self._events_socket_url,
-            "extra_headers": {"Authorization": f"bearer {api_key}"},
+            "extra_headers": {"Authorization": f"Bearer {api_key}"},
         }
 
 

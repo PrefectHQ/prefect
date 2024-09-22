@@ -67,7 +67,6 @@ class EventsWorker(QueueService[Event]):
         from prefect.client.orchestration import get_client
 
         self._orchestration_client = get_client()
-
         async with self._client:
             async with self._orchestration_client:
                 yield
