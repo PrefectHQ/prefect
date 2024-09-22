@@ -306,11 +306,10 @@ class PrefectEventsClient(EventsClient):
                 "Unable to connect to %r. "
                 "Please check your network settings to ensure websocket connections "
                 "to the API are allowed. Otherwise event data (including task run data) may be lost. "
-                "Reason: %s: %s. "
+                "Reason: %s. "
                 "Set PREFECT_DEBUG_MODE=1 to see the full error.",
                 self._events_socket_url,
-                type(e).__name__,
-                e,
+                str(e),
                 exc_info=PREFECT_DEBUG_MODE,
             )
             raise
