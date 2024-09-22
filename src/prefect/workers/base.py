@@ -265,7 +265,12 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a dictionary of environment variables for a flow run job.
         """
-        return {"PREFECT__FLOW_RUN_ID": str(flow_run.id)}
+        return {
+            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            # Workers handle concurrency separately, so we disable it for the flow run's
+            # runner. Without a worker, the runner will attempt to acquire a slot.
+            "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": "true",
+        }
 
     @staticmethod
     def _base_deployment_labels(deployment: "DeploymentResponse") -> Dict[str, str]:

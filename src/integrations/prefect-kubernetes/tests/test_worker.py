@@ -237,6 +237,7 @@ from_template_and_values_cases = [
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": "true",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -292,6 +293,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION",
+                                            "value": "true",
                                         },
                                     ],
                                     "image": get_prefect_image_name(),
@@ -522,6 +527,7 @@ from_template_and_values_cases = [
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": "true",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -577,6 +583,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION",
+                                            "value": "true",
                                         },
                                         {
                                             "name": "TEST_ENV",
@@ -679,6 +689,7 @@ from_template_and_values_cases = [
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": "true",
                 "TEST_ENV": "test",
             },
             labels={
@@ -739,6 +750,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION",
+                                            "value": "true",
                                         },
                                         {
                                             "name": "TEST_ENV",
@@ -961,6 +976,7 @@ from_template_and_values_cases = [
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": "true",
                 "TEST_ENV": "test",
             },
             labels={
@@ -1016,6 +1032,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION",
+                                            "value": "true",
                                         },
                                         {
                                             "name": "TEST_ENV",

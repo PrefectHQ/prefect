@@ -1047,21 +1047,32 @@ class Runner:
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
-        if flow_run.deployment_id:
-            deployment = await self._client.read_deployment(flow_run.deployment_id)
-        if (
-            deployment
-            and deployment.global_concurrency_limit
-            and not deployment.work_queue_id  # Workers apply limits separately
-        ):
-            limit_name = deployment.global_concurrency_limit.name
-            concurrency_ctx = concurrency
-        else:
-            limit_name = ""
-            concurrency_ctx = asyncnullcontext
+        disable_concurrency = (
+            os.environ.get("PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION", "").lower()
+            == "true"
+        )
 
         try:
-            async with concurrency_ctx(limit_name, max_retries=0, strict=True):
+            if not disable_concurrency and flow_run.deployment_id:
+                deployment = await self._client.read_deployment(flow_run.deployment_id)
+                if deployment and deployment.global_concurrency_limit:
+                    async with concurrency(
+                        deployment.global_concurrency_limit.name,
+                        max_retries=0,
+                        strict=True,
+                    ):
+                        status_code = await self._run_process(
+                            flow_run=flow_run,
+                            task_status=task_status,
+                            entrypoint=entrypoint,
+                        )
+                else:
+                    status_code = await self._run_process(
+                        flow_run=flow_run,
+                        task_status=task_status,
+                        entrypoint=entrypoint,
+                    )
+            else:
                 status_code = await self._run_process(
                     flow_run=flow_run,
                     task_status=task_status,
@@ -1072,19 +1083,17 @@ class Runner:
             ConcurrencySlotAcquisitionError,
         ) as exc:
             self._logger.info(
-                (
-                    "Deployment %s reached its concurrency limit when attempting to execute flow run %s. Will attempt to execute later."
-                ),
+                "Deployment %s reached its concurrency limit when attempting to execute flow run %s. Will attempt to execute later.",
                 flow_run.deployment_id,
                 flow_run.name,
             )
             await self._propose_scheduled_state(flow_run)
 
-            if not task_status._future.done():
+            if task_status and not task_status._future.done():
                 task_status.started(exc)
             return exc
         except Exception as exc:
-            if not task_status._future.done():
+            if task_status and not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
                     f"Failed to start process for flow run '{flow_run.id}'."
@@ -1097,8 +1106,7 @@ class Runner:
             else:
                 run_logger.exception(
                     f"An error occurred while monitoring flow run '{flow_run.id}'. "
-                    "The flow run will not be marked as failed, but an issue may have "
-                    "occurred."
+                    "The flow run will not be marked as failed, but an issue may have occurred."
                 )
             return exc
         finally:
@@ -1113,7 +1121,7 @@ class Runner:
 
         api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
         terminal_state = api_flow_run.state
-        if terminal_state.is_crashed():
+        if terminal_state and terminal_state.is_crashed():
             await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
 
         return status_code

@@ -1522,6 +1522,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": "true",
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1539,6 +1540,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": "true",
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1559,6 +1561,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": "true",
         }
         assert job_config.labels == {
             "my-label": "foo",

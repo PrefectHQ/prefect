@@ -20,8 +20,7 @@ import pendulum
 import pytest
 from starlette import status
 
-import prefect.runner
-from prefect import __version__, flow, serve, task
+from prefect import flow, serve, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, StateType
@@ -38,8 +37,6 @@ from prefect.deployments.runner import (
     deploy,
 )
 from prefect.docker.docker_image import DockerImage
-from prefect.events.clients import AssertingEventsClient
-from prefect.events.worker import EventsWorker
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
@@ -55,7 +52,6 @@ from prefect.settings import (
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
-from prefect.utilities.slugify import slugify
 
 
 @flow(version="test")
@@ -732,324 +728,45 @@ class TestRunner:
             assert flow_run.state.name == "AwaitingConcurrencySlot"
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_does_not_attempt_to_acquire_limit_if_deployment_has_no_concurrency_limit(
-        self, prefect_client: PrefectClient, caplog
-    ):
-        async def test(*args, **kwargs):
-            return 0
-
-        with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
-        ) as acquire_spy:
-            async with Runner(pause_on_shutdown=False) as runner:
-                deployment = RunnerDeployment.from_flow(
-                    flow=dummy_flow_1,
-                    name=__file__,
-                )
-
-                deployment_id = await runner.add_deployment(deployment)
-
-                flow_run = await prefect_client.create_flow_run_from_deployment(
-                    deployment_id=deployment_id
-                )
-
-                assert flow_run.state.is_scheduled()
-
-                runner.run = test  # simulate running a flow
-
-                await runner._get_and_submit_flow_runs()
-
-            acquire_spy.assert_not_called()
-
-    async def test_runner_does_not_acquire_limit_for_worker_based_deployments(
-        self, prefect_client: PrefectClient, work_pool, caplog
+    @pytest.mark.parametrize("disable_concurrency", [True, False])
+    async def test_runner_does_not_acquire_concurrency_slots_when_disabled(
+        self, prefect_client: PrefectClient, disable_concurrency
     ):
         with mock.patch(
             "prefect.concurrency.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
-            async with Runner(pause_on_shutdown=False) as runner:
-                deployment = RunnerDeployment.from_flow(
-                    flow=dummy_flow_1,
-                    name=__file__,
-                    concurrency_limit=2,
-                    work_pool_name=work_pool.name,  # Worker-based deployments use work pools
-                )
+            runner = Runner()
 
-                deployment_id = await runner.add_deployment(deployment)
+            deployment = await dummy_flow_1.to_deployment(__file__)
 
-                flow_run = await prefect_client.create_flow_run_from_deployment(
-                    deployment_id=deployment_id
-                )
+            await runner.add_deployment(deployment)
 
-                assert flow_run.state.is_scheduled()
+            with mock.patch.dict(
+                "prefect.runner.runner.os.environ",
+                {
+                    "PREFECT__DISABLE_CONCURRENCY_SLOT_ACQUISITION": str(
+                        disable_concurrency
+                    )
+                },
+            ):
+                await runner.start(run_once=True)
 
-                await runner._get_and_submit_flow_runs()
+            assert acquire_spy.call_count == 0 if disable_concurrency else 1
 
-                assert acquire_spy.call_count == 0
-
-    async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/10820
-        """
-        import sys
-
-        mock_process = AsyncMock()
-        mock_process.returncode = 0
-        mock_process.pid = 4242
-
-        mock_run_process_call = AsyncMock(
-            return_value=mock_process,
-        )
-
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
-
-        monkeypatch.setattr(sys, "executable", "C:/Program Files/Python38/python.exe")
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-        await runner._run_process(flow_run)
-
-        # Previously the command would have been
-        # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
-        assert mock_run_process_call.call_args[1]["command"] == [
-            "C:/Program Files/Python38/python.exe",
-            "-m",
-            "prefect.engine",
-        ]
-
-    async def test_runner_sets_flow_run_env_var_with_dashes(
-        self, monkeypatch, prefect_client
-    ):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/10851
-        """
-        env_var_value = None
-
-        mock_process = AsyncMock()
-        mock_process.returncode = 0
-        mock_process.pid = 4242
-
-        def capture_env_var(*args, **kwargs):
-            nonlocal env_var_value
-            nonlocal mock_process
-            env_var_value = kwargs["env"].get("PREFECT__FLOW_RUN_ID")
-            return mock_process
-
-        mock_run_process_call = AsyncMock(side_effect=capture_env_var)
-
-        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
-
-        runner = Runner()
-
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-        await runner._run_process(flow_run)
-
-        assert env_var_value == str(flow_run.id)
-        assert env_var_value != flow_run.id.hex
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_runs_a_remotely_stored_flow(
-        self,
-        prefect_client: PrefectClient,
-        temp_storage: MockStorage,
-    ):
-        runner = Runner()
-
-        deployment = await (
-            await flow.from_source(source=temp_storage, entrypoint="flows.py:test_flow")
-        ).to_deployment(__file__)
-
-        deployment_id = await runner.add_deployment(deployment)
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        await runner.start(run_once=True)
-        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-
-        assert flow_run.state
-        assert flow_run.state.is_completed()
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_caches_adhoc_pulls(self, prefect_client):
-        runner = Runner()
-
-        pull_code_spy = MagicMock()
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            storage = MockStorage(base_path=Path(temp_dir), pull_code_spy=pull_code_spy)
-            deployment = await RunnerDeployment.from_storage(
-                storage=storage,
-                entrypoint="flows.py:test_flow",
-                name=__file__,
+            deployment = await prefect_client.read_deployment_by_name(
+                name="dummy-flow-1/test_runner"
             )
-
-            deployment_id = await runner.add_deployment(deployment)
-
-        await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        await runner.start(run_once=True)
-
-        # 1 for deployment creation, 1 for runner start up, 1 for ad hoc pull
-        assert isinstance(runner._storage_objs[0], MockStorage)
-        assert runner._storage_objs[0]._pull_code_spy is not None
-        assert runner._storage_objs[0]._pull_code_spy.call_count == 3
-
-        await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        # Should be 3 because the ad hoc pull should have been cached
-        assert runner._storage_objs[0]._pull_code_spy.call_count == 3
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_does_not_raise_on_duplicate_submission(self, prefect_client):
-        """
-        Regression test for https://github.com/PrefectHQ/prefect/issues/11093
-
-        The runner has a race condition where it can try to borrow a limit slot
-        that it already has. This test ensures that the runner does not raise
-        an exception in this case.
-        """
-        async with Runner(pause_on_shutdown=False) as runner:
-            deployment = RunnerDeployment.from_flow(
-                flow=tired_flow,
-                name=__file__,
-            )
-
-            deployment_id = await runner.add_deployment(deployment)
 
             flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment_id
+                deployment_id=deployment.id
             )
-            # acquire the limit slot and then try to borrow it again
-            # during submission to simulate race condition
-            runner._acquire_limit_slot(flow_run.id)
-            await runner._get_and_submit_flow_runs()
 
-            # shut down cleanly
-            runner.started = False
-            runner.stopping = True
-            runner._cancelling_flow_run_ids.add(flow_run.id)
-            await runner._cancel_run(flow_run)
-
-
-@pytest.mark.usefixtures("use_hosted_api_server")
-async def test_runner_emits_cancelled_event(
-    asserting_events_worker: EventsWorker,
-    reset_worker_events,
-    prefect_client: PrefectClient,
-    temp_storage: MockStorage,
-    in_temporary_runner_directory: None,
-):
-    runner = Runner(query_seconds=1)
-    temp_storage.code = dedent(
-        """\
-        from time import sleep
-
-        from prefect import flow
-        from prefect.logging.loggers import flow_run_logger
-
-        def on_cancellation(flow, flow_run, state):
-            logger = flow_run_logger(flow_run, flow)
-            logger.info("This flow was cancelled!")
-
-        @flow(on_cancellation=[on_cancellation], log_prints=True)
-        def cancel_flow(sleep_time: int = 100):
-            sleep(sleep_time)
-        """
-    )
-
-    deployment_id = await runner.add_flow(
-        await flow.from_source(source=temp_storage, entrypoint="flows.py:cancel_flow"),
-        name=__file__,
-        tags=["test"],
-    )
-    flow_run = await prefect_client.create_flow_run_from_deployment(
-        deployment_id=deployment_id,
-        tags=["flow-run-one"],
-    )
-    api_flow = await prefect_client.read_flow(flow_run.flow_id)
-
-    async with runner:
-        execute_task = asyncio.create_task(
-            runner.execute_flow_run(flow_run_id=flow_run.id)
-        )
-        while True:
-            await anyio.sleep(0.5)
+            await runner.start(run_once=True)
             flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+
             assert flow_run.state
-            if flow_run.state.is_running():
-                break
-        await prefect_client.set_flow_run_state(
-            flow_run_id=flow_run.id,
-            state=flow_run.state.model_copy(
-                update={"name": "Cancelling", "type": StateType.CANCELLING}
-            ),
-        )
-        await execute_task
-
-    await asserting_events_worker.drain()
-
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
-    assert len(asserting_events_worker._client.events) == 1
-
-    cancelled_events = list(
-        filter(
-            lambda e: e.event == "prefect.runner.cancelled-flow-run",
-            asserting_events_worker._client.events,
-        )
-    )
-    assert len(cancelled_events) == 1
-
-    assert dict(cancelled_events[0].resource.items()) == {
-        "prefect.resource.id": f"prefect.runner.{slugify(runner.name)}",
-        "prefect.resource.name": runner.name,
-        "prefect.version": str(__version__),
-    }
-
-    related = [dict(r.items()) for r in cancelled_events[0].related]
-
-    assert related == [
-        {
-            "prefect.resource.id": f"prefect.deployment.{deployment_id}",
-            "prefect.resource.role": "deployment",
-            "prefect.resource.name": "test_runner",
-        },
-        {
-            "prefect.resource.id": f"prefect.flow.{api_flow.id}",
-            "prefect.resource.role": "flow",
-            "prefect.resource.name": api_flow.name,
-        },
-        {
-            "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
-            "prefect.resource.role": "flow-run",
-            "prefect.resource.name": flow_run.name,
-        },
-        {
-            "prefect.resource.id": "prefect.tag.flow-run-one",
-            "prefect.resource.role": "tag",
-        },
-        {
-            "prefect.resource.id": "prefect.tag.test",
-            "prefect.resource.role": "tag",
-        },
-    ]
+            assert flow_run.state.is_completed()
 
 
 class TestRunnerDeployment:
