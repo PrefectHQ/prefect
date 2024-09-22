@@ -299,6 +299,9 @@ class PrefectEventsClient(EventsClient):
             pong = await self._websocket.ping()
             await pong
         except Exception as e:
+            # The client is frequently run in a background thread
+            # so we log an additional warning to ensure
+            # surfacing the error to the user.
             logger.warning(
                 "Unable to connect to %r. "
                 "Please check your network settings to ensure websocket connections "
