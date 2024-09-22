@@ -265,8 +265,7 @@ class PrefectEventsClient(EventsClient):
             )
 
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._connect_kwargs = {"uri": self._events_socket_url}
-        self._connect = connect(**self._connect_kwargs)
+        self._connect = connect(self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
@@ -434,10 +433,10 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-        self._connect_kwargs = {
-            "uri": self._events_socket_url,
-            "extra_headers": {"Authorization": f"Bearer {api_key}"},
-        }
+        self._connect = connect(
+            self._events_socket_url,
+            extra_headers={"Authorization": f"bearer {api_key}"},
+        )
 
 
 SEEN_EVENTS_SIZE = 500_000
