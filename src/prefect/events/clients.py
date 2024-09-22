@@ -299,9 +299,10 @@ class PrefectEventsClient(EventsClient):
                 await pong
         except Exception as e:
             logger.warning(
-                "Unable to connect to %r: [%s] %s. "
+                "Unable to connect to %r. "
                 "Please check your network settings to ensure websocket connections "
                 "to the API are allowed. Otherwise event data (including task run data) may be lost. "
+                "Reason: %s: %s. "
                 "Set PREFECT_DEBUG_MODE=1 to see the full error.",
                 socket_url,
                 type(e).__name__,
