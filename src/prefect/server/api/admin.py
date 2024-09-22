@@ -13,16 +13,14 @@ from prefect.server.utilities.server import PrefectRouter
 router = PrefectRouter(prefix="/admin", tags=["Admin"])
 
 
-@router.get("/settings", response_model=prefect.settings.Settings)
-async def read_settings() -> dict:
+@router.get("/settings")
+async def read_settings() -> prefect.settings.Settings:
     """
     Get the current Prefect REST API settings.
 
     Secret setting values will be obfuscated.
     """
-    return prefect.settings.get_current_settings().model_dump(
-        context={"include_secrets": True}
-    )
+    return prefect.settings.get_current_settings()
 
 
 @router.get("/version")
@@ -39,7 +37,7 @@ async def clear_database(
         embed=True,
         description="Pass confirm=True to confirm you want to modify the database.",
     ),
-    response: Response = None,
+    response: Response = None,  # type: ignore
 ):
     """Clear all database tables without dropping them."""
     if not confirm:

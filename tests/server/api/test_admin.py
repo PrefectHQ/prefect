@@ -13,12 +13,16 @@ async def test_version(client):
 
 class TestSettings:
     async def test_read_settings(self, client):
+        from prefect.settings import Settings, get_current_settings
+
         response = await client.get("/admin/settings")
         assert response.status_code == status.HTTP_200_OK
-        parsed_settings = prefect.settings.Settings.model_validate(response.json())
-        prefect_settings = prefect.settings.get_current_settings()
+        parsed_settings = Settings.model_validate(response.json())
+        prefect_settings = get_current_settings()
 
-        assert parsed_settings == prefect_settings
+        assert parsed_settings.model_dump(mode="json") == prefect_settings.model_dump(
+            mode="json"
+        )
 
 
 class TestDatabaseAdmin:
