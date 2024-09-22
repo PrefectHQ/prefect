@@ -63,10 +63,18 @@ class TestCustomValidationLogic:
             "multiple ints in list",
         ],
     )
-    def test_list_of_ints(self, value, delim, expected):
+    def test_valid_list_of_ints(self, value, delim, expected):
         """e.g. scooping PREFECT_CLIENT_RETRY_EXTRA_CODES"""
         scoop_list_int_from_string = BeforeValidator(
             partial(validate_list_T_from_delim_string, type_=int, delim=delim)
         )
         _type = Annotated[List[int], scoop_list_int_from_string]
         assert TypeAdapter(_type).validate_python(value) == expected
+
+    def test_invalid_list_of_ints(self):
+        scoop_list_int_from_string = BeforeValidator(
+            partial(validate_list_T_from_delim_string, type_=int)
+        )
+        _type = Annotated[List[int], scoop_list_int_from_string]
+        with pytest.raises(ValidationError, match="should be a valid int"):
+            TypeAdapter(_type).validate_python("just,trust,me")

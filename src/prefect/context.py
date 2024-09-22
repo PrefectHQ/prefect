@@ -40,7 +40,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultStore, get_default_persist_setting
-from prefect.settings import Profile, Settings
+from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.services import start_client_metrics_server
@@ -166,11 +166,13 @@ class ContextModel(BaseModel):
         new._token = None
         return new
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self, include_secrets: bool = True) -> Dict[str, Any]:
         """
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
-        return self.model_dump(exclude_unset=True)
+        return self.model_dump(
+            exclude_unset=True, context={"include_secrets": include_secrets}
+        )
 
 
 class SyncClientContext(ContextModel):
@@ -459,7 +461,7 @@ class SettingsContext(ContextModel):
         return_value = super().__enter__()
 
         try:
-            prefect_home = Path(self.settings.home)
+            prefect_home = Path(PREFECT_HOME.value_from(self.settings))
             prefect_home.mkdir(mode=0o0700, exist_ok=True)
         except OSError:
             warnings.warn(

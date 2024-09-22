@@ -42,7 +42,7 @@ from prefect.task_runners import ThreadPoolTaskRunner
 
 
 class ExampleContext(ContextModel):
-    __var__ = ContextVar("test")
+    __var__: ContextVar = ContextVar("test")
 
     x: int
 
@@ -483,14 +483,8 @@ class TestSerializeContext:
                     "tags_context": {"current_tags": current_tags},
                     "settings_context": SettingsContext.get().serialize(),
                 }
-                assert (
-                    serialized["settings_context"]["settings"]["PREFECT_API_KEY"]
-                    == "test"
-                )
-                assert (
-                    serialized["settings_context"]["settings"]["PREFECT_API_URL"]
-                    == "test"
-                )
+                assert serialized["settings_context"]["settings"]["api_key"] == "test"
+                assert serialized["settings_context"]["settings"]["api_url"] == "test"
 
 
 class TestHydratedContext:
@@ -622,7 +616,7 @@ class TestHydratedContext:
             {
                 "settings_context": {
                     "profile": {"name": "test", "settings": {}, "source": None},
-                    "settings": {"PREFECT_API_KEY": "test", "PREFECT_API_URL": "test"},
+                    "settings": {"api_key": "test", "api_url": "test"},
                 },
             }
         ):
@@ -631,5 +625,9 @@ class TestHydratedContext:
                 settings={},
                 source=None,
             )
-            assert SettingsContext.get().settings.PREFECT_API_KEY == "test"
-            assert SettingsContext.get().settings.PREFECT_API_URL == "test"
+            settings = SettingsContext.get().settings
+            assert (
+                settings.api_key is not None
+                and settings.api_key.get_secret_value() == "test"
+            )
+            assert settings.api_url == "test"

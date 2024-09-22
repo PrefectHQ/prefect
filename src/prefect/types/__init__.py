@@ -103,6 +103,7 @@ def validate_list_T_from_delim_string(
     """
     if not value:
         return []
+
     delim = delim or ","
     if isinstance(value, str):
         return [TypeAdapter(type_).validate_strings(s) for s in value.split(delim)]

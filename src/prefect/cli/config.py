@@ -6,7 +6,7 @@ import os
 from typing import List, Optional
 
 import typer
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import Literal
 
 import prefect.context
 import prefect.settings
@@ -16,12 +16,10 @@ from prefect.cli.root import app, is_interactive
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.utilities.collections import listrepr
 
-_EnvSource: TypeAlias = Literal["env", "profile", "defaults"]
-
 help_message = """
     View and set Prefect profiles.
 """
-
+VALID_SETTING_NAMES = prefect.settings.Settings.valid_setting_names()
 config_app = PrefectTyper(name="config", help=help_message)
 app.add_typer(config_app)
 
@@ -40,7 +38,7 @@ def set_(settings: List[str]):
                 f"Failed to parse argument {item!r}. Use the format 'VAR=VAL'."
             )
 
-        if setting not in prefect.settings.Settings.valid_setting_names():
+        if setting not in VALID_SETTING_NAMES:
             exit_with_error(f"Unknown setting name {setting!r}.")
 
         # Guard against changing settings that tweak config locations
@@ -102,7 +100,7 @@ def unset(setting_names: List[str], confirm: bool = typer.Option(False, "--yes",
     parsed = set()
 
     for setting_name in setting_names:
-        if setting_name not in prefect.settings.Settings.valid_setting_names():
+        if setting_name not in VALID_SETTING_NAMES:
             exit_with_error(f"Unknown setting name {setting_name!r}.")
         # Cast to settings objects
         parsed.add(prefect.settings.SETTING_VARIABLES[setting_name])
@@ -185,17 +183,23 @@ def view(
         dump_context = {}
 
     context = prefect.context.get_settings_context()
-    default_settings = prefect.settings.Settings()
     current_profile_settings = context.profile.settings
 
     # Display the profile first
     app.console.print(f"[bold][blue]PREFECT_PROFILE={context.profile.name!r}[/bold]")
 
+    if api_url := prefect.settings.PREFECT_UI_URL.value():
+        app.console.print(
+            f"🚀 you are connected to:\n[green]{api_url}[/green]", soft_wrap=True
+        )
+
     settings_output = []
     processed_settings = set()
 
     def _process_setting(
-        setting: prefect.settings.Setting, value: str, source: _EnvSource
+        setting: prefect.settings.Setting,
+        value: str,
+        source: Literal["env", "profile", "defaults"],
     ):
         display_value = "********" if setting.is_secret and not show_secrets else value
         source_blurb = f" (from {source})" if show_sources else ""
@@ -210,26 +214,23 @@ def view(
         else:
             _process_setting(setting, value, "profile")
 
-    # Process settings from environment variables not already processed
-    env_setting_names = set(os.environ) & set(
-        prefect.settings.Settings.valid_setting_names()
-    )
-    for setting_name in env_setting_names:
+    for setting_name in set(os.environ) & set(VALID_SETTING_NAMES):
         setting = prefect.settings.SETTING_VARIABLES[setting_name]
         if setting.name in processed_settings:
             continue
-        env_value = os.getenv(setting.name)
-        if env_value is None:
+        if (env_value := os.getenv(setting.name)) is None:
             continue
         _process_setting(setting, env_value, "env")
 
-    # Process default settings if show_defaults is True
     if show_defaults:
-        default_values = default_settings.model_dump(context=dump_context)
+        default_values = prefect.settings.Settings().model_dump(context=dump_context)
         for key, value in default_values.items():
             setting = prefect.settings.SETTING_VARIABLES[key]
             if setting.name in processed_settings:
                 continue
             _process_setting(setting, value, "defaults")
 
-    app.console.print("\n".join(sorted(settings_output)))
+    app.console.print("===========")
+    app.console.print("Current settings")
+    app.console.print("===========")
+    app.console.print("\n".join(sorted(settings_output)), soft_wrap=True)
