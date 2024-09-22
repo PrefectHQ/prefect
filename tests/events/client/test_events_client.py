@@ -1,5 +1,4 @@
 import logging
-from contextlib import asynccontextmanager
 from typing import Type
 from unittest import mock
 
@@ -350,14 +349,22 @@ async def test_events_client_warn_if_connect_fails(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ):
-    @asynccontextmanager
-    async def mock_connect(*args, **kwargs):
-        raise Exception("Connection failed")
+    class MockConnect:
+        async def __aenter__(self):
+            raise Exception("Connection failed")
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_connect(*args, **kwargs):
+        return MockConnect()
 
     monkeypatch.setattr("prefect.events.clients.connect", mock_connect)
 
     with caplog.at_level(logging.WARNING):
-        await PrefectEventsClient.warn_if_ws_connect_fails("ws://localhost", "my-token")
+        with pytest.raises(Exception, match="Connection failed"):
+            async with PrefectEventsClient("ws://localhost"):
+                pass
 
     assert any(
         "Unable to connect to 'ws" in record.message for record in caplog.records

@@ -1,5 +1,6 @@
 import abc
 import asyncio
+from contextlib import asynccontextmanager
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -238,6 +239,14 @@ def _get_api_url_and_key(
     return api_url, api_key
 
 
+@asynccontextmanager
+async def warn_if_ws_connect_fails(socket_url: str):
+    try:
+        yield
+    except Exception:
+        raise
+
+
 class PrefectEventsClient(EventsClient):
     """A Prefect Events client that streams events to a Prefect server"""
 
@@ -265,11 +274,20 @@ class PrefectEventsClient(EventsClient):
             )
 
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._connect = connect(self._events_socket_url)
+        self._warn_connect_error = True
+        self._connect_kwargs = {"uri": self._events_socket_url}
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
+        self.__connect = None
+
+    @property
+    def _connect(self):
+        # Defer connection creation until the first time it's needed
+        if self.__connect is None:
+            self.__connect = connect(**self._connect_kwargs)
+        return self.__connect
 
     async def __aenter__(self) -> Self:
         # Don't handle any errors in the initial connection, because these are most
@@ -288,15 +306,16 @@ class PrefectEventsClient(EventsClient):
         await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
-    @classmethod
-    async def warn_if_ws_connect_fails(cls, api_url: str, api_key: Optional[str]):
-        socket_url = events_in_socket_from_api_url(api_url)
-        headers = {"Authorization": f"bearer {api_key}"} if api_key else {}
+    async def _reconnect(self) -> None:
+        if self._websocket:
+            self._websocket = None
+            await self._connect.__aexit__(None, None, None)
 
         try:
-            async with connect(socket_url, extra_headers=headers) as ws:
-                pong = await ws.ping()
-                await pong
+            self._websocket = await self._connect.__aenter__()
+            # make sure we have actually connected
+            pong = await self._websocket.ping()
+            await pong
         except Exception as e:
             logger.warning(
                 "Unable to connect to %r. "
@@ -304,22 +323,12 @@ class PrefectEventsClient(EventsClient):
                 "to the API are allowed. Otherwise event data (including task run data) may be lost. "
                 "Reason: %s: %s. "
                 "Set PREFECT_DEBUG_MODE=1 to see the full error.",
-                socket_url,
+                self._events_socket_url,
                 type(e).__name__,
                 e,
                 exc_info=PREFECT_DEBUG_MODE,
             )
-
-    async def _reconnect(self) -> None:
-        if self._websocket:
-            self._websocket = None
-            await self._connect.__aexit__(None, None, None)
-
-        self._websocket = await self._connect.__aenter__()
-
-        # make sure we have actually connected
-        pong = await self._websocket.ping()
-        await pong
+            raise
 
         events_to_resend = self._unconfirmed_events
         # Clear the unconfirmed events here, because they are going back through emit
@@ -395,10 +404,6 @@ class AssertingPassthroughEventsClient(PrefectEventsClient):
         self.kwargs = kwargs
 
     @classmethod
-    def warn_if_ws_connect_fails(cls, api_url: str, api_key: Optional[str]):
-        return
-
-    @classmethod
     def reset(cls) -> None:
         cls.last = None
         cls.all = []
@@ -446,10 +451,10 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-        self._connect = connect(
-            self._events_socket_url,
-            extra_headers={"Authorization": f"bearer {api_key}"},
-        )
+        self._connect_kwargs = {
+            "uri": self._events_socket_url,
+            "extra_headers": {"Authorization": f"bearer {api_key}"},
+        }
 
 
 SEEN_EVENTS_SIZE = 500_000

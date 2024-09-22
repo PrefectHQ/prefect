@@ -63,14 +63,7 @@ class EventsWorker(QueueService[Event]):
 
     @asynccontextmanager
     async def _lifespan(self):
-        client_options = {k: v for k, v in self.client_options}
-        if issubclass(self.client_type, PrefectEventsClient):
-            await self.client_type.warn_if_ws_connect_fails(
-                client_options.get("api_url"),
-                client_options.get("api_key"),
-            )
-        self._client = self.client_type(**client_options)
-
+        self._client = self.client_type(**{k: v for k, v in self.client_options})
         from prefect.client.orchestration import get_client
 
         self._orchestration_client = get_client()
