@@ -24,7 +24,7 @@ import prefect.runner
 from prefect import __version__, flow, serve, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.concurrency.asyncio import (
     AcquireConcurrencySlotTimeoutError,
@@ -640,6 +640,8 @@ class TestRunner:
     async def test_runner_enforces_deployment_concurrency_limits(
         self, prefect_client: PrefectClient, caplog
     ):
+        concurrency_limit_config = ConcurrencyLimitConfig(limit=42)
+
         async def test(*args, **kwargs):
             return 0
 
@@ -655,7 +657,7 @@ class TestRunner:
                     deployment = RunnerDeployment.from_flow(
                         flow=dummy_flow_1,
                         name=__file__,
-                        concurrency_limit=2,
+                        concurrency_limit=concurrency_limit_config,
                     )
 
                     deployment_id = await runner.add_deployment(deployment)
@@ -1160,6 +1162,21 @@ class TestRunnerDeployment:
 
         assert deployment.paused is expected
 
+    async def test_from_flow_accepts_concurrency_limit_config(self):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -1336,6 +1353,23 @@ class TestRunnerDeployment:
         assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
         assert deployment.schedules[2].active is False
 
+    async def test_from_entrypoint_accepts_concurrency_limit_config(
+        self, dummy_flow_1_entrypoint
+    ):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
+
     @pytest.mark.parametrize(
         "value,expected",
         [(True, True), (False, False), (None, False)],
@@ -1409,7 +1443,7 @@ class TestRunnerDeployment:
         assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
         assert deployment.paused is False
-        assert deployment.concurrency_limit is None
+        assert deployment.global_concurrency_limit is None
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(
@@ -1506,6 +1540,9 @@ class TestRunnerDeployment:
     async def test_create_runner_deployment_from_storage(
         self, temp_storage: MockStorage
     ):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
         deployment = await RunnerDeployment.from_storage(
             storage=temp_storage,
             entrypoint="flows.py:test_flow",
@@ -1515,6 +1552,7 @@ class TestRunnerDeployment:
             tags=["tag1", "tag2"],
             version="1.0.0",
             enforce_parameter_schema=True,
+            concurrency_limit=concurrency_limit_config,
         )
 
         # Verify the created RunnerDeployment's attributes
@@ -1528,6 +1566,11 @@ class TestRunnerDeployment:
         assert deployment.version == "1.0.0"
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
         assert deployment._path
         assert "$STORAGE_BASE_PATH" in deployment._path
         assert deployment.entrypoint == "flows.py:test_flow"

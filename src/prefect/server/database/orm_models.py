@@ -877,11 +877,19 @@ class Deployment(Base):
         order_by=sa.desc(sa.text("updated")),
     )
 
-    concurrency_limit: Mapped[Union[int, None]] = mapped_column(
-        sa.Integer,
-        server_default=None,
+    # deprecated in favor of `concurrency_limit_id` FK
+    _concurrency_limit: Mapped[Union[int, None]] = mapped_column(
+        sa.Integer, default=None, nullable=True, name="concurrency_limit"
+    )
+    concurrency_limit_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
+        UUID,
+        sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
         nullable=True,
-        default=None,
+    )
+    global_concurrency_limit: Mapped[
+        Union["ConcurrencyLimitV2", None]
+    ] = sa.orm.relationship(
+        lazy="selectin",
     )
     concurrency_options: Mapped[
         Union[schemas.core.ConcurrencyOptions, None]
@@ -891,6 +899,7 @@ class Deployment(Base):
         nullable=True,
         default=None,
     )
+
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
@@ -984,7 +993,7 @@ class ConcurrencyLimitV2(Base):
     active = sa.Column(sa.Boolean, nullable=False, default=True)
     name = sa.Column(sa.String, nullable=False)
     limit = sa.Column(sa.Integer, nullable=False)
-    active_slots = sa.Column(sa.Integer, nullable=False)
+    active_slots = sa.Column(sa.Integer, nullable=False, default=0)
     denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
 
     slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=False)

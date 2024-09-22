@@ -64,8 +64,13 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig,
+    FlowRun,
+    State,
+    StateType,
+)
 from prefect.client.schemas.objects import Flow as APIFlow
-from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.concurrency.asyncio import (
     AcquireConcurrencySlotTimeoutError,
     ConcurrencySlotAcquisitionError,
@@ -236,7 +241,7 @@ class Runner:
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[int] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -1044,15 +1049,9 @@ class Runner:
 
         if flow_run.deployment_id:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
-        if deployment and deployment.concurrency_limit:
-            limit_name = f"deployment:{deployment.id}"
+        if deployment and deployment.global_concurrency_limit:
+            limit_name = deployment.global_concurrency_limit.name
             concurrency_ctx = concurrency
-
-            # ensure that the global concurrency limit is available
-            # and up-to-date before attempting to acquire a slot
-            await self._client.upsert_global_concurrency_limit_by_name(
-                limit_name, deployment.concurrency_limit
-            )
         else:
             limit_name = ""
             concurrency_ctx = asyncnullcontext

@@ -15196,6 +15196,17 @@
                         "title": "Concurrency Limit",
                         "description": "The deployment's concurrency limit."
                     },
+                    "concurrency_options": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ConcurrencyOptions"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The deployment's concurrency options."
+                    },
                     "enforce_parameter_schema": {
                         "type": "boolean",
                         "title": "Enforce Parameter Schema",
@@ -15438,7 +15449,8 @@
                                 "type": "null"
                             }
                         ],
-                        "description": "Filter criteria for `Deployment.concurrency`"
+                        "description": "DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`. If provided, will be ignored for backwards-compatibility. Will be removed after December 2024.",
+                        "deprecated": true
                     }
                 },
                 "additionalProperties": false,
@@ -15488,7 +15500,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "DeploymentFilterConcurrencyLimit",
-                "description": "Filter by `Deployment.concurrency_limit`."
+                "description": "DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`."
             },
             "DeploymentFilterId": {
                 "properties": {
@@ -15922,7 +15934,30 @@
                             }
                         ],
                         "title": "Concurrency Limit",
-                        "description": "The maximum number of flow runs that can be active at once."
+                        "description": "DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility. Will be removed after December 2024.",
+                        "deprecated": true
+                    },
+                    "global_concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/GlobalConcurrencyLimitResponse"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The global concurrency limit object for enforcing the maximum number of flow runs that can be active at once."
+                    },
+                    "concurrency_options": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ConcurrencyOptions"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The concurrency options for the deployment."
                     },
                     "job_variables": {
                         "type": "object",

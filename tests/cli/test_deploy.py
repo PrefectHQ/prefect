@@ -269,7 +269,7 @@ class TestProjectDeploy:
         )
         return uninitialized_project_dir_with_git_no_remote
 
-    async def test_project_deploy(self, project_dir, prefect_client):
+    async def test_project_deploy(self, project_dir, prefect_client: PrefectClient):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
         )
@@ -293,7 +293,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.concurrency_limit == 42
+        assert deployment.global_concurrency_limit.limit == 42
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
 
@@ -4134,6 +4134,43 @@ class TestDeployPattern:
                     " deployed: test-name-2"
                 ),
             ],
+        )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_concurrency_limit_config_deployment_yaml(
+        self, work_pool, prefect_client: PrefectClient
+    ):
+        concurrency_limit_config = {"limit": 42, "collision_strategy": "CANCEL_NEW"}
+
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["concurrency_limit"] = concurrency_limit_config
+
+        with prefect_yaml.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(f"deploy ./flows/hello.py:my_flow --pool {work_pool.name}"),
+        )
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.global_concurrency_limit is not None
+        assert (
+            deployment.global_concurrency_limit.limit
+            == concurrency_limit_config["limit"]
+        )
+        assert deployment.concurrency_options is not None
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config["collision_strategy"]
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
