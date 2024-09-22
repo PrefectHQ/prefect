@@ -88,7 +88,7 @@ class Subscription(Generic[S]):
                 if isinstance(e, AssertionError):
                     reason = e.args[0]
                 elif isinstance(e, websockets.exceptions.ConnectionClosedError):
-                    reason = e.reason
+                    reason = e.rcvd.reason
 
             if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
                 raise Exception(

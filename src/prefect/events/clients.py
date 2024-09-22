@@ -558,7 +558,7 @@ class PrefectEventSubscriber:
             raise Exception(
                 "Unable to authenticate to the event stream. Please ensure the "
                 "provided api_key you are using is valid for this environment. "
-                f"Reason: {e.reason}"
+                f"Reason: {e.rcvd.reason}"
             ) from e
 
         from prefect.events.filters import EventOccurredFilter
