@@ -900,9 +900,9 @@ class BaseWorker(abc.ABC):
             )
             if deployment.concurrency_options:
                 if deployment.concurrency_options.collision_strategy == "CANCEL_NEW":
-                    self._cancelling_flow_run_ids.add(flow_run.id)
-                    flow_run.state = Cancelled()
-                    self._runs_task_group.start_soon(self._cancel_run, flow_run)
+                    self._runs_task_group.start_soon(
+                        self._cancel_pending, flow_run, deployment
+                    )
                 else:
                     await self._propose_scheduled_state(flow_run)
             else:
@@ -1007,7 +1007,7 @@ class BaseWorker(abc.ABC):
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         run_logger = self.get_flow_run_logger(flow_run)
         state = flow_run.state
-        print("state in propose_pending_state", state)
+
         try:
             state = await propose_state(
                 self._client, Pending(), flow_run_id=flow_run.id

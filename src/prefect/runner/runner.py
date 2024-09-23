@@ -1093,7 +1093,9 @@ class Runner:
             if deployment.concurrency_options:
                 if deployment.concurrency_options.collision_strategy == "CANCEL_NEW":
                     self._cancelling_flow_run_ids.add(flow_run.id)
-                    self._runs_task_group.start_soon(self._cancel_pending, flow_run)
+                    self._runs_task_group.start_soon(
+                        self._cancel_pending, flow_run, deployment
+                    )
                 else:
                     await self._propose_scheduled_state(flow_run)
             else:
