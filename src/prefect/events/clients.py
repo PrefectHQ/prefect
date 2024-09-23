@@ -527,11 +527,11 @@ class PrefectEventSubscriber:
                 f"Reason: {e.args[0]}"
             )
         except ConnectionClosedError as e:
-            raise Exception(
-                "Unable to authenticate to the event stream. Please ensure the "
-                "provided api_key you are using is valid for this environment. "
-                f"Reason: {e.reason}"
-            ) from e
+            reason = getattr(e.rcvd, "reason", None)
+            msg = "Unable to authenticate to the event stream. Please ensure the "
+            msg += "provided api_key you are using is valid for this environment. "
+            msg += f"Reason: {reason}" if reason else ""
+            raise Exception(msg) from e
 
         from prefect.events.filters import EventOccurredFilter
 
