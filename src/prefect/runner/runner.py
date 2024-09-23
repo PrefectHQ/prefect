@@ -93,6 +93,7 @@ from prefect.settings import (
 )
 from prefect.states import (
     AwaitingConcurrencySlot,
+    Cancelled,
     Crashed,
     Pending,
     exception_to_failed_state,
@@ -797,6 +798,20 @@ class Runner:
 
         return cancelling_flow_runs
 
+    async def _cancel_pending(self, flow_run: "FlowRun", deployment: "Deployment"):
+        run_logger = self._get_flow_run_logger(flow_run)
+        new_state = Cancelled(message="Flow run was cancelled by concurrency limit.")
+        try:
+            await self._client.set_flow_run_state(flow_run.id, new_state)
+        except Exception:
+            run_logger.exception("Failed to cancel flow run %s", flow_run.id)
+        try:
+            flow = await self._client.read_flow(flow_run.flow_id)
+        except ObjectNotFound:
+            flow = None
+        self._emit_flow_run_cancelled_event(flow_run, flow, deployment)
+        run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
+
     async def _cancel_run(self, flow_run: "FlowRun", state_msg: Optional[str] = None):
         run_logger = self._get_flow_run_logger(flow_run)
 
@@ -1078,7 +1093,7 @@ class Runner:
             if deployment.concurrency_options:
                 if deployment.concurrency_options.collision_strategy == "CANCEL_NEW":
                     self._cancelling_flow_run_ids.add(flow_run.id)
-                    self._runs_task_group.start_soon(self._cancel_run, flow_run)
+                    self._runs_task_group.start_soon(self._cancel_pending, flow_run)
                 else:
                     await self._propose_scheduled_state(flow_run)
             else:

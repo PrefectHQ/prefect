@@ -785,7 +785,7 @@ class BaseWorker(abc.ABC):
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
                 self._submitting_flow_run_ids.add(flow_run.id)
-                print("flow_run state before submit_run", flow_run.state)
+
                 self._runs_task_group.start_soon(
                     self._submit_run,
                     flow_run,
@@ -833,9 +833,9 @@ class BaseWorker(abc.ABC):
             )
             self._submitting_flow_run_ids.remove(flow_run.id)
             return
-        print("state before ready_to_submit", flow_run.state)
+
         ready_to_submit = await self._propose_pending_state(flow_run)
-        print("state after ready_to_submit", flow_run.state)
+
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
                 self._submit_run_and_capture_errors, flow_run
@@ -1089,6 +1089,22 @@ class BaseWorker(abc.ABC):
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
 
+    async def _cancel_pending(
+        self, flow_run: "FlowRun", deployment: "DeploymentResponse"
+    ):
+        run_logger = self.get_flow_run_logger(flow_run)
+        new_state = Cancelled(message="Flow run was cancelled by concurrency limit.")
+        try:
+            await self._client.set_flow_run_state(flow_run.id, new_state)
+        except Exception:
+            run_logger.exception("Failed to cancel flow run %s", flow_run.id)
+        try:
+            flow = await self._client.read_flow(flow_run.flow_id)
+        except ObjectNotFound:
+            flow = None
+        self._emit_flow_run_cancelled_event(flow_run, flow, deployment)
+        run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
+
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict] = None
     ) -> None:
@@ -1246,9 +1262,43 @@ class BaseWorker(abc.ABC):
 
     def _emit_flow_run_cancelled_event(
         self,
+        flow_run: "FlowRun",
+        flow: "Optional[Flow]",
+        deployment: "Optional[DeploymentResponse]",
     ):
+        related = []
+        tags = []
+        if deployment:
+            related.append(
+                {
+                    "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+                    "prefect.resource.role": "deployment",
+                    "prefect.resource.name": deployment.name,
+                }
+            )
+            tags.extend(deployment.tags)
+        if flow:
+            related.append(
+                {
+                    "prefect.resource.id": f"prefect.flow.{flow.id}",
+                    "prefect.resource.role": "flow",
+                    "prefect.resource.name": flow.name,
+                }
+            )
+        related.append(
+            {
+                "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                "prefect.resource.role": "flow-run",
+                "prefect.resource.name": flow_run.name,
+            }
+        )
+        tags.extend(flow_run.tags)
+
+        related = [RelatedResource.model_validate(r) for r in related]
+        related += tags_as_related_resources(set(tags))
+
         emit_event(
-            event="prefect.worker.cancelled-flow-run",
+            event="prefect.runner.cancelled-flow-run",
             resource=self._event_resource(),
-            related=self._event_related_resources(),
+            related=related,
         )
