@@ -603,9 +603,13 @@ async def ls(flow_name: Optional[List[str]] = None, by_created: bool = False):
 
     table = Table(
         title="Deployments",
+        expand=True,
     )
-    table.add_column("Name", style="blue", no_wrap=True)
-    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Name", style="blue", no_wrap=True, ratio=40)
+    table.add_column("ID", style="cyan", no_wrap=True, ratio=40)
+    table.add_column(
+        "Work Pool", style="green", no_wrap=True, ratio=20, overflow="crop"
+    )
 
     for deployment in sorted(
         deployments, key=sort_by_created_key if by_created else sort_by_name_keys
@@ -613,6 +617,7 @@ async def ls(flow_name: Optional[List[str]] = None, by_created: bool = False):
         table.add_row(
             f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
             str(deployment.id),
+            deployment.work_pool_name or "",
         )
 
     app.console.print(table)
