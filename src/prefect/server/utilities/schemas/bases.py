@@ -118,8 +118,8 @@ class PrefectBaseModel(BaseModel):
     def model_dump_for_orm(
         self,
         *,
-        include: "IncEx" = None,
-        exclude: "IncEx" = None,
+        include: Optional["IncEx"] = None,
+        exclude: Optional["IncEx"] = None,
         by_alias: bool = False,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
