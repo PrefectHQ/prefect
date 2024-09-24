@@ -571,11 +571,16 @@ async def _run_single_deploy(
 
     work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
 
+    image_properties = (
+        work_pool.base_job_template.get("variables", {})
+        .get("properties", {})
+        .get("image", {})
+    )
     image_is_configurable = (
         "image"
         in work_pool.base_job_template.get("variables", {}).get("properties", {})
-        # managed work pools cannot be configured with a custom image
-        and not work_pool.type.endswith(":managed")
+        and image_properties.get("type") == "string"
+        and not image_properties.get("enum")
     )
 
     if (
