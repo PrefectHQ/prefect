@@ -13,6 +13,7 @@ import prefect.client.schemas as schemas
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
+from prefect.client.schemas.objects import StateType
 from prefect.concurrency.asyncio import (
     AcquireConcurrencySlotTimeoutError,
     _acquire_concurrency_slots,
@@ -34,7 +35,13 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
-from prefect.states import Completed, Pending, Running, Scheduled
+from prefect.states import (
+    Completed,
+    Failed,
+    Pending,
+    Running,
+    Scheduled,
+)
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import (
@@ -255,6 +262,50 @@ async def test_worker_with_work_pool_and_work_queue(
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
+
+
+async def test_workers_do_not_submit_flow_runs_awaiting_retry(
+    prefect_client: PrefectClient,
+    work_queue_1,
+    work_pool,
+):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/15458
+    """
+
+    @flow(retries=2)
+    def test_flow():
+        pass
+
+    flow_id = await prefect_client.create_flow(
+        flow=test_flow,
+    )
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        work_queue_name=work_queue_1.name,
+        work_pool_name=work_pool.name,
+    )
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id, state=Running()
+    )
+    flow_run.empirical_policy.retries = 2
+    await prefect_client.update_flow_run(
+        flow_run_id=flow_run.id,
+        flow_version=test_flow.version,
+        empirical_policy=flow_run.empirical_policy,
+    )
+
+    response = await prefect_client.set_flow_run_state(flow_run.id, state=Failed())
+    assert response.state.name == "AwaitingRetry"
+    assert response.state.type == StateType.SCHEDULED
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert flow_run.state.state_details.scheduled_time < pendulum.now("utc")
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+
+    assert submitted_flow_runs == []
 
 
 async def test_priority_trumps_lateness(
