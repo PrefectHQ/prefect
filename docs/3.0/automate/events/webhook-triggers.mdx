@@ -97,6 +97,38 @@ a `204 No Content` response when they are successful or a `400 Bad Request` erro
 there is any error interpreting the request. For more visibility when your webhooks
 fail, see the [Troubleshooting](#troubleshooting) section below.
 
+
+## Webhook authentication
+
+To enhance security, within a Prefect Cloud Pro or Enterprise tier account, you
+can assign a service account to a webhook. This feature provides an additional
+layer of security and is highly recommended, especially for enterprise
+environments. 
+
+### API key authentication
+
+Webhooks can be associated with a service account, and the webhook endpoint
+will be authenticated using the service account's API key. 
+
+To use API key authentication:
+
+1. Create a service account or use an existing one.
+2. Associate the service account with your webhook from the UI.
+3. Include the API key in the `Authorization` header of your webhook requests:
+
+```
+Authorization: Bearer <your-api-key>
+```
+
+### Account-level security enforcement
+
+An account-level setting is available to enforce authentication on all webhooks. When enabled:
+
+- All existing webhooks without an associated service account will be automatically disabled.
+- New webhooks must be created with an associated service account.
+- Existing webhooks must be updated to include a service account before they can be re-enabled.
+
+
 ## Webhook templates
 
 The purpose of a webhook is to accept an HTTP request from another system and produce a
