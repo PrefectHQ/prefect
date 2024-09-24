@@ -2,7 +2,7 @@
 title: Code and development style guide
 ---
 
-Generally, we follow the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html). 
+Generally, we follow the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html).
 This document covers Prefect-specific styles and practices.
 
 ## Imports
@@ -11,15 +11,16 @@ This is a brief collection of rules and guidelines for handling imports in this 
 
 ### Imports in `__init__` files
 
-Leave `__init__` files empty unless exposing an interface. If you must expose objects to present a simpler API, 
+Leave `__init__` files empty unless exposing an interface. If you must expose objects to present a simpler API,
 please follow these rules.
 
 #### Exposing objects from submodules
 
-If importing objects from submodules, the `__init__` file should use a relative import. This is 
-[required for type checkers](https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface) 
+If importing objects from submodules, the `__init__` file should use a relative import. This is
+[required for type checkers](https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface)
 to understand the exposed interface.
 
+{/* pmd-metadata: notest */}
 ```python
 # Correct
 from .flows import flow
@@ -36,10 +37,10 @@ from prefect.flows import flow
 
 #### Exposing submodules
 
-Generally, submodules should _not_ be imported in the `__init__` file. You should only expose submodules when the module 
+Generally, submodules should _not_ be imported in the `__init__` file. You should only expose submodules when the module
 is designed to be imported and used as a namespaced object.
 
-For example, we do this for our schema and model modules. This is because it's important to know if you are working with an API 
+For example, we do this for our schema and model modules. This is because it's important to know if you are working with an API
 schema or database model—both of which may have similar names.
 
 ```python
@@ -53,6 +54,7 @@ schemas.core.FlowRun
 
 If exposing a submodule, use a relative import like when you're exposing an object.
 
+{/* pmd-metadata: notest */}
 ```python
 # Correct
 from . import flows
@@ -71,7 +73,7 @@ import prefect.flows
 
 Another use case for importing submodules is to perform global side-effects that occur when they are imported.
 
-Often, global side-effects on import are a dangerous pattern. But there are a couple acceptable 
+Often, global side-effects on import are a dangerous pattern. But there are a couple acceptable
 use cases for this:
 
 *   To register dispatchable types, for example, `prefect.serializers`.
@@ -81,7 +83,7 @@ use cases for this:
 
 #### Importing other modules
 
-The `from` syntax is recommended for importing objects from modules. You should not import modules 
+The `from` syntax is recommended for importing objects from modules. You should not import modules
 with the `from` syntax.
 
 ```python
@@ -101,13 +103,14 @@ from prefect.server import schemas
 
 You should not use relative imports unless it's in an `__init__.py` file.
 
+{/* pmd-metadata: notest */}
 ```python
 # Correct
 from prefect.utilities.foo import bar
-
 ```
 
 
+{/* pmd-metadata: notest */}
 ```python
 # Wrong
 from .utilities.foo import bar
@@ -115,9 +118,10 @@ from .utilities.foo import bar
 ```
 
 
-You should never use imports that are dependent on file location without explicit indication it is relative. This avoids 
+You should never use imports that are dependent on file location without explicit indication it is relative. This avoids
 confusion about the source of a module.
 
+{/* pmd-metadata: notest */}
 ```python
 # Correct
 from . import test
@@ -167,18 +171,18 @@ We do not have a best practice for this yet. See the `kubernetes`, `docker`, and
 
 #### Delaying expensive imports
 
-Sometimes imports are slow, but it's important to keep the `prefect` module import times fast. In these cases, lazily 
-import the slow module by deferring import to the relevant function body. For modules consumed by many functions, 
+Sometimes imports are slow, but it's important to keep the `prefect` module import times fast. In these cases, lazily
+import the slow module by deferring import to the relevant function body. For modules consumed by many functions,
 use the optional requirements pattern instead.
 
 ## Command line interface (CLI) output messages
 
 When executing a command that creates an object, the output message should offer:
 
-- A short description of what the command just did. 
-- A bullet point list, rehashing user inputs, if possible. 
-- Next steps, like the next command to run, if applicable. 
-- Other relevant, pre-formatted commands that can be copied and pasted, if applicable. 
+- A short description of what the command just did.
+- A bullet point list, rehashing user inputs, if possible.
+- Next steps, like the next command to run, if applicable.
+- Other relevant, pre-formatted commands that can be copied and pasted, if applicable.
 - A new line before the first line, and after the last line.
 
 Output Example:
@@ -220,6 +224,7 @@ Create a work queue with tags:
 
 Dedent Example:
 
+{/* pmd-metadata: notest */}
 ```python
 from textwrap import dedent
 ...
@@ -246,46 +251,46 @@ output_msg = dedent(
 
 ### Client and server communication
 
-You can run the Prefect client separately from Prefect server, and communicate entirely through an API. 
-The Prefect client includes anything that runs task or flow code, (for example, agents and the Python client); 
-or any consumer of Prefect metadata (for example, the Prefect UI and CLI). 
+You can run the Prefect client separately from Prefect server, and communicate entirely through an API.
+The Prefect client includes anything that runs task or flow code, (for example, agents and the Python client);
+or any consumer of Prefect metadata (for example, the Prefect UI and CLI).
 
 Prefect server stores this metadata and serves it through the REST API.
 
 ### API version header
 
 Sometimes, we have to make breaking changes to the API. To check a Prefect client's compatibility
-with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major, 
+with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major,
 minor, and patch versions.
 
-For example, a request with the `X-PREFECT-API-VERSION=3.2.1` header has a major version of `3`, minor version `2`, and patch 
+For example, a request with the `X-PREFECT-API-VERSION=3.2.1` header has a major version of `3`, minor version `2`, and patch
 version `1`.
 
 Change this version header by modifying the `API_VERSION` constant in `prefect.server.api.server`.
 
 ### Breaking changes to the API
 
-A breaking change means that your code needs to change to use a new version of Prefect. We avoid breaking 
+A breaking change means that your code needs to change to use a new version of Prefect. We avoid breaking
 changes whenever possible.
 
-When making a breaking change to the API, we consider if the change is _backwards compatible for clients_. 
-This means that the previous version of the client can still make calls against the updated version of the server code. 
-This might happen if the changes are purely additive, such as adding a non-critical API route. In these cases, we aim 
+When making a breaking change to the API, we consider if the change is _backwards compatible for clients_.
+This means that the previous version of the client can still make calls against the updated version of the server code.
+This might happen if the changes are purely additive, such as adding a non-critical API route. In these cases, we aim
 to bump the patch version.
 
-In almost all other cases, we bump the minor version, which denotes a non-backwards-compatible API change. We have reserved 
-the major version changes to denote a backwards compatible change that is significant in some way, such as a major release 
+In almost all other cases, we bump the minor version, which denotes a non-backwards-compatible API change. We have reserved
+the major version changes to denote a backwards compatible change that is significant in some way, such as a major release
 milestone.
 
 ### Version composition
 
-Versions are composed of three parts: MAJOR.MINOR.PATCH. For example, the version 2.5.0 has a major version of 2, a minor version 
+Versions are composed of three parts: MAJOR.MINOR.PATCH. For example, the version 2.5.0 has a major version of 2, a minor version
 of 5, and patch version of 0.
 
-Occasionally, we add a suffix to the version such as `rc`, `a`, or `b`. These indicate pre-release versions that users can 
+Occasionally, we add a suffix to the version such as `rc`, `a`, or `b`. These indicate pre-release versions that users can
 opt into for testing and experimentation prior to a generally available release.
 
-Each release will increase one of the version numbers. If we increase a number other than the patch version, the versions to the 
+Each release will increase one of the version numbers. If we increase a number other than the patch version, the versions to the
 right of it reset to zero.
 
 ## Prefect's versioning scheme
@@ -307,22 +312,22 @@ Prefect increases the patch version when:
 
 ## Deprecation
 
-At times, Prefect will deprecate a feature. A feature is deprecated when it will no longer be maintained. Frequently, 
-a deprecated feature will have a new and improved alternative. Deprecated features will be retained for at least **3** minor 
+At times, Prefect will deprecate a feature. A feature is deprecated when it will no longer be maintained. Frequently,
+a deprecated feature will have a new and improved alternative. Deprecated features will be retained for at least **3** minor
 version increases or **6 months**, whichever is longer. We may retain deprecated features longer than this time period.
 
 Prefect will sometimes include changes to behavior to fix a bug. These changes are not categorized as breaking changes.
 
 ## Client compatibility with Prefect
 
-When running a Prefect server, you are in charge of ensuring the version is compatible with those of the clients that are 
-using the server. Prefect aims to maintain backwards compatibility with old clients for each server release. In contrast, 
-sometimes you cannot use new clients with an old server. The new client may expect the server to support capabilities that 
+When running a Prefect server, you are in charge of ensuring the version is compatible with those of the clients that are
+using the server. Prefect aims to maintain backwards compatibility with old clients for each server release. In contrast,
+sometimes you cannot use new clients with an old server. The new client may expect the server to support capabilities that
 it does not yet include. For this reason, we recommend that all clients are the same version as the server or older.
 
 For example, you can use a client on 2.1.0 with a server on 2.5.0. You cannot use a client on 2.5.0 with a server on 2.1.0.
 
 ## Client compatibility with Cloud
 
-Prefect Cloud targets compatibility with all versions of Prefect clients. If you encounter a compatibility issue, please 
+Prefect Cloud targets compatibility with all versions of Prefect clients. If you encounter a compatibility issue, please
 [file a bug report](https://github.com/prefectHQ/prefect/issues/new/choose).

@@ -3,10 +3,10 @@ title: Manage states
 description: Prefect states contain information about the status of a flow or task run.
 ---
 
-States are rich objects that contain information about the status of a particular [task](/3.0/develop/write-tasks) 
+States are rich objects that contain information about the status of a particular [task](/3.0/develop/write-tasks)
 run or [flow](/3.0/develop/write-flows/) run.
 
-You can learn many things about a task or flow by examining its current state or the 
+You can learn many things about a task or flow by examining its current state or the
 history of its states. For example, a state could tell you that a task:
 
 - is scheduled to make a third run attempt in an hour
@@ -17,21 +17,21 @@ history of its states. For example, a state could tell you that a task:
 
 <Note>
 **Only runs have states**:
-Flows and tasks are templates that describe what a system does; 
+Flows and tasks are templates that describe what a system does;
 only when we **run** the system does it also take on a state.
 </Note>
 
 ## State types
 
-Prefect states have names and types. 
-A state's name is often, but not always, synonymous with its type. For example, a task run 
-that is running for the first time has a state with the name Running and the type `RUNNING`. However, if the task retries, 
-that same task run will have the name Retrying and the type `RUNNING`. 
+Prefect states have names and types.
+A state's name is often, but not always, synonymous with its type. For example, a task run
+that is running for the first time has a state with the name Running and the type `RUNNING`. However, if the task retries,
+that same task run will have the name Retrying and the type `RUNNING`.
 
 The distinction between types and names is subtle: state _types_ are typically used for backing orchestration logic, whereas state _names_ are more for visual display and bookkeeping.
 
 The full list of states and state types includes:
-  
+
 | Name | Type | Terminal? | Description
 | --- | --- | --- | --- |
 | `Scheduled` | `SCHEDULED` | No | The run will begin at a particular time in the future. |
@@ -83,21 +83,21 @@ def example():
     state_two = toggle_task(fail=False)
 
     # similarly, the flow run will fail because we return a `Failed` state
-    return state_one, state_two 
+    return state_one, state_two
 ```
 
 You can also access state objects directly within a flow through the `return_state` flag:
 
 ```python
-from prefect import flow, task 
+from prefect import flow, task
 
 
-@task 
+@task
 def add_one(x):
     return x + 1
 
 
-@flow 
+@flow
 def my_flow():
     result = add_one(1)
     assert isinstance(result, int) and result == 2
@@ -120,7 +120,7 @@ import FinalFlowState from '/snippets/final-flow-state.mdx'
 
 ## Execute code on state changes
 
-State change hooks execute code in response to **_client side_** changes in flow or task run states, enabling you to define actions for 
+State change hooks execute code in response to **_client side_** changes in flow or task run states, enabling you to define actions for
 specific state transitions in a workflow.
 
 A state hook must have the following signature:
@@ -159,7 +159,7 @@ def second_hook(tsk: Task, run: TaskRun, state: State) -> None:
     print('another hook')
 ```
 
-State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition, 
+State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition,
 or to use the same state change hook for different transitions:
 
 ```python
@@ -240,7 +240,7 @@ def notify_slack(flow, flow_run, state):
     slack_webhook_block = Block.load(
         "slack-webhook/my-slack-webhook"
     )
-            
+
     slack_webhook_block.notify(
         (
             f"Your job {flow_run.name} entered {state.name} "
