@@ -36,7 +36,6 @@ from prefect.settings import (
     PREFECT_SERVER_API_PORT,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
-    PREFECT_UI_API_URL,
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
     SETTING_VARIABLES,
@@ -294,10 +293,6 @@ class TestSettingAccess:
                 assert True, "Treated as truth"
             else:
                 assert False, "Not treated as truth"
-
-    @pytest.mark.skip("I don't know what this was supposed to test")
-    def test_ui_api_url_from_defaults(self):
-        assert PREFECT_UI_API_URL.value() == "/api"
 
     @pytest.mark.parametrize(
         "value,expected",

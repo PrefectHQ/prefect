@@ -11,7 +11,6 @@ import sys
 import warnings
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -40,7 +39,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultStore, get_default_persist_setting
-from prefect.settings import PREFECT_HOME, Profile, Settings
+from prefect.settings import Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.services import start_client_metrics_server
@@ -461,7 +460,7 @@ class SettingsContext(ContextModel):
         return_value = super().__enter__()
 
         try:
-            prefect_home = Path(PREFECT_HOME.value_from(self.settings))
+            prefect_home = self.settings.home
             prefect_home.mkdir(mode=0o0700, exist_ok=True)
         except OSError:
             warnings.warn(

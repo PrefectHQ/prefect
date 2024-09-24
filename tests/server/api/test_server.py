@@ -1,6 +1,7 @@
 import contextlib
 import socket
 import sqlite3
+import time
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -420,6 +421,7 @@ class TestSubprocessASGIServer:
         assert health_response.status_code == 200
 
         server.stop()
+        time.sleep(0.1)
         with pytest.raises(httpx.RequestError):
             httpx.get(f"{server.api_url}/health")
 

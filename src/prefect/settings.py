@@ -36,7 +36,6 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     TypeAdapter,
     ValidationError,
-    field_validator,
     model_serializer,
     model_validator,
 )
@@ -1075,7 +1074,7 @@ class Settings(BaseSettings):
         429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
         may result in unexpected behavior.
         """,
-        examples=["404,429,503", "429", [404, 429, 503]],
+        examples=["404,429,503", "429", {404, 429, 503}],
     )
 
     client_csrf_support_enabled: bool = Field(
@@ -1476,7 +1475,11 @@ class Settings(BaseSettings):
 # Functions to instantiate `Settings` instances
 
 
-def _cast_settings(settings: Dict[Union[str, Setting], Any]) -> Dict[Setting, Any]:
+def _cast_settings(
+    settings: Union[Dict[Union[str, Setting], Any], Any],
+) -> Dict[Setting, Any]:
+    if not isinstance(settings, dict):
+        raise ValueError("Settings must be a dictionary.")
     casted_settings = {}
     for k, value in settings.items():
         try:
@@ -1566,7 +1569,9 @@ class Profile(BaseModel):
     model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
     name: str
-    settings: Dict[Setting, Any] = Field(default_factory=dict)
+    settings: Annotated[Dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(
+        default_factory=dict
+    )
     source: Optional[Path] = None
 
     def to_environment_variables(self) -> Dict[str, str]:
@@ -1588,12 +1593,6 @@ class Profile(BaseModel):
                 errors.append((setting, e))
         if errors:
             raise ProfileSettingsValidationError(errors)
-
-    @field_validator("settings", mode="before")
-    def cast_settings(cls, v):
-        if not isinstance(v, dict):
-            raise ValueError("Settings must be a dictionary.")
-        return _cast_settings(v)
 
 
 class ProfilesCollection:
