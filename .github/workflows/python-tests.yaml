@@ -67,7 +67,7 @@ jobs:
           - "3.12"
         exclude:
           - database: "sqlite"
-            test-type: 
+            test-type:
               name: Client Tests
               modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
 

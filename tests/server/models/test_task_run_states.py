@@ -167,6 +167,7 @@ class TestCreateTaskRunState:
 
     async def test_no_orchestration_with_injected_empty_policy(self, task_run, session):
         class EmptyPolicy(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return []
 
@@ -203,6 +204,7 @@ class TestCreateTaskRunState:
                     await self.abort_transition("wow, aborting this transition")
 
         class AbortingPolicy(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return [AbortingRule]
 
