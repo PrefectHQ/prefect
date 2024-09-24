@@ -1,7 +1,8 @@
+import asyncio
 import warnings
 from typing import Type
 from uuid import UUID, uuid4
-import asyncio
+
 import pydantic
 import pytest
 
@@ -199,12 +200,16 @@ class TestFlowWithBlockParam:
             return block.a
 
         assert (
-            asyncio.run(flow_with_block_param({"$ref": str(ref_block._block_document_id)}))
+            asyncio.run(
+                flow_with_block_param({"$ref": str(ref_block._block_document_id)})
+            )
             == ref_block.a
         )
         assert (
-            asyncio.run(flow_with_block_param(
-                {"$ref": {"block_document_id": str(ref_block._block_document_id)}}
-            ))
+            asyncio.run(
+                flow_with_block_param(
+                    {"$ref": {"block_document_id": str(ref_block._block_document_id)}}
+                )
+            )
             == ref_block.a
         )
