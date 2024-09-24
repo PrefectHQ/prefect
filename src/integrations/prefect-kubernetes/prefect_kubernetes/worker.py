@@ -1017,28 +1017,23 @@ class KubernetesWorker(BaseWorker):
                 if event["type"] == "DELETED":
                     logger.error(f"Job {job_name!r}: Job has been deleted.")
                     completed = True
-                elif event["object"].status.completion_time:
-                    if not event["object"].status.succeeded:
-                        # Job failed, exit while loop and return pod exit code
-                        logger.error(f"Job {job_name!r}: Job failed.")
-                    completed = True
-                # Check if the job has reached its backoff limit
-                # and stop watching if it has
-                elif (
-                    event["object"].spec.backoff_limit is not None
-                    and event["object"].status.failed is not None
-                    and event["object"].status.failed
-                    > event["object"].spec.backoff_limit
-                ):
-                    logger.error(f"Job {job_name!r}: Job reached backoff limit.")
-                    completed = True
-                # If the job has no backoff limit, check if it has failed
-                # and stop watching if it has
-                elif (
-                    not event["object"].spec.backoff_limit
-                    and event["object"].status.failed
-                ):
-                    completed = True
+                else:
+                    job = event["object"]
+                    if job.status.conditions:
+                        for condition in job.status.conditions:
+                            if (
+                                condition.type == "Complete"
+                                and condition.status == "True"
+                            ):
+                                logger.info(f"Job {job_name!r}: Job has completed.")
+                                completed = True
+                            elif (
+                                condition.type == "Failed"
+                                and condition.status == "True"
+                            ):
+                                completed = True
+                                logger.error(f"Job {job_name!r}: Job has failed.")
+
                 if completed:
                     break
 

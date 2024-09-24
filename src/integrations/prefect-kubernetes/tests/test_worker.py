@@ -2201,7 +2201,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.conditions = [MagicMock(type="Complete", status="True")]
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2262,7 +2262,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.conditions = [MagicMock(type="Complete", status="True")]
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2307,7 +2307,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.conditions = [MagicMock(type="Complete", status="True")]
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2352,7 +2352,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.conditions = [MagicMock(type="Complete", status="True")]
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2426,9 +2426,7 @@ class TestKubernetesWorker:
                     job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
 
                     # Yield the completed job
-                    job.status.completion_time = True
-                    job.status.failed = 0
-                    job.spec.backoff_limit = 6
+                    job.status.conditions = [MagicMock(type="Failed", status="True")]
                     yield {"object": job, "type": "ADDED"}
 
             async def mock_log_stream(*args, **kwargs):
@@ -2486,9 +2484,7 @@ class TestKubernetesWorker:
                     await anyio.sleep(10)
 
                     # Yield the job then return exiting the stream
-                    job.status.completion_time = None
-                    job.status.failed = 0
-                    job.spec.backoff_limit = 6
+                    job.status.conditions = [MagicMock(type="Failed", status="True")]
                     yield {"object": job, "type": "ADDED"}
 
             # mock_watch.return_value.stream = mock_stream
@@ -2534,6 +2530,10 @@ class TestKubernetesWorker:
                     job.spec.backoff_limit = 6
                     for i in range(0, 8):
                         job.status.failed = i
+                        if i == 7:
+                            job.status.conditions = [
+                                MagicMock(type="Failed", status="True")
+                            ]
                         yield {"object": job, "type": "ADDED"}
 
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
@@ -2569,6 +2569,10 @@ class TestKubernetesWorker:
                     job.spec.backoff_limit = 6
                     for i in range(0, 8):
                         job.status.failed = i
+                        if i == 7:
+                            job.status.conditions = [
+                                MagicMock(type="Failed", status="True")
+                            ]
                         yield {"object": job, "type": "ADDED"}
 
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
@@ -2618,6 +2622,10 @@ class TestKubernetesWorker:
                     job.spec.backoff_limit = 6
                     for i in range(0, 8):
                         job.status.failed = i
+                        if i == 7:
+                            job.status.conditions = [
+                                MagicMock(type="Failed", status="True")
+                            ]
                         yield {"object": job, "type": "ADDED"}
 
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
