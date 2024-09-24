@@ -28,7 +28,7 @@ git clone https://github.com/GITHUB-USERNAME/prefect.git
 cd prefect
 ```
 you can install [an editable version](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of Prefect for quick iteration.
-We recommend using a virtual environment such as `venv`: 
+We recommend using a virtual environment such as `venv`:
 
 ```bash
 python -m venv .venv
@@ -76,10 +76,10 @@ pytest -k 'tasks'
 
 ## Working with a development UI
 
-If you plan to use the UI during development, you will need to build a development version of the UI first. 
+If you plan to use the UI during development, you will need to build a development version of the UI first.
 
-Using the Prefect UI in development requires installation of [npm](https://github.com/npm/cli). 
-We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions. 
+Using the Prefect UI in development requires installation of [npm](https://github.com/npm/cli).
+We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions.
 Once installed, run `nvm use` from the root of the Prefect repository to initialize the proper version of `npm` and `node`.
 
 Start a development UI that reloads on code changes:
@@ -114,24 +114,23 @@ prefect dev api
 
 ## Add database migrations
 
-If your code changes necessitate modifications to a database table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. 
+If your code changes necessitate modifications to a database table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`.
 
 For example, to add a new column to the `flow_run` table, add a new column to the `FlowRun` model:
 
 ```python
 # src/prefect/server/database/orm_models.py
 
-@declarative_mixin
-class ORMFlowRun(ORMRun):
+class FlowRun(Run):
     """SQLAlchemy model of a flow run."""
     ...
-    new_column = Column(String, nullable=True) # <-- add this line
+    new_column: Mapped[Union[str, None]] = mapped_column(sa.String, nullable=True) # <-- add this line
 ```
 
-Next, generate new migration files. 
-Generate a new migration file for each database type. 
+Next, generate new migration files.
+Generate a new migration file for each database type.
 
-Migrations are generated for whichever database type `PREFECT_API_DATABASE_CONNECTION_URL` is set to. 
+Migrations are generated for whichever database type `PREFECT_API_DATABASE_CONNECTION_URL` is set to.
 See [how to set the database connection URL](/3.0/manage/self-host#database-settings) for each database type.
 
 To generate a new migration file, run:
@@ -140,7 +139,7 @@ To generate a new migration file, run:
 prefect server database revision --autogenerate -m "<migration name>"
 ```
 
-Make the migration name brief but descriptive. 
+Make the migration name brief but descriptive.
 For example:
 
 *   `add_flow_run_new_column`
@@ -152,11 +151,11 @@ The `--autogenerate` flag automatically generates a migration file based on the 
 <Warning>
 **Always inspect the output of `--autogenerate`**
 
-`--autogenerate` generates a migration file based on the changes to the models. 
-However, it is not perfect. Check the file to ensure it only includes the desired changes. 
+`--autogenerate` generates a migration file based on the changes to the models.
+However, it is not perfect. Check the file to ensure it only includes the desired changes.
 </Warning>
 
-The new migration is in the `src/prefect/server/database/migrations/versions/` directory. Each database type has its 
+The new migration is in the `src/prefect/server/database/migrations/versions/` directory. Each database type has its
 own subdirectory. For example, the SQLite migrations are stored in `src/prefect/server/database/migrations/versions/sqlite/`.
 
 After inspecting the migration file, apply the migration to the database by running:
@@ -165,5 +164,5 @@ After inspecting the migration file, apply the migration to the database by runn
 prefect server database upgrade -y
 ```
 
-After successfully creating migrations for all database types, update `MIGRATION-NOTES.md` to 
+After successfully creating migrations for all database types, update `MIGRATION-NOTES.md` to
 document the changes.

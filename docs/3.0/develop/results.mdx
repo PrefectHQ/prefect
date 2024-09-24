@@ -3,7 +3,7 @@ title: Manage results
 description: Results represent the data returned by a flow or a task and enable features such as caching.
 ---
 
-Results are the bedrock of many Prefect features - most notably [transactions](/3.0/develop/transactions) 
+Results are the bedrock of many Prefect features - most notably [transactions](/3.0/develop/transactions)
 and [caching](/3.0/develop/task-caching) - and are foundational to the resilient execution paradigm that Prefect enables.
 Any return value from a task or a flow is a result.
 By default these results are not persisted and no reference to them is maintained in the API.
@@ -27,21 +27,21 @@ See [settings](/3.0/manage/settings-and-profiles) for more information on how se
 There are four categories of configuration for result persistence:
 - [whether to persist results at all](/3.0/develop/results#enabling-result-persistence): this is configured through
 various keyword arguments and the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting.
-- [what filesystem to persist results to](/3.0/develop/results#result-storage): this is configured through the `result_storage` 
+- [what filesystem to persist results to](/3.0/develop/results#result-storage): this is configured through the `result_storage`
 keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
-- [how to serialize and deserialize results](/3.0/develop/results#result-serialization): this is configured through 
+- [how to serialize and deserialize results](/3.0/develop/results#result-serialization): this is configured through
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
-- [what filename to use](/3.0/develop/results#result-filenames): this is configured through one of 
+- [what filename to use](/3.0/develop/results#result-filenames): this is configured through one of
 `result_storage_key`, `cache_policy`, or `cache_key_fn`.
 
 ### Default persistence configuration
 
-Once result persistence is enabled - whether through the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting or 
-through any of the mechanisms [described below](/3.0/develop/results#enabling-result-persistence) - Prefect's default 
+Once result persistence is enabled - whether through the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting or
+through any of the mechanisms [described below](/3.0/develop/results#enabling-result-persistence) - Prefect's default
 result storage configuration is activated.
 
 If you enable result persistence and don't specify a filesystem block, your results will be stored locally.
-By default, results are persisted to `~/.prefect/storage/`. 
+By default, results are persisted to `~/.prefect/storage/`.
 
 You can configure the location of these results through the `PREFECT_LOCAL_STORAGE_PATH` setting.
 
@@ -51,9 +51,9 @@ prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
 
 ### Enabling result persistence
 
-In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, result persistence can also be 
+In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, result persistence can also be
 enabled or disabled on both individual flows and individual tasks.
-Specifying a non-null value for any of the following keywords on the task decorator will enable result 
+Specifying a non-null value for any of the following keywords on the task decorator will enable result
 persistence for that task:
 - `persist_result`: a boolean that allows you to explicitly enable or disable result persistence.
 - `result_storage`: accepts either a string reference to a storage block or a storage block class that
@@ -70,7 +70,7 @@ persistence for that flow.
 **Enabling persistence on a flow enables persistence by default for its tasks**
 
 Enabling result persistence on a flow through any of the above keywords will also enable it for all
-tasks called within that flow by default. 
+tasks called within that flow by default.
 
 Any settings _explicitly_ set on a task take precedence over the flow settings.
 
@@ -80,18 +80,18 @@ Any settings _explicitly_ set on a task take precedence over the flow settings.
 
 You can configure the system of record for your results through the `result_storage` keyword argument.
 This keyword accepts an instantiated [filesystem block](/3.0/develop/blocks/), or a block slug. Find your blocks' slugs with `prefect block ls`.
-Note that if you want your tasks to share a common cache, your result storage should be accessible by 
+Note that if you want your tasks to share a common cache, your result storage should be accessible by
 the infrastructure in which those tasks run. [Integrations](/integrations/integrations) have cloud-specific storage blocks.
 For example, a common distributed filesystem for result storage is AWS S3.
 
+
+{/* pmd-metadata: fixture:cleanup_s3_bucket_block */}
 ```python
 from prefect import flow, task
 from prefect_aws.s3 import S3Bucket
 
-
-test_block = S3Bucket(bucket='test-bucket')
+test_block = S3Bucket(bucket_name='test-bucket')
 test_block.save('test-block')
-
 
 # define three tasks
 # with different result persistence configuration
@@ -108,7 +108,7 @@ other_storage_task = my_task.with_options(result_storage=test_block)
 def my_flow():
 
     # this task will use the flow's result storage
-    my_task()  
+    my_task()
 
     # this task will not persist results at all
     unpersisted_task()
@@ -134,8 +134,8 @@ Note that any explicit configuration of `result_storage` on either a flow or tas
 
 #### Result filenames
 
-By default, the filename of a task's result is computed based on the task's cache policy, 
-which is typically a hash of various pieces of data and metadata. 
+By default, the filename of a task's result is computed based on the task's cache policy,
+which is typically a hash of various pieces of data and metadata.
 For flows, the filename is a random UUID.
 
 You can configure the filename of the result file within result storage using either:
@@ -181,15 +181,17 @@ you to customize serialization behavior.
 
 ## Advanced: Caching results in memory
 
-When running workflows, Prefect keeps the results of all tasks and flows in memory 
-so they can be passed downstream. In some cases, it is desirable to override this behavior. 
-For example, if you are returning a large amount of data from a task, it can be costly to 
+When running workflows, Prefect keeps the results of all tasks and flows in memory
+so they can be passed downstream. In some cases, it is desirable to override this behavior.
+For example, if you are returning a large amount of data from a task, it can be costly to
 keep it in memory for the entire duration of the flow run.
 
 Flows and tasks both include an option to drop the result from memory once the
 result has been committed with `cache_result_in_memory`:
 
 ```python
+from prefect import flow
+
 @flow(cache_result_in_memory=False)
 def foo():
     return "pretend this is large data"

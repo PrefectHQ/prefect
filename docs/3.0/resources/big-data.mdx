@@ -3,9 +3,9 @@ title: Process big data
 description: Guidance for using Prefect with big data.
 ---
 
-This page explores methods to reduce the processing time or memory utilization of Prefect 
-workflows that process large volumes of data, without editing your Python code. There 
-are several options to optimize your Python code for speed, memory, compute, and 
+This page explores methods to reduce the processing time or memory utilization of Prefect
+workflows that process large volumes of data, without editing your Python code. There
+are several options to optimize your Python code for speed, memory, compute, and
 storage, including:
 
 1. Removing task introspection with `quote` to save time running your code.
@@ -13,13 +13,13 @@ storage, including:
 1. Saving data to disk within a flow rather than using results.
 1. Caching task results to save time and compute.
 1. Compressing results written to disk to save space.
-1. Using a [task runner](/3.0/develop/task-runners/) for parallelizable 
+1. Using a [task runner](/3.0/develop/task-runners/) for parallelizable
 operations to save time.
 
 ### Remove task introspection
 
 When a task is called from a flow, each argument is introspected by Prefect, by default.
-To speed up your flow runs, disable this behavior for a task by wrapping the argument using 
+To speed up your flow runs, disable this behavior for a task by wrapping the argument using
 [`quote`](https://docs.prefect.io/latest/api-ref/prefect/utilities/annotations/#prefect.utilities.annotations.quote).
 
 Here's a basic example that extracts and transforms some New York taxi data:
@@ -58,10 +58,10 @@ if __name__ == "__main__":
     et(url)
 ```
 
-Introspection can take significant time when the object being passed is a large collection, 
+Introspection can take significant time when the object being passed is a large collection,
 such as dictionary or DataFrame, where each element needs to be visited.
 
-Using `quote` reduces execution time at the expense of disabling task dependency 
+Using `quote` reduces execution time at the expense of disabling task dependency
 tracking for the wrapped object.
 
 ### Write task results to cloud storage
@@ -71,7 +71,7 @@ This behavior makes flow runs fast for small data, but can be problematic for la
 Save memory by writing results to disk.
 
 In production, it's recommended to write results to a cloud provider storage such as AWS S3.
-Prefect lets you use a storage block from a Prefect Cloud integration library such as 
+Prefect lets you use a storage block from a Prefect Cloud integration library such as
 [prefect-aws](https://prefecthq.github.io/prefect-aws/) to save your configuration information.
 Learn more about [blocks](/3.0/develop/blocks/).
 
@@ -103,7 +103,7 @@ Prefect has integration libraries for each of the major cloud providers.
 <!-- vale on -->
 */}
 
-Each library contains blocks with methods that make it convenient to read and write data to and 
+Each library contains blocks with methods that make it convenient to read and write data to and
 from cloud object storage.
 
 
@@ -126,8 +126,8 @@ Note that compression takes time to compress and decompress the data.
 
 ### Use a task runner for parallelizable operations
 
-Prefect's task runners allow you to use the Dask and Ray Python libraries to run tasks in parallel, 
+Prefect's task runners allow you to use the Dask and Ray Python libraries to run tasks in parallel,
 distributed across multiple machines.
 This can save you time and compute when operating on large data structures.
-See the [guide to working with Dask and Ray Task Runners](/3.0/develop/task-runners/) 
+See the [guide to working with Dask and Ray Task Runners](/3.0/develop/task-runners/)
 for details.
