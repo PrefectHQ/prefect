@@ -13,7 +13,7 @@ For example, you can retrieve secrets, read and write Blob Storage objects, and 
 
 ### Install `prefect-azure`
 
-The following command will install a version of `prefect-azure` compatible with your installed version of `prefect`. 
+The following command will install a version of `prefect-azure` compatible with your installed version of `prefect`.
 If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash
@@ -61,7 +61,7 @@ def example_blob_storage_download_flow():
     data = blob_storage_download(
         blob="prefect.txt",
         container="prefect",
-        azure_credentials=blob_storage_credentials,
+        blob_storage_credentials=blob_storage_credentials,
     )
     return data
 

@@ -10,7 +10,7 @@ The `prefect-dask` integration makes it easy to accelerate your flow runs with D
 
 ### Install `prefect-dask`
 
-The following command will install a version of `prefect-dask` compatible with your installed version of `prefect`. 
+The following command will install a version of `prefect-dask` compatible with your installed version of `prefect`.
 If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash
@@ -38,7 +38,7 @@ Below is code with and without the DaskTaskRunner:
 <Tabs>
 <Tab title="Sequential by default">
 
-```python 
+```python
 # Completed in 15.2 seconds
 
 from typing import List
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
 <Tab title="Parallel with Dask">
 
-```python 
+```python
 # Completed in 5.7 seconds
 
 from typing import List
@@ -137,7 +137,7 @@ Using the `DaskTaskRunner` reduced the runtime to **5.7** seconds!
 The `DaskTaskRunner` is a [task runner](/3.0/develop/task-runners) that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler.
 By default, when the `DaskTaskRunner` is specified for a flow run, a temporary Dask cluster is created and used for the duration of the flow run.
 
-If you already have a Dask cluster running, either cloud-hosted or local, you can provide the connection URL with the `address` kwarg. 
+If you already have a Dask cluster running, either cloud-hosted or local, you can provide the connection URL with the `address` kwarg.
 
 `DaskTaskRunner` accepts the following optional parameters:
 
@@ -155,12 +155,14 @@ If you already have a Dask cluster running, either cloud-hosted or local, you ca
 Because the `DaskTaskRunner` uses multiprocessing, calls to flows in scripts must be guarded with `if __name__ == "__main__":` or you will encounter warnings and errors.
 </Warning>
 
-If you don't provide the `address` of a Dask scheduler, Prefect creates a temporary local cluster automatically. 
-The number of workers used is based on the number of cores on your machine. 
-The default provides a mix of processes and threads that work well for most workloads. 
+If you don't provide the `address` of a Dask scheduler, Prefect creates a temporary local cluster automatically.
+The number of workers used is based on the number of cores on your machine.
+The default provides a mix of processes and threads that work well for most workloads.
 To specify this explicitly, pass values for `n_workers` or `threads_per_worker` to `cluster_kwargs`:
 
 ```python
+from prefect_dask import DaskTaskRunner
+
 # Use 4 worker processes, each with 2 threads
 DaskTaskRunner(
     cluster_kwargs={"n_workers": 4, "threads_per_worker": 2}
@@ -169,21 +171,23 @@ DaskTaskRunner(
 
 ### Use a temporary cluster
 
-The `DaskTaskRunner` can create a temporary cluster using any of [Dask's cluster-manager options](https://docs.dask.org/en/latest/setup.html). 
+The `DaskTaskRunner` can create a temporary cluster using any of [Dask's cluster-manager options](https://docs.dask.org/en/latest/setup.html).
 This is useful when you want each flow run to have its own Dask cluster, allowing for per-flow adaptive scaling.
-To configure it, provide a `cluster_class`. 
+To configure it, provide a `cluster_class`.
 This can be:
 
 - A string specifying the import path to the cluster class (for example, `"dask_cloudprovider.aws.FargateCluster"`)
 - The cluster class itself
 - A function for creating a custom cluster
 
-You can also configure `cluster_kwargs`. 
+You can also configure `cluster_kwargs`.
 This takes a dictionary of keyword arguments to pass to `cluster_class` when starting the flow run.
 
 For example, to configure a flow to use a temporary `dask_cloudprovider.aws.FargateCluster` with four workers running with an image named `my-prefect-image`:
 
 ```python
+from prefect_dask import DaskTaskRunner
+
 DaskTaskRunner(
     cluster_class="dask_cloudprovider.aws.FargateCluster",
     cluster_kwargs={"n_workers": 4, "image": "my-prefect-image"},
@@ -194,8 +198,8 @@ For larger workloads, you can accelerate execution further by distributing task 
 
 ### Connect to an existing cluster
 
-Multiple Prefect flow runs can use the same existing Dask cluster. 
-You might manage a single long-running Dask cluster (for example, using the Dask [Helm Chart](https://docs.dask.org/en/latest/setup/kubernetes-helm.html)) and configure flows to connect to it during execution. 
+Multiple Prefect flow runs can use the same existing Dask cluster.
+You might manage a single long-running Dask cluster (for example, using the Dask [Helm Chart](https://docs.dask.org/en/latest/setup/kubernetes-helm.html)) and configure flows to connect to it during execution.
 This has disadvantages compared to using a temporary Dask cluster:
 
 - All workers in the cluster must have dependencies installed for all flows you intend to run.
@@ -207,6 +211,8 @@ Still, you may prefer managing a single long-running Dask cluster.
 To configure a `DaskTaskRunner` to connect to an existing cluster, pass in the address of the scheduler to the `address` argument:
 
 ```python
+from prefect_dask import DaskTaskRunner
+
 @flow(task_runner=DaskTaskRunner(address="http://my-dask-cluster"))
 def my_flow():
     ...
@@ -255,7 +261,7 @@ if __name__ == "__main__":
 
 <Tab title="With Prefect">
 
-```python 
+```python
 import dask.dataframe
 import dask.distributed
 from prefect import flow, task
@@ -291,10 +297,10 @@ if __name__ == "__main__":
 
 ### Configure adaptive scaling
 
-A key feature of using a `DaskTaskRunner` is the ability to scale adaptively to the workload. 
+A key feature of using a `DaskTaskRunner` is the ability to scale adaptively to the workload.
 Instead of specifying `n_workers` as a fixed number, you can specify a minimum and maximum number of workers to use, and the Dask cluster scales up and down as needed.
 
-To do this, pass `adapt_kwargs` to `DaskTaskRunner`. 
+To do this, pass `adapt_kwargs` to `DaskTaskRunner`.
 This takes the following fields:
 
 - `maximum` (`int` or `None`, optional): the maximum number of workers to scale to. Set to `None` for no maximum.
@@ -303,6 +309,8 @@ This takes the following fields:
 For example, this configures a flow to run on a `FargateCluster` scaling up to a maximum of 10 workers:
 
 ```python
+from prefect_dask import DaskTaskRunner
+
 DaskTaskRunner(
     cluster_class="dask_cloudprovider.aws.FargateCluster",
     adapt_kwargs={"maximum": 10}

@@ -14,7 +14,7 @@ The prefect-snowflake collection makes it easy to connect to a Snowflake databas
 
 ### Install prefect-snowflake
 
-The following command will install a version of `prefect-snowflake` compatible with your installed version of `prefect`. 
+The following command will install a version of `prefect-snowflake` compatible with your installed version of `prefect`.
 If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash
@@ -44,8 +44,8 @@ Be sure to [install prefect-snowflake](#installation), [register the blocks](#re
     ```python
     from prefect import flow, task
     from prefect_snowflake import SnowflakeConnector
-    
-    
+
+
     @task
     def setup_table(block_name: str) -> None:
         with SnowflakeConnector.load(block_name) as connector:
@@ -60,7 +60,7 @@ Be sure to [install prefect-snowflake](#installation), [register the blocks](#re
                     {"name": "Me", "address": "Myway 88"},
                 ],
             )
-    
+
     @task
     def fetch_data(block_name: str) -> list:
         all_rows = []
@@ -73,7 +73,7 @@ Be sure to [install prefect-snowflake](#installation), [register the blocks](#re
                     break
                 all_rows.append(new_rows)
         return all_rows
-    
+
     @flow
     def snowflake_flow(block_name: str) -> list:
         setup_table(block_name)
@@ -91,7 +91,7 @@ Be sure to [install prefect-snowflake](#installation), [register the blocks](#re
     from prefect import flow, task
     from prefect_snowflake import SnowflakeConnector
     import asyncio
-    
+
 
     @task
     async def setup_table(block_name: str) -> None:
@@ -107,7 +107,7 @@ Be sure to [install prefect-snowflake](#installation), [register the blocks](#re
                     {"name": "Me", "address": "Myway 88"},
                 ],
             )
-    
+
     @task
     async def fetch_data(block_name: str) -> list:
         all_rows = []
@@ -120,14 +120,14 @@ Be sure to [install prefect-snowflake](#installation), [register the blocks](#re
                     break
                 all_rows.append(new_rows)
         return all_rows
-    
+
     @flow
     async def snowflake_flow(block_name: str) -> list:
         await setup_table(block_name)
         all_rows = await fetch_data(block_name)
         return all_rows
 
-    
+
     if __name__=="__main__":
         asyncio.run(snowflake_flow("example"))
     ```

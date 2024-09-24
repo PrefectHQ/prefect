@@ -1,12 +1,12 @@
 ---
 title: Define custom event triggers
-description: Define a custom trigger to react to many kinds of events and metrics. 
+description: Define a custom trigger to react to many kinds of events and metrics.
 ---
 
 When you need a trigger beyond what the templates in the UI trigger builder provide, you can define a custom trigger in JSON. With custom triggers, you have access to the full capabilities of Prefect's automation system—allowing you to react to many kinds of events and metrics in your workspace.
 
-Each automation has a single trigger that, when fired, causes all of its associated actions to run. That single 
-trigger may be a reactive or proactive event trigger, a trigger monitoring the value of a metric, or a composite trigger 
+Each automation has a single trigger that, when fired, causes all of its associated actions to run. That single
+trigger may be a reactive or proactive event trigger, a trigger monitoring the value of a metric, or a composite trigger
 that combines several underlying triggers.
 
 ### Event triggers
@@ -31,15 +31,15 @@ This is the schema that defines an event trigger:
 
 ### Resource matching
 
-Both the `event` and `metric` triggers support matching events for specific resources in your workspace, including most 
-Prefect objects (like flows, deployment, blocks, work pools, tags) as well as resources you have defined in any 
-events you emit yourself. 
+Both the `event` and `metric` triggers support matching events for specific resources in your workspace, including most
+Prefect objects (like flows, deployment, blocks, work pools, tags) as well as resources you have defined in any
+events you emit yourself.
 
-The `match` and `match_related` fields control which events a trigger considers for evaluation 
-by filtering on the contents of their `resource` and `related` fields, respectively. Each label added to a `match` filter 
+The `match` and `match_related` fields control which events a trigger considers for evaluation
+by filtering on the contents of their `resource` and `related` fields, respectively. Each label added to a `match` filter
 is `AND`ed with the other labels, and can accept a single value or a list of multiple values that are `OR`ed together.
 
-See the `resource` and `related` fields on the following `prefect.flow-run.Completed` event, truncated for this example. Its primary resource is a flow run, and since that flow run was started by a deployment, it is related to 
+See the `resource` and `related` fields on the following `prefect.flow-run.Completed` event, truncated for this example. Its primary resource is a flow run, and since that flow run was started by a deployment, it is related to
 both its flow and its deployment:
 
 ```json
@@ -61,10 +61,10 @@ both its flow and its deployment:
 ]
 ```
 
-There are a number of valid ways to select the above event for evaluation, and the approach depends on the purpose of 
+There are a number of valid ways to select the above event for evaluation, and the approach depends on the purpose of
 the automation.
 
-The following configuration filters for any events whose primary resource is a flow run, _and_ that flow run has a 
+The following configuration filters for any events whose primary resource is a flow run, _and_ that flow run has a
 name starting with `cute-` or `radical-`.
 
 ```json
@@ -76,7 +76,7 @@ name starting with `cute-` or `radical-`.
 ...
 ```
 
-By comparison, this configuration filters for any events this specific deployment is a related 
+By comparison, this configuration filters for any events this specific deployment is a related
 resource to:
 
 ```json
@@ -87,8 +87,8 @@ resource to:
 ...
 ```
 
-Both of the above approaches will select the example `prefect.flow-run.Completed` event, but will permit additional, 
-possibly undesired events through the filter as well. You can combine `match` and `match_related` for more restrictive 
+Both of the above approaches will select the example `prefect.flow-run.Completed` event, but will permit additional,
+possibly undesired events through the filter as well. You can combine `match` and `match_related` for more restrictive
 filtering:
 
 ```json
@@ -102,15 +102,15 @@ filtering:
 ...
 ```
 
-Now this trigger will filter only for events whose primary resource is a flow run started by a specific deployment, 
+Now this trigger will filter only for events whose primary resource is a flow run started by a specific deployment,
 _and_ that flow run has a name starting with `cute-` or `radical-`.
 
 ### Expected events
 
-Once an event has passed through the `match` filters, you must decide if this event counts toward the 
+Once an event has passed through the `match` filters, you must decide if this event counts toward the
 trigger's `threshold`. That is determined by the event names present in `expect`.
 
-This configuration informs the trigger to evaluate _only_ `prefect.flow-run.Completed` events that have passed the 
+This configuration informs the trigger to evaluate _only_ `prefect.flow-run.Completed` events that have passed the
 `match` filters.
 
 ```json
@@ -120,8 +120,8 @@ This configuration informs the trigger to evaluate _only_ `prefect.flow-run.Comp
 ...
 ```
 
-`threshold` decides the quantity of `expect`ed events needed to satisfy the trigger. Increasing the `threshold` 
-above 1 requires use of `within` to define a range of time when multiple events are seen. The following 
+`threshold` decides the quantity of `expect`ed events needed to satisfy the trigger. Increasing the `threshold`
+above 1 requires use of `within` to define a range of time when multiple events are seen. The following
 configuration expects two occurrences of `prefect.flow-run.Completed` within 60 seconds:
 
 ```json
@@ -140,7 +140,7 @@ For example, this flow emits an event indicating the table it operates on is mis
 ```python
 from prefect import flow
 from prefect.events import emit_event
-from db import Table
+from myproject.db import Table
 
 
 @flow
@@ -159,13 +159,14 @@ def transform(table_name: str):
     )
   else:
     # transform data
+    ...
 ```
 
-The following configuration uses `after` to prevent this automation from firing unless either a `table-missing` or a 
+The following configuration uses `after` to prevent this automation from firing unless either a `table-missing` or a
 `table-empty` event has occurred before a flow run of this deployment completes.
 
 <Tip>
-    Note how `match` and `match_related` ensure the trigger only evaluates events that are relevant to its 
+    Note how `match` and `match_related` ensure the trigger only evaluates events that are relevant to its
     purpose.
 </Tip>
 
@@ -191,12 +192,12 @@ The following configuration uses `after` to prevent this automation from firing 
 
 ### Evaluation strategy
 
-All of the previous examples were designed around a reactive `posture`; that is, count up events toward the 
-`threshold` until it is met, then execute actions. To respond to the absence of events, use a proactive `posture`. 
-A proactive trigger fires when its `threshold` has _not_ been met by the end of the window of time defined by `within`. 
+All of the previous examples were designed around a reactive `posture`; that is, count up events toward the
+`threshold` until it is met, then execute actions. To respond to the absence of events, use a proactive `posture`.
+A proactive trigger fires when its `threshold` has _not_ been met by the end of the window of time defined by `within`.
 Proactive triggers must have a `within` value of at least 10 seconds.
 
-The following trigger fires if a `prefect.flow-run.Completed` event is not seen within 60 seconds after a 
+The following trigger fires if a `prefect.flow-run.Completed` event is not seen within 60 seconds after a
 `prefect.flow-run.Running` event is seen:
 
 ```json
@@ -218,8 +219,8 @@ The following trigger fires if a `prefect.flow-run.Completed` event is not seen 
 }
 ```
 
-However, without `for_each`, a `prefect.flow-run.Completed` event from a _different_ flow run than the one that 
-started this trigger with its `prefect.flow-run.Running` event could satisfy the condition. Adding a `for_each` of 
+However, without `for_each`, a `prefect.flow-run.Completed` event from a _different_ flow run than the one that
+started this trigger with its `prefect.flow-run.Running` event could satisfy the condition. Adding a `for_each` of
 `prefect.resource.id` causes this trigger to be evaluated separately for each flow run id associated with these events.
 
 ```json
@@ -245,22 +246,22 @@ started this trigger with its `prefect.flow-run.Running` event could satisfy the
 
 ### Metric triggers
 
-Metric triggers (`{"type": "metric"}`) fire when the value of a metric in your workspace crosses a threshold you defined. 
-For example, you can trigger an automation when the success rate of flows in your workspace drops below 95% over the course 
+Metric triggers (`{"type": "metric"}`) fire when the value of a metric in your workspace crosses a threshold you defined.
+For example, you can trigger an automation when the success rate of flows in your workspace drops below 95% over the course
 of an hour.
 
-Prefect's metrics are all derived by examining your workspace's events, and if applicable, use the `occurred` times of 
+Prefect's metrics are all derived by examining your workspace's events, and if applicable, use the `occurred` times of
 those events as the basis for their calculations.
 
 Prefect defines three metrics:
 
-- **Successes** (`{"name": "successes"}`), defined as the number of flow runs that went `Pending` and then the latest 
-state we saw was not a failure (`Failed` or `Crashed`). This metric accounts for retries if the ultimate state was 
+- **Successes** (`{"name": "successes"}`), defined as the number of flow runs that went `Pending` and then the latest
+state we saw was not a failure (`Failed` or `Crashed`). This metric accounts for retries if the ultimate state was
 successful.
-- **Duration** (`{"name": "duration"}`), defined as the _length of time_ that a flow remains in a `Running` state before 
-transitioning to a terminal state such as `Completed`, `Failed`, or `Crashed`. Because this time is derived in terms of 
+- **Duration** (`{"name": "duration"}`), defined as the _length of time_ that a flow remains in a `Running` state before
+transitioning to a terminal state such as `Completed`, `Failed`, or `Crashed`. Because this time is derived in terms of
 flow run state change events, it may be greater than the runtime of your function.
-- **Lateness** (`{"name": "lateness"}`), defined as the _length of time_ that a `Scheduled` flow remains in a `Late` 
+- **Lateness** (`{"name": "lateness"}`), defined as the _length of time_ that a `Scheduled` flow remains in a `Late`
 state before transitioning to a `Running` and/or `Crashed` state. Only flow runs that the system marks `Late` are included.
 
 This is the schema of a metric trigger:
@@ -303,7 +304,7 @@ For example, to fire when flow runs tagged `production` in your workspace are fa
 }
 ```
 
-To detect when the average lateness of your Kubernetes workloads (running on a work pool named `kubernetes`) in the 
+To detect when the average lateness of your Kubernetes workloads (running on a work pool named `kubernetes`) in the
 last day exceeds five minutes late—and that number hasn't gotten better for the last 10 minutes—use a trigger like this:
 
 ```json
@@ -328,10 +329,10 @@ last day exceeds five minutes late—and that number hasn't gotten better for th
 
 ### Composite triggers
 
-To create a trigger from multiple kinds of events and metrics, use a `compound` or `sequence` trigger. 
+To create a trigger from multiple kinds of events and metrics, use a `compound` or `sequence` trigger.
 These higher-order triggers are composed from a set of underlying `event` and `metric` triggers.
 
-For example, if you want to run a deployment only after three different flows in your workspace have written their 
+For example, if you want to run a deployment only after three different flows in your workspace have written their
 results to a remote filesystem, combine them with a 'compound' trigger:
 
 ```json
@@ -371,11 +372,11 @@ results to a remote filesystem, combine them with a 'compound' trigger:
 }
 ```
 
-This trigger fires once it sees at least one of each of the underlying event triggers fire within the time 
-frame specified. Then the trigger resets its state and fires the next time these three events all happen. 
+This trigger fires once it sees at least one of each of the underlying event triggers fire within the time
+frame specified. Then the trigger resets its state and fires the next time these three events all happen.
 The order the events occur doesn't matter, just that all of the events occur within one hour.
 
-If you want a flow run to complete prior to starting to watch for those three events, you can combine the entire 
+If you want a flow run to complete prior to starting to watch for those three events, you can combine the entire
 previous trigger as the second part of a sequence of two triggers:
 
 ```json
@@ -433,20 +434,20 @@ previous trigger as the second part of a sequence of two triggers:
 }
 ```
 
-In this case, the trigger only fires if it sees the `daily-export-initiator` flow complete, and then the three 
+In this case, the trigger only fires if it sees the `daily-export-initiator` flow complete, and then the three
 files written by the other flows.
 
-The `within` parameter for compound and sequence triggers restricts how close in time (in seconds) the child triggers 
-must fire to satisfy the composite trigger. For example, if the `daily-export-initiator` flow runs, but the other three 
-flows don't write their result files until three hours later, this trigger won't fire. Placing these time constraints 
+The `within` parameter for compound and sequence triggers restricts how close in time (in seconds) the child triggers
+must fire to satisfy the composite trigger. For example, if the `daily-export-initiator` flow runs, but the other three
+flows don't write their result files until three hours later, this trigger won't fire. Placing these time constraints
 on the triggers can prevent a misfire if you know that the events will generally happen within a specific timeframe—
-and you don't want a stray older event included in the evaluation of the trigger. 
+and you don't want a stray older event included in the evaluation of the trigger.
 
 If this isn't a concern for you, you may omit the `within` period, in which case there is no limit to how far apart in time the child triggers occur.
 
-You can compose any type of trigger into higher-order composite triggers, including proactive event triggers and metric 
-triggers. In the following example, the compound trigger fires if any of the following events occur: a flow run 
-stuck in `Pending`, a work pool becoming unready, or the average amount of `Late` work in your workspace going over 
+You can compose any type of trigger into higher-order composite triggers, including proactive event triggers and metric
+triggers. In the following example, the compound trigger fires if any of the following events occur: a flow run
+stuck in `Pending`, a work pool becoming unready, or the average amount of `Late` work in your workspace going over
 10 minutes:
 
 ```json
@@ -487,10 +488,10 @@ stuck in `Pending`, a work pool becoming unready, or the average amount of `Late
 }
 ```
 
-For compound triggers, the `require` parameter may be `"any"`, `"all"`, or a number between 1 and the number of child 
-triggers. In the example above, if you feel that you are receiving too many spurious notifications for issues that 
-resolve on their own, you can specify `{"require": 2}` to express that any **two** of the triggers must fire in order 
-for the compound trigger to fire. Sequence triggers, on the other hand, always require all of their child triggers to 
+For compound triggers, the `require` parameter may be `"any"`, `"all"`, or a number between 1 and the number of child
+triggers. In the example above, if you feel that you are receiving too many spurious notifications for issues that
+resolve on their own, you can specify `{"require": 2}` to express that any **two** of the triggers must fire in order
+for the compound trigger to fire. Sequence triggers, on the other hand, always require all of their child triggers to
 fire before they fire.
 
 Compound triggers are defined as:

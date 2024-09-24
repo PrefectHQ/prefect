@@ -49,7 +49,7 @@ The following example shows both methods of calling a task and using `delay`:
 
 ```python
 # Import the previously-defined task
-from my_tasks import my_background_task
+from myproject.tasks import my_background_task
 
 # Run the task immediately
 my_background_task("Joaquim")
@@ -255,6 +255,7 @@ The task worker is waiting for runs of the `my_background_task` task.
 
 #### Step 3: Create a file and save the following code in it:
 
+{/* pmd-metadata: notest */}
 ```python task_scheduler.py
 from task_worker import my_background_task
 
@@ -294,6 +295,7 @@ python task_worker.py
 
 Modify the `task_scheduler.py` file to send multiple tasks to the task worker with different inputs:
 
+{/* pmd-metadata: notest */}
 ```python
 from task_worker import my_background_task
 
