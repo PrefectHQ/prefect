@@ -41,6 +41,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -242,6 +243,11 @@ async def deploy(
         "--concurrency-limit",
         help=("The maximum number of concurrent runs for this deployment."),
     ),
+    concurrency_limit_collision_strategy: str = typer.Option(
+        None,
+        "--collision-strategy",
+        help="Configure the behavior for runs once the concurrency limit is reached. Falls back to `ENQUEUE` if unset.",
+    ),
     work_pool_name: str = SettingsOption(
         PREFECT_DEFAULT_WORK_POOL_NAME,
         "-p",
@@ -371,12 +377,23 @@ async def deploy(
         job_variables = list()
     job_variables.extend(variables)
 
+    concurrency_limit_config = (
+        None
+        if concurrency_limit is None
+        else concurrency_limit
+        if concurrency_limit_collision_strategy is None
+        else ConcurrencyLimitConfig(
+            limit=concurrency_limit,
+            collision_strategy=concurrency_limit_collision_strategy,
+        ).model_dump()
+    )
+
     options = {
         "entrypoint": entrypoint,
         "description": description,
         "version": version,
         "tags": tags,
-        "concurrency_limit": concurrency_limit,
+        "concurrency_limit": concurrency_limit_config,
         "work_pool_name": work_pool_name,
         "work_queue_name": work_queue_name,
         "variables": job_variables,
