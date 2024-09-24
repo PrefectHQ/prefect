@@ -276,7 +276,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool -cl 42 --version"
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
                 " 1.0.0 -v env=prod -t foo-bar"
             ),
             expected_code=0,
@@ -293,7 +293,6 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-pool"
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
-        assert deployment.global_concurrency_limit.limit == 42
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
 
@@ -445,6 +444,69 @@ class TestProjectDeploy:
                 " storage location when running this flow?"
             ],
         )
+
+    @pytest.mark.parametrize(
+        "cli_options,expected_limit,expected_strategy",
+        [
+            pytest.param("-cl 42", 42, None, id="limit-only"),
+            pytest.param(
+                "-cl 42 --collision-strategy CANCEL_NEW",
+                42,
+                "CANCEL_NEW",
+                id="limit-and-strategy",
+            ),
+            pytest.param(
+                "--collision-strategy CANCEL_NEW",
+                None,
+                None,
+                id="strategy-only",
+            ),
+        ],
+    )
+    async def test_deploy_with_concurrency_limit_and_options(
+        self,
+        project_dir,
+        prefect_client: PrefectClient,
+        cli_options,
+        expected_limit,
+        expected_strategy,
+    ):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-deploy-concurrency-limit -p test-pool "
+                + cli_options
+                # "-cl 42 --collision-strategy CANCEL_NEW"
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "An important name/test-deploy-concurrency-limit",
+                "prefect worker start --pool 'test-pool'",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-deploy-concurrency-limit"
+        )
+        assert deployment.name == "test-deploy-concurrency-limit"
+        assert deployment.work_pool_name == "test-pool"
+
+        if expected_limit is not None:
+            assert deployment.global_concurrency_limit is not None
+            assert deployment.global_concurrency_limit.limit == expected_limit
+        else:
+            assert deployment.global_concurrency_limit is None
+
+        if expected_strategy is not None:
+            assert deployment.concurrency_options is not None
+            assert (
+                deployment.concurrency_options.collision_strategy == expected_strategy
+            )
+        else:
+            assert deployment.concurrency_options is None
 
     class TestGeneratedPullAction:
         async def test_project_deploy_generates_pull_action(
