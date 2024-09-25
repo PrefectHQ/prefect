@@ -1,9 +1,9 @@
 """Tasks for querying a database with SQLAlchemy"""
 
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Annotated, Any, Dict, List, Optional, Tuple, Union
 
-from pydantic import AnyUrl, ConfigDict, Field
+from pydantic import AfterValidator, ConfigDict, Field
 from sqlalchemy import __version__ as SQLALCHEMY_VERSION
 from sqlalchemy.engine import Connection, Engine, create_engine
 from sqlalchemy.engine.cursor import CursorResult
@@ -19,6 +19,17 @@ from prefect_sqlalchemy.credentials import (
     AsyncDriver,
     ConnectionComponents,
 )
+
+
+def check_make_url(url: str) -> str:
+    try:
+        make_url(str(url))
+    except Exception as e:
+        raise ValueError(f"Invalid URL: {e}")
+    return url
+
+
+DBUrl = Annotated[str, AfterValidator(check_make_url)]
 
 
 class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
@@ -86,7 +97,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     _documentation_url = "https://prefecthq.github.io/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector"  # type: ignore
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    connection_info: Union[ConnectionComponents, AnyUrl] = Field(
+    connection_info: Union[ConnectionComponents, DBUrl] = Field(
         default=...,
         description=(
             "SQLAlchemy URL to create the engine; either create from components "
