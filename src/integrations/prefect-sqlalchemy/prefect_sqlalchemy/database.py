@@ -1,10 +1,9 @@
 """Tasks for querying a database with SQLAlchemy"""
 
-import re
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Annotated, Any, Dict, List, Optional, Tuple, Union
 
-from pydantic import AnyUrl, ConfigDict, Field
+from pydantic import AfterValidator, ConfigDict, Field
 from sqlalchemy import __version__ as SQLALCHEMY_VERSION
 from sqlalchemy.engine import Connection, Engine, create_engine
 from sqlalchemy.engine.cursor import CursorResult
@@ -22,24 +21,15 @@ from prefect_sqlalchemy.credentials import (
 )
 
 
-def url_regex() -> re.Pattern[str]:
-    global _url_regex_cache
-    if _url_regex_cache is None:
-        _url_regex_cache = re.compile(
-            r"(?:(?P<scheme>[a-z][a-z0-9+\-.]+)://)?"  # scheme https://tools.ietf.org/html/rfc3986#appendix-A
-            r"(?:(?P<user>[^\s:/]*)(?::(?P<password>[^\s/]*))?@)?"  # user info
-            r"(?:"
-            r"(?P<ipv4>(?:\d{1,3}\.){3}\d{1,3})(?=$|[/:#?])|"  # ipv4
-            r"(?P<ipv6>\[[A-F0-9]*:[A-F0-9:]+\])(?=$|[/:#?])|"  # ipv6
-            r"(?P<domain>[^\s/:?#]+)"  # domain, validation occurs later
-            r")?"
-            r"(?::(?P<port>\d+))?"  # port
-            r"(?P<path>/[^\s?#]*)?"  # path
-            r"(?:\?(?P<query>[^\s#]*))?"  # query
-            r"(?:#(?P<fragment>[^\s#]*))?",  # fragment
-            re.IGNORECASE,
-        )
-    return _url_regex_cache
+def check_make_url(url: str) -> str:
+    try:
+        make_url(str(url))
+    except Exception as e:
+        raise ValueError(f"Invalid URL: {e}")
+    return url
+
+
+DBUrl = Annotated[str, AfterValidator(check_make_url)]
 
 
 class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
@@ -107,7 +97,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     _documentation_url = "https://prefecthq.github.io/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector"  # type: ignore
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    connection_info: Union[ConnectionComponents, AnyUrl] = Field(
+    connection_info: Union[ConnectionComponents, DBUrl] = Field(
         default=...,
         description=(
             "SQLAlchemy URL to create the engine; either create from components "
