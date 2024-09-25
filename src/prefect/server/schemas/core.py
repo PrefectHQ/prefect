@@ -121,6 +121,9 @@ class FlowRunPolicy(PrefectBaseModel):
     resuming: Optional[bool] = Field(
         default=False, description="Indicates if this run is resuming from a pause."
     )
+    retry_type: Optional[Literal["in_process", "reschedule"]] = Field(
+        default=None, description="The type of retry this run is undergoing."
+    )
 
     @model_validator(mode="before")
     def populate_deprecated_fields(cls, values):
