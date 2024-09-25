@@ -93,8 +93,6 @@ class Flow(ORMBaseModel):
 class FlowRunPolicy(PrefectBaseModel):
     """Defines of how a flow run should retry."""
 
-    # TODO: Determine how to separate between infrastructure and within-process level
-    #       retries
     max_retries: int = Field(
         default=0,
         description=(
