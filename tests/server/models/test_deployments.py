@@ -1231,6 +1231,43 @@ class TestUpdateDeployment:
             is None
         ), "Expected the concurrency limit to be deleted, but it was not"
 
+    async def test_update_deployment_retains_concurrency_limit_if_not_provided(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        # Given a deployment with a concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=5,
+            ),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
+        gcl_id = deployment.concurrency_limit_id
+
+        # Update it but omit the concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(version="1.0.1"),
+        )
+        await session.commit()
+
+        await session.refresh(deployment)
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
+        assert deployment.concurrency_limit_id == gcl_id
+
+        assert (
+            await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
+            is not None
+        ), "Expected the concurrency limit to still exist, but it does not"
+
     async def test_update_deployment_with_concurrency_options(
         self,
         session,
