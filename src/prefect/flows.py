@@ -535,7 +535,7 @@ class Flow(Generic[P, R]):
 
         def resolve_block_reference(data: Any) -> Any:
             if isinstance(data, dict) and "$ref" in data:
-                return Block.load_from_ref(data["$ref"])
+                return Block.load_from_ref(data["$ref"], _sync=True)
             return data
 
         try:
