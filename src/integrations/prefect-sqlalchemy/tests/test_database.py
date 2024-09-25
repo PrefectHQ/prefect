@@ -130,6 +130,10 @@ class TestSqlAlchemyConnector:
         assert isinstance(connector._rendered_url, URL)
         assert str(connector._rendered_url).startswith("oracle+cx_oracle://")
 
+    def test_connector_init_fails_with_invalid_url(self):
+        with pytest.raises(ValueError, match="Invalid URL"):
+            SqlAlchemyConnector(connection_info="plskeepmydata")
+
     @pytest.mark.parametrize("method", ["fetch_all", "execute"])
     def test_delay_start(self, caplog, method):
         with SqlAlchemyConnector(
