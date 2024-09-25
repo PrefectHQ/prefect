@@ -40,7 +40,7 @@ Then create and run a Python file that uses Prefect `flow` and `task` decorators
 
 ```python
 from prefect import flow, task
-from typing import list
+from typing import List
 import httpx
 
 
@@ -52,7 +52,7 @@ def get_stars(repo: str):
 
 
 @flow(name="GitHub Stars")
-def github_stars(repos: list[str]):
+def github_stars(repos: List[str]):
     for repo in repos:
         get_stars(repo)
 
@@ -72,7 +72,7 @@ To run your workflow on a schedule, turn it into a deployment and schedule it to
 
 ```python
 if __name__ == "__main__":
-    github_stars.serve(name="first-deployment", cron="* * * * *")
+    github_stars.serve(name="first-deployment", cron="* * * * *", parameters={ "repos": ["PrefectHQ/prefect"] })
 ```
 
 You now have a server running locally that is looking for scheduled deployments!
