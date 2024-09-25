@@ -44,6 +44,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     Orchestration rules that run against flow-run-state transitions in priority order.
     """
 
+    @staticmethod
     def priority():
         return [
             PreventDuplicateTransitions,
@@ -66,6 +67,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
     Orchestration rules that run against task-run-state transitions in priority order.
     """
 
+    @staticmethod
     def priority():
         return [
             CacheRetrieval,
@@ -88,6 +90,7 @@ class ClientSideTaskOrchestrationPolicy(BaseOrchestrationPolicy):
     specifically for clients doing client-side orchestration.
     """
 
+    @staticmethod
     def priority():
         return [
             CacheRetrieval,
@@ -108,6 +111,7 @@ class BackgroundTaskPolicy(BaseOrchestrationPolicy):
     Orchestration rules that run against task-run-state transitions in priority order.
     """
 
+    @staticmethod
     def priority():
         return [
             PreventPendingTransitions,
@@ -127,6 +131,7 @@ class BackgroundTaskPolicy(BaseOrchestrationPolicy):
 
 
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
+    @staticmethod
     def priority():
         return [
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
@@ -135,6 +140,7 @@ class MinimalFlowPolicy(BaseOrchestrationPolicy):
 
 
 class MarkLateRunsPolicy(BaseOrchestrationPolicy):
+    @staticmethod
     def priority():
         return [
             EnsureOnlyScheduledFlowsMarkedLate,
@@ -143,6 +149,7 @@ class MarkLateRunsPolicy(BaseOrchestrationPolicy):
 
 
 class MinimalTaskPolicy(BaseOrchestrationPolicy):
+    @staticmethod
     def priority():
         return [
             ReleaseTaskConcurrencySlots,  # always release concurrency slots

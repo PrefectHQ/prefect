@@ -44,6 +44,7 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy):
     is validated.
     """
 
+    @staticmethod
     def priority():
         return COMMON_GLOBAL_TRANSFORMS() + [
             UpdateSubflowParentTask,
@@ -61,6 +62,7 @@ class GlobalTaskPolicy(BaseOrchestrationPolicy):
     is validated.
     """
 
+    @staticmethod
     def priority():
         return COMMON_GLOBAL_TRANSFORMS() + [
             IncrementTaskRunCount,
