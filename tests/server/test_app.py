@@ -28,6 +28,7 @@ def test_app_exposes_ui_settings():
     assert response.json() == {
         "api_url": PREFECT_UI_API_URL.value(),
         "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
+        "flags": [],
     }
 
 

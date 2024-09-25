@@ -1,6 +1,7 @@
 import copy
 import os
 import textwrap
+import warnings
 from pathlib import Path
 
 import pydantic
@@ -399,6 +400,23 @@ class TestSettingAccess:
         with pytest.raises(ValueError):
             with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
                 PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
+
+    def test_deprecated_ENV_VAR_attribute_access(self):
+        settings = Settings()
+        value = None
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            value = settings.PREFECT_TEST_MODE
+
+            assert len(w) == 1
+            assert issubclass(w[-1].category, DeprecationWarning)
+            assert (
+                "Accessing `Settings().PREFECT_TEST_MODE` is deprecated. Use `Settings().test_mode` instead."
+                in str(w[-1].message)
+            )
+
+        assert value == settings.test_mode
 
 
 class TestDatabaseSettings:

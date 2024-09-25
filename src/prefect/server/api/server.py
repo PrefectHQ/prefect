@@ -339,6 +339,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         return {
             "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
             "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
+            "flags": [],
         }
 
     def reference_file_matches_base_url():
@@ -712,7 +713,7 @@ subprocess_server_logger = get_logger()
 
 class SubprocessASGIServer:
     _instances: Dict[Union[int, None], "SubprocessASGIServer"] = {}
-    _port_range = range(8000, 9000)
+    _port_range: range = range(8000, 9000)
 
     def __new__(cls, port: Optional[int] = None, *args, **kwargs):
         """

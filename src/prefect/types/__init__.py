@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Annotated, Any, Dict, List, Set, Type, TypeVar, Union
+from typing import Annotated, Any, Dict, List, Set, TypeVar, Union
 from typing_extensions import Literal
 import orjson
 import pydantic
@@ -107,19 +107,20 @@ def validate_set_T_from_delim_string(
     if not value:
         return set()
 
+    T_adapter = TypeAdapter(type_)
     delim = delim or ","
     if isinstance(value, str):
-        return {TypeAdapter(type_).validate_strings(s) for s in value.split(delim)}
+        return {T_adapter.validate_strings(s) for s in value.split(delim)}
     errors = []
     try:
-        return {TypeAdapter(type_).validate_python(value)}
+        return {T_adapter.validate_python(value)}
     except pydantic.ValidationError as e:
         errors.append(e)
     try:
         return TypeAdapter(Set[type_]).validate_python(value)
     except pydantic.ValidationError as e:
         errors.append(e)
-    raise ValueError(f"Invalid set[{type_}]: {errors}")
+    raise ValueError(f"Invalid set[{type_}]: {"\n".join(errors)}")
 
 
 ClientRetryExtraCodes = Annotated[
@@ -131,7 +132,6 @@ LogLevel = Annotated[
     Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     BeforeValidator(lambda x: x.upper()),
 ]
-
 
 __all__ = [
     "ClientRetryExtraCodes",

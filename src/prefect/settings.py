@@ -1298,6 +1298,20 @@ class Settings(BaseSettings):
     )
 
     ###########################################################################
+    # allow deprecated access to PREFECT_SOME_SETTING_NAME
+
+    def __getattribute__(self, name: str) -> Any:
+        if name.startswith("PREFECT_"):
+            field_name = env_var_to_attr_name(name)
+            warnings.warn(
+                f"Accessing `Settings().{name}` is deprecated. Use `Settings().{field_name}` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return super().__getattribute__(field_name)
+        return super().__getattribute__(name)
+
+    ###########################################################################
 
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
@@ -1912,7 +1926,7 @@ class _SettingsDict(dict):
     ```
     """
 
-    def __init__(self: Self, settings_cls: Type[Settings]):
+    def __init__(self: Self, settings_cls: Type[BaseSettings]):
         super().__init__()
         for field_name, field in settings_cls.model_fields.items():
             setting = Setting(

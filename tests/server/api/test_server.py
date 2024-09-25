@@ -1,7 +1,6 @@
 import contextlib
 import socket
 import sqlite3
-import time
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -369,13 +368,13 @@ class TestMemoizeBlockAutoRegistration:
 
 class TestSubprocessASGIServer:
     def test_singleton_on_port(self):
-        server_8000 = SubprocessASGIServer(port=8000)
-        assert server_8000 is SubprocessASGIServer(port=8000)
+        server_8001 = SubprocessASGIServer(port=8001)
+        assert server_8001 is SubprocessASGIServer(port=8001)
 
         server_random = SubprocessASGIServer()
         assert server_random is SubprocessASGIServer()
 
-        assert server_8000 is not server_random
+        assert server_8001 is not server_random
 
     def test_find_available_port_returns_available_port(self):
         server = SubprocessASGIServer()
@@ -421,7 +420,6 @@ class TestSubprocessASGIServer:
         assert health_response.status_code == 200
 
         server.stop()
-        time.sleep(0.1)
         with pytest.raises(httpx.RequestError):
             httpx.get(f"{server.api_url}/health")
 
