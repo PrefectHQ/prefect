@@ -961,6 +961,7 @@ def initialize_orchestration(flow):
         initial_flow_run_state_details=None,
         initial_state_name: Optional[str] = None,
         proposed_state_name: Optional[str] = None,
+        deployment_id: Optional[str] = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
@@ -977,6 +978,9 @@ def initialize_orchestration(flow):
 
         if flow_run_count:
             flow_create_kwargs.update({"run_count": flow_run_count})
+
+        if deployment_id:
+            flow_create_kwargs.update({"deployment_id": deployment_id})
 
         flow_run_model = schemas.core.FlowRun(
             flow_id=flow.id, flow_version="0.1", **flow_create_kwargs
