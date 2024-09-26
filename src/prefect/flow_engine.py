@@ -22,8 +22,11 @@ from typing import (
 )
 from uuid import UUID
 
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode, Tracer, get_tracer
 from typing_extensions import ParamSpec
 
+import prefect
 from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -124,6 +127,9 @@ class FlowRunEngine(Generic[P, R]):
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
     _flow_run_name_set: bool = False
+    _tracer: Tracer = field(
+        default_factory=lambda: get_tracer("prefect", prefect.__version__)
+    )
 
     def __post_init__(self):
         if self.flow is None and self.flow_run_id is None:
@@ -219,6 +225,7 @@ class FlowRunEngine(Generic[P, R]):
         while state.is_pending():
             time.sleep(0.2)
             state = self.set_state(new_state)
+
         return state
 
     def set_state(self, state: State, force: bool = False) -> State:
@@ -233,6 +240,17 @@ class FlowRunEngine(Generic[P, R]):
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
+
+        self._span.add_event(
+            state.name,
+            {
+                "prefect.state.message": state.message or "",
+                "prefect.state.type": state.type,
+                "prefect.state.name": state.name or state.type,
+                "prefect.state.id": str(state.id),
+            },
+        )
+
         return state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -281,6 +299,11 @@ class FlowRunEngine(Generic[P, R]):
         )
         self.set_state(terminal_state)
         self._return_value = resolved_result
+
+        self._span.set_status(Status(StatusCode.OK, terminal_state.message))
+        self._span.end(time.time_ns())
+        self._span = None
+
         return result
 
     def handle_exception(
@@ -299,6 +322,7 @@ class FlowRunEngine(Generic[P, R]):
             )
         )
         state = self.set_state(terminal_state)
+
         if self.state.is_scheduled():
             self.logger.info(
                 (
@@ -308,6 +332,12 @@ class FlowRunEngine(Generic[P, R]):
             )
             state = self.set_state(Running())
         self._raised = exc
+
+        self._span.record_exception(exc)
+        self._span.set_status(Status(StatusCode.ERROR, state.message))
+        self._span.end(time.time_ns())
+        self._span = None
+
         return state
 
     def handle_timeout(self, exc: TimeoutError) -> None:
@@ -326,12 +356,22 @@ class FlowRunEngine(Generic[P, R]):
         self.set_state(state)
         self._raised = exc
 
+        self._span.record_exception(exc)
+        self._span.set_status(Status(StatusCode.ERROR, state.message))
+        self._span.end(time.time_ns())
+        self._span = None
+
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
         self._raised = exc
+
+        self._span.record_exception(exc)
+        self._span.set_status(Status(StatusCode.ERROR, state.message))
+        self._span.end(time.time_ns())
+        self._span = None
 
     def load_subflow_run(
         self,
@@ -575,6 +615,16 @@ class FlowRunEngine(Generic[P, R]):
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
                 )
+
+            self._span = self._tracer.start_span(
+                name=self.flow_run.name,
+                attributes={
+                    "prefect.run.type": "flow",
+                    "prefect.run.id": str(self.flow_run.id),
+                    "prefect.tags": self.flow_run.tags,
+                },
+            )
+
             try:
                 yield self
 
@@ -630,11 +680,13 @@ class FlowRunEngine(Generic[P, R]):
     @contextmanager
     def start(self) -> Generator[None, None, None]:
         with self.initialize_run():
-            self.begin_run()
+            with trace.use_span(self._span):
+                self.begin_run()
 
-            if self.state.is_running():
-                self.call_hooks()
-            yield
+                if self.state.is_running():
+                    self.call_hooks()
+
+                    yield
 
     @contextmanager
     def run_context(self):
