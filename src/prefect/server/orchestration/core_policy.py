@@ -35,7 +35,6 @@ from prefect.settings import (
     PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
     PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
 )
-from prefect.states import Cancelled, Scheduled
 from prefect.utilities.math import clamped_poisson_interval
 
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
@@ -303,18 +302,10 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
             await self.abort_transition("Deployment not found.")
             return
 
-        if not deployment.concurrency_limit_id:
+        if not deployment.global_concurrency_limit:
             return
 
-        concurrency_limit = await concurrency_limits_v2.read_concurrency_limit(
-            session=context.session,
-            concurrency_limit_id=deployment.concurrency_limit_id,
-        )
-
-        if not concurrency_limit:
-            return
-
-        if concurrency_limit.limit == 0:
+        if deployment.global_concurrency_limit.limit == 0:
             await self.abort_transition(
                 "The deployment concurrency limit is 0. The flow will deadlock if submitted again."
             )
@@ -322,18 +313,24 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
 
         acquired = await concurrency_limits_v2.bulk_increment_active_slots(
             session=context.session,
-            concurrency_limit_ids=[concurrency_limit.id],
+            concurrency_limit_ids=[deployment.concurrency_limit_id],
             slots=1,
         )
 
         if not acquired:
-            concurrency_options = deployment.concurrency_options or {}
-            collision_strategy = concurrency_options.get(
-                "collision_strategy", core.ConcurrencyLimitStrategy.ENQUEUE
+            concurrency_options = (
+                deployment.concurrency_options
+                or core.ConcurrencyOptions(
+                    collision_strategy=core.ConcurrencyLimitStrategy.ENQUEUE
+                )
             )
-            if collision_strategy == core.ConcurrencyLimitStrategy.ENQUEUE:
+
+            if (
+                concurrency_options.collision_strategy
+                == core.ConcurrencyLimitStrategy.ENQUEUE
+            ):
                 await self.reject_transition(
-                    state=Scheduled(
+                    state=states.Scheduled(
                         name="AwaitingConcurrencySlot",
                         scheduled_time=pendulum.now("UTC").add(
                             seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
@@ -341,9 +338,14 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
                     ),
                     reason="Deployment concurrency limit reached.",
                 )
-            elif collision_strategy == core.ConcurrencyLimitStrategy.CANCEL_NEW:
+            elif (
+                concurrency_options.collision_strategy
+                == core.ConcurrencyLimitStrategy.CANCEL_NEW
+            ):
                 await self.reject_transition(
-                    state=Cancelled(message="Deployment concurrency limit reached."),
+                    state=states.Cancelled(
+                        message="Deployment concurrency limit reached."
+                    ),
                     reason="Deployment concurrency limit reached.",
                 )
 
@@ -357,10 +359,7 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
             return
 
         try:
-            concurrency_limit = await concurrency_limits_v2.read_concurrency_limit(
-                session=context.session,
-                concurrency_limit_id=context.run.deployment.concurrency_limit_id,
-            )
+            concurrency_limit = context.run.deployment.global_concurrency_limit
 
             if not concurrency_limit:
                 return
@@ -382,13 +381,6 @@ class ReleaseFlowConcurrencySlots(BaseUniversalTransform):
     transitions out of the Running or Cancelling state.
     """
 
-    FROM_STATES = {states.StateType.RUNNING, states.StateType.CANCELLING}
-    TO_STATES = ALL_ORCHESTRATION_STATES - {
-        states.StateType.PENDING,
-        states.StateType.RUNNING,
-        states.StateType.CANCELLING,
-    }
-
     async def after_transition(
         self,
         context: FlowOrchestrationContext,
@@ -396,6 +388,28 @@ class ReleaseFlowConcurrencySlots(BaseUniversalTransform):
         if self.nullified_transition():
             return
 
+        initial_state_type = (
+            context.initial_state.type if context.initial_state else None
+        )
+        proposed_state_type = (
+            context.proposed_state.type if context.proposed_state else None
+        )
+
+        # Check if the transition is valid for releasing concurrency slots.
+        # This should happen within `after_transition` because BaseUniversalTransforms
+        # don't know how to "fizzle" themselves if they encounter a transition that
+        # shouldn't apply to them, even if they use FROM_STATES and TO_STATES.
+        if not (
+            initial_state_type
+            in {states.StateType.RUNNING, states.StateType.CANCELLING}
+            and proposed_state_type
+            not in {
+                states.StateType.PENDING,
+                states.StateType.RUNNING,
+                states.StateType.CANCELLING,
+            }
+        ):
+            return
         if not context.session or not context.run.deployment_id:
             return
 
@@ -404,13 +418,6 @@ class ReleaseFlowConcurrencySlots(BaseUniversalTransform):
             deployment_id=context.run.deployment_id,
         )
         if not deployment or not deployment.concurrency_limit_id:
-            return
-
-        concurrency_limit = await concurrency_limits_v2.read_concurrency_limit(
-            session=context.session,
-            concurrency_limit_id=deployment.concurrency_limit_id,
-        )
-        if not concurrency_limit:
             return
 
         await concurrency_limits_v2.bulk_decrement_active_slots(
