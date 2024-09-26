@@ -2,6 +2,7 @@ import contextlib
 import math
 import random
 from itertools import product
+from typing import Optional
 from unittest import mock
 from uuid import uuid4
 
@@ -3361,7 +3362,7 @@ class TestFlowConcurrencyLimits:
         session,
         limit,
         flow,
-        collision_strategy: schemas.core.ConcurrencyLimitStrategy | None = None,
+        collision_strategy: Optional[schemas.core.ConcurrencyLimitStrategy] = None,
     ):
         deployment_kwargs = {
             "name": f"test-deployment-{uuid4()}",
