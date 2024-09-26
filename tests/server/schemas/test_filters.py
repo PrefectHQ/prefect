@@ -55,7 +55,7 @@ class TestFlowRunFilters:
         flow_run_filter = FlowRunFilter(end_time={"before_": NOW})
         sql_filter = flow_run_filter.as_sql_filter()
         assert sql_filter.compare(sa.and_(db.FlowRun.end_time <= NOW))
-    
+
     def test_applies_flow_run_end_time_filter_after(self, db):
         flow_run_filter = FlowRunFilter(end_time={"after_": NOW})
         sql_filter = flow_run_filter.as_sql_filter()
