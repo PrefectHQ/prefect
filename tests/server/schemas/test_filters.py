@@ -3,7 +3,7 @@ from uuid import uuid4
 import pendulum
 import sqlalchemy as sa
 
-from prefect.server.schemas.filters import LogFilter, FlowRunFilter
+from prefect.server.schemas.filters import FlowRunFilter, LogFilter
 
 NOW = pendulum.now("UTC")
 
