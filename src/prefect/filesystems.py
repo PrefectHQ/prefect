@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 import anyio
 import fsspec
-from pydantic import Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from prefect._internal.schemas.validators import (
     stringify_path,
@@ -517,6 +517,31 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+class NullFileSystem(BaseModel):
+    """
+    A file system that does not store any data.
+    """
+
+    async def read_path(self, path: str) -> None:
+        pass
+
+    async def write_path(self, path: str, content: bytes) -> None:
+        pass
+
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        pass
+
+    async def put_directory(
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
+    ) -> None:
+        pass
 
 
 __getattr__ = getattr_migration(__name__)

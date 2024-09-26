@@ -8,6 +8,7 @@ from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Callable,
     Dict,
@@ -25,8 +26,10 @@ from cachetools import LRUCache
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Discriminator,
     Field,
     PrivateAttr,
+    Tag,
     ValidationError,
     model_serializer,
     model_validator,
@@ -47,6 +50,7 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import (
     LocalFileSystem,
+    NullFileSystem,
     WritableFileSystem,
 )
 from prefect.locking.protocol import LockManager
@@ -218,6 +222,19 @@ def _format_user_supplied_storage_key(key: str) -> str:
 T = TypeVar("T")
 
 
+def result_storage_discriminator(x: Any) -> str:
+    if isinstance(x, dict):
+        if "block_type_slug" in x:
+            return "WritableFileSystem"
+        else:
+            return "NullFileSystem"
+    if isinstance(x, WritableFileSystem):
+        return "WritableFileSystem"
+    if isinstance(x, NullFileSystem):
+        return "NullFileSystem"
+    return "None"
+
+
 @deprecated_field(
     "persist_result",
     when=lambda x: x is not None,
@@ -245,7 +262,14 @@ class ResultStore(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     result_storage: Optional[WritableFileSystem] = Field(default=None)
-    metadata_storage: Optional[WritableFileSystem] = Field(default=None)
+    metadata_storage: Annotated[
+        Union[
+            Annotated[WritableFileSystem, Tag("WritableFileSystem")],
+            Annotated[NullFileSystem, Tag("NullFileSystem")],
+            Annotated[None, Tag("None")],
+        ],
+        Discriminator(result_storage_discriminator),
+    ] = Field(default=None)
     lock_manager: Optional[LockManager] = Field(default=None)
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
@@ -281,6 +305,7 @@ class ResultStore(BaseModel):
             update["cache_result_in_memory"] = flow.cache_result_in_memory
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
+        update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 
     @sync_compatible
@@ -316,6 +341,11 @@ class ResultStore(BaseModel):
 
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await get_default_result_storage()
+        if (
+            isinstance(self.metadata_storage, NullFileSystem)
+            and update.get("metadata_storage", NotSet) is NotSet
+        ):
+            update["metadata_storage"] = None
         return self.model_copy(update=update)
 
     @staticmethod
@@ -433,7 +463,9 @@ class ResultStore(BaseModel):
             )
         else:
             content = await self.result_storage.read_path(key)
-            result_record = ResultRecord.deserialize(content)
+            result_record = ResultRecord.deserialize(
+                content, backup_serializer=self.serializer
+            )
 
         if self.cache_result_in_memory:
             if self.result_storage_block_id is None and hasattr(
@@ -446,26 +478,36 @@ class ResultStore(BaseModel):
             self.cache[cache_key] = result_record
         return result_record
 
-    def read(self, key: str, holder: Optional[str] = None) -> "ResultRecord":
+    def read(
+        self,
+        key: str,
+        holder: Optional[str] = None,
+    ) -> "ResultRecord":
         """
         Read a result record from storage.
 
         Args:
             key: The key to read the result record from.
             holder: The holder of the lock if a lock was set on the record.
+
         Returns:
             A result record.
         """
         holder = holder or self.generate_default_holder()
         return self._read(key=key, holder=holder, _sync=True)
 
-    async def aread(self, key: str, holder: Optional[str] = None) -> "ResultRecord":
+    async def aread(
+        self,
+        key: str,
+        holder: Optional[str] = None,
+    ) -> "ResultRecord":
         """
         Read a result record from storage.
 
         Args:
             key: The key to read the result record from.
             holder: The holder of the lock if a lock was set on the record.
+
         Returns:
             A result record.
         """
@@ -1026,17 +1068,31 @@ class ResultRecord(BaseModel, Generic[R]):
         )
 
     @classmethod
-    def deserialize(cls, data: bytes) -> "ResultRecord[R]":
+    def deserialize(
+        cls, data: bytes, backup_serializer: Optional[Serializer] = None
+    ) -> "ResultRecord[R]":
         """
         Deserialize a record from bytes.
 
         Args:
             data: the serialized record
+            backup_serializer: The serializer to use to deserialize the result record. Only
+                necessary if the provided data does not specify a serializer.
 
         Returns:
             ResultRecord: the deserialized record
         """
-        instance = cls.model_validate_json(data)
+        try:
+            instance = cls.model_validate_json(data)
+        except ValidationError:
+            if backup_serializer is None:
+                raise
+            else:
+                result = backup_serializer.loads(data)
+                return cls(
+                    metadata=ResultRecordMetadata(serializer=backup_serializer),
+                    result=result,
+                )
         if isinstance(instance.result, bytes):
             instance.result = instance.serializer.loads(instance.result)
         elif isinstance(instance.result, str):
