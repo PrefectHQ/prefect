@@ -6,9 +6,12 @@ import pytest
 from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
+    PersistedResult,
     ResultRecord,
+    ResultRecordMetadata,
     ResultStore,
 )
+from prefect.serializers import JSONSerializer
 from prefect.states import (
     Cancelled,
     Completed,
@@ -377,3 +380,27 @@ class TestStateGroup:
         assert "'FAILED'=1" in counts_message
         assert "'CRASHED'=1" in counts_message
         assert "'RUNNING'=2" in counts_message
+
+
+def test_state_returns_expected_result(ignore_prefect_deprecation_warnings):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/14927
+    """
+    state = Completed(data="test")
+    assert state.result() == "test"
+
+    state = Completed(
+        data=ResultRecord(
+            result="test",
+            metadata=ResultRecordMetadata(
+                serializer=JSONSerializer(), storage_key="test"
+            ),
+        )
+    )
+    assert state.result() == "test"
+
+    # legacy case
+    result = PersistedResult(serializer_type="pickle", storage_key="test")
+    result._cache = "test"
+    state = Completed(data=result)
+    assert state.result() == "test"

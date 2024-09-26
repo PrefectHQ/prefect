@@ -33,14 +33,14 @@ dynamic = ["version"]
 [project.optional-dependencies]
 snowflake = ["prefect-snowflake>=0.28.0rc1", "dbt-snowflake"]
 bigquery = ["prefect-gcp[bigquery]>=0.6.0rc1", "dbt-bigquery"]
-postgres = ["prefect-sqlalchemy>=0.5.0rc1", "dbt-postgres"]
+postgres = ["prefect-sqlalchemy>=0.5.1", "dbt-postgres"]
 all_extras = [
   "dbt-bigquery",
   "dbt-postgres",
   "dbt-snowflake",
   "prefect-gcp[bigquery]>=0.6.0rc1",
   "prefect-snowflake>=0.28.0rc1",
-  "prefect-sqlalchemy>=0.5.0rc1",
+  "prefect-sqlalchemy>=0.5.1",
 ]
 dev = [
   "coverage",
@@ -57,7 +57,7 @@ dev = [
   "pre-commit",
   "prefect-gcp[bigquery]>=0.6.0rc1",
   "prefect-snowflake>=0.28.0rc1",
-  "prefect-sqlalchemy>=0.5.0rc1",
+  "prefect-sqlalchemy>=0.5.1",
   "pytest",
   "pytest-asyncio",
   "pytest-env",
