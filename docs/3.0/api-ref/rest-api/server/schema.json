@@ -18107,6 +18107,17 @@
                         ],
                         "description": "Filter criteria for `FlowRun.start_time`"
                     },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilterEndTime"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `FlowRun.end_time`"
+                    },
                     "expected_start_time": {
                         "anyOf": [
                             {
@@ -18208,6 +18219,52 @@
                 "type": "object",
                 "title": "FlowRunFilterDeploymentId",
                 "description": "Filter by `FlowRun.deployment_id`."
+            },
+            "FlowRunFilterEndTime": {
+                "properties": {
+                    "before_": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Before ",
+                        "description": "Only include flow runs ending at or before this time"
+                    },
+                    "after_": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "After ",
+                        "description": "Only include flow runs ending at or after this time"
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null ",
+                        "description": "If true, only return flow runs without an end time"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "FlowRunFilterEndTime",
+                "description": "Filter by `FlowRun.end_time`."
             },
             "FlowRunFilterExpectedStartTime": {
                 "properties": {
