@@ -120,7 +120,7 @@ def validate_set_T_from_delim_string(
         return TypeAdapter(Set[type_]).validate_python(value)
     except pydantic.ValidationError as e:
         errors.append(e)
-    raise ValueError(f"Invalid set[{type_}]: {"\n".join(errors)}")
+    raise ValueError(f"Invalid set[{type_}]: {'\n'.join(errors)}")
 
 
 ClientRetryExtraCodes = Annotated[
