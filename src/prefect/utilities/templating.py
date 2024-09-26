@@ -91,7 +91,10 @@ def find_placeholders(template: T) -> Set[Placeholder]:
 
 
 def apply_values(
-    template: T, values: Dict[str, Any], remove_notset: bool = True
+    template: T,
+    values: Dict[str, Any],
+    ctx: Optional[Dict[str, Any]] = None,
+    remove_notset: bool = True,
 ) -> Union[T, Type[NotSet]]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
@@ -115,11 +118,14 @@ def apply_values(
     Args:
         template: template to discover and replace values in
         values: The values to apply to placeholders in the template
+        ctx: A set of prefect supplied values for templating
         remove_notset: If True, remove keys with an unset value
 
     Returns:
         The template with the values applied
     """
+    if ctx:
+        values["ctx"] = ctx
     if isinstance(template, (int, float, bool, type(NotSet), type(None))):
         return template
     if isinstance(template, str):
@@ -157,7 +163,9 @@ def apply_values(
     elif isinstance(template, dict):
         updated_template = {}
         for key, value in template.items():
-            updated_value = apply_values(value, values, remove_notset=remove_notset)
+            updated_value = apply_values(
+                value, values, ctx=ctx, remove_notset=remove_notset
+            )
             if updated_value is not NotSet:
                 updated_template[key] = updated_value
             elif not remove_notset:
@@ -167,7 +175,9 @@ def apply_values(
     elif isinstance(template, list):
         updated_list = []
         for value in template:
-            updated_value = apply_values(value, values, remove_notset=remove_notset)
+            updated_value = apply_values(
+                value, values, ctx=ctx, remove_notset=remove_notset
+            )
             if updated_value is not NotSet:
                 updated_list.append(updated_value)
         return updated_list

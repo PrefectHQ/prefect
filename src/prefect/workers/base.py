@@ -95,6 +95,7 @@ class BaseJobConfiguration(BaseModel):
     )
 
     _related_objects: Dict[str, Any] = PrivateAttr(default_factory=dict)
+    _ctx: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
     @property
     def is_using_a_runner(self):
@@ -152,7 +153,11 @@ class BaseJobConfiguration(BaseModel):
         ):
             job_config["env"] = hardcoded_env | job_config.get("env")
 
-        populated_configuration = apply_values(template=job_config, values=variables)
+        populated_configuration = apply_values(
+            template=job_config,
+            values=variables,
+            ctx=cls._ctx,
+        )
         populated_configuration = await resolve_block_document_references(
             template=populated_configuration, client=client
         )
@@ -207,6 +212,11 @@ class BaseJobConfiguration(BaseModel):
             "deployment": deployment,
             "flow": flow,
             "flow-run": flow_run,
+        }
+        self._ctx = {
+            "deployment": deployment.model_dump(),
+            "flow": flow.model_dump(),
+            "flow_run": flow_run.model_dump(),
         }
         if deployment is not None:
             deployment_labels = self._base_deployment_labels(deployment)
