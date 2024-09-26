@@ -43,9 +43,7 @@ if __name__ == "__main__":
     my_flow.serve(name="my-first-deployment")
 ```
 
-This methods creates a deployment object that can be used to trigger flow runs.
-It starts a server and registers the flow with the Prefect API.
-The process runs locally and waits to pick up scheduled flow runs from the server.
+This method creates a deployment from your flow and immediately begins listening for scheduled runs to execute.
 
 If you want to run your flow on remote infrastructure, need more control over the execution environment, or want to create a template for other deployments, use a deployment with a work pool.
 
