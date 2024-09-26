@@ -1,3 +1,15 @@
+"""
+Prefect settings are defined using `BaseSettings` from `pydantic_settings`. `BaseSettings` can load setting values
+from system environment variables and each additionally specified `env_file`.
+
+
+The recommended user-facing way to access Prefect settings is to use the `get_current_settings()` function, as it will
+check any existing `SettingsContext` for a settings instance or automatically create one if not found.
+
+For continuity, we expose define a `Setting` class which mimics the old Prefect settings API, allowing users to continue
+following the pattern `from prefect.settings import PREFECT_API_URL; print(PREFECT_API_URL.value())`.
+"""
+
 import os
 import re
 import warnings
