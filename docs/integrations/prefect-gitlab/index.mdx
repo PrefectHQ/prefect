@@ -77,7 +77,6 @@ if __name__ == "__main__":
     ).deploy(
         name="private-gitlab-deploy",
         work_pool_name="my_pool",
-        build=False
     )
 ```
 
@@ -96,6 +95,7 @@ The code below shows how to reference a particular branch or tag of a GitLab rep
 
 ```python
 from prefect_gitlab import GitLabRepository
+
 
 def save_private_gitlab_block():
     private_gitlab_block = GitLabRepository(
