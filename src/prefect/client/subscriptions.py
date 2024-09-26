@@ -84,13 +84,13 @@ class Subscription(Generic[S]):
             AssertionError,
             websockets.exceptions.ConnectionClosedError,
         ) as e:
-            if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
+            if isinstance(e, AssertionError) or e.rcvd.code == WS_1008_POLICY_VIOLATION:
                 if isinstance(e, AssertionError):
                     reason = e.args[0]
                 elif isinstance(e, websockets.exceptions.ConnectionClosedError):
-                    reason = e.reason
+                    reason = e.rcvd.reason
 
-            if isinstance(e, AssertionError) or e.code == WS_1008_POLICY_VIOLATION:
+            if isinstance(e, AssertionError) or e.rcvd.code == WS_1008_POLICY_VIOLATION:
                 raise Exception(
                     "Unable to authenticate to the subscription. Please "
                     "ensure the provided `PREFECT_API_KEY` you are using is "

@@ -1,3 +1,4 @@
+import logging
 from typing import Type
 from unittest import mock
 
@@ -342,3 +343,29 @@ async def test_recovers_from_long_lasting_error_reconnecting(
         # event 2 never made it because we cause that error during reconnection
         # event 3 never made it because we told the server to refuse future connects
     ]
+
+
+async def test_events_client_warn_if_connect_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    class MockConnect:
+        async def __aenter__(self):
+            raise Exception("Connection failed")
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_connect(*args, **kwargs):
+        return MockConnect()
+
+    monkeypatch.setattr("prefect.events.clients.connect", mock_connect)
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(Exception, match="Connection failed"):
+            async with PrefectEventsClient("ws://localhost"):
+                pass
+
+    assert any(
+        "Unable to connect to 'ws" in record.message for record in caplog.records
+    )
