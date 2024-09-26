@@ -6426,6 +6426,31 @@ class TestDeployDockerBuildSteps:
             "job_variables": {"image": "original-image"},
         }
 
+    async def test_deploying_managed_work_pool_does_not_prompt_to_build_image(
+        self, managed_work_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {managed_work_pool.name}"
+            ),
+            user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                # Decline save configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "$ prefect deployment run 'An important name/test-name'",
+            ],
+            expected_output_does_not_contain=[
+                "Would you like to build a custom Docker image?",
+            ],
+        )
+
 
 class TestDeployInfraOverrides:
     @pytest.fixture
