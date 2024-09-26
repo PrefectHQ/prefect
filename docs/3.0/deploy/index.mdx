@@ -40,12 +40,20 @@ def my_flow():
 
 
 if __name__ == "__main__":
-    my_flow.serve(name="my-first-deployment")
+    my_flow.serve(name="my-first-deployment", cron="* * * * *")
 ```
 
-This method creates a deployment from your flow and immediately begins listening for scheduled runs to execute.
+The `serve` method creates a deployment from your flow and immediately begins listening for scheduled runs to execute. 
+It also create a schedule so that the flow will run every minute of every day.
 
-If you want to run your flow on remote infrastructure, need more control over the execution environment, or want to create a template for other deployments, use a deployment with a work pool.
+For slightly more configuration you can create a deployment that uses a work pool.
+Reasons to create a work-pool based deployment include:
+
+- Wanting to run your flow dynamically on remote infrastructure
+- Needing more control over the execution environment
+- Creating a template for other deployments
+
+Work pools are popular with data platform teams because they allow you to manage infrastructure configuration across an organization. 
 
 ### Create a work pool-based deployment
 
@@ -71,12 +79,15 @@ if __name__ == "__main__":
         work_pool_name="my-work-pool",
         image="my-image",
         push=False,
+        cron="* * * * *"",
     )
 ```
 
+To learn more about the `deploy` method, see [Deploy flows with Python](/3.0/deploy/infrastructure-concepts/deploy-via-python).
+
 ### Create a deployment with a YAML file
 
-If you'd rather take a declarative approach to defining a deployment through a YAML file, use a [prefect.yaml file](/3.0/deploy/infrastructure-concepts/prefect-yaml).
+If you'd rather take a declarative approach to defining a deployment through a YAML file, use a [`prefect.yaml` file](/3.0/deploy/infrastructure-concepts/prefect-yaml).
 
 Prefect provides an interactive CLI that walks you through creating a `prefect.yaml` file.
 
@@ -84,12 +95,16 @@ Prefect provides an interactive CLI that walks you through creating a `prefect.y
 prefect deploy
 ```
 
+The result is a `prefect.yaml` file for deployment creation. 
+The file contains `build`, `push`, and `pull` steps for building a Docker image, pushing code to a Docker registry, and pulling code at runtime.
+Learn more about creating deployments with a YAML file in [Define deployments with YAML](/3.0/deploy/infrastructure-concepts/prefect-yaml).
+
 Prefect also provides [CI/CD options](/3.0/deploy/infrastructure-concepts/deploy-ci-cd) for automatically creating YAML-based deployments. 
 
 ### Work pools
 
 [Work pools](/3.0/deploy/infrastructure-concepts/work-pools/) allow you to switch between different types of infrastructure and to create a template for deployments. 
-Data platform teams find work pools especially useful for managing infrastructure configuration across teams.
+Data platform teams find work pools especially useful for managing infrastructure configuration across teams of data professionals.
 
 Common work pool types include [Docker](/3.0/deploy/infrastructure-examples/docker), [Kubernetes](/3.0/deploy/infrastructure-examples/kubernetes), and serverless options such as [AWS ECS](/integrations/prefect-aws/ecs_guide#ecs-worker-guide), [Azure ACI](/integrations/prefect-azure/aci_worker), and [GCP Cloud Run](/integrations/prefect-gcp/gcp-worker-guide). 
 
@@ -102,13 +117,13 @@ Your flow code location can be specified in a few ways:
 
 1. Bake it into your Docker image (for work-pools that use Docker images). 
     As shown in the example above,Prefect facilitates this as the default method for deployments created with the Python SDK. 
-    This method requires that you specify the `image` argument in the `.deploy` method.
+    This method requires that you specify the `image` argument in the `deploy` method.
 2. Chain the `from_source` method to a flow object or flow function and specify one of the following:
     1. the git-based cloud provider location (for example, GitHub) 
     2. the cloud provider storage location (for example, AWS S3)
     3. the local path (an option for Process work pools)
 
-See the [Retrieve code from storage docs](/3.0/deploy/infrastructure-concepts/store-flow-code) for more information.
+See the [Retrieve code from storage docs](/3.0/deploy/infrastructure-concepts/store-flow-code) for more information about flow code storage.
 
 ## Run a deployment
 
