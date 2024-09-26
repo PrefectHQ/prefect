@@ -19163,6 +19163,22 @@
                         "title": "Resuming",
                         "description": "Indicates if this run is resuming from a pause.",
                         "default": false
+                    },
+                    "retry_type": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "in_process",
+                                    "reschedule"
+                                ]
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Retry Type",
+                        "description": "The type of retry this run is undergoing."
                     }
                 },
                 "type": "object",
