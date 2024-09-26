@@ -571,41 +571,51 @@ async def _run_single_deploy(
 
     work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
 
-    if is_interactive() and not docker_build_step_exists and not build_step_set_to_null:
-        docker_based_infrastructure = "image" in work_pool.base_job_template.get(
-            "variables", {}
-        ).get("properties", {})
-        if docker_based_infrastructure:
-            build_docker_image_step = await prompt_build_custom_docker_image(
-                app.console, deploy_config
+    image_properties = (
+        work_pool.base_job_template.get("variables", {})
+        .get("properties", {})
+        .get("image", {})
+    )
+    image_is_configurable = (
+        "image"
+        in work_pool.base_job_template.get("variables", {}).get("properties", {})
+        and image_properties.get("type") == "string"
+        and not image_properties.get("enum")
+    )
+
+    if (
+        is_interactive()
+        and not docker_build_step_exists
+        and not build_step_set_to_null
+        and image_is_configurable
+    ):
+        build_docker_image_step = await prompt_build_custom_docker_image(
+            app.console, deploy_config
+        )
+        if build_docker_image_step is not None:
+            if not get_from_dict(deploy_config, "work_pool.job_variables.image"):
+                update_work_pool_image = True
+
+            (
+                push_docker_image_step,
+                updated_build_docker_image_step,
+            ) = await prompt_push_custom_docker_image(
+                app.console, deploy_config, build_docker_image_step
             )
-            if build_docker_image_step is not None:
-                work_pool_job_variables_image_not_found = not get_from_dict(
-                    deploy_config, "work_pool.job_variables.image"
-                )
-                if work_pool_job_variables_image_not_found:
-                    update_work_pool_image = True
 
-                (
-                    push_docker_image_step,
-                    updated_build_docker_image_step,
-                ) = await prompt_push_custom_docker_image(
-                    app.console, deploy_config, build_docker_image_step
-                )
+            if actions.get("build"):
+                actions["build"].append(updated_build_docker_image_step)
+            else:
+                actions["build"] = [updated_build_docker_image_step]
 
-                if actions.get("build"):
-                    actions["build"].append(updated_build_docker_image_step)
+            if push_docker_image_step is not None:
+                if actions.get("push"):
+                    actions["push"].append(push_docker_image_step)
                 else:
-                    actions["build"] = [updated_build_docker_image_step]
+                    actions["push"] = [push_docker_image_step]
 
-                if push_docker_image_step is not None:
-                    if actions.get("push"):
-                        actions["push"].append(push_docker_image_step)
-                    else:
-                        actions["push"] = [push_docker_image_step]
-
-            build_steps = deploy_config.get("build", actions.get("build")) or []
-            push_steps = deploy_config.get("push", actions.get("push")) or []
+        build_steps = deploy_config.get("build", actions.get("build")) or []
+        push_steps = deploy_config.get("push", actions.get("push")) or []
 
     docker_push_step_exists = any(
         any(step in action for step in docker_push_steps)
