@@ -11,9 +11,12 @@ You have several flow code storage options for remote execution:
 2. Docker image-based storage
 3. Cloud-provider storage (AWS S3, Azure Blob Storage, GCP GCS)
 
-Local storage is also an option for local deployments.
+Local storage is also an option for deployments that run locally.
 
-For the examples below we show how to create a work pool-based deployment for each of these storage options.
+For the examples below we show how to create a work pool-based deployment for each of these storage options. 
+We show both the `prefect.yaml` configuration and the Python code needed to create the deployment.
+
+Note that to create a prefect.yaml file interactively, you can run `prefect deploy` and select the appropriate storage option.
 
 ## Git-based storage
 
@@ -23,43 +26,7 @@ Git-based version control platforms provide redundancy, version control, and col
 - [GitLab](https://www.gitlab.com)
 - [Bitbucket](https://bitbucket.org/)
 
-
-
-To create a deployment with git-based storage:
-
-1. Run `prefect deploy` from the root directory of the git repository.
-1. You will see a series of prompts. 
-    1. Select the flow to use.
-    1. Name your deployment.
-    1. Add a schedule if desired.
-    1. Select the work pool to use.
-    1. If using a Docker-based work pool, you will be asked if you would like to build a Docker image. 
-       Enter **n**, as we will use a remote repository in this example.
-    1. You will be asked if you would like to have your code pulled from a remote storage location when running the flow. Enter **y**.
-    1. Select **Git Repo** for the Storage Type.
-    
-Prefect detects that you are in a git repository and confirms the URL to pull your flow code from as in the example below:
-
-```bash
-? Is https://github.com/my_username/my_repo.git the correct URL to pull your flow code from? [y/n] (y): 
-? Is main the correct branch to pull your flow code from? [y/n] (y): 
-? Is this a private repository? [y/n]: y
-```
-
-In this example, the git repository is hosted on GitHub.
-If you are using Bitbucket or GitLab, the URL will match your provider.
-If the repository is public, enter **n** for the private repository prompt.
-
-If the repository is private, you can enter a token to access your private repository. 
-The token is saved to an encrypted [Prefect Secret block](/3.0/develop/blocks).
-
-```bash
-? Please enter a token that can be used to access your private repository. 
-This token will be saved as a secret via the Prefect API: "123_abc_this_is_my_token"
-```
-
-Verify that you have a new Secret block in your active workspace named in the format 
-"deployment-my-deployment-my-flow-name-repo-token".
+If you are using a private repository, we suggest creating a [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) 
 
 The process for creating access tokens differs for each provider.
 
@@ -92,7 +59,7 @@ The process for creating access tokens differs for each provider.
   </Tab>
 </Tabs>
 
-To configure a Secret block ahead of time, create the block in code or the Prefect UI and 
+To configure a Secret block ahead of time and use it in your deployment, create the block in code or the Prefect UI and 
 reference it in your `prefect.yaml` file `pull` step or your Python `deploy` method.
 
 <CodeGroup>
@@ -250,12 +217,10 @@ This is intentional to avoid confusion about the git history and push process.
 
 ## Docker-based storage
 
-Another popular way to store your flow code is to include it in a Docker image. 
+Another popular flow code storage option is to include it in a Docker image. 
 All work pool options except **Process** and **Prefect Managed** allow you to bake your code into a Docker image.
 
-If a requirements.txt file is present in the directory, it will be discovered and packages will be installed into the image with pip.
-
-To create a deployment with Docker-based storage:
+To create a deployment with Docker-based flow code storage:
 
 <CodeGroup>
 
@@ -275,15 +240,27 @@ if __name__ == "__main__":
 ```
 
 ```yaml prefect.yaml
+build:
+  - prefect_docker.deployments.steps.build_docker_image:
+        requires: prefect-docker>=0.6
+        image_name: my-image
+        image_tag: "{{ get-commit-hash.stdout }}"
+        dockerfile: auto
+        push: true    # push image to a Docker registry, Docker Hub by default 
 
 push:
     - prefect.deployments.steps.docker_build:
         image: my-docker-image:latest
 
+pull:
+- prefect.deployments.steps.git_clone:
+    id: clone-step # needed to be referenced in subsequent steps
+    repository: https://github.com/org/repo.git
+- prefect.deployments.steps.pip_install_requirements:  # optional section 
+    directory: "{{ clone-step.directory }}" # `clone-step` is a user-provided `id` field
+    requirements_file: requirements.txt
 ```
 </CodeGroup>
-
-To generate a `prefect.yaml` file interactively in the CLI, run `prefect deploy` and choose to store the flow code in a Docker image. 
 
 <Tip>
 **CI/CD may not require push or pull steps**
@@ -292,36 +269,27 @@ You don't need push or pull steps in the `prefect.yaml` file if using CI/CD to b
 Instead, the work pool can reference the image directly.
 </Tip>
 
+<Note>
+    If you don't specify an image as part of your deployment creation, the image specified in the work pool runs your flow.
+</Note>
+
+With the Python `deploy` method, if a requirements.txt file is present in the directory, it will be discovered and packages will be installed into the image with pip.
+
+
 ## Cloud-provider storage
 
-You can store your code in an AWS S3 bucket, Azure Blob Storage container, or GCP GCS bucket and specify the destination 
-directly in the `push` and `pull` steps of your `prefect.yaml` file.
+Flow code can be stored in an AWS S3, Azure Blob Storage, or GCP GCS.
 
-To create a templated `prefect.yaml` file through the CLI run the interactive `prefect deploy` command and select the relevant cloud-provider storage.
-Below are the relevant portions of the `prefect.yaml` file.
+If the storage is publicly available or if you are authenticated in the environment where you are creating and running your deployment, you can reference storage location directly.  `from_source`  `push` and `pull` steps of your `prefect.yaml` file.
+
 
 <Tabs>
   <Tab title="AWS S3 bucket">
-
-    
 
     <CodeGroup>
 
     ```python my_s3_deploy.py
     from prefect import flow
-    from 
-
-
-    if __name__ == "__main__":
-        flow.from_source(
-            source=S3(
-                bucket="my-bucket",
-                folder="my-folder",
-                credentials=aw
-            ),
-            entrypoint="my_file.py:my_flow",
-        ).deploy(
-            name="my-deployment",
     ```
 
     ```yaml prefect.yaml
@@ -491,7 +459,7 @@ See this example that uses an environment variable named `CUSTOM_FOLDER`:
 
 ## Store code locally
 
-If you are using a Process work pool, you can store your flow code in a localfolder.
+If you are using a Process work pool, you can store your flow code in a local folder.
 
 <CodeGroup>
 
@@ -516,7 +484,7 @@ if __name__ == "__main__":
     )
 ```
 
-```yaml prefect.yaml  # TK try
+```yaml prefect.yaml  # TK add
 
 pull:
     - prefect.deployments.steps.local_file_copy:
@@ -542,10 +510,7 @@ The `entrypoint` is the path to the file the flow is located in and the function
 
 Alternatively, you could specify a git-based cloud storage URL for a Bitbucket or GitLab repository.
 
-<Note>
-    If you don't specify an image as part of your deployment creation, the image specified in the work pool
-    runs your flow.
-</Note>
+
 
 After creating a deployment, you may need to change your flow code.
 Generally, you can just push your code to GitHub, without rebuilding your deployment.
