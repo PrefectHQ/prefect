@@ -283,7 +283,17 @@ if __name__ == "__main__":
     thread_2.join()
 ```
 
+To use a transaction with the `SERIALIZABLE` isolation level, you must also provide a `lock_manager` to the `transaction` context manager. The 
+lock manager is responsible for acquiring and releasing locks on the transaction key. In the example above, we use a `FileSystemLockManager` which 
+will manage locks as files on the current instance's filesystem.
 
+Prefect offers several lock managers for different concurrency use cases:
+
+| Lock Manager | Storage | Supports | Module/Package |
+|--------------|---------|----------------|--------------|
+| `MemoryLockManager` | In-memory | Single-process workflows using threads | `prefect.locking.memory` |
+| `FileLockManager` | Filesystem | Multi-process workflows on a single machine | `prefect.locking.filesystem` |
+| `RedisLockManager` | Redis database | Distributed workflows | `prefect-redis` |
 
 ## Access data within transactions
 
