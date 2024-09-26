@@ -3341,7 +3341,7 @@ class TestFlowConcurrencyLimits:
         states.StateType.PENDING,
     }
     ignored_secure_transitions = list(
-        product(ignored_secure_from_states, ignored_secure_to_states)
+        sorted(product(ignored_secure_from_states, ignored_secure_to_states))
     )
 
     ignored_release_from_states = all_states - {
@@ -3354,7 +3354,7 @@ class TestFlowConcurrencyLimits:
         states.StateType.CANCELLING,
     }
     ignored_release_transitions = list(
-        product(ignored_release_from_states, ignored_release_to_states)
+        sorted(product(ignored_release_from_states, ignored_release_to_states))
     )
 
     async def create_deployment_with_concurrency_limit(
