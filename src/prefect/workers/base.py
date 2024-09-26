@@ -214,8 +214,8 @@ class BaseJobConfiguration(BaseModel):
             "flow-run": flow_run,
         }
         self._ctx = {
-            "deployment": deployment.model_dump(),
-            "flow": flow.model_dump(),
+            "deployment": deployment.model_dump() if deployment is not None else None,
+            "flow": flow.model_dump() if flow is not None else None,
             "flow_run": flow_run.model_dump(),
         }
         if deployment is not None:
