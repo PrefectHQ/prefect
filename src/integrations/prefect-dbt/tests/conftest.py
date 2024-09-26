@@ -14,7 +14,6 @@ from prefect_gcp import GcpCredentials
 from prefect_snowflake import SnowflakeConnector, SnowflakeCredentials
 from prefect_sqlalchemy import (
     ConnectionComponents,
-    DatabaseCredentials,
     SqlAlchemyConnector,
     SyncDriver,
 )
@@ -160,7 +159,7 @@ def snowflake_target_configs():
 
 @pytest.fixture
 def postgres_target_configs():
-    credentials = DatabaseCredentials(
+    credentials = ConnectionComponents(
         driver=SyncDriver.POSTGRESQL_PSYCOPG2,
         username="prefect",
         password="prefect_password",
