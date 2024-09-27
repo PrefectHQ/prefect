@@ -406,7 +406,11 @@ class ReleaseFlowConcurrencySlots(BaseUniversalTransform):
         # shouldn't apply to them, even if they use FROM_STATES and TO_STATES.
         if not (
             initial_state_type
-            in {states.StateType.RUNNING, states.StateType.CANCELLING}
+            in {
+                states.StateType.RUNNING,
+                states.StateType.CANCELLING,
+                states.StateType.PENDING,
+            }
             and proposed_state_type
             not in {
                 states.StateType.PENDING,

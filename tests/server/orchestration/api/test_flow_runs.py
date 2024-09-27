@@ -1197,6 +1197,21 @@ class TestDeleteFlowRuns:
         response = await client.delete(f"/flow_runs/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
+    async def test_delete_flow_run_releases_concurrency_slots(
+        self, flow_run_with_concurrency_limit, client, session
+    ):
+        # delete the flow run
+        response = await client.delete(
+            f"/flow_runs/{flow_run_with_concurrency_limit.id}"
+        )
+        assert response.status_code == 204, response.text
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=flow_run_with_concurrency_limit.deployment_id
+        )
+
+        assert deployment.global_concurrency_limit.active_slots == 0
+
 
 class TestResumeFlowrun:
     @pytest.fixture

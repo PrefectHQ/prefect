@@ -316,6 +316,34 @@ async def read_flow_runs(
     return result.scalars().unique().all()
 
 
+async def cleanup_flow_run_concurrency_slots(
+    session: AsyncSession,
+    deployment_id: UUID,
+    final_state: Optional[State] = None,
+):
+    """
+    Cleanup flow run related resources, such as releasing concurrency slots.
+    All operations should be idempotent and safe to call multiple times.
+    IMPORTANT: This run may no longer exist in the database when this operation occurs.
+    """
+
+    if (
+        deployment_id
+        and final_state
+        and final_state.type
+        in (
+            schemas.states.StateType.PENDING,
+            schemas.states.StateType.RUNNING,
+            schemas.states.StateType.CANCELLING,
+        )
+    ):
+        deployment = await models.deployments.read_deployment(session, deployment_id)
+        if deployment and deployment.concurrency_limit_id:
+            await models.concurrency_limits_v2.bulk_decrement_active_slots(
+                session, [deployment.concurrency_limit_id], 1
+            )
+
+
 class DependencyResult(PrefectBaseModel):
     id: UUID
     name: str
