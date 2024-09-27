@@ -118,9 +118,10 @@ The `concurrency`context manager allows control over the maximum number of concu
 or asynchronous (`async`) version, depending on your use case. Here's how to use it:
 
 <Tip>
-**Concurrency limits are implicitly created in an inactive state**
+**Concurrency limits are not implicitly created**
 
-When using the `concurrency` context manager, if the provided `names` of the concurrency limits don't already exist, they are created in an inactive state.
+When using the `concurrency` context manager, if the provided `names` of the concurrency limits don't already exist, then no limiting is enforced and a warning will be logged.
+For stricter control, use `strict=True` to instead raise an error if no matching limits exist to block execution of the task.
 </Tip>
 
 **Sync**
