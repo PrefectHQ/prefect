@@ -339,7 +339,7 @@ Pausing a schedule, updating your deployment, and other actions reset your auto-
 Prefect supports managing concurrency at the deployment level to enable limiting how many runs of a
 deployment can be active at once. To enable this behavior, deployments have the following fields:
 
-- **`concurrency_limit`**: an integer that sets the maximum number of runs that can be active at once.
+- **`concurrency_limit`**: an integer that sets the maximum number of concurrent flow runs for the deployment.
 - **`collision_strategy`**: configure the behavior for runs once the concurrency limit is reached.
 Falls back to `ENQUEUE` if unset.
   - `ENQUEUE`: new runs transition to `AwaitingConcurrencySlot` and execute as slots become available.
