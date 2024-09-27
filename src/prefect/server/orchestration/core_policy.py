@@ -359,14 +359,17 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
             return
 
         try:
-            concurrency_limit = context.run.deployment.global_concurrency_limit
+            deployment = await deployments.read_deployment(
+                session=context.session,
+                deployment_id=context.run.deployment_id,
+            )
 
-            if not concurrency_limit:
+            if not deployment or not deployment.concurrency_limit_id:
                 return
 
             await concurrency_limits_v2.bulk_decrement_active_slots(
                 session=context.session,
-                concurrency_limit_ids=[concurrency_limit.id],
+                concurrency_limit_ids=[deployment.concurrency_limit_id],
                 slots=1,
             )
         except Exception as e:

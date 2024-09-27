@@ -3433,6 +3433,9 @@ class TestFlowConcurrencyLimits:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
 
     @pytest.mark.parametrize(
         "intended_transition", ignored_release_transitions, ids=transition_names
