@@ -18,7 +18,9 @@ You can create a deployment through [Python code with the `flow.deploy` method](
 
 To create a `prefect.yaml` file interactively, you can run `prefect deploy` from the CLI and select the appropriate storage option.
 
-All Python-based deployment creation requires 
+Python-based deployment creation requires you to use the `flow.from_source` method and pass `source` and `entrypoint` arguments. 
+The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
+The `source` is the URL to the repository or an object that contains the repository URL and credentials.
 
 ## Git-based storage
 
@@ -28,18 +30,20 @@ Git-based version control platforms provide redundancy, version control, and col
 - [GitLab](https://www.gitlab.com)
 - [Bitbucket](https://bitbucket.org/)
 
-For a public repository, you can use the repository repository URL directly.
+For a public repository, you can use the repository URL directly.
 
 If you are using a private repository and are authenticated in your environment at deployment creation and deployment execution, you can use the repository URL directly.
 
 Alternatively, for a private repository, you can create a Secrete block or a credentials block specific to the git-based platform to store you credentials and reference the block in the Python `deploy` method or the `prefect.yaml` file pull step.
+
+If using the Python `deploy` method with a private repository that references a block, provide a [`GitRepository`](https://prefect-python-sdk-docs.netlify.app/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL, as shown below.
 
 <Tabs>
   <Tab title="GitHub">
 
     <CodeGroup>
 
-    ```python my_gh_repo_deploy_no_credentials_passed_explicitly.py
+    ```python my_gh_deploy_no_credentials_passed_explicitly.py
     from prefect import flow
 
     if __name__ == "__main__":
@@ -48,6 +52,8 @@ Alternatively, for a private repository, you can create a Secrete block or a cre
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-github-deployment",
+            work_pool_name="my_pool",
+        )
     ```
 
     ```python my_private_gh_deploy_credentials_block.py
@@ -122,8 +128,9 @@ Alternatively, for a private repository, you can create a Secrete block or a cre
   <Tab title="Bitbucket">
     <CodeGroup>
 
-    ```python my_bb_repo_deploy_no_credentials_passed_explicitly.py
+    ```python my_bb_deploy_no_credentials_passed_explicitly.py
     from prefect import flow
+
 
     if __name__ == "__main__":
         flow.from_source(
@@ -131,6 +138,8 @@ Alternatively, for a private repository, you can create a Secrete block or a cre
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-bitbucket-deployment",
+            work_pool_name="my_pool",
+        )
     ```
 
     ```python my_private_bb_deploy_credentials_block.py
@@ -152,6 +161,25 @@ Alternatively, for a private repository, you can create a Secrete block or a cre
             work_pool_name="my_pool",
         )
     ```
+
+    ```python my_private_bb_deploy_secret_block.py
+
+    from prefect import flow
+    from prefect.runner.storage import GitRepository
+    from prefect.blocks.system import Secret
+
+
+    if __name__ == "__main__":
+        flow.from_source(   
+            source=GitRepository(
+                url="https://bitbucket.com/org/my-private-repo.git",
+                credentials=Secret.load("my-secret-block-with-my-bb-credentials")
+            ),
+            entrypoint="my_file.py:my_flow",
+        ).deploy(
+            name="private-bitbucket-deploy",
+            work_pool_name="my_pool",
+        )
 
     ```yaml prefect.yaml
     # relevant section of the file:
@@ -206,11 +234,14 @@ Alternatively, for a private repository, you can create a Secrete block or a cre
     ```
 
     ```yaml prefect.yaml
-
+    # relevant section of the file:
     pull:
         - prefect.deployments.steps.git_clone:
             repository: https://gitlab.com/org/my-private-repo.git
-            credentials: "{{ prefect.blocks.gitlab-credentials.my-gitlab-credentials-block }}"
+            # Uncomment the following line if using a credentials block
+            # credentials: "{{ prefect.blocks.gitlab-credentials.my-gitlab-credentials-block }}"
+            # Uncomment the following line if using a Secret block
+            # access_token: "{{ prefect.blocks.secret.my-block-name }}"
     ```
     </CodeGroup>
 
