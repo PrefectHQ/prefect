@@ -15,6 +15,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
+from opentelemetry import propagate, trace
 from pendulum.datetime import DateTime
 
 from .schemas.events import RelatedResource
@@ -183,6 +184,25 @@ async def related_resources_from_run_context(
         for resource in tags_as_related_resources(tags)
         if resource.id not in exclude
     ]
+
+    # Add in a related resource for the current run's trace and span context
+    span_context = trace.get_current_span().get_span_context()
+    if span_context.is_valid:
+        trace_context: Dict[str, str] = {}
+        propagate.get_global_textmap().inject(trace_context)
+
+        trace_id = hex(span_context.trace_id)[2:]
+        span_id = hex(span_context.span_id)[2:]
+
+        related.append(
+            RelatedResource(
+                {
+                    "prefect.resource.id": f"otel.span.{trace_id}.{span_id}",
+                    "prefect.resource.role": "span-context",
+                    **{f"otel.{k}": str(v) for k, v in trace_context.items()},
+                }
+            )
+        )
 
     return related
 

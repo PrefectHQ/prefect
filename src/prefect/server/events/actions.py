@@ -742,6 +742,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                 parameters=await self.render_parameters(triggered_action),
                 idempotency_key=triggered_action.idempotency_key(),
                 job_variables=self.job_variables,
+                context=self._trace_context(triggered_action),
             )
         except Exception as exc:
             raise ActionFailed(f"Unable to create flow run from deployment: {exc!r}")
@@ -776,6 +777,42 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
             self._result_details["validation_error"] = response.json().get("detail")
 
         return response
+
+    def _trace_context(self, triggered_action: "TriggeredAction") -> Dict[str, Any]:
+        """Given a triggered action, unpack all of the relevant trace context and
+        linked spans from all the events that triggered it"""
+        event = triggered_action.triggering_event
+        if not event:
+            return {}
+
+        def parse_span_id(span_id: str) -> Tuple[str, str]:
+            if not span_id.startswith("otel.span."):
+                return None, None
+
+            try:
+                return span_id.split(".")[-2], span_id.split(".")[-1]
+            except Exception:
+                return None, None
+
+        linked_spans: List[Tuple[str, str, str]] = []
+
+        for event in triggered_action.all_events():
+            for context in event.resources_in_role.get("span-context", []):
+                trace_id, span_id = parse_span_id(context.id)
+                if trace_id and span_id:
+                    role = "contributing-event"
+                    if context == event.resource_in_role["span-context"]:
+                        role = "triggering-event"
+                    linked_spans.append((trace_id, span_id, role))
+
+        return {
+            "__prefect": {
+                "links": [
+                    {"trace_id": trace_id, "span_id": span_id, "role": role}
+                    for trace_id, span_id, role in linked_spans
+                ],
+            }
+        }
 
     @field_validator("parameters")
     def validate_parameters(

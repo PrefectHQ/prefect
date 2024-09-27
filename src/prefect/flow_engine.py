@@ -22,8 +22,15 @@ from typing import (
 )
 from uuid import UUID
 
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode, Tracer, get_tracer
+from opentelemetry import propagate, trace
+from opentelemetry.trace import (
+    Link,
+    SpanContext,
+    Status,
+    StatusCode,
+    Tracer,
+    get_tracer,
+)
 from typing_extensions import ParamSpec
 
 import prefect
@@ -616,6 +623,28 @@ class FlowRunEngine(Generic[P, R]):
                     empirical_policy=self.flow_run.empirical_policy,
                 )
 
+            trace_context = None
+            links = None
+            if self.flow_run.context:
+                prefect_context = self.flow_run.context.get("__prefect", {})
+
+                if "trace_context" in prefect_context:
+                    trace_context = propagate.get_global_textmap().extract(
+                        prefect_context["trace_context"]
+                    )
+
+                links = [
+                    Link(
+                        context=SpanContext(
+                            trace_id=int(link.get("trace_id", 0), 16),
+                            span_id=int(link.get("span_id", 0), 16),
+                            is_remote=True,
+                        ),
+                        attributes={"prefect.role": link.get("role", "")},
+                    )
+                    for link in prefect_context.get("links", [])
+                ]
+
             self._span = self._tracer.start_span(
                 name=self.flow_run.name,
                 attributes={
@@ -623,6 +652,8 @@ class FlowRunEngine(Generic[P, R]):
                     "prefect.run.id": str(self.flow_run.id),
                     "prefect.tags": self.flow_run.tags,
                 },
+                context=trace_context,
+                links=links,
             )
 
             try:

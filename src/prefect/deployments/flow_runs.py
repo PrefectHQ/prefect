@@ -4,6 +4,7 @@ from uuid import UUID
 
 import anyio
 import pendulum
+from opentelemetry import propagate
 
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
@@ -150,6 +151,9 @@ async def run_deployment(
     else:
         parent_task_run_id = None
 
+    prefect_context = {"__prefect": {"trace_context": {}}}
+    propagate.get_global_textmap().inject(prefect_context["__prefect"]["trace_context"])
+
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
         parameters=parameters,
@@ -160,6 +164,7 @@ async def run_deployment(
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
         job_variables=job_variables,
+        context=prefect_context,
     )
 
     flow_run_id = flow_run.id
