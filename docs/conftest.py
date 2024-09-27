@@ -26,7 +26,7 @@ SKIP_FILES = {
     "docs/integrations/prefect-dask/index.mdx": "Needs a `dask_cloudprovider` harness",
     "docs/integrations/prefect-dask/usage_guide.mdx": "Attempts to start a dask cluster",
     "docs/integrations/prefect-databricks/index.mdx": "Pydantic failures",
-    "docs/integrations/prefect-dbt/index.mdx": "Needs block cleanup handling",
+    "docs/integrations/prefect-dbt/index.mdx": "Needs block cleanup handling, and prefect-dbt installed",
     "docs/integrations/prefect-email/index.mdx": "Needs block cleanup handling",
     "docs/integrations/prefect-gcp/index.mdx": "Needs block cleanup handling",
     "docs/integrations/prefect-github/index.mdx": "Needs block cleanup handling",
