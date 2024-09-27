@@ -46,7 +46,7 @@ If using the Python `deploy` method with a private repository that references a 
 
     <CodeGroup>
 
-    ```python my_gh_deploy_no_credentials_passed_explicitly.py
+    ```python gh_no_block.py
     from prefect import flow
 
     if __name__ == "__main__":
@@ -59,7 +59,7 @@ If using the Python `deploy` method with a private repository that references a 
         )
     ```
 
-    ```python my_private_gh_deploy_credentials_block.py
+    ```python gh_credentials_block.py
     from prefect import flow
     from prefect.runner.storage import GitRepository
     from prefect_github import GitHubCredentials
@@ -78,7 +78,7 @@ If using the Python `deploy` method with a private repository that references a 
         )
     ```
 
-    ```python my_private_gh_deploy_secret_block.py
+    ```python gh_secret_block.py
     from prefect import flow
     from prefect.runner.storage import GitRepository
     from prefect.blocks.system import Secret
@@ -131,7 +131,7 @@ If using the Python `deploy` method with a private repository that references a 
   <Tab title="Bitbucket">
     <CodeGroup>
 
-    ```python my_bb_deploy_no_credentials_passed_explicitly.py
+    ```python bb_no_block.py
     from prefect import flow
 
 
@@ -145,7 +145,7 @@ If using the Python `deploy` method with a private repository that references a 
         )
     ```
 
-    ```python my_private_bb_deploy_credentials_block.py
+    ```python bb_credentials_block.py
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -165,7 +165,7 @@ If using the Python `deploy` method with a private repository that references a 
         )
     ```
 
-    ```python my_private_bb_deploy_secret_block.py
+    ```python bb_secret_block.py
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -183,6 +183,7 @@ If using the Python `deploy` method with a private repository that references a 
             name="private-bitbucket-deploy",
             work_pool_name="my_pool",
         )
+    ```
 
     ```yaml prefect.yaml
     # relevant section of the file:
@@ -216,7 +217,7 @@ If using the Python `deploy` method with a private repository that references a 
 
     <CodeGroup>
 
-    ```python my_private_gl_deploy_credentials_block.py
+    ```python gl_credentials_block.py
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -385,7 +386,7 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
     <CodeGroup>
 
-    ```python my_s3_deploy_no_credentials_passed_explicitly.py
+    ```python s3_no_block.py
     from prefect import flow
 
 
@@ -399,9 +400,8 @@ The `prefect.yaml` example includes the additional line to reference a credentia
         )
     ```
 
-    ```python my_s3_deploy_credentials_s3bucket_block.py
+    ```python s3_s3bucket_block.py
 
-    # example with an S3Bucket block (the S3Bucket block has a nested AWS Credentials block)
     from prefect import flow
     from prefect_aws.s3 import S3Bucket
 
@@ -415,8 +415,8 @@ The `prefect.yaml` example includes the additional line to reference a credentia
     )
     ```
 
-    ```python my_s3_deploy_credentials_aws_credentials_block.py
-    # example with an AWS Credentials block
+    ```python s3_credentials_block.py
+    
     from prefect import flow
     from prefect_aws import AwsCredentials
 
@@ -432,8 +432,8 @@ The `prefect.yaml` example includes the additional line to reference a credentia
         )
     ```
 
-    ```python my_s3_deploy_secret_block.py
-    # example with AWS credentials stored in a Secret block
+    ```python s3_secret_block.py
+    
     from prefect import flow
     from prefect.blocks.system import Secret
 
@@ -498,7 +498,7 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
     <CodeGroup>
 
-    ```python my_azure_deploy.py
+    ```python azure_credentials_block.py
     from prefect import flow
     from prefect_azure import AzureBlobCredentials
 
@@ -568,7 +568,7 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
     <CodeGroup>
 
-    ```python my_gcs_deploy.py
+    ```python gcs_credentials_block.py
     from prefect import flow
     from prefect_gcp import GcpCredentials
 
