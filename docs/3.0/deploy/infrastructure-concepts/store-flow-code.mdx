@@ -11,6 +11,9 @@ You have several flow code storage options for remote execution:
 - Docker image-based storage
 - Cloud-provider storage (AWS S3, Azure Blob Storage, GCP GCS)
 
+Each of these options is popular.
+Your choice will depend upon your team's needs and tools.
+
 Local storage is also an option for deployments that run locally.
 
 In the examples below, we show how to create a work pool-based deployment for each of these storage options. 
@@ -396,18 +399,16 @@ For more information, see [this discussion of custom Docker images](/3.0/deploy/
 
 ## Cloud-provider storage
 
-Another option for flow code storage is any [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Blob Storage.
+Another option for flow code storage is any [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, Azure Blob Storage, or GCP GCS.
 
-If you need additional configuration for your cloud-based storage (for example, with a private S3 Bucket), we recommend using a
-[storage block](/3.0/develop/blocks/).
-
-If the storage location is publicly available or if you are authenticated in the environment where you are creating and running your deployment, you can reference the storage location directly. You don't need to pass credentials explicitly.
+If the storage location is publicly available, or if you are authenticated in the environment where you are creating and running your deployment, you can reference the storage location directly. 
+You don't need to pass credentials explicitly.
 
 To pass credentials explicitly to authenticate to your storage location, you can use any of the following block types:
 
-- Prefect integration library storage block, such as the `prefect-aws` library's `S3Bucket` block.
-- Prefect integration library credentials block, such as the `prefect-aws` library's `AwsCredentials` block 
-- Secret block
+- Prefect integration library storage blocks, such as the `prefect-aws` library's `S3Bucket` block.
+- Prefect integration library credentials blocks, such as the `prefect-aws` library's `AwsCredentials` block 
+- Secret blocks
 
 The examples below show how to create a deployment with flow code stored in AWS S3. 
 
