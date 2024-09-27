@@ -2690,6 +2690,44 @@ class TestKubernetesWorker:
                 ]
             )
 
+        async def test_watch_early_exit(
+            self,
+            default_configuration: KubernetesWorkerJobConfiguration,
+            flow_run,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+            mock_job,
+            mock_pod,
+        ):
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            job_pod.status.phase = "Running"
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.running = MagicMock(
+                start_time=pendulum.now("utc")
+            )
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
+            ]
+
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    yield {"object": mock_pod, "type": "ADDED"}
+
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    raise Exception("This is a test exception")
+
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
+
+            assert result.status_code == 0
+
     class TestKillInfrastructure:
         async def test_kill_infrastructure_calls_delete_namespaced_job(
             self,
