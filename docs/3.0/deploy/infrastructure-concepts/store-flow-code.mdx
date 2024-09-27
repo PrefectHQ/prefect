@@ -7,9 +7,9 @@ When a deployment runs, the execution environment needs access to the flow code.
 Flow code is not stored in Prefect server or Prefect Cloud.
 
 You have several flow code storage options for remote execution:
-1. Git-based storage (GitHub, GitLab, Bitbucket)
-2. Docker image-based storage
-3. Cloud-provider storage (AWS S3, Azure Blob Storage, GCP GCS)
+- Git-based storage (GitHub, GitLab, Bitbucket)
+- Docker image-based storage
+- Cloud-provider storage (AWS S3, Azure Blob Storage, GCP GCS)
 
 Local storage is also an option for deployments that run locally.
 
@@ -26,7 +26,7 @@ Git-based version control platforms provide redundancy, version control, and col
 - [GitLab](https://www.gitlab.com)
 - [Bitbucket](https://bitbucket.org/)
 
-If you are using a private repository, we suggest creating a [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) 
+If you are using a private repository, we suggest creating a personal access token.
 
 The process for creating access tokens differs for each provider.
 
@@ -64,7 +64,7 @@ reference it in your `prefect.yaml` file `pull` step or your Python `deploy` met
 
 <CodeGroup>
 
-```python
+```python my_private_gh_deploy_secret_block.py
 from prefect import flow
 from prefect.runner.storage import GitRepository
 from prefect.blocks.system import Secret
@@ -97,13 +97,13 @@ Alternatively, instead of creating a Secret block, you can create a Credentials 
 <Tabs>
   <Tab title="GitHub">
 
-    1. Install the prefect-github with `pip install -U prefect-github`
+    1. Install prefect-github with `pip install -U prefect-github`
     1. Register the blocks in that library to make them available on the server with `prefect block register -m prefect_github`
-    1. Create a GitHub Credentials block through code or the Prefect UI and reference it.
+    1. Create a GitHub Credentials block through code or the Prefect UI and reference it at deployment creation as shown:
 
     <CodeGroup>
 
-    ```python my_private_gh_deploy.py
+    ```python my_private_gh_deploy_credentials_block.py
     from prefect import flow
     from prefect.runner.storage import GitRepository
     from prefect_github import GitHubCredentials
@@ -139,7 +139,7 @@ Alternatively, instead of creating a Secret block, you can create a Credentials 
 
     <CodeGroup>
 
-    ```python my_private_bb_deploy.py
+    ```python my_private_bb_deploy_credentials_block.py
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -172,11 +172,11 @@ Alternatively, instead of creating a Secret block, you can create a Credentials 
 
     1. Install prefect-gitlab with `pip install -U prefect-gitlab`
     1. Register the blocks in that library with `prefect block register -m prefect_gitlab` 
-    1. Create a GitLab credentials block in code or the Prefect UI and reference it as shown:
+    1. Create a GitLab credentials block in code or the Prefect UI and reference it at deployment creation as shown:
 
     <CodeGroup>
 
-    ```python my_private_gl_deploy.py
+    ```python my_private_gl_deploy_credentials_block.py
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -284,9 +284,11 @@ deployments:
 ```
 </CodeGroup>
 
+Any pip packages specified in a `requirements.txt` file will be included in the image.
+
 In the examples above, we elected not to push the image to a remote registry.
 
-In both cases, any pip packages specified in a `requirements.txt` file will be included in the image.
+To push the image to a remote registry, pass `push=True` in the Python `deploy` method or change `push: true` in the `prefect.yaml` file.
 
 <Tip>
 **CI/CD may not require push or pull steps**
