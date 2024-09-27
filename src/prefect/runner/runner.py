@@ -74,7 +74,6 @@ from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.concurrency.asyncio import (
     AcquireConcurrencySlotTimeoutError,
     ConcurrencySlotAcquisitionError,
-    concurrency,
 )
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.events.related import tags_as_related_resources
@@ -92,7 +91,6 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import (
-    AwaitingConcurrencySlot,
     Crashed,
     Pending,
     exception_to_failed_state,
@@ -1047,22 +1045,12 @@ class Runner:
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
-        if flow_run.deployment_id:
-            deployment = await self._client.read_deployment(flow_run.deployment_id)
-        if deployment and deployment.global_concurrency_limit:
-            limit_name = deployment.global_concurrency_limit.name
-            concurrency_ctx = concurrency
-        else:
-            limit_name = ""
-            concurrency_ctx = asyncnullcontext
-
         try:
-            async with concurrency_ctx(limit_name, max_retries=0, strict=True):
-                status_code = await self._run_process(
-                    flow_run=flow_run,
-                    task_status=task_status,
-                    entrypoint=entrypoint,
-                )
+            status_code = await self._run_process(
+                flow_run=flow_run,
+                task_status=task_status,
+                entrypoint=entrypoint,
+            )
         except (
             AcquireConcurrencySlotTimeoutError,
             ConcurrencySlotAcquisitionError,
@@ -1163,26 +1151,6 @@ class Runner:
                 f"Failed to update state of flow run '{flow_run.id}'",
                 exc_info=True,
             )
-
-    async def _propose_scheduled_state(self, flow_run: "FlowRun") -> None:
-        run_logger = self._get_flow_run_logger(flow_run)
-        try:
-            state = await propose_state(
-                self._client,
-                AwaitingConcurrencySlot(),
-                flow_run_id=flow_run.id,
-            )
-            self._logger.info(f"Flow run {flow_run.id} now has state {state.name}")
-        except Abort as exc:
-            run_logger.info(
-                (
-                    f"Aborted rescheduling of flow run '{flow_run.id}'. "
-                    f"Server sent an abort signal: {exc}"
-                ),
-            )
-            pass
-        except Exception:
-            run_logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
 
     async def _propose_crashed_state(self, flow_run: "FlowRun", message: str) -> None:
         run_logger = self._get_flow_run_logger(flow_run)
