@@ -14,9 +14,11 @@ You have several flow code storage options for remote execution:
 Local storage is also an option for deployments that run locally.
 
 In the examples below, we show how to create a work pool-based deployment for each of these storage options. 
-You can use create a deployment through Python code or a YAML specification defined in a `prefect.yaml` file.
+You can create a deployment through [Python code with the `flow.deploy` method](/3.0/deploy/infrastructure-concepts/deploy-via-python) or through a [YAML specification defined in a `prefect.yaml` file](/3.0/deploy/infrastructure-concepts/prefect-yaml).
 
-To create a `prefect.yaml` file interactively, you can run `prefect deploy` and select the appropriate storage option.
+To create a `prefect.yaml` file interactively, you can run `prefect deploy` from the CLI and select the appropriate storage option.
+
+All Python-based deployment creation requires 
 
 ## Git-based storage
 
@@ -26,23 +28,18 @@ Git-based version control platforms provide redundancy, version control, and col
 - [GitLab](https://www.gitlab.com)
 - [Bitbucket](https://bitbucket.org/)
 
-For a public repository, you can use the repository URL directly.
+For a public repository, you can use the repository repository URL directly.
 
 If you are using a private repository and are authenticated in your environment at deployment creation and deployment execution, you can use the repository URL directly.
-Alternatively, for a private repository, you can create a block to store you credentials and reference it in your deployment. 
-You can create a Secret block or use a credentials block for the specific git-based remote storage platform.
 
-The examples below show each of these options.
-
-
-Alternatively, instead of creating a Secret block, you can create a credentials block specific to the remote storage platform ahead of time and reference it in the `prefect.yaml` pull step or the Python `deploy` method.
+Alternatively, for a private repository, you can create a Secrete block or a credentials block specific to the git-based platform to store you credentials and reference the block in the Python `deploy` method or the `prefect.yaml` file pull step.
 
 <Tabs>
   <Tab title="GitHub">
 
     <CodeGroup>
 
-    ```python my_gh_repo_no_credentials_passed_explicitly.py
+    ```python my_gh_repo_deploy_no_credentials_passed_explicitly.py
     from prefect import flow
 
     if __name__ == "__main__":
@@ -51,25 +48,6 @@ Alternatively, instead of creating a Secret block, you can create a credentials 
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-github-deployment",
-    ```
-            
-    ```python my_private_gh_deploy_secret_block.py
-    from prefect import flow
-    from prefect.runner.storage import GitRepository
-    from prefect.blocks.system import Secret
-
-
-    if __name__ == "__main__":
-        flow.from_source(
-            source=GitRepository(
-                url="https://github.com/org/my-private-repo.git",
-                credentials=Secret.load("my-secret-block-with-my-gh-credentials")
-            ),
-            entrypoint="my_file.py:my_flow",
-        ).deploy(
-            name="private-github-deploy",
-            work_pool_name="my_pool",
-        )
     ```
 
     ```python my_private_gh_deploy_credentials_block.py
@@ -91,7 +69,27 @@ Alternatively, instead of creating a Secret block, you can create a credentials 
         )
     ```
 
+    ```python my_private_gh_deploy_secret_block.py
+    from prefect import flow
+    from prefect.runner.storage import GitRepository
+    from prefect.blocks.system import Secret
+
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source=GitRepository(
+                url="https://github.com/org/my-private-repo.git",
+                credentials=Secret.load("my-secret-block-with-my-gh-credentials")
+            ),
+            entrypoint="my_file.py:my_flow",
+        ).deploy(
+            name="private-github-deploy",
+            work_pool_name="my_pool",
+        )
+    ```
+
     ```yaml prefect.yaml
+    # relevant section of the file:
     pull:
         - prefect.deployments.steps.git_clone:
             repository: https://gitlab.com/org/my-repo.git
@@ -102,6 +100,18 @@ Alternatively, instead of creating a Secret block, you can create a credentials 
     ```
     </CodeGroup>
 
+    For accessing a private repository, we suggest creating a personal access token.
+    We recommend using HTTPS with [fine-grained Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) to limit access by repository. 
+    
+    See the GitHub docs for [Personal Access Tokens (PATs)](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
+
+    Under *Your Profile -> Developer Settings -> Personal access tokens -> Fine-grained token* choose *Generate New Token* and 
+    fill in the required fields. 
+    
+    Under *Repository access* choose *Only select repositories* and grant the token permissions for *Contents*.
+
+    If using a Secret block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
+
     If using a credentials block, you can create it ahead of time and reference it at deployment creation. 
 
     1. Install prefect-github with `pip install -U prefect-github`
@@ -110,12 +120,18 @@ Alternatively, instead of creating a Secret block, you can create a credentials 
 
   </Tab>  
   <Tab title="Bitbucket">
-
-    1. Install prefect-bitbucket with `pip install -U prefect-bitbucket`
-    1. Register the blocks in that library with `prefect block register -m prefect_bitbucket` 
-    1. Create a Bitbucket credentials block in code or the Prefect UI and reference at deployment creation as shown:
-
     <CodeGroup>
+
+    ```python my_bb_repo_deploy_no_credentials_passed_explicitly.py
+    from prefect import flow
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source="https://bitbucket.com/org/my-public-repo.git",
+            entrypoint="my_file.py:my_flow",
+        ).deploy(
+            name="my-bitbucket-deployment",
+    ```
 
     ```python my_private_bb_deploy_credentials_block.py
 
@@ -138,19 +154,34 @@ Alternatively, instead of creating a Secret block, you can create a credentials 
     ```
 
     ```yaml prefect.yaml
-
+    # relevant section of the file:
     pull:
         - prefect.deployments.steps.git_clone:
             repository: https://bitbucket.org/org/my-private-repo.git
-            credentials: "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-credentials-block }}"
+            # Uncomment the following line if using a credentials block
+            # credentials: "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-credentials-block }}"
+            # Uncomment the following line if using a Secret block
+            # access_token: "{{ prefect.blocks.secret.my-block-name }}"
     ```
     </CodeGroup>
-  </Tab>
-<Tab title="GitLab">
 
-    1. Install prefect-gitlab with `pip install -U prefect-gitlab`
-    1. Register the blocks in that library with `prefect block register -m prefect_gitlab` 
-    1. Create a GitLab credentials block in code or the Prefect UI and reference it at deployment creation as shown:
+    For accessing a private repository, we recommend using HTTPS with Repository, Project, or Workspace [Access Tokens](https://support.atlassian.com/bitbucket-cloud/docs/access-tokens/). 
+    
+    You can create a Repository Access Token with Scopes -> Repositories -> Read.
+
+    Bitbucket requires you prepend the token string with `x-token-auth:` The full string looks like this: `x-token-auth:abc_123_this_is_a_token`. 
+
+    If using a Secret block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
+
+    If using a credentials block, you can create it ahead of time and reference it at deployment creation. 
+
+    1. Install prefect-bitbucket with `pip install -U prefect-bitbucket`
+    1. Register the blocks in that library with `prefect block register -m prefect_bitbucket` 
+    1. Create a Bitbucket credentials block in code or the Prefect UI and reference at deployment creation as shown above.
+
+  </Tab>
+
+<Tab title="GitLab">
 
     <CodeGroup>
 
@@ -182,41 +213,22 @@ Alternatively, instead of creating a Secret block, you can create a credentials 
             credentials: "{{ prefect.blocks.gitlab-credentials.my-gitlab-credentials-block }}"
     ```
     </CodeGroup>
-  </Tab>
-</Tabs>
 
-If you are using a private repository, we suggest creating a personal access token.
-The process for creating access tokens differs for each provider.
-
-<Tabs>
-  <Tab title="GitHub">
-
-    We recommend using HTTPS with [fine-grained Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) 
-    to limit access by repository. 
-    See the GitHub docs for [Personal Access Tokens (PATs)](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
-
-    Under *Your Profile -> Developer Settings -> Personal access tokens -> Fine-grained token* choose *Generate New Token* and 
-    fill in the required fields. 
-    Under *Repository access* choose *Only select repositories* and grant the token permissions for *Contents*.
-  </Tab>
-  <Tab title="Bitbucket">
-
-    We recommend using HTTPS with Repository, Project, or Workspace [Access Tokens](https://support.atlassian.com/bitbucket-cloud/docs/access-tokens/). 
-    
-    You can create a Repository Access Token with Scopes -> Repositories -> Read.
-
-    Bitbucket requires you prepend the token string with `x-token-auth:` The full string looks like 
-    `x-token-auth:abc_123_this_is_a_token`. 
-  </Tab>
-  <Tab title="GitLab">
-
-    We recommend using HTTPS with [Project Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
+    For accessing a private repository, we recommend using HTTPS with [Project Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
 
     In your repository in the GitLab UI, select *Settings -> Repository -> Project Access Tokens* and check 
     *read_repository* under *Select scopes*.
+
+    If using a Secret block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
+
+    If using a credentials block, you can create it ahead of time and reference it at deployment creation. 
+
+    1. Install prefect-gitlab with `pip install -U prefect-gitlab`
+    1. Register the blocks in that library with `prefect block register -m prefect_gitlab` 
+    1. Create a GitLab credentials block in code or the Prefect UI and reference it at deployment creation as shown above.
+
   </Tab>
 </Tabs>
-
 
 <Warning>
 **Push your code**
@@ -225,8 +237,6 @@ When you make a change to your code, Prefect does not push your code to your git
 You need to push your code manually or as part of your CI/CD pipeline.
 This is intentional to avoid confusion about the git history and push process.
 </Warning>
-
-
 
 ## Docker-based storage
 
