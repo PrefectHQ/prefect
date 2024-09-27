@@ -7,7 +7,6 @@ import pytest
 from prefect.server.database.orm_models import Mapped, Run, mapped_column, sa
 
 SKIP_FILES = {
-    "docs/3.0/automate/events/automations-triggers.mdx": "Automation validation errors",
     "docs/3.0/deploy/index.mdx": "Needs database fixtures",
     "docs/3.0/deploy/run-flows-in-local-processes.mdx": "Needs blocks setup",
     "docs/3.0/develop/artifacts.mdx": "Needs a running prefect server",
