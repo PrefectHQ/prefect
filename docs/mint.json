@@ -40,7 +40,8 @@
   },
   "logo": {
     "dark": "/logos/logo-word-white.svg",
-    "light": "/logos/logo-word-black.svg"
+    "light": "/logos/logo-word-black.svg",
+    "href": "https://prefect.io"
   },
   "modeToggle": {
     "default": "light",
