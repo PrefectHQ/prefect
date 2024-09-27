@@ -24,7 +24,7 @@ code execution status.
 </Tip>
 
 
-### Write your first transaction
+## Write your first transaction
 
 Tasks can be grouped into a common transaction using the `transaction` context manager:
 
@@ -86,7 +86,7 @@ failure is outside the task's local scope.
 This behavior makes transactions a valuable pattern for managing pipeline failure.
 </Tip>
 
-### Transaction lifecycle
+## Transaction lifecycle
 
 Every transaction goes through at most four lifecycle stages:
 
@@ -127,7 +127,176 @@ def confirmation(transaction):
 ```
 </Tip>
 
-### Access data within transactions
+## Idempotency
+
+You can ensure sections of code are functionally idempotent by wrapping them in a transaction. By specifying a `key` for your transaction, you can ensure that 
+your code is executed only once.
+
+For example, here's a flow that downloads some data from an API and writes it to a file:
+
+```python
+from prefect import task, flow
+from prefect.transactions import transaction
+
+
+@task
+def download_data():
+    """Imagine this downloads some data from an API"""
+    return "some data"
+
+
+@task
+def write_data(data: str):
+    """This writes the data to a file"""
+    with open("data.txt", "w") as f:
+        f.write(data)
+
+
+@flow(log_prints=True)
+def pipeline():
+    with transaction(key="download-and-write-data", write_on_commit=True) as txn:
+        if txn.is_committed():
+            print("Data file has already been written. Exiting early.")
+            return
+        data = download_data()
+        write_data(data)
+
+
+if __name__ == "__main__":
+    pipeline()
+```
+
+If you run this flow, it will write data to a file the first time, but it will exit early on subsequent runs because the transaction has already been committed.
+
+Giving the transaction a `key` and setting `write_on_commit=True` will cause the transaction to write a record on commit signifying that the transaction has completed.
+The call to `txn.is_committed()` will return `True` only if the persisted record exists.
+
+### Handling race conditions
+
+Persisting transaction records works well to ensure sequential executions are idempotent, but what about when about when multiple transactions with the same key run at
+the same time?
+
+By default, transactions have an isolation level of `READ_COMMITED` which means that they can see any previously committed records, but they are not prevented from overwriting
+a record that was created by another transaction between the time they started and the time they committed.
+
+To see this behavior in action in the following script:
+
+```python
+import threading
+
+from prefect import flow, task
+from prefect.transactions import transaction
+
+
+@task
+def download_data():
+    return f"{threading.current_thread().name} is the winner!"
+
+
+@task
+def write_file(contents: str):
+    "Writes to a file."
+    with open("race-condition.txt", "w") as f:
+        f.write(contents)
+
+
+@flow
+def pipeline(transaction_key: str):
+    with transaction(key=transaction_key, write_on_commit=True) as txn:
+        if txn.is_committed():
+            print("Data file has already been written. Exiting early.")
+            return
+        data = download_data()
+        write_file(data)
+
+
+if __name__ == "__main__":
+    # Run the pipeline twice to see the race condition
+    transaction_key = f"race-condition-{uuid.uuid4()}"
+    thread_1 = threading.Thread(target=pipeline, name="Thread 1", args=(transaction_key,))
+    thread_2 = threading.Thread(target=pipeline, name="Thread 2", args=(transaction_key,))
+
+    thread_1.start()
+    thread_2.start()
+
+    thread_1.join()
+    thread_2.join()
+```
+    
+If you run this script, you will see that sometimes "Thread 1 is the winner!" is written to the file and sometimes "Thread 2 is the winner!" is written 
+**even though the transactions have the same key**. You can ensure subsequent runs don't exit early by changing the `key` argument between runs.
+
+To prevent race conditions, you can set the `isolation_level` of a transaction to `SERIALIZABLE`. This will cause each transaction to take a lock on the 
+provided key. This will prevent other transactions from starting until the first transaction has completed.
+
+Here's an updated example that uses `SERIALIZABLE` isolation:
+
+```python
+import threading
+import uuid
+from prefect import flow, task
+from prefect.locking.filesystem import FileSystemLockManager
+from prefect.results import ResultStore
+from prefect.settings import PREFECT_HOME
+from prefect.transactions import IsolationLevel, transaction
+
+
+@task
+def download_data():
+    return f"{threading.current_thread().name} is the winner!"
+
+
+@task
+def write_file(contents: str):
+    "Writes to a file."
+    with open("race-condition.txt", "w") as f:
+        f.write(contents)
+
+
+@flow
+def pipeline(transaction_key: str):
+    with transaction(
+        key=transaction_key,
+        write_on_commit=True,
+        isolation_level=IsolationLevel.SERIALIZABLE,
+        store=ResultStore(
+            lock_manager=FileSystemLockManager(
+                lock_files_directory=PREFECT_HOME.value() / "locks"
+            )
+        ),
+    ) as txn:
+        if txn.is_committed():
+            print("Data file has already been written. Exiting early.")
+            return
+        data = download_data()
+        write_file(data)
+
+
+if __name__ == "__main__":
+    transaction_key = f"race-condition-{uuid.uuid4()}"
+    thread_1 = threading.Thread(target=pipeline, name="Thread 1", args=(transaction_key,))
+    thread_2 = threading.Thread(target=pipeline, name="Thread 2", args=(transaction_key,))
+
+    thread_1.start()
+    thread_2.start()
+
+    thread_1.join()
+    thread_2.join()
+```
+
+To use a transaction with the `SERIALIZABLE` isolation level, you must also provide a `lock_manager` to the `transaction` context manager. The 
+lock manager is responsible for acquiring and releasing locks on the transaction key. In the example above, we use a `FileSystemLockManager` which 
+will manage locks as files on the current instance's filesystem.
+
+Prefect offers several lock managers for different concurrency use cases:
+
+| Lock Manager | Storage | Supports | Module/Package |
+|--------------|---------|----------------|--------------|
+| `MemoryLockManager` | In-memory | Single-process workflows using threads | `prefect.locking.memory` |
+| `FileLockManager` | Filesystem | Multi-process workflows on a single machine | `prefect.locking.filesystem` |
+| `RedisLockManager` | Redis database | Distributed workflows | `prefect-redis` |
+
+## Access data within transactions
 
 Key-value pairs can be set within a transaction and accessed elsewhere within the transaction, including within the `on_rollback` hook.
 
