@@ -10,7 +10,6 @@ SKIP_FILES = {
     "docs/3.0/deploy/index.mdx": "Needs database fixtures",
     "docs/3.0/deploy/run-flows-in-local-processes.mdx": "Needs blocks setup",
     "docs/3.0/develop/blocks.mdx": "Block subclasses defined in docs cannot be properly registered due to test environment limitations",
-    "docs/3.0/develop/global-concurrency-limits.mdx": "Wants to import `psycopg2`, is there a better way?",
     "docs/3.0/develop/manage-states.mdx": "Needs some extra import help",
     "docs/3.0/develop/results.mdx": "Needs block cleanup handling",
     "docs/3.0/develop/task-caching.mdx": "Tasks defined in docs cannot be properly inspected due to test environment limitations",
