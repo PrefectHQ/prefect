@@ -46,12 +46,12 @@ if __name__ == "__main__":
 The `serve` method creates a deployment from your flow and immediately begins listening for scheduled runs to execute. 
 This example also create a schedule so that the flow will run every minute of every day.
 
-For slightly more configuration you can create a deployment that uses a work pool.
+For more configuration, you can create a deployment that uses a work pool.
 Reasons to create a work-pool based deployment include:
 
-- Wanting to run your flow dynamically on remote infrastructure
-- Needing more control over the execution environment
-- Creating a template for other deployments
+- Wanting to run your flow on dynamically provisioned infrastructure
+- Needing more control over the execution environment on a per-flow run basis
+- Creating an infrastructure template to use across deployments
 
 Work pools are popular with data platform teams because they allow you to manage infrastructure configuration across an organization. 
 
