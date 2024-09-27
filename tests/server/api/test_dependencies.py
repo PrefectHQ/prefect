@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
@@ -28,7 +30,7 @@ def test_get_prefect_client_version_correctly_extracts_from_header(
 
     @app.get("/version")
     async def get_version(
-        prefect_client_version: str | None = Depends(get_prefect_client_version),
+        prefect_client_version: Optional[str] = Depends(get_prefect_client_version),
     ):
         return prefect_client_version
 
