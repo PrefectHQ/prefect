@@ -22,6 +22,7 @@ from prefect_dbt.cli.commands import (
     run_dbt_model,
     run_dbt_seed,
     run_dbt_snapshot,
+    run_dbt_source_freshness,
     run_dbt_test,
     trigger_dbt_cli_command,
 )
@@ -98,6 +99,59 @@ async def mock_dbt_runner_model_error():
                 )
             ],
             elapsed_time=0.0,
+        ),
+    )
+
+
+@pytest.fixture
+async def mock_dbt_runner_freshness_success():
+    return dbtRunnerResult(
+        success=True,
+        exception=None,
+        result=FreshnessResult(
+            results=[
+                SourceFreshnessResult(
+                    status="pass",
+                    thread_id="Thread-1 (worker)",
+                    execution_time=0.0,
+                    adapter_response={},
+                    message=None,
+                    failures=None,
+                    max_loaded_at=datetime.datetime.now(),
+                    snapshotted_at=datetime.datetime.now(),
+                    timing=[],
+                    node=SourceDefinition(
+                        database="test-123",
+                        schema="prefect_dbt_example",
+                        name="my_first_dbt_model",
+                        resource_type="source",
+                        package_name="prefect_dbt_bigquery",
+                        path="example/my_first_dbt_model.yml",
+                        original_file_path="models/example/my_first_dbt_model.yml",
+                        unique_id="source.prefect_dbt_bigquery.my_first_dbt_model",
+                        fqn=["prefect_dbt_bigquery", "example", "my_first_dbt_model"],
+                        source_name="prefect_dbt_source",
+                        source_description="",
+                        description="",
+                        loader="my_loader",
+                        identifier="my_identifier",
+                        freshness=FreshnessThreshold(
+                            warn_after=Time(count=12, period="hour"),
+                            error_after=Time(count=24, period="hour"),
+                            filter=None,
+                        ),
+                    ),
+                    age=0.0,
+                )
+            ],
+            elapsed_time=0.0,
+            metadata=FreshnessMetadata(
+                dbt_schema_version="https://schemas.getdbt.com/dbt/sources/v3.json",
+                dbt_version="1.1.1",
+                generated_at=datetime.datetime.now(),
+                invocation_id="invocation_id",
+                env={},
+            ),
         ),
     )
 
@@ -185,6 +239,16 @@ def dbt_runner_freshness_error(monkeypatch, mock_dbt_runner_freshness_error):
     )
     monkeypatch.setattr(
         "dbt.cli.main.dbtRunner.invoke", _mock_dbt_runner_freshness_error
+    )
+
+
+@pytest.fixture
+def dbt_runner_freshness_success(monkeypatch, mock_dbt_runner_freshness_success):
+    _mock_dbt_runner_freshness_success = MagicMock(
+        return_value=mock_dbt_runner_freshness_success
+    )
+    monkeypatch.setattr(
+        "dbt.cli.main.dbtRunner.invoke", _mock_dbt_runner_freshness_success
     )
 
 
@@ -566,6 +630,27 @@ async def test_run_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare
     assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt run Task Summary")
+    assert "my_first_dbt_model" in a.data
+    assert "Successful Nodes" in a.data
+
+
+@pytest.mark.usefixtures("dbt_runner_freshness_success")
+async def test_run_dbt_source_freshness_creates_artifact(
+    profiles_dir, dbt_cli_profile_bare
+):
+    @flow
+    async def test_flow():
+        return await run_dbt_source_freshness(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            summary_artifact_key="foo",
+            create_summary_artifact=True,
+        )
+
+    await test_flow()
+    assert (a := await Artifact.get(key="foo"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# dbt source freshness Task Summary")
     assert "my_first_dbt_model" in a.data
     assert "Successful Nodes" in a.data
 
