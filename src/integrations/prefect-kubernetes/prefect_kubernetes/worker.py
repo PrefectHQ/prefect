@@ -135,12 +135,12 @@ from kubernetes_asyncio.client.models import (
     V1ObjectMeta,
     V1Secret,
 )
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 import prefect
-from prefect.client.schemas import FlowRun
+from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
 )
@@ -555,6 +555,26 @@ class KubernetesWorker(BaseWorker):
     _display_name = "Kubernetes"
     _documentation_url = "https://prefecthq.github.io/prefect-kubernetes/worker/"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"  # noqa
+
+    @field_validator("env", mode="before")
+    @classmethod
+    def _coerce_env(cls, v):
+        if isinstance(v, dict):
+            return {k: str(v) if v is not None else None for k, v in v.items()}
+        elif isinstance(v, list):
+            return [
+                {
+                    "name": item["name"],
+                    "value": str(item["value"])
+                    if item.get("value") is not None
+                    else None,
+                }
+                if isinstance(item, dict) and "name" in item
+                else item
+                for item in v
+            ]
+        else:
+            raise ValueError("env must be either a dictionary or a list")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
