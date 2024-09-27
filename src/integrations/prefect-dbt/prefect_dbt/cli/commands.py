@@ -963,7 +963,7 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.message,
                 n.node.path,
                 n.node.compiled_code
-                if n.node.resource_type in ["seed", "source"]
+                if n.node.resource_type not in ["seed", "source"]
                 else None,
             )
     return markdown

@@ -686,13 +686,12 @@ async def test_run_dbt_model_creates_unsuccessful_artifact(
 
 
 @pytest.mark.usefixtures("dbt_runner_freshness_error")
-async def test_run_dbt_model_creates_unsuccessful_artifact_for_source_command(
+async def test_run_dbt_source_freshness_creates_unsuccessful_artifact(
     profiles_dir, dbt_cli_profile_bare
 ):
     @flow
     async def test_flow():
-        return trigger_dbt_cli_command(
-            command="dbt source freshness",
+        return await run_dbt_source_freshness(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
