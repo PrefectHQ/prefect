@@ -128,7 +128,7 @@ def confirmation(transaction):
 
 ## Idempotency
 
-You can ensure sections of code are idempotent by wrapping them in a transaction. By specifying a `key` for your transaction, you can ensure that 
+You can ensure sections of code are functionally idempotent by wrapping them in a transaction. By specifying a `key` for your transaction, you can ensure that 
 your code is executed only once.
 
 For example, here's a flow that downloads some data from an API and writes it to a file:
