@@ -308,11 +308,13 @@ from time import sleep
 from prefect import task, flow
 from prefect.transactions import transaction
 
+
 @task
 def write_file(filename: str, contents: str):
     "Writes to a file."
     with open(filename, "w") as f:
         f.write(contents)
+
 
 @write_file.on_rollback
 def del_file(txn):
