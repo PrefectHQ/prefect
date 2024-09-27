@@ -110,15 +110,16 @@ Common work pool types include [Docker](/3.0/deploy/infrastructure-examples/dock
 
 ### Work pool-based deployment requirements
 
-Deployments created through the Python SDK that use a work pool require a `name` argument and a `work_pool` argument. 
-They also require reference to your flow code storage location.
+Deployments created through the Python SDK that use a work pool require a `name`. 
+This value becomes the deployment name.
+A `work_pool_name` is also required.
 
 Your flow code location can be specified in a few ways:
 
 1. Bake it into your Docker image (for work-pools that use Docker images). 
     As shown in the example above,Prefect facilitates this as the default method for deployments created with the Python SDK. 
     This method requires that you specify the `image` argument in the `deploy` method.
-2. Chain the `from_source` method to a flow object or flow function and specify one of the following:
+2. Call `from_source` on a flow and specify one of the following:  
     1. the git-based cloud provider location (for example, GitHub) 
     2. the cloud provider storage location (for example, AWS S3)
     3. the local path (an option for Process work pools)
