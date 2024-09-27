@@ -5,10 +5,12 @@ from uuid import uuid4
 import pendulum
 import pytest
 import sqlalchemy as sa
+from httpx._client import AsyncClient
 from starlette import status
 
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Flow
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import DeploymentCreate, DeploymentUpdate
 from prefect.server.utilities.database import get_dialect
@@ -1016,8 +1018,8 @@ class TestCreateDeployment:
 
     async def test_create_deployment_with_concurrency_limit(
         self,
-        client,
-        flow,
+        client: AsyncClient,
+        flow: Flow,
     ):
         response = await client.post(
             "/deployments/",
@@ -1041,6 +1043,75 @@ class TestCreateDeployment:
         assert (
             global_concurrency_limit.get("name") == f"deployment:{json_response['id']}"
         )
+
+    async def test_create_deployment_retains_concurrency_limit_on_upsert_if_not_specified(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Ensure that old prefect clients that don't know about concurrency limits can still use them server-side.
+        This means that if a deployment has a concurrency limit (possibly created through the Cloud UI), but the client
+        is an old version that doesn't know about concurrency limits, then when using `prefect deploy`, the old client
+        should not remove the concurrency limit from the existing deployment.
+        """
+        # Create deployment with a concurrency limit
+        data = {
+            "name": "Deployment with concurrency limit",
+            "flow_id": str(flow.id),
+            "concurrency_limit": 3,
+        }
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        global_concurrency_limit = response.json().get("global_concurrency_limit")
+        assert global_concurrency_limit is not None
+        assert global_concurrency_limit.get("limit") == 3
+
+        # Upsert the deployment without specifying a concurrency limit
+        updated_data = data.copy()
+        updated_data.pop("concurrency_limit", None)
+        updated_data["version"] = "1.0.1"
+        response = await client.post("/deployments/", json=updated_data)
+
+        # Ensure that the concurrency limit is still present
+        assert response.status_code == 200
+        updated_global_concurrency_limit = response.json().get(
+            "global_concurrency_limit"
+        )
+        assert updated_global_concurrency_limit is not None
+        assert updated_global_concurrency_limit.get("limit") == 3
+
+    async def test_upsert_deployment_can_remove_schedules(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        # Create deployment with a schedule
+        data = DeploymentCreate(  # type: ignore
+            name="Deployment with schedules",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(  # type: ignore [call-arg]
+                    active=True,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(hours=1)
+                    ),
+                ),
+            ],
+        ).model_dump(mode="json")
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        schedules_in_response = response.json().get("schedules")
+        assert schedules_in_response
+
+        # Upsert the deployment without schedules
+        updated_data = data.copy()
+        updated_data["schedules"] = []
+        updated_data["version"] = "1.0.1"
+        response = await client.post("/deployments/", json=updated_data)
+
+        # Ensure that the schedules are removed
+        assert response.status_code == 200
+        assert response.json().get("schedules") == []
 
 
 class TestReadDeployment:
