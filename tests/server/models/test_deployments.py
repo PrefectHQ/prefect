@@ -244,7 +244,9 @@ class TestCreateDeployment:
         )
         assert updated_deployment.updated_by.type == new_updated_by.type
 
-    async def test_create_deployment_with_concurrency_limit(self, session, flow):
+    async def test_create_deployment_with_concurrency_limit(
+        self, session: AsyncSession, flow: orm_models.Flow
+    ):
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
@@ -259,8 +261,50 @@ class TestCreateDeployment:
         assert deployment.global_concurrency_limit is not None
         assert deployment.global_concurrency_limit.limit == 2
 
+    async def test_create_deployment_retains_concurrency_limit_if_not_provided_on_upsert(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        """Ensure that old prefect clients that don't know about concurrency limits can still use them server-side.
+        This means that if a deployment has a concurrency limit (possibly created through the Cloud UI), but the client
+        is an old version that doesn't know about concurrency limits, then when using `prefect deploy`, the old client
+        should not remove the concurrency limit from the existing deployment.
+        """
+        await models.deployments.update_deployment(
+            session,
+            deployment.id,
+            schemas.actions.DeploymentUpdate(concurrency_limit=5),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+        gcl_id = deployment.concurrency_limit_id
+
+        updated_deployment = await models.deployments.create_deployment(
+            session,
+            schemas.core.Deployment(
+                id=deployment.id,
+                name=deployment.name,
+                flow_id=deployment.flow_id,
+                # no explicit concurrency_limit set
+            ),
+        )
+
+        assert updated_deployment is not None
+        assert updated_deployment.global_concurrency_limit is not None
+        assert updated_deployment.global_concurrency_limit.limit == 5
+        assert updated_deployment.concurrency_limit_id == gcl_id
+        assert updated_deployment._concurrency_limit == 5
+
+        assert (
+            await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
+            is not None
+        ), "Expected the concurrency limit to still exist, but it does not"
+
     async def test_create_deployment_can_remove_concurrency_limit_on_upsert(
-        self, session, deployment
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
     ):
         await models.deployments.update_deployment(
             session,
@@ -1230,6 +1274,43 @@ class TestUpdateDeployment:
             await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
             is None
         ), "Expected the concurrency limit to be deleted, but it was not"
+
+    async def test_update_deployment_retains_concurrency_limit_if_not_provided(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        # Given a deployment with a concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=5,
+            ),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
+        gcl_id = deployment.concurrency_limit_id
+
+        # Update it but omit the concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(version="1.0.1"),
+        )
+        await session.commit()
+
+        await session.refresh(deployment)
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
+        assert deployment.concurrency_limit_id == gcl_id
+
+        assert (
+            await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
+            is not None
+        ), "Expected the concurrency limit to still exist, but it does not"
 
     async def test_update_deployment_with_concurrency_options(
         self,

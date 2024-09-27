@@ -83,8 +83,10 @@ async def create_deployment(
 
     schedules = deployment.schedules
     insert_values = deployment.model_dump_for_orm(
-        exclude_unset=True, exclude={"schedules", "concurrency_limit"}
+        exclude_unset=True, exclude={"schedules"}
     )
+
+    requested_concurrency_limit = insert_values.pop("concurrency_limit", "unset")
 
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
@@ -155,9 +157,10 @@ async def create_deployment(
             ],
         )
 
-    await _create_or_update_deployment_concurrency_limit(
-        session, deployment_id, deployment.concurrency_limit
-    )
+    if requested_concurrency_limit != "unset":
+        await _create_or_update_deployment_concurrency_limit(
+            session, deployment_id, deployment.concurrency_limit
+        )
 
     query = (
         sa.select(orm_models.Deployment)
@@ -198,8 +201,10 @@ async def update_deployment(
     # the user, ignoring any defaults on the model
     update_data = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"work_pool_name", "concurrency_limit"},
+        exclude={"work_pool_name"},
     )
+
+    requested_concurrency_limit_update = update_data.pop("concurrency_limit", "unset")
 
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
@@ -267,9 +272,10 @@ async def update_deployment(
             ],
         )
 
-    await _create_or_update_deployment_concurrency_limit(
-        session, deployment_id, deployment.concurrency_limit
-    )
+    if requested_concurrency_limit_update != "unset":
+        await _create_or_update_deployment_concurrency_limit(
+            session, deployment_id, deployment.concurrency_limit
+        )
 
     return result.rowcount > 0
 

@@ -96,7 +96,9 @@ async def create_deployment(
             )
 
         # hydrate the input model into a full model
-        deployment_dict = deployment.model_dump(exclude={"work_pool_name"})
+        deployment_dict = deployment.model_dump(
+            exclude={"work_pool_name"}, exclude_unset=True
+        )
         if deployment.work_pool_name and deployment.work_queue_name:
             # If a specific pool name/queue name combination was provided, get the
             # ID for that work pool queue.
