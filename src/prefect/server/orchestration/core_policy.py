@@ -13,6 +13,7 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
+from prefect.logging import get_logger
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
@@ -355,6 +356,7 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
+        logger = get_logger()
         if not context.session or not context.run.deployment_id:
             return
 
@@ -373,7 +375,7 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
                 slots=1,
             )
         except Exception as e:
-            print(f"Error releasing concurrency slots on cleanup: {e}")
+            logger.error(f"Error releasing concurrency slots on cleanup: {e}")
 
 
 class ReleaseFlowConcurrencySlots(BaseUniversalTransform):
