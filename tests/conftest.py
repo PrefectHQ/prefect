@@ -17,7 +17,6 @@ WARNING: Prefect settings cannot be modified in async fixtures.
     the settings context change. See `test_database_connection_url` for example.
 """
 
-import asyncio
 import logging
 import pathlib
 import shutil
@@ -29,6 +28,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
 import pytest
+from pytest_asyncio import is_async_test
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 
 # Improve diff display for assertions in utilities
@@ -136,6 +136,12 @@ def pytest_collection_modifyitems(session, config, items):
     """
     Update tests to skip in accordance with service requests
     """
+    # Ensure that all async tests are run with the session loop scope
+    pytest_asyncio_tests = [item for item in items if is_async_test(item)]
+    session_scope_marker = pytest.mark.asyncio(loop_scope="session")
+    for async_test in pytest_asyncio_tests:
+        async_test.add_marker(session_scope_marker, append=False)
+
     exclude_all_services = config.getoption("--exclude-services")
     if exclude_all_services:
         for item in items:
@@ -208,38 +214,40 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 @pytest.fixture(scope="session")
-def event_loop(request):
-    """
-    Redefine the event loop to support session/module-scoped fixtures;
-    see https://github.com/pytest-dev/pytest-asyncio/issues/68
-
-    When running on Windows we need to use a non-default loop for subprocess support.
-    """
+def event_loop_policy():
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    return asyncio.get_event_loop_policy()
 
-    policy = asyncio.get_event_loop_policy()
 
-    loop = policy.new_event_loop()
+@pytest.fixture(scope="session", autouse=True)
+async def setup_loop_debugging():
+    loop = asyncio.get_event_loop()
 
     # configure asyncio logging to capture long running tasks
     asyncio_logger = logging.getLogger("asyncio")
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
 
-    if PREFECT_UNIT_TEST_LOOP_DEBUG.value():
-        loop.set_debug(True)
-
     loop.slow_callback_duration = 0.25
 
-    try:
-        yield loop
-    finally:
-        loop.close()
+    if PREFECT_UNIT_TEST_LOOP_DEBUG:
+        loop.set_debug(True)
 
-    # Workaround for failures in pytest_asyncio 0.17;
-    # see https://github.com/pytest-dev/pytest-asyncio/issues/257
-    policy.set_event_loop(loop)
+
+@pytest.fixture(scope="function", autouse=True)
+async def restore_loop_after_each_test():
+    """
+    Any test that calls `asyncio.run` or `anyio.run` will have replaced (and also then
+    later removed) the event loop on the MainThread, but we have pytest-asyncio set to
+    use a session-scoped event loop to allow for async fixtures sharing objects with
+    tests.  Here, we restore the session-scoped loop after each test.
+    """
+    loop = asyncio.get_event_loop()
+
+    yield
+
+    asyncio.set_event_loop(loop)
 
 
 @pytest.fixture(scope="session")
