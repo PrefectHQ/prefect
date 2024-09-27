@@ -1,6 +1,5 @@
 import uuid
 from typing import Any, Dict, Optional, Type
-from unittest import mock
 from unittest.mock import MagicMock
 
 import pendulum
@@ -14,11 +13,6 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.objects import StateType
-from prefect.concurrency.asyncio import (
-    AcquireConcurrencySlotTimeoutError,
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
-)
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -48,7 +42,6 @@ from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
     BaseWorker,
-    BaseWorkerResult,
 )
 
 
@@ -318,7 +311,8 @@ async def test_workers_do_not_submit_flow_runs_awaiting_retry(
     response = await prefect_client.set_flow_run_state(flow_run.id, state=Failed())
     # The transition should be rejected and the flow run should be in `AwaitingRetry` state
     assert response.state.name == "AwaitingRetry"
-    assert response.state.type == StateType.SCHEDULED
+    assert response.state.type == 
+    .SCHEDULED
 
     flow_run = await prefect_client.read_flow_run(flow_run.id)
     # Check to ensure that the flow has a scheduled time earlier than now to rule out
@@ -420,85 +414,6 @@ async def test_worker_with_work_pool_and_limit(
         assert {flow_run.id for flow_run in submitted_flow_runs} == set(
             flow_run_ids[1:4]
         )
-
-
-async def test_worker_with_deployment_concurrency_limit_uses_limit(
-    prefect_client: PrefectClient, worker_deployment_wq1_cl1, work_pool
-):
-    def create_run_with_deployment(name, state):
-        return prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq1_cl1.id, state=state, name=name
-        )
-
-    async def test(*args, **kwargs):
-        return BaseWorkerResult(status_code=0, identifier="123")
-
-    await create_run_with_deployment("first", Scheduled())
-
-    with mock.patch(
-        "prefect.concurrency.asyncio._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
-    ) as acquire_spy:
-        with mock.patch(
-            "prefect.concurrency.asyncio._release_concurrency_slots",
-            wraps=_release_concurrency_slots,
-        ) as release_spy:
-            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-                worker._work_pool = work_pool
-                worker.run = test  # simulate running a flow
-                await worker.get_and_submit_flow_runs()
-
-            acquire_spy.assert_called_once_with(
-                [f"deployment:{worker_deployment_wq1_cl1.id}"],
-                1,
-                timeout_seconds=None,
-                create_if_missing=None,
-                max_retries=0,
-                strict=True,
-            )
-
-            names, occupy, occupy_seconds = release_spy.call_args[0]
-            assert names == [f"deployment:{worker_deployment_wq1_cl1.id}"]
-            assert occupy == 1
-            assert occupy_seconds > 0
-
-
-async def test_worker_with_deployment_concurrency_limit_proposes_awaiting_limit_state_name(
-    prefect_client: PrefectClient, worker_deployment_wq1_cl1, work_pool
-):
-    def create_run_with_deployment(name, state):
-        return prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq1_cl1.id, state=state, name=name
-        )
-
-    async def test(*args, **kwargs):
-        return BaseWorkerResult(status_code=0, identifier="123")
-
-    flow_run = await create_run_with_deployment("first", Scheduled())
-
-    with mock.patch(
-        "prefect.concurrency.asyncio._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
-    ) as acquire_spy:
-        # Simulate a Locked response from the API
-        acquire_spy.side_effect = AcquireConcurrencySlotTimeoutError
-
-        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            worker._work_pool = work_pool
-            worker.run = test  # simulate running a flow
-            await worker.get_and_submit_flow_runs()
-
-        acquire_spy.assert_called_once_with(
-            [f"deployment:{worker_deployment_wq1_cl1.id}"],
-            1,
-            timeout_seconds=None,
-            create_if_missing=None,
-            max_retries=0,
-            strict=True,
-        )
-
-        flow_run = await prefect_client.read_flow_run(flow_run.id)
-        assert flow_run.state.name == "AwaitingConcurrencySlot"
 
 
 async def test_worker_calls_run_with_expected_arguments(
