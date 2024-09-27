@@ -1813,6 +1813,51 @@ class TestSetFlowRunState:
         # the transition is rejected and the returned state should be the existing state in the db
         assert api_response.state.id == pending_flow_run_with_transition_id.state_id
 
+    @pytest.mark.parametrize(
+        "client_version,should_use_orchestration",
+        [
+            (None, True),
+            ("2.19.3", True),
+            ("3.0.0rc20", False),
+            ("3.0.0", False),
+            ("3.0.1", False),
+            ("3.0.2", False),
+            ("3.0.3", False),
+            ("3.0.4", True),
+        ],
+    )
+    async def test_set_flow_run_state_uses_deployment_concurrency_orchestration_for_certain_client_versions(
+        self,
+        client_version,
+        should_use_orchestration,
+        client,
+        flow_run_with_concurrency_limit,
+    ):
+        # Ensure that setting the flow run state uses new concurrency rules
+        # for older (2.x) clients and 3.x clients other than the ones with
+        # worker handling for deployment concurrency.
+        with mock.patch(
+            "prefect.server.orchestration.core_policy.SecureFlowConcurrencySlots.before_transition"
+        ) as mock_before_transition:
+            post_kwargs = {
+                "json": dict(state=dict(type="PENDING", name="Pending")),
+                "headers": {},
+            }
+            if client_version:
+                post_kwargs["headers"][
+                    "User-Agent"
+                ] = f"prefect/{client_version} (API 2.19.3)"
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                **post_kwargs,
+            )
+            assert response.status_code == 201
+
+            if should_use_orchestration:
+                mock_before_transition.assert_awaited_once()
+            else:
+                mock_before_transition.assert_not_awaited()
+
 
 class TestManuallyRetryingFlowRuns:
     async def test_manual_flow_run_retries(

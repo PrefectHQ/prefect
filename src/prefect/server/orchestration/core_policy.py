@@ -41,7 +41,7 @@ from prefect.utilities.math import clamped_poisson_interval
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
 
 
-class CoreFlowPolicy(BaseOrchestrationPolicy):
+class CoreFlowPolicyWithoutDeploymentConcurrency(BaseOrchestrationPolicy):
     """
     Orchestration rules that run against flow-run-state transitions in priority order.
     """
@@ -61,6 +61,31 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             WaitForScheduledTime,
             RetryFailedFlows,
             InstrumentFlowRunStateTransitions,
+        ]
+
+
+class CoreFlowPolicy(BaseOrchestrationPolicy):
+    """
+    Orchestration rules that run against flow-run-state transitions in priority order.
+    """
+
+    @staticmethod
+    def priority():
+        return [
+            PreventDuplicateTransitions,
+            HandleFlowTerminalStateTransitions,
+            EnforceCancellingToCancelledTransition,
+            BypassCancellingFlowRunsWithNoInfra,
+            PreventPendingTransitions,
+            SecureFlowConcurrencySlots,
+            EnsureOnlyScheduledFlowsMarkedLate,
+            HandlePausingFlows,
+            HandleResumingPausedFlows,
+            CopyScheduledTime,
+            WaitForScheduledTime,
+            RetryFailedFlows,
+            InstrumentFlowRunStateTransitions,
+            ReleaseFlowConcurrencySlots,
         ]
 
 
@@ -138,6 +163,7 @@ class MinimalFlowPolicy(BaseOrchestrationPolicy):
         return [
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
             InstrumentFlowRunStateTransitions,
+            ReleaseFlowConcurrencySlots,
         ]
 
 
