@@ -309,15 +309,25 @@ from prefect import task, flow
 from prefect.transactions import transaction
 
 @task
-def download_data():
-    return f""
-
-@task
 def write_file(filename: str, contents: str):
     "Writes to a file."
     with open(filename, "w") as f:
         f.write(contents)
 
+@write_file.on_rollback
+def del_file(txn):
+    "Deletes file."
+    os.unlink(txn.get("filename"))
+
+
+@task
+def quality_test(filename):
+    "Checks contents of file."
+    with open(filename, "r") as f:
+        data = f.readlines()
+
+    if len(data) < 2:
+        raise ValueError(f"Not enough data!")
 
 @flow
 def pipeline(filename: str, contents: str):
