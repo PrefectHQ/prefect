@@ -331,6 +331,7 @@ def quality_test(filename):
     if len(data) < 2:
         raise ValueError(f"Not enough data!")
 
+
 @flow
 def pipeline(filename: str, contents: str):
     with transaction() as txn:
