@@ -9,7 +9,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/markdown-tests.yaml
-      - "docs/"
+      - "docs/**"
       - requirements-client.txt
       - requirements-dev.txt
       - requirements-markdown-tests.txt
