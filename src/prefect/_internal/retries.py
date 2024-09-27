@@ -2,10 +2,8 @@ import asyncio
 from functools import wraps
 from typing import Any, Callable, Tuple, Type
 
-from prefect.logging.loggers import get_logger
+from prefect._internal._logging import logger
 from prefect.utilities.math import clamped_poisson_interval
-
-logger = get_logger("retries")
 
 
 def exponential_backoff_with_jitter(
