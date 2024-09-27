@@ -37,7 +37,8 @@ For a public repository, you can use the repository URL directly.
 
 If you are using a private repository and are authenticated in your environment at deployment creation and deployment execution, you can use the repository URL directly.
 
-Alternatively, for a private repository, you can create a Secrete block or a credentials block specific to the git-based platform to store you credentials and reference the block in the Python `deploy` method or the `prefect.yaml` file pull step.
+Alternatively, for a private repository, you can create a Secret block or create a credentials block specific to your git-based version control platform to store you credentials. 
+Then you can reference the block in the Python `deploy` method or the `prefect.yaml` file pull step.
 
 If using the Python `deploy` method with a private repository that references a block, provide a [`GitRepository`](https://prefect-python-sdk-docs.netlify.app/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL, as shown below.
 
@@ -52,7 +53,7 @@ If using the Python `deploy` method with a private repository that references a 
     if __name__ == "__main__":
         flow.from_source(
             source="https://github.com/org/my-public-repo.git",
-            entrypoint="my_file.py:my_flow",
+            entrypoint="gh_no_block.py:my_flow",
         ).deploy(
             name="my-github-deployment",
             work_pool_name="my_pool",
@@ -71,7 +72,7 @@ If using the Python `deploy` method with a private repository that references a 
             url="https://github.com/org/my-private-repo.git",
             credentials=GitHubCredentials.load("my-github-credentials-block")
         ),
-        entrypoint="my_file.py:my_flow",
+        entrypoint="gh_credentials_block.py:my_flow",
         ).deploy(
             name="private-github-deploy",
             work_pool_name="my_pool",
@@ -90,7 +91,7 @@ If using the Python `deploy` method with a private repository that references a 
                 url="https://github.com/org/my-private-repo.git",
                 credentials=Secret.load("my-secret-block-with-my-gh-credentials")
             ),
-            entrypoint="my_file.py:my_flow",
+            entrypoint="gh_secret_block.py:my_flow",
         ).deploy(
             name="private-github-deploy",
             work_pool_name="my_pool",
@@ -138,7 +139,7 @@ If using the Python `deploy` method with a private repository that references a 
     if __name__ == "__main__":
         flow.from_source(
             source="https://bitbucket.com/org/my-public-repo.git",
-            entrypoint="my_file.py:my_flow",
+            entrypoint="bb_no_block.py:my_flow",
         ).deploy(
             name="my-bitbucket-deployment",
             work_pool_name="my_pool",
@@ -158,7 +159,7 @@ If using the Python `deploy` method with a private repository that references a 
                 url="https://bitbucket.com/org/my-private-repo.git",
                 credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
             ),
-        entrypoint="my_file.py:my_flow",
+        entrypoint="bb_credentials_block.py:my_flow",
         ).deploy(
             name="private-bitbucket-deploy",
             work_pool_name="my_pool",
@@ -178,7 +179,7 @@ If using the Python `deploy` method with a private repository that references a 
                 url="https://bitbucket.com/org/my-private-repo.git",
                 credentials=Secret.load("my-secret-block-with-my-bb-credentials")
             ),
-            entrypoint="my_file.py:my_flow",
+            entrypoint="bb_secret_block.py:my_flow",
         ).deploy(
             name="private-bitbucket-deploy",
             work_pool_name="my_pool",
@@ -217,6 +218,20 @@ If using the Python `deploy` method with a private repository that references a 
 
     <CodeGroup>
 
+    ```python gl_no_block.py
+    from prefect import flow
+
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source="https://gitlab.com/org/my-public-repo.git",
+            entrypoint="gl_no_block.py:my_flow",
+        ).deploy(
+            name="my-gitlab-deployment",
+            work_pool_name="my_pool",
+        )
+    ```
+
     ```python gl_credentials_block.py
 
     from prefect import flow
@@ -230,7 +245,26 @@ If using the Python `deploy` method with a private repository that references a 
             url="https://gitlab.com/org/my-private-repo.git",
             credentials=GitLabCredentials.load("my-gitlab-credentials-block")
         ),
-        entrypoint="my_file.py:my_flow",
+        entrypoint="gl_credentials_block.py:my_flow",
+        ).deploy(
+            name="private-gitlab-deploy",
+            work_pool_name="my_pool",
+        )
+    ```
+
+    ```python gl_secret_block.py    
+
+    from prefect import flow
+    from prefect.runner.storage import GitRepository
+    from prefect.blocks.system import Secret
+
+    if __name__ == "__main__":
+        flow.from_source(   
+            source=GitRepository(
+                url="https://gitlab.com/org/my-private-repo.git",
+                credentials=Secret.load("my-secret-block-with-my-gl-credentials")
+            ),
+            entrypoint="gl_secret_block.py:my_flow",
         ).deploy(
             name="private-gitlab-deploy",
             work_pool_name="my_pool",
@@ -647,7 +681,7 @@ Here is an example of how to create a deployment with flow code stored locally:
 
 <CodeGroup>
 
-```python
+```python local_process_deploy_local_code.py
 from prefect import flow
 from pathlib import Path
 
