@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
-from dbt.contracts.results import NodeStatus, RunExecutionResult
+from dbt.contracts.results import ExecutionResult, NodeStatus
 from prefect_shell.commands import ShellOperation
 from pydantic import Field
 
@@ -192,7 +192,7 @@ async def trigger_dbt_cli_command(
         raise result.exception
 
     # Creating the dbt Summary Markdown if enabled
-    if create_summary_artifact and isinstance(result.result, RunExecutionResult):
+    if create_summary_artifact and isinstance(result.result, ExecutionResult):
         run_results = consolidate_run_results(result)
         markdown = create_summary_markdown(run_results, command)
         artifact_id = await create_markdown_artifact(
@@ -213,7 +213,7 @@ async def trigger_dbt_cli_command(
             "See https://docs.getdbt.com/reference/programmatic-invocations "
             "for more details on dbtRunnerResult."
         )
-    if isinstance(result.result, RunExecutionResult) and not result.success:
+    if isinstance(result.result, ExecutionResult) and not result.success:
         return Failed(
             message=f"dbt task result success: {result.success} with exception: {result.exception}"
         )
@@ -852,7 +852,9 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+                n.node.compiled_code
+                if n.node.resource_type not in ["seed", "source"]
+                else None,
             )
     if len(run_results["Fail"]) > 0:
         markdown += "\n### Failed Nodes:\n"
@@ -862,7 +864,9 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+                n.node.compiled_code
+                if n.node.resource_type not in ["seed", "source"]
+                else None,
             )
     if len(run_results["Skipped"]) > 0:
         markdown += "\n### Skipped Nodes:\n"
@@ -872,7 +876,9 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+                n.node.compiled_code
+                if n.node.resource_type not in ["seed", "source"]
+                else None,
             )
     if len(run_results["Warn"]) > 0:
         markdown += "\n### Warned Nodes:\n"
@@ -882,7 +888,9 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+                n.node.compiled_code
+                if n.node.resource_type in ["seed", "source"]
+                else None,
             )
     return markdown
 
