@@ -299,21 +299,24 @@ Instead, the work pool can reference the image directly.
 
 ## Cloud-provider storage
 
-If you don't store your flow code in a git provider storage or a Docker image, you can store it in AWS S3, Azure Blob Storage, or GCP GCS.
+Another option for flow code storage is any [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, GCP GCS, or Azure Blob Storage.
 
-If the storage location is publicly available or if you are authenticated in the environment where you are creating and running your deployment, you can reference the storage location directly. 
+If you need additional configuration for your cloud-based storage (for example, with a private S3 Bucket), we recommend using a
+[storage block](/3.0/develop/blocks/).
 
-If you need to pass credentials explicitly to authenticate to your storage location, you can use any of the following block types:
+If the storage location is publicly available or if you are authenticated in the environment where you are creating and running your deployment, you can reference the storage location directly. You don't need to pass credentials explicitly.
+
+To pass credentials explicitly to authenticate to your storage location, you can use any of the following block types:
 
 - Prefect integration library storage block, such as the `prefect-aws` library's `S3Bucket` block.
 - Prefect integration library credentials block, such as the `prefect-aws` library's `AwsCredentials` block 
 - Secret block
 
-Any of these options are valid for any cloud-provider storage option. 
-
 The examples below show how to create a deployment with flow code stored in AWS S3. 
 
-The `prefect.yaml` example shows the single line of code needed to reference an AWS Credentials block if using that to authenticate. 
+We just show the Credentials block example for Azure Blob Storage and GCS, but the same pattern works for any of the cloud-based storage options.
+
+The `prefect.yaml` example includes the additional single line of code needed to reference an AWS Credentials block if using that to authenticate. 
 
 <Tabs>
   <Tab title="AWS S3 bucket">
@@ -401,7 +404,7 @@ The `prefect.yaml` example shows the single line of code needed to reference an 
 
     </CodeGroup>
 
-    Here's step-by-step instructions for creating an AWS credentials block:
+    To create an `AwsCredentials` block:
 
     1. Install the [Prefect-AWS](https://prefecthq.github.io/prefect-aws/) library with `pip install -U prefect-aws`
     1. Register the blocks in Prefect-AWS with `prefect block register -m prefect_aws` 
@@ -441,7 +444,7 @@ The `prefect.yaml` example shows the single line of code needed to reference an 
         requires: prefect-azure>=0.4
         container: my-prefect-azure-container
         folder: my-folder
-        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if private
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if explicit authentication is required
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -450,12 +453,12 @@ The `prefect.yaml` example shows the single line of code needed to reference an 
         requires: prefect-azure>=0.4
         container: '{{ push_code.container }}'
         folder: '{{ push_code.folder }}'
-        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if private
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if explicit authentication is required
     ```
 
     </CodeGroup>
 
-    If the blob storage requires authentication to access it, follow these steps:
+    To create an `AzureBlobCredentials` block:
 
     1. Install the [prefect-azure](/integrations/prefect-azure/) library with `pip install -U prefect-azure`
     1. Register the blocks in prefect-azure with `prefect block register -m prefect_azure` 
@@ -463,17 +466,15 @@ The `prefect.yaml` example shows the single line of code needed to reference an 
     You can create a connection string containing all required information in the UI under *Storage Account -> Access keys*.
     1. Create an Azure Blob Storage Credentials block in code or the Prefect UI. Enter a name for the block and paste the 
     connection string into the *Connection String* field.
-    1. Reference the block as shown in the push and pull steps above.
+    1. Reference the block as shown above.
   </Tab>
   <Tab title="GCP GCS bucket">
-
-    Choose `GCS` as the recipe and enter the bucket name when prompted.
 
     <CodeGroup>
 
     ```python my_gcs_deploy.py
     from prefect import flow
-    from prefect_gcp import GCSBucketCredentials
+    from prefect_gcp import GcpCredentials
 
 
     if __name__ == "__main__":
@@ -481,7 +482,7 @@ The `prefect.yaml` example shows the single line of code needed to reference an 
             source=GCSBucket(
                 bucket="my-bucket",
                 folder="my-folder",
-                credentials=GCSBucketCredentials.load("my-credentials-block")
+                credentials=GcpCredentials.load("my-credentials-block")
             ),
             entrypoint="my_file.py:my_flow",
         ).deploy(
@@ -498,7 +499,7 @@ The `prefect.yaml` example shows the single line of code needed to reference an 
         requires: prefect-gcp>=0.6
         bucket: my-bucket
         folder: my-folder
-        credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if private 
+        credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if explicit authentication is required 
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -507,11 +508,11 @@ The `prefect.yaml` example shows the single line of code needed to reference an 
         requires: prefect-gcp>=0.6
         bucket: '{{ push_code.bucket }}'
         folder: '{{ pull_code.folder }}'
-        credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if private 
+        credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if explicit authentication is required 
     ```
     </CodeGroup>
     
-    If the bucket requires authentication to access it, follow these steps:
+     To create an `GcpCredentials` block:
 
     1. Install the [Prefect-GCP](/integrations/prefect-gcp/) library with `pip install -U prefect-gcp`
     1. Register the blocks in Prefect-GCP with `prefect block register -m prefect_gcp` 
@@ -521,17 +522,15 @@ The `prefect.yaml` example shows the single line of code needed to reference an 
     see your service account and click on the three dot menu in the *Actions* column. 
     Select *Manage Keys -> ADD KEY -> Create new key -> JSON*. Download the JSON file.
     1. Create a GCP Credentials block in code or the Prefect UI. Enter a name for the block and paste the entire contents of the JSON key file into the *Service Account Info* field.
-    1. Reference the block as shown in the push and pull steps above.
+    1. Reference the block as shown above.
     </Tab>
 </Tabs>
 
 Another authentication option is to give the [worker](/3.0/deploy/infrastructure-concepts/workers/) access to the storage location at runtime through SSH keys.
 
-Note that you can inject environment variables into a `prefect.yaml` deployment specification.
-
 ## Store code locally
 
-If you are using a Process work pool, you can store your flow code in a local folder.
+If you are using a Process work pool, you can use one of the remote code storage options shown above, or you can store your flow code in a local folder.
 
 <CodeGroup>
 
@@ -556,14 +555,34 @@ if __name__ == "__main__":
     )
 ```
 
-```yaml prefect.yaml  # TK add
+```yaml prefect.yaml
+build: null
+
+push: null
 
 pull:
-    - prefect.deployments.steps.local_file_copy:
-        source: /path/to/destination
-        destination: ./my_folder
+    - prefect.deployments.steps.set_working_directory:
+        directory: /my_directory
+
+deployments:
+    - name: default
+    version: null
+    tags: []
+    concurrency_limit: null
+    description: null
+    entrypoint: local_process_deploy_local_code.py:my_flow
+    parameters: {}
+    work_pool:
+        name: process-pool
+        work_queue_name: null
+        job_variables: {}
+    enforce_parameter_schema: true
+    schedules: []
 ```
+
 </CodeGroup>
+
+
 
 ## Include or exclude files from storage
 
@@ -618,31 +637,13 @@ Alternatively, you could provide a username and password to the `username` and `
 
 
 
-Another option for flow code storage is any [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported
-storage location, such as AWS S3, GCP GCS, or Azure Blob Storage.
-
-For example, you can pass the S3 bucket path to `source`.
-
-
-
-
-In the example above, your credentials are auto-discovered from your deployment creation environment. Your credentials
-must be available in your runtime environment.
-
-If you need additional configuration for your cloud-based storage (for example, with a private S3 Bucket), we recommend using a
-[storage block](/3.0/develop/blocks/).
-
-
-A storage block also ensures your credentials are available in both your deployment creation environment and your execution
-environment.
-
-
-
 ### Flow code storage for deployments created with `.serve` 
 
-Recall that `.serve` is a way to create a deployment and a local long-running process to poll for flow runs at the same time.
+The Python `serve` method is a way to create a deployment and a local long-running process to poll for flow runs at the same time.
 
-The deployment creation mechanics for `.serve` are similar to `.deploy`. 
-`.deploy`just requires a work pool name and has a number of parameters dealing with flow code storage for Docker images.
+The deployment creation mechanics for `serve` are similar to `deploy`. 
+`deploy`just requires a work pool name and has a number of parameters dealing with flow code storage for Docker images.
 
-Unlike `.serve`, if you don't specify an image to use for your flow, you must specify where to pull the flow code from at runtime with the `from_source` method; `from_source` is optional with `.serve`.
+Unlike `serve`, if you don't specify an image to use for your flow, you must specify where to pull the flow code from at runtime with the `from_source` method; `from_source` is optional with `serve`.
+
+Read more about the `serve` method [here](/3.0/develop/deployments/serve/).
