@@ -463,6 +463,7 @@ class TestProjectDeploy:
             ),
         ],
     )
+    @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
     async def test_deploy_with_concurrency_limit_and_options(
         self,
         project_dir,
@@ -478,15 +479,41 @@ class TestProjectDeploy:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-deploy-concurrency-limit -p test-pool "
+                + "--interval 60 "
                 + cli_options
                 # "-cl 42 --collision-strategy CANCEL_NEW"
             ),
             expected_code=0,
+            user_input=(
+                # Decline pulling from remote storage
+                "n"
+                + readchar.key.ENTER
+                +
+                # Accept saving the deployment configuration
+                "y"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
-                "An important name/test-deploy-concurrency-limit",
-                "prefect worker start --pool 'test-pool'",
+                "prefect deployment run 'An important name/test-deploy-concurrency-limit'"
             ],
         )
+
+        prefect_file = Path("prefect.yaml")
+        assert prefect_file.exists()
+
+        with open(prefect_file, "r") as f:
+            config = yaml.safe_load(f)
+
+        if expected_limit is not None:
+            if expected_strategy is not None:
+                assert config["deployments"][0]["concurrency_limit"] == {
+                    "limit": expected_limit,
+                    "collision_strategy": expected_strategy,
+                }
+            else:
+                assert config["deployments"][0]["concurrency_limit"] == expected_limit
+        else:
+            assert config["deployments"][0]["concurrency_limit"] is None
 
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-deploy-concurrency-limit"
