@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
-from dbt.contracts.results import NodeStatus, RunExecutionResult
+from dbt.contracts.results import ExecutionResult, NodeStatus
 from prefect_shell.commands import ShellOperation
 from pydantic import Field
 
@@ -192,7 +192,7 @@ async def trigger_dbt_cli_command(
         raise result.exception
 
     # Creating the dbt Summary Markdown if enabled
-    if create_summary_artifact and isinstance(result.result, RunExecutionResult):
+    if create_summary_artifact and isinstance(result.result, ExecutionResult):
         run_results = consolidate_run_results(result)
         markdown = create_summary_markdown(run_results, command)
         artifact_id = await create_markdown_artifact(
@@ -213,7 +213,7 @@ async def trigger_dbt_cli_command(
             "See https://docs.getdbt.com/reference/programmatic-invocations "
             "for more details on dbtRunnerResult."
         )
-    if isinstance(result.result, RunExecutionResult) and not result.success:
+    if isinstance(result.result, ExecutionResult) and not result.success:
         return Failed(
             message=f"dbt task result success: {result.success} with exception: {result.exception}"
         )
@@ -769,6 +769,80 @@ async def run_dbt_seed(
     return results
 
 
+@task
+async def run_dbt_source_freshness(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-source-freshness-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
+):
+    """
+    Executes the 'dbt source freshness' command within a Prefect task,
+    and optionally creates a Prefect artifact summarizing the dbt source freshness results.
+
+    Args:
+        profiles_dir: The directory to search for the profiles.yml file. Setting this
+            appends the `--profiles-dir` option to the command provided.
+            If this is not set, will try using the DBT_PROFILES_DIR env variable,
+            but if that's also not set, will use the default directory `$HOME/.dbt/`.
+        project_dir: The directory to search for the dbt_project.yml file.
+            Default is the current working directory and its parents.
+        overwrite_profiles: Whether the existing profiles.yml file under profiles_dir
+            should be overwritten with a new profile.
+        dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
+            Note! This is optional and will raise an error
+            if profiles.yml already exists under profile_dir
+            and overwrite_profiles is set to False.
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt source freshness results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
+            the dbt source freshness results artifact in Prefect.
+            Defaults to 'dbt-source-freshness-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt source freshness command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
+
+    Example:
+    ```python
+        from prefect import flow
+        from prefect_dbt.cli.commands import run_dbt_source_freshness
+
+        @flow
+        def dbt_test_flow():
+            run_dbt_source_freshness(
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--fail-fast"]
+            )
+    ```
+
+    Raises:
+        ValueError: If required dbt_cli_profile is not provided
+                    when needed for profile writing.
+        RuntimeError: If the dbt build fails for any reason,
+                    it will be indicated by the exception raised.
+    """
+
+    results = await trigger_dbt_cli_command.fn(
+        command="source freshness",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
+
+    return results
+
+
 def create_summary_markdown(run_results: dict, command: str) -> str:
     """
     Creates a Prefect task artifact summarizing the results
@@ -852,7 +926,9 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+                n.node.compiled_code
+                if n.node.resource_type not in ["seed", "source"]
+                else None,
             )
     if len(run_results["Fail"]) > 0:
         markdown += "\n### Failed Nodes:\n"
@@ -862,7 +938,9 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+                n.node.compiled_code
+                if n.node.resource_type not in ["seed", "source"]
+                else None,
             )
     if len(run_results["Skipped"]) > 0:
         markdown += "\n### Skipped Nodes:\n"
@@ -872,7 +950,9 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+                n.node.compiled_code
+                if n.node.resource_type not in ["seed", "source"]
+                else None,
             )
     if len(run_results["Warn"]) > 0:
         markdown += "\n### Warned Nodes:\n"
@@ -882,7 +962,9 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code if not n.node.resource_type == "seed" else None,
+                n.node.compiled_code
+                if n.node.resource_type not in ["seed", "source"]
+                else None,
             )
     return markdown
 
