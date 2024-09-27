@@ -1,7 +1,8 @@
 import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-from prefect_cloud.orion.api.dependencies import get_prefect_client_version
+
+from prefect.server.api.dependencies import get_prefect_client_version
 
 
 @pytest.mark.parametrize(
