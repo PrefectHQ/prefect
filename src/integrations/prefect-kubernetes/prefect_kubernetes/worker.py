@@ -977,23 +977,13 @@ class KubernetesWorker(BaseWorker):
         async with watch:
             while True:
                 try:
-                    if resource_version is None:
-                        # Initial list to get the current resource_version
-                        job_list = await batch_client.list_namespaced_job(
-                            namespace=namespace,
-                            field_selector=f"metadata.name={job_name}",
-                        )
-                        resource_version = job_list.metadata.resource_version
                     async for event in watch.stream(
                         func=batch_client.list_namespaced_job,
                         namespace=namespace,
                         field_selector=f"metadata.name={job_name}",
-                        resource_version=resource_version,
                         **watch_kwargs,
                     ):
                         yield event
-                        # Update resource_version with each event
-                        resource_version = event.object.metadata.resource_version
                 except ApiException as e:
                     if e.status == 410:
                         job_list = await batch_client.list_namespaced_job(
@@ -1002,6 +992,7 @@ class KubernetesWorker(BaseWorker):
                         )
 
                         resource_version = job_list.metadata.resource_version
+                        watch_kwargs["resource_version"] = resource_version
                     else:
                         raise
 

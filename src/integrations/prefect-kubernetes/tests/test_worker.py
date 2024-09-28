@@ -2200,6 +2200,16 @@ class TestKubernetesWorker:
             mock_pod,
             mock_job,
         ):
+            # job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            # mock_container_status = MagicMock(
+            #     spec=kubernetes_asyncio.client.V1ContainerStatus
+            # )
+            # mock_container_status.state.running = None
+            # mock_container_status.state.waiting = None
+            # job_pod.status.container_statuses = [mock_container_status]
+            # mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+            #     job_pod
+            # ]
             async def mock_stream(*args, **kwargs):
                 mock_job.status.conditions = [MagicMock(type="Complete", status="True")]
                 stream = [
@@ -2351,6 +2361,17 @@ class TestKubernetesWorker:
             mock_pod,
             mock_job,
         ):
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
+            ]
+
             async def mock_stream(*args, **kwargs):
                 mock_job.status.conditions = [MagicMock(type="Complete", status="True")]
                 stream = [
@@ -2435,6 +2456,16 @@ class TestKubernetesWorker:
 
             mock_core_client.return_value.read_namespaced_pod_log.return_value.stream = mock_log_stream
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
+            ]
 
             default_configuration.job_watch_timeout_seconds = 100
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
@@ -2512,6 +2543,8 @@ class TestKubernetesWorker:
                 spec=kubernetes_asyncio.client.V1ContainerStatus
             )
             mock_container_status.state.terminated.exit_code = 137
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
             job_pod.status.container_statuses = [mock_container_status]
             mock_core_client.return_value.list_namespaced_pod.return_value.items = [
                 job_pod
@@ -2604,6 +2637,8 @@ class TestKubernetesWorker:
             # The container may exist but because it has been forcefully terminated
             # it will not have an exit code.
             mock_container_status.state.terminated = None
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
             job_pod.status.container_statuses = [mock_container_status]
             mock_core_client.return_value.list_namespaced_pod.return_value.items = [
                 job_pod
