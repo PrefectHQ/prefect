@@ -40,8 +40,12 @@ from prefect.exceptions import (
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.locking.filesystem import FileSystemLockManager
+from prefect.locking.memory import MemoryLockManager
 from prefect.logging import get_run_logger
-from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
+from prefect.results import (
+    ResultStore,
+    get_or_create_default_task_scheduling_storage,
+)
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -55,7 +59,13 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import CommitMode, IsolationLevel, Transaction, transaction
+from prefect.transactions import (
+    CommitMode,
+    IsolationLevel,
+    Transaction,
+    get_transaction,
+    transaction,
+)
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
@@ -5200,6 +5210,27 @@ class TestTransactions:
         my_task()
 
         assert "Running rollback hook" not in caplog.text
+
+    def test_run_task_in_serializable_transaction(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15503
+        """
+
+        @task
+        def my_task():
+            return get_transaction()
+
+        with transaction(
+            isolation_level=IsolationLevel.SERIALIZABLE,
+            store=ResultStore(lock_manager=MemoryLockManager()),
+        ):
+            task_txn = my_task()
+
+        assert task_txn is not None
+        assert isinstance(task_txn.store, ResultStore)
+        # make sure the task's result store gets the lock manager from the parent transaction
+        assert task_txn.store.lock_manager == MemoryLockManager()
+        assert task_txn.isolation_level == IsolationLevel.SERIALIZABLE
 
 
 class TestApplyAsync:

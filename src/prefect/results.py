@@ -319,6 +319,8 @@ class ResultStore(BaseModel):
         Returns:
             An updated result store.
         """
+        from prefect.transactions import get_transaction
+
         update = {}
         if task.result_storage is not None:
             update["result_storage"] = await resolve_result_storage(task.result_storage)
@@ -330,12 +332,20 @@ class ResultStore(BaseModel):
             update["storage_key_fn"] = partial(
                 _format_user_supplied_storage_key, task.result_storage_key
             )
+
+        # use the lock manager from a parent transaction if it exists
+        if (current_txn := get_transaction()) and isinstance(
+            current_txn.store, ResultStore
+        ):
+            update["lock_manager"] = current_txn.store.lock_manager
+
         if task.cache_policy is not None and task.cache_policy is not NotSet:
             if task.cache_policy.key_storage is not None:
                 storage = task.cache_policy.key_storage
                 if isinstance(storage, str) and not len(storage.split("/")) == 2:
                     storage = Path(storage)
                 update["metadata_storage"] = await resolve_result_storage(storage)
+            # if the cache policy has a lock manager, it takes precedence over the parent transaction
             if task.cache_policy.lock_manager is not None:
                 update["lock_manager"] = task.cache_policy.lock_manager
 
