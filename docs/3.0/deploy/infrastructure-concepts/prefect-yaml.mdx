@@ -401,6 +401,7 @@ deployments:
   - "{{ prefect.variables.some_common_tag }}"
   description: null
   schedule: null
+  concurrency_limit: null
 
   # flow-specific fields
   entrypoint: null
@@ -608,6 +609,7 @@ These are fields you can add to each deployment declaration.
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
 | `schedule`                                 | An optional [schedule](/3.0/automate/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `concurrency_limit`                        | An optional [deployment concurrency limit](/3.0/deploy/index#concurrency-limiting). Fields for this section are documented in the [Concurrency Limit Fields](#concurrency-limit-fields) section.                                                                                                                      |
 | `triggers`                                  | An optional array of [triggers](/3.0/automate/events/automations-triggers/#custom-triggers) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
@@ -626,6 +628,15 @@ These are fields you can add to a deployment declaration's `schedule` section.
 | `cron`                                     | A valid cron string. Cannot use in conjunction with `interval` or `rrule`.                                                                                                                                         |
 | `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must use with `cron`. Defaults to `True`.                                                                                                     |
 | `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot used them in conjunction with `interval` or `cron`. |
+
+#### Concurrency limit fields
+
+These are fields you can add to a deployment declaration's `concurrency_limit` section.
+
+| Property                                   | Description                                                                                                                                                                                                            |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `limit`                                    | The maximum number of concurrent flow runs for the deployment.                                                                                                                                                 |
+| `collision_strategy`                       | Configure the behavior for runs once the concurrency limit is reached. Options are `ENQUEUE`, and `CANCEL_NEW`. Defaults to `ENQUEUE`.                                                                                 |
 
 
 #### Work pool fields
