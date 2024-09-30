@@ -230,6 +230,12 @@ class Deployment:
     paused: bool = False
     trigger: Trigger = None
 
+    # concurrency limiting
+    concurrency_limit: Optional[int] = None
+    concurrency_options: Optional[
+        ConcurrencyOptions(collision_strategy=Literal['ENQUEUE', 'CANCEL_NEW'])
+    ] = None
+
     # metadata for bookkeeping
     version: Optional[str] = None
     description: Optional[str] = None
@@ -327,6 +333,58 @@ passed to a flow run against the schema defined by `parameter_openapi_schema`.
 
 Pausing a schedule, updating your deployment, and other actions reset your auto-scheduled runs.
 </Tip>
+
+### Concurrency limiting
+
+Prefect supports managing concurrency at the deployment level to enable limiting how many runs of a
+deployment can be active at once. To enable this behavior, deployments have the following fields:
+
+- **`concurrency_limit`**: an integer that sets the maximum number of concurrent flow runs for the deployment.
+- **`collision_strategy`**: configure the behavior for runs once the concurrency limit is reached.
+Falls back to `ENQUEUE` if unset.
+  - `ENQUEUE`: new runs transition to `AwaitingConcurrencySlot` and execute as slots become available.
+  - `CANCEL_NEW`: new runs are canceled until a slot becomes available.
+
+<CodeGroup>
+
+```sh prefect deploy
+prefect deploy ... --concurrency-limit 3 --collision-strategy ENQUEUE
+```
+
+```python flow.deploy()
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig, 
+    ConcurrencyLimitStrategy
+)
+
+my_flow.deploy(..., concurrency_limit=3)
+
+my_flow.deploy(
+    ...,
+    concurrency_limit=ConcurrencyLimitConfig(
+        limit=3, collision_strategy=ConcurrencyLimitStrategy.CANCEL_NEW
+    ),
+)
+```
+
+```python flow.serve()
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig, 
+    ConcurrencyLimitStrategy
+)
+
+my_flow.serve(..., global_limit=3)
+
+my_flow.serve(
+    ...,
+    global_limit=ConcurrencyLimitConfig(
+        limit=3, collision_strategy=ConcurrencyLimitStrategy.CANCEL_NEW
+    ),
+)
+```
+
+</CodeGroup>
+
 
 ### Metadata for bookkeeping
 
