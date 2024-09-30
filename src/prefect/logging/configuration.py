@@ -34,21 +34,11 @@ def load_logging_config(path: Path) -> dict:
     current_settings = get_current_settings()
     template = string.Template(path.read_text())
 
-    # Build a mapping from environment variable names to values
-    mapping = {}
-    for field_name, value in current_settings.model_dump().items():
-        if value is not None:
-            env_var_name = (
-                current_settings.model_config.get("env_prefix", "PREFECT_")
-                + field_name.upper()
-            )
-            mapping[env_var_name] = str(value)
-
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         config = yaml.safe_load(
             # Substitute settings into the template in format $SETTING / ${SETTING}
-            template.substitute(mapping)
+            template.substitute(current_settings.to_environment_variables())
         )
 
     # Load overrides from the environment
