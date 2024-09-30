@@ -3,8 +3,9 @@ Utilities for injecting FastAPI dependencies.
 """
 
 import logging
+import re
 from base64 import b64decode
-from typing import Optional
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import Body, Depends, Header, HTTPException, status
@@ -167,3 +168,25 @@ def is_ephemeral_request(request: Request):
     A dependency that returns whether the request is to an ephemeral server.
     """
     return "ephemeral-prefect" in str(request.base_url)
+
+
+PREFECT_CLIENT_USER_AGENT_PATTERN = re.compile(
+    r"^prefect/(\d+\.\d+\.\d+(?:[a-z.+0-9]+)?) \(API \S+\)$"
+)
+
+
+def get_prefect_client_version(
+    user_agent: Annotated[Optional[str], Header(include_in_schema=False)] = None,
+) -> Optional[str]:
+    """
+    Attempts to parse out the Prefect client version from the User-Agent header.
+
+    The Prefect client sets the User-Agent header like so:
+      f"prefect/{prefect.__version__} (API {constants.SERVER_API_VERSION})"
+    """
+    if not user_agent:
+        return None
+
+    if client_version := PREFECT_CLIENT_USER_AGENT_PATTERN.match(user_agent):
+        return client_version.group(1)
+    return None

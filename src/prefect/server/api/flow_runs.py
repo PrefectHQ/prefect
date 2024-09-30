@@ -5,7 +5,7 @@ Routes for interacting with flow run objects.
 import csv
 import datetime
 import io
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 from uuid import UUID
 
 import orjson
@@ -348,7 +348,7 @@ async def resume_flow_run(
     db: PrefectDBInterface = Depends(provide_database_interface),
     run_input: Optional[Dict] = Body(default=None, embed=True),
     response: Response = None,
-    flow_policy: BaseOrchestrationPolicy = Depends(
+    flow_policy: Type[BaseOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
     task_policy: BaseOrchestrationPolicy = Depends(
@@ -563,7 +563,7 @@ async def set_flow_run_state(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
-    flow_policy: BaseOrchestrationPolicy = Depends(
+    flow_policy: Type[BaseOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
     orchestration_parameters: Dict[str, Any] = Depends(
