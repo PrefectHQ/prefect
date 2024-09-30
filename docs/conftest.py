@@ -7,12 +7,9 @@ import pytest
 from prefect.server.database.orm_models import Mapped, Run, mapped_column, sa
 
 SKIP_FILES = {
-    "docs/3.0/automate/events/automations-triggers.mdx": "Automation validation errors",
     "docs/3.0/deploy/index.mdx": "Needs database fixtures",
     "docs/3.0/deploy/run-flows-in-local-processes.mdx": "Needs blocks setup",
-    "docs/3.0/develop/artifacts.mdx": "Needs a running prefect server",
     "docs/3.0/develop/blocks.mdx": "Block subclasses defined in docs cannot be properly registered due to test environment limitations",
-    "docs/3.0/develop/global-concurrency-limits.mdx": "Wants to import `psycopg2`, is there a better way?",
     "docs/3.0/develop/manage-states.mdx": "Needs some extra import help",
     "docs/3.0/develop/results.mdx": "Needs block cleanup handling",
     "docs/3.0/develop/task-caching.mdx": "Tasks defined in docs cannot be properly inspected due to test environment limitations",
@@ -27,7 +24,7 @@ SKIP_FILES = {
     "docs/integrations/prefect-dask/index.mdx": "Needs a `dask_cloudprovider` harness",
     "docs/integrations/prefect-dask/usage_guide.mdx": "Attempts to start a dask cluster",
     "docs/integrations/prefect-databricks/index.mdx": "Pydantic failures",
-    "docs/integrations/prefect-dbt/index.mdx": "Needs block cleanup handling",
+    "docs/integrations/prefect-dbt/index.mdx": "Needs block cleanup handling, and prefect-dbt installed",
     "docs/integrations/prefect-email/index.mdx": "Needs block cleanup handling",
     "docs/integrations/prefect-gcp/index.mdx": "Needs block cleanup handling",
     "docs/integrations/prefect-github/index.mdx": "Needs block cleanup handling",
@@ -81,13 +78,10 @@ def pytest_markdown_docs_globals():
 
 
 @pytest.fixture
-def mock_artifacts_filter(monkeypatch):
+def mock_post_200(monkeypatch):
     mock_response = mock.Mock()
     mock_response.status_code = 200
-    mock_response.json.return_value = [
-        {"id": "artifact1", "key": "key1"},
-        {"id": "artifact2", "key": "key2"},
-    ]
+    mock_response.json.return_value = []
 
     def mock_post(*args, **kwargs):
         return mock_response

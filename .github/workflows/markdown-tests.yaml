@@ -9,7 +9,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/markdown-tests.yaml
-      - "docs/"
+      - "docs/**"
       - requirements-client.txt
       - requirements-dev.txt
       - requirements-markdown-tests.txt
@@ -92,8 +92,13 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system -e '.[markdown-tests]'
 
+      - name: Start server
+        run: |
+          prefect server start&
+          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+
       - name: Run tests
         run: >
-          pytest docs/ --markdown-docs -m markdown-docs
+          PREFECT_API_URL="http://127.0.0.1:4200/api" pytest docs/ --markdown-docs -m markdown-docs
           --numprocesses auto
           --maxprocesses 6
