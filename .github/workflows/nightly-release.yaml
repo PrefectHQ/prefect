@@ -19,7 +19,7 @@ jobs:
       - name: Get latest tag
         id: get_latest_tag
         run: |
-          latest_tag=$(git tag -l | grep -E '^\d+\.\d+\.\d+(?:\.dev\d+)?$' | sort -V | tail -n 1)
+          latest_tag=$(git tag -l | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+)?$' | grep -Ev 'rc|alpha|beta|post' | sort -V | tail -n1)
           if [ -z "$latest_tag" ]; then
             echo "No matching tags found."
             exit 1
@@ -45,11 +45,12 @@ jobs:
           latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
 
           # Extract the components of the latest tag
-          components=$(echo $latest_tag | sed -nE 's/^([0-9]+)\.([0-9]+)\.([0-9a-z]+)(\.dev([0-9]{8})([0-9]+))?$/\1 \2 \3 \5 \6/p')
+          components=$(echo $latest_tag | sed -nE 's/^([0-9]+)\.([0-9]+)\.([0-9]+)(\.dev([0-9]+))?$/\1 \2 \3 \5/p')
           read -r major minor micro prev_counter <<< "$components"
 
           if [ -z "$prev_counter" ]; then
             # This is the dev first release for the next version
+            micro=$((micro + 1))
             counter=1
           else
             # There have been dev releases for this version
@@ -57,7 +58,6 @@ jobs:
           fi
 
           next_tag=${major}.${minor}.${micro}.dev${counter}
-          echo "next_tag=$next_tag" >> $GITHUB_OUTPUT
           echo "Next tag is $next_tag"
 
       - name: Create development release
