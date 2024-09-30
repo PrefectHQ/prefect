@@ -69,7 +69,7 @@ jobs:
         if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
         run: |
           TAG_NAME=${{ github.ref }}
-          if [[ ! "$TAG_NAME" =~ ^refs/tags/[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9]+$ ]]; then
+          if [[ ! "$TAG_NAME" =~ ^refs/tags/[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9]+|\.dev[0-9]+)$ ]]; then
             echo "Error: Tag $TAG_NAME does not match prerelease version pattern."
             exit 1
           fi
