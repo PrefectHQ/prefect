@@ -8,7 +8,7 @@ prefect-azure[blob_storage]
 prefect-bitbucket
 prefect-dask
 prefect-databricks
-prefect-dbt
+# prefect-dbt
 prefect-email
 prefect-gcp
 prefect-github
